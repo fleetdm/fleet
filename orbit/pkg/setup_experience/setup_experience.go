@@ -18,8 +18,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const doneMessage = `### Setup is complete\n\nPlease contact your IT Administrator if there were any errors.`
-
 // OrbitClient is the minimal interface needed to communicate with the Fleet server.
 type OrbitClient interface {
 	GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error)
