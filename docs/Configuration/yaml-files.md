@@ -442,7 +442,8 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
+- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host.
+- `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stcuk in Setup Assistant until this command is sent.
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
 
@@ -467,6 +468,8 @@ The `software` section allows you to configure packages, Apple App Store apps, a
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
+
+Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
 #### Example
 

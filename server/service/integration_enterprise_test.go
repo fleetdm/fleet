@@ -19472,6 +19472,170 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.Nil(t, h2s.Compliant)
 }
 
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResultsProcessedFirst() {
+	t := s.T()
+
+	// Setup integration.
+	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
+		TenantID:        "foobar",
+		SetupDone:       false,
+		AdminConsentURL: "https://example.com",
+	}
+	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
+		TenantID: "foobar",
+		Secret:   "secret",
+	}
+	var r conditionalAccessMicrosoftCreateResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+		MicrosoftTenantID: "foobar",
+	}, http.StatusOK, &r)
+	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
+		TenantID:  "foobar",
+		SetupDone: true,
+	}
+	var c conditionalAccessMicrosoftConfirmResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{}, http.StatusOK, &c)
+	require.True(t, c.ConfigurationCompleted)
+
+	t1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	// Create two conditional access policies.
+	var pr teamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+		Query:                    "SELECT 1;",
+		Name:                     "Compliance check 1",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+	cp1 := pr.Policy
+	pr = teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+		Query:                    "SELECT 2;",
+		Name:                     "Compliance check 2",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+	cp2 := pr.Policy
+
+	ctx := context.Background()
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + name),
+			NodeKey:         ptr.String(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	h1 := newHost("h1", &t1.ID)
+	orbitKey := setOrbitEnrollment(t, h1, s.ds)
+	h1.OrbitNodeKey = &orbitKey
+
+	// Enable feature on team.
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), map[string]any{
+		"integrations": map[string]any{
+			"conditional_access_enabled": true,
+		},
+	}, http.StatusOK, &tmResp)
+
+	var (
+		compliantValue *bool
+		deviceIDValue  *string
+	)
+	// override value to reduce test time.
+	conditionalAccessSetWaitTime = 250 * time.Millisecond
+	mockedConditionalAccessMicrosoftProxyInstance.setComplianceStatusFunc = func(
+		ctx context.Context,
+		tenantID string, secret string,
+		deviceID string,
+		userPrincipalName string,
+		mdmEnrolled bool,
+		deviceName, osName, osVersion string,
+		compliant bool,
+		lastCheckInTime time.Time,
+	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
+		deviceIDValue = &deviceID
+		compliantValue = &compliant
+		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{
+			MessageID: "messageID",
+		}, nil
+	}
+
+	setDone := make(chan struct{})
+
+	mockedConditionalAccessMicrosoftProxyInstance.getMessageStatusFunc = func(
+		ctx context.Context,
+		tenantID string,
+		secret string,
+		messageID string,
+	) (*conditional_access_microsoft_proxy.GetMessageStatusResponse, error) {
+		close(setDone)
+		return &conditional_access_microsoft_proxy.GetMessageStatusResponse{
+			MessageID: "messageID",
+			Status:    "Completed",
+		}, nil
+	}
+
+	// Check that before the distributed/write there's no device information.
+	_, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Host sends policy results AND entra device information in the same distributed/write
+	rawJSON := fmt.Sprintf(`{
+		"node_key": "%[1]s",
+		"queries": {
+			"%[2]s": [{"1": "1"}],
+			"%[6]s": [],
+			"%[3]s": [{"device_id": "%[4]s", "user_principal_name": "%[5]s"}]
+		},
+		"messages": {},
+		"statuses": {
+			"%[2]s": 0,
+			"%[6]s": 0,
+			"%[3]s": 0
+		}
+	}`, *h1.NodeKey,
+		hostPolicyQueryPrefix+fmt.Sprint(cp1.ID),
+		hostDetailQueryPrefix+"conditional_access_microsoft_device_id", "entraDeviceID", "entraUserPrincipalName",
+		hostPolicyQueryPrefix+fmt.Sprint(cp2.ID),
+	)
+	s.DoRaw("POST", "/api/osquery/distributed/write", []byte(rawJSON), http.StatusOK)
+
+	// Test that the device ID was ingested prior to the policy evaluation
+	// meaning that on the one single distributed write it will send the compliant request to Entra.
+	select {
+	case <-setDone:
+		time.Sleep(1 * time.Second)
+		require.NotNil(t, compliantValue)
+		require.False(t, *compliantValue)
+		require.NotNil(t, deviceIDValue)
+		require.Equal(t, "entraDeviceID", *deviceIDValue)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for compliance to be set")
+	}
+
+	h1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
+	require.NotNil(t, h1s.Managed)
+	require.False(t, *h1s.Managed) // not MDM enrolled
+	require.NotNil(t, h1s.Compliant)
+	require.False(t, *h1s.Compliant) // one policy is failing
+}
+
 func (s *integrationEnterpriseTestSuite) TestOrbitSetupExperienceStatusChecksAuthBeforeMDM() {
 	t := s.T()
 

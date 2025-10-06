@@ -19,7 +19,7 @@ For macOS and Linux scripts, if a variable doesn't have the `$FLEET_SECRET_` pre
 
 To add or delete a variable in the UI, go to `Controls` > `Variables` and click `+ Add custom variable`:
 
-![Add variable](../website/assets/images/articles/controls-add-variable.png)
+![Add variable](../website/assets/images/articles/controls-add-variable-337x209@2x.png)
 
 Variables are global, meaning they can be used in scripts and profiles across all teams.
 

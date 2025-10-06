@@ -151,6 +151,8 @@ $shadow-transition-width: 10px;
 
         // Sort arrows change color on hover
         .sortable-header {
+          height: 36px;
+
           &:hover {
             .header-cell:not(.ascending) {
               .ascending-arrow {
@@ -282,7 +284,7 @@ $shadow-transition-width: 10px;
         {
           text-align: right;
           max-width: 140px;
-          display: flex;
+          // display: flex causes layout issues on /software/vulnerabilities table
           align-items: center;
         }
 
@@ -330,8 +332,8 @@ $shadow-transition-width: 10px;
 
           &:hover {
             .data-table__tooltip-truncated-text-container {
-              // @include link;
               @include animated-bottom-border;
+              margin-bottom: 0; // Undo margin-bottom of animated bottom border
 
               &:hover {
                 margin-bottom: 0; // Undo margin-bottom of animated bottom border

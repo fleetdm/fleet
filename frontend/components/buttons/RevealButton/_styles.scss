@@ -4,6 +4,14 @@
   padding: $pad-small $pad-xxsmall; // larger clickable area
   min-width: max-content;
 
+  .reveal-button__caret svg {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(0deg);
+  }
+  .reveal-button__caret--open svg {
+    transform: rotate(180deg);
+  }
+
   svg {
     path {
       fill: none; // Chevron icon uses stroke color
