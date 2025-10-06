@@ -194,7 +194,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("checks for setup experience items on Fleet Premium, and renders the normal device user page if there are such steps", async () => {
+    it("checks for setup experience steps on Fleet Premium, and renders the normal device user page if there are such steps", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -209,7 +209,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(SETTING_UP_YOUR_DEVICE_MATCHER)).toBeNull();
     });
-    it("checks for setup experience items on Fleet Premium, and renders Setting Up Your Device even there are no such steps if setup_only=1 is in the query", async () => {
+    it("checks for setup experience steps on Fleet Premium, and renders Setting Up Your Device even if there are no such steps if setup_only=1 is in the query", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
