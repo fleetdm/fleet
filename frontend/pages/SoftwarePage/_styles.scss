@@ -1,5 +1,13 @@
 .software-page {
+  @include vertical-page-layout;
+
   &__header-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__header {
     @include normalize-team-header;
 
     .button-wrap {

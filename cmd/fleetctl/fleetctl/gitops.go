@@ -27,9 +27,11 @@ type LabelUsage struct {
 
 func gitopsCommand() *cli.Command {
 	var (
-		flFilenames        cli.StringSlice
-		flDryRun           bool
-		flDeleteOtherTeams bool
+		flFilenames             cli.StringSlice
+		flDryRun                bool
+		flDeleteOtherTeams      bool
+		flConcurrentIconUploads int
+		flConcurrentIconUpdates int
 	)
 	return &cli.Command{
 		Name:      "gitops",
@@ -54,6 +56,22 @@ func gitopsCommand() *cli.Command {
 				EnvVars:     []string{"DRY_RUN"},
 				Destination: &flDryRun,
 				Usage:       "Do not apply the file(s), just validate",
+			},
+			&cli.IntFlag{
+				Name:        "icons-concurrent-uploads",
+				EnvVars:     []string{"ICONS_CONCURRENT_UPLOADS"},
+				Destination: &flConcurrentIconUploads,
+				Usage:       "Number of custom software icons to upload simultaneously",
+				Value:       4,
+				Hidden:      true,
+			},
+			&cli.IntFlag{
+				Name:        "icons-concurrent-updates",
+				EnvVars:     []string{"ICONS_CONCURRENT_UPDATES"},
+				Destination: &flConcurrentIconUpdates,
+				Usage:       "Number of simultaneous requests to make for updating custom software icons when the icon files themselves have already been uploaded",
+				Value:       10,
+				Hidden:      true,
 			},
 			configFlag(),
 			contextFlag(),
@@ -117,6 +135,9 @@ func gitopsCommand() *cli.Command {
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
+
+			// we keep track of uploaded icon hashes so we don't upload icons unnecessarily
+			iconSettings := fleet.IconGitOpsSettings{ConcurrentUpdates: flConcurrentIconUpdates, ConcurrentUploads: flConcurrentIconUploads}
 
 			// We keep track of the secrets to check if duplicates exist during dry run
 			secrets := make(map[string]struct{})
@@ -327,7 +348,7 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 				assumptions, postOps, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+					teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &iconSettings)
 				if err != nil {
 					return err
 				}
@@ -357,7 +378,7 @@ func gitopsCommand() *cli.Command {
 				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
 				_, postOps, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+					teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &iconSettings)
 				if err != nil {
 					return err
 				}
@@ -393,13 +414,13 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// we only want to reset the no-team config if the global config was loaded.
-			// NOTE: noTeamPresent is refering to the "No Team" team. It does not
+			// NOTE: noTeamPresent is referring to the "No Team" team. It does not
 			// mean that other teams are not present.
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
 				_, postOps, err := fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
-					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{})
+					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{}, &iconSettings)
 				if err != nil {
 					return err
 				}

@@ -149,13 +149,10 @@ const generateTableHeaders = (
             rowHover
             noLink
             excludeChevron
-            customContent={
-              <ActionsDropdown
-                options={dropdownOptions}
-                onChange={(value: string) => onClickAction(value, label)}
-                placeholder="Actions"
-              />
-            }
+            dropdown={{
+              options: dropdownOptions,
+              onChange: (value: string) => onClickAction(value, label),
+            }}
           />
         );
       },

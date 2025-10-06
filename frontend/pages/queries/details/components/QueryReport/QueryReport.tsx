@@ -84,11 +84,11 @@ const QueryReport = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export results
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" color="ui-fleet-black-75" />
           </>
         </Button>
       </div>

@@ -900,6 +900,8 @@ const hostMDMSelect = `,
 				ELSE CAST(FALSE AS JSON)
 				END
 			)
+			WHEN h.platform = 'android' THEN
+				CASE WHEN hmdm.enrolled = 1 THEN CAST(TRUE AS JSON) ELSE CAST(FALSE AS JSON) END
 			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
 	// NOTE: if you change any of the conditions in this
 	// query, please update the AreHostsConnectedToFleetMDM
@@ -1087,9 +1089,13 @@ WHERE
 	sqlStmt := `
 SELECT
     h.id,
-    h.hostname as display_name,
+    h.computer_name,
+	h.hostname,
+	h.hardware_model,
+	h.hardware_serial,
+	-- if the status filter is "pending", we want to return "pending" for all hosts
     ? as status,
-	-- pending hosts will have "updated_at" set in the db, but since 
+	-- pending hosts will have "updated_at" set in the db, but since
 	-- we're using it to mean "executed at" we'll return it as empty.
 	CASE
 		WHEN ? != 'pending' THEN hsr.updated_at
@@ -1099,6 +1105,7 @@ SELECT
 	COALESCE(hsr.execution_id, '') as execution_id
 FROM
     hosts h
+	JOIN host_display_names hdn ON h.id = hdn.host_id
 	%s
 WHERE
     %s
@@ -1145,6 +1152,10 @@ WHERE
 			meta.HasNextResults = true
 			hosts = hosts[:len(hosts)-1]
 		}
+	}
+
+	for i := range hosts {
+		hosts[i].DisplayName = fleet.HostDisplayName(hosts[i].ComputerName, hosts[i].HostName, hosts[i].HardwareModel, hosts[i].HardwareSerial)
 	}
 
 	return hosts, meta, count, nil

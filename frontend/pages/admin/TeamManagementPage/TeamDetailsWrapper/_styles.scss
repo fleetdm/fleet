@@ -1,4 +1,6 @@
 .team-details {
+  @include vertical-page-layout;
+
   &__loading-spinner {
     // NOTE: this value was chosen just cause it looked right. Might want to
     // come back and change it later to be more exact.
@@ -8,7 +10,6 @@
   &__team-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: $pad-medium;
   }
 
   &__team-details {
@@ -20,17 +21,13 @@
   }
 
   &__host-count {
-    background-color: $ui-vibrant-blue-25;
+    background-color: $ui-fleet-black-5;
     font-size: $xx-small;
     font-weight: $bold;
     border-radius: 30px;
     margin-left: $pad-medium;
     padding: 4px 12px;
     white-space: nowrap;
-  }
-
-  .react-tabs__tab-list {
-    margin-bottom: 50px;
   }
 
   .disabled-by-gitops-mode {

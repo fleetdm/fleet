@@ -442,7 +442,8 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
+- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host.
+- `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stcuk in Setup Assistant until this command is sent.
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
 
@@ -467,6 +468,8 @@ The `software` section allows you to configure packages, Apple App Store apps, a
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
+
+Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
 #### Example
 
@@ -514,7 +517,7 @@ software:
   - `Communication`: shown as **👬 Communication**
   - `Developer tools`: shown as **🧰 Developer tools**
   - `Productivity`: shown as **🖥️ Productivity**
-- `setup_experience` installs the software when macOS, Windows, and Linux hosts enroll. Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#software-and-script). This setting is ignored for iOS/iPadOS software (default: `false`).
+- `setup_experience` installs the software when macOS, Windows, and Linux hosts enroll. Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#software-and-script). This setting is ignored on software that applies to other platforms (default: `false`).
 
 ### packages
 
@@ -741,6 +744,7 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+
 #### Example
 
 `default.yml`
@@ -800,6 +804,8 @@ Can only be configured for all teams (`org_settings`). Use API to configure Jira
 - `username` is the username of your Zendesk account (default: `""`).
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
+
+Can only be configured for all teams (`org_settings`). Use API to configure Zendesk for custom teams and default "No team".
 
 ### certificate_authorities
 
@@ -886,6 +892,8 @@ Can only be configured for all teams (`org_settings`).
 - `challenge_url` is the **Webhook URL** from Smallstep.
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
+
+Can only be configured for all teams (`org_settings`).
 
 ### webhook_settings
 

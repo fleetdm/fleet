@@ -676,7 +676,7 @@ const (
 
 	// NDES/SCEP validation
 	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
-	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."
+	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\", \"$FLEET_VAR_NDES_SCEP\" and \"$FLEET_VAR_SMALLSTEP_\" must only be in the SCEP payload."
 )
 
 // Error message variables

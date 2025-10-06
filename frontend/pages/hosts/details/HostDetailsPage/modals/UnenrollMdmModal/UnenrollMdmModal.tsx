@@ -4,25 +4,32 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
+import CustomLink from "components/CustomLink";
 
 import mdmAPI from "services/entities/mdm";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isBYODAccountDrivenEnrollment,
+  isBYODManualEnrollment,
+  isCompanyOwnedEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
+
+const baseClass = "unenroll-mdm-modal";
 
 interface IUnenrollMdmModalProps {
   hostId: number;
   hostPlatform: string;
   hostName: string;
-  isBYODEnrollment?: boolean;
+  enrollmentStatus: MdmEnrollmentStatus | null;
   onClose: () => void;
 }
-
-const baseClass = "unenroll-mdm-modal";
 
 const UnenrollMdmModal = ({
   hostId,
   hostPlatform,
   hostName,
-  isBYODEnrollment = false,
+  enrollmentStatus,
   onClose,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
@@ -34,11 +41,15 @@ const UnenrollMdmModal = ({
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
     try {
-      await mdmAPI.unenrollHostFromMdm(hostId, 5000);
+      if (isAndroid(hostPlatform)) {
+        await mdmAPI.unenrollAndroidHostFromMdm(hostId, 5000);
+      } else {
+        await mdmAPI.unenrollHostFromMdm(hostId, 5000);
+      }
       const successMessage =
         isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
           <>
-            <b>{hostName}</b> will unenrolled next time this host checks in.
+            <b>{hostName}</b> will be unenrolled next time this host checks in.
           </>
         ) : (
           <>
@@ -62,27 +73,43 @@ const UnenrollMdmModal = ({
     setRequestState(undefined);
   };
 
+  const generateIosOrIpadosDescription = () => {
+    if (isBYODManualEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
+          share the link with end user.
+        </p>
+      );
+    } else if (isBYODAccountDrivenEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, ask your end user to navigate to{" "}
+          <b>
+            Settings &gt; General &gt; VPN &amp; Device Management &gt; Sign in
+            to Work or School Account...
+          </b>{" "}
+          on their host and to log in with their work email.
+        </p>
+      );
+    } else if (isCompanyOwnedEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, make sure that the host is still in Apple Business
+          Manager (ABM). The host will automatically enroll after it&apos;s
+          reset.
+        </p>
+      );
+    }
+    return null;
+  };
+
   const generateDescription = () => {
     if (isIPadOrIPhone(hostPlatform)) {
       return (
         <>
           <p>Settings configured by Fleet will be removed.</p>
-          {isBYODEnrollment ? (
-            <p>
-              To re-enroll, ask your end user to navigate to{" "}
-              <b>
-                Settings &gt; General &gt; VPN &amp; Device Management &gt; Sign
-                in to Work or School Account...
-              </b>{" "}
-              on their host and to log in with their work email.
-            </p>
-          ) : (
-            <p>
-              To re-enroll, make sure that the host is still in Apple Business
-              Manager (ABM). The host will automatically enroll after it&apos;s
-              reset.
-            </p>
-          )}
+          {generateIosOrIpadosDescription()}
         </>
       );
     }

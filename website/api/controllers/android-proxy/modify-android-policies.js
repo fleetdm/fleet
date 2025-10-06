@@ -49,6 +49,14 @@ module.exports = {
     if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
       return this.res.unauthorized();
     }
+
+    // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
+    let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
+    // Return a 404 response if this Android enterprise is no longer managed by Fleet.
+    if(!isEnterpriseManagedByFleet) {
+      return this.res.notFound();
+    }
+
     // Update the policy for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let modifyPoliciesResponse = await sails.helpers.flow.build(async () => {
