@@ -9874,12 +9874,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
 
-	// try locking the host while it is pending lock returns the same PIN
-	var lockResp2 lockHostResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp2, "view_pin", "true")
-	require.Equal(t, lockResp.UnlockPIN, lockResp2.UnlockPIN, "Should return the same PIN for duplicate lock request")
-	require.Equal(t, fleet.PendingActionLock, lockResp2.PendingAction)
-	require.Equal(t, fleet.DeviceStatusUnlocked, lockResp2.DeviceStatus)
+	// try locking the host while it is pending lock returns error
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity, &lockResp, "view_pin", "true")
 
 	// simulate a successful MDM result for the lock command
 	cmd, err := mdmClient.Idle()
