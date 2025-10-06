@@ -113,7 +113,7 @@ Many also have competing incentives, come with lock-in, or require complicated l
 
 **Configuration management**
 - Ansible  
-- Salt Stack  
+- SaltStack  
 - Chef  
 - Puppet  
 
