@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1139,21 +1138,6 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	}
 	s.uploadSoftwareInstaller(t, pkgNoVersion, http.StatusOK, "")
 
-	// list the software titles to get the title IDs
-	var listSw listSoftwareTitlesResponse
-	// s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
-	// spew.Dump(listSw.SoftwareTitles)
-
-	// var app1TitleID, dummyTitleID uint
-	// for _, sw := range listSw.SoftwareTitles {
-	// 	switch sw.Name {
-	// 	case vppApp1.Name:
-	// 		app1TitleID = sw.ID
-	// 	case payloadDummy.Title:
-	// 		dummyTitleID = sw.ID
-	// 	}
-	// }
-
 	// the Dummy installer has bundle id com.example.dummy, it should fail with a
 	// conflict with VPP app 1
 	pkgDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -1161,14 +1145,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		Title:    "DummyApp",
 		TeamID:   &team.ID,
 	}
-	// TODO(mna): this is the bug, should fail to upload due to conflict
-	// s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "zzz")
-	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusOK, "")
-
-	// list the software titles to get the title IDs
-	listSw = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
-	spew.Dump(listSw.SoftwareTitles)
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has a package or app available for install on the Team 1 team.")
 
 	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
 	vppApp2 := &fleet.VPPApp{
@@ -1184,7 +1161,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	txt := extractServerErrorText(res.Body)
 	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
 
-	// TODO(mna): test with batch-set (gitops) too
+	// --- test with batch-set (gitops) ---
 
 	// start the HTTP server to serve package installers
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1209,14 +1186,15 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		},
 	}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
 	batchResp := waitBatchSetSoftwareInstallers(t, &s.withServer, team.Name, batchResponse.RequestUUID)
-	// TODO(mna): this is the bug, a package that conflicts can be batch-uploaded
-	// require.Equal(t, fleet.BatchSetSoftwareInstallersStatusFailed, batchResp.Status)
-	// require.Contains(t, batchResp.Message, "zzzz")
-	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResp.Status)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusFailed, batchResp.Status)
+	require.Contains(t, batchResp.Message, "DummyApp already has a package or app available for install on the Team 1 team.")
 
 	fmt.Println(">>>> BEFORE BATCH VPP APPS")
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "vpp_apps_teams")
+		mysql.DumpTable(t, q, "vpp_apps_teams", "id", "adam_id", "team_id", "platform")
+		mysql.DumpTable(t, q, "vpp_apps", "adam_id", "title_id", "bundle_identifier", "name", "latest_version")
+		mysql.DumpTable(t, q, "software_installers", "id", "team_id", "title_id", "filename", "platform")
+		mysql.DumpTable(t, q, "software_titles")
 		return nil
 	})
 
@@ -1231,7 +1209,10 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 
 	fmt.Println(">>>> AFTER BATCH VPP APPS")
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "vpp_apps_teams")
+		mysql.DumpTable(t, q, "vpp_apps_teams", "id", "adam_id", "team_id", "platform")
+		mysql.DumpTable(t, q, "vpp_apps", "adam_id", "title_id", "bundle_identifier", "name", "latest_version")
+		mysql.DumpTable(t, q, "software_installers", "id", "team_id", "title_id", "filename", "platform")
+		mysql.DumpTable(t, q, "software_titles")
 		return nil
 	})
 }
