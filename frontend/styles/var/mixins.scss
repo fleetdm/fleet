@@ -252,6 +252,12 @@ $max-width: 2560px;
   gap: $gap-page-component;
 }
 
+@mixin flex-column-16px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+}
+
 @mixin vertical-form-layout {
   @include flex-column-24px-gap;
 }
@@ -268,6 +274,10 @@ $max-width: 2560px;
 // Separate in case there's any tab level styling we need
 @mixin vertical-page-tab-panel-layout {
   @include flex-column-24px-gap;
+}
+
+@mixin vertical-data-set-layout {
+  @include flex-column-16px-gap;
 }
 
 @mixin button-dropdown {
@@ -453,7 +463,7 @@ $max-width: 2560px;
   border: 1px solid $ui-fleet-black-10;
   border-radius: $pad-xsmall;
   padding: $pad-xxlarge;
-  gap: $pad-small;
+  gap: $pad-large;
   font-size: $small;
   p {
     margin: 0;
@@ -524,4 +534,19 @@ $max-width: 2560px;
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
   background-color: #fff; // area below gradient will just be white
+}
+
+@mixin content-wrapper {
+  .outer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-large;
+  }
+  .inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+  }
 }

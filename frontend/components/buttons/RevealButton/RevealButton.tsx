@@ -56,8 +56,11 @@ const RevealButton = ({
         {buttonText}
         {caretPosition === "after" && (
           <Icon
-            name={isShowing ? "chevron-up" : "chevron-down"}
+            name="chevron-down"
             color="ui-fleet-black-75"
+            className={`reveal-button__caret ${
+              isShowing ? "reveal-button__caret--open" : ""
+            }`}
           />
         )}
       </>
