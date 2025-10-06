@@ -3478,7 +3478,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
 		{Name: "foo", Version: "0.0.2", Source: "test"},
-		{Name: "foo", Version: "0.0.2", Source: "test", ApplicationID: "foo.bar.baz"},
+		{Name: "foo", Version: "0.0.2", Source: "test", ApplicationID: ptr.String("foo.bar.baz")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)

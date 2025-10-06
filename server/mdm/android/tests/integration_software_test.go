@@ -145,14 +145,14 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 		require.Len(t, titles, 1)
 
-		for _, s := range software {
+		for _, got := range software {
 			// Validate that both softwares map to the same title
-			assert.Equal(t, *s.TitleID, titles[0].ID)
+			assert.Equal(t, *got.TitleID, titles[0].ID)
 
 			// Check other fields are as expected
-			assert.Equal(t, "com.google.chrome", s.ApplicationID)
-			assert.Equal(t, "Google Chrome", s.Name)
-			assert.Equal(t, "android_apps", s.Source)
+			assert.Equal(t, "com.google.chrome", *got.ApplicationID)
+			assert.Equal(t, "Google Chrome", got.Name)
+			assert.Equal(t, "android_apps", got.Source)
 		}
 		return nil
 	})
@@ -196,17 +196,18 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 		assert.Len(t, software, len(deviceData1.ApplicationReports)) // chrome, youtube, google drive
 
 		expectedSW := map[string]fleet.Software{
-			"com.google.chrome":  {ApplicationID: "com.google.chrome", Name: "Google Chrome", Source: "android_apps"},
-			"com.google.youtube": {ApplicationID: "com.google.youtube", Name: "YouTube", Source: "android_apps"},
-			"com.google.drive":   {ApplicationID: "com.google.drive", Name: "Google Drive", Source: "android_apps"},
+			"com.google.chrome":  {ApplicationID: ptr.String("com.google.chrome"), Name: "Google Chrome", Source: "android_apps"},
+			"com.google.youtube": {ApplicationID: ptr.String("com.google.youtube"), Name: "YouTube", Source: "android_apps"},
+			"com.google.drive":   {ApplicationID: ptr.String("com.google.drive"), Name: "Google Drive", Source: "android_apps"},
 		}
 
 		for _, got := range software {
 			// Check other fields are as expected
-			expected, ok := expectedSW[got.ApplicationID]
+			require.NotNil(t, got.ApplicationID)
+			expected, ok := expectedSW[*got.ApplicationID]
 			require.Truef(t, ok, "got unexpected software with application id %s", got.ApplicationID)
 
-			assert.Equal(t, expected.ApplicationID, got.ApplicationID)
+			assert.Equal(t, *expected.ApplicationID, *got.ApplicationID)
 			assert.Equal(t, expected.Name, got.Name)
 			assert.Equal(t, expected.Source, got.Source)
 
@@ -237,15 +238,16 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 		assert.Len(t, software, len(deviceData1.ApplicationReports)) // just youtube now
 
 		expectedSW := map[string]fleet.Software{
-			"com.google.youtube": {ApplicationID: "com.google.youtube", Name: "YouTube", Source: "android_apps"},
+			"com.google.youtube": {ApplicationID: ptr.String("com.google.youtube"), Name: "YouTube", Source: "android_apps"},
 		}
 
 		for _, got := range software {
 			// Check other fields are as expected
-			expected, ok := expectedSW[got.ApplicationID]
+			require.NotNil(t, got.ApplicationID)
+			expected, ok := expectedSW[*got.ApplicationID]
 			require.Truef(t, ok, "got unexpected software with application id %s", got.ApplicationID)
 
-			assert.Equal(t, expected.ApplicationID, got.ApplicationID)
+			assert.Equal(t, *expected.ApplicationID, *got.ApplicationID)
 			assert.Equal(t, expected.Name, got.Name)
 			assert.Equal(t, expected.Source, got.Source)
 
@@ -268,12 +270,13 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 		assert.Len(t, software, len(deviceData1.ApplicationReports)) // just youtube now
 
 		expectedSW := map[string]fleet.Software{
-			"com.google.youtube": {ApplicationID: "com.google.youtube", Name: "YouTube", Source: "android_apps"},
+			"com.google.youtube": {ApplicationID: ptr.String("com.google.youtube"), Name: "YouTube", Source: "android_apps"},
 		}
 
 		for _, got := range software {
 			// Check other fields are as expected
-			expected, ok := expectedSW[got.ApplicationID]
+			require.NotNil(t, got.ApplicationID)
+			expected, ok := expectedSW[*got.ApplicationID]
 			require.Truef(t, ok, "got unexpected software with application id %s", got.ApplicationID)
 
 			assert.Equal(t, expected.ApplicationID, got.ApplicationID)

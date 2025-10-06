@@ -97,7 +97,7 @@ type Software struct {
 	// IsKernel indicates if this software is a Linux kernel.
 	IsKernel bool `json:"-"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
-	ApplicationID string `json:"application_id,omitempty" db:"application_id"`
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 func (Software) AuthzType() string {
@@ -117,8 +117,8 @@ func (s Software) ToUniqueStr() string {
 	if s.ExtensionID != "" || s.Browser != "" {
 		ss = append(ss, s.ExtensionID, s.Browser)
 	}
-	if s.ApplicationID != "" {
-		ss = append(ss, s.ApplicationID)
+	if s.ApplicationID != nil && *s.ApplicationID != "" {
+		ss = append(ss, *s.ApplicationID)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -133,8 +133,8 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 	if s.Source != "apps" {
 		cols = append([]string{s.Name}, cols...)
 	}
-	if s.ApplicationID != "" {
-		cols = append(cols, s.ApplicationID)
+	if s.ApplicationID != nil && *s.ApplicationID != "" {
+		cols = append(cols, *s.ApplicationID)
 	}
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {

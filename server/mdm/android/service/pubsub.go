@@ -182,7 +182,6 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	}
 	err = svc.updateHostSoftware(ctx, &device, host)
 	if err != nil {
-		level.Debug(svc.logger).Log("msg", "Error updating Android host software", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "updating Android host software")
 	}
 	return nil
@@ -214,7 +213,7 @@ func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanag
 		sw := fleet.Software{
 			Name:          truncateString(app.DisplayName, fleet.SoftwareNameMaxLength),
 			Version:       truncateString(app.VersionName, fleet.SoftwareVersionMaxLength),
-			ApplicationID: truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength),
+			ApplicationID: ptr.String(truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength)),
 			Source:        "android_apps",
 			Installed:     true,
 		}

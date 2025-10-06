@@ -905,8 +905,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if sw.BundleIdentifier != "" {
 						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
 					}
-					if sw.ApplicationID != "" {
-						st.ApplicationID = ptr.String(sw.ApplicationID)
+					if sw.ApplicationID != nil && *sw.ApplicationID != "" {
+						st.ApplicationID = sw.ApplicationID
 					}
 					newTitlesNeeded[checksum] = st
 				}
