@@ -63,16 +63,3 @@ func TestRingBuffer_Empty(t *testing.T) {
 	rb := newRingBuffer(2)
 	require.Empty(t, rb.SliceChrono())
 }
-
-// Explicit test for SliceReverse with multiple adds and wraps
-func TestRingBuffer_SliceReverse(t *testing.T) {
-	rb := newRingBuffer(4)
-	rb.Add(mk(0)) // A
-	rb.Add(mk(1)) // B
-	rb.Add(mk(2)) // C
-	rb.Add(mk(3)) // D
-	rb.Add(mk(4)) // E
-
-	// Current buffer state: B C D E
-	require.Equal(t, []string{"B", "C", "D", "E"}, tsSlice(rb.SliceChrono()))
-}

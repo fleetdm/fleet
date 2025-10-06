@@ -180,12 +180,6 @@ func makeBufferedScanner(r io.Reader) *bufio.Scanner {
 	return s
 }
 
-func newArchiveFileExists(archiveIndex int, path string) bool {
-	archivePath := fmt.Sprintf("%s.%d.gz", path, archiveIndex)
-	_, err := os.Stat(archivePath)
-	return err == nil
-}
-
 func scrapeSantaLog(ctx context.Context, decision santaDecisionType) ([]logEntry, error) {
 	return scrapeSantaLogFromBase(ctx, decision, defaultLogPath)
 }
