@@ -1,6 +1,6 @@
 # Custom OS settings
 
-In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your macOS, iOS, iPadOS, Windows, and Android hosts using configuration profiles.
+In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi, etc., on your macOS, iOS, iPadOS, Windows, and Android hosts using configuration profiles.
 
 ## Create configuration profile
 
