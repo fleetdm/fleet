@@ -422,7 +422,7 @@ FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
 LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
-LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id
+LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
 WHERE host_uuid = ?
 	`
 	var results []*fleet.SetupExperienceStatusResult
