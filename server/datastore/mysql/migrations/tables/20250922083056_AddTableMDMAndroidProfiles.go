@@ -143,6 +143,7 @@ ALTER TABLE mdm_configuration_profile_labels
 		return fmt.Errorf("check for old CHECK constraint on mdm_configuration_profile_labels: %w", err)
 	}
 	if constraintCount > 0 {
+		fmt.Printf("Constraint count: %d\n", constraintCount)
 		dropOldConstraint := `
 			ALTER TABLE mdm_configuration_profile_labels
 			DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows
