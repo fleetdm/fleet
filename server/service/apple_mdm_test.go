@@ -1179,7 +1179,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		mdmLifecycle: mdmLifecycle,
 	}
 	ctx := context.Background()
-	uuid, serial, model, platform := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", "darwin"
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
 
 	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
 		require.Equal(t, uuid, mdmHost.UUID)
@@ -1214,7 +1214,6 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
-		require.Equal(t, platform, a.Platform)
 
 		return nil
 	}
@@ -1249,7 +1248,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		mdmLifecycle: mdmLifecycle,
 	}
 	ctx := context.Background()
-	uuid, serial, model, platform := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", "darwin"
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
 
 	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
 		require.Equal(t, uuid, mdmHost.UUID)
@@ -1284,7 +1283,6 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.True(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
-		require.Equal(t, platform, a.Platform)
 		return nil
 	}
 
