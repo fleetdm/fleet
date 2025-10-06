@@ -991,8 +991,8 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
-  "mdm_platform": "apple"
-  "enrollment_id": null
+  "mdm_platform": "apple",
+  "enrollment_id": null,
   "platform": "darwin"
 }`
 }
@@ -1021,7 +1021,7 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
   "host_serial": "C08VQ2AXHT96",
   "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "installed_from_dep": true
+  "installed_from_dep": true,
   "platform": "darwin"
 }`
 }
