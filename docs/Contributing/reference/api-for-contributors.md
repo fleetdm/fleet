@@ -3266,9 +3266,10 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
       "software_package": {
-        "name": "GoogleChrome.pkg"
-        "version": "125.12.2"
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.2",
         "self_service": true,
         "categories": ["Browsers"],
      	"last_install": {
@@ -3298,7 +3299,8 @@ Lists the software installed on the current device.
     },
     {
       "id": 143,
-      "name": "Firefox.app",
+      "name": "Slack.app",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
       "software_package": null,
       "app_store_app": null,
       "source": "apps",
@@ -3307,17 +3309,16 @@ Lists the software installed on the current device.
         {
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Firefox.app"]
+          "vulnerabilities": [],
+          "installed_paths": ["/Applications/Slack.app"]
         }
       ],
       "software_package": null,
       "app_store_app": {
-        "app_store_id": "12345",
-        "categories": ["Browsers"],
-        "version": "125.6",
+        "app_store_id": "618783545",
+        "categories": ["Communication"],
+        "version": "25.08.10",
         "self_service": false,
-        "icon_url": "https://example.com/logo-light.jpg",
         "last_install": null
       },
     },
@@ -3344,6 +3345,39 @@ Lists the software installed on the current device.
     "has_previous_results": false
   }
 }
+```
+
+### Download device software icon
+
+_Available in Fleet Premium._
+
+Retrieve the icon added via Fleet or icon from App Store (VPP).
+
+`GET /api/v1/fleet/device/:token/software/titles/121/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                               |
+| ----            | ------- | ---- | ----------------------------------------- |
+| id              | integer | path | ID of the software title to get icon for. |
+
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/titles/121/icon`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: image/png
+Content-Disposition: inline; filename="zoom-icon-512x512.png"
+Content-Length: 124567
+
+<BINARY_IMAGE_DATA>
 ```
 
 ### Get device's software install results
@@ -4617,7 +4651,9 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "team_id": 1,
       "title_id": 2751,
       "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "firefox-custom-icon.png"
     }
   ]
 }
@@ -4656,6 +4692,7 @@ _Available in Fleet Premium._
 #### Example
 
 `POST /api/latest/fleet/software/app_store_apps/batch`
+
 ```json
 {
   "team_name": "Foobar",
@@ -4689,19 +4726,25 @@ _Available in Fleet Premium._
       "team_id": 1,
       "title_id": 123,
       "app_store_id": "597799333",
-      "platform": "darwin"
+      "platform": "darwin",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     },
     {
       "team_id": 1,
       "title_id": 124,
       "app_store_id": "597799333",
-      "platform": "ios"
+      "platform": "ios",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     },
     {
       "team_id": 1,
       "title_id": 125,
       "app_store_id": "597799333",
-      "platform": "ipados"
+      "platform": "ipados",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     }
   ]
 }
