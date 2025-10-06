@@ -1180,10 +1180,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		},
 	}
 
-	addAppResp = addAppStoreAppResponse{}
-	// TODO(mna): this fails with 500, that's a bug too... should be 409 conflict
-	// s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict, &addAppResp)
-	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusInternalServerError)
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict)
 	txt := extractServerErrorText(res.Body)
 	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
 
