@@ -1,4 +1,4 @@
-## Fleet 4.74.0 (Oct 7, 2025)
+## Fleet 4.74.0 (Oct 6, 2025)
 
 ### Security Engineers
 - Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a Hydrant.
@@ -60,7 +60,7 @@
 - Fixed an alignment issue on the My device page.
 - Fix deadlocks when updating automations for 10+ policies at one time.
 
-## Fleet 4.73.5 (Oct 6, 2025)
+## Fleet 4.73.5 (Oct 7, 2025)
 
 ### Bug fixes
 
