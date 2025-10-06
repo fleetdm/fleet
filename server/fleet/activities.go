@@ -972,6 +972,7 @@ type ActivityTypeMDMEnrolled struct {
 	MDMPlatform      string  `json:"mdm_platform"`
 	// EnrollmentID is the unique identifier for the MDM BYOD enrollments. It is nil for other enrollments.
 	EnrollmentID *string `json:"enrollment_id"`
+	Platform     string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
@@ -985,20 +986,24 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
-- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.`, `{
+- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
+- "platform": The enrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple"
   "enrollment_id": null
+  "platform": "darwin"
 }`
 }
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
-	HostSerial       string `json:"host_serial"`
-	HostDisplayName  string `json:"host_display_name"`
-	InstalledFromDEP bool   `json:"installed_from_dep"`
+	HostSerial       string  `json:"host_serial"`
+	EnrollmentID     *string `json:"enrollment_id"`
+	HostDisplayName  string  `json:"host_display_name"`
+	InstalledFromDEP bool    `json:"installed_from_dep"`
+	Platform         string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
@@ -1009,11 +1014,15 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
 	return `Generated when a host is unenrolled from Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.`, `{
+- "installed_from_dep": Whether the host was enrolled via DEP.
+- "platform": The unenrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
+  "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
+  "platform": "darwin"
 }`
 }
 
