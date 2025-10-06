@@ -581,6 +581,291 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ---
 
+## Certificates
+
+- [Add certificate authority (CA)](#add-certificate-authority-ca)
+- [Edit certificate authority (CA)](#edit-certificate-authority-ca)
+- [List certificate authorities (CAs)](#list-certificate-authorities-cas)
+- [Get certificate authority (CA)](#get-certificate-authority-ca)
+- [Delete certificate authority (CA)](#delete-certificate-authority-ca)
+- [Request certificate](#request-certificate)
+
+### Add certificate authority (CA)
+
+Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+
+`POST /api/v1/fleet/certificate_authorities`
+
+Only one of the objects is allowed in a single request.
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| digicert   | object | body | See [digicert](#digicert) |
+| ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
+| custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
+| hydrant   | object | body | See [hydrant](#hydrant) |
+
+##### digicert
+
+Object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url | string | **Required** DigiCert instance URL, used as base URL for DigiCert API requests. |
+| api_token | string | **Required** API token used to authenticate requests to DigiCert. |
+| profile_id | string | **Required** The ID of certificate profile in DigiCert. |
+| certificate_common_name | string | **Required** The certificate's common name. |
+| certificate_user_principal_names | array | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
+| certificate_seat_id | string | **Required** The ID of the DigiCert seat. Seats are license units in DigiCert. |
+
+##### ndes_scep_proxy
+
+Object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url | string | **Required**. The URL of the NDES SCEP endpoint. |
+| admin_url | string | **Required**. The URL of the NDES admin endpoint. |
+| password | string | **Required**. The password for the NDES admin endpoint. |
+| username | string | **Required**. The username for the NDES admin endpoint. |
+
+##### custom_scep_proxy
+
+Object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url | string | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
+| challenge | string | **Required**. Static challenge password used to authenticate requests to SCEP server. |
+
+##### hydrant
+
+Object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name | string | **Required**. Name of the certificate authority. Only letters, numbers, and underscores are allowed. |
+| url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
+| client_id | string | **Required**. The client ID provided by Hydrant.|
+| client_secret  | string | **Required**. The client secret provided by Hydrant. |
+
+#### Example
+
+`POST /api/v1/fleet/certificate_authorities`
+
+##### Request body
+
+```json
+{
+  "digicert": {
+    "name": "WIFI_CERTIFICATE",
+    "url": "https://one.digicert.com",
+    "api_token": "********",
+    "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
+    "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "certificate_user_principal_names": [
+      "$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    ],
+    "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "name": "WIFI_CERTIFICATE",
+  "type": "digicert"
+}
+```
+
+### Edit certificate authority (CA)
+
+`PATCH /api/v1/fleet/certificate_authorities/:id`
+
+When editing a CA, specify one object and only its fields that you want to update.
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | path |  **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
+| digicert   | object | body | See [digicert](#digicert) |
+| ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
+| custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
+| hydrant   | object | body | See [hydrant](#hydrant) |
+
+See [Add certificate authority](#add-certificate-authority-ca) above for the structure of each CA object.
+
+#### Example
+
+`PATCH /api/v1/fleet/certificate_authorities/1`
+
+##### Request body
+
+```json
+{
+  "digicert": {
+    "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List certificate authorities (CAs)
+
+`GET /api/v1/fleet/certificate_authorities`
+
+#### Example
+
+`GET /api/v1/fleet/certificate_authorities`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authorities": [
+    {
+      "id": 3,
+      "name": "DIGICERT_PROD",
+      "type": "digicert"
+    },
+    {
+      "id": 2,
+      "name": "DIGICERT_STAGE",
+      "type": "digicert"
+    },
+    {
+      "id": 5,
+      "name": "HYDRANT_WIFI_STAGE",
+      "type": "hydrant"
+    },
+    {
+      "id": 1,
+      "name": "NDES_VPN",
+      "type": "ndes_scep_proxy"
+    },
+    {
+      "id": 4,
+      "name": "SCEP_CERTIFICATE_PROD",
+      "type": "custom_scep_proxy"
+    }
+  ]
+}
+```
+
+### Get certificate authority (CA)
+
+Get details of the certificate authority.
+
+`GET /api/v1/fleet/certificate_authorities/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | body | **Required**. The ID of the certificate authority. |
+
+#### Example
+
+`GET /api/v1/fleet/certificate_authorities/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "type": "digicert",
+  "name": "WIFI_CERTIFICATE",
+  "url": "https://one.digicert.com",
+  "api_token": "********",
+  "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
+  "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "certificate_user_principal_names": [
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  ],
+  "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+}
+```
+
+### Delete certificate authority (CA)
+
+When the CA is deleted, the issued certificates will remain on existing hosts.
+
+`DELETE /api/v1/fleet/certificate_authorities/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
+
+#### Example
+
+`DELETE /api/v1/fleet/certificate_authorities/1`
+
+##### Default response
+
+`Status: 204`
+
+### Request certificate
+
+Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
+
+`POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
+| csr       | string | body |**Required** The signed certificate signing request (CSR).    |
+| idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
+| idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| idp_client_id | string | body | Client ID for which the token was isseud from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+
+#### Example
+
+`POST /api/v1/fleet/certificate_authorities/5/request_certificate`
+
+##### Request body
+
+```json
+{
+  "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
+  "idp_oauth_url": "https://idp.oauth.com/introspection",
+  "idp_token": "88683de5858044aaacaf4046aeeef778044aaacaf4046",
+  "idp_client_id": "1o2czkDnUVwTqSOc747"
+}
+```
+
+#### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
+}
+```
+
+---
+
 ## File carving
 
 - [List carves](#list-carves)
@@ -999,37 +1284,6 @@ None.
       }
     ],
     "jira": [],
-    "digicert": [
-      {
-        "name": "DIGICERT_WIFI",
-        "url": "https://one.digicert.com",
-        "api_token": "********",
-        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
-        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        "certificate_user_principal_names": [
-          "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        ],
-        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
-      }
-    ],
-    "ndes_scep_proxy": {
-      "admin_url": "https://example.com/certsrv/mscep_admin/",
-      "password": "********",
-      "url": "https://example.com/certsrv/mscep/mscep.dll",
-      "username": "Administrator@example.com"
-    },
-    "custom_scep_proxy": [
-      {
-        "name": "SCEP_WIFI",
-        "url": "https://example.com/scep",
-        "challenge": "********",
-      },
-      {
-        "name": "SCEP_VPN",
-        "url": "https://example.com/scep",
-        "challenge": "********",
-      }
-    ],
     "zendesk": []
   },
   "logging": {
@@ -1090,7 +1344,6 @@ Modifies the Fleet's configuration with the supplied information.
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
-| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
@@ -1312,7 +1565,6 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ],
-    "ndes_scep_proxy": null,
     "zendesk": []
   },
   "logging": {
@@ -1657,10 +1909,6 @@ _Available in Fleet Premium._
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
-| digicert | array | _Available in Fleet Premium._ See [`integrations.digicert`](#integrations-digicert). |
-| ndes_scep_proxy | object | _Available in Fleet Premium._ See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| custom_scep_proxy | array | _Available in Fleet Premium._ See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
-
 
 <br/>
 
@@ -1709,58 +1957,6 @@ _Available in Fleet Premium._
 
 <br/>
 
-##### integrations.digicert
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`integrations.digicert` is an array of objects with the following structure:
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url   | string | DigiCert instance URL, used as base URL for DigiCert API requests. |
-| api_token        | string | API token used to authenticate requests to DigiCert. |
-| profile_id       | string  | The ID of certificate profile in DigiCert. |
-| certificate_common_name      | string  | The certificate's common name. |
-| certificate_user_principal_names    | array  | The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
-| certificate_seat_id     | string  | The ID of the DigiCert seat. Seats are license units in DigiCert. |
-
-<br/>
-
-> Note that when making changes to the `integrations.digicert` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
-
-##### integrations.ndes_scep_proxy
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`integrations.ndes_scep_proxy` is an object with the following structure:
-
-| Name      | Type   | Description                                             |
-|-----------|--------|---------------------------------------------------------|
-| url       | string | **Required**. The URL of the NDES SCEP endpoint.        |
-| admin_url | string | **Required**. The URL of the NDES admin endpoint.       |
-| password  | string | **Required**. The password for the NDES admin endpoint. |
-| username  | string | **Required**. The username for the NDES admin endpoint. |
-
-Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
-
-##### integrations.custom_scep_proxy
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`integrations.custom_scep_proxy` is an array of objects with the following structure:
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url        | boolean | URL of the Simple Certificate Enrollment Protocol (SCEP) server |
-| challenge         | string  | Static challenge password used to authenticate requests to SCEP server. |
-
-<br/>
-
-> Note that when making changes to the `integrations.custom_scep_proxy` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
-
-
 ##### Example request body
 
 ```json
@@ -1782,36 +1978,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
         "domain": "https://domain.com",
         "api_key_json": "<API KEY JSON>"
       }
-    ],
-    "digicert": [
-      {
-        "name": "DIGICERT_WIFI",
-        "url": "https://one.digicert.com",
-        "api_token": "********",
-        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
-        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
-      }
-    ],
-    "ndes_scep_proxy": {
-      "admin_url": "https://example.com/certsrv/mscep_admin/",
-      "password": "abc123",
-      "url": "https://example.com/certsrv/mscep/mscep.dll",
-      "username": "Administrator@example.com"
-    },
-    "custom_scep_proxy": [
-      {
-        "name": "SCEP_WIFI",
-        "url": "https://example.com/scep",
-        "challenge": "********"
-      },
-      {
-        "name": "SCEP_VPN",
-        "url": "https://example.com/scep",
-        "challenge": "********"
-      }
-    ]  
+    ]
   }
 }
 ```
@@ -3073,6 +3240,8 @@ Returns the information of the specified host.
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
           "detail": ""
         }
       ]
@@ -3080,6 +3249,8 @@ Returns the information of the specified host.
   }
 }
 ```
+
+`extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
@@ -3265,6 +3436,8 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Automat",
         "version": "0.8.0",
         "source": "python_packages",
+        "browser": "",
+        "extension_for": "",
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some_path/"]
@@ -3297,6 +3470,8 @@ If `hostname` is specified when there is more than one host with the same hostna
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "", 
           "detail": ""
         }
       ]
@@ -3308,6 +3483,8 @@ If `hostname` is specified when there is more than one host with the same hostna
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
+`extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 #### Get host by device token
 
@@ -3456,6 +3633,8 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
+        "browser": "",
+        "extension_for": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -3490,6 +3669,8 @@ This is the API route used by the **My device** page in Fleet desktop to display
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
           "detail": ""
         }
       ]
@@ -3497,6 +3678,8 @@ This is the API route used by the **My device** page in Fleet desktop to display
   }
 }
 ```
+
+`extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 ### Delete host
 
@@ -4093,6 +4276,7 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "icon_url": null,
       "software_package": {
         "name": "GoogleChrome.pkg",
         "platform": "darwin",
@@ -4126,6 +4310,7 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
     {
       "id": 134,
       "name": "Falcon.app",
+      "icon_url": null,
       "software_package": {
         "name": "FalconSensor-6.44.pkg",
         "platform": "darwin",
@@ -4144,11 +4329,11 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
     {
       "id": 147,
       "name": "Logic Pro",
+      "icon_url": "/api/latest/fleet/software/titles/147/icon?team_id=2",
       "software_package": null,
       "app_store_app": {
         "app_store_id": "1091189122",
         "platform": "darwin",
-        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
         "version": "2.04",
         "self_service": false,
         "last_install": {
@@ -5317,6 +5502,7 @@ Deletes the label specified by ID.
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
+- [Batch-modify custom OS settings (configuration profiles)](#batch-modify-custom-os-settings-configuration-profiles)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings summary](#get-os-settings-summary)
@@ -5339,9 +5525,9 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels_include_all        | array     | form | _Available in Fleet Premium_. Target hosts that have all labels in the array. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -5623,6 +5809,62 @@ Resends a configuration profile for the specified host.
 
 `Status: 202`
 
+### Batch-modify custom OS settings (configuration profiles)
+
+Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are not assigned to "No team" (Fleet Premium).
+
+For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list. 
+
+For Windows profiles, Fleet applies new profiles or updates when content changes, and deletes profiles no longer in the list. It does not send commands to remove configuration profiles from Windows hosts.
+
+For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked “Pending,” and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
+
+`POST /api/v1/fleet/configuration_profiles/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                       |
+| --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the configuration profiles to. Only one of `team_name` or `team_id` may be included in the request.          |
+| team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name` or `team_id` may be included in the request. |
+| dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| configuration_profiles  | object   | body  | **Required**. See [configuration_profiles](#configuration-profiles) |
+
+##### Configuration profiles
+
+| Name                    | Type    | Description   |
+| -----------------------| ------- | ----------------------------------------------------------------------------------- |
+| profile                | string   | Base64 encoded configuration profiles (.mobileconfig) and declaration (DDM) profiles for Apple (macOS, iOS, iPadOS) hosts or XML profile for Windows hosts. |
+| labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
+
+For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified platform are targeted.
+
+#### Example
+
+`POST /api/v1/fleet/configuration_profiles/batch`
+
+##### Request body
+
+```json
+{
+  "team_id": 1,
+  "configuration_profiles": [
+    {
+      "profile": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+UGF5bG9hZENvbnRlbnQ8L2tleT4KCTxhcnJheT4KCQk8ZGljdD4KCQkJPGtleT5BbGxvd1ByZVJlbGVhc2VJbnN0YWxsYXRpb248L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY0NoZWNrRW5hYmxlZDwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljRG93bmxvYWQ8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY2FsbHlJbnN0YWxsQXBwVXBkYXRlczwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljYWxseUluc3RhbGxNYWNPU1VwZGF0ZXM8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkNvbmZpZ0RhdGFJbnN0YWxsPC9rZXk+CgkJCTx0cnVlLz4KCQkJPGtleT5Dcml0aWNhbFVwZGF0ZUluc3RhbGw8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PlBheWxvYWREZXNjcmlwdGlvbjwva2V5PgoJCQk8c3RyaW5nPkNvbmZpZ3VyZXMgU29mdHdhcmUgVXBkYXRlIHNldHRpbmdzPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+CgkJCTxzdHJpbmc+U29mdHdhcmUgVXBkYXRlPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZElkZW50aWZpZXI8L2tleT4KCQkJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzguY29tLmFwcGxlLlNvZnR3YXJlVXBkYXRlLkE4Qjk3MDMyLTc2NDUtNDA2OC1CNDU3LTAxREU1QzZCMzNGNzwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRPcmdhbml6YXRpb248L2tleT4KCQkJPHN0cmluZz48L3N0cmluZz4KCQkJPGtleT5QYXlsb2FkVHlwZTwva2V5PgoJCQk8c3RyaW5nPmNvbS5hcHBsZS5Tb2Z0d2FyZVVwZGF0ZTwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRVVUlEPC9rZXk+CgkJCTxzdHJpbmc+QThCOTcwMzItNzY0NS00MDY4LUI0NTctMDFERTVDNkIzM0Y3PC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZFZlcnNpb248L2tleT4KCQkJPGludGVnZXI+MTwvaW50ZWdlcj4KCQk8L2RpY3Q+Cgk8L2FycmF5PgoJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4KCTxzdHJpbmc+RW5hYmxlcyBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkRGlzcGxheU5hbWU8L2tleT4KCTxzdHJpbmc+VHVybiBvbiBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5PgoJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzg8L3N0cmluZz4KCTxrZXk+UGF5bG9hZE9yZ2FuaXphdGlvbjwva2V5PgoJPHN0cmluZz5GbGVldERNPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRSZW1vdmFsRGlzYWxsb3dlZDwva2V5PgoJPHRydWUvPgoJPGtleT5QYXlsb2FkU2NvcGU8L2tleT4KCTxzdHJpbmc+U3lzdGVtPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+Cgk8c3RyaW5nPkNvbmZpZ3VyYXRpb248L3N0cmluZz4KCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4KCTxzdHJpbmc+QkVCQTA3NDAtNEREQi00QUM0LTg1REMtQkE0OEI5NkMwREM4PC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+Cgk8aW50ZWdlcj4xPC9pbnRlZ2VyPgo8L2RpY3Q+CjwvcGxpc3Q+",
+      "labels_include_any": [
+        "Apple Silicon macOS hosts"
+      ],
+    }
+  ]
+}
+```
+
+##### Default response
+
+`204`
 
 ### Batch-resend custom OS setting (configuration profile)
 
@@ -6341,12 +6583,16 @@ Body: <blob>
 
 _Available in Fleet Premium_
 
-List software that can or will be automatically installed during macOS setup. If `install_during_setup` is `true` it will be installed during setup.
+
+List software that can be automatically installed during setup. If `install_during_setup` is `true` it will be installed during setup.
 
 `GET /api/v1/fleet/setup_experience/software`
 
+#### Parameters
+
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
+| platform | string  | query |   Platform to show compatible software for. Either `"macos"` or `"linux"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6366,6 +6612,7 @@ List software that can or will be automatically installed during macOS setup. If
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url": "/api/latest/fleet/software/titles/12/icon?team_id=3",
       "software_package": {
         "name": "FirefoxInstall.pkg",
         "platform": "darwin",
@@ -6409,27 +6656,39 @@ List software that can or will be automatically installed during macOS setup. If
 
 _Available in Fleet Premium_
 
-Set software that will be automatically installed during macOS setup. Software that isn't included in the request will be unset.
+
+Set software that will be automatically installed during setup. Software that isn't included in the request will be unset.
 
 `PUT /api/v1/fleet/setup_experience/software`
 
+#### Parameters
+
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
-| software_title_ids | array | body | The ID of software titles to install during macOS setup. |
+| platform | string  | body |  Platform to update software for. Either `"macos"` or `"linux"`.  Defaults to `"macos"`. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| software_title_ids | array | body | The ID of software titles to install during setup. |
 
 #### Example
 
-`PUT /api/v1/fleet/setup_experience/software?team_id=3`
+`PUT /api/v1/fleet/setup_experience/software`
+
+##### Request body
+
+```json
+{
+  "platform": "linux",
+  "team_id": 1,
+  "software_title_ids": [3000, 3001]
+}
+```
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-{
-  "software_title_ids": [23,3411,5032]
-}
+{}
 ```
 
 ### Add script (setup experience)
@@ -7346,8 +7605,8 @@ _Available in Fleet Premium_
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any, specified by label name, label in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
 
@@ -7421,8 +7680,8 @@ The semantics for creating a team policy are the same as for global policies, se
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                     |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 
 Either `query` or `query_id` must be provided.
 
@@ -7580,8 +7839,8 @@ _Available in Fleet Premium_
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
 
@@ -7656,8 +7915,8 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
 
@@ -8111,7 +8370,7 @@ Creates a global query or team query.
 | team_id                         | integer | body | _Available in Fleet Premium_. The parent team to which the new query should be added. If omitted, the query will be global.                                           |
 | interval                        | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
-| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
+| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
@@ -8191,7 +8450,7 @@ Modifies the query specified by ID.
 | observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
-| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
+| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
@@ -9527,6 +9786,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
 - [Modify package](#modify-package)
+- [Update software icon](#update-sowftware-icon)
+- [Get software icon](#get-sowftware-icon)
+- [Delete software icon](#delete-sowftware-icon)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 - [Modify App Store app](#modify-app-store-app)
@@ -9584,6 +9846,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -9661,6 +9924,7 @@ Get a list of all software.
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
+      "extension_for": "chrome",
       "hosts_count": 345,
       "versions": [
         {
@@ -9677,6 +9941,8 @@ Get a list of all software.
   }
 }
 ```
+
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 ### List software versions
 
@@ -9744,6 +10010,7 @@ Get a list of all software versions.
         "version": "2.10.0",
         "source": "chrome_extensions",
         "browser": "chrome",
+        "extension_for": "chrome",
         "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
         "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
         "hosts_count": 345,
@@ -9756,6 +10023,8 @@ Get a list of all software versions.
     }
 }
 ```
+
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 ### List operating systems
 
@@ -9845,6 +10114,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
@@ -9910,9 +10180,11 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
+`browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
 #### Example (App Store app)
 
-`GET /api/v1/fleet/software/titles/15`
+`GET /api/v1/fleet/software/titles/15?team_id=3`
 
 ##### Default response
 
@@ -9923,6 +10195,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
     "app_store_app": {
@@ -9932,7 +10205,6 @@ Returns information about the specified software. By default, `versions` are sor
       "platform": "darwin",
       "latest_version": "2.04",
       "created_at": "2024-04-01T14:22:58Z",
-      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
       "automatic_install_policies": [
         {
@@ -10016,6 +10288,8 @@ Returns information about the specified software version.
   }
 }
 ```
+
+`browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 
 ### Get operating system version
@@ -10149,8 +10423,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windo
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -10246,8 +10520,8 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10318,6 +10592,118 @@ Content-Type: application/octet-stream
 }
 ```
 
+### Update software icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
+
+`PUT /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                      |
+| ----        | ------- | ---- | --------------------------------------------     |
+| id          | integer | path | ID of the software title being updated. |
+| team_id     | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+| icon        | file    | form | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
+| hash_sha256 | string  | form | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
+| filename    | string  | form | Filename to record for the icon image, if `hash_sha256` was supplied. |
+
+#### Example
+
+`PUT /api/v1/fleet/software/titles/33/icon?team_id=2`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+------------------------d8c247122f594ba0
+Content-Disposition: form-data; name= "icon" filename="crowdstrike-icon-512x512.png"
+Content-Type: image/png
+
+<BINARY_IMAGE_DATA>
+
+------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+  "icon_url": "/api/latest/fleet/software/titles/33/icon?team_id=2"
+```
+
+### Download software icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Download the icon added via [Update software icon](#update-software-icon) or icon from App Store (VPP). **This endpoint requires authentication.**
+
+`GET /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | ID of the software title to get icon for. |
+| team_id         | integer | query | **Required**. The team ID. |
+
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/33/icon?team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: image/png
+Content-Disposition: inline; filename="zoom-icon-512x512.png"
+Content-Length: 124567
+
+<BINARY_IMAGE_DATA>
+```
+
+### Delete software icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Delete a custom icon added via [Update software icon](#update-software-icon). This will revert to using the software title's built-in icon.
+
+`DELETE /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | ID of the software title being updated. |
+| team_id         | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/software/titles/33/icon?team_id=2`
+
+##### Default response
+
+`Status: 204`
+
 ### List App Store apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -10387,8 +10773,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10435,8 +10821,8 @@ Modify App Store (VPP) app's options.
 | team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10469,7 +10855,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
-    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "self_service": true,
     "labels_include_any": [
       {
@@ -10618,8 +11003,8 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -10923,7 +11308,6 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
       "name": "macOS 14.1.2",
       "name_only": "macOS",
       "version": "14.1.2",
-
       "resolved_in_version": "14.2",
       "generated_cpes": [
         "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
@@ -10946,6 +11330,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 }
 ```
 
+`browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 ---
 
@@ -11233,11 +11618,13 @@ _Available in Fleet Premium_
 
 `mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
+"No team" will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
+
 #### Parameters
 
-| Name | Type    | In   | Description                          |
-| ---- | ------  | ---- | ------------------------------------ |
-| id   | integer | path | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                                                                                  |
+|------|---------|------|----------------------------------------------------------------------------------------------|
+| id   | integer | path | **Required.** The desired team's ID. Use `0` for "No team" (hosts not assigned to any team). |
 
 #### Example
 
@@ -11406,7 +11793,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                                                                      |
+| id                                                      | integer | path | **Required.** The desired team's ID. Use `0` for "No team" (hosts not assigned to any team). **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
 | name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
 | host_ids                                                | array    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the team.                                                                                                                                                             |
