@@ -103,7 +103,7 @@ func main() {
 	}
 
 	// Insert nano_devices and nano_enrollments rows for the host UUID if they don't exist
-	_, err = db.ExecContext(ctx, `INSERT IGNORE INTO host_mdm (host_id, enrolled) VALUES (?, 1)`, *hostID)
+	_, err = db.ExecContext(ctx, `INSERT IGNORE INTO host_mdm (host_id, enrolled) VALUES (?, 1) ON DUPLICATE KEY UPDATE enrolled = 1`, *hostID)
 	if err != nil {
 		log.Fatalf("failed to insert host_mdm for host %d: %v", *hostID, err)
 	}
@@ -112,18 +112,18 @@ func main() {
 		log.Fatalf("failed to insert nano_devices for host UUID %s: %v", *hostUUID, err)
 	}
 	_, err = db.ExecContext(ctx, `
-		INSERT IGNORE INTO nano_enrollments (
+		INSERT INTO nano_enrollments (
 			id, device_id, user_id, type, topic, push_magic, token_hex, enabled,
 			token_update_tally, last_seen_at, enrolled_from_migration
 		) VALUES (
 			?, ?, NULL, 'Device', 'com.example.mdm', 'magic-token', 'deadbeef', 1,
 			1, NOW(), 0
-		)`, *hostUUID, *hostUUID)
+		) ON DUPLICATE KEY UPDATE enabled = 1`, *hostUUID, *hostUUID)
 	if err != nil {
 		log.Fatalf("failed to insert nano_enrollments for host UUID %s: %v", *hostUUID, err)
 	}
 	_, err = db.ExecContext(ctx, `
-		INSERT IGNORE INTO host_mdm_apple_awaiting_configuration (host_uuid, awaiting_configuration) VALUES (?, 1)
+		INSERT INTO host_mdm_apple_awaiting_configuration (host_uuid, awaiting_configuration) VALUES (?, 1) ON DUPLICATE KEY UPDATE awaiting_configuration = 1
 	`, *hostID)
 	if err != nil {
 		log.Fatalf("failed to insert host_mdm_apple_awaiting_configuration for host %d: %v", *hostID, err)
@@ -132,9 +132,9 @@ func main() {
 	// For each profile, insert a row into host_mdm_apple_profiles if one doesn't already exist.
 	for _, p := range mdmProfiles {
 		_, err = db.ExecContext(ctx, `
-			INSERT IGNORE INTO host_mdm_apple_profiles (
-				host_uuid, profile_identifier, profile_uuid, profile_name, checksum, status, operation_type
-			) VALUES (?, ?, ?, ?, ?, 'verified', 'install');
+			INSERT INTO host_mdm_apple_profiles (
+				host_uuid, profile_identifier, profile_uuid, profile_name, checksum, status, operation_type, command_uuid
+			) VALUES (?, ?, ?, ?, ?, 'verified', 'install', '') ON DUPLICATE KEY UPDATE status = 'verified', operation_type = 'install', command_uuid = '';
 		`, *hostUUID, p.ProfileIdentifier, p.ProfileUUID, p.Name, p.Checksum)
 		if err != nil {
 			log.Fatalf("failed to insert host_mdm_apple_profiles for profile %s: %v", p.ProfileIdentifier, err)
