@@ -1,8 +1,9 @@
 import { IDeviceUser } from "interfaces/host";
-import { IDeviceSoftware, ISetupSoftwareStatus } from "interfaces/software";
+import { IDeviceSoftware } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 import {
   IGetDeviceSoftwareResponse,
-  IGetSetupSoftwareStatusesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import { createMockHostSoftwarePackage } from "./hostMock";
 
@@ -53,32 +54,36 @@ export const createMockDeviceSoftwareResponse = (
   };
 };
 
-const DEFAULT_SETUP_SOFTWARE_STATUS_MOCK: ISetupSoftwareStatus = {
+const DEFAULT_SETUP_STEP_STATUS_MOCK: ISetupStep = {
   name: "Slack",
   status: "pending",
+  type: "",
 };
 
-export const createMockSetupSoftwareStatus = (
-  overrides?: Partial<ISetupSoftwareStatus>
-): ISetupSoftwareStatus => {
-  return { ...DEFAULT_SETUP_SOFTWARE_STATUS_MOCK, ...overrides };
+export const createMockSetupStepStatus = (
+  overrides?: Partial<ISetupStep>
+): ISetupStep => {
+  return { ...DEFAULT_SETUP_STEP_STATUS_MOCK, ...overrides };
 };
 
-const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupSoftwareStatusesResponse = {
+const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupExperienceStatusesResponse = {
   setup_experience_results: {
     software: [
-      createMockSetupSoftwareStatus({ name: "1Password", status: "pending" }),
-      createMockSetupSoftwareStatus({ name: "Chrome", status: "failure" }),
-      createMockSetupSoftwareStatus({ name: "Firefox", status: "cancelled" }),
-      createMockSetupSoftwareStatus({ name: "Slack", status: "success" }),
-      createMockSetupSoftwareStatus({ name: "Zoom", status: "running" }),
+      createMockSetupStepStatus({ name: "1Password", status: "pending" }),
+      createMockSetupStepStatus({ name: "Chrome", status: "failure" }),
+      createMockSetupStepStatus({ name: "Firefox", status: "cancelled" }),
+      createMockSetupStepStatus({ name: "Slack", status: "success" }),
+      createMockSetupStepStatus({ name: "Zoom", status: "running" }),
+    ],
+    scripts: [
+      createMockSetupStepStatus({ name: "test.sh", status: "running" }),
     ],
   },
 };
 
 export const createMockSetupSoftwareStatusesResponse = (
-  overrides?: Partial<IGetSetupSoftwareStatusesResponse>
-): IGetSetupSoftwareStatusesResponse => {
+  overrides?: Partial<IGetSetupExperienceStatusesResponse>
+): IGetSetupExperienceStatusesResponse => {
   return {
     ...DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK,
     ...overrides,
