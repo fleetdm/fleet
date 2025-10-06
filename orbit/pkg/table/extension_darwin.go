@@ -103,7 +103,6 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("app_sso_platform", app_sso_platform.Columns(), app_sso_platform.Generate),
 
 		table.NewPlugin("santa_status", santa.StatusColumns(), santa.GenerateStatus),
-		table.NewPlugin("santa_rules", santa.RulesColumns(), santa.GenerateRules),
 		table.NewPlugin("santa_allowed", santa.LogColumns(), santa.GenerateAllowed),
 		table.NewPlugin("santa_denied", santa.LogColumns(), santa.GenerateDenied),
 	}
