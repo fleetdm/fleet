@@ -1,3 +1,10 @@
+## Fleet 4.73.5 (Oct 06, 2025)
+
+### Bug fixes
+
+- Fixed edge case when renaming macOS software mapped to multiple checksums.
+- During software ingestion, re-added software rename functionality to generate less lock contention during high concurrency.
+
 ## Fleet 4.73.4 (Sep 30, 2025)
 
 ### Bug fixes
