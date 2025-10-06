@@ -385,16 +385,8 @@ func (sscepp SmallstepSCEPProxyCAUpdatePayload) IsEmpty() bool {
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the Name is provided then the Challenge URL, Username and Password must also be provided
 func (sscepp *SmallstepSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
-	if sscepp.URL != nil && (sscepp.ChallengeURL == nil || sscepp.Username == nil || sscepp.Password == nil) {
-		return &BadRequestError{Message: fmt.Sprintf(`%s"challenge_url", "username" and "password" must be set when modifying "url" of an existing certificate authority: %s.`, errPrefix, certName)}
-	}
-
-	if sscepp.ChallengeURL != nil && sscepp.Username == nil && sscepp.Password == nil {
-		return &BadRequestError{Message: fmt.Sprintf(`%s"username" and "password" must be set when modifying "challenge_url" of an existing certificate authority: %s.`, errPrefix, certName)}
-	}
-
-	if sscepp.ChallengeURL == nil && sscepp.URL == nil && sscepp.Username != nil && sscepp.Password == nil {
-		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying "username" of an existing certificate authority: %s.`, errPrefix, certName)}
+	if (sscepp.URL != nil || sscepp.ChallengeURL != nil || sscepp.Username != nil) && sscepp.Password == nil {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying "url", "challenge_url", or "username" of an existing certificate authority: %s`, errPrefix, certName)}
 	}
 
 	return nil
