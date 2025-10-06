@@ -3189,7 +3189,7 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	assert.Nil(t, fmaID, "fleet_maintained_app_id should be NULL after update")
 }
 
-func testSoftwareInstallerReplicaLag(t *testing.T, unused *Datastore) {
+func testSoftwareInstallerReplicaLag(t *testing.T, _ *Datastore) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 	ds := CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
