@@ -362,6 +362,7 @@ export const MDM_STATUS_TOOLTIP: Record<
       or by signing in with Google account. End user can turn MDM off.
     </span>
   ),
+  "On (company-owned)": null,
   Off: undefined, // no tooltip specified
   Pending: (
     <span>

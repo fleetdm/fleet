@@ -44,13 +44,21 @@ module.exports = {
 
     success: {
       description: 'The message was sent successfully.'
-    }
+    },
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
+    },
 
   },
 
 
   fn: async function({emailAddress, firstName, lastName, message}) {
 
+    let emailDomain = emailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForContactFormSubmissions, emailDomain.toLowerCase())){
+      throw 'invalidEmailDomain';
+    }
 
     let userHasPremiumSubscription = false;
     let thisSubscription;

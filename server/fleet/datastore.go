@@ -719,10 +719,11 @@ type Datastore interface {
 	// upgraded from a prior version).
 	CleanupHostOperatingSystems(ctx context.Context) error
 
-	// MDMTurnOff updates Fleet host information related to MDM when a
-	// host turns off MDM. Anything related to the protocol itself is
-	// managed separately.
-	MDMTurnOff(ctx context.Context, uuid string) error
+	// MDMTurnOff updates Fleet host information related to MDM when a host turns
+	// off MDM. Anything related to the protocol itself is managed separately. It
+	// returns the users and corresponding activities that may need to be created
+	// as a result of turning off MDM.
+	MDMTurnOff(ctx context.Context, uuid string) (users []*User, activities []ActivityDetails, err error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -2555,6 +2556,11 @@ const (
 	AllMigrationsCompleted
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
+	// NeedsFleetv4732Fix means the database needs the special fix migration for fleet v4.73.2
+	NeedsFleetv4732Fix
+	// UnknownFleetv4732State means the database has the broken migrations from fleet v4.73.2 however
+	// it is not in the expected state and needs manual intervention.
+	UnknownFleetv4732State
 )
 
 // TODO: we have a similar but different interface in the service package,

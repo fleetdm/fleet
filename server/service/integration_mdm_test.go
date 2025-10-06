@@ -343,7 +343,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger)
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+								return newActivity(ctx, user, act, ds, logger)
+							})
 						}),
 					)
 					return refetcherSchedule, nil
@@ -9599,24 +9601,6 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	t := s.T()
 
-	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-		foundInstallFleetdCommand := false
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-				foundInstallFleetdCommand = true
-				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-			}
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-		require.Equal(t, wantCommand, foundInstallFleetdCommand)
-	}
-
 	// create a device that's not enrolled into Fleet, it should get a command to
 	// install fleetd
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -9627,7 +9611,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, true)
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 	// create a device that's enrolled into Fleet before turning on MDM features,
 	// it should still get the command to install fleetd if turns on MDM.
@@ -9640,7 +9624,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, true)
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
 }
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
@@ -14038,24 +14022,6 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	})
 
 	t.Run("succeeds", func(t *testing.T) {
-		checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-			foundInstallFleetdCommand := false
-			cmd, err := mdmDevice.Idle()
-			require.NoError(t, err)
-			for cmd != nil {
-				var fullCmd micromdm.CommandPayload
-				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-					foundInstallFleetdCommand = true
-					require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-					require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-				}
-				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-				require.NoError(t, err)
-			}
-			require.Equal(t, wantCommand, foundInstallFleetdCommand)
-		}
-
 		verifySuccessfulOTAEnrollment := func(mdmDevice *mdmtest.TestAppleMDMClient, hwModel, platform string, enrollTime time.Time) getHostResponse {
 			var hostByIdentifierResp getHostResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
@@ -14087,7 +14053,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, true)
+			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			require.Nil(t, hostByIdentifierResp.Host.TeamID)
@@ -14108,7 +14074,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, false)
+			checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "ipados", enrollTime)
 			require.NotNil(t, hostByIdentifierResp.Host.TeamID)
@@ -14125,7 +14091,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, true)
+			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			account, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), resp.Host.UUID)
@@ -14153,7 +14119,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, true)
+			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
@@ -18173,7 +18139,9 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled

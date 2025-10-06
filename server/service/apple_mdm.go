@@ -2392,7 +2392,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
 	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
 		Platform: info.Platform,
@@ -3484,7 +3484,7 @@ type MDMAppleCheckinAndCommandService struct {
 }
 
 func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
-	mdmLifecycle := mdmlifecycle.New(ds, logger)
+	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
 		commander:       commander,
@@ -3864,7 +3864,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
-			// TODO: consider limiting this to only macOS hosts
 			var fromSetupExperience bool
 			if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      cmdResult.Identifier(),

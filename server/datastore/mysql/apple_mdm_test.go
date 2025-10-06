@@ -1134,7 +1134,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = ds.MDMTurnOff(ctx, testUUID)
+	_, _, err = ds.MDMTurnOff(ctx, testUUID)
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
@@ -4888,7 +4888,8 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.False(t, checkinInfo.MigrationInProgress)
 
 		// simulate MDM unenroll
-		require.NoError(t, ds.MDMTurnOff(ctx, depUUID))
+		_, _, err = ds.MDMTurnOff(ctx, depUUID)
+		require.NoError(t, err)
 
 		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
@@ -5062,7 +5063,8 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.False(t, checkinInfo.MigrationInProgress)
 
 		// simulate MDM unenroll
-		require.NoError(t, ds.MDMTurnOff(ctx, depUUID))
+		_, _, err = ds.MDMTurnOff(ctx, depUUID)
+		require.NoError(t, err)
 
 		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
