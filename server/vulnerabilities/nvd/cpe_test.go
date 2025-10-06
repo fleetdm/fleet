@@ -1666,6 +1666,11 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: `cpe:2.3:a:github:pull_requests_and_issues:0.82.0:*:*:*:*:visual_studio_code:*:*`,
 		},
 		{
+			// Running SELECT * FROM cpe_2 WHERE target_sw LIKE '%visual_studio_code%' AND product LIKE
+			// '%go%’; on the CPE sqlite db from NVD returned no rows containing "golang.go", or even “go”
+			// at all, indicating as of 10/3/25 there are no known CVEs in this extension, meaning
+			// it’s safe to skip matching this SW name to avoid the very broad match glob,
+			// cpe:2.3:a:golang:go:*:*:*:*:*:*:*:*, provided by NVD
 			software: fleet.Software{
 				Name:    "golang.go",
 				Source:  "vscode_extensions",
