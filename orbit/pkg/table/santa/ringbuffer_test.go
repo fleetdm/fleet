@@ -40,7 +40,6 @@ func TestRingBuffer_NoWrap(t *testing.T) {
 	rb.Add(mk(0)) // A
 	rb.Add(mk(1)) // B
 	require.Equal(t, []string{"A", "B"}, tsSlice(rb.SliceChrono()))
-	require.Equal(t, []string{"B", "A"}, tsSlice(rb.SliceReverse()))
 }
 
 func TestRingBuffer_Wrap(t *testing.T) {
@@ -50,7 +49,6 @@ func TestRingBuffer_Wrap(t *testing.T) {
 		rb.Add(mk(i))
 	}
 	require.Equal(t, []string{"D", "E", "F"}, tsSlice(rb.SliceChrono()))
-	require.Equal(t, []string{"F", "E", "D"}, tsSlice(rb.SliceReverse()))
 }
 
 func TestRingBuffer_ExactCapacity(t *testing.T) {
@@ -59,13 +57,11 @@ func TestRingBuffer_ExactCapacity(t *testing.T) {
 	rb.Add(mk(1)) // B
 
 	require.Equal(t, []string{"A", "B"}, tsSlice(rb.SliceChrono()))
-	require.Equal(t, []string{"B", "A"}, tsSlice(rb.SliceReverse()))
 }
 
 func TestRingBuffer_Empty(t *testing.T) {
 	rb := newRingBuffer(2)
 	require.Empty(t, rb.SliceChrono())
-	require.Empty(t, rb.SliceReverse())
 }
 
 // Explicit test for SliceReverse with multiple adds and wraps
@@ -79,5 +75,4 @@ func TestRingBuffer_SliceReverse(t *testing.T) {
 
 	// Current buffer state: B C D E
 	require.Equal(t, []string{"B", "C", "D", "E"}, tsSlice(rb.SliceChrono()))
-	require.Equal(t, []string{"E", "D", "C", "B"}, tsSlice(rb.SliceReverse()))
 }

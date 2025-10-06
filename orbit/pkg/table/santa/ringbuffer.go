@@ -1,5 +1,6 @@
 //go:build darwin
 
+// ringBuffer is a fixed-size circular buffer for log entries.
 package santa
 
 type ringBuffer struct {
@@ -33,15 +34,6 @@ func (r *ringBuffer) SliceChrono() []logEntry {
 	out := make([]logEntry, r.size)
 	for i := 0; i < r.size; i++ {
 		out[i] = r.buf[(r.start+i)%len(r.buf)]
-	}
-	return out
-}
-
-// SliceReverse returns entries newest → oldest.
-func (r *ringBuffer) SliceReverse() []logEntry {
-	out := make([]logEntry, r.size)
-	for i := 0; i < r.size; i++ {
-		out[i] = r.buf[(r.start+r.size-1-i+len(r.buf))%len(r.buf)]
 	}
 	return out
 }
