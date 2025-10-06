@@ -36,6 +36,7 @@ var (
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantResendWindowsProfilesMessage             = "Can't resend Windows configuration profiles."
+	CantAddSoftwareConflictMessage               = "Error: Couldn't add software. %s already has a package or app available for install on the %s team."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP

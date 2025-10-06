@@ -477,7 +477,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 				}
 				if exists {
 					return ctxerr.Wrap(ctx, fleet.ConflictError{
-						Message: fmt.Sprintf("Error: Couldn't add software. %s already has a package or app available for install on the %s team.",
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
 							conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
 				}
 			}
@@ -527,7 +527,8 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	})
 }
 
-func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (bool, string, error) {
+func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(
+	ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
 	const stmt = `
 SELECT
 	st.name
@@ -536,10 +537,10 @@ FROM
 	INNER JOIN software_installers si ON si.title_id = st.id AND
 		si.global_or_team_id = ?
 	INNER JOIN vpp_apps va ON va.title_id = st.id
-	INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND 
+	INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND
 		vat.platform = va.platform AND vat.global_or_team_id = ?
 WHERE
-	va.adam_id = ? AND 
+	va.adam_id = ? AND
 	va.platform = ? AND
 	si.platform = va.platform
 `
@@ -548,8 +549,7 @@ WHERE
 		globalOrTeamID = *teamID
 	}
 
-	var title string
-	err := sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, appID.AdamID, appID.Platform)
+	err = sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, appID.AdamID, appID.Platform)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, "", nil

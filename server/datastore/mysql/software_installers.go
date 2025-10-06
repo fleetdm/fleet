@@ -169,7 +169,7 @@ SELECT
 	1
 FROM
 	software_titles st
-	INNER JOIN 
+	INNER JOIN
 		vpp_apps vpa ON st.id = vpa.title_id AND vpa.platform = ?
 	INNER JOIN
 		vpp_apps_teams vpt ON vpa.adam_id = vpt.adam_id AND vpa.platform = vpt.platform
@@ -221,7 +221,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			}
 
 			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
-				Message: fmt.Sprintf("Error: Couldn't add software. %s already has a package or app available for install on the %s team.",
+				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
 					payload.Title, teamName)}, "vpp app conflicts with existing software installer")
 		}
 	}
@@ -2048,7 +2048,7 @@ VALUES
 				}
 				if exists {
 					return ctxerr.Wrap(ctx, fleet.ConflictError{
-						Message: fmt.Sprintf("Error: Couldn't add software. %s already has a package or app available for install on the %s team.",
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
 							installer.Title, teamName)}, "vpp app conflicts with existing software installer")
 				}
 			}
