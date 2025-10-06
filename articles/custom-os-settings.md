@@ -2,15 +2,19 @@
 
 In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your macOS, iOS, iPadOS, Windows, and Android hosts using configuration profiles.
 
-## Enforce
-
-You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+## Create configuration profile
 
 For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles. Fleet signs these profiles for you. If you have self-signed profiles, run this command to unsign them: `/usr/bin/security cms -D -i  /path/to/profile/profile.mobileconfig | xmllint --format -`
 
 For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any [configuration service providers (CSPs)](https://fleetdm.com/guides/creating-windows-csps) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
 
-For Android, hosts refer to [Create Android configuration profiles](#TODO) guide.
+For Android, copy this [Android configuration profile template](#TODO) and update the profile using options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). If you prefer, you can watch a video.
+
+<EMBED_VIDEO>
+
+## Enforce
+
+You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 Fleet UI:
 
@@ -62,6 +66,11 @@ In versions older than 4.71.0, Fleet always delivered configuration profiles to 
 
 If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
 
+#### Broken profiles
+
+If one or more labels included in the profile's scope are deleted, the profile will not apply to new hosts that enroll.
+On macOS, iOS, iPadOS, and Windows, a broken profile will not remove the enforcement of the OS settings applied to existing hosts. However, on Android, a broken profile will remove the enforcement of the OS settings for existing hosts. To apply the profile to new hosts, delete it and upload it again.
+
 ## See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
@@ -100,6 +109,11 @@ The following osquery query will return any values set by this policy:
 ```
 SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
 ```
+
+#### Partial failure (Android profiles)
+
+On Android, if some settings from the profile fail (e.g. incompatible device), other settings from the profile will still be applied. Failed settings will be surfaced on **Host > OS settings**.
+Also, some settings from the profile might be overridden by another configuration profile, which means if multiple profiles include the same setting, the profile that is delivered most recently will be applied.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
