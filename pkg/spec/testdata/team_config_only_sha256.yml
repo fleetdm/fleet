@@ -5,6 +5,11 @@ agent_options:
   path: ./agent-options.yml
 controls:
   path: ./controls.yml
+labels:
+  - name: a
+    description: A cool global label
+    query: SELECT 1 FROM osquery_info
+    label_membership_type: dynamic
 queries:
   - path: ./top.queries.yml
   - path: ./empty.yml
@@ -41,10 +46,17 @@ policies:
 software:
   app_store_apps:
     - app_store_id: "123456"
+      setup_experience: true
   packages:
     - path: ./microsoft-teams.nourl.pkg.software.yml
+      labels_exclude_any:
+        - a
+      setup_experience: true
     - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
       self_service: true
+      labels_exclude_any:
+        - a
+      setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
       self_service: true
@@ -56,3 +68,11 @@ software:
       categories:
         - Productivity
         - Developer tools
+      install_script:
+        path: ./lib/install.sh
+      uninstall_script:
+        path: ./lib/uninstall-box.sh
+      post_install_script:
+        path: ./lib/post-install.sh
+      pre_install_query:
+        path: ./lib/preinstall-query.yml

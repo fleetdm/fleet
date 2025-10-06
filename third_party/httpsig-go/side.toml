@@ -1,5 +1,0 @@
-max_iterations = 0
-max_planning_iterations = 0
-
-[[test_commands]]
-  command = "go test"

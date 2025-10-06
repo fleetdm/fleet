@@ -1,0 +1,45 @@
+<div id="command-details" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <docs-nav-and-search search-filter="queries" current-section="controls" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+      <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+        <div>
+          <a purpose="breadcrumbs-category" class="text-nowrap" :href="'/mdm-commands#'+thisCommand.platform">MDM commands</a>/
+        </div>
+        <div purpose="breadcrumbs-title">
+          <span><%- thisCommand.name %></span>
+        </div>
+      </div>
+      <div purpose="command-details-and-sidebar" class="d-flex flex-lg-row flex-column">
+        <div purpose="command-details" class="d-flex flex-column">
+          <h2 purpose="command-name"><%- thisCommand.name %></h2>
+          <p purpose="command-description"><%- thisCommand.description %> <a target="_blank" href="<%= thisCommand.externalDocumentationUrl %>"><%= thisCommand.platform === 'windows' ? 'Windows documentation' : 'Apple developer docs' %></a></p>
+          <div purpose="supported-platforms" class="<%= thisCommand.platform === 'windows' ? 'windows-list' : '' %>">
+            <% for(let platform of thisCommand.supportedDeviceTypes){%>
+              <p><%= platform %> <%= thisCommand.platform === 'windows' ? 'and later' : '' %></p>
+            <% } %>
+          </div>
+          <a purpose="guide-link" href="https://fleetdm.com/guides/mdm-commands">Learn how to execute commands with Fleet</a>
+          <div purpose="command-check">
+            <div purpose="codeblock">
+              <div purpose="codeblock-tabs" >
+                <a purpose="codeblock-tab" class="selected"><%= thisCommand.platform === 'windows' ? 'xml' : 'plist'%></a>
+                <div purpose="copy-button-tab">
+                  <div purpose="copy-button"></div>
+                </div>
+              </div>
+                <pre><code class="hljs xml"><%= _.unescape(thisCommand.command) %></code></pre>
+            </div>
+          </div>
+        </div>
+        <div purpose="right-sidebar" class="d-flex flex-column">
+          <div purpose="docs-links" class="order-3">
+            <a purpose="sidebar-link" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/docs/mdm-commands.yml'+'#L'+thisCommand.lineNumberInYaml"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+            <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

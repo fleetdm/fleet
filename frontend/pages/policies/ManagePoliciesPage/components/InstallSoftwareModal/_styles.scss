@@ -10,7 +10,7 @@
         overflow: visible;
       }
       .Select-menu-outer {
-        max-height: 240px;
+        max-height: 165px; // Prevent scrolling off modal
         overflow-y: auto;
       }
     }

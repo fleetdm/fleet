@@ -17,145 +17,121 @@
     }
   }
 
-  &__wrapper,
-  &__save-modal-form {
-    .critical-checkbox-wrapper {
-      // override form child width: 100%
-      width: auto;
-      .form-field--checkbox {
-        margin-bottom: 0;
-      }
-    }
-  }
-
   &__title-bar {
     display: flex;
     justify-content: space-between;
     gap: $pad-large;
+  }
 
-    .form-field {
-      margin-bottom: 0px;
+  &__policy-name {
+    color: $core-fleet-black;
+    font-size: $large;
+    line-height: $line-height-large;
+
+    // Future iteration: move size="large" into AutoSizeInputField isntead of styling here
+    .policy-form__policy-name,
+    .input-sizer::after {
+      font-size: $large;
+      line-height: $line-height-large;
     }
 
-    .input-field,
-    .input-field__text-area {
-      min-height: auto;
-      line-height: normal;
-      white-space: normal;
-    }
-
-    /* Hide scrollbar for Chrome, Safari and Opera */
-    .input-field::-webkit-scrollbar {
-      display: none;
-    }
-
-    /* Hide scrollbar for IE, Edge and Firefox */
-    .input-field {
-      -ms-overflow-style: none; /* IE and Edge */
-      scrollbar-width: none; /* Firefox */
-    }
-
-    .edit-link {
-      cursor: pointer;
-      height: 18px;
-    }
-
-    .name-description-resolve {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      .button--text-icon {
-        // override global form button margin adjustment
-        margin: 0;
-      }
-      flex-direction: column;
-      .policy-name-wrapper,
-      .policy-description-wrapper,
-      .policy-resolution-wrapper {
-        display: flex;
-        align-items: baseline;
-        gap: 0.5rem;
-        width: fit-content;
-        &:not(.policy-form--editing) {
-          &:hover {
-            cursor: pointer;
-            * {
-              color: $core-vibrant-blue;
-              cursor: pointer;
-            }
-          }
-        }
-        &--disabled-by-gitops-mode {
-          @include disabled;
-        }
-      }
-      .policy-name-wrapper {
-        .no-value {
-          min-width: 112px;
-        }
-        .policy-form__policy-name,
-        .input-sizer::after {
-          font-size: $large;
-        }
-        .component__auto-size-input-field {
-          letter-spacing: -0.5px;
-          line-height: 2.3rem;
-        }
-      }
-      .policy-description-wrapper {
-        .no-value {
-          min-width: 106px;
-        }
-        .edit-icon {
-          position: relative;
-          top: 0;
-        }
-      }
-      .policy-resolution-wrapper {
-        .no-value {
-          min-width: 106px;
-        }
-      }
-      .edit-icon {
-        opacity: 1;
-        transition: opacity 0.2s;
-        margin-left: 0;
-        align-self: initial;
-        &.hide {
-          opacity: 0;
-        }
-      }
-      .policy-form__policy-resolve {
-        // add margin to match spacing caused by sibling line-height
-        margin-top: 0.7rem;
-        gap: $pad-xxsmall;
-      }
-    }
-
-    .author {
-      flex-shrink: 1;
-      text-align: right;
-      justify-content: right;
-      white-space: nowrap;
-
-      b {
-        text-align: right;
-      }
-
-      img,
-      div {
-        display: flex;
-        align-items: center;
-      }
-
-      span {
-        padding-left: $pad-small;
-      }
+    .component__auto-size-input-field {
+      font-size: $large;
+      line-height: $line-height-large;
     }
   }
 
-  &__policy-resolve {
-    margin-bottom: $pad-medium;
+  &__author {
+    align-items: right;
+
+    img,
+    dd {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+  }
+
+  .input-field,
+  .input-field__text-area {
+    min-height: auto;
+    white-space: normal;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .input-field::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .input-field {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .edit-link {
+    cursor: pointer;
+    height: 18px;
+  }
+
+  &__policy-name,
+  &__description,
+  &__resolution {
+    .button--text-icon {
+      // override global form button margin adjustment
+      margin: 0;
+    }
+  }
+
+  &__policy-name-wrapper,
+  &__policy-description-wrapper,
+  &__policy-resolution-wrapper {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    width: fit-content;
+    &:not(&--editing) {
+      &:hover {
+        cursor: pointer;
+        * {
+          color: $core-fleet-green;
+          cursor: pointer;
+        }
+      }
+    }
+    &--disabled-by-gitops-mode {
+      @include disabled;
+    }
+  }
+
+  &__policy-name-wrapper {
+    .no-value {
+      min-width: 112px;
+    }
+  }
+
+  &__policy-description-wrapper {
+    .no-value {
+      min-width: 106px;
+    }
+    .edit-icon {
+      position: relative;
+      top: 0;
+    }
+  }
+  &__policy-resolution-wrapper {
+    .no-value {
+      min-width: 106px;
+    }
+  }
+  &__edit-icon {
+    opacity: 1;
+    transition: opacity 0.2s;
+    margin-left: 0;
+    align-self: initial;
+    &--hide {
+      opacity: 0;
+    }
   }
 
   &__policy-name,
@@ -171,25 +147,16 @@
     overflow: hidden;
   }
 
-  &__policy-resolution {
-    margin-top: $pad-small;
-  }
-
   &__policy-name {
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
     }
   }
 
-  &__policy-description,
-  &__policy-resolution {
-    margin-top: 0;
-    font-size: $x-small;
-  }
-
   &__autofill-label {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 
     .autofill-tooltip-wrapper {
       display: flex; // Required for vertical centering
@@ -210,10 +177,9 @@
     }
   }
 
-  &__title {
-    color: $core-fleet-black;
-    display: inline-block;
-    font-size: $large;
+  &__sql-editor-label-actions {
+    display: flex;
+    gap: $pad-medium;
   }
 
   &__platform-checkbox-wrapper {
@@ -275,6 +241,14 @@
 
   &__sql-editor-label-actions {
     display: flex;
-    gap: $pad-medium;
+    gap: $pad-large;
+  }
+
+  &__critical-checkbox-wrapper {
+    // override form child width: 100%
+    width: auto;
+    .form-field--checkbox {
+      margin-bottom: 0;
+    }
   }
 }

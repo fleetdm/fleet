@@ -1,0 +1,2 @@
+* Added support for vulnerabilities feed CPE translation JSON to override sw_edition field
+* Fixed cases where Firefox ESR installations would have false-positive vulnerabilities reported that were backported to the ESR

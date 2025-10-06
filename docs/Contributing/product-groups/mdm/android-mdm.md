@@ -52,10 +52,14 @@ export FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS=$(cat credentials.json)
 
 To turn on Android MDM, use a Chrome private window (so that you are not logged in with your "fleetdm.com" address). This is only required to enable Android MDM, you can use a normal window for the rest. In "Settings -> Integrations -> MDM -> Turn On Android -> Connect", use a personal email address (not a "fleetdm.com" one). Select "Sign-up for Android only". Domain name is not important ("test.com" for example). No need to fill anything in the "Data protection officer" and "EU representative" sections, just check the checkbox.
 
+If it fails enabling Android MDM due to an already existing enterprise (error "This enterprise is already enrolled with another EMM." when attempting to enable it again) and a personal (gmail) account was used, you must go to https://play.google.com/work, click "Admin settings", and delete the organization that was created the last time (e.g. "test.com"). You will then be able to enable Android MDM again.
+
+There's also a command-line tool in `tools/android` that can list/delete/etc. enterprises associated with the service account.
+
 ## Known issues and limitations
 - The Fleet server URL must be public for pub/sub to work properly.
 - The Fleet server URL cannot change -- pub/sub is set up with one URL. See issue [Allow Fleet server URL update when using Android](https://github.com/fleetdm/fleet/issues/29878)
-- Network reliability issues may leave the Android enterprise flow in a broken state. For example, if fleetdm.com proxy creates an Android enteprise but Fleet server goes offline and does not receive the secret key.
+- Network reliability issues may leave the Android enterprise flow in a broken state. For example, if fleetdm.com proxy creates an Android enterprise but Fleet server goes offline and does not receive the secret key.
 
 ## Architecture diagrams
 

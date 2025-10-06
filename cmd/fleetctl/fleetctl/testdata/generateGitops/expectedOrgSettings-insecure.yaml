@@ -1,12 +1,43 @@
+certificate_authorities:
+  custom_scep_proxy:
+    - challenge: some-custom-scep-proxy-challenge
+      name: some-custom-scep-proxy-name
+      url: https://some-custom-scep-proxy-url.com
+  digicert:
+    - api_token: some-digicert-api-token
+      certificate_common_name: some-digicert-certificate-common-name
+      certificate_seat_id: some-digicert-certificate-seat-id
+      certificate_user_principal_names:
+        - some-digicert-certificate-user-principal-name
+        - some-other-digicert-certificate-user-principal-name
+      name: some-digicert-name
+      profile_id: some-digicert-profile-id
+      url: https://some-digicert-url.com
+  hydrant:
+    - name: some-hydrant-name
+      url: https://some-hydrant-url.com
+      client_id: some-hydrant-client-id
+      client_secret: some-hydrant-client-secret
+  ndes_scep_proxy:
+    admin_url: https://some-ndes-admin-url.com
+    password: some-ndes-password
+    url: https://some-ndes-scep-proxy-url.com
+    username: some-ndes-username
+  smallstep:
+    - challenge_url: https://some-smallstep-challenge-url.com
+      name: some-smallstep-name
+      password: some-smallstep-password
+      url: https://some-smallstep-url.com
+      username: some-smallstep-username
 features:
   enable_host_users: true
   enable_software_inventory: true
   additional_queries:
-      time: "SELECT * FROM time"
-      macs: "SELECT mac FROM interface_details"
+    time: "SELECT * FROM time"
+    macs: "SELECT mac FROM interface_details"
   detail_query_overrides:
-      users:
-      mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+    users:
+    mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
 fleet_desktop:
   transparency_url: https://fleetdm.com/transparency
 host_expiry_settings:
@@ -14,49 +45,30 @@ host_expiry_settings:
   host_expiry_window: 59995
 integrations:
   conditional_access_enabled: true
-  custom_scep_proxy:
-  - challenge: some-custom-scep-proxy-challenge
-    name: some-custom-scep-proxy-name
-    url: https://some-custom-scep-proxy-url.com
-  digicert:
-  - api_token: some-digicert-api-token
-    certificate_common_name: some-digicert-certificate-common-name
-    certificate_seat_id: some-digicert-certificate-seat-id
-    certificate_user_principal_names:
-    - some-digicert-certificate-user-principal-name
-    - some-other-digicert-certificate-user-principal-name
-    name: some-digicert-name
-    profile_id: some-digicert-profile-id
-    url: https://some-digicert-url.com
   google_calendar:
-  - api_key_json:
-      owl: hoot
-    domain: fleetdm.com
+    - api_key_json:
+        owl: hoot
+      domain: fleetdm.com
   jira:
-  - api_token: some-jira-api-token
-    enable_failing_policies: false
-    enable_software_vulnerabilities: false
-    project_key: some-jira-project-key
-    url: https://some-jira-url.com
-    username: some-jira-username
-  ndes_scep_proxy:
-    admin_url: https://some-ndes-admin-url.com
-    password: some-ndes-password
-    url: https://some-ndes-scep-proxy-url.com
-    username: some-ndes-username
+    - api_token: some-jira-api-token
+      enable_failing_policies: false
+      enable_software_vulnerabilities: false
+      project_key: some-jira-project-key
+      url: https://some-jira-url.com
+      username: some-jira-username
   zendesk:
-  - api_token: some-zendesk-api-token
-    email: some-zendesk-email@example.com
-    enable_failing_policies: false
-    enable_software_vulnerabilities: false
-    group_id: 123456789
-    url: https://some-zendesk-url.com
+    - api_token: some-zendesk-api-token
+      email: some-zendesk-email@example.com
+      enable_failing_policies: false
+      enable_software_vulnerabilities: false
+      group_id: 123456789
+      url: https://some-zendesk-url.com
 mdm:
   apple_business_manager:
-  - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-    ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-    macos_team: "\U0001F4BB Workstations"
-    organization_name: Fleet Device Management Inc.
+    - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      macos_team: "\U0001F4BB Workstations"
+      organization_name: Fleet Device Management Inc.
   apple_server_url: http://some-apple-server-url.com
   end_user_authentication:
     entity_id: some-mdm-entity-id.com
@@ -66,25 +78,25 @@ mdm:
     metadata_url: http://some-mdm-metadata-url.com
   end_user_license_agreement: ./lib/eula/test.pdf
   volume_purchasing_program:
-  - location: Fleet Device Management Inc.
-    teams:
-    - "\U0001F4BB Workstations"
-    - "\U0001F4BB\U0001F423 Workstations (canary)"
-    - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-    - "\U0001F4F1\U0001F510 Personal mobile devices"
+    - location: Fleet Device Management Inc.
+      teams:
+        - "\U0001F4BB Workstations"
+        - "\U0001F4BB\U0001F423 Workstations (canary)"
+        - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+        - "\U0001F4F1\U0001F510 Personal mobile devices"
 org_info:
   contact_url: https://fleetdm.com/company/contact
   org_logo_url: http://some-org-logo-url.com
   org_logo_url_light_background: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
-- secret: some-secret-number-one
-- secret: some-secret-number-two
+  - secret: some-secret-number-one
+  - secret: some-secret-number-two
 server_settings:
   ai_features_disabled: false
   debug_host_ids:
-  - 1
-  - 3
+    - 1
+    - 3
   deferred_save_host: false
   enable_analytics: true
   live_query_disabled: false
@@ -101,6 +113,7 @@ sso_settings:
   idp_name: some-idp-name
   metadata: some-sso-metadata
   metadata_url: http://some-sso-metadata-url.com
+  sso_server_url: https://sso.fleetdm.com
 webhook_settings:
   activities_webhook:
     destination_url: https://some-activities-webhook-url.com

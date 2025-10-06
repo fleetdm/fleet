@@ -10,7 +10,10 @@ import {
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isBYODAccountDrivenEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -66,7 +69,6 @@ const DEFAULT_OPTIONS = [
   },
 ] as const;
 
-// eslint-disable-next-line import/prefer-default-export
 interface IHostActionConfigOptions {
   hostPlatform: string;
   isPremiumTier: boolean;
@@ -81,6 +83,7 @@ interface IHostActionConfigOptions {
   isConnectedToFleetMdm?: boolean;
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
+  isAndroidMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
@@ -108,14 +111,12 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isEnrolledInMdm,
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
-    hostMdmEnrollmentStatus,
+    isAndroidMdmEnabledAndConfigured,
   } = config;
   return (
-    !isAndroid(hostPlatform) && // TODO(android): confirm can't turn off MDM for windows, iOS, iPadOS?
-    isAppleDevice(hostPlatform) &&
-    isMacMdmEnabledAndConfigured &&
+    ((isAndroid(hostPlatform) && isAndroidMdmEnabledAndConfigured) ||
+      (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured)) &&
     isEnrolledInMdm &&
-    hostMdmEnrollmentStatus !== "On (personal)" && // can't turn off MDM for personally enrolled hosts
     isConnectedToFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
@@ -179,15 +180,16 @@ const canWipeHost = ({
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
-  // there is a special case for iOS and iPadOS devices that are personally enrolled
+  // there is a special case for iOS and iPadOS devices that are account driven enrolled
   // in MDM. These hosts cannot be wiped.
-  const isPersonallyEnrolledIosOrIpadDevice =
-    isIPadOrIPhone(hostPlatform) && hostMdmEnrollmentStatus === "On (personal)";
+  const isAccountDrivenEnrolledIosOrIpadosDevice =
+    isIPadOrIPhone(hostPlatform) &&
+    isBYODAccountDrivenEnrollment(hostMdmEnrollmentStatus);
 
   return (
     isPremiumTier &&
     !isAndroid(hostPlatform) &&
-    !isPersonallyEnrolledIosOrIpadDevice &&
+    !isAccountDrivenEnrolledIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -335,6 +337,19 @@ export const getDropdownOptionTooltipContent = (
   return undefined;
 };
 
+/** for ios, ipad, and android we want to display different text for mdmOff.
+ * The functionality is the same, but the action is called unenroll on those platforms.
+ */
+const formatTurnOffOptionLabel = (
+  options: IDropdownOption[],
+  hostPlatform: string
+) => {
+  const option = options.find((opt) => opt.value === "mdmOff");
+  if (option && (isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform))) {
+    option.label = "Unenroll";
+  }
+};
+
 const modifyOptions = (
   options: IDropdownOption[],
   {
@@ -355,8 +370,22 @@ const modifyOptions = (
   };
 
   let optionsToDisable: IDropdownOption[] = [];
+  // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.
+  if (!isHostOnline) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "query")
+    );
+
+    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
+    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter((option) => option.value === "mdmOff")
+      );
+    }
+  }
+
+  // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM
   if (
-    (!isIPadOrIPhone(hostPlatform) && !isHostOnline) ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"
@@ -395,6 +424,7 @@ const modifyOptions = (
     }
   }
   disableOptions(optionsToDisable);
+  formatTurnOffOptionLabel(options, hostPlatform);
   return options;
 };
 

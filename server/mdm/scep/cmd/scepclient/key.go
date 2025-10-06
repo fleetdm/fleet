@@ -25,7 +25,7 @@ func newRSAKey(bits int) (*rsa.PrivateKey, error) {
 
 // load key if it exists or create a new one
 func loadOrMakeKey(path string, rsaBits int) (*rsa.PrivateKey, error) {
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666) // nolint:gosec // G302
 	if err != nil {
 		if os.IsExist(err) {
 			return loadKeyFromFile(path)

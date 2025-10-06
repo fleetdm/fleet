@@ -12,7 +12,7 @@ const AndroidEnterpriseDeletedMessage = () => {
       color="yellow"
       cta={
         <CustomLink
-          url="https://business.apple.com/" // TODO: get this link
+          url="https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
           text="Learn more"
           className={baseClass}
           newTab
@@ -21,7 +21,7 @@ const AndroidEnterpriseDeletedMessage = () => {
       }
     >
       Android MDM is off because Android Enterprise was deleted in Google
-      Workspace. Please turn on Android MDM again.
+      Console. Please reconnect Android Enterprise.
     </InfoBanner>
   );
 };

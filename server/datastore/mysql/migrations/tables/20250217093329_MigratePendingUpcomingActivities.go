@@ -22,6 +22,9 @@ func Up_20250217093329(tx *sql.Tx) error {
 	if err := migrateSoftwareUninstalls(tx); err != nil {
 		return err
 	}
+	if err := recreateNanoViewQueue(tx); err != nil {
+		return err
+	}
 	if err := migrateVPPInstalls(tx); err != nil {
 		return err
 	}
@@ -172,6 +175,42 @@ WHERE
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending software uninstalls secondary table: %w", err)
+	}
+	return nil
+}
+
+// Note this is the same migration that is in 20250728122229_RecreateNanoViewQueue.go. We have added
+// it here because it can be called multiple times without issues and can avoid some issues
+// customers have seen when completing this migration (see
+// https://github.com/fleetdm/fleet/issues/28573 and https://github.com/fleetdm/fleet/issues/31141)
+func recreateNanoViewQueue(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+		CREATE OR REPLACE SQL SECURITY INVOKER VIEW nano_view_queue AS
+SELECT
+    q.id COLLATE utf8mb4_unicode_ci AS id,
+    q.created_at,
+    q.active,
+    q.priority,
+    c.command_uuid COLLATE utf8mb4_unicode_ci AS command_uuid,
+    c.request_type COLLATE utf8mb4_unicode_ci AS request_type,
+    c.command COLLATE utf8mb4_unicode_ci AS command,
+    r.updated_at AS result_updated_at,
+    r.status COLLATE utf8mb4_unicode_ci AS status,
+    r.result COLLATE utf8mb4_unicode_ci AS result
+FROM
+    nano_enrollment_queue AS q
+
+        INNER JOIN nano_commands AS c
+        ON q.command_uuid = c.command_uuid
+
+        LEFT JOIN nano_command_results r
+        ON r.command_uuid = q.command_uuid AND r.id = q.id
+ORDER BY
+    q.priority DESC,
+    q.created_at;
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate nano_view_queue: %w", err)
 	}
 	return nil
 }

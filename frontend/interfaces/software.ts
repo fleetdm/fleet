@@ -44,9 +44,13 @@ export interface ISoftware {
   installed_paths?: string[];
   browser?: string;
   vendor?: string;
+  icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
 
-export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
+export type IVulnerabilitySoftware = Omit<
+  ISoftware,
+  "vulnerabilities" | "icon_url"
+> & {
   resolved_in_version: string;
 };
 
@@ -112,7 +116,7 @@ export const isSoftwarePackage = (
 
 export interface IAppStoreApp {
   name: string;
-  app_store_id: number;
+  app_store_id: string; // API returns this as a string
   latest_version: string;
   created_at: string;
   icon_url: string;
@@ -136,6 +140,7 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
   hosts_count: number;
@@ -148,6 +153,7 @@ export interface ISoftwareTitle {
 export interface ISoftwareTitleDetails {
   id: number;
   name: string;
+  icon_url: string | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
@@ -192,6 +198,7 @@ export const SOURCE_TYPE_CONVERSION = {
   portage_packages: "Package (Portage)",
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
+  pacman_packages: "Package (pacman)",
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
@@ -219,6 +226,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   portage_packages: "linux",
   rpm_packages: "linux",
   yum_sources: "linux",
+  pacman_packages: "linux",
   tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,
@@ -317,6 +325,25 @@ export const isSoftwareUninstallStatus = (
 export const isPendingStatus = (s: string | undefined | null) =>
   ["pending_install", "pending_uninstall"].includes(s || "");
 
+export const resolveUninstallStatus = (
+  activityStatus?: string
+): SoftwareUninstallStatus => {
+  let resolvedStatus = activityStatus;
+  if (resolvedStatus === "pending") {
+    resolvedStatus = "pending_uninstall";
+  }
+  if (resolvedStatus === "failed") {
+    resolvedStatus = "failed_uninstall";
+  }
+  if (!isSoftwareUninstallStatus(resolvedStatus)) {
+    console.warn(
+      `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`
+    );
+    resolvedStatus = "pending_uninstall";
+  }
+  return resolvedStatus as SoftwareUninstallStatus;
+};
+
 /**
  * ISoftwareInstallResult is the shape of a software install result object
  * returned by the Fleet API.
@@ -399,6 +426,7 @@ export interface IHostAppStoreApp {
 export interface IHostSoftware {
   id: number;
   name: string;
+  icon_url: string | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   source: SoftwareSource;
@@ -407,20 +435,33 @@ export interface IHostSoftware {
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
+/**
+ * Comprehensive list of possible UI software statuses for host > software > library/self-service.
+ *
+ * These are more detailed than the raw API `.status` and are determined by:
+ * - Whether the host is online or offline
+ * - If the fleet-installed version is newer than any in installed_versions
+ * - Special handling for tarballs (tgz_packages)
+ * - Cases where the software inventory has not yet updated to reflect a recent change
+ *   (i.e., last_install date vs host software's updated_at date)
+ */
 export type IHostSoftwareUiStatus =
-  | "installed"
-  | "uninstalled"
-  | "installing"
-  | "uninstalling"
-  | "updating"
-  | "pending_install"
-  | "pending_uninstall"
-  | "pending_update"
-  | "failed_install"
-  | "failed_install_update_available"
-  | "failed_uninstall"
-  | "failed_uninstall_update_available"
-  | "update_available";
+  | "installed" // Present in inventory; no newer fleet installer version (tarballs: successful install only)
+  | "uninstalled" // Not present in inventory (tarballs: successful uninstall or never installed)
+  | "installing" // ONLINE; fleet-initiated install in progress
+  | "uninstalling" // ONLINE; fleet-initiated uninstall in progress
+  | "recently_updated" // Update applied (installer newer than inventory), but inventory not yet refreshed
+  | "recently_installed" // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
+  | "recently_uninstalled" // Uninstall applied, but inventory not yet refreshed
+  | "updating" // ONLINE; update (install) in progress with newer fleet installer
+  | "pending_install" // OFFLINE; install scheduled (no newer installer version)
+  | "pending_uninstall" // OFFLINE; uninstall scheduled
+  | "pending_update" // OFFLINE; update scheduled (no newer installer version)
+  | "failed_install" // Install attempt failed
+  | "failed_install_update_available" // Install/update failed; newer installer version available
+  | "failed_uninstall" // Uninstall attempt failed
+  | "failed_uninstall_update_available" // Uninstall/update failed; newer installer version available
+  | "update_available"; // In inventory, but newer fleet installer version is available
 
 /**
  * Extends IHostSoftware with a computed `ui_status` field.
@@ -433,6 +474,18 @@ export type IHostSoftwareUiStatus =
 export interface IHostSoftwareWithUiStatus extends IHostSoftware {
   ui_status: IHostSoftwareUiStatus;
 }
+
+/**
+ * Allows unified data model for rendering of host VPP software installs and uninstalls
+ * Optional as pending may not have a commandUuid
+ */
+export type IVPPHostSoftware = IHostSoftware & {
+  commandUuid?: string;
+};
+
+export type IHostSoftwareUninstall = IHostSoftwareWithUiStatus & {
+  scriptExecutionId: string;
+};
 
 export type IDeviceSoftware = IHostSoftware;
 export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;

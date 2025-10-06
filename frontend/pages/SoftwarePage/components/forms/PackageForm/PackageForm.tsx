@@ -11,7 +11,7 @@ import {
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
-import { PackageType } from "interfaces/package_type";
+
 import { SoftwareCategory } from "interfaces/software";
 
 import Button from "components/buttons/Button";
@@ -290,7 +290,7 @@ const PackageForm = ({
           message=".pkg, .msi, .exe, .deb, .rpm, or .tar.gz"
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
-          buttonType="link"
+          buttonType="brand-inverse-icon"
           className={`${baseClass}__file-uploader`}
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined

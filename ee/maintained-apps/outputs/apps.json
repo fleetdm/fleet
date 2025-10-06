@@ -6,7 +6,7 @@
       "slug": "1password/darwin",
       "platform": "darwin",
       "unique_identifier": "com.1password.1password",
-      "description": "Password manager that keeps all passwords secure behind one password"
+      "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
       "name": "Adobe Acrobat Reader",
@@ -14,6 +14,13 @@
       "platform": "darwin",
       "unique_identifier": "com.adobe.Reader",
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
+    },
+    {
+      "name": "Adobe Creative Cloud",
+      "slug": "adobe-creative-cloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
       "name": "Beyond Compare",
@@ -156,6 +163,20 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Omnissa Horizon Client",
+      "slug": "omnissa-horizon-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnissa.horizon.client.mac",
+      "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
+    },
+    {
+      "name": "P4V",
+      "slug": "p4v/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.perforce.p4v",
+      "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -174,7 +195,7 @@
       "slug": "slack/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tinyspeck.slackmacgap",
-      "description": "Slack is a team communication and collaboration software for modern workplaces"
+      "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
       "name": "TeamViewer",
@@ -223,7 +244,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": ""
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager/</a>"
     },
     {
       "name": "Zoom",

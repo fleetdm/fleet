@@ -49,6 +49,7 @@ export type MdmEnrollmentStatus =
   | "On (manual)"
   | "On (automatic)"
   | "On (personal)"
+  | "On (company-owned)"
   | "Off"
   | "Pending";
 
@@ -94,6 +95,10 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     displayName: "Pending",
     filterValue: "pending",
   },
+  "On (company-owned)": {
+    displayName: "On (company-owned)",
+    filterValue: "automatic",
+  },
 };
 
 export interface IMdmStatusCardData {
@@ -137,7 +142,13 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSummaryMdmSolution[] | null;
 }
 
-export type ProfilePlatform = "darwin" | "windows" | "ios" | "ipados" | "linux";
+export type ProfilePlatform =
+  | "darwin"
+  | "windows"
+  | "ios"
+  | "ipados"
+  | "linux"
+  | "android";
 
 export interface IProfileLabel {
   name: string;
@@ -167,6 +178,7 @@ export type MdmDDMProfileStatus =
   | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
+export type ProfileScope = "device" | "user";
 
 export interface IHostMdmProfile {
   profile_uuid: string;
@@ -175,6 +187,8 @@ export interface IHostMdmProfile {
   platform: ProfilePlatform;
   status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
   detail: string;
+  scope: ProfileScope | null;
+  managed_local_account: string | null;
 }
 
 // TODO - move disk encryption related types to dedicated file
@@ -190,7 +204,7 @@ export type DiskEncryptionStatus =
 values. In the future we may add more. */
 export type WindowsDiskEncryptionStatus = Extract<
   DiskEncryptionStatus,
-  "verified" | "verifying" | "enforcing" | "failed"
+  "verified" | "verifying" | "enforcing" | "failed" | "action_required"
 >;
 
 export const isWindowsDiskEncryptionStatus = (
@@ -201,6 +215,7 @@ export const isWindowsDiskEncryptionStatus = (
     case "verifying":
     case "enforcing":
     case "failed":
+    case "action_required":
       return true;
     default:
       return false;
@@ -251,7 +266,7 @@ export interface IMdmCommandResult {
   host_uuid: string;
   command_uuid: string;
   /** Status is the status of the command. It can be one of Acknowledged, Error, or NotNow for
-	// Apple, or 200, 400, etc for Windows.  */
+  // Apple, or 200, 400, etc for Windows.  */
   status: string;
   updated_at: string;
   request_type: string;
@@ -268,7 +283,28 @@ export const isEnrolledInMdm = (
   if (!hostMdmEnrollmentStatus) {
     return false;
   }
-  return ["On (automatic)", "On (manual)", "On (personal)"].includes(
-    hostMdmEnrollmentStatus
-  );
+  return [
+    "On (automatic)",
+    "On (manual)",
+    "On (personal)",
+    "On (company-owned)",
+  ].includes(hostMdmEnrollmentStatus);
+};
+
+export const isBYODManualEnrollment = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (manual)";
+};
+
+export const isBYODAccountDrivenEnrollment = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (personal)";
+};
+
+export const isCompanyOwnedEnrollment = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (company-owned)";
 };

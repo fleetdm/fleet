@@ -3,7 +3,7 @@
 import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import { RouteComponentProps } from "react-router";
+import { InjectedRouter, RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
@@ -11,6 +11,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 
 import { ignoreAxiosError } from "interfaces/errors";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import {
   isLinuxLike,
   Platform,
@@ -21,7 +22,7 @@ import osVersionsAPI, {
   IOSVersionResponse,
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
-import { IOperatingSystemVersion } from "interfaces/operating_system";
+
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   PLATFORM_DISPLAY_NAMES,
@@ -31,13 +32,110 @@ import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 
 import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import OSKernelsTable from "../components/tables/OSKernelsTable";
 
 const baseClass = "software-os-details-page";
+
+interface ISummaryCardProps {
+  osVersion: IOperatingSystemVersion;
+  countsUpdatedAt: string | undefined;
+  teamIdForApi?: number;
+}
+
+export const SummaryCard = ({
+  osVersion,
+  countsUpdatedAt,
+  teamIdForApi,
+}: ISummaryCardProps) => (
+  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
+    <SoftwareDetailsSummary
+      title={osVersion.name}
+      hosts={osVersion.hosts_count}
+      countsUpdatedAt={countsUpdatedAt}
+      queryParams={{
+        os_name: osVersion.name_only,
+        os_version: osVersion.version,
+        team_id: teamIdForApi,
+      }}
+      name={osVersion.platform}
+      isOperatingSystem
+    />
+  </Card>
+);
+
+interface IVulnerabilitiesCardProps {
+  osVersion: IOperatingSystemVersion;
+  isLoading: boolean;
+  router: InjectedRouter;
+  teamIdForApi?: number;
+}
+
+export const VulnerabilitiesCard = ({
+  osVersion,
+  isLoading,
+  router,
+  teamIdForApi,
+}: IVulnerabilitiesCardProps) => {
+  const supportsVulns =
+    VULN_SUPPORTED_PLATFORMS.includes(osVersion.platform as Platform) ||
+    isLinuxLike(osVersion.platform);
+
+  return (
+    <Card
+      borderRadiusSize="xxlarge"
+      className={`${baseClass}__vulnerabilities-section`}
+    >
+      <CardHeader header="Vulnerabilities" />
+      {supportsVulns ? (
+        <SoftwareVulnerabilitiesTable
+          data={osVersion.vulnerabilities}
+          itemName="version"
+          isLoading={isLoading}
+          router={router}
+          teamIdForApi={teamIdForApi}
+        />
+      ) : (
+        <VulnsNotSupported
+          platformText={
+            PLATFORM_DISPLAY_NAMES[osVersion.platform] || osVersion.platform
+          }
+        />
+      )}
+    </Card>
+  );
+};
+
+interface IKernelsCardProps {
+  osVersion: IOperatingSystemVersion;
+  isLoading: boolean;
+  router: InjectedRouter;
+  teamIdForApi?: number;
+}
+
+export const KernelsCard = ({
+  osVersion,
+  isLoading,
+  router,
+  teamIdForApi,
+}: IKernelsCardProps) => (
+  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
+    <CardHeader header="Kernels" />
+    <OSKernelsTable
+      osName={osVersion.name_only}
+      osVersion={osVersion.version}
+      data={osVersion.kernels}
+      isLoading={isLoading}
+      router={router}
+      teamIdForApi={teamIdForApi}
+    />
+  </Card>
+);
 
 interface ISoftwareOSDetailsRouteParams {
   id: string;
@@ -112,32 +210,6 @@ const SoftwareOSDetailsPage = ({
     [handleTeamChange]
   );
 
-  const renderTable = () => {
-    if (!osVersionDetails) {
-      return null;
-    }
-
-    if (
-      // TODO - detangle platform typing here
-      !VULN_SUPPORTED_PLATFORMS.includes(osVersionDetails.platform as Platform)
-    ) {
-      const platformText = isLinuxLike(osVersionDetails.platform)
-        ? "Linux"
-        : PLATFORM_DISPLAY_NAMES[osVersionDetails.platform];
-      return <VulnsNotSupported platformText={platformText} />;
-    }
-
-    return (
-      <SoftwareVulnerabilitiesTable
-        data={osVersionDetails.vulnerabilities}
-        itemName="version"
-        isLoading={isLoading}
-        router={router}
-        teamIdForApi={teamIdForApi}
-      />
-    );
-  };
-
   const renderContent = () => {
     if (isLoading) {
       return <Spinner />;
@@ -146,6 +218,10 @@ const SoftwareOSDetailsPage = ({
     if (!osVersionDetails && !isOsVersionError) {
       return null;
     }
+
+    // Linux vulns are associated with specific kernels hence design
+    // hiding default vulns table and showing vulns within OS > Kernels card
+    const isLinuxPlatform = isLinuxLike(osVersionDetails?.platform || "");
 
     return (
       <>
@@ -164,31 +240,27 @@ const SoftwareOSDetailsPage = ({
           />
         ) : (
           <>
-            <Card
-              borderRadiusSize="xxlarge"
-              includeShadow
-              className={`${baseClass}__summary-section`}
-            >
-              <SoftwareDetailsSummary
-                title={osVersionDetails.name}
-                hosts={osVersionDetails.hosts_count}
-                countsUpdatedAt={counts_updated_at}
-                queryParams={{
-                  os_name: osVersionDetails.name_only,
-                  os_version: osVersionDetails.version,
-                  team_id: teamIdForApi,
-                }}
-                name={osVersionDetails.platform}
+            <SummaryCard
+              osVersion={osVersionDetails}
+              countsUpdatedAt={counts_updated_at}
+              teamIdForApi={teamIdForApi}
+            />
+            {!isLinuxPlatform && (
+              <VulnerabilitiesCard
+                osVersion={osVersionDetails}
+                isLoading={isLoading}
+                router={router}
+                teamIdForApi={teamIdForApi}
               />
-            </Card>
-            <Card
-              borderRadiusSize="xxlarge"
-              includeShadow
-              className={`${baseClass}__vulnerabilities-section`}
-            >
-              <h2>Vulnerabilities</h2>
-              {renderTable()}
-            </Card>
+            )}
+            {isLinuxPlatform && (
+              <KernelsCard
+                osVersion={osVersionDetails}
+                isLoading={isLoading}
+                router={router}
+                teamIdForApi={teamIdForApi}
+              />
+            )}
           </>
         )}
       </>

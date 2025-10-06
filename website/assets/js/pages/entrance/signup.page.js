@@ -39,7 +39,7 @@ parasails.registerPage('signup', {
 
       if(window.location.hash === '#purchaseLicense'){
         this.loginSlug = '/login#purchaseLicense';
-        this.pageToRedirectToAfterRegistration = '/new-license#signup';
+        this.pageToRedirectToAfterRegistration = '/new-license';
         window.location.hash = '';
       } else if(window.location.hash === '#tryfleet') {
         this.loginSlug = '/login#tryfleet';
@@ -72,7 +72,7 @@ parasails.registerPage('signup', {
     },
 
     submittedSignUpForm: async function() {// When the server says everything worked…
-      // Track a "key event" in Google Analytics. (?  but don't we do that when we call analytics.track() [segment] later on in start.page.js?  TODO: eric help please – I suspect this one is either duplicate OR it's actually writing to Google Ads, and not to Google Analytics.  I'm pretty sure segment's .track() is what writes to google analytics.)
+      // Track a "key event" in Google Analytics.
       // > Naming convention:  (like sails config)
       // > "Website - Sign up" becomes "fleet_website__sign_up"  (double-underscore representing hierarchy)
       if(window.gtag !== undefined){

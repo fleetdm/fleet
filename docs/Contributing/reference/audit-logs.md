@@ -69,13 +69,17 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -86,13 +90,17 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -103,13 +111,17 @@ Generated when deleting policies.
 This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
+- "team_id": the ID of the team the policy belonged to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belonged to. null for global policies and "No Team" policies.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -159,13 +171,17 @@ Generated when creating a new query.
 This activity contains the following fields:
 - "query_id": the ID of the created query.
 - "query_name": the name of the created query.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.
 
 #### Example
 
 ```json
 {
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -176,13 +192,17 @@ Generated when editing a saved query.
 This activity contains the following fields:
 - "query_id": the ID of the query being edited.
 - "query_name": the name of the query being edited.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.
 
 #### Example
 
 ```json
 {
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -192,12 +212,16 @@ Generated when deleting a saved query.
 
 This activity contains the following fields:
 - "query_name": the name of the query being deleted.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.
 
 #### Example
 
 ```json
 {
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -207,12 +231,16 @@ Generated when deleting multiple saved queries.
 
 This activity contains the following fields:
 - "query_ids": list of IDs of the deleted saved queries.
+- "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
+- "team_name": the name of the team the queries belonged to. null for global or no team queries.
 
 #### Example
 
 ```json
 {
-	"query_ids": [1, 42, 100]
+	"query_ids": [1, 42, 100],
+	"team_id": 123,
+	"team_name": "Workstations"
 }
 ```
 
@@ -942,6 +970,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "batch_execution_id": Batch execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
 - "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
@@ -955,6 +984,7 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
   "async": false,
   "policy_id": 123,
   "policy_name": "Ensure photon torpedoes are primed"
@@ -1204,6 +1234,61 @@ This activity contains the following fields:
 }
 ```
 
+## created_android_profile
+
+Generated when a user adds a new Android profile to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_android_profile
+
+Generated when a user deletes an Android profile from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_android_profile
+
+Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
@@ -1358,6 +1443,7 @@ This activity contains the following fields:
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1393,6 +1479,7 @@ This activity contains the following fields:
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1497,6 +1584,7 @@ This activity contains the following fields:
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1566,6 +1654,7 @@ This activity contains the following fields:
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1687,6 +1776,96 @@ This activity contains the following fields:
 }
 ```
 
+## added_hydrant
+
+Generated when Hydrant certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## deleted_hydrant
+
+Generated when Hydrant certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## edited_hydrant
+
+Generated when Hydrant certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## added_smallstep
+
+Generated when Smallstep certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## deleted_smallstep
+
+Generated when Smallstep certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## edited_smallstep
+
+Generated when Smallstep certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
 ## enabled_activity_automations
 
 Generated when activity automations are enabled
@@ -1805,9 +1984,70 @@ This activity contains the following fields:
 }
 ```
 
+## ran_script_batch
+
+Generated when a script is run on a batch of hosts.
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "batch_execution_id": Execution ID of the batch script run.
+- "host_count": Number of hosts in the batch.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "host_count": 12
+}
+```
+
+## scheduled_script_batch
+
+Generated when a batch script is scheduled.
+
+This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "not_before": Time that the batch activity is scheduled to launch.
+
+#### Example
+
+```json
+{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "not_before": "2025-08-06T17:49:21.810204Z"
+}
+```
+
+## canceled_script_batch
+
+Generated when a batch script is canceled.
+
+This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "canceled_count": Number of hosts the job was canceled for.
+
+#### Example
+
+```json
+{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "canceled_count": 5
+}
+```
+
 ## added_conditional_access_integration_microsoft
 
-Generated when Microsoft Entra is connected for conditonal access.
+Generated when Microsoft Entra is connected for conditional access.
 
 This activity does not contain any detail fields.
 
@@ -1848,6 +2088,76 @@ This activity contains the following field:
 {
   "team_id": 5,
   "team_name": "Workstations"
+}
+```
+
+## escrowed_disk_encryption_key
+
+Generated when a disk encryption key is escrowed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## created_custom_variable
+
+Generated when custom variable is added.
+
+This activity contains the following fields:
+- "custom_variable_id": the id of the new custom variable.
+- "custom_variable_name": the name of the new custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## deleted_custom_variable
+
+Generated when custom variable is deleted.
+
+This activity contains the following fields:
+- "custom_variable_id": the id of the custom variable.
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## edited_setup_experience_software
+
+Generated when a user edits setup experience software.
+
+This activity contains the following fields:
+- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").
+
+#### Example
+
+```json
+{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 

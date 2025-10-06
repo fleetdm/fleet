@@ -1,2 +1,0 @@
-- Modified backend for GET /api/v1/fleet/commands when filtering by `host_identifier` to address performance
-  concerns and exhausting database connections when API is called concurrently for many hosts.

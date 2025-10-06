@@ -3,10 +3,12 @@ package ratelimit
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
@@ -50,9 +52,13 @@ func TestLimit(t *testing.T) {
 	_, err = wrapped(ctx, struct{}{})
 	assert.Error(t, err)
 	var rle Error
-
 	assert.True(t, errors.As(err, &rle))
 	assert.True(t, authzCtx.Checked())
+	require.Contains(t, rle.Error(), "limit exceeded, retry after: ")
+	rle_, ok := rle.(*rateLimitError)
+	require.True(t, ok)
+	require.NotZero(t, rle_.RetryAfter())
+	require.Equal(t, http.StatusTooManyRequests, rle_.StatusCode())
 
 	// ensure that the same endpoint wrapped with a different limiter doesn't hit the error
 	_, err = wrapped2(ctx, struct{}{})
@@ -76,36 +82,4 @@ func TestNewErrorMiddlewarePanics(t *testing.T) {
 	}()
 
 	NewErrorMiddleware(nil)
-}
-
-func TestLimitOnlyWhenError(t *testing.T) {
-	t.Parallel()
-
-	store, _ := memstore.New(1)
-	limiter := NewErrorMiddleware(store)
-	endpoint := func(context.Context, interface{}) (interface{}, error) { return struct{}{}, nil }
-	wrapped := limiter.Limit(
-		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
-	)(endpoint)
-
-	// Does NOT hit any rate limits because the endpoint doesn't fail
-	_, err := wrapped(context.Background(), struct{}{})
-	assert.NoError(t, err)
-	_, err = wrapped(context.Background(), struct{}{})
-	assert.NoError(t, err)
-
-	expectedError := errors.New("error")
-	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, expectedError }
-	wrappedFailer := limiter.Limit(
-		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
-	)(failingEndpoint)
-
-	_, err = wrappedFailer(context.Background(), struct{}{})
-	assert.ErrorIs(t, err, expectedError)
-
-	// Hits rate limit now that it fails
-	_, err = wrappedFailer(context.Background(), struct{}{})
-	assert.Error(t, err)
-	var rle Error
-	assert.True(t, errors.As(err, &rle))
 }

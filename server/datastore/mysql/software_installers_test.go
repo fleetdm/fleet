@@ -218,6 +218,8 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
 	require.False(t, exec1.SelfService)
 	assert.Equal(t, "goodbye MONSTER", exec1.UninstallScript)
+	// Check that regular install has MaxRetries = 0
+	require.EqualValues(t, 0, exec1.MaxRetries, "Regular install should have MaxRetries = 0")
 
 	// add a self-service request for installerID3 on host1
 	hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, fleet.HostSoftwareInstallOptions{SelfService: true})
@@ -250,6 +252,9 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host3.ID, installerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
+	// Set LastEnrolledAt before deleting the host (simulating a DEP enrolled host)
+	host3.LastEnrolledAt = time.Now()
+
 	err = ds.DeleteHost(ctx, host3.ID)
 	require.NoError(t, err)
 
@@ -259,6 +264,26 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID)
 	require.NoError(t, err)
 	require.Empty(t, hostInstalls4)
+
+	// Test MaxRetries for setup experience install
+	// Create a software install request that's part of setup experience
+	setupExperienceInstallID, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// Insert a setup experience status result to simulate this install is part of setup experience
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO setup_experience_status_results 
+		(host_uuid, name, status, software_installer_id, host_software_installs_execution_id) 
+		VALUES (?, ?, ?, ?, ?)`,
+		host1.UUID, "test_software", fleet.SetupExperienceStatusPending, installerID1, setupExperienceInstallID)
+	require.NoError(t, err)
+
+	// Get the install details and check MaxRetries = setupExperienceSoftwareInstallsRetries
+	setupExperienceInstallDetails, err := ds.GetSoftwareInstallDetails(ctx, setupExperienceInstallID)
+	require.NoError(t, err)
+	require.Equal(t, host1.ID, setupExperienceInstallDetails.HostID)
+	require.Equal(t, setupExperienceInstallID, setupExperienceInstallDetails.ExecutionID)
+	require.Equal(t, setupExperienceSoftwareInstallsRetries, setupExperienceInstallDetails.MaxRetries, "Setup experience install should have MaxRetries = %d", setupExperienceSoftwareInstallsRetries)
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
@@ -1278,7 +1303,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	})
 
 	// Add setup_experience_status_results for both installers
-	_, err = ds.EnqueueSetupExperienceItems(ctx, host1.UUID, *host1.TeamID)
+	_, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", host1.UUID, *host1.TeamID)
 	require.NoError(t, err)
 
 	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
@@ -2474,7 +2499,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
 	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
-	SELECT 1 FROM deb_packages WHERE name = 'Barfoo'
+	SELECT 1 FROM deb_packages WHERE name = 'Barfoo' AND status = 'install ok installed'
 );`, team2Policies[0].Query)
 	require.Equal(t, `Policy triggers automatic install of Barfoo on each host that's missing this software.
 Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[0].Description)

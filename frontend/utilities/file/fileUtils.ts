@@ -72,11 +72,11 @@ export const getPlatformDisplayName = (file: File) => {
 export const getFileDetails = (file: File) => {
   return {
     name: file.name,
-    platform: getPlatformDisplayName(file),
+    description: getPlatformDisplayName(file),
   };
 };
 
 export interface IFileDetails {
   name: string;
-  platform?: string;
+  description?: string;
 }

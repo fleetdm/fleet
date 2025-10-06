@@ -1,30 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { CellProps, Column } from "react-table";
 
 import {
   IDeviceSoftware,
+  IHostSoftware,
   IHostSoftwareWithUiStatus,
+  IVPPHostSoftware,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
-import InstallerStatusCell, {
-  InstallOrCommandUuid,
-} from "../InstallStatusCell/InstallStatusCell";
-import {
-  getInstallerActionButtonConfig,
-  IButtonDisplayConfig,
-  installStatusSortType,
-} from "../helpers";
-import HostInstallerActionCell, {
-  HostInstallerActionButton,
-} from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import InstallStatusCell from "../InstallStatusCell/InstallStatusCell";
+import { installStatusSortType } from "../helpers";
+import HostInstallerActionCell from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
-type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
+type ISelfServiceTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
 type ITableStringCellProps = IStringCellProps<IHostSoftwareWithUiStatus>;
 type IStatusCellProps = CellProps<
@@ -45,27 +39,29 @@ export const generateSoftwareTableData = (
 };
 
 interface ISelfServiceTableHeaders {
-  deviceToken: string;
-  onInstallOrUninstall: () => void;
   onShowUpdateDetails: (software: IDeviceSoftware) => void;
-  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowVPPInstallDetails: (hostSoftware: IVPPHostSoftware) => void;
+  onShowUninstallDetails: (
+    uninstallDetails: ISWUninstallDetailsParentState
+  ) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;
+  onClickOpenInstructionsAction: (software: IHostSoftwareWithUiStatus) => void;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
-  deviceToken,
-  onInstallOrUninstall,
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowVPPInstallDetails,
   onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
-}: ISelfServiceTableHeaders): ISoftwareTableConfig[] => {
-  const tableHeaders: ISoftwareTableConfig[] = [
+  onClickOpenInstructionsAction,
+}: ISelfServiceTableHeaders): ISelfServiceTableConfig[] => {
+  const tableHeaders: ISelfServiceTableConfig[] = [
     {
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
@@ -74,12 +70,12 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source, app_store_app } = cellProps.row.original;
+        const { name, source, icon_url } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             pageContext="deviceUser"
             isSelfService
           />
@@ -99,10 +95,11 @@ export const generateSoftwareTableHeaders = ({
       disableGlobalFilter: true,
       accessor: "ui_status",
       Cell: (cellProps: IStatusCellProps) => (
-        <InstallerStatusCell
+        <InstallStatusCell
           software={cellProps.row.original}
           onShowUpdateDetails={onShowUpdateDetails}
           onShowInstallDetails={onShowInstallDetails}
+          onShowVPPInstallDetails={onShowVPPInstallDetails}
           onShowUninstallDetails={onShowUninstallDetails}
           isSelfService
         />
@@ -120,6 +117,9 @@ export const generateSoftwareTableHeaders = ({
             onClickInstallAction={onClickInstallAction}
             onClickUninstallAction={() =>
               onClickUninstallAction(cellProps.row.original)
+            }
+            onClickOpenInstructionsAction={() =>
+              onClickOpenInstructionsAction(cellProps.row.original)
             }
             isMyDevicePage
           />

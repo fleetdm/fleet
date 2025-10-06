@@ -1,6 +1,10 @@
 import { IDeviceUser } from "interfaces/host";
 import { IDeviceSoftware } from "interfaces/software";
-import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import { ISetupStep } from "interfaces/setup";
+import {
+  IGetDeviceSoftwareResponse,
+  IGetSetupExperienceStatusesResponse,
+} from "services/entities/device_user";
 import { createMockHostSoftwarePackage } from "./hostMock";
 
 const DEFAULT_DEVICE_USER_MOCK: IDeviceUser = {
@@ -17,6 +21,7 @@ const createMockDeviceUser = (
 const DEFAULT_DEVICE_SOFTWARE_MOCK: IDeviceSoftware = {
   id: 1,
   name: "mock software 1.app",
+  icon_url: null,
   source: "apps",
   bundle_identifier: "com.app.mock",
   status: null,
@@ -45,6 +50,42 @@ export const createMockDeviceSoftwareResponse = (
 ) => {
   return {
     ...DEFAULT_DEVICE_SOFTWARE_RESPONSE_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_SETUP_STEP_STATUS_MOCK: ISetupStep = {
+  name: "Slack",
+  status: "pending",
+  type: "",
+};
+
+export const createMockSetupStepStatus = (
+  overrides?: Partial<ISetupStep>
+): ISetupStep => {
+  return { ...DEFAULT_SETUP_STEP_STATUS_MOCK, ...overrides };
+};
+
+const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupExperienceStatusesResponse = {
+  setup_experience_results: {
+    software: [
+      createMockSetupStepStatus({ name: "1Password", status: "pending" }),
+      createMockSetupStepStatus({ name: "Chrome", status: "failure" }),
+      createMockSetupStepStatus({ name: "Firefox", status: "cancelled" }),
+      createMockSetupStepStatus({ name: "Slack", status: "success" }),
+      createMockSetupStepStatus({ name: "Zoom", status: "running" }),
+    ],
+    scripts: [
+      createMockSetupStepStatus({ name: "test.sh", status: "running" }),
+    ],
+  },
+};
+
+export const createMockSetupSoftwareStatusesResponse = (
+  overrides?: Partial<IGetSetupExperienceStatusesResponse>
+): IGetSetupExperienceStatusesResponse => {
+  return {
+    ...DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK,
     ...overrides,
   };
 };

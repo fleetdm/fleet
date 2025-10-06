@@ -365,13 +365,15 @@ type entityCount struct {
 
 type softwareEntityCount struct {
 	entityCount
-	vulnerable                   int
-	withLastOpened               int
-	lastOpenedProb               float64
-	commonSoftwareUninstallCount int
-	commonSoftwareUninstallProb  float64
-	uniqueSoftwareUninstallCount int
-	uniqueSoftwareUninstallProb  float64
+	vulnerable                        int
+	withLastOpened                    int
+	lastOpenedProb                    float64
+	commonSoftwareUninstallCount      int
+	commonSoftwareUninstallProb       float64
+	uniqueSoftwareUninstallCount      int
+	uniqueSoftwareUninstallProb       float64
+	duplicateBundleIdentifiersPercent int
+	softwareRenaming                  bool
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -415,6 +417,7 @@ func newAgent(
 	commonSoftwareNameSuffix string,
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
+	httpMessageSignatureP384Prob float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -519,7 +522,7 @@ func newAgent(
 		EnrollSecret:  enrollSecret,
 		HostUUID:      hostUUID,
 		AgentIndex:    agentIndex,
-	}, useHTTPSig)
+	}, useHTTPSig, httpMessageSignatureP384Prob)
 
 	return agent
 }
@@ -852,6 +855,8 @@ func (a *agent) runOrbitLoop() {
 	capabilitiesCheckerTicker := time.Tick(5 * time.Minute)
 	// fleet desktop polls for policy compliance every 5 minutes
 	fleetDesktopPolicyTicker := time.Tick(5 * time.Minute)
+	// fleet desktop pings every 10s for connectivity check.
+	fleetDesktopConnectivityCheck := time.Tick(10 * time.Second)
 
 	const windowsMDMEnrollmentAttemptFrequency = time.Hour
 	var lastEnrollAttempt time.Time
@@ -918,6 +923,14 @@ func (a *agent) runOrbitLoop() {
 				if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementDesktopErrors()
 					log.Println("deviceClient.NumberOfFailingPolicies: ", err)
+					continue
+				}
+			}
+		case <-fleetDesktopConnectivityCheck:
+			if !a.disableFleetDesktop {
+				if err := deviceClient.Ping(); err != nil {
+					a.stats.IncrementDesktopErrors()
+					log.Println("deviceClient.Ping: ", err)
 					continue
 				}
 			}
@@ -1681,6 +1694,30 @@ func (a *agent) softwareMacOS() []map[string]string {
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
 
+	// Software with Duplicate Bundle identifiers
+	duplicateCount := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
+	duplicateBundleSoftware := make([]map[string]string, duplicateCount)
+	groupSize := 4
+	for i := 0; i < duplicateCount; i++ {
+		bundleIDIndex := i / groupSize
+		bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%a.softwareCount.common)
+
+		var name string
+		if a.softwareCount.softwareRenaming {
+			name = fmt.Sprintf("RENAMED_DuplicateBundle_%d", i)
+		} else {
+			name = fmt.Sprintf("DuplicateBundle_%d", i)
+		}
+
+		duplicateBundleSoftware[i] = map[string]string{
+			"name":              name,
+			"version":           "0.0.1",
+			"bundle_identifier": bundleID,
+			"source":            "apps",
+			"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", i),
+		}
+	}
+
 	// Vulnerable Software
 	var vCount int
 	if a.softwareCount.vulnerable < 0 {
@@ -1730,6 +1767,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
 	software = append(software, vulnerableSoftware...)
+	software = append(software, duplicateBundleSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
 		return true
@@ -1959,6 +1997,16 @@ func (a *agent) mdmMac() []map[string]string {
 	}
 }
 
+func (a *agent) mdmConfigProfilesMac() []map[string]string {
+	return []map[string]string{
+		{
+			"identifier":   "osquery-perf",
+			"display_name": "OSQuery Perf Agent",
+			"install_date": "2006-01-02 15:04:05 -0700",
+		},
+	}
+}
+
 func (a *agent) entraConditionalAccess() []map[string]string {
 	return []map[string]string{
 		{
@@ -2126,7 +2174,10 @@ func (a *agent) certificates() []map[string]string {
 	// on dogfood gives between 4-7)
 	count := rand.Intn(9) + 2
 
+	sources := []string{"system", "user"}
+	users := a.hostUsers()
 	const day = 24 * time.Hour
+
 	results := make([]map[string]string, count)
 	for i := range count {
 		m := make(map[string]string, 12)
@@ -2146,6 +2197,13 @@ func (a *agent) certificates() []map[string]string {
 		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
 		hash := hex.EncodeToString(rawHash[:])
 		m["sha1"] = hash
+		m["source"] = sources[rand.Intn(2)]
+
+		if m["source"] == "user" {
+			// Set username for user keychain certificates
+			user := users[rand.Intn(len(users))]
+			m["path"] = fmt.Sprintf(`/Users/%s/Library/Keychains/login.keychain-db`, user["username"])
+		}
 
 		results[i] = m
 	}
@@ -2317,6 +2375,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmMac()
+		} else {
+			ss = statusNotOK
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user", name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
+			results = a.mdmConfigProfilesMac()
 		} else {
 			ss = statusNotOK
 		}
@@ -2799,7 +2865,9 @@ func main() {
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
-		httpMessageSignatureProb = flag.Float64("http_message_signature_prob", 0.1, "Probability of hosts using HTTP message signatures")
+		httpMessageSignatureProb     = flag.Float64("http_message_signature_prob", 0.1, "Probability of hosts using HTTP message signatures")
+		httpMessageSignatureP384Prob = flag.Float64("http_message_signature_p384_prob", 0.5,
+			"Probability of hosts using P384 elliptic curve (as opposed to P256) for HTTP message signatures")
 
 		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
 		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
@@ -2828,6 +2896,8 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
+		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
+		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
 		// WARNING: This will generate massive amounts of entries in the software table,
 		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
 		//
@@ -3010,13 +3080,15 @@ func main() {
 					common: *commonSoftwareCount,
 					unique: *uniqueSoftwareCount,
 				},
-				vulnerable:                   *vulnerableSoftwareCount,
-				withLastOpened:               *withLastOpenedSoftwareCount,
-				lastOpenedProb:               *lastOpenedChangeProb,
-				commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
-				commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
-				uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
-				uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
+				vulnerable:                        *vulnerableSoftwareCount,
+				withLastOpened:                    *withLastOpenedSoftwareCount,
+				lastOpenedProb:                    *lastOpenedChangeProb,
+				commonSoftwareUninstallCount:      *commonSoftwareUninstallCount,
+				commonSoftwareUninstallProb:       *commonSoftwareUninstallProb,
+				uniqueSoftwareUninstallCount:      *uniqueSoftwareUninstallCount,
+				uniqueSoftwareUninstallProb:       *uniqueSoftwareUninstallProb,
+				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
+				softwareRenaming:                  *softwareRenaming,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{
@@ -3050,6 +3122,7 @@ func main() {
 			*commonSoftwareNameSuffix,
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
+			*httpMessageSignatureP384Prob,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

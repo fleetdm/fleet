@@ -13,6 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -42,10 +44,11 @@ SELECT
 	st.source,
 	st.browser,
 	st.bundle_identifier,
-	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
+	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
-	COUNT(vat.adam_id) AS vpp_apps_count
+	COUNT(vat.adam_id) AS vpp_apps_count,
+	vap.icon_url AS icon_url
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
@@ -58,7 +61,9 @@ GROUP BY
 	st.name,
 	st.source,
 	st.browser,
-	st.bundle_identifier
+	st.bundle_identifier,
+	hosts_count,
+	vap.icon_url
 	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
 	)
 	var title fleet.SoftwareTitle
@@ -76,6 +81,16 @@ GROUP BY
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &title.Versions, selectSoftwareVersionsStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software title version")
+	}
+
+	if teamID != nil {
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, id)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			title.IconUrl = ptr.String(icon.IconUrl())
+		}
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
@@ -110,6 +125,10 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	if (opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 || opt.KnownExploit) && !opt.VulnerableOnly {
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
+	}
+
+	if opt.TeamID == nil && opt.PackagesOnly {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
 	}
 
 	dbReader := ds.reader(ctx)
@@ -200,27 +219,53 @@ func (ds *Datastore) ListSoftwareTitles(
 				Version:            version,
 				Platform:           platform,
 				SelfService:        title.VPPAppSelfService,
-				IconURL:            title.VPPAppIconURL,
 				InstallDuringSetup: title.VPPInstallDuringSetup,
 			}
+			title.IconUrl = title.VPPAppIconURL
 		}
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
 	}
 
-	// Grab the automatic install policies, if any exist
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, opt.TeamID)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
-	}
+	// Grab the automatic install policies & software title icons, if any exist.
+	// Skip for "All teams" titles because automatic install policies are set on teams/No-team.
+	// Skip software title icons for "All teams" as they also require a team id to exist.
+	if opt.TeamID != nil {
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, *opt.TeamID)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+		}
 
-	for _, p := range policies {
-		if i, ok := titleIndex[p.TitleID]; ok {
-			if softwareList[i].AppStoreApp != nil {
-				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].AppStoreApp.AutomaticInstallPolicies, p)
-			} else {
-				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+		for _, p := range policies {
+			if i, ok := titleIndex[p.TitleID]; ok {
+				switch {
+				case softwareList[i].AppStoreApp != nil:
+					softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(
+						softwareList[i].AppStoreApp.AutomaticInstallPolicies, p,
+					)
+				case softwareList[i].SoftwarePackage != nil:
+					softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(
+						softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p,
+					)
+				default:
+					level.Warn(ds.logger).Log(
+						"team_id", opt.TeamID,
+						"policy_id", p.ID,
+						"msg", "policy should have an associated VPP application or software package",
+					)
+				}
+			}
+		}
+
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, *opt.TeamID, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		for _, icon := range icons {
+			if i, ok := titleIndex[icon.SoftwareTitleID]; ok {
+				softwareList[i].IconUrl = ptr.String(icon.IconUrl())
 			}
 		}
 	}
@@ -339,7 +384,8 @@ SELECT
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
+		{{$installerJoin := printf "%s JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %d" (yesNo .PackagesOnly "INNER" "LEFT") (teamID .)}}
+		{{$installerJoin}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND 
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}

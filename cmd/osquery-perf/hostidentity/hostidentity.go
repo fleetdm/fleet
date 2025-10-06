@@ -34,18 +34,20 @@ type Config struct {
 
 // Client manages host identity certificates and HTTP message signing
 type Client struct {
-	config            Config
-	hostIdentityCert  *x509.Certificate
-	hostIdentityKey   *ecdsa.PrivateKey
-	httpSigner        *httpsig.Signer
-	useHTTPSignatures bool
+	config                       Config
+	hostIdentityCert             *x509.Certificate
+	hostIdentityKey              *ecdsa.PrivateKey
+	httpSigner                   *httpsig.Signer
+	useHTTPSignatures            bool
+	httpMessageSignatureP384Prob float64
 }
 
 // NewClient creates a new host identity client
-func NewClient(config Config, useHTTPSignatures bool) *Client {
+func NewClient(config Config, useHTTPSignatures bool, httpMessageSignatureP384Prob float64) *Client {
 	return &Client{
-		config:            config,
-		useHTTPSignatures: useHTTPSignatures,
+		config:                       config,
+		useHTTPSignatures:            useHTTPSignatures,
+		httpMessageSignatureP384Prob: httpMessageSignatureP384Prob,
 	}
 }
 
@@ -91,10 +93,10 @@ func (c *Client) RequestCertificate() error {
 
 	// Create ECC private key (randomly choose P384 or P256 with 50-50 probability)
 	var curve elliptic.Curve
-	if rand.Float64() < 0.5 { // nolint:gosec // ignore weak randomizer
-		curve = elliptic.P256()
-	} else {
+	if rand.Float64() < c.httpMessageSignatureP384Prob { // nolint:gosec // ignore weak randomizer
 		curve = elliptic.P384()
+	} else {
+		curve = elliptic.P256()
 	}
 	eccPrivateKey, err := ecdsa.GenerateKey(curve, cryptorand.Reader)
 	if err != nil {
@@ -115,13 +117,17 @@ func (c *Client) RequestCertificate() error {
 	}
 
 	// Get CA certificate with 30-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
+	start := time.Now()
 	resp, _, err := scepClient.GetCACert(ctx, "")
 	if err != nil {
 		log.Printf("Agent %d: Failed to get CA cert: %v", c.config.AgentIndex, err)
 		return err
 	}
+	log.Printf("Agent %d: GetCACert duration: %s", c.config.AgentIndex, time.Since(start))
+
+	start = time.Now()
 	caCerts, err := x509.ParseCertificates(resp)
 	if err != nil {
 		log.Printf("Agent %d: Failed to parse CA cert: %v", c.config.AgentIndex, err)
@@ -131,6 +137,7 @@ func (c *Client) RequestCertificate() error {
 		log.Printf("Agent %d: No CA certificates received", c.config.AgentIndex)
 		return errors.New("no CA certificates received")
 	}
+	log.Printf("Agent %d: parse CA certificates duration: %s", c.config.AgentIndex, time.Since(start))
 
 	// Create host identifier using UUID
 	hostIdentifier := c.config.HostUUID
@@ -146,6 +153,7 @@ func (c *Client) RequestCertificate() error {
 		ChallengePassword: c.config.EnrollSecret,
 	}
 
+	start = time.Now()
 	csrDerBytes, err := x509util.CreateCertificateRequest(cryptorand.Reader, &csrTemplate, eccPrivateKey)
 	if err != nil {
 		log.Printf("Agent %d: Failed to create CSR: %v", c.config.AgentIndex, err)
@@ -156,8 +164,10 @@ func (c *Client) RequestCertificate() error {
 		log.Printf("Agent %d: Failed to parse CSR: %v", c.config.AgentIndex, err)
 		return err
 	}
+	log.Printf("Agent %d: create and parse CSR duration: %s", c.config.AgentIndex, time.Since(start))
 
 	// Create temporary RSA key and cert for SCEP protocol
+	start = time.Now()
 	tempRSAKey, deviceCert, err := createTempRSAKeyAndCert(hostIdentifier)
 	if err != nil {
 		log.Printf("Agent %d: %v", c.config.AgentIndex, err)
@@ -177,15 +187,21 @@ func (c *Client) RequestCertificate() error {
 		log.Printf("Agent %d: Failed to create SCEP message: %v", c.config.AgentIndex, err)
 		return err
 	}
+	log.Printf("Agent %d: create temp RSA key and CSR request: %s", c.config.AgentIndex, time.Since(start))
 
 	// Send PKI operation request
+	start = time.Now()
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
 	respBytes, err := scepClient.PKIOperation(ctx, msg.Raw)
 	if err != nil {
 		log.Printf("Agent %d: SCEP PKI operation failed: %v", c.config.AgentIndex, err)
 		return err
 	}
+	log.Printf("Agent %d: PKIOperation duration: %s", c.config.AgentIndex, time.Since(start))
 
 	// Parse response
+	start = time.Now()
 	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithCACerts(msg.Recipients))
 	if err != nil {
 		log.Printf("Agent %d: Failed to parse SCEP response: %v", c.config.AgentIndex, err)
@@ -241,6 +257,7 @@ func (c *Client) RequestCertificate() error {
 	}
 	c.httpSigner = signer
 
+	log.Printf("Agent %d: parse PKIMessage and decrypt duration: %s", c.config.AgentIndex, time.Since(start))
 	log.Printf("Agent %d: Successfully obtained host identity certificate with serial %X", c.config.AgentIndex, cert.SerialNumber)
 	return nil
 }

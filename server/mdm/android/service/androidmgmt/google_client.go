@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -48,7 +50,11 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 		return nil
 	}
 
-	mgmt, err := androidmanagement.NewService(ctx, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mgmt, err := androidmanagement.NewService(ctx,
+		option.WithCredentialsJSON([]byte(androidServiceCredentials)),
+		option.WithLogger(slogLogger),
+	)
 	if err != nil {
 		level.Error(logger).Log("msg", "creating android management service", "err", err)
 		return nil
@@ -156,13 +162,52 @@ func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string
 	return topic.String(), nil
 }
 
-func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
-	_, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
+func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
+		return nil, err
 	case err != nil:
-		return fmt.Errorf("patching policy %s: %w", policyName, err)
+		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
+	}
+	return ret, nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	ret, err := g.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android device not modified", "device_name", deviceName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("patching device %s: %w", deviceName, err)
+	}
+	return ret, nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	ret, err := g.mgmt.Enterprises.Devices.Get(deviceName).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting device %s: %w", deviceName, err)
+	}
+	return ret, nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
+	if g == nil || g.mgmt == nil {
+		return errors.New("android management service not initialized")
+	}
+	_, err := g.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android device already deleted", "device_name", deviceName)
+		return nil
+	case err != nil:
+		return fmt.Errorf("deleting device %s: %w", deviceName, err)
 	}
 	return nil
 }
@@ -228,6 +273,17 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 	}
 
 	return nil
+}
+
+func (g *GoogleClient) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	resp, err := g.mgmt.Enterprises.List().ProjectId(g.androidProjectID).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("listing enterprises: %w", err)
+	}
+	return resp.Enterprises, nil
 }
 
 // SetAuthenticationSecret is not used by GoogleClient because this client gets its secret from env var.

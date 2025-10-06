@@ -48,27 +48,27 @@ jobs:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fast", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.5", "mysql:9.3.0"] # make sure to update supported versions docs when this changes
+        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.6", "mysql:9.4.0"] # make sure to update supported versions docs when this changes
         isCron:
           - ${{ github.event_name == 'schedule' }}
         exclude:
           - isCron: false
-            mysql: "mysql:8.4.5" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
+            mysql: "mysql:8.4.6" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
           - isCron: false
             mysql: "mysql:8.0.32" # Run MySQL 8.0.32 tests on cron schedule and not every time.
           # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
           - suite: "fast"
             mysql: "mysql:8.0.32" # We must make sure that at least 1 instance of this suite will run, which is 8.0.36 in this case
           - suite: "fast"
-            mysql: "mysql:8.4.5"
+            mysql: "mysql:8.4.6"
           - suite: "fast"
-            mysql: "mysql:9.3.0"
+            mysql: "mysql:9.4.0"
           - suite: "scripts"
             mysql: "mysql:8.0.32"
           - suite: "scripts"
-            mysql: "mysql:8.4.5"
+            mysql: "mysql:8.4.6"
           - suite: "scripts"
-            mysql: "mysql:9.3.0"
+            mysql: "mysql:9.4.0"
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
@@ -91,6 +91,7 @@ jobs:
         if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
+          echo "DOCKER_COMMAND=${{ env.DOCKER_COMMAND }} localstack" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "fast" ]]; then
           # DO NOT add any dependencies in this test suite.
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
@@ -258,6 +259,8 @@ jobs:
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
+          AWS_ENDPOINT_URL="http://localhost:4566" \
+          AWS_REGION=us-east-1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
@@ -317,17 +320,22 @@ jobs:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
 
-    - name: Set fail status
-      if: failure()
+    - name: Set test status
+      if: always()
       run: |
-        echo "fail" > /tmp/fail
+        if [[ "${{ job.status }}" == "success" ]]; then
+          echo "success" > /tmp/status
+        else
+          echo "fail" > /tmp/status
+        fi
 
-    - name: Upload fail indicator
-      if: failure()
+    - name: Upload status indicator
+      if: always()
       uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
       with:
-        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-fail
-        path: /tmp/fail
+        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-status
+        path: /tmp/status
+        overwrite: true
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
@@ -468,13 +476,34 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
-          pattern: '*-fail'
+          pattern: '*-status'
 
       - name: Check for failures
         run: |
-          for dir in $(find ./ -type d -name '*-fail'); do
-            echo "Found $dir"
-            echo "❌ One or more test jobs failed."
-            exit 1
+          failed_tests=""
+          status_count=0
+          # Find all status files (they are in directories like 'fleetctl-mysql8.0.36-status/status')
+          for status_file in $(find ./ -type f -name 'status'); do
+            status_count=$((status_count + 1))
+            # Extract test name from parent directory (e.g., 'fleetctl-mysql8.0.36-status')
+            test_dir=$(basename $(dirname "$status_file"))
+            # Remove '-status' suffix to get the test name
+            test_name="${test_dir%-status}"
+            status_content=$(cat "$status_file")
+            echo "Processing: $status_file (Test: $test_name) with status content: $status_content"
+            if grep -q "fail" "$status_file"; then
+              echo "  ❌ Test failed: $test_name"
+              failed_tests="${failed_tests}${test_name}, "
+            else
+              echo "  ✅ Test passed: $test_name"
+            fi
           done
+          if [[ $status_count -eq 0 ]]; then
+            echo "❌ ERROR: No status files found! This indicates a workflow issue."
+            exit 1
+          fi
+          if [[ -n "$failed_tests" ]]; then
+            echo "❌ One or more test jobs failed: ${failed_tests%, }"
+            exit 1
+          fi
           echo "✅ All test jobs succeeded."

@@ -16,6 +16,7 @@ assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2
 assets/*@*.ttf
+assets/*@*.mp4
 frontend/templates/react.tmpl
 bindata.go
 server/bindata/generated.go
@@ -108,3 +109,7 @@ tools/test_extensions/hello_world/windows-arm64
 
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
+
+# Local dev files
+.env
+.tool-versions

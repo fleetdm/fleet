@@ -2,7 +2,6 @@ name: Check critical vulnerabilities in released docker images
 
 on:
   workflow_dispatch:
-  pull_request:
   schedule:
     - cron: "0 6 * * *"
 
@@ -118,5 +117,5 @@ jobs:
               ]
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_SECURITY_COMPLIANCE_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

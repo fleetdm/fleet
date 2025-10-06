@@ -2,7 +2,7 @@
   &__modal-content {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1rem;
   }
   &__status-message {
     display: flex;
@@ -12,5 +12,8 @@
     .icon {
       align-self: flex-start;
     }
+  }
+  .reveal-button {
+    width: min-content;
   }
 }

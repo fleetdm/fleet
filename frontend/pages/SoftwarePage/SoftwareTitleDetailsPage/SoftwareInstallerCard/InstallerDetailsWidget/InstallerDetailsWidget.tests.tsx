@@ -1,6 +1,7 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { screen } from "@testing-library/react";
+import { createCustomRenderer } from "test/test-utils";
+
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
 
 // Mock current time for time stamp test
@@ -12,6 +13,8 @@ beforeAll(() => {
 afterAll(() => {
   jest.useRealTimers();
 });
+
+const render = createCustomRenderer({ withBackendMock: true });
 
 describe("InstallerDetailsWidget", () => {
   const defaultProps = {

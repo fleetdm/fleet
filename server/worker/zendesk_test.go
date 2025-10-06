@@ -40,7 +40,7 @@ func TestZendeskRun(t *testing.T) {
 			},
 		}}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithoutExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid != 123 {
 			return nil, errors.New("unexpected team id")
 		}
@@ -357,7 +357,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	}
 
 	var teamCount int
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithoutExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		teamCount++
 
 		if tid != 123 {

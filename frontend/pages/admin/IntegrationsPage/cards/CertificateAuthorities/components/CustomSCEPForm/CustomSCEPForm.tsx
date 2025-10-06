@@ -1,6 +1,6 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -22,32 +22,31 @@ export interface ICustomSCEPFormData {
 }
 
 interface ICustomSCEPFormProps {
+  certAuthorities?: ICertificateAuthorityPartial[];
   formData: ICustomSCEPFormData;
   submitBtnText: string;
   isSubmitting: boolean;
   isEditing?: boolean;
+  isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
 const CustomSCEPForm = ({
+  certAuthorities,
   formData,
   submitBtnText,
   isSubmitting,
   isEditing = false,
+  isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: ICustomSCEPFormProps) => {
-  const { config } = useContext(AppContext);
   const validations = useMemo(
-    () =>
-      generateFormValidations(
-        config?.integrations.custom_scep_proxy ?? [],
-        isEditing
-      ),
-    [config?.integrations.custom_scep_proxy, isEditing]
+    () => generateFormValidations(certAuthorities ?? [], isEditing),
+    [certAuthorities, isEditing]
   );
   const [
     formValidation,
@@ -116,7 +115,7 @@ const CustomSCEPForm = ({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
           >
             {submitBtnText}
           </Button>

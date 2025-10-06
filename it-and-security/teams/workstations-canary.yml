@@ -38,6 +38,18 @@ agent_options:
   overrides:
     platforms:
       darwin:
+        decorators:
+          load:
+            - SELECT uuid AS host_uuid FROM system_info;
+            - SELECT hostname AS hostname FROM system_info;
+        options:
+          disable_distributed: false
+          distributed_interval: 10
+          distributed_plugin: tls
+          distributed_tls_max_attempts: 3
+          logger_tls_endpoint: /api/osquery/log
+          logger_tls_period: 10
+          pack_delimiter: /
         auto_table_construction:
           tcc_system:
             path: /Library/Application Support/com.apple.TCC/TCC.db
@@ -75,6 +87,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
+      - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/company-portal-sso-extension.mobileconfig
         labels_include_any:
           - "Conditional access test group"
@@ -92,6 +105,8 @@ controls:
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
+      - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
@@ -108,13 +123,14 @@ controls:
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
+      - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2025-06-08"
-    minimum_version: "15.5"
+    deadline: 
+    minimum_version: 
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -122,6 +138,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -136,6 +153,7 @@ controls:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
+    - path: ../lib/macos/scripts/set-lock-screen-message.sh
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
@@ -145,7 +163,9 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/macos/scripts/install-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
+    - path: ../lib/macos/scripts/install-nudge.sh
 policies:
+  # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/update-slack.yml
@@ -159,13 +179,17 @@ policies:
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
+  - path: ../lib/macos/policies/install-nudge.yml
+  # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
+  - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
-  - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
@@ -178,6 +202,8 @@ software:
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
+    - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
+    - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu

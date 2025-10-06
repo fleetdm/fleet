@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -19,18 +18,17 @@ import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
-interface IDiskEncryptionProps {
-  currentTeamId: number;
-  onMutation: () => void;
-  router: InjectedRouter;
-}
+
+export type IDiskEncryptionProps = IOSSettingsCommonProps;
 
 const DiskEncryption = ({
   currentTeamId,
@@ -129,10 +127,10 @@ const DiskEncryption = ({
           </>
         );
       } else {
-        renderFlash(
-          "error",
-          "Could not update the disk encryption enforcement. Please try again."
-        );
+        const errorMsg =
+          getErrorReason(e) ??
+          "Could not update the disk encryption enforcement. Please try again.";
+        renderFlash("error", errorMsg);
       }
     }
   };
@@ -172,27 +170,28 @@ const DiskEncryption = ({
     );
   };
 
-  const subTitle = (
-    <>
-      Disk encryption is available on{" "}
-      <TooltipWrapper tipContent={getTipContent("macOS")}>macOS</TooltipWrapper>
-      ,{" "}
-      <TooltipWrapper tipContent={getTipContent("windows")}>
-        Windows
-      </TooltipWrapper>
-      , and{" "}
-      <TooltipWrapper tipContent={getTipContent("linux")}>Linux</TooltipWrapper>{" "}
-      hosts.
-    </>
-  );
-
   return (
     <div className={baseClass}>
-      <SectionHeader
-        title="Disk encryption"
-        subTitle={subTitle}
-        alignLeftHeaderVertically
-        greySubtitle
+      <SectionHeader title="Disk encryption" alignLeftHeaderVertically />
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Disk encryption is available on{" "}
+            <TooltipWrapper tipContent={getTipContent("macOS")}>
+              macOS
+            </TooltipWrapper>
+            ,{" "}
+            <TooltipWrapper tipContent={getTipContent("windows")}>
+              Windows
+            </TooltipWrapper>
+            , and{" "}
+            <TooltipWrapper tipContent={getTipContent("linux")}>
+              Linux
+            </TooltipWrapper>{" "}
+            hosts.
+          </>
+        }
       />
       {!isPremiumTier ? (
         <PremiumFeatureMessage
@@ -203,7 +202,7 @@ const DiskEncryption = ({
           {isLoadingTeam ? (
             <Spinner />
           ) : (
-            <div className="disk-encryption-content">
+            <div className="form disk-encryption-content">
               {showAggregate && (
                 <DiskEncryptionTable
                   currentTeamId={currentTeamId}
@@ -227,56 +226,54 @@ const DiskEncryption = ({
                   newTab
                 />
               </p>
-              {diskEncryptionEnabled && featureFlags.showBitLockerPINOption && (
-                <div>
-                  <RevealButton
-                    className={`${baseClass}__accordion-title`}
-                    isShowing={showAdvancedOptions}
-                    showText="Advanced options"
-                    hideText="Advanced options"
-                    caretPosition="after"
-                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  />
-                  {showAdvancedOptions && (
-                    <Checkbox
-                      disabled={config?.gitops.gitops_mode_enabled}
-                      onChange={onToggleRequireBitLockerPIN}
-                      value={requireBitLockerPIN}
-                      className={`${baseClass}__checkbox`}
-                    >
-                      <TooltipWrapper
-                        tipContent={
-                          <div>
-                            <p>
-                              If enabled, end users on Windows hosts will be
-                              required to set a BitLocker PIN.
-                            </p>
-                            <br />
-                            <p>
-                              When the PIN is set, it&rsquo;s required to unlock
-                              Windows hosts during startup.
-                            </p>
-                          </div>
-                        }
-                      >
-                        Require BitLocker PIN
-                      </TooltipWrapper>
-                    </Checkbox>
-                  )}
-                </div>
-              )}
-              <GitOpsModeTooltipWrapper
-                tipOffset={-12}
-                renderChildren={(d) => (
-                  <Button
-                    disabled={d}
-                    className={`${baseClass}__save-button`}
-                    onClick={onUpdateDiskEncryption}
-                  >
-                    Save
-                  </Button>
-                )}
+              <RevealButton
+                className={`${baseClass}__accordion-title`}
+                isShowing={showAdvancedOptions}
+                showText="Advanced options"
+                hideText="Advanced options"
+                caretPosition="after"
+                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
               />
+              {showAdvancedOptions && (
+                <Checkbox
+                  disabled={config?.gitops.gitops_mode_enabled}
+                  onChange={onToggleRequireBitLockerPIN}
+                  value={requireBitLockerPIN}
+                  className={`${baseClass}__checkbox`}
+                >
+                  <TooltipWrapper
+                    tipContent={
+                      <div>
+                        <p>
+                          If enabled, end users on Windows hosts will be
+                          required to set a BitLocker PIN.
+                        </p>
+                        <br />
+                        <p>
+                          When the PIN is set, it&rsquo;s required to unlock
+                          Windows hosts during startup.
+                        </p>
+                      </div>
+                    }
+                  >
+                    Require BitLocker PIN
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+              <div className="button-wrap">
+                <GitOpsModeTooltipWrapper
+                  tipOffset={-12}
+                  renderChildren={(d) => (
+                    <Button
+                      disabled={d}
+                      className={`${baseClass}__save-button`}
+                      onClick={onUpdateDiskEncryption}
+                    >
+                      Save
+                    </Button>
+                  )}
+                />
+              </div>
             </div>
           )}
         </>

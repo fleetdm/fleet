@@ -1,5 +1,9 @@
 import { differenceWith, isArray, isEqual, isObject, map } from "lodash";
 
+/**
+ * Compares two objects and returns the differences.
+ * It returns the properties from obj1 that are different from obj2.
+ */
 const deepDifference = (obj1: any, obj2: any) => {
   const result: any = {};
 

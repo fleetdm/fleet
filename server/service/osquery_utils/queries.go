@@ -23,10 +23,12 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"github.com/spf13/cast"
 )
 
@@ -61,7 +63,7 @@ type DetailQuery struct {
 	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
-	// persist them. This is usually used for host data that is stored in a separate table.
+	// persist them. This is usually used for host data stored in a separate table.
 	// DirectTaskIngestFunc must not be set if this is set.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
 	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
@@ -550,7 +552,7 @@ var extraDetailQueries = map[string]DetailQuery{
 			-- in order to account for hosts that might not have this
 			-- key, and servers
 					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- old enrollments that aren't completely cleaned up may still be around
 			-- in the registry so we want to make sure we return the one with an actual
 			-- discovery URL set if there is one. LENGTH is used here to prefer those
 			-- with actual URLs over empty string/null if there are multiple
@@ -852,7 +854,7 @@ func generateSQLForAllExists(subqueries ...string) string {
 }
 
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
@@ -870,8 +872,26 @@ var windowsUpdateHistory = DetailQuery{
 // entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
 var entraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
-	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
+	// that logged in to the device (using Company Portal.app with the SSO extension).
+	//
+	// We cannot use LIMIT 1 on the outer SELECT because it breaks fleetd's app_sso_platform table.
+	// For that reason this query can return 0, 1 or 2 results and Fleet will always process the first one.
+	//
+	// This query aims to support the following scenarios:
+	// 1. Hosts enrolled to Company Portal using the legacy SSO extension (aka "Microsoft Entra registered").
+	//    The extension stores the credentials in the keychain.
+	// 2. Hosts enrolled to Company Portal using the new Platform SSO extension (aka "Microsoft Entra joined").
+	//	  The extension stores the credentials in the secure enclave.
+	// 3. Hosts that migrated from (1) to (2). The keychain items in (1) are not removed after the migration,
+	//    so for that reason we query the app_sso_platform first (priority 1).
+	//
+	Query: `SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
+	UNION ALL
+	SELECT device_id, user_principal_name, 2 AS priority FROM (
+		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
+		CROSS JOIN
+		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
+	ORDER BY priority ASC;`,
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
@@ -977,7 +997,7 @@ SELECT
   name,
   version,
   '' AS bundle_identifier,
-  uuid AS extension_id,
+  vscode_extensions.uuid AS extension_id,
   '' AS browser,
   'vscode_extensions' AS source,
   publisher AS vendor,
@@ -997,6 +1017,25 @@ var scheduledQueryStats = DetailQuery{
 			FROM osquery_schedule`,
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+}
+
+var softwareLinuxPacman = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS browser,
+  'pacman_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  arch AS arch,
+  '' AS installed_path
+FROM fleetd_pacman_packages`,
+	Platforms: fleet.HostLinuxOSs,
+	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
 }
 
 var softwareLinux = DetailQuery{
@@ -1350,6 +1389,74 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
+	// deb_last_opened_at collects last opened at information from DEB package files on Linux
+	// hosts. Joining this within the main software query is not performant enough to do on the
+	// device, so we do it on the server instead.
+	"deb_last_opened_at": {
+		// regex_match on the mode to look for only files with execute permissions
+		// deb_package_files does not have a mode column, so we need to join to the file table and filter there
+		Query: `
+		SELECT package, MAX(atime) AS last_opened_at
+		FROM deb_package_files
+		CROSS JOIN file USING (path)
+		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
+		GROUP BY package
+	`,
+		Description: "A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.",
+		Platforms:   fleet.HostLinuxOSs,
+		// Table should ship in osquery 5.19.0: https://github.com/osquery/osquery/pull/8657
+		Discovery:              discoveryTable("deb_package_files"),
+		SoftwareProcessResults: processPackageLastOpenedAt("deb_packages"),
+	},
+	// rpm_last_opened_at collects last opened at information from RPM package files on Linux
+	// hosts. Joining this within the main software query is not performant enough to do on the
+	// device, so we do it on the server instead.
+	"rpm_last_opened_at": {
+		// regex_match on the mode to look for only files with execute permissions
+		// rpm_package_files has a mode column that allows an optimization by filtering before joining to the file table
+		Query: `
+		SELECT package, MAX(atime) AS last_opened_at
+		FROM (SELECT package, path FROM rpm_package_files WHERE regex_match(mode, '[1357]', 0))
+		CROSS JOIN file USING (path)
+		WHERE type = 'regular'
+		GROUP BY package
+	`,
+		Description: "A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.",
+		Platforms:   fleet.HostLinuxOSs,
+		// Available since osquery 1.4.5
+		Discovery:              discoveryTable("rpm_package_files"),
+		SoftwareProcessResults: processPackageLastOpenedAt("rpm_packages"),
+	},
+}
+
+// processPackageLastOpenedAt is a shared function that processes package last_opened_at information
+// for both DEB and RPM packages. It takes the expected source name as a parameter.
+func processPackageLastOpenedAt(source string) func(mainSoftwareResults, pkgFileResults []map[string]string) []map[string]string {
+	return func(mainSoftwareResults, pkgFileResults []map[string]string) []map[string]string {
+		if len(pkgFileResults) == 0 {
+			return mainSoftwareResults
+		}
+
+		// Create a map of package name to last_opened_at for quick lookup
+		packageLastOpened := make(map[string]string)
+		for _, result := range pkgFileResults {
+			packageLastOpened[result["package"]] = result["last_opened_at"]
+		}
+
+		for _, result := range mainSoftwareResults {
+			// Only process software entries that match the expected source
+			if result["source"] != source {
+				continue
+			}
+
+			packageName := result["name"]
+			if lastOpened, exists := packageLastOpened[packageName]; exists {
+				result["last_opened_at"] = lastOpened
+			}
+		}
+
+		return mainSoftwareResults
+	}
 }
 
 // Convert the strings to integers and return the larger one.
@@ -1613,6 +1720,7 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
+	// We are interested in the first row (see the corresponding query for details).
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -1719,6 +1827,18 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 	return nil
 }
 
+const (
+	linuxImageRegex       = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	amazonLinuxKernelName = "kernel"
+	rhelKernelName        = "kernel-core"
+	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
+)
+
+var (
+	kernelRegex     = regexp.MustCompile(linuxImageRegex)
+	archKernelRegex = regexp.MustCompile(archKernelName)
+)
+
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
 	sPaths := map[string]struct{}{}
@@ -1755,6 +1875,12 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			)
 			continue
 		}
+
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName || archKernelRegex.MatchString(s.Name)) {
+			s.IsKernel = true
+		}
+
+		MutateSoftwareOnIngestion(s, logger)
 
 		if shouldRemoveSoftware(host, s) {
 			continue
@@ -1799,6 +1925,42 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	return nil
 }
 
+var (
+	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	softwareSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
+					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
+				}
+			},
+		},
+	}
+)
+
+// MutateSoftwareOnIngestion performs any tweaks required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
+	for _, softwareSanitizer := range softwareSanitizers {
+		if softwareSanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			softwareSanitizer.mutate(s, logger)
+			break
+		}
+	}
+}
+
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this
 // host's software list.
 func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
@@ -1811,6 +1973,17 @@ func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
+	var appleManagedUsername, appleManagedUserUUID string
+	if host.Platform == "darwin" {
+		// On macOS hosts with user enrollments, if the username of the managed user changes we need
+		// to sync it up with the nano_users table. otherwise we will never see the change until
+		// another TokenUpdate is sent which may be a long time(months, potentially).
+		var err error
+		appleManagedUsername, appleManagedUserUUID, err = ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting nano user enrollment username and uuid")
+		}
+	}
 	for _, row := range rows {
 		if row["uid"] == "" {
 			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
@@ -1829,6 +2002,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 		type_ := row["type"]
 		groupname := row["groupname"]
 		shell := row["shell"]
+		uuid := row["uuid"]
 		u := fleet.HostUser{
 			Uid:       uint(uid), // nolint:gosec // dismiss G115
 			Username:  username,
@@ -1837,6 +2011,14 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 			Shell:     shell,
 		}
 		users = append(users, u)
+		if host.Platform == "darwin" && appleManagedUserUUID != "" && appleManagedUserUUID == uuid {
+			if username != appleManagedUsername {
+				err = ds.UpdateNanoMDMUserEnrollmentUsername(ctx, host.UUID, appleManagedUserUUID, username)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "UpdateNanoMDMUserEnrollmentUsername")
+				}
+			}
+		}
 	}
 	if len(users) == 0 {
 		return nil
@@ -2080,7 +2262,13 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	if base64Key == "" {
 		decryptable = ptr.Bool(false)
 	}
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+
+	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+	if err != nil {
+		return err
+	}
+	host.DiskEncryptionKeyEscrowed = archived
+	return nil
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -2139,7 +2327,12 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		decryptable = ptr.Bool(false)
 	}
 
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+	if err != nil {
+		return err
+	}
+	host.DiskEncryptionKeyEscrowed = archived
+	return nil
 }
 
 func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
@@ -2153,7 +2346,7 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host 
 		WHERE
 			type = "Configuration"`
 
-	username, err := ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	username, _, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
 	if err != nil {
 		logger.Log("component", "service",
 			"method", "QueryFunc - macos config profiles", "err", err)
@@ -2387,6 +2580,123 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	}
 }
 
+var tpmPINQueries = map[string]DetailQuery{
+	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host has the proper
+	// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
+	// configuration is enforced via an MDM command.
+	"tpm_pin_config_verify": {
+		Platforms: []string{"windows"},
+		// We only want to run this query iff:
+		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+		// - And a TPM PIN is not yet set.
+		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
+		Discovery: `
+			WITH should_run(yes) AS (
+			SELECT
+				(
+					-- BitLocker is an optional feature but enabled
+					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+					-- BitLocker is built in, so it won't appear as an optional feature
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+				)
+				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
+				-- 4: TPM And PIN.
+				-- 6: TPM And PIN And Startup key.
+				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
+				-- Volume is encrypted
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`,
+		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger log.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				level.Debug(logger).Log(
+					"query", "tpm_pin_config_verify",
+					"msg", "Ingestion not run, host is nil or UUID is empty",
+				)
+				return nil
+			}
+
+			if len(rows) > 1 {
+				return ctxerr.Errorf(
+					ctx,
+					"tpm_pin_config_verify query: invalid number of rows: %d", len(rows),
+				)
+			}
+
+			// If no results are returned, then the policy setting is in a 'Not Configured' state.
+			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
+			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+				level.Info(logger).Log(
+					"query", "tpm_pin_config_verify",
+					"msg", "Updating TPM PIN protector configuration via MDM",
+					"host_id", host.ID,
+				)
+				cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
+					microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
+						CmdUUID:      uuid.NewString(),
+						Enabled:      true,
+						ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
+					},
+				)
+				if err != nil {
+					return err
+				}
+				return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
+			}
+			return nil
+		},
+	},
+	"tpm_pin_set_verify": {
+		Platforms: []string{"windows"},
+		// We only want to run this query iff:
+		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+		Discovery: `
+			WITH should_run(yes) AS (
+			SELECT
+				(
+					-- BitLocker is an optional feature but enabled
+					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+					-- BitLocker is built in, so it won't appear as an optional feature
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+				)
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`,
+		Query: `
+			SELECT EXISTS(
+				SELECT 1
+				FROM bitlocker_key_protectors
+				-- 4: TPM And PIN.
+				-- 6: TPM And PIN And Startup key.
+				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
+				LIMIT 1
+			) AS criteria
+			WHERE criteria = 1`,
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger log.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				level.Debug(logger).Log(
+					"query", "tpm_pin_set_verify",
+					"msg", "Ingestion not run, host is nil or UUID is empty",
+				)
+				return nil
+			}
+			return ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, len(rows) > 0)
+		},
+	},
+}
+
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
 type Integrations struct {
@@ -2399,6 +2709,7 @@ func GetDetailQueries(
 	appConfig *fleet.AppConfig,
 	features *fleet.Features,
 	integrations Integrations,
+	teamMDMConfig *fleet.TeamMDM,
 ) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
@@ -2416,6 +2727,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages"] = softwarePythonPackages
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
+		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
@@ -2441,6 +2753,25 @@ func GetDetailQueries(
 				continue
 			}
 			generatedMap[key] = query
+		}
+
+		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
+		if appConfig.MDM.WindowsEnabledAndConfigured {
+			enableDiskEncryption := appConfig.MDM.EnableDiskEncryption.Value
+			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
+
+			// If the host is part of a team, we need to look at the related team config
+			// instead of the App config ...
+			if teamMDMConfig != nil {
+				enableDiskEncryption = teamMDMConfig.EnableDiskEncryption
+				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
+			}
+
+			if enableDiskEncryption && requireTPMPin {
+				for key, query := range tpmPINQueries {
+					generatedMap[key] = query
+				}
+			}
 		}
 	}
 

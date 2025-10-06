@@ -66,7 +66,7 @@ func WithLogger(logger kitlog.Logger) Opt {
 	}
 }
 
-func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertIntegration) error {
+func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertCA) error {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
 	config.URL = strings.TrimRight(config.URL, "/")
@@ -123,7 +123,7 @@ func (s *Service) populateOpts(opts []Opt) {
 	}
 }
 
-func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertIntegration) (*fleet.DigiCertCertificate, error) {
+func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
 	// Generate a CSR (Certificate Signing Request).

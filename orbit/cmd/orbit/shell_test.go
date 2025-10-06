@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +24,7 @@ func TestGetCertPath(t *testing.T) {
 	invalidCertPath := filepath.Join(invalidRoot, "invalid_cert.pem")
 	require.NoError(t, os.WriteFile(invalidCertPath, []byte(`INVALID_CERT_CONTENT`), 0644))
 
-	tests := []struct {
+	cases := []struct {
 		name         string
 		rootDir      string
 		fleetCert    string
@@ -65,7 +66,7 @@ func TestGetCertPath(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			path, err := getCertPath(tt.rootDir, tt.fleetCert)
 
@@ -75,6 +76,31 @@ func TestGetCertPath(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedPath, path)
+			}
+		})
+	}
+}
+
+func TestGetUpdater(t *testing.T) {
+	cases := []struct {
+		name           string
+		disableUpdates bool
+		expectDisabled bool
+	}{
+		{"updates enabled", false, false},
+		{"updates disabled", true, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			updater, err := getUpdater(c.disableUpdates, update.Options{})
+			// A 'disabled' updater should never fail, even with invalid options.
+			if c.expectDisabled {
+				require.NoError(t, err)
+				require.NotNil(t, updater)
+			} else {
+				require.Error(t, err)
+				require.Nil(t, updater)
 			}
 		})
 	}

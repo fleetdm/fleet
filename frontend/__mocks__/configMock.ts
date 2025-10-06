@@ -152,7 +152,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     jira: [],
     zendesk: [],
     google_calendar: [],
-    ndes_scep_proxy: null,
   },
   logging: {
     debug: false,

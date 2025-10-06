@@ -13,9 +13,13 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -33,11 +37,40 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+func TestSoftwareIngestionMutations(t *testing.T) {
+	dcvViewer := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024.0.8004", dcvViewer.Version)
+
+	noOp := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024", noOp.Version)
+
+	noMatch := &fleet.Software{
+		BundleIdentifier: "com.google.chrome",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(noMatch, log.NewNopLogger())
+	assert.Equal(t, "2024.0 (r8004)", noMatch.Version)
+}
+
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{})["network_interface_unix"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["network_interface_unix"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -72,7 +105,9 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
+	task := async.NewTask(ds, nil, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{EnableAsyncHostProcessing: "false"},
+	})
 
 	var gotPackStats []fleet.PackStats
 	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
@@ -83,7 +118,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil, Integrations{})["scheduled_query_stats"].DirectTaskIngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil, Integrations{}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
 
 	ctx := context.Background()
 	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil))
@@ -262,7 +297,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{})
+	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
 
 	baseQueries := []string{
 		"network_interface_unix",
@@ -297,19 +332,19 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{})
+	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
 	require.Len(t, queriesWithoutWinOSVuln, 26)
 
-	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{})
+	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsers, len(qs))
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
-	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{})
+	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at")
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_linux_fleetd_pacman",
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -326,24 +361,75 @@ func TestGetDetailQueries(t *testing.T) {
 	ac := fleet.AppConfig{}
 	ac.MDM.EnabledAndConfigured = true
 	// windows mdm is disabled by default, windows mdm queries should not be present
-	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil, Integrations{})
+	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil, Integrations{}, nil)
 	wantQueries := baseQueries
 	wantQueries = append(wantQueries, mdmQueriesBase...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
 	// enable windows mdm, windows mdm queries should be present
 	ac.MDM.WindowsEnabledAndConfigured = true
-	gotQueries = GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil, Integrations{})
+	gotQueries = GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil, Integrations{}, nil)
 	wantQueries = append(wantQueries, mdmQueriesWindows...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
+
+	// Check that TPM PIN verify queries are only added iff RequireBitLockerPIN is set
+
+	testCases := []struct {
+		name string
+		ac   fleet.AppConfig
+		want []string
+	}{
+		{
+			name: "windows MDM not enabled",
+			ac:   fleet.AppConfig{},
+		},
+		{
+			name: "windows MDM is enabled but disk encryption is not enabled",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption but TPM PIN is not enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption and TPM PIN is enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+					RequireBitLockerPIN:         optjson.SetBool(true),
+				},
+			},
+			want: maps.Keys(tpmPINQueries),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetDetailQueries(context.Background(), config.FleetConfig{}, &tt.ac, nil, Integrations{}, nil)
+			for _, name := range tt.want {
+				_, ok := got[name]
+				require.True(t, ok)
+			}
+		})
+	}
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{})["os_version"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -417,7 +503,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{})["os_version_windows"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version_windows"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -472,7 +558,7 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{})["os_version"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -1292,29 +1378,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 }
 
 func TestAppConfigReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{})
+	queries := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	originalQuery := queries["users"].Query
 
 	replacementMap := make(map[string]*string)
 	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 	assert.Equal(t, "select 1 from blah", queries["users"].Query)
 
 	replacementMap["users"] = nil
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	_, exists := queries["users"]
 	assert.False(t, exists)
 
 	// put the query back again
 	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 	assert.Equal(t, "select 1 from blah", queries["users"].Query)
 
 	// empty strings are also ignored
 	replacementMap["users"] = ptr.String("")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	_, exists = queries["users"]
 	assert.False(t, exists)
 }
@@ -1634,17 +1720,17 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
 		decryptable *bool,
-	) error {
+	) (bool, error) {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
-			return errors.New("key mismatch")
+			return false, errors.New("key mismatch")
 		}
 		if host.ID != incomingHost.ID {
-			return errors.New("host ID mismatch")
+			return false, errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
-			return errors.New("decryptable should be false if the key is empty")
+			return false, errors.New("decryptable should be false if the key is empty")
 		}
-		return nil
+		return false, nil
 	}
 
 	t.Run("empty key", func(t *testing.T) {
@@ -2290,6 +2376,39 @@ func TestUserIngestNoUID(t *testing.T) {
 	require.Equal(t, 1, savedUsers)
 }
 
+func TestUserIngestMacosUpdateManagedUser(t *testing.T) {
+	ctx := context.Background()
+	host := fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+	ds := new(mock.Store)
+	userUUIDForUpdate := "uuid-1234"
+
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+		return "fleetie", userUUIDForUpdate, nil
+	}
+
+	ds.UpdateNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string, userUUID string, username string) error {
+		require.Equal(t, host.UUID, deviceID)
+		require.Equal(t, userUUIDForUpdate, userUUID)
+		require.Equal(t, "new fleetie", username)
+		return nil
+	}
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		require.Len(t, users, 2)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh", "username": "new fleetie", "uuid": userUUIDForUpdate},
+		{"uid": "500", "shell": "/bin/sh", "username": "someone else", "uuid": "some-other-uuid"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	require.True(t, ds.UpdateNanoMDMUserEnrollmentUsernameFuncInvoked)
+	require.True(t, ds.SaveHostUsersFuncInvoked)
+}
+
 func TestMaxString(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -2504,6 +2623,477 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 
 		if software["name"] == "Mozilla Firefox (x64 en-US)" {
 			assert.Equal(t, "1751755087", software["last_opened_at"])
+		}
+	}
+}
+
+func TestTPMPinSetVerifyIngest(t *testing.T) {
+	tests := []struct {
+		name   string
+		host   *fleet.Host
+		rows   []map[string]string
+		pinSet *bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+			rows: []map[string]string{
+				{"host": "something", "criteria": "1"},
+			},
+		},
+		{
+			name: "empty uuid",
+			host: &fleet.Host{
+				ID: 1,
+			},
+			rows: []map[string]string{{"host": "something", "criteria": "1"}},
+		},
+		{
+			name: "no rows - pin not set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows:   []map[string]string{},
+			pinSet: ptr.Bool(false),
+		},
+		{
+			name: "with rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+		{
+			name: "multiple rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			var setPinCalled bool
+			ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, pinSet bool) error {
+				setPinCalled = true
+				require.Equal(t, *tt.pinSet, pinSet)
+				require.Equal(t, tt.host.ID, hostID)
+				return nil
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_set_verify"].DirectIngestFunc
+
+			require.NoError(t, ingestFunc(context.Background(), log.NewNopLogger(), tt.host, ds, tt.rows))
+			require.Equal(t, setPinCalled, tt.pinSet != nil)
+		})
+	}
+}
+
+func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
+	logger := log.NewNopLogger()
+	ctx := context.Background()
+
+	tests := []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		wantCmd   bool
+		wantError bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+		},
+		{
+			name: "empty UUID host",
+			host: &fleet.Host{UUID: ""},
+		},
+		{
+			name: "too many rows",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+			wantError: true,
+		},
+		{
+			name: "no rows - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows:    []map[string]string{},
+			wantCmd: true,
+		},
+		{
+			name: "disallowed state - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)},
+			},
+			wantCmd: true,
+		},
+		{
+			name: "policy set to optinal",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+		},
+		{
+			name: "policy set to required",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			cmdInserted := false
+			if tt.wantCmd {
+				ds.MDMWindowsInsertCommandForHostsFunc = func(
+					ctx context.Context,
+					hostUUIDs []string,
+					cmd *fleet.MDMWindowsCommand,
+				) error {
+					cmdInserted = true
+					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
+					require.NotNil(t, cmd)
+					return nil
+				}
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
+			require.Equal(t, tt.wantError, err != nil)
+			require.Equal(t, cmdInserted, tt.wantCmd)
+		})
+	}
+}
+
+func TestDebLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["deb_last_opened_at"].SoftwareProcessResults
+	debPackageResults := []map[string]string{
+		{"package": "accountsservice", "last_opened_at": "1753287489"},
+		{"package": "acl", "last_opened_at": "1752178409"},
+		{"package": "adduser", "last_opened_at": "1753287887"},
+		{"package": "alsa-base", "last_opened_at": "1752178572"},
+		{"package": "alsa-utils", "last_opened_at": "1753806108"},
+		{"package": "anacron", "last_opened_at": "1754439481"},
+		{"package": "apg", "last_opened_at": "1752178498"},
+		{"package": "apparmor", "last_opened_at": "1753978475"},
+		{"package": "apport", "last_opened_at": "1754439481"},
+		{"package": "apport-core-dump-handler", "last_opened_at": "1752791628"},
+		{"package": "apport-gtk", "last_opened_at": "1752791824"},
+		{"package": "appstream", "last_opened_at": "1754361022"},
+		{"package": "apt", "last_opened_at": "1754439481"},
+		{"package": "apt-file", "last_opened_at": "1753293736"},
+		{"package": "apt-utils", "last_opened_at": "1753978482"},
+		{"package": "aptdaemon", "last_opened_at": "1752791767"},
+		{"package": "aspell", "last_opened_at": "1752178619"},
+		{"package": "at-spi2-core", "last_opened_at": "1753806242"},
+		{"package": "avahi-daemon", "last_opened_at": "1753806108"},
+		{"package": "baobab", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "accountsservice", "source": "deb_packages", "vendor": "", "version": "23.13.9-2ubuntu6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "acl", "source": "deb_packages", "vendor": "", "version": "2.3.2-1build1.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "adduser", "source": "deb_packages", "vendor": "", "version": "3.137ubuntu1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "adwaita-icon-theme", "source": "deb_packages", "vendor": "", "version": "46.0-1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-base", "source": "deb_packages", "vendor": "", "version": "1.0.25+dfsg-0ubuntu7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-topology-conf", "source": "deb_packages", "vendor": "", "version": "1.2.5.1-2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-ucm-conf", "source": "deb_packages", "vendor": "", "version": "1.2.10-1ubuntu5.7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-utils", "source": "deb_packages", "vendor": "", "version": "1.2.9-1ubuntu5"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "anacron", "source": "deb_packages", "vendor": "", "version": "2.3-39ubuntu2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apg", "source": "deb_packages", "vendor": "", "version": "2.2.3.dfsg.1-5build3"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apparmor", "source": "deb_packages", "vendor": "", "version": "4.0.1really4.0.1-0ubuntu0.24.04.4"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-core-dump-handler", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-gtk", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-symptoms", "source": "deb_packages", "vendor": "", "version": "0.25"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "appstream", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt", "source": "deb_packages", "vendor": "", "version": "2.8.3"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons-hidpi", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-file", "source": "deb_packages", "vendor": "", "version": "3.3"},
+		// Add some non-deb_packages software to test filtering
+		{"browser": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, debPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "deb_packages" {
+			// Last opened at should only be set for deb_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "accountsservice" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "acl" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "adduser" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-base" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-utils" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "anacron" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apg" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "apparmor" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-core-dump-handler" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-gtk" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "appstream" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-file" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "adwaita-icon-theme" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-topology-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-ucm-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-symptoms" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons-hidpi" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}
+
+func TestRpmLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["rpm_last_opened_at"].SoftwareProcessResults
+	rpmPackageResults := []map[string]string{
+		{"package": "bash", "last_opened_at": "1753287489"},
+		{"package": "coreutils", "last_opened_at": "1752178409"},
+		{"package": "curl", "last_opened_at": "1753287887"},
+		{"package": "firewalld", "last_opened_at": "1752178572"},
+		{"package": "git", "last_opened_at": "1753806108"},
+		{"package": "httpd", "last_opened_at": "1754439481"},
+		{"package": "java-11-openjdk", "last_opened_at": "1752178498"},
+		{"package": "kernel", "last_opened_at": "1753978475"},
+		{"package": "libcurl", "last_opened_at": "1754439481"},
+		{"package": "mysql-server", "last_opened_at": "1752791628"},
+		{"package": "nginx", "last_opened_at": "1752791824"},
+		{"package": "nodejs", "last_opened_at": "1754361022"},
+		{"package": "openssh-server", "last_opened_at": "1754439481"},
+		{"package": "postgresql", "last_opened_at": "1753293736"},
+		{"package": "python3", "last_opened_at": "1753978482"},
+		{"package": "redis", "last_opened_at": "1752791767"},
+		{"package": "systemd", "last_opened_at": "1752178619"},
+		{"package": "vim", "last_opened_at": "1753806242"},
+		{"package": "wget", "last_opened_at": "1753806108"},
+		{"package": "yum", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "bash", "source": "rpm_packages", "vendor": "", "version": "4.2.46-35.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "coreutils", "source": "rpm_packages", "vendor": "", "version": "8.22-24.el7_9.2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "curl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "firewalld", "source": "rpm_packages", "vendor": "", "version": "0.6.3-13.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "git", "source": "rpm_packages", "vendor": "", "version": "1.8.3.1-25.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "httpd", "source": "rpm_packages", "vendor": "", "version": "2.4.6-97.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "java-11-openjdk", "source": "rpm_packages", "vendor": "", "version": "11.0.21.0.9-1.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "kernel", "source": "rpm_packages", "vendor": "", "version": "3.10.0-1160.105.1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "libcurl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "mysql-server", "source": "rpm_packages", "vendor": "", "version": "5.7.44-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "nginx", "source": "rpm_packages", "vendor": "", "version": "1.20.1-9.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "nodejs", "source": "rpm_packages", "vendor": "", "version": "16.20.2-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "openssh-server", "source": "rpm_packages", "vendor": "", "version": "7.4p1-23.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "postgresql", "source": "rpm_packages", "vendor": "", "version": "13.14-1.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "python3", "source": "rpm_packages", "vendor": "", "version": "3.6.8-18.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "redis", "source": "rpm_packages", "vendor": "", "version": "5.0.3-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "systemd", "source": "rpm_packages", "vendor": "", "version": "219-78.el7_9.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "vim", "source": "rpm_packages", "vendor": "", "version": "7.4.629-8.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "wget", "source": "rpm_packages", "vendor": "", "version": "1.14-18.el7_6.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "yum", "source": "rpm_packages", "vendor": "", "version": "3.4.3-168.el7_9"},
+		// Add some packages that don't have last_opened_at data
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "glibc", "source": "rpm_packages", "vendor": "", "version": "2.17-325.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "openssl", "source": "rpm_packages", "vendor": "", "version": "1.0.2k-26.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "zlib", "source": "rpm_packages", "vendor": "", "version": "1.2.7-18.el7"},
+		// Add some non-rpm_packages software to test filtering
+		{"browser": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "deb-package", "source": "deb_packages", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, rpmPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "rpm_packages" {
+			// Last opened at should only be set for rpm_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "bash" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "coreutils" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "curl" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "firewalld" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "git" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "httpd" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "java-11-openjdk" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "kernel" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "libcurl" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "mysql-server" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "nginx" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "nodejs" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssh-server" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "postgresql" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		if software["name"] == "python3" {
+			assert.Equal(t, "1753978482", software["last_opened_at"])
+		}
+
+		if software["name"] == "redis" {
+			assert.Equal(t, "1752791767", software["last_opened_at"])
+		}
+
+		if software["name"] == "systemd" {
+			assert.Equal(t, "1752178619", software["last_opened_at"])
+		}
+
+		if software["name"] == "vim" {
+			assert.Equal(t, "1753806242", software["last_opened_at"])
+		}
+
+		if software["name"] == "wget" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "yum" {
+			assert.Equal(t, "1753806594", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "glibc" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssl" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "zlib" {
+			assert.Equal(t, "", software["last_opened_at"])
 		}
 	}
 }

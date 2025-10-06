@@ -1,0 +1,13 @@
+<Replace>
+  <CmdID>25</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowManualMDMUnenrollment</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Data>0</Data>
+  </Item>
+</Replace>

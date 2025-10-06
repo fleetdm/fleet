@@ -1,0 +1,28 @@
+.manage-labels-page {
+  @include vertical-page-layout;
+
+  &__header-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__header {
+    @include normalize-team-header;
+  }
+
+  &__text {
+    margin-right: $pad-large;
+  }
+
+  &__title {
+    h1 {
+      margin: 0;
+    }
+  }
+
+  &__action-button-container {
+    display: flex;
+    align-items: center;
+  }
+}

@@ -127,14 +127,29 @@ var delayPerRetry = []time.Duration{
 	5: 2 * time.Hour,
 }
 
+func (w *Worker) jobNames() []string {
+	// Get the names of the jobs in the registry
+	jobNames := make([]string, 0, len(w.registry))
+	for name := range w.registry {
+		jobNames = append(jobNames, name)
+	}
+	return jobNames
+}
+
 // ProcessJobs processes all queued jobs.
 func (w *Worker) ProcessJobs(ctx context.Context) error {
 	const maxNumJobs = 100
 
+	jobNames := w.jobNames()
+	if len(jobNames) == 0 {
+		level.Info(w.log).Log("msg", "no jobs registered, nothing to process")
+		return nil
+	}
+
 	// process jobs until there are none left or the context is cancelled
 	seen := make(map[uint]struct{})
 	for {
-		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs, time.Time{})
+		jobs, err := w.ds.GetFilteredQueuedJobs(ctx, maxNumJobs, time.Time{}, jobNames)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get queued jobs")
 		}

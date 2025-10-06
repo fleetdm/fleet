@@ -46,7 +46,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return "", err
 	}
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lite")
 	}
@@ -61,6 +61,11 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "ios", "ipados":
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+			return "", &fleet.BadRequestError{
+				Message: fleet.CantLockPersonalHostsMessage,
+			}
+		}
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock iOS or iPadOS hosts. Use wipe instead."))
 	case "darwin":
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -115,10 +120,13 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
+
 	switch {
 	case lockWipe.IsPendingLock():
 		return "", ctxerr.Wrap(
-			ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. The host will lock when it comes online."),
+			ctx, fleet.NewInvalidArgumentError(
+				"host_id", "Host has pending lock request. Host cannot be locked again until lock is complete.",
+			),
 		)
 	case lockWipe.IsPendingUnlock():
 		return "", ctxerr.Wrap(
@@ -230,7 +238,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lite")
 	}
@@ -248,6 +256,11 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+			return &fleet.BadRequestError{
+				Message: fleet.CantWipePersonalHostsMessage,
+			}
+		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)

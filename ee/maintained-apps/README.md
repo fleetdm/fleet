@@ -25,13 +25,15 @@
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-6. Open a PR to the `fleet` repository with the above changes.  Connect it to the issue by adding `Fixes #ISSUE_NUMBER` in the description.
+6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/).
 
-7. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will:
+7. Open a PR to the `fleet` repository with the above changes.  Connect it to the issue by adding `Fixes #ISSUE_NUMBER` in the description.
+
+8. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will:
    1. Review the PR and test the app.  Contributors should be aware of the validation requirements below.
    2. If validation requirements cannot be met in this PR, the PR will be closed and the associated issue will be prioritized in the g-software group backlog.
 
-8. If the app passes testing, it is approved and merged. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release. App icon progress is tracked in the issue. An addition to Fleet-maintained apps is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
+9. If the app passes testing, it is approved and merged. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release. App icon progress is tracked in the issue. An addition to Fleet-maintained apps is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
 
 ### Input file schema
 
@@ -116,7 +118,7 @@ The script should be added to the `inputs/homebrew/scripts` directory.
 
 4. If the PR passes validation, the validator will also execute the test criteria in the QA section of the issue.  If tests fail, add feedback in the PR comments.  If the test failure(s) cannot be addressed by the contributor, close the PR and move the issue to the Drafting board for prioritization.  If tests pass, the PR is approved and merged.
 
-5. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)).
+5. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These can be generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
 
 6. QA ensures the icon is added to Fleet
 
@@ -129,6 +131,13 @@ Use the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the follo
    ```
 
    Make sure you replace the `<PR-branch-name>` and `<repository-name>`
+
+By default, Fleet refreshes the maintained apps catalog on a schedule.  
+To fetch your branch’s catalog immediately (without waiting), run:
+
+```bash
+fleetctl trigger --name maintained_apps
+```
 
 Test criteria:
 

@@ -69,6 +69,8 @@ describe("SoftwareUpdateModal", () => {
         onUpdate={noop}
       />
     );
+
+    expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
     expect(
       screen.getByText(/Fleet is updating or will update/i)
     ).toBeInTheDocument();
@@ -89,6 +91,8 @@ describe("SoftwareUpdateModal", () => {
         onUpdate={noop}
       />
     );
+
+    expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
     expect(
       screen.getByText(/Fleet is updating or will update/i)
     ).toBeInTheDocument();
@@ -108,6 +112,7 @@ describe("SoftwareUpdateModal", () => {
       />
     );
 
+    expect(screen.queryByTestId("error-outline-icon")).toBeInTheDocument();
     expect(screen.getByText(/New version of/i)).toBeInTheDocument();
     expect(screen.getByText(/mock software.app/i)).toBeInTheDocument();
     expect(
@@ -129,7 +134,7 @@ describe("SoftwareUpdateModal", () => {
     expect(screen.getByText("Current version:")).toBeInTheDocument();
   });
 
-  it("renders 'Current Versions' if more than one installed", () => {
+  it("renders 'Current versions' if more than one installed", () => {
     const mockSoftware = createMockHostSoftware({
       installed_versions: [
         {
@@ -156,7 +161,7 @@ describe("SoftwareUpdateModal", () => {
         onUpdate={noop}
       />
     );
-    expect(screen.getByText("Current Versions:")).toBeInTheDocument();
+    expect(screen.getByText("Current versions:")).toBeInTheDocument();
   });
 
   // Shouldn't happen, unless tarballs or weird edge case

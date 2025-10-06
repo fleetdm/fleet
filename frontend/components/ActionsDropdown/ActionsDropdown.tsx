@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Select, {
-  StylesConfig,
+  components,
   DropdownIndicatorProps,
   OptionProps,
-  components,
+  SelectInstance,
+  StylesConfig,
 } from "react-select-5";
 
 import { PADDING } from "styles/var/padding";
@@ -12,6 +13,7 @@ import classnames from "classnames";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 
+import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 
@@ -26,10 +28,11 @@ interface IActionsDropdownProps {
   className?: string;
   menuAlign?: "right" | "left" | "default";
   menuPlacement?: "top" | "bottom" | "auto";
+  variant?: "button" | "brand-button" | "small-button";
 }
 
 const getOptionBackgroundColor = (state: any) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
 const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
@@ -39,7 +42,7 @@ const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
     case "left":
       return "0";
     default:
-      return "-12px";
+      return "undefined";
   }
 };
 
@@ -47,20 +50,22 @@ const getRightMenuAlign = (menuAlign: "right" | "left" | "default") => {
   switch (menuAlign) {
     case "right":
       return "0";
+    case "left":
+      return "auto";
     default:
       return "undefined";
   }
 };
 
 const CustomDropdownIndicator = (
-  props: DropdownIndicatorProps<any, false, any>
+  props: DropdownIndicatorProps<IDropdownOption, false>
 ) => {
   const { isFocused, selectProps } = props;
-  // no access to hover state here from react-select so that is done in the scss
-  // file of ActionsDropdown.
+  const variant = (selectProps as { variant?: "button" }).variant;
+
   const color =
-    isFocused || selectProps.menuIsOpen
-      ? "core-fleet-blue"
+    isFocused || selectProps.menuIsOpen || variant === "button"
+      ? "ui-fleet-black-75"
       : "core-fleet-black";
 
   return (
@@ -113,12 +118,61 @@ const ActionsDropdown = ({
   className,
   menuAlign = "default",
   menuPlacement = "bottom",
+  variant,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
+
+  // Used for brand Action button
+  const [menuIsOpen, setMenuIsOpen] = useState(false);
+  const selectRef = useRef<SelectInstance<IDropdownOption, false>>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // If click was outside wrapper, close menu
+      if (
+        menuIsOpen &&
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setMenuIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuIsOpen]);
+
+  const isBrandButton = variant === "brand-button";
+
+  // CustomControl rerenders on state change, preventing arrow animation
+  // Render brand button outside of CustomControl instead
+  const renderBrandButton = () => (
+    <Button
+      type="button"
+      onClick={() => setMenuIsOpen((v) => !v)}
+      className={`${baseClass}__button`}
+      disabled={disabled}
+      aria-haspopup="listbox"
+      aria-expanded={menuIsOpen}
+    >
+      <span>Actions</span>
+      <Icon
+        name="chevron-down"
+        color="core-fleet-white"
+        className={`actions-dropdown__icon${
+          menuIsOpen ? " actions-dropdown__icon--open" : ""
+        }`}
+      />
+    </Button>
+  );
 
   const handleChange = (newValue: IDropdownOption | null) => {
     if (newValue) {
       onChange(newValue.value.toString());
+      setMenuIsOpen(false); // close menu on select
     }
   };
 
@@ -128,26 +182,36 @@ const ActionsDropdown = ({
       display: "flex",
       flexDirection: "row",
       width: "max-content",
-      padding: "8px 0",
-      backgroundColor: "initial",
+      // Need minHeight to override default
+      minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
+      padding: variant === "small-button" ? "2px 4px" : "8px", // Match button padding
+      backgroundColor: state.isFocused ? COLORS["ui-fleet-black-5"] : "initial",
       border: 0,
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
+        background: COLORS["ui-fleet-black-5"], // Match button hover
         boxShadow: "none",
         ".actions-dropdown-select__placeholder": {
-          color: COLORS["core-vibrant-blue-over"],
+          color: COLORS["ui-fleet-black-75-over"],
         },
         ".actions-dropdown-select__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
+          stroke: COLORS["ui-fleet-black-75-over"],
         },
       },
-      "&:active .actions-dropdown-select__indicator path": {
-        stroke: COLORS["core-vibrant-blue-down"],
+      "&:active": {
+        background: COLORS["ui-fleet-black-5"], // Match button hover
+        ".actions-dropdown-select__indicator path": {
+          stroke: COLORS["ui-fleet-black-75-down"],
+        },
       },
       // TODO: Figure out a way to apply separate &:focus-visible styling
       // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
+        background: COLORS["ui-fleet-black-5"], // Match button hover
+        ".actions-dropdown-select__indicators": {
+          height: "20px",
+        },
         ".actions-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
           transition: "transform 0.25s ease",
@@ -156,21 +220,31 @@ const ActionsDropdown = ({
     }),
     placeholder: (provided, state) => ({
       ...provided,
-      color: state.isFocused
-        ? COLORS["core-fleet-blue"]
-        : COLORS["core-fleet-black"],
-      fontSize: "14px",
+      color:
+        state.isFocused || variant === "button"
+          ? COLORS["ui-fleet-black-75"]
+          : COLORS["core-fleet-black"],
+      fontSize: "13px",
+      fontWeight: variant === "button" ? "600" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
       marginTop: "1px",
+      ...(state.isDisabled && {
+        filter: "grayscale(0.5)",
+        opacity: 0.5,
+      }),
     }),
-    dropdownIndicator: (provided) => ({
+    dropdownIndicator: (provided, state) => ({
       ...provided,
       display: "flex",
       padding: "2px",
       svg: {
         transition: "transform 0.25s ease",
       },
+      ...(state.isDisabled && {
+        filter: "grayscale(0.5)",
+        opacity: 0.5,
+      }),
     }),
     menu: (provided) => ({
       ...provided,
@@ -178,7 +252,7 @@ const ActionsDropdown = ({
       borderRadius: "4px",
       zIndex: 6,
       border: 0,
-      margin: 0,
+      marginTop: isBrandButton ? "20px" : "0",
       width: "auto",
       minWidth: "100%",
       position: "absolute",
@@ -199,18 +273,18 @@ const ActionsDropdown = ({
       ...provided,
       padding: "10px 8px",
       borderRadius: "4px",
-      fontSize: "14px",
+      fontSize: "13px",
       backgroundColor: getOptionBackgroundColor(state),
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-fleet-black-5"],
       },
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-25"],
+          : COLORS["ui-fleet-black-5"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
@@ -220,20 +294,26 @@ const ActionsDropdown = ({
   };
 
   return (
-    <div className={baseClass}>
+    <div className={`${baseClass}__wrapper`} ref={wrapperRef}>
+      {isBrandButton && renderBrandButton()}
       <Select<IDropdownOption, false>
+        ref={selectRef}
         options={options}
-        placeholder={placeholder}
+        placeholder={isBrandButton ? "" : placeholder}
         onChange={handleChange}
         isDisabled={disabled}
         isSearchable={isSearchable}
         styles={customStyles}
+        menuIsOpen={menuIsOpen}
+        onMenuOpen={() => setMenuIsOpen(true)} // Needed abstraction for brand-action button
+        onMenuClose={() => setMenuIsOpen(false)} // Needed abstraction for brand-action-button
         components={{
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
           Option: CustomOption,
           SingleValue: () => null, // Doesn't replace placeholder text with selected text
           // Note: react-select doesn't support skipping disabled options when keyboarding through
+          ...(isBrandButton && { Control: () => null }), // Remove Control entirely and renderBrandButton instead
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
@@ -242,6 +322,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
+        {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
     </div>
   );

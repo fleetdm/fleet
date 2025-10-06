@@ -131,21 +131,21 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	hostTeam2 := "456"
 	hostTeam3 := "789"
 
-	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 	// Nothing is configured for setup experience in team 3, so we do not set
@@ -227,19 +227,19 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
 
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, []uint{})
 	require.NoError(t, err)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
 	// team2 now has nothing enqueued
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
@@ -376,25 +376,45 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	tfr5, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
+	require.NoError(t, err)
+	installerID5, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "orange",
+		PreInstallQuery:   "SELECT 5",
+		PostInstallScript: "grape",
+		InstallerFile:     tfr5,
+		StorageID:         "storage4",
+		Filename:          "file5",
+		Title:             "file5",
+		Version:           "5.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          "linux",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 1)
 	assert.Equal(t, 1, count)
 	assert.NotNil(t, meta)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?)", installerID1, installerID3, installerID4)
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?, ?)", installerID1, installerID3, installerID4, installerID5)
 		return err
 	})
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 1)
 	assert.Equal(t, installerID1, titles[0].ID)
 	assert.Equal(t, 1, count)
 	assert.NotNil(t, meta)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 1)
 	assert.Equal(t, installerID3, titles[0].ID)
@@ -427,19 +447,50 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 2)
 	assert.Equal(t, vpp1.AdamID, titles[1].AppStoreApp.AppStoreID)
 	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 2)
 	assert.Equal(t, vpp3.AdamID, titles[1].AppStoreApp.AppStoreID)
 	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
+
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		TeamID:         &team1.ID,
+		Name:           "the script.sh",
+		ScriptContents: "hello",
+	})
+	require.NoError(t, err)
+
+	sec, err := ds.GetSetupExperienceCount(ctx, "darwin", &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(1), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "linux", &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
@@ -536,7 +587,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID4
 	require.NoError(t, err)
 
-	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 2)
 	assert.Equal(t, 2, count)
@@ -585,10 +636,10 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	}
 
 	// Single installer
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleSoftware["file1"]})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleSoftware["file1"]})
 	require.NoError(t, err)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 3)
 	assert.Equal(t, 3, count)
@@ -603,10 +654,10 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	// Single vpp app replaces installer
 	// This VPP app has darwin and ios versions, which shouldn't keep users from adding the darwin one.
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1:darwin"]})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["1:darwin"]})
 	require.NoError(t, err)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, titles, 3)
 	require.Equal(t, 3, count)
@@ -620,7 +671,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.True(t, *titles[2].AppStoreApp.InstallDuringSetup)
 
 	// Team 2 unaffected
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, titles, 2)
 	require.Equal(t, 2, count)
@@ -631,38 +682,60 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].AppStoreApp.InstallDuringSetup)
 
-	// iOS software
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
-	require.ErrorContains(t, err, "unsupported")
+	// VPP app can be added for iOS
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, []uint{titleVPP["2:ios"]})
+	require.NoError(t, err)
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	require.NotNil(t, meta)
+	installDuringSetupApps := 0
+	for _, title := range titles {
+		// iOS should only have vpp apps
+		require.NotNil(t, title.AppStoreApp)
+		if title.ID == titleVPP["2:ios"] {
+			require.True(t, *title.AppStoreApp.InstallDuringSetup)
+			installDuringSetupApps++
+		} else {
+			require.False(t, *title.AppStoreApp.InstallDuringSetup)
+		}
+	}
+	require.Equal(t, 1, installDuringSetupApps)
 
-	// ios vpp app
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["2:ios"]})
+	// iOS software. iOS only supports VPP apps so should not check installers
+	// even if one somehow exists
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team2.ID, []uint{titleSoftware["file4"]})
 	require.ErrorContains(t, err, "not available")
 
+	// ios vpp app is invalid for darwin platform
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["2:ios"]})
+	require.ErrorContains(t, err, "invalid platform for requested AppStoreApp")
+
 	// wrong team
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["3"]})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["3"]})
 	require.ErrorContains(t, err, "not available")
 
 	// good other team assignment
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleVPP["3"]})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, []uint{titleVPP["3"]})
 	require.NoError(t, err)
 
 	// non-existent title ID
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{999})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{999})
 	require.ErrorContains(t, err, "not available")
 
 	// Failures and other team assignments didn't affected the number of apps on team 1
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 3)
 	assert.Equal(t, 3, count)
 	assert.NotNil(t, meta)
 
 	// Empty slice removes all tiles
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{})
 	require.NoError(t, err)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 3)
 	assert.Equal(t, 3, count)

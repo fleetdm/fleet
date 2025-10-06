@@ -10,16 +10,16 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,6 +41,9 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
+		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
+		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
+		{"SoftwareTitleByIDHostCount", testSoftwareTitleHostCount},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1263,7 +1266,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	require.NotZero(t, macOSInstallerNoTeam)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.IOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.IOSPlatform}},
 	}, &team1.ID)
 	require.NoError(t, err)
 
@@ -1271,7 +1274,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	require.NotZero(t, macOSInstallerNoTeam)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.MacOSPlatform}},
 	}, &team1.ID)
 	require.NoError(t, err)
 
@@ -1279,7 +1282,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	require.NotZero(t, macOSInstallerNoTeam)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.IPadOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.IPadOSPlatform}},
 	}, &team2.ID)
 	require.NoError(t, err)
 
@@ -2011,4 +2014,239 @@ func generateSoftwareTitleListOptionsCombinations(
 		generateSoftwareTitleListOptionsCombinations(v, currentValues, combinations)
 	}
 	delete(currentValues, field.Name)
+}
+
+func testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create a macOS software foobar installer on "No team".
+	_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "foobar",
+		BundleIdentifier: "com.foo.bar",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "foobar.pkg",
+		TeamID:           ptr.Uint(0), // "No team"
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		UserID:           user1.ID,
+		StorageID:        "abc123",
+		Extension:        "pkg",
+		AutomaticInstall: true,
+	})
+	require.NoError(t, err)
+
+	// List titles for "No team" should return the software title.
+	noTeamTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID: ptr.Uint(0),
+	}, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, noTeamTitles, 1)
+
+	// Simulate the host installing the software.
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{
+			Name:             "foobar",
+			BundleIdentifier: "com.foo.bar",
+			Version:          "v1.0.0",
+			Source:           "apps",
+		},
+	})
+	require.NoError(t, err)
+
+	// Update hosts software title counts so that it shows up at the "All teams" view.
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// List titles for "All teams" should return the one title without any installer associated to it.
+	allTeamsTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID: nil,
+	}, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	},
+	)
+	require.NoError(t, err)
+	require.Len(t, allTeamsTitles, 1)
+	require.Nil(t, allTeamsTitles[0].SoftwarePackage)
+}
+
+func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "1.0.0", Source: "deb_packages"},
+		{Name: "bar", Version: "2.0.0", Source: "apps"},
+		{Name: "baz", Version: "3.0.0", Source: "rpm_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo",
+		Source:          "deb_packages",
+		InstallScript:   "echo foo",
+		Filename:        "foo.pkg",
+		UserID:          user.ID,
+		TeamID:          &team1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "bar",
+		Source:          "apps",
+		InstallScript:   "echo bar",
+		Filename:        "bar.pkg",
+		UserID:          user.ID,
+		TeamID:          &team1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "fourth",
+		Source:          "apps",
+		InstallScript:   "echo fourth",
+		Filename:        "fourth.pkg",
+		UserID:          user.ID,
+		TeamID:          ptr.Uint(0),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Sync and reconcile
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	t.Run("packages_only=false no team_id", func(t *testing.T) {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			PackagesOnly: false,
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.NoError(t, err)
+		require.Len(t, titles, 3)
+	})
+
+	t.Run("packages_only=true no team_id", func(t *testing.T) {
+		_, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			PackagesOnly: true,
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "packages_only can only be provided with team_id")
+	})
+
+	t.Run("packages_only=false with team_id", func(t *testing.T) {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			PackagesOnly: false,
+			TeamID:       &team1.ID,
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.NoError(t, err)
+		require.Len(t, titles, 3)
+	})
+
+	t.Run("packages_only=true with team_id", func(t *testing.T) {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			PackagesOnly: true,
+			TeamID:       &team1.ID,
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.NoError(t, err)
+		require.Len(t, titles, 2)
+		for _, title := range titles {
+			require.NotNil(t, title.SoftwarePackage)
+		}
+	})
+
+	t.Run("packages_only=true with team_id=0", func(t *testing.T) {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			PackagesOnly: true,
+			TeamID:       ptr.Uint(0),
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		for _, title := range titles {
+			require.NotNil(t, title.SoftwarePackage)
+		}
+	})
+}
+
+func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Make software installers
+	var installers [5]uint
+	for i := range 5 {
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team " + strconv.Itoa(i)})
+		require.NoError(t, err)
+
+		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "foo",
+			Source:           "apps",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			StorageID:        "storage",
+			Filename:         "installer.pkg",
+			BundleIdentifier: "com.foo.installer",
+			UserID:           user1.ID,
+			TeamID:           &tm.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		require.NotZero(t, installers[i])
+	}
+
+	// install software on host
+	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
+	require.NoError(t, err)
+
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host1.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// test GetSoftwareTitleID
+	globalTeamFilter := fleet.TeamFilter{User: user1, IncludeObserver: true}
+	titles, count, _, err := ds.ListSoftwareTitles(
+		context.Background(),
+		fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: nil},
+		globalTeamFilter,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	title, err := ds.SoftwareTitleByID(context.Background(), titles[0].ID, nil, globalTeamFilter)
+	require.NoError(t, err)
+	require.Len(t, title.Versions, 1)
+	require.Equal(t, 5, title.SoftwareInstallersCount)
+	require.Equal(t, uint(1), title.HostsCount)
+	require.Equal(t, uint(1), title.VersionsCount)
+	require.Equal(t, ptr.Uint(1), title.Versions[0].HostsCount)
 }

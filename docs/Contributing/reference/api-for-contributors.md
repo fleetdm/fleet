@@ -1,5 +1,9 @@
 # API for contributors
 
+Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
+
+These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
+
 - [Authentication](#authentication)
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
@@ -15,12 +19,6 @@
 - [Users](#users)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
-
-> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
-
-This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
-
-If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
 ## Authentication
 
@@ -632,7 +630,7 @@ Status: 200
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| certificate | file | form | *Required* The file conataining the APNS certificate (.pem) |
+| certificate | file | form | *Required* The file containing the APNS certificate (.pem) |
 
 #### Example
 
@@ -757,9 +755,9 @@ None.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The ABM token's ID |
-| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
-| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
-| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
+| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
 
 #### Example
 
@@ -1046,15 +1044,19 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Initiate SSO during DEP enrollment
+### Initiate SSO during DEP or Account Driven MDM enrollment
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
 `POST /api/v1/fleet/mdm/sso`
 
+A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that needs to be sent on the `POST /api/v1/fleet/mdm/sso/callback` request (this HTTP cookie is used to identify the SSO login session).
+
 #### Parameters
 
-None.
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter |
 
 #### Example
 
@@ -1068,17 +1070,25 @@ None.
 }
 ```
 
-### Complete SSO during DEP enrollment
+Example response cookie in the HTTP `Set-Cookie` header:
+```
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+```
+
+### Complete SSO during DEP or Account Driven enrollment
 
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
 `POST /api/v1/fleet/mdm/sso/callback`
 
+The `__Host-FLEETSSOSESSIONID` HTTP cookie must be set for MDM SSO login requests. The value for this cookie is returned in the `POST /api/v1/fleet/mdm/sso` request.
+
 #### Parameters
 
-| Name         | Type   | In   | Description                                                 |
-| ------------ | ------ | ---- | ----------------------------------------------------------- |
-| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+| Name                     | Type   | In     | Description                                                                                                         |
+| ------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| SAMLResponse             | string | body   | **Required**. The SAML response from the identity provider.                                                         |
+| __Host-FLEETSSOSESSIONID | string | cookie | **Required**. HTTP Cookie returned in the `POST /api/v1/fleet/mdm/sso` request.                                     |
 
 #### Example
 
@@ -1092,15 +1102,31 @@ This is the callback endpoint that the identity provider will use to send securi
 }
 ```
 
+Example session cookie set in the `Cookie` request header:
+```
+Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
+```
+
 ##### Default response
 
 `Status: 302`
 
-If the credentials are valid, the server redirects the client to the Fleet UI. The URL contains the following query parameters that can be used to complete the DEP enrollment flow:
+If the credentials are valid and no value was passed for the `initiator` parameter during initiation
+of SSO, the server redirects the client to the Fleet UI. The URL contains the
+following query parameters that can be used to complete the DEP enrollment flow:
 
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
+
+If the credentials are valid and `account_driven_enroll` was passed for the `initiator` parameter
+during initiation of SSO, the server redirects the client to
+apple-remotemanagement-user-login://authentication-results . The URL contains the following query
+parameter which is used by the Apple MDM client on the device to complete the account driven
+enrollment flow:
+
+ - `access-token` a token that is passed by the device in the Authorization header on the second call to the Account Driven
+   Enrollment endpoint to download an enrollment profile.
 
 ### Over the air enrollment
 
@@ -1416,6 +1442,50 @@ This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 `POST /api/v1/fleet/android_enterprise/pubsub`
 
+### Get Apple Account Driven User Enrollment Profile
+
+This endpoint initiates Account Driven User Enrollment on iOS and iPadOS devices and is used by the
+Apple. Devices are directed to this endpoint via Apple Account Driven Enrollment service discovery.
+The first request made to this endpoint is unauthenticated and will return a 401 Unauthorized
+including a Www-Authenticate header with a URL redirecting them to /mdm/sso. After authentication,
+the client will return to this endpoint and make a second request including the returned token in
+the Authorization header and an enrollment profile will be returned. Devices that fail to identify
+via plist or that identify as other than iPhone or iPad will return a 400 Bad Request.
+
+`POST /api/mdm/apple/account_driven_enroll`
+
+#### Parameters
+
+A plist including LANGUAGE, VERSION, PRODUCT, SOFTWARE_UPDATE_DEVICE_ID, SUPPLEMENTAL_BUILD_VERSION
+and VERSION
+
+### Get Apple Account Driven User Enrollment service discovery payload
+
+This endpoint will be used by devices to get the data needed to initiate an account driven user
+enrollment into MDM. The devices will get the URL for the mdm server and will call that endpoint
+while passing the `mdm-byod` enrollment type.
+
+`GET /api/mdm/apple/service_discovery`
+
+#### Example
+
+`GET /api/mdm/apple/service_discovery`
+
+##### Response
+
+`Status 200`
+
+```json
+{
+  "Servers": [
+    {
+      "Version": "mdm-byod",
+      "BaseURL": "<fleet_server_url>/api/mdm/apple/account_driven_enroll"
+    }
+  ]
+}
+
+```
 
 ## Get or apply configuration files
 
@@ -3191,7 +3261,7 @@ Lists the software installed on the current device.
 
 ```json
 {
-  "count": 2,
+  "count": 3,
   "software": [
     {
       "id": 121,
@@ -3251,6 +3321,23 @@ Lists the software installed on the current device.
         "self_service": false,
         "last_install": null
       },
+    },
+    {
+      "id": 144,
+      "name": "Prettier",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "vscode_extensions",
+      "extesnion_for": "cursor",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "1.2.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Users/admin/.cursor/extensions/prettier"]
+        }
+      ],
     }
   ],
   "meta": {
@@ -3566,32 +3653,6 @@ Lists the certificates installed on the current device.
 }
 ```
 
-#### Get device's API features
-
-This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
-
-`GET /api/v1/fleet/device/{token}/api_features`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`GET /api/v1/fleet/device/abcdef012456789/api_features`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "features": {}
-}
-```
-
 #### Get device's transparency URL
 
 Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
@@ -3670,7 +3731,7 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 _Available in Fleet Premium_
 
-Signals the fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the team, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that, triggers escrow from the Orbit side.
+Signals the Fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the team, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that, triggers escrow from the Orbit side.
 
 `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow`
 
@@ -3687,6 +3748,47 @@ Signals the fleet server to queue up the LUKS disk encryption escrow process (LU
 ##### Default response
 
 `Status: 204`
+
+---
+
+### Get the setup experience status for the device
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/device/{token}/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/setup_experience/status`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "setup_experience_results": {
+    "software": [
+      {
+        "name": "1password-latest.tar.gz",
+        "status": "running",
+        "software_title_id": 3007
+      },
+      {
+        "name": "slack.deb",
+        "status": "pending",
+        "software_title_id": 3008
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -3837,7 +3939,42 @@ Notifies the server about an agent error, resulting in two outcomes:
         "org_logo_url": ""
     }
 }
+```
 
+### Start the setup experience
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"TuvSsWf0RwBEecUlNBTLmBcjGFAdzqt/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns `enabled` set to `true` if items (e.g. software) for the setup experience were queued for the host.
+
+```json
+{
+  "result": {
+    "enabled": true
+  }
+}
 ```
 
 ### Set or update device token
@@ -4387,7 +4524,7 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 
 | Name              | Type    | In   | Description                                        |
 |-------------------|---------|------|----------------------------------------------------|
-| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must haave global access, and hashes are checked across the entire instance. |
+| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must have global access, and hashes are checked across the entire instance. |
 | sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
 
 #### Example
@@ -4453,7 +4590,8 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.pre_install_query   | string   | body  | Condition query that determines if the install will proceed.                                                                                                                                                                |
 | software.packages.post_install_script | string   | body  | Script that runs after software install.                                                                                                                                                                                    |
 | software.packages.uninstall_script    | string   | body  | Command that Fleet runs to uninstall software.                                                                                                                                                                              |
-| software.packages.self_service        | boolean  | body  | Specifies whether or not end users can install self-service.                                                                                                                                                                |
+| software.packages.self_service        | boolean  | body  | Specifies whether end users can install self-service.                                                                                                                                                                |
+| software.packages.install_during_setup | boolean  | body  | Specifies whether the package is included in Setup experience.                                                                                                                                                                |
 | software.packages.labels_include_any  | array    | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                                   |
 | software.packages.labels_exclude_any  | array    | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                            |
 
@@ -4489,7 +4627,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
 | Name         | Type   | In    | Description                                                                                                                                                           |
 | ------------ | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | request_uuid | string | query | The request_uuid returned by the `POST /api/v1/fleet/software/batch` endpoint. |
-| team_name    | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
+| team_name    | string | query | The name of the team to add the software package to. Omitting these parameters will add software to 'No Team'. |
 | dry_run      | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 
 ##### Default responses
@@ -4540,13 +4678,14 @@ _Available in Fleet Premium._
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
+| team_name | string | query | The name of the team to add the software package to. Omitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
-| app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+| app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. |
+| app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
@@ -4562,6 +4701,7 @@ _Available in Fleet Premium._
       "app_store_id": "597799333",
       "categories": ["Browsers"],
       "self_service": false,
+      "install_during_setup": false,
       "labels_include_any": [
         "Engineering",
         "Customer Support"

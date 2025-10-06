@@ -1318,6 +1318,11 @@ func setupTestServer(t *testing.T) *mock.Store {
 		return nil
 	}
 
+	enqueuer.GetPendingLockCommandFunc = func(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+		// Return nil to indicate no pending lock command
+		return nil, "", nil
+	}
+
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		MDMStorage:       enqueuer,
 		MDMPusher:        testing_utils.MockPusher{},
@@ -1372,6 +1377,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 
 		return h.host, nil
 	}
+	ds.HostFunc = mock.HostFunc(ds.HostLiteFunc)
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}
