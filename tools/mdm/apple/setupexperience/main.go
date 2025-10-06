@@ -3,17 +3,6 @@
 // It connects to a MySQL database, inserts necessary records to simulate
 // MDM enrollment, and enqueues setup experience items for a specified host.
 //
-// It is a quick and dirty tool that does some direct SQL queries to set up
-// the necessary state, and therefore comes with some inherent brittleness.
-//
-// To use, first start a local server with MDM enabled, and enroll your macOS VM
-// into a team. Then, run this tool with the appropriate flags to set up the
-// necessary database records. If the setup dialog doesn't appear on the VM,
-// or it remains on the initial setup screen, try running the tool again.
-//
-// Note that unless your instance is configured to enable manually releasing
-// devices, the setup experience dialog will not auto-dismiss after completing.
-//
 // Usage:
 //
 //	go run main.go --server-private-key <private_key> --host-uuid <host_uuid>
