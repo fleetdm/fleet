@@ -103,4 +103,10 @@ func TestUp_20250922083056(t *testing.T) {
 	require.NoError(t, err)
 	// empty android host got updated, non-empty stayed the same, mac host not updated
 	require.Equal(t, []string{"from-enterprise", "got-one", ""}, got)
+
+	// Add a final test where we create a DB without the old apple-or-windows constraint and verify the migration does not error
+	db = applyUpToPrev(t)
+	_, err = db.Exec(`ALTER TABLE mdm_configuration_profile_labels DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows`)
+	require.NoError(t, err)
+	applyNext(t, db)
 }

@@ -127,13 +127,29 @@ ALTER TABLE mdm_configuration_profile_labels
   ADD COLUMN android_profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   ADD FOREIGN KEY (android_profile_uuid) REFERENCES mdm_android_configuration_profiles(profile_uuid) ON DELETE CASCADE,
   ADD UNIQUE KEY idx_mdm_configuration_profile_labels_android_label_name (android_profile_uuid, label_name),
-  DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows,
   -- only one of apple, android or windows profile uuid must be set
   ADD CONSTRAINT ck_mdm_configuration_profile_labels_profile_uuid
     CHECK (IF(ISNULL(apple_profile_uuid), 0, 1) + IF(ISNULL(windows_profile_uuid), 0, 1) + IF(ISNULL(android_profile_uuid), 0, 1) = 1)
 `
 	if _, err := tx.Exec(alterProfileLabelsTable); err != nil {
 		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
+	}
+
+	// our mysql version at the time this constraint was added did not support CHECK constraints so this may or may not exist for us
+	// to delete, so we create the new wider constraint above then, optionally, delete the older narrow one
+	checkIfOldConstraintExists := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'CHECK' AND TABLE_NAME = 'mdm_configuration_profile_labels' AND CONSTRAINT_NAME = 'ck_mdm_configuration_profile_labels_apple_or_windows'`
+	var constraintCount int
+	if err := tx.QueryRow(checkIfOldConstraintExists).Scan(&constraintCount); err != nil {
+		return fmt.Errorf("check for old CHECK constraint on mdm_configuration_profile_labels: %w", err)
+	}
+	if constraintCount > 0 {
+		dropOldConstraint := `
+			ALTER TABLE mdm_configuration_profile_labels
+			DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows
+		`
+		if _, err := tx.Exec(dropOldConstraint); err != nil {
+			return fmt.Errorf("drop old CHECK constraint on mdm_configuration_profile_labels: %w", err)
+		}
 	}
 
 	alterAndroidDevicesTable := `
