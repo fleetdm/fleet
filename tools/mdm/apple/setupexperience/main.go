@@ -128,9 +128,9 @@ func main() {
 	}
 	_, err = db.ExecContext(ctx, `
 		INSERT INTO host_mdm_apple_awaiting_configuration (host_uuid, awaiting_configuration) VALUES (?, 1) ON DUPLICATE KEY UPDATE awaiting_configuration = 1
-	`, *hostID)
+	`, *hostUUID)
 	if err != nil {
-		log.Fatalf("failed to insert host_mdm_apple_awaiting_configuration for host %d: %v", *hostID, err)
+		log.Fatalf("failed to insert host_mdm_apple_awaiting_configuration for host %s: %v", *hostUUID, err)
 	}
 
 	// For each profile, insert a row into host_mdm_apple_profiles if one doesn't already exist.
