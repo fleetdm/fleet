@@ -35,7 +35,7 @@ func Up_20251003094629(tx *sql.Tx) error {
 
 	_, err = tx.Exec(`
         ALTER TABLE software_titles
-        ADD COLUMN unique_identifier VARCHAR(255) GENERATED ALWAYS AS (COALESCE(bundle_identifier, COALESCE(application_id, name))) VIRTUAL;
+        ADD COLUMN unique_identifier VARCHAR(255) GENERATED ALWAYS AS (COALESCE(bundle_identifier, application_id, name)) VIRTUAL;
     `)
 	if err != nil {
 		return fmt.Errorf("failed to add generated column unique_identifier: %w", err)

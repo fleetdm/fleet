@@ -32,7 +32,6 @@ func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Se
 func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message *android.PubSubMessage) error {
 	notificationType, ok := message.Attributes["notificationType"]
 	if !ok || len(notificationType) == 0 {
-		fmt.Printf("skipping cause nothing in message\nmessage: %v\n", message)
 		// Nothing to process
 		svc.authz.SkipAuthorization(ctx)
 		return nil

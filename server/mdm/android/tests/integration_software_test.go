@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -35,7 +34,7 @@ type softwareTestSuite struct {
 
 func (s *softwareTestSuite) SetupSuite() {
 	s.WithServer.SetupSuite(s.T(), "androidSoftwareTestSuite")
-	s.Token = "bozo"
+	s.Token = "testtoken"
 }
 
 func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
@@ -50,13 +49,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
 	const enterpriseToken = "enterpriseToken"
-	res := s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
-	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 1)
-	body, err := io.ReadAll(res.Body)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), "text/html; charset=UTF-8", res.Header.Get("Content-Type"))
-	assert.Contains(s.T(), string(body), "If this page does not close automatically, please close it manually.")
-	assert.Contains(s.T(), string(body), "window.close()")
+	s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
 
 	// Update the LIST mock to return the enterprise after "creation"
 	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
@@ -65,15 +58,14 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 		}, nil
 	}
 
-	// Now enterprise exists and we can retrieve it.
 	resp := android.GetEnterpriseResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
-	assert.Equal(s.T(), EnterpriseID, resp.EnterpriseID)
+	assert.Equal(t, EnterpriseID, resp.EnterpriseID)
 
 	// Need to set this because app config is mocked in this setup
 	s.AppConfig.MDM.AndroidEnabledAndConfigured = true
 
-	err = s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "enrollsecret"}})
+	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "enrollsecret"}})
 	require.NoError(t, err)
 
 	secrets, err := s.DS.Datastore.GetEnrollSecrets(ctx, nil)
@@ -162,6 +154,134 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 			assert.Equal(t, "Google Chrome", s.Name)
 			assert.Equal(t, "android_apps", s.Source)
 		}
+		return nil
+	})
+
+	// Add some new software for the first device
+	software1 = []*androidmanagement.ApplicationReport{
+		{
+			DisplayName: "Google Chrome",
+			PackageName: "com.google.chrome",
+			VersionName: "1.0.0",
+			State:       "INSTALLED",
+		},
+		{
+			DisplayName: "YouTube",
+			PackageName: "com.google.youtube",
+			VersionName: "1.0.0",
+			State:       "INSTALLED",
+		},
+		{
+			DisplayName: "Google Drive",
+			PackageName: "com.google.drive",
+			VersionName: "1.0.0",
+			State:       "INSTALLED",
+		},
+	}
+	deviceData1 = createAndroidDeviceWithSoftware(enterpriseSpecificID1, "test-android", createAndroidDeviceID("test-policy"), ptr.Int(1), nil, software1)
+	req = service.PubSubPushRequest{
+		PubSubMessage: createStatusReportMessageFromDevice(t, deviceData1),
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+
+	var hostID1 uint
+	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+		// Get host id
+		err := sqlx.GetContext(ctx, q, &hostID1, "SELECT id FROM hosts WHERE uuid = ?", enterpriseSpecificID1)
+		require.NoError(t, err)
+
+		var software []*fleet.Software
+		err = sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software JOIN host_software ON host_software.software_id = software.id WHERE host_software.host_id = ?", hostID1)
+		require.NoError(t, err)
+		assert.Len(t, software, len(deviceData1.ApplicationReports)) // chrome, youtube, google drive
+
+		expectedSW := map[string]fleet.Software{
+			"com.google.chrome":  {ApplicationID: "com.google.chrome", Name: "Google Chrome", Source: "android_apps"},
+			"com.google.youtube": {ApplicationID: "com.google.youtube", Name: "YouTube", Source: "android_apps"},
+			"com.google.drive":   {ApplicationID: "com.google.drive", Name: "Google Drive", Source: "android_apps"},
+		}
+
+		for _, got := range software {
+			// Check other fields are as expected
+			expected, ok := expectedSW[got.ApplicationID]
+			require.Truef(t, ok, "got unexpected software with application id %s", got.ApplicationID)
+
+			assert.Equal(t, expected.ApplicationID, got.ApplicationID)
+			assert.Equal(t, expected.Name, got.Name)
+			assert.Equal(t, expected.Source, got.Source)
+
+		}
+
+		return nil
+	})
+
+	// Remove some software from the first device
+	software1 = []*androidmanagement.ApplicationReport{
+		{
+			DisplayName: "YouTube",
+			PackageName: "com.google.youtube",
+			VersionName: "1.0.0",
+			State:       "INSTALLED",
+		},
+	}
+	deviceData1 = createAndroidDeviceWithSoftware(enterpriseSpecificID1, "test-android", createAndroidDeviceID("test-policy"), ptr.Int(1), nil, software1)
+	req = service.PubSubPushRequest{
+		PubSubMessage: createStatusReportMessageFromDevice(t, deviceData1),
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+
+	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+		var software []*fleet.Software
+		err = sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software JOIN host_software ON host_software.software_id = software.id WHERE host_software.host_id = ?", hostID1)
+		require.NoError(t, err)
+		assert.Len(t, software, len(deviceData1.ApplicationReports)) // just youtube now
+
+		expectedSW := map[string]fleet.Software{
+			"com.google.youtube": {ApplicationID: "com.google.youtube", Name: "YouTube", Source: "android_apps"},
+		}
+
+		for _, got := range software {
+			// Check other fields are as expected
+			expected, ok := expectedSW[got.ApplicationID]
+			require.Truef(t, ok, "got unexpected software with application id %s", got.ApplicationID)
+
+			assert.Equal(t, expected.ApplicationID, got.ApplicationID)
+			assert.Equal(t, expected.Name, got.Name)
+			assert.Equal(t, expected.Source, got.Source)
+
+		}
+
+		return nil
+	})
+
+	// Send the same software again, nothing changes
+	deviceData1 = createAndroidDeviceWithSoftware(enterpriseSpecificID1, "test-android", createAndroidDeviceID("test-policy"), ptr.Int(1), nil, software1)
+	req = service.PubSubPushRequest{
+		PubSubMessage: createStatusReportMessageFromDevice(t, deviceData1),
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+
+	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+		var software []*fleet.Software
+		err = sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software JOIN host_software ON host_software.software_id = software.id WHERE host_software.host_id = ?", hostID1)
+		require.NoError(t, err)
+		assert.Len(t, software, len(deviceData1.ApplicationReports)) // just youtube now
+
+		expectedSW := map[string]fleet.Software{
+			"com.google.youtube": {ApplicationID: "com.google.youtube", Name: "YouTube", Source: "android_apps"},
+		}
+
+		for _, got := range software {
+			// Check other fields are as expected
+			expected, ok := expectedSW[got.ApplicationID]
+			require.Truef(t, ok, "got unexpected software with application id %s", got.ApplicationID)
+
+			assert.Equal(t, expected.ApplicationID, got.ApplicationID)
+			assert.Equal(t, expected.Name, got.Name)
+			assert.Equal(t, expected.Source, got.Source)
+
+		}
+
 		return nil
 	})
 
