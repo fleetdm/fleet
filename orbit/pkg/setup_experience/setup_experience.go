@@ -298,29 +298,6 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 	return nil
 }
 
-func resultToListItem(result *fleet.SetupExperienceStatusResult) swiftdialog.ListItem {
-	statusText := "Pending"
-	status := swiftdialog.StatusWait
-
-	switch result.Status {
-	case fleet.SetupExperienceStatusFailure:
-		status = swiftdialog.StatusFail
-		statusText = "Failed"
-	case fleet.SetupExperienceStatusSuccess:
-		status = swiftdialog.StatusSuccess
-		statusText = "Installed"
-		if result.IsForScript() {
-			statusText = "Ran"
-		}
-	}
-
-	return swiftdialog.ListItem{
-		Title:      result.Name,
-		Status:     status,
-		StatusText: statusText,
-	}
-}
-
 // LinuxSetupExperiencer runs the setup experience on Linux hosts.
 type LinuxSetupExperiencer struct {
 	orbitClient OrbitClient
