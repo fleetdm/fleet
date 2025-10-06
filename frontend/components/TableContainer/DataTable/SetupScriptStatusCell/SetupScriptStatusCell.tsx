@@ -6,9 +6,9 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import Spinner from "components/Spinner";
 
-const baseClass = "setup-software-status-cell";
+const baseClass = "setup-script-status-cell";
 
-interface ISetupSoftwareStatusCell {
+interface ISetupScriptStatusCell {
   status: SetupStepStatus;
 }
 
@@ -19,9 +19,9 @@ const serverToUiStatus = (
     case "pending":
       return { label: "Pending", icon: "pending-outline" };
     case "running":
-      return { label: "Installing", icon: "spinner" };
+      return { label: "Running", icon: "spinner" };
     case "success":
-      return { label: "Installed", icon: "success" };
+      return { label: "Ran", icon: "success" };
     case "failure":
     case "cancelled":
       return { label: "Failed", icon: "error" };
@@ -30,7 +30,7 @@ const serverToUiStatus = (
   }
 };
 
-const SetupSoftwareStatusCell = ({ status }: ISetupSoftwareStatusCell) => {
+const SetupScriptStatusCell = ({ status }: ISetupScriptStatusCell) => {
   const { label, icon } = serverToUiStatus(status);
   return (
     <div className={baseClass}>
@@ -40,4 +40,4 @@ const SetupSoftwareStatusCell = ({ status }: ISetupSoftwareStatusCell) => {
   );
 };
 
-export default SetupSoftwareStatusCell;
+export default SetupScriptStatusCell;
