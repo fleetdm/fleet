@@ -246,7 +246,7 @@ How to deploy a new release to dogfood:
 
 ### Conclude current milestone 
 
-Immediately after publishing a new release, close out the associated GitHub issues and milestones. 
+Immediately after publishing a new release of Fleet or fleetd, close out the associated GitHub issues and milestones. 
 
 1. **Update product group boards**: In GitHub Projects, go to each product group board tracking the current release and filter by the current milestone.
 
