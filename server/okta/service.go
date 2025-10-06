@@ -276,58 +276,63 @@ func (o *oktaDeviceHealthSessionProvider) renderRemediationPage(w http.ResponseW
             max-width: 800px;
             margin: 50px auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: #F9FAFC;
         }
         .container {
-            background-color: white;
+            background-color: #FFFFFF;
             border-radius: 8px;
             padding: 40px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #E2E4EA;
         }
         h1 {
-            color: #d32f2f;
+            color: #D66C7B;
             margin-top: 0;
+            font-size: 24px;
         }
         .message {
             font-size: 16px;
-            color: #333;
+            color: #515774;
             margin-bottom: 30px;
+            line-height: 1.5;
         }
         .policy {
-            border-left: 4px solid #d32f2f;
-            background-color: #ffebee;
+            border-left: 4px solid #D66C7B;
+            background-color: #F1F0FF;
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 4px;
         }
         .policy-name {
-            font-weight: bold;
+            font-weight: 600;
             font-size: 16px;
-            color: #d32f2f;
+            color: #192147;
             margin-bottom: 8px;
         }
         .policy-description {
-            color: #666;
+            color: #515774;
             margin-bottom: 10px;
+            line-height: 1.5;
         }
         .policy-resolution {
-            background-color: #fff3cd;
-            border-left: 4px solid #ff9800;
+            background-color: #FEF7E0;
+            border-left: 4px solid #EBBC43;
             padding: 10px;
             margin-top: 10px;
             border-radius: 4px;
         }
         .resolution-title {
-            font-weight: bold;
-            color: #ff6f00;
+            font-weight: 600;
+            color: #192147;
             margin-bottom: 5px;
         }
         .footer {
             margin-top: 30px;
             padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            color: #666;
+            border-top: 1px solid #E2E4EA;
+            color: #8B8FA2;
             font-size: 14px;
+            line-height: 1.5;
         }
     </style>
 </head>
