@@ -192,7 +192,7 @@ const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
-export const getDisplayErrMessage = (err: unknown) => {
+export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   let message: string | JSX.Element = DEFAULT_ERROR;
   const reason = getErrorReason(err).toLowerCase();
 
@@ -224,7 +224,7 @@ export const getDisplayErrMessage = (err: unknown) => {
   return message;
 };
 
-export const getErrorMessage = (err: unknown) => {
+export const getErrorMessage = (err: unknown): JSX.Element => {
   return (
     <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
   );

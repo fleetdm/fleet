@@ -1,3 +1,5 @@
+import React from "react";
+
 import { IEditCertAuthorityBody } from "services/entities/certificates";
 import {
   ICertificateAuthority,
@@ -255,6 +257,8 @@ export const updateFormData = (
   return newData;
 };
 
-export const getErrorMessage = (err: unknown) => {
-  return `Couldn't edit certificate authority. ${getDisplayErrMessage(err)}`;
+export const getErrorMessage = (err: unknown): JSX.Element => {
+  return (
+    <>Couldn&apos;t edit certificate authority. {getDisplayErrMessage(err)}</>
+  );
 };
