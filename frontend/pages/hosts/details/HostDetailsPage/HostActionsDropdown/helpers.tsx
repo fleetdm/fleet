@@ -152,7 +152,7 @@ const canLockHost = ({
   // meaning they have to be enrolled via automated device enrollment (ADE)
   const isLockableIosOrIpadDevice =
     isIPadOrIPhone(hostPlatform) &&
-    isCompanyOwnedEnrollmentInMdm(hostMdmEnrollmentStatus) &&
+    isCompanyOwnedEnrollment(hostMdmEnrollmentStatus) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
