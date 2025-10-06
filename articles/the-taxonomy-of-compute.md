@@ -62,7 +62,7 @@ Further variation exists within individual computing platforms:
 
 **Android**
 - Commercial Android  
-- OSA/Zebra devices  
+- AOSP/Zebra devices  
 
 **Linux**
 - Ubuntu  
