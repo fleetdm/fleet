@@ -1,5 +1,11 @@
 //go:build darwin
 
+// Package santa implements the tables for getting Santa data
+// (logs/status) on macOS.
+//
+// Santa is an open source macOS endpoint security system with
+// binary whitelisting and blacklisting capabilities.
+// Based on https://github.com/allenhouchins/fleet-extensions/tree/main/santa
 package santa
 
 import (
