@@ -862,6 +862,11 @@ org_settings:
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
+    custom_est_proxy:
+      - name: SECTIGO_WIFI
+        url: https://example.com/.well-known/est/abc123
+        username: $SECTIGO_USERNAME_PASSWORD
+        password: $SECTIGO_WIFI_PASSWORD
     hydrant: # Available in Fleet Premium
       - name: HYDRANT_WIFI
         url: https://example.hydrantid.com/.well-known/est/abc123
@@ -895,6 +900,13 @@ Can only be configured for all teams (`org_settings`).
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.
+
+#### custom_est_proxy
+
+- `name` is the name of the certificate authority. Only letters, numbers, and underscores are allowed.
+- `url` is the EST (Enrollment Over Secure Transport) endpoint's URL.
+- `username` is the username used to authenticate with the EST endpoint.
+- `password` is the password used to authenticate with the EST endpoint.
 
 #### hydrant
 
