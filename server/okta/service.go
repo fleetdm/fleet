@@ -384,16 +384,23 @@ func (o *oktaDeviceHealthSPProvider) GetServiceProvider(r *http.Request, service
 }
 
 // getOktaDeviceHealthIDP creates and configures the SAML IdP
-func (s *Service) getOktaDeviceHealthIDP(baseURL string) (*saml.IdentityProvider, error) {
-	u, err := url.Parse(baseURL)
+func (s *Service) getOktaDeviceHealthIDP(baseMetadataURL, baseSSOURL string) (*saml.IdentityProvider, error) {
+	// Parse metadata base URL
+	metadataBase, err := url.Parse(baseMetadataURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid baseMetadataURL: %w", err)
 	}
 
-	metadataURL := *u
+	metadataURL := *metadataBase
 	metadataURL.Path = "/api/v1/fleet/okta/device_health/metadata"
 
-	ssoURL := *u
+	// Parse SSO base URL
+	ssoBase, err := url.Parse(baseSSOURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid baseSSOURL: %w", err)
+	}
+
+	ssoURL := *ssoBase
 	ssoURL.Path = "/api/v1/fleet/okta/device_health/sso"
 
 	sessionProvider := &oktaDeviceHealthSessionProvider{svc: s}

@@ -5,22 +5,14 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
 
 // MakeHandler creates an HTTP handler for Okta device health endpoints with OTEL middleware
-func (s *Service) MakeHandler(baseURL string, config config.FleetConfig) http.Handler {
-	if baseURL == "" {
-		level.Error(s.logger).Log("msg", "FLEET_CONDITIONAL_ACCESS_URL is not set; disabling Okta device health endpoints")
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.NotFound(w, r)
-		})
-	}
-
+func (s *Service) MakeHandler(baseMetadataURL, baseSSOURL string, config config.FleetConfig) http.Handler {
 	r := mux.NewRouter()
-	r.Handle("/api/v1/fleet/okta/device_health/metadata", s.makeOktaDeviceHealthMetadataHandler(baseURL))
-	r.Handle("/api/v1/fleet/okta/device_health/sso", s.makeOktaDeviceHealthSSOHandler(baseURL))
+	r.Handle("/api/v1/fleet/okta/device_health/metadata", s.makeOktaDeviceHealthMetadataHandler(baseMetadataURL, baseSSOURL))
+	r.Handle("/api/v1/fleet/okta/device_health/sso", s.makeOktaDeviceHealthSSOHandler(baseMetadataURL, baseSSOURL))
 
 	// Wrap with OTEL middleware
 	return otelmw.WrapHandlerDynamic(r, config)
@@ -30,9 +22,9 @@ func (s *Service) MakeHandler(baseURL string, config config.FleetConfig) http.Ha
 // GET /api/v1/fleet/okta/device_health/metadata
 // //////////////////////////////////////////////////////////////////////////////
 
-func (s *Service) makeOktaDeviceHealthMetadataHandler(baseURL string) http.HandlerFunc {
+func (s *Service) makeOktaDeviceHealthMetadataHandler(baseMetadataURL, baseSSOURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		idp, err := s.getOktaDeviceHealthIDP(baseURL)
+		idp, err := s.getOktaDeviceHealthIDP(baseMetadataURL, baseSSOURL)
 		if err != nil {
 			s.logger.Log("err", "error creating IdP", "details", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -48,9 +40,9 @@ func (s *Service) makeOktaDeviceHealthMetadataHandler(baseURL string) http.Handl
 // POST /api/v1/fleet/okta/device_health/sso
 // //////////////////////////////////////////////////////////////////////////////
 
-func (s *Service) makeOktaDeviceHealthSSOHandler(baseURL string) http.HandlerFunc {
+func (s *Service) makeOktaDeviceHealthSSOHandler(baseMetadataURL, baseSSOURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		idp, err := s.getOktaDeviceHealthIDP(baseURL)
+		idp, err := s.getOktaDeviceHealthIDP(baseMetadataURL, baseSSOURL)
 		if err != nil {
 			s.logger.Log("err", "error creating IdP", "details", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)

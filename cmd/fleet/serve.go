@@ -1498,9 +1498,10 @@ the way that the Fleet server works.
 			}
 
 			// Okta device health SAML IdP endpoints (conditional access POC)
-			oktaBaseURL := os.Getenv("FLEET_CONDITIONAL_ACCESS_URL")
-			if oktaBaseURL != "" {
-				oktaHandler := oktaSvc.MakeHandler(oktaBaseURL, config)
+			baseMetadataURL := os.Getenv("FLEET_CONDITIONAL_ACCESS_METADATA")
+			baseSSOURL := os.Getenv("FLEET_CONDITIONAL_ACCESS_SSO")
+			if baseMetadataURL != "" && baseSSOURL != "" {
+				oktaHandler := oktaSvc.MakeHandler(baseMetadataURL, baseSSOURL, config)
 				rootMux.Handle("/api/v1/fleet/okta/device_health/", oktaHandler)
 			}
 
