@@ -1,33 +1,33 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import {
-  ICertificateIntegration,
-  isDigicertCertIntegration,
-  isNDESCertIntegration,
-} from "interfaces/integration";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import certificatesAPI from "services/entities/certificates";
 
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import {
   generateDefaultFormData,
+  generateEditCertAuthorityData,
   getErrorMessage,
-  getCertificateAuthorityType,
   updateFormData,
 } from "./helpers";
 
 import DigicertForm from "../DigicertForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
-import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 import NDESForm from "../NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
+import HydrantForm from "../HydrantForm";
+import SmallstepForm from "../SmallstepForm";
 
 const baseClass = "edit-cert-authority-modal";
 
 interface IEditCertAuthorityModalProps {
-  certAuthority: ICertificateIntegration;
+  certAuthority: ICertificateAuthorityPartial;
   onExit: () => void;
 }
 
@@ -35,35 +35,48 @@ const EditCertAuthorityModal = ({
   certAuthority,
   onExit,
 }: IEditCertAuthorityModalProps) => {
-  const certType = useRef(getCertificateAuthorityType(certAuthority));
-  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<ICertFormData>(() =>
-    generateDefaultFormData(certAuthority)
-  );
-  const { generateEditPatchData } = useCertAuthorityDataGenerator(
-    certType.current,
-    certAuthority
+  const [isDirty, setIsDirty] = useState(false);
+  const [formData, setFormData] = useState<ICertFormData | undefined>();
+
+  const { data: fullCertAuthority, isLoading, isError } = useQuery(
+    ["cert-authority", certAuthority.id],
+    () => certificatesAPI.getCertificateAuthority(certAuthority.id),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      onSuccess: (data) => {
+        setFormData(generateDefaultFormData(data));
+      },
+    }
   );
 
   const onChangeForm = (update: { name: string; value: string }) => {
+    if (!fullCertAuthority) return;
     setFormData((prevFormData) => {
       if (!prevFormData) return prevFormData;
-      return updateFormData(certAuthority, prevFormData, update);
+      return updateFormData(fullCertAuthority, prevFormData, update);
     });
+
+    setIsDirty(true);
   };
 
   const onEditCertAuthority = async () => {
-    const editPatchData = generateEditPatchData(formData);
+    if (!fullCertAuthority || !formData) {
+      return;
+    }
+    const editPatchData = generateEditCertAuthorityData(
+      fullCertAuthority,
+      formData
+    );
     setIsUpdating(true);
     try {
-      const newConfig = await certificatesAPI.editCertAuthorityModal(
+      await certificatesAPI.editCertificateAuthority(
+        certAuthority.id,
         editPatchData
       );
       renderFlash("success", "Successfully edited your certificate authority.");
       onExit();
-      setConfig(newConfig);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }
@@ -71,16 +84,37 @@ const EditCertAuthorityModal = ({
   };
 
   const getFormComponent = () => {
-    if (isNDESCertIntegration(certAuthority)) {
+    if (certAuthority.type === "ndes_scep_proxy") {
       return NDESForm;
     }
-    if (isDigicertCertIntegration(certAuthority)) {
+    if (certAuthority.type === "digicert") {
       return DigicertForm;
     }
+    if (certAuthority.type === "hydrant") {
+      return HydrantForm;
+    }
+    if (certAuthority.type === "smallstep") {
+      return SmallstepForm;
+    }
+
+    // FIXME: seems like we have some competing patterns in here where we sometimes do switch
+    // statements with a default and sometimes do if or if/else if with a final default return. We
+    // should probably standardize on one or the other. Also, do we really want this to be the
+    // default? Why not have an explicit check for custom_scep_proxy and have the final
+    // else throw an error?
+
     return CustomSCEPForm;
   };
 
   const renderForm = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DataError className={`${baseClass}__data-error`} />;
+    }
+
     const FormComponent = getFormComponent();
     if (!FormComponent || !formData) return <></>;
 
@@ -91,6 +125,7 @@ const EditCertAuthorityModal = ({
         submitBtnText="Save"
         isSubmitting={isUpdating}
         isEditing
+        isDirty={isDirty}
         onChange={onChangeForm}
         onSubmit={onEditCertAuthority}
         onCancel={onExit}

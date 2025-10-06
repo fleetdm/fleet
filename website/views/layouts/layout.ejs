@@ -65,13 +65,6 @@
     <script>
       window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
     </script>
-    <%/* Segment */%>
-    <script>
-      !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="T79nqv6Ow6Bjov5LZPxXqsuhM0YOHARv";;analytics.SNIPPET_VERSION="5.2.0";
-      analytics.load("T79nqv6Ow6Bjov5LZPxXqsuhM0YOHARv");
-      analytics.page();
-      }}();
-    </script>
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";
@@ -90,6 +83,8 @@
     <noscript>
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
     </noscript>
+    <% /* Clay */ %>
+    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
     <% /* Snitcher */ %>
     <script>
         !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
@@ -160,44 +155,254 @@
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <div purpose="mobile-dropdown-menus">
-                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
-                    <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="device-management" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="orchestration" href="/orchestration">Orchestration &nbsp; <small>(+ monitoring)</small></a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="software-management" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="integrations" href="/integrations">Integrations</a>
+                    <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">
+                      <div><p>Solutions</p></div>
+                      <div><img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron"></div>
+                    </div>
+
+                    <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
+
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Device management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Remotely manage, and protect laptops and mobile devices.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Orchestration
+                            </p>
+                            <p purpose="nav-item-body">
+                              Automate tasks across devices, from app installs to scripts.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Software management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Inventory, patch, and manage installed software.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Extend Fleet
+                            </p>
+                            <p purpose="nav-item-body">
+                              Integrate your favorite tools with Fleet.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                    </div>
+
+                    <hr>
+                    <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCustomers" aria-haspopup="true" aria-expanded="false">
+                      <div><p>Customers</p></div>
+                      <div>
+                        <img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron">
+                      </div>
+                    </div>
+                    <div id="mobileNavbarToggleCustomers" purpose="mobile-dropdown" class="collapse align-items-start">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Stripe + Fleet" href="/announcements/consolidate-multiple-tools-with-fleet">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-stripe-40x40@2x.png" alt="Stripe + Fleet">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Stripe + Fleet
+                            </p>
+                            <p purpose="nav-item-body">
+                              Stripe consolidates multiple tools with Fleet.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Foursquare + Fleet" href="/announcements/foursquare-quickly-migrates-to-fleet">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-foursquare-40x40@2x.png" alt="Foursquare + Fleet">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <div purpose="dropdown-item-text">
+                              <p purpose="nav-item-heading">
+                                Foursquare + Fleet
+                              </p>
+                              <p purpose="nav-item-body">
+                                Foursquare quickly migrates to Fleet for device management.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="What people are saying" href="/testimonials">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-testimonials-40x40@2x.png" alt="What people are saying">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              What people are saying
+                            </p>
+                            <p purpose="nav-item-body">
+                              Stories from the Fleet community.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
                     </div>
                     <hr>
-                    <a purpose="mobile-dropdown-link" class="d-flex align-items-center" href="/docs">Docs</a>
+                    <a purpose="mobile-dropdown-toggle" href="/pricing" class="d-flex align-items-center">Pricing</a>
                     <hr>
-                    <a purpose="mobile-dropdown-link" href="/pricing" class="d-flex align-items-center">Pricing</a>
-                    <hr>
-                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">More</a>
-                    <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="announcements" href="/announcements">News</a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="testimonials" href="/testimonials">Case studies</a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="support" href="/support">Ask around</a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="meetups" href="/meetups">Meetups</a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/handbook/company/testimonials.yml">Share your story</a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/handbook">The handbook</a>
-                      <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/new-license">Get your license</a>
+                    <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleMore">
+                      <div><p>More</p></div>
+                      <div>
+                        <img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron">
+                      </div>
+                    </div>
+                    <div id="mobileNavbarToggleMore" purpose="mobile-dropdown" class="collapse">
+
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Docs" href="/docs">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-docs-40x40@2x.png" alt="Docs">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Docs
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Guides" href="/guides">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-guides-40x40@2x.png" alt="Guides">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Guides
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Support" href="/support">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-support-40x40@2x.png" alt="Support">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Support
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="News" href="/announcements">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="News">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              News
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Get your license" href="/new-license">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-license-40x40@2x.png" alt="Get your license">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Get your license
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="The handbook" href="/handbook">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-handbook-40x40@2x.png" alt="The handbook">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              The handbook
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/e/fleet-party-during-jnuc-tickets-1497929500459" target="_blank" no-icon>
+                        <div purpose="dropdown-cta-link">
+                          <div purpose="dropdown-cta-image">
+                          </div>
+                          <div class="d-flex flex-column justify-content-center align-items-center">
+                          <div purpose="dropdown-cta-text">
+                            <p purpose="dropdown-cta-heading">
+                              Fleet @ Meow Wolf
+                            </p>
+                            <p purpose="dropdown-cta-body">
+                              Kick off JNUC with Fleet at Meow Wolf Denver's Convergence Station.
+                            </p>
+                            <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                              <span purpose="button-text">Join us</span>
+                              <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                              </svg>
+                            </span>
+                          </div>
+                          </div>
+                        </div>
+                      </a>
                     </div>
                     <% if(_.has(me, 'id')) {%>
                       <hr>
-                      <a purpose="mobile-dropdown-link" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
+                      <a purpose="mobile-dropdown-toggle" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
                     <% }%>
+                    <%if(me && me.isSuperAdmin && showAdminLinks) {%>
+                      <hr>
+                      <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
+                      <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                        <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                      </div>
+                    <%}%>
                   </div>
-                  <%if(me && me.isSuperAdmin && showAdminLinks) {%>
-                    <hr>
-                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
-                    <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                      <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
-                      <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
-                      <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
-                    </div>
-                  <%}%>
                   <%if(!hideGetStartedButton){%>
-                  <div class="d-flex flex-row align-items-center">
+                  <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
 
                     <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
 
@@ -215,27 +420,238 @@
               <%/* Desktop Navigation bar */%>
               <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" button-text="Multi platform" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" href="/device-management">Multi platform</a>
-                  <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" data-dropdown-option="device-management" href="/device-management">Device management <small>+ MDM</small></a>
-                    <a class="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">Orchestration <small>+ monitoring</small></a>
-                    <a class="dropdown-item" data-dropdown-option="software-management" href="/software-management">Software management <small>+ CVEs, usage, software catalog</small></a>
-                    <a class="dropdown-item" data-dropdown-option="integrations" href="/integrations">Integrations</a>
+
+                  <a purpose="header-nav-btn" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>">
+                    Solutions <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron">
+                  </a>
+                  <div purpose="header-dropdown" class="dropdown-menu solutions-dropdown">
+                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
+
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            Device management</p>
+                          <p purpose="nav-item-body">
+                            Remotely manage, and protect laptops and mobile devices.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            Orchestration
+                          </p>
+                          <p purpose="nav-item-body">
+                            Automate tasks across devices, from app installs to scripts.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            Software management
+                          </p>
+                          <p purpose="nav-item-body">
+                            Inventory, patch, and manage installed software.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            Extend Fleet
+                          </p>
+                          <p purpose="nav-item-body">
+                            Integrate your favorite tools with Fleet.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
                   </div>
                 </div>
-                <a purpose="header-nav-btn" button-text="Docs" class="<%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" style="width: 55px;" href="/docs">Docs</a>
+
+                <div purpose="dropdown-button" class="btn-group">
+                  <a purpose="header-nav-btn" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'customers' ? 'current-section' : '' %>">Customers <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></a>
+
+                  <div purpose="header-dropdown" class="dropdown-menu customers-dropdown">
+
+                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Stripe + Fleet" href="/announcements/consolidate-multiple-tools-with-fleet">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-stripe-40x40@2x.png" alt="Stripe + Fleet">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            Stripe + Fleet
+                          </p>
+                          <p purpose="nav-item-body">
+                            Stripe consolidates multiple tools with Fleet.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Foursquare + Fleet" href="/announcements/foursquare-quickly-migrates-to-fleet">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-foursquare-40x40@2x.png" alt="Foursquare + Fleet">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Foursquare + Fleet
+                            </p>
+                            <p purpose="nav-item-body">
+                              Foursquare quickly migrates to Fleet for device management.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="What people are saying" href="/testimonials">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-testimonials-40x40@2x.png" alt="What people are saying">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            What people are saying
+                          </p>
+                          <p purpose="nav-item-body">
+                            Stories from the Fleet community.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+
+                  </div>
+                </div>
+
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
+
+
                 <div purpose="dropdown-button" class="btn-group" >
-                  <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" >More</span>
-                  <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" data-dropdown-option="announcements" href="/announcements">News</a>
-                    <a class="dropdown-item" data-dropdown-option="testimonials" href="/testimonials">Case studies</a>
-                    <a class="dropdown-item" data-dropdown-option="support" href="/support">Ask around</a>
-                    <a class="dropdown-item" data-dropdown-option="meetups" href="/meetups">Meetups</a>
-                    <a class="dropdown-item" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/handbook/company/testimonials.yml">Share your story</a>
-                    <hr>
-                    <a class="dropdown-item" data-dropdown-option="handbook" href="/handbook">The handbook</a>
-                    <a class="dropdown-item" data-dropdown-option="handbook" href="/new-license">Get your license</a>
+                  <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
+                  <div purpose="header-dropdown" class="dropdown-menu more-dropdown flex-row">
+                    <div purpose="dropdown-cta-column">
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/e/fleet-party-during-jnuc-tickets-1497929500459" target="_blank" no-icon>
+                        <div purpose="dropdown-cta-link">
+                          <div purpose="dropdown-cta-image">
+                          </div>
+                          <div class="d-flex flex-column justify-content-center align-items-center">
+                          <div purpose="dropdown-cta-text">
+                            <p purpose="dropdown-cta-heading">
+                              Fleet @ Meow Wolf
+                            </p>
+                            <p purpose="dropdown-cta-body">
+                              Kick off JNUC with Fleet at Meow Wolf Denver's Convergence Station.
+                            </p>
+                            <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                              <span purpose="button-text">Join us</span>
+                              <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                              </svg>
+                            </span>
+                          </div>
+                          </div>
+                        </div>
+                      </a>
+                    </div>
+                    <div purpose="dropdown-column">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Docs" href="/docs">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-docs-40x40@2x.png" alt="Docs">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Docs
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Guides" href="/guides">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-guides-40x40@2x.png" alt="Guides">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Guides
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Support" href="/support">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-support-40x40@2x.png" alt="Support">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Support
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                    </div>
+                    <div purpose="dropdown-column">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="News" href="/announcements">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="News">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              News
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Get your license" href="/new-license">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-license-40x40@2x.png" alt="Get your license">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Get your license
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="The handbook" href="/handbook">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-handbook-40x40@2x.png" alt="The handbook">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              The handbook
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                    </div>
+
                   </div>
                 </div>
                 <%if(!hideGetStartedButton){%>
@@ -468,6 +884,7 @@
     <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/command-details.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
@@ -489,6 +906,7 @@
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/mdm-commands.page.js"></script>
     <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
@@ -502,6 +920,8 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/script-details.page.js"></script>
+    <script src="/js/pages/scripts.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>

@@ -75,10 +75,6 @@ const ActivityFeed = ({
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
   const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
-  const [
-    scriptBatchExecutionDetails,
-    setScriptBatchExecutionDetails,
-  ] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -125,11 +121,7 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = ({
-    type,
-    details,
-    created_at,
-  }: IShowActivityDetailsData) => {
+  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
         queryShown.current = details?.query_sql ?? "";

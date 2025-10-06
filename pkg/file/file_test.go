@@ -207,3 +207,15 @@ func TestExtractFilenameFromURLPath(t *testing.T) {
 		require.Equalf(t, c.out, got, "for URL %s", c.in)
 	}
 }
+
+func TestSHA256FromInstallerFile(t *testing.T) {
+	tmpFileReader := func(ident string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(ident), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	sha256, err := file.SHA256FromTempFileReader(tmpFileReader("installer1"))
+	require.NoError(t, err)
+	require.Equal(t, "026ac8ee705035f2422eeba7fdea15df563e4f4687ce3abc9a306d2de261f8de", sha256)
+}

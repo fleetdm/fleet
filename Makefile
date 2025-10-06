@@ -210,7 +210,7 @@ lint-js:
 .help-short--lint-go:
 	@echo "Run the Go linters"
 lint-go:
-	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
+	golangci-lint run --timeout 15m
 
 .help-short--lint:
 	@echo "Run linters"
@@ -673,21 +673,21 @@ endif
 # Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
 #
 # Usage:
-# make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
+# make swift-dialog-app-tar-gz version=2.5.6 build=4805 out-path=.
 swift-dialog-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
-	# locking the version of swiftDialog to 2.2.1-4591 as newer versions
+	# locking the version of swiftDialog to 2.5.6-4805 as newer versions
 	# might have layout issues.
-ifneq ($(version), 2.2.1)
-	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
+ifneq ($(version), 2.5.6)
+	@echo "Version is locked at 2.5.6, see comments in Makefile target for details"
 	@exit 1
 endif
 
-ifneq ($(build), 4591)
-	@echo "Build version is locked at 4591, see comments in Makefile target for details"
+ifneq ($(build), 4805)
+	@echo "Build version is locked at 4805, see comments in Makefile target for details"
 	@exit 1
 endif
 	$(eval TMP_DIR := $(shell mktemp -d))
@@ -695,6 +695,8 @@ endif
 	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
 	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/tmp-package.pkg/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	# Remove xattrs which are included in the .pkg(erroneously?) in some versions
+	xattr -cr $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
@@ -836,6 +838,10 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleet >> security/status.md'
 	sh -c 'echo "## \`fleetdm/fleetctl\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
+	sh -c 'echo "## \`fleetdm/wix\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
+	sh -c 'echo "## \`fleetdm/bomutils\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/bomutils >> security/status.md'
 
 # make update-go version=1.24.4
 UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile

@@ -32,6 +32,20 @@
     font-weight: 400;
     line-height: 150%;
   }
+
+  .tooltip-inner {
+    p {
+      font-size: 12px;
+      line-height: 150%;
+      color: #FFF;
+      margin-bottom: 8px;
+    }
+    a {
+      text-decoration: underline;
+      color: #FFF;
+    }
+  }
+
   [purpose='page-header'] {// Note: this overrides the header styles in layout.less.
     max-width: 100%;
     height: 64px;
@@ -106,7 +120,7 @@
     box-shadow: 0px 0px 0px 2px rgba(25, 33, 71, 0.05);
     align-items: flex-start;
     position: absolute;
-    right: calc(~'50% - 300px');
+    right: calc(~'50% - 219px');
     top: calc(~'50% - 186px');
     max-width: 600px;
     h2 {
@@ -129,7 +143,7 @@
     border-radius: 8px;
     border: 1px solid #E2E4EA;
     background: #FFF;
-    width: 118px;
+    width: 160px;
     margin-bottom: 32px;
     margin-top: 32px;
     cursor: pointer;
@@ -603,7 +617,9 @@
       font-style: normal;
       font-weight: 400;
       line-height: 24px;
-      // text-transform: uppercase;
+      text-transform: uppercase;
+      width: 130px;
+      cursor: pointer;
     }
     [purpose='multifield-option'] {
       [purpose='option-value'] {

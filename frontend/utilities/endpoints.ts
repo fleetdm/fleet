@@ -39,6 +39,9 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
+    return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
+  },
   DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
   DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
@@ -59,6 +62,11 @@ export default {
   DEVICE_CERTIFICATES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/certificates`;
   },
+  DEVICE_SETUP_EXPERIENCE_STATUSES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/setup_experience/status`;
+  },
+  DEVICE_RESEND_PROFILE: (token: string, profileUUID: string) =>
+    `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/resend`,
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -208,6 +216,8 @@ export default {
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
   EDIT_SOFTWARE_VPP: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
+  SOFTWARE_ICON: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/icon`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
@@ -295,6 +305,13 @@ export default {
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
 
+  // Certificate authority endpoints
+  CERTIFICATE_AUTHORITIES: `/${API_VERSION}/fleet/certificate_authorities`,
+  CERTIFICATE_AUTHORITY: (id: number) =>
+    `/${API_VERSION}/fleet/certificate_authorities/${id}`,
+  CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
+    return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
+  },
   // custom variables (secrets) endpoints
   SECRETS: `/${API_VERSION}/fleet/custom_variables`,
 };

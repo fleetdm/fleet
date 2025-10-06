@@ -1036,23 +1036,20 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a 'mdm_enrolled' type for apple with host display name and personal enrollment provided", () => {
+  it("renders a 'mdm_enrolled' type for android or apple personal devices with actor full name provided", () => {
     const activity = createMockActivity({
       type: ActivityType.MdmEnrolled,
       details: {
         host_display_name: "Test Host",
         enrollment_id: "test-enrollment-id",
-        mdm_platform: "apple",
+        platform: "android",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
-        return (
-          node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for <b>Test Host (personal)</b>."
-        );
+        return node?.innerHTML === "<b>Test Host</b> enrolled to Fleet.";
       })
     ).toBeInTheDocument();
   });
@@ -1534,5 +1531,84 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders addedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders editedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/edited a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders deletedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/deleted a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders an mdm unenroll activity with an actor name for ios, ipados, and android devices", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmUnenrolled,
+      actor_full_name: "Test User",
+      details: {
+        platform: "ios",
+        host_display_name: "Test Host",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(/told Fleet to unenroll/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
+  });
+
+  it("renders an mdm unenroll activity with no actor name for ios, ipados, and android devices", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmUnenrolled,
+      actor_full_name: undefined,
+      details: {
+        platform: "ios",
+        host_display_name: "Test Host",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
+    expect(screen.getByText(/is unenrolled from Fleet/)).toBeInTheDocument();
   });
 });

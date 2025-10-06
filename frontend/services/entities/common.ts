@@ -1,5 +1,5 @@
 // TODO - apply broadly
-interface ListEntitiesResponsePaginationCommon {
+export interface ListEntitiesResponsePaginationCommon {
   has_next_results: boolean;
   has_previous_results: boolean;
 }

@@ -46,6 +46,7 @@ describe("Dashboard software card", () => {
             },
           ],
           hosts_count: vulnSwInfo.hostsCount,
+          icon_url: null,
         },
         {
           id: 758,
@@ -56,6 +57,7 @@ describe("Dashboard software card", () => {
           generated_cpe: "",
           vulnerabilities: null,
           hosts_count: noVulnSwInfo.hostsCount,
+          icon_url: null,
         },
       ],
     };
@@ -114,6 +116,7 @@ describe("Dashboard software card", () => {
             },
           ],
           hosts_count: vulnSwInfo.hostsCount,
+          icon_url: null,
         },
       ],
     };

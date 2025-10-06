@@ -42,6 +42,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
+import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -59,13 +60,12 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
@@ -659,6 +659,13 @@ const HostDetailsPage = ({
     }
   };
 
+  const resendProfile = (profileUUID: string): Promise<void> => {
+    if (!host) {
+      return new Promise(() => undefined);
+    }
+    return hostAPI.resendProfile(host.id, profileUUID);
+  };
+
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
@@ -817,7 +824,7 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const renderActionDropdown = () => {
+  const renderActionsDropdown = () => {
     if (!host) {
       return null;
     }
@@ -964,6 +971,7 @@ const HostDetailsPage = ({
 
   const showUsersCard =
     isAppleDevice(host.platform) ||
+    isAndroidHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
     generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
@@ -975,17 +983,16 @@ const HostDetailsPage = ({
 
   const renderSoftwareCard = () => {
     return (
-      <Card
-        className={`${baseClass}__software-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
+      <div className={`${baseClass}__software-card`}>
         {isSoftwareLibrarySupported ? (
           <>
             <TabList>
-              <Tab>Inventory</Tab>
-              <Tab>Library</Tab>
+              <Tab>
+                <TabText>Inventory</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Library</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               <SoftwareInventoryCard
@@ -1014,10 +1021,10 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for personally enrolled mdm hosts where we are not
+              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
                when we add that feature. */}
-              {isPersonalEnrollmentInMdm(host.mdm.enrollment_status) ? (
+              {isBYODAccountDrivenEnrollment(host.mdm.enrollment_status) ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
@@ -1083,7 +1090,7 @@ const HostDetailsPage = ({
             )}
           </>
         )}
-      </Card>
+      </div>
     );
   };
 
@@ -1105,7 +1112,7 @@ const HostDetailsPage = ({
             />
           )}
           <div className={`${baseClass}__header-links`}>
-            <BackLink
+            <BackButton
               text="Back to all hosts"
               path={filteredHostsPath || PATHS.MANAGE_HOSTS}
             />
@@ -1115,7 +1122,7 @@ const HostDetailsPage = ({
               summaryData={summaryData}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionDropdown={renderActionDropdown}
+              renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
             />
           </div>
@@ -1255,7 +1262,7 @@ const HostDetailsPage = ({
                 )}
               </TabPanel>
               <TabPanel>
-                <TabNav className={`${baseClass}__software-tab-nav`}>
+                <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
                     selectedIndex={getSoftwareTabIndex(location.pathname)}
                     onSelect={(i) => navigateToSoftwareTab(i)}
@@ -1337,18 +1344,19 @@ const HostDetailsPage = ({
           {showOSSettingsModal && (
             <OSSettingsModal
               canResendProfiles={host.platform === "darwin"}
-              hostId={host.id}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
+              resendRequest={resendProfile}
               onProfileResent={refetchHostDetails}
             />
           )}
-          {showUnenrollMdmModal && !!host && (
+          {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (
             <UnenrollMdmModal
               hostId={host.id}
               hostPlatform={host.platform}
               hostName={host.display_name}
+              enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
             />
           )}

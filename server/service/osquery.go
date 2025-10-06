@@ -89,14 +89,14 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*contract.EnrollOsqueryAgentRequest)
-	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
+	nodeKey, err := svc.EnrollOsquery(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
 		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
 	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
-func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -156,15 +156,15 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	host, err := svc.ds.EnrollHost(ctx,
-		fleet.WithEnrollHostMDMEnabled(appConfig.MDM.EnabledAndConfigured),
-		fleet.WithEnrollHostOsqueryHostID(hostIdentifier),
-		fleet.WithEnrollHostHardwareUUID(hardwareUUID),
-		fleet.WithEnrollHostHardwareSerial(hardwareSerial),
-		fleet.WithEnrollHostNodeKey(nodeKey),
-		fleet.WithEnrollHostTeamID(secret.TeamID),
-		fleet.WithEnrollHostCooldown(svc.config.Osquery.EnrollCooldown),
-		fleet.WithEnrollHostIdentityCert(identityCert),
+	host, err := svc.ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollOsqueryHostID(hostIdentifier),
+		fleet.WithEnrollOsqueryHardwareUUID(hardwareUUID),
+		fleet.WithEnrollOsqueryHardwareSerial(hardwareSerial),
+		fleet.WithEnrollOsqueryNodeKey(nodeKey),
+		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
+		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
+		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
@@ -836,15 +836,46 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
-func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
-	if host.Platform != string(fleet.MacOSPlatform) {
+func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	switch {
+	case host.Platform == string(fleet.MacOSPlatform):
+		inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+		}
+		return inSetupExperience, nil
+	case fleet.IsLinux(host.Platform) || host.Platform == "windows":
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
+		}
+		return inSetupExperience, nil
+	default:
 		return false, nil
 	}
-	inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+}
+
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
 	}
-	return inSetupExperience, nil
+
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "invalid row")
+		}
+
+		switch status.Status {
+		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
@@ -857,11 +888,11 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 	// This must come after the check above to avoid unnecessary queries to the database. Most
 	// requests from live connected hosts will not reach this point
-	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
+	hostRunningSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
-	if disablePolicies {
+	if hostRunningSetupExperience {
 		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
 		return nil, false, nil
 	}
@@ -1353,6 +1384,9 @@ func preProcessSoftwareResults(
 	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
 	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
+	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
+	preProcessSoftwareExtraResults(fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
 		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
@@ -1360,6 +1394,34 @@ func preProcessSoftwareResults(
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
+
+	updateFleetdVersion(host.Platform, results)
+}
+
+// updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
+// We do this because orbit uses an auto-update mechanism which does not update the host's package manager database.
+func updateFleetdVersion(hostPlatform string, results fleet.OsqueryDistributedQueryResults) {
+	// Just update the versions for Linux.
+	if !fleet.IsLinux(hostPlatform) {
+		return
+	}
+
+	orbitInfoResults := results[hostDetailQueryPrefix+"orbit_info"]
+	if len(orbitInfoResults) != 1 {
+		return
+	}
+	orbitVersion := orbitInfoResults[0]["version"]
+	if orbitVersion == "" {
+		return
+	}
+
+	for _, row := range results[hostDetailQueryPrefix+"software_linux"] {
+		if row["name"] != "fleet-osquery" {
+			continue
+		}
+		row["version"] = orbitVersion
+		break
+	}
 }
 
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
@@ -1368,11 +1430,12 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	const pythonPrefix = "python3-"
 	const pythonSource = "python_packages"
 	const debSource = "deb_packages"
+	const rpmSource = "rpm_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
-	// Return early if platform is not Ubuntu or Debian
+	// Return early if platform is not Ubuntu, Debian, or RHEL (Inc. Fedora)
 	// We may need to add more platforms in the future
-	if platform != "ubuntu" && platform != "debian" {
+	if platform != "ubuntu" && platform != "debian" && platform != "rhel" {
 		return
 	}
 
@@ -1390,6 +1453,7 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	// a fresh ubuntu 24.04 install
 	pythonPackages := make(map[string]int, 40)
 	debPackages := make(map[string]struct{}, 40)
+	rpmPackages := make(map[string]struct{}, 60)
 
 	// Track indexes of rows to remove
 	indexesToRemove := []int{}
@@ -1405,6 +1469,10 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 			if strings.HasPrefix(row["name"], pythonPrefix) {
 				debPackages[row["name"]] = struct{}{}
 			}
+		case rpmSource:
+			if strings.HasPrefix(row["name"], pythonPrefix) {
+				rpmPackages[row["name"]] = struct{}{}
+			}
 		}
 	}
 
@@ -1419,6 +1487,8 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 
 		// Filter out Python packages that are also Debian packages
 		if _, found := debPackages[convertedName]; found {
+			indexesToRemove = append(indexesToRemove, index)
+		} else if _, found := rpmPackages[convertedName]; found {
 			indexesToRemove = append(indexesToRemove, index)
 		} else {
 			// Update remaining Python package names to match OVAL definitions

@@ -330,7 +330,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 			return err
 		}
 
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
 		lifecycleErrs := []error{}
 		serialsWithErrs := []string{}
 		for _, host := range hosts {
@@ -815,7 +815,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	}
 
 	if fleet.MDMSupported(host.Platform) {
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionDelete,
 			Platform: host.Platform,
@@ -1243,7 +1243,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
-	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
+	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
 		case "windows":
@@ -1280,6 +1280,23 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			}
 			if profs == nil {
 				profs = []fleet.HostMDMWindowsProfile{}
+			}
+			for _, p := range profs {
+				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+				profiles = append(profiles, p.ToHostMDMProfile())
+			}
+
+		case "android":
+			if !ac.MDM.AndroidEnabledAndConfigured {
+				break
+			}
+
+			profs, err := svc.ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host mdm android profiles")
+			}
+			if profs == nil {
+				profs = []fleet.HostMDMAndroidProfile{}
 			}
 			for _, p := range profs {
 				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
@@ -1767,12 +1784,11 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	var munkiIssues []*fleet.HostMunkiIssue
-	switch issues, err := svc.ds.GetHostMunkiIssues(ctx, id); {
-	case err != nil:
+	issues, err := svc.ds.GetHostMunkiIssues(ctx, id)
+	if err != nil {
 		return nil, err
-	case err == nil:
-		munkiIssues = issues
 	}
+	munkiIssues = issues
 
 	if munkiInfo == nil && mdm == nil && len(munkiIssues) == 0 {
 		return nil, nil
@@ -2115,7 +2131,15 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) OSVersions(
+	ctx context.Context,
+	teamID *uint,
+	platform *string,
+	name *string,
+	version *string,
+	opts fleet.ListOptions,
+	includeCVSS bool,
+) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, count, nil, err
@@ -2133,12 +2157,17 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
+	// Default to 20 per page if no pagination is specified to avoid returning too many results
+	// and slowing down the response time significantly.
+	if opts.Page == 0 && opts.PerPage == 0 {
+		opts.PerPage = 20
+	}
+
 	if teamID != nil {
 		// This auth check ensures we return 403 if the user doesn't have access to the team
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, count, nil, err
 		}
-
 		if *teamID != 0 {
 			exists, err := svc.ds.TeamExists(ctx, *teamID)
 			if err != nil {
@@ -2154,6 +2183,8 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	if !ok {
 		return nil, count, nil, fleet.ErrNoContext
 	}
+
+	// Load all OS versions (unpaged)
 	osVersions, err := svc.ds.OSVersions(
 		ctx, &fleet.TeamFilter{
 			User:            vc.User,
@@ -2162,18 +2193,12 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		}, platform, name, version,
 	)
 	if err != nil && fleet.IsNotFound(err) {
-		// It is possible that os exists, but aggregation job has not run yet.
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
 		return nil, count, nil, err
 	}
 
-	for i := range osVersions.OSVersions {
-		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS, teamID, false); err != nil {
-			return nil, count, nil, err
-		}
-	}
-
+	// Sort by hosts_count (default: desc to match previous behavior)
 	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
@@ -2184,12 +2209,54 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		})
 	}
 
+	// Total count BEFORE pagination
 	count = len(osVersions.OSVersions)
 
-	var metaData *fleet.PaginationMetadata
-	osVersions.OSVersions, metaData = paginateOSVersions(osVersions.OSVersions, opts)
+	// Paginate first
+	paged, meta := paginateOSVersions(osVersions.OSVersions, opts)
 
-	return osVersions, count, metaData, nil
+	// Pull vulnerabilities ONLY for the paginated slice, as the full list slows
+	// response times down significantly with many CVEs.
+	if len(paged) == 0 {
+		return &fleet.OSVersions{
+			CountsUpdatedAt: osVersions.CountsUpdatedAt,
+			OSVersions:      []fleet.OSVersion{},
+		}, count, meta, nil
+	}
+
+	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID)
+	if err != nil {
+		return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions (paged)")
+	}
+
+	// Populate only the paginated entries
+	for i := range paged {
+		osV := &paged[i]
+
+		if osV.Platform == "darwin" {
+			osV.GeneratedCPEs = []string{
+				fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osV.Version),
+				fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osV.Version),
+			}
+		}
+
+		osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null
+		key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
+		if vulns, ok := vulnsMap[key]; ok {
+			for _, v := range vulns {
+				v.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", v.CVE)
+				osV.Vulnerabilities = append(osV.Vulnerabilities, v)
+			}
+		}
+
+		osV.Kernels = make([]*fleet.Kernel, 0) // avoid null
+	}
+
+	// Return only the page, but with total count
+	return &fleet.OSVersions{
+		CountsUpdatedAt: osVersions.CountsUpdatedAt,
+		OSVersions:      paged,
+	}, count, meta, nil
 }
 
 func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]fleet.OSVersion, *fleet.PaginationMetadata) {
@@ -2972,6 +3039,7 @@ func (r *listHostCertificatesRequest) ValidateRequest() error {
 type listHostCertificatesResponse struct {
 	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
 	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
+	Count        uint                            `json:"count"`
 	Err          error                           `json:"error,omitempty"`
 }
 
@@ -2986,7 +3054,7 @@ func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc 
 	if res == nil {
 		res = []*fleet.HostCertificatePayload{}
 	}
-	return listHostCertificatesResponse{Certificates: res, Meta: meta}, nil
+	return listHostCertificatesResponse{Certificates: res, Meta: meta, Count: meta.TotalResults}, nil
 }
 
 func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {

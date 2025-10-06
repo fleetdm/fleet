@@ -570,6 +570,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 		&fleet.MDMAppleBootstrapPackage{Bytes: bp, Name: "pkg.pkg", TeamID: 0},
 		http.StatusOK,
 		"",
+		false,
 	)
 
 	// enable disk encryption
@@ -658,7 +659,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// add a device that's manually enrolled
 	desktopToken := uuid.New().String()
@@ -997,24 +998,6 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	t := s.T()
 
-	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-		foundInstallFleetdCommand := false
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-				foundInstallFleetdCommand = true
-				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-			}
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-		require.Equal(t, wantCommand, foundInstallFleetdCommand)
-	}
-
 	triggerRefetchCron := func(hostID uint) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, hostID)
@@ -1100,7 +1083,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, false)
+	checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 	// mu.Lock()
 	// require.Len(t, recordedPushes, 1)

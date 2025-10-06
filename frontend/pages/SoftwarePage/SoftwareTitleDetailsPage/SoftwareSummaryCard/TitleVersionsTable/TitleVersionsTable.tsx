@@ -24,7 +24,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 const baseClass = "software-title-versions-table";
 
-const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
+export const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
   return (
     <LastUpdatedText
       lastUpdatedAt={lastUpdatedAt}

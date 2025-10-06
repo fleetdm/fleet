@@ -88,14 +88,14 @@ const PacksTable = ({
       name: "enable",
       onClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "text-icon",
+      variant: "inverse",
       iconSvg: "check",
     },
     {
       name: "disable",
       onClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "text-icon",
+      variant: "inverse",
       iconSvg: "disable",
     },
   ];
@@ -118,7 +118,7 @@ const PacksTable = ({
           name: "delete pack",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
+          variant: "inverse",
           onClick: onDeletePackClick,
         }}
         secondarySelectActions={secondarySelectActions}

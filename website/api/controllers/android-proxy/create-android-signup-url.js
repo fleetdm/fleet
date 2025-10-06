@@ -33,8 +33,19 @@ module.exports = {
 
     // Check the database for an existing record for this Fleet server.
     let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
-    if(connectionforThisInstanceExists){
-      throw 'enterpriseAlreadyExists';
+    if(connectionforThisInstanceExists) {
+      // Before throwing conflict, verify the enterprise still exists in Google
+      // If it doesn't exist, clean up the stale proxy record and continue with signup
+      let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(connectionforThisInstanceExists.androidEnterpriseId);
+      if(isEnterpriseManagedByFleet) {
+        // Enterprise still exists in Google - throw conflict
+        throw 'enterpriseAlreadyExists';
+      } else {
+        // Enterprise not found in LIST - clean up stale proxy record
+        await AndroidEnterprise.destroyOne({ id: connectionforThisInstanceExists.id });
+        // Continue with signup process (don't throw conflict)
+      }
+
     }
 
 

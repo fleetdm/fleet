@@ -2,6 +2,7 @@ import { http, HttpResponse } from "msw";
 
 import createMockDeviceUser, {
   createMockDeviceSoftwareResponse,
+  createMockSetupSoftwareStatusesResponse,
 } from "__mocks__/deviceUserMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
@@ -9,7 +10,10 @@ import createMockMacAdmins from "__mocks__/macAdminsMock";
 import { createMockHostCertificate } from "__mocks__/certificatesMock";
 import { baseUrl } from "test/test-utils";
 import { IDeviceUserResponse } from "interfaces/host";
-import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import {
+  IGetDeviceSoftwareResponse,
+  IGetSetupExperienceStatusesResponse,
+} from "services/entities/device_user";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
@@ -17,13 +21,14 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
     host: createMockHost(),
     license: createMockLicense(),
     org_logo_url: "",
+    org_logo_url_light_background: "",
     global_config: {
       mdm: { enabled_and_configured: false },
     },
   });
 });
 
-export const customDeviceHandler = (overrides: Partial<IDeviceUserResponse>) =>
+export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
   http.get(baseUrl("/device/:token"), () => {
     return HttpResponse.json(
       Object.assign(
@@ -31,6 +36,7 @@ export const customDeviceHandler = (overrides: Partial<IDeviceUserResponse>) =>
           host: createMockHost(),
           license: createMockLicense(),
           org_logo_url: "",
+          org_logo_url_light_background: "",
           global_config: {
             mdm: { enabled_and_configured: false },
           },
@@ -75,6 +81,20 @@ export const defaultDeviceCertificatesHandler = http.get(
         has_next_results: false,
         has_previous_results: false,
       },
+      count: 1,
     });
   }
 );
+
+export const deviceSetupExperienceHandler = (
+  overrides?: Partial<IGetSetupExperienceStatusesResponse>
+) =>
+  http.post(baseUrl("/device/:token/setup_experience/status"), () => {
+    return HttpResponse.json(
+      createMockSetupSoftwareStatusesResponse(overrides)
+    );
+  });
+
+export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
+  setup_experience_results: { software: [], scripts: [] },
+});

@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -363,6 +364,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		SelfService:     existingInstaller.SelfService,
 		SoftwarePackage: &existingInstaller.Name,
 		SoftwareTitleID: payload.TitleID,
+		SoftwareIconURL: existingInstaller.IconUrl,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
@@ -744,8 +746,16 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		Platform:         meta.Platform,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		SoftwareIconURL:  meta.IconURL,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
+	}
+
+	if teamID != nil && meta.IconURL != nil && *meta.IconURL != "" {
+		err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to delete unused software icons for team %d", *teamID))
+		}
 	}
 
 	return nil
@@ -779,8 +789,20 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		SelfService:      meta.SelfService,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		SoftwareIconURL:  meta.IconUrl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
+	}
+
+	if meta.IconUrl != nil && *meta.IconUrl != "" {
+		var teamIDForCleanup uint
+		if meta.TeamID != nil {
+			teamIDForCleanup = *meta.TeamID
+		}
+		err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, teamIDForCleanup)
+		if err != nil {
+			return ctxerr.Wrap(ctx, fmt.Errorf("failed to delete unused software icons for team %d: %w", teamIDForCleanup, err))
+		}
 	}
 
 	return nil
@@ -1082,6 +1104,16 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 		}
+	} else {
+		// Get the enrollment type of the mobile apple device.
+		enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
+		}
+
+		if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
+			return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
+		}
 	}
 
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
@@ -1193,7 +1225,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// this app is not assigned to this device, check if we have licenses
 	// left and assign it.
 	if len(assignments) == 0 {
-		assets, err := vpp.GetAssets(token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
+		assets, err := vpp.GetAssets(ctx, token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "getting assets from VPP API")
 		}
@@ -2002,7 +2034,7 @@ func (svc *Service) softwareBatchUpload(
 					if installer.InstallerFile == nil {
 						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
 					}
-					p.MaintainedApp.SHA256, err = maintained_apps.SHA256FromInstallerFile(installer.InstallerFile)
+					p.MaintainedApp.SHA256, err = file.SHA256FromTempFileReader(installer.InstallerFile)
 					if err != nil {
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
 					}

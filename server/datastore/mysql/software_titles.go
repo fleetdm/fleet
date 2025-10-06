@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -43,10 +44,11 @@ SELECT
 	st.source,
 	st.browser,
 	st.bundle_identifier,
-	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
+	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
-	COUNT(vat.adam_id) AS vpp_apps_count
+	COUNT(vat.adam_id) AS vpp_apps_count,
+	vap.icon_url AS icon_url
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
@@ -59,7 +61,9 @@ GROUP BY
 	st.name,
 	st.source,
 	st.browser,
-	st.bundle_identifier
+	st.bundle_identifier,
+	hosts_count,
+	vap.icon_url
 	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
 	)
 	var title fleet.SoftwareTitle
@@ -77,6 +81,16 @@ GROUP BY
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &title.Versions, selectSoftwareVersionsStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software title version")
+	}
+
+	if teamID != nil {
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, id)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			title.IconUrl = ptr.String(icon.IconUrl())
+		}
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
@@ -205,17 +219,18 @@ func (ds *Datastore) ListSoftwareTitles(
 				Version:            version,
 				Platform:           platform,
 				SelfService:        title.VPPAppSelfService,
-				IconURL:            title.VPPAppIconURL,
 				InstallDuringSetup: title.VPPInstallDuringSetup,
 			}
+			title.IconUrl = title.VPPAppIconURL
 		}
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
 	}
 
-	// Grab the automatic install policies, if any exist.
+	// Grab the automatic install policies & software title icons, if any exist.
 	// Skip for "All teams" titles because automatic install policies are set on teams/No-team.
+	// Skip software title icons for "All teams" as they also require a team id to exist.
 	if opt.TeamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, *opt.TeamID)
 		if err != nil {
@@ -240,6 +255,17 @@ func (ds *Datastore) ListSoftwareTitles(
 						"msg", "policy should have an associated VPP application or software package",
 					)
 				}
+			}
+		}
+
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, *opt.TeamID, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		for _, icon := range icons {
+			if i, ok := titleIndex[icon.SoftwareTitleID]; ok {
+				softwareList[i].IconUrl = ptr.String(icon.IconUrl())
 			}
 		}
 	}

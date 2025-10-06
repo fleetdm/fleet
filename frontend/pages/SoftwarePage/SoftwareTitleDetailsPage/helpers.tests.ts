@@ -7,6 +7,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,
         name: "Test Software",
+        icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
           labels_include_any: null,
@@ -52,6 +53,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,
         name: "Test Software",
+        icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: null,
         app_store_app: {

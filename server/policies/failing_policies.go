@@ -25,7 +25,7 @@ const (
 	FailingPolicyZendesk FailingPolicyAutomationType = "zendesk"
 )
 
-// FailingPolicyAutomationConfig holds the configuration for proessing a
+// FailingPolicyAutomationConfig holds the configuration for processing a
 // failing policy to send to the configured automation.
 type FailingPolicyAutomationConfig struct {
 	AutomationType FailingPolicyAutomationType
@@ -44,7 +44,6 @@ func TriggerFailingPoliciesAutomation(
 	logger kitlog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
 	sendFunc func(*fleet.Policy, FailingPolicyAutomationConfig) error,
-	enablePrimo bool,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -87,8 +86,8 @@ func TriggerFailingPoliciesAutomation(
 
 		// Determine which configuration to use based on policy's team
 		switch {
-		case policy.TeamID == nil || (*policy.TeamID == 0 && enablePrimo):
-			// Global policy or team 0 with enablePrimo - use global config
+		case policy.TeamID == nil:
+			// Global policy - use global config
 			if !globalAutomationCfg.PolicyIDs[policy.ID] {
 				level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {

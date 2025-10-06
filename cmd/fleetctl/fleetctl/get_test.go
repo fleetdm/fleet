@@ -790,6 +790,7 @@ kind: software_title
 spec:
 - app_store_app: null
   hosts_count: 2
+  icon_url: null
   id: 0
   name: foo
   software_package: null
@@ -811,6 +812,7 @@ spec:
   versions_count: 3
 - app_store_app: null
   hosts_count: 0
+  icon_url: null
   id: 0
   name: bar
   software_package: null
@@ -832,6 +834,7 @@ spec:
       "name": "foo",
       "source": "chrome_extensions",
       "hosts_count": 2,
+      "icon_url": null,
       "versions_count": 3,
       "versions": [
         {
@@ -865,6 +868,7 @@ spec:
       "name": "bar",
       "source": "deb_packages",
       "hosts_count": 0,
+      "icon_url": null,
       "versions_count": 1,
       "versions": [
         {
@@ -2414,7 +2418,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}

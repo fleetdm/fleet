@@ -13,7 +13,6 @@ import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
 import { useQuery } from "react-query";
 import { IInvite } from "interfaces/invite";
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 import { IConfirmInviteFormData } from "components/forms/ConfirmInviteForm/ConfirmInviteForm";
 import { getErrorReason } from "interfaces/errors";
@@ -86,26 +85,18 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
     // error is how API communicates an invalid invite
     if (validateInviteError) {
       return (
-        <StackedWhiteBoxes className={baseClass}>
-          <>
-            <p>
-              <b>That invite is invalid.</b>
-            </p>
-            <p>Please confirm your invite link.</p>
-          </>
-        </StackedWhiteBoxes>
+        <p className={`${baseClass}__description`}>
+          This invite token is invalid. Please confirm your invite link.
+        </p>
       );
     }
     // valid - return form pre-filled with data from api response
     return (
-      <div className={`${baseClass}`}>
-        <div className={`${baseClass}__lead-wrapper`}>
-          <p className={`${baseClass}__lead-text`}>Welcome to Fleet</p>
-          <p className={`${baseClass}__sub-lead-text`}>
-            Before you get started, please take a moment to complete the
-            following information.
-          </p>
-        </div>
+      <>
+        <p className={`${baseClass}__description`}>
+          Before you get started, please take a moment to complete the following
+          information.
+        </p>
         <ConfirmInviteForm
           defaultFormData={{
             // at this point we will have a valid invite per error check above
@@ -113,12 +104,17 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
           }}
           handleSubmit={onSubmit}
         />
-      </div>
+      </>
     );
   };
 
   return (
-    <AuthenticationFormWrapper>{renderContent()}</AuthenticationFormWrapper>
+    <AuthenticationFormWrapper
+      header={validateInviteError ? "Invalid invite token" : "Welcome to Fleet"}
+      className={baseClass}
+    >
+      {renderContent()}
+    </AuthenticationFormWrapper>
   );
 };
 

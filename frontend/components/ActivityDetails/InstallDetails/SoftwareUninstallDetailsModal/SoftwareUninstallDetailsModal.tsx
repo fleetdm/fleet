@@ -124,7 +124,6 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            {" "}
             <Button variant="inverse" onClick={onCancel}>
               Cancel
             </Button>

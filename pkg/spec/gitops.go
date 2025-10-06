@@ -103,6 +103,9 @@ type GitOpsControls struct {
 	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
 	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
 
+	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
+	AndroidSettings             interface{} `json:"android_settings"`
+
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 	RequireBitLockerPIN  interface{} `json:"windows_require_bitlocker_pin,omitempty"`
 
@@ -116,7 +119,8 @@ func (c GitOpsControls) Set() bool {
 		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
-		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0
+		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0 ||
+		c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
 }
 
 type Policy struct {
@@ -732,6 +736,31 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		result.Controls.WindowsSettings = windowsSettings
 	}
 
+	if result.Controls.AndroidSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.AndroidSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var androidSettings fleet.AndroidSettings
+		data, err := json.Marshal(result.Controls.AndroidSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.android_settings: %v", err))
+		}
+		err = json.Unmarshal(data, &androidSettings)
+		if err != nil {
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "android_settings"}, err))
+		}
+
+		if androidSettings.CustomSettings.Valid {
+			for i := range androidSettings.CustomSettings.Value {
+				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &androidSettings.CustomSettings.Value[i], result)
+				if err != nil {
+					return multierror.Append(multiError, err)
+				}
+			}
+		}
+		// Since we already unmarshalled and updated the path, we need to update the result struct.
+		result.Controls.AndroidSettings = androidSettings
+	}
+
 	return multiError
 }
 
@@ -1048,7 +1077,17 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			return MaybeParseTypeError(policy.InstallSoftware.PackagePath, []string{"policy", "install_software", "package_path"}, err)
+			// see if the issue is that a package path was passed in that references multiple packages
+			var multiplePackages []fleet.SoftwarePackageSpec
+			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
+				return fmt.Errorf("file %q does not contain a valid software package definition", policy.InstallSoftware.PackagePath)
+			}
+
+			if len(multiplePackages) > 1 {
+				return fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", policy.InstallSoftware.PackagePath)
+			}
+
+			policyInstallSoftwareSpec = multiplePackages[0]
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -1191,6 +1230,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
+		item = item.ResolvePaths(baseDir)
+
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, maintainedAppSpec := range software.FleetMaintainedApps {
@@ -1229,10 +1270,11 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
 	}
 	for _, teamLevelPackage := range software.Packages {
-		var softwarePackageSpec fleet.SoftwarePackageSpec
+		// A single item in Packages can result in multiple SoftwarePackageSpecs being generated
+		var softwarePackageSpecs []*fleet.SoftwarePackageSpec
 		if teamLevelPackage.Path != nil {
-			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *teamLevelPackage.Path)
-			fileBytes, err := os.ReadFile(softwarePackageSpec.ReferencedYamlPath)
+			yamlPath := resolveApplyRelativePath(baseDir, *teamLevelPackage.Path)
+			fileBytes, err := os.ReadFile(yamlPath)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %w", *teamLevelPackage.Path, err))
 				continue
@@ -1243,76 +1285,102 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
-			if err := YamlUnmarshal(fileBytes, &softwarePackageSpec); err != nil {
+			var singlePackageSpec SoftwarePackage
+			singlePackageSpec.ReferencedYamlPath = yamlPath
+			if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
+				if singlePackageSpec.IncludesFieldsDisallowedInPackageFile() {
+					multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
+					continue
+				}
+				softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec.SoftwarePackageSpec)
+			} else if err = YamlUnmarshal(fileBytes, &softwarePackageSpecs); err == nil {
+				// Failing that, try to unmarshal as a list of SoftwarePackageSpecs
+				for i, spec := range softwarePackageSpecs {
+					if spec.IncludesFieldsDisallowedInPackageFile() {
+						multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
+						continue
+					}
+
+					softwarePackageSpecs[i].ReferencedYamlPath = yamlPath
+				}
+			} else {
+				// If we reached here, we couldn't unmarshal as either format.
 				multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, err))
 				continue
 			}
 
-			softwarePackageSpec = softwarePackageSpec.ResolveSoftwarePackagePaths(filepath.Dir(softwarePackageSpec.ReferencedYamlPath))
-
-			if softwarePackageSpec.IncludesFieldsDisallowedInPackageFile() {
-				multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
-				continue
+			for i, spec := range softwarePackageSpecs {
+				softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
+				softwarePackageSpec = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
+				softwarePackageSpecs[i] = &softwarePackageSpec
 			}
-
-			softwarePackageSpec = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
 		} else {
-			softwarePackageSpec = teamLevelPackage.SoftwarePackageSpec.ResolveSoftwarePackagePaths(baseDir)
-		}
-		if softwarePackageSpec.InstallScript.Path != "" {
-			if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
-				multiError = multierror.Append(multiError, err)
-				continue
-			}
-		}
-		if softwarePackageSpec.PostInstallScript.Path != "" {
-			if err := gatherFileSecrets(result, softwarePackageSpec.PostInstallScript.Path); err != nil {
-				multiError = multierror.Append(multiError, err)
-				continue
-			}
-		}
-		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
-			multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
-			continue
-		}
-		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
-			continue
-		}
-		if softwarePackageSpec.UninstallScript.Path != "" {
-			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
-				multiError = multierror.Append(multiError, err)
-				continue
-			}
-		}
-		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
-			continue
-		}
-		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
-			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
-			continue
-		}
-		parsedUrl, err := url.Parse(softwarePackageSpec.URL)
-		if err != nil {
-			multiError = multierror.Append(multiError, fmt.Errorf("software URL %s is not a valid URL", softwarePackageSpec.URL))
-			continue
+			softwarePackageSpec := teamLevelPackage.SoftwarePackageSpec.ResolveSoftwarePackagePaths(baseDir)
+			softwarePackageSpecs = append(softwarePackageSpecs, &softwarePackageSpec)
 		}
 
-		if softwarePackageSpec.InstallScript.Path == "" || softwarePackageSpec.UninstallScript.Path == "" {
-			// URL checks won't catch everything, but might as well include a lightweight check here to fail fast if it's
-			// certain that the package will fail later.
-			if strings.HasSuffix(parsedUrl.Path, ".exe") {
-				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+		for i, softwarePackageSpec := range softwarePackageSpecs {
+			if softwarePackageSpec.InstallScript.Path != "" {
+				if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
+			}
+			if softwarePackageSpec.PostInstallScript.Path != "" {
+				if err := gatherFileSecrets(result, softwarePackageSpec.PostInstallScript.Path); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
+			}
+			if softwarePackageSpec.UninstallScript.Path != "" {
+				if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
+			}
+			if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
+				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
 				continue
 			}
-			if strings.HasSuffix(parsedUrl.Path, ".tar.gz") || strings.HasSuffix(parsedUrl.Path, ".tgz") {
-				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+			if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
+				multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
 				continue
 			}
-		}
+			if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
+				errorMessage := "at least one of hash_sha256 or url is required for each software package"
+				if softwarePackageSpec.ReferencedYamlPath != "" {
+					errorMessage += fmt.Sprintf("; missing in %s", softwarePackageSpec.ReferencedYamlPath)
+				}
+				if len(softwarePackageSpecs) > 1 {
+					errorMessage += fmt.Sprintf(", list item #%d", i+1)
+				}
 
-		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
+				multiError = multierror.Append(multiError, errors.New(errorMessage))
+				continue
+			}
+			if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
+				multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
+				continue
+			}
+			parsedUrl, err := url.Parse(softwarePackageSpec.URL)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s is not a valid URL", softwarePackageSpec.URL))
+				continue
+			}
+			if softwarePackageSpec.InstallScript.Path == "" || softwarePackageSpec.UninstallScript.Path == "" {
+				// URL checks won't catch everything, but might as well include a lightweight check here to fail fast if it's
+				// certain that the package will fail later.
+				if strings.HasSuffix(parsedUrl.Path, ".exe") {
+					multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+					continue
+				} else if strings.HasSuffix(parsedUrl.Path, ".tar.gz") || strings.HasSuffix(parsedUrl.Path, ".tgz") {
+					multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+					continue
+				}
+			}
+
+			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
+		}
 	}
 
 	return multiError

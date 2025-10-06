@@ -505,7 +505,7 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: osVersions } = useQuery<
+  const { data: osVersions, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     Error,
     IOperatingSystemVersion[],
@@ -1631,11 +1631,11 @@ const ManageHostsPage = ({
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
-            variant="text-icon"
+            variant="inverse"
           >
             <>
               Export hosts
-              <Icon name="download" size="small" color="core-fleet-blue" />
+              <Icon name="download" size="small" />
             </>
           </Button>
         )}
@@ -1684,6 +1684,15 @@ const ManageHostsPage = ({
       typeof queryParams === "object" &&
       filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
   );
+
+  // Ensures rendering table/pills simultaneously when all API calls are done
+  const isLoading =
+    isLoadingHosts ||
+    isLoadingHostsCount ||
+    isLoadingPolicy ||
+    isLoadingOsVersions ||
+    isLoadingConfigProfile ||
+    isLoadingScriptBatchSummary;
 
   const renderTable = () => {
     if (!config || !currentUser || !isRouteOk) {
@@ -1760,7 +1769,7 @@ const ManageHostsPage = ({
         name: "run-script",
         onClick: onClickRunScriptBatchAction,
         buttonText: "Run script",
-        variant: "text-icon",
+        variant: "inverse",
         iconSvg: "run",
         iconStroke: true,
         hideButton: !canRunScriptBatch,
@@ -1771,7 +1780,7 @@ const ManageHostsPage = ({
         name: "transfer",
         onClick: onTransferToTeamClick,
         buttonText: "Transfer",
-        variant: "text-icon",
+        variant: "inverse",
         iconSvg: "transfer",
         hideButton:
           !isPremiumTier ||
@@ -1828,13 +1837,7 @@ const ManageHostsPage = ({
         resultsTitle="hosts"
         columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
-        isLoading={
-          isLoadingHosts ||
-          isLoadingHostsCount ||
-          isLoadingPolicy ||
-          isLoadingConfigProfile ||
-          isLoadingScriptBatchSummary
-        }
+        isLoading={isLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1849,14 +1852,14 @@ const ManageHostsPage = ({
           name: "edit columns",
           buttonText: "Edit columns",
           iconSvg: "columns",
-          variant: "text-icon",
+          variant: "inverse",
           onClick: toggleEditColumnsModal,
         }}
         primarySelectAction={{
           name: "delete host",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
+          variant: "inverse",
           onClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
@@ -1917,93 +1920,90 @@ const ManageHostsPage = ({
 
   return (
     <>
-      <MainContent>
-        <div className={`${baseClass}`}>
-          <div className={`${baseClass}__header-wrap`}>
-            {renderHeader()}
-            <div className={`${baseClass} button-wrap`}>
-              {canEnrollHosts && !hasErrors && (
-                <Button
-                  onClick={() => setShowEnrollSecretModal(true)}
-                  className={`${baseClass}__enroll-hosts button`}
-                  variant="inverse"
-                >
-                  Manage enroll secret
-                </Button>
-              )}
-              {showAddHostsButton && (
-                <Button
-                  onClick={toggleAddHostsModal}
-                  className={`${baseClass}__add-hosts`}
-                >
-                  <span>Add hosts</span>
-                </Button>
-              )}
-            </div>
+      <MainContent className={baseClass}>
+        <div className={`${baseClass}__header-wrap`}>
+          {renderHeader()}
+          <div className={`${baseClass}__button-wrap`}>
+            {canEnrollHosts && !hasErrors && (
+              <Button
+                onClick={() => setShowEnrollSecretModal(true)}
+                className={`${baseClass}__enroll-hosts button`}
+                variant="inverse"
+              >
+                Manage enroll secret
+              </Button>
+            )}
+            {showAddHostsButton && (
+              <Button
+                onClick={toggleAddHostsModal}
+                className={`${baseClass}__add-hosts`}
+              >
+                <span>Add hosts</span>
+              </Button>
+            )}
           </div>
-          {/* TODO: look at improving the props API for this component. Im thinking
-          some of the props can be defined inside HostsFilterBlock */}
-          <HostsFilterBlock
-            params={{
-              policyResponse,
-              policyId,
-              policy,
-              macSettingsStatus,
-              softwareId,
-              softwareTitleId,
-              softwareVersionId,
-              softwareStatus,
-              mdmId,
-              mdmEnrollmentStatus,
-              lowDiskSpaceHosts,
-              osVersionId,
-              osName,
-              osVersion,
-              osVersions,
-              munkiIssueId,
-              munkiIssueDetails: hostsData?.munki_issue || null,
-              softwareDetails:
-                hostsData?.software || hostsData?.software_title || null,
-              mdmSolutionDetails:
-                hostsData?.mobile_device_management_solution || null,
-              osSettingsStatus,
-              diskEncryptionStatus,
-              bootstrapPackageStatus,
-              vulnerability,
-              configProfileStatus,
-              configProfileUUID,
-              configProfile,
-              scriptBatchExecutionStatus,
-              scriptBatchExecutionId,
-              scriptBatchRanAt: scriptBatchSummary?.created_at || null,
-              scriptBatchScriptName: scriptBatchSummary?.script_name || null,
-            }}
-            selectedLabel={selectedLabel}
-            isOnlyObserver={isOnlyObserver}
-            handleClearRouteParam={handleClearRouteParam}
-            handleClearFilter={handleClearFilter}
-            onChangePoliciesFilter={handleChangePoliciesFilter}
-            onChangeOsSettingsFilter={handleChangeOsSettingsFilter}
-            onChangeDiskEncryptionStatusFilter={
-              handleChangeDiskEncryptionStatusFilter
-            }
-            onChangeBootstrapPackageStatusFilter={
-              handleChangeBootstrapPackageStatusFilter
-            }
-            onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
-            onChangeSoftwareInstallStatusFilter={
-              handleSoftwareInstallStatusChange
-            }
-            onChangeConfigProfileStatusFilter={handleConfigProfileStatusChange}
-            onChangeScriptBatchStatusFilter={
-              handleChangeScriptBatchStatusFilter
-            }
-            onClickEditLabel={onEditLabelClick}
-            onClickDeleteLabel={toggleDeleteLabelModal}
-          />
-          {renderNoEnrollSecretBanner()}
-          {renderTable()}
         </div>
+        {/* TODO: look at improving the props API for this component. Im thinking
+          some of the props can be defined inside HostsFilterBlock */}
+        <HostsFilterBlock
+          params={{
+            policyResponse,
+            policyId,
+            policy,
+            macSettingsStatus,
+            softwareId,
+            softwareTitleId,
+            softwareVersionId,
+            softwareStatus,
+            mdmId,
+            mdmEnrollmentStatus,
+            lowDiskSpaceHosts,
+            osVersionId,
+            osName,
+            osVersion,
+            osVersions,
+            munkiIssueId,
+            munkiIssueDetails: hostsData?.munki_issue || null,
+            softwareDetails:
+              hostsData?.software || hostsData?.software_title || null,
+            mdmSolutionDetails:
+              hostsData?.mobile_device_management_solution || null,
+            osSettingsStatus,
+            diskEncryptionStatus,
+            bootstrapPackageStatus,
+            vulnerability,
+            configProfileStatus,
+            configProfileUUID,
+            configProfile,
+            scriptBatchExecutionStatus,
+            scriptBatchExecutionId,
+            scriptBatchRanAt: scriptBatchSummary?.created_at || null,
+            scriptBatchScriptName: scriptBatchSummary?.script_name || null,
+          }}
+          selectedLabel={selectedLabel}
+          isOnlyObserver={isOnlyObserver}
+          handleClearRouteParam={handleClearRouteParam}
+          handleClearFilter={handleClearFilter}
+          onChangePoliciesFilter={handleChangePoliciesFilter}
+          onChangeOsSettingsFilter={handleChangeOsSettingsFilter}
+          onChangeDiskEncryptionStatusFilter={
+            handleChangeDiskEncryptionStatusFilter
+          }
+          onChangeBootstrapPackageStatusFilter={
+            handleChangeBootstrapPackageStatusFilter
+          }
+          onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
+          onChangeSoftwareInstallStatusFilter={
+            handleSoftwareInstallStatusChange
+          }
+          onChangeConfigProfileStatusFilter={handleConfigProfileStatusChange}
+          onChangeScriptBatchStatusFilter={handleChangeScriptBatchStatusFilter}
+          onClickEditLabel={onEditLabelClick}
+          onClickDeleteLabel={toggleDeleteLabelModal}
+          isLoading={isLoading}
+        />
+        {renderNoEnrollSecretBanner()}
+        {renderTable()}
       </MainContent>
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}

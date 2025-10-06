@@ -29,19 +29,10 @@ interface IUserMenuProps {
   currentUser: IUser;
 }
 
-const bounceDownAnimation = keyframes`
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-`;
-
 const getOptionBackgroundColor = (
   state: OptionProps<IDropdownOption, false, GroupBase<IDropdownOption>>
 ) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-10"] : "transparent";
 };
 
 const CustomDropdownIndicator = (
@@ -55,7 +46,7 @@ const CustomDropdownIndicator = (
     <components.DropdownIndicator {...props} className={baseClass}>
       <Icon
         name="chevron-down"
-        color="core-fleet-white"
+        color="ui-fleet-black-75"
         className={`${baseClass}__icon`}
         size="small"
       />
@@ -146,6 +137,13 @@ const UserMenu = ({
     dropdownItems.unshift(manageUserNavItem);
   }
 
+  const manageLabelsMenuItem = {
+    label: "Labels",
+    value: "labels",
+    onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
+  };
+  dropdownItems.unshift(manageLabelsMenuItem);
+
   if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
     const userAdminTeams = currentUser.teams.filter(
       (thisTeam: ITeam) => thisTeam.role === "admin"
@@ -155,12 +153,13 @@ const UserMenu = ({
       currentUser.global_role === "admin"
         ? PATHS.ADMIN_ORGANIZATION
         : `${PATHS.TEAM_DETAILS_USERS(sortedTeams[0].value)}`;
-    const adminNavItem = {
+    const adminMenuItem = {
       label: "Settings",
       value: "settings",
       onClick: () => onUserMenuItemClick(settingsPath),
     };
-    dropdownItems.unshift(adminNavItem);
+
+    dropdownItems.unshift(adminMenuItem);
   }
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
@@ -173,18 +172,16 @@ const UserMenu = ({
       marginRight: "8px",
       backgroundColor: "initial",
       border: "2px solid transparent", // So tabbing doesn't shift dropdown
-      borderRadius: "6px",
+      borderRadius: "3px", // Match other nav border after their focused offset
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
-        ".user-menu-select__indicator svg": {
-          animation: `${bounceDownAnimation} 0.3s ease-in-out`,
-        },
       },
       ...(state.isFocused &&
         isKeyboardFocus && {
-          border: `2px solid ${COLORS["ui-blue-25"]}`,
+          outline: `1px solid ${COLORS["core-fleet-black"]}`,
+          outlineOffset: "1px",
         }),
       ...(state.menuIsOpen && {
         ".user-menu-select__indicator svg": {
@@ -231,10 +228,7 @@ const UserMenu = ({
       color: COLORS["tooltip-bg"],
       whiteSpace: "nowrap",
       "&:hover": {
-        backgroundColor: COLORS["ui-vibrant-blue-10"],
-      },
-      "&:active": {
-        backgroundColor: COLORS["ui-vibrant-blue-25"],
+        backgroundColor: COLORS["ui-fleet-black-5"],
       },
       "&:last-child, &:nth-last-of-type(2)": {
         borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,
@@ -246,7 +240,7 @@ const UserMenu = ({
     return (
       <AvatarTopNav
         className={`${baseClass}__avatar-image`}
-        user={{ gravatar_url_dark: currentUser.gravatar_url_dark }}
+        user={{ gravatar_url: currentUser.gravatar_url }}
         size="small"
       />
     );

@@ -37,7 +37,7 @@ func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) 
 func (c *Client) GetTeam(teamID uint) (*fleet.Team, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID)
 	var responseBody getTeamResponse
-	if err := c.authenticatedRequest(getTeamRequest{}, verb, path, &responseBody); err != nil {
+	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
 		return nil, err
 	}
 	return responseBody.Team, nil
@@ -129,5 +129,24 @@ func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPa
 	if err != nil {
 		return nil, err
 	}
-	return appsResponse.Apps, nil
+	return matchAppStoreAppCustomIcons(vppBatchPayload, appsResponse.Apps), nil
+}
+
+// matchAppStoreAppCustomIcons hydrates VPP responses with references to icons in the request payload, so we can track
+// which API calls to make to add/update/delete icons
+func matchAppStoreAppCustomIcons(request []fleet.VPPBatchPayload, response []fleet.VPPAppResponse) []fleet.VPPAppResponse {
+	byAdamID := make(map[string]fleet.VPPBatchPayload)
+	for _, clientSide := range request {
+		byAdamID[clientSide.AppStoreID] = clientSide
+	}
+
+	for i := range response {
+		serverSide := &response[i]
+		if clientSide, ok := byAdamID[serverSide.AppStoreID]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
+		}
+	}
+
+	return response
 }

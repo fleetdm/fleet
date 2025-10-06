@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "2506-8.16.0-16536825094",
+      "version": "8.16.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac';"
       },
@@ -9,7 +9,9 @@
       "install_script_ref": "d39d0371",
       "uninstall_script_ref": "ca658441",
       "sha256": "45bb7a2ec1b309e9bf93ccda155ab78890c12eabe52cff3e57cd900662a100c0",
-      "default_categories": null
+      "default_categories": [
+        "Productivity"
+      ]
     }
   ],
   "refs": {

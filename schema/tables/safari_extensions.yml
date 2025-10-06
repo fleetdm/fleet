@@ -9,7 +9,7 @@ examples: |-
   SELECT * FROM users CROSS JOIN safari_extensions USING (uid);
   ```
 notes: |-
-  Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires a `JOIN` operation.
+  Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires [giving osquery full disk access](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos) and a [`JOIN` against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table).
   
   Query explanation:
   
@@ -19,7 +19,4 @@ notes: |-
 
   Links:
 
-  - Apple dcoumentaion on Safari Extensions: https://support.apple.com/en-us/102343
-  - CROSS JOIN SQLite tutorial: https://www.sqlitetutorial.net/sqlite-cross-join/
-  - [Fleet documentation on joining against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
-  - Fleet users table: https://fleetdm.com/tables/users
+  - [Apple documentation on Safari Extensions](https://support.apple.com/en-us/102343)

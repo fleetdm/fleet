@@ -65,1679 +65,1706 @@ parasails.registerPage('configuration-builder', {
     downloadProfileFormData: {},
     profileFilename: undefined,
     profileDescription: undefined,
+    // Note: macOS and iOS payloads have been commented out while we focus on Windows & Android.
     // macOS payloads.
-    macosCategoriesAndPayloads: [
-      {
-        categoryName: 'Privacy & security',
-        categorySlug: 'macos-privacy-and-security',
-        subcategories: [
-          {
-            subcategoryName: 'Device lock',
-            subcategorySlug: 'macos-device-lock',
-            description: 'Settings related to screen lock and passwords.',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
-            payloads: [
-              {
-                name: 'Require device password',
-                uniqueSlug: 'macos-enable-force-pin',
-                tooltip: 'Require a password to unlock the device',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'forcePIN',
-                },
-              },
-              {
-                name: 'Maximum inactivity time before device locks',
-                uniqueSlug: 'macos-max-inactivity',
-                tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 4,
-                  minValue: 0,
-                  maxValue: 60,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxInactivity',
-                },
-              },
-              {
-                name: 'Minimum password length',
-                uniqueSlug: 'macos-min-length',
-                tooltip: 'The minimum overall length of the passcode.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 16,
-                  unitLabel: 'characters'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minLength',
-                },
-              },
-              {
-                name: 'Allow simple password',
-                uniqueSlug: 'macos-enable-allow-simple-pin',
-                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowSimple',
-                },
-              },
-              {
-                name: 'Require alphanumeric password',
-                uniqueSlug: 'macos-require-alphanumeric-password',
-                tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'requireAlphanumeric',
-                },
-              },
-              {
-                name: 'Minimum complex characters',
-                uniqueSlug: 'macos-min-complex-characters',
-                tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 4,
-                  unitLabel: 'characters'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minComplexChars',
-                },
-              },
-              {
-                name: 'Change passcode at next login',
-                uniqueSlug: 'macos-change-at-next-auth',
-                tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'changeAtNextAuth',
-                },
-              },
-              {
-                name: 'Maximum grace period',
-                uniqueSlug: 'macos-max-grace-period',
-                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxGracePeriod',
-                },
-              },
-              {
-                name: 'Passcode history',
-                uniqueSlug: 'macos-passcode-history',
-                tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  minValue: 1,
-                  maxValue: 50,
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'pinHistory',
-                },
-              },
-              {
-                name: 'Maximum passcode age',
-                uniqueSlug: 'macos-max-pin-age',
-                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'days'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxPINAgeInDays',
-                },
-              },
-              {
-                name: 'Maximum number of failed attempts',
-                uniqueSlug: 'macos-max-failed-attempts',
-                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 11,
-                  minValue: 2,
-                  maxValue: 11,
-                  unitLabel: 'attempts'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxFailedAttempts',
-                },
-              },
-              {
-                name: 'Minutes until failed login reset',
-                uniqueSlug: 'macos-minutes-until-failed-login-reset',
-                tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 4,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minutesUntilFailedLoginReset',
-                },
-              },
-            ],
-          },
-          {
-            subcategoryName: 'Restrictions',
-            subcategorySlug: 'macos-restrictions',
-            description: 'Settings that configures restrictions on a device..',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
-            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
-            payloads: [
-              {
-                name: 'Allow erasing all content and settings',
-                uniqueSlug: 'macos-disable-erase-content',
-                tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowEraseContentAndSettings',
-                },
-              },
-              {
-                name: 'Allow device name modification',
-                uniqueSlug: 'macos-enable-device-name-modification',
-                tooltip: 'If false, the system prevents the user from changing the device name.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowDeviceNameModification',
-                },
-              },
-              {
-                name: 'Allow UI configuration profile installation',
-                uniqueSlug: 'macos-allow-configuration-profile-installation',
-                tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowUIConfigurationProfileInstallation',
-                },
-              },
-              {
-                name: 'Allow content caching',
-                uniqueSlug: 'macos-allow-content-caching',
-                tooltip: 'If false, the system disables content caching.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowContentCaching',
-                },
-              },
-              {
-                name: 'Allow camera',
-                uniqueSlug: 'macos-allow-camera',
-                tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in macOS 10.11 and later. Support for this restriction on unsupervised devices is deprecated.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowCamera',
-                },
-              },
-              {
-                name: 'Allow AirDrop',
-                uniqueSlug: 'macos-allow-airdrop',
-                tooltip: 'If false, the system disables AirDrop. Available in macOS 10.13 and later.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowAirDrop',
-                },
-              },
-            ]
-          }
-          // {
-          //   subcategoryName: 'FileVault',
-          //   subcategorySlug: 'macos-filevault',
-          //   description: 'Settings related disk encryption on macOS devices.',
-          //   learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/fdefilevault',
-          //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
-          //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
-          //   payloads: [
-          //     // {// TODO: how do we want to accept this value?
-          //     //   name: 'Filevault certificate',
-          //     //   uniqueSlug: 'macos-filevault-certificate',
-          //     //   tooltip: 'The DER-encoded certificate data if the system creates an institutional recovery key. This key isn’t supported on Macs with Apple silicon.',
-          //     //   category: 'FileVault',
-          //     //   payload: 'FDEFileVault',
-          //     //   payloadType: 'com.apple.MCX.FileVault2',
-          //     //   formInput: {
-          //     //     type: 'text',
-          //     //   },
-          //     //   formOutput: {
-          //     //     settingFormat: 'data',
-          //     //     settingKey: 'Certificate',
-          //     //   },
-          //     // },
-          //     {
-          //       name: 'Enable FileVault',
-          //       uniqueSlug: 'macos-enable-filevault',
-          //       tooltip: 'Enables FileVault on macOS devices. Payloads that enable filevault sent through MDM need to either include full authentication information in the payload or have the Defer option set to true.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'string',
-          //         settingKey: 'Enable',
-          //         trueValue: 'On',
-          //         falseValue: 'Off'
-          //       },
-          //     },
-          //     {
-          //       name: 'Create FileVault recovery key',
-          //       uniqueSlug: 'macos-use-recovery-key',
-          //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'boolean',
-          //         settingKey: 'UseRecoveryKey',
-          //       },
-          //     },
-          //     {
-          //       name: 'Show recovery key to user after enabling FileVault',
-          //       uniqueSlug: 'macos-show-recovery-key',
-          //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'boolean',
-          //         settingKey: 'UseRecoveryKey',
-          //       },
-          //     },
-          //     {
-          //       name: 'Open directory username',
-          //       uniqueSlug: 'macos-filevault-od-username',
-          //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'text',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'string',
-          //         settingKey: 'Username',
-          //       },
-          //     },
-          //     {
-          //       name: 'Open directory password',
-          //       uniqueSlug: 'macos-filevault-od-password',
-          //       tooltip: 'The password of the Open Directory user to add to FileVault. Use the "Ask end-user for missing information" key to prompt for this information.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'text',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'string',
-          //         settingKey: 'Password',
-          //       },
-          //     },
-          //     {
-          //       name: 'Ask end-user for missing information',
-          //       uniqueSlug: 'macos-filevault-ask-for-missing-info',
-          //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'boolean',
-          //         settingKey: 'UserEntersMissingInfo',
-          //       },
-          //     },
-          //     {
-          //       name: 'Defer FileVault activation',
-          //       uniqueSlug: 'macos-defer-filevault-activation',
-          //       tooltip: 'If true, the system defers enabling FileVault until the designated user logs out. Only a local user or a mobile account user can enable FileVault.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'boolean',
-          //         settingKey: 'Defer',
-          //       },
-          //     },
-          //     {
-          //       name: 'Disable requests to enable FileVault when users log out.',
-          //       uniqueSlug: 'macos-disable-filevault-activiation-log-out',
-          //       tooltip: 'If true, the system prevents requests to enable FileVault at user logout time.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'boolean',
-          //         settingKey: 'DeferDontAskAtUserLogout',
-          //       },
-          //     },
-          //     {
-          //       name: 'Maximum number of times users can defer',
-          //       uniqueSlug: 'macos-filevault-max-bypass-attempts',
-          //       tooltip: 'The maximum number of times users can bypass enabling FileVault before the system requires the user to enable it to log in. If the value is 0, the system requires the user to enable FileVault the next time they attempt to log in. Set this key to -1 to disable this feature.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'number',
-          //         maxValue: 9999,
-          //         minValue: -1,
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'integer',
-          //         settingKey: 'DeferForceAtUserLoginMaxBypassAttempts',
-          //       },
-          //     },
-          //     {
-          //       name: 'Specify a path to FileVault recovery key',
-          //       uniqueSlug: 'macos-filevault-recovery-key',
-          //       tooltip: 'The path to the location of the recovery key and computer information property list.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'text',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'string',
-          //         settingKey: 'OutputPath',
-          //       },
-          //     },
-          //     {
-          //       name: 'Store recovery key in keychain',
-          //       uniqueSlug: 'macos-filevault-recovery-key-in-keychain',
-          //       tooltip: 'If true and you don’t include certificate information in this payload, the system uses the keychain created at /Library/Keychains/FileVaultMaster.keychain when it adds the institutional recovery key.',
-          //       category: 'FileVault',
-          //       payload: 'FDEFileVault',
-          //       payloadType: 'com.apple.MCX.FileVault2',
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'boolean',
-          //         settingKey: 'UseKeychain',
-          //       },
-          //     },
-          //     // {
-          //     //   name: 'Certificate UUID',
-          //     //   uniqueSlug: 'macos-filevault-certificate-uuid',
-          //     //   tooltip: 'The UUID of the payload within the same profile containing the asymmetric recovery key certificate payload.',
-          //     //   category: 'FileVault',
-          //     //   payload: 'FDEFileVault',
-          //     //   payloadType: 'com.apple.MCX.FileVault2',
-          //     //   formInput: {
-          //     //     type: 'text',
-          //     //   },
-          //     //   formOutput: {
-          //     //     settingFormat: 'string',
-          //     //     settingKey: 'PayloadCertificateUUID',
-          //     //   },
-          //     // },
-          //   ],
-          // },
-        ]
-      },
-      {
-        categoryName: 'Software & updates',
-        categorySlug: 'macos-software-and-updates',
-        subcategories: [
-          {
-            subcategoryName: 'Gatekeeper',
-            subcategorySlug: 'macos-gatekeeper',
-            description: 'Settings related to Gatekeeper',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/systempolicycontrol',
-            payloads: [
-              {
-                name: 'Enable Gatekeeper',
-                uniqueSlug: 'macos-enable-gatekeeper',
-                tooltip: 'If true, enables Gatekeeper. If false, disables Gatekeeper.',
-                category: 'Gatekeeper',
-                payload: 'Control',
-                payloadType: 'com.apple.systempolicy.control',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'EnableAssessment',
-                },
-              },
-              {
-                name: 'Allow identified developers',
-                uniqueSlug: 'macos-allow-identified-developers',
-                tooltip: 'If true, enables Gatekeeper’s “Mac App Store and identified developers” option. \n If false, enables Gatekeeper’s “Mac App Store” option.',
-                category: 'Gatekeeper',
-                payload: 'Control',
-                payloadType: 'com.apple.systempolicy.control',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'AllowIdentifiedDevelopers',
-                },
-              },
-              {
-                name: 'Enable XProtect malware upload',
-                uniqueSlug: 'macos-enable-xprotect-malware-upload',
-                tooltip: 'If false, prevents Gatekeeper from prompting the user to upload blocked malware to Apple for purposes of improving malware detection.',
-                category: 'Gatekeeper',
-                payload: 'Control',
-                payloadType: 'com.apple.systempolicy.control',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'EnableXProtectMalwareUpload',
-                },
-              },
-            ]
-          },
-        ]
-      },
-      {
-        categoryName: 'Network',
-        categorySlug: 'macos-network',
-        subcategories: [
-          {
-            subcategoryName: 'WiFi',
-            subcategorySlug: 'macos-wifi',
-            description: 'Settings related to wireless network configuration on macOS',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
-            payloads: [
-              {
-                name: 'Network SSID',
-                uniqueSlug: 'macos-wifi-ssid',
-                tooltip: 'The SSID of the Wi-Fi network to use.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'SSID_STR',
-                },
-              },
-              {
-                name: 'Network password',
-                uniqueSlug: 'macos-wifi-password',
-                tooltip: 'The password for the access point.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'Password',
-                },
-              },
-              {
-                name: 'Network encryption type',
-                uniqueSlug: 'macos-wifi-encryption-type',
-                tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'radio',
-                  options: [
-                    {
-                      name: 'WEP',
-                      value: 'WEP'
-                    },
-                    {
-                      name: 'WPA',
-                      value: 'WPA'
-                    },
-                    {
-                      name: 'WPA2',
-                      value: 'WPA2',
-                    },
-                    {
-                      name: 'WPA3',
-                      value: 'WPA3',
-                    },
-                    {
-                      name: 'Any',
-                      value: 'Any',
-                    },
-                    {
-                      name: 'None',
-                      value: 'None',
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'EncryptionType',
-                },
-              },
-              {
-                name: 'Join network automatically',
-                uniqueSlug: 'macos-wifi-auto-join',
-                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'AutoJoin',
-                },
-              },
-              {
-                name: 'Hidden network',
-                uniqueSlug: 'macos-wifi-hidden-network',
-                tooltip: 'If true, defines this network as hidden.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'HIDDEN_NETWORK',
-                },
-              },
-              {
-                name: 'Enable IPV6',
-                uniqueSlug: 'macos-wifi-enable-ipv6',
-                tooltip: 'If true, enables IPv6 on this interface.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'EnableIPv6',
-                },
-              },
-              {
-                name: 'Domain name',
-                uniqueSlug: 'macos-wifi-domain-name',
-                tooltip: 'The primary domain of the tunnel. Available in macOS 10.9 and later.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'DomainName',
-                },
-              },
-              {
-                name: 'Treat network as a hotspot',
-                uniqueSlug: 'macos-wifi-hotspot',
-                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'IsHotspot',
-                },
-              },
-              {
-                name: 'Allow connection to roaming service providers',
-                uniqueSlug: 'macos-wifi-service-provider-roaming',
-                tooltip: 'If true, allows connection to roaming service providers.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'ServiceProviderRoamingEnabled',
-                },
-              },
-              {
-                name: 'Network HESSID',
-                uniqueSlug: 'macos-wifi-hessid',
-                tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'HESSID',
-                },
-              },
-              {
-                name: 'Proxy type',
-                uniqueSlug: 'macos-wifi-proxy-type',
-                tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'radio',
-                  controlsOtherFields: true,
-                  options: [
-                    {
-                      name: 'None',
-                      value: 'None'
-                    },
-                    {
-                      name: 'Manual',
-                      value: 'Manual',
-                      alsoSelectedWhenSet: [
-                        'macos-wifi-proxy-server',
-                        'macos-wifi-proxy-server-port',
-                      ]
-                    },
-                    {
-                      name: 'Auto',
-                      value: 'Auto',
-                      alsoSelectedWhenSet: [
-                        'macos-wifi-proxy-pac-url',
-                        'macos-wifi-proxy-pac-fallback',
-                      ]
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyType',
-                },
-              },
-              {
-                name: 'Proxy server address',
-                uniqueSlug: 'macos-wifi-proxy-server',
-                tooltip: 'The proxy server’s network address.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyServer',
-                },
-              },
-              {
-                name: 'Proxy server port',
-                uniqueSlug: 'macos-wifi-proxy-server-port',
-                tooltip: 'The proxy server’s port number.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'number',
-                  minValue: 0,
-                  maxValue: 65535,
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'ProxyServerPort',
-                },
-              },
-              {
-                name: 'Proxy server username',
-                uniqueSlug: 'macos-wifi-proxy-server-username',
-                tooltip: 'The user name used to authenticate to the proxy server.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyUsername',
-                },
-              },
-              {
-                name: 'Proxy server password',
-                uniqueSlug: 'macos-wifi-proxy-server-password',
-                tooltip: 'The password used to authenticate to the proxy server.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyPassword',
-                },
-              },
-              {
-                name: 'Proxy PAC URL',
-                uniqueSlug: 'macos-wifi-proxy-pac-url',
-                tooltip: 'The URL of the PAC file that defines the proxy configuration.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyPACURL',
-                },
-              },
-              {
-                name: `Allow connections if a Proxy\'s PAC file is unreachable`,
-                uniqueSlug: 'macos-wifi-proxy-pac-fallback',
-                tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'ProxyPACFallbackAllowed',
-                },
-              },
-            ]
-          },
-          {
-            subcategoryName: 'Firewall',
-            subcategorySlug: 'macos-firewall',
-            description: 'Settings related to the built-in firewall on macOS',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/firewall',
-            payloads: [
-              {
-                name: 'Enable firewall',
-                uniqueSlug: 'macos-enable-firewall',
-                tooltip: 'If true, the system enables the firewall.',
-                category: 'Firewall',
-                payload: 'Firewall',
-                payloadType: 'com.apple.security.firewall',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'EnableFirewall',
-                },
-              },
-              {
-                name: 'Allow built-in applications',
-                uniqueSlug: 'macos-firewall-allow-signed',
-                tooltip: 'If true, the system allows built-in software to receive incoming connections. Available in macOS 12.3 and later.',
-                category: 'Firewall',
-                payload: 'Firewall',
-                payloadType: 'com.apple.security.firewall',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'AllowSigned',
-                },
-              },
-              {
-                name: 'Allow signed applications',
-                uniqueSlug: 'macos-firewall-allow-signed-apps',
-                tooltip: 'If true, the system allows downloaded signed software to receive incoming connections. Available in macOS 12.3 and later.',
-                category: 'Firewall',
-                payload: 'Firewall',
-                payloadType: 'com.apple.security.firewall',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'AllowSignedApp',
-                },
-              },
-              {
-                name: 'Block all incoming connections',
-                uniqueSlug: 'macos-firewall-block-incoming',
-                tooltip: 'If true, the system enables blocking all incoming connections.',
-                category: 'Firewall',
-                payload: 'Firewall',
-                payloadType: 'com.apple.security.firewall',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'BlockAllIncoming',
-                },
-              },
-              {
-                name: 'Enable stealth mode',
-                uniqueSlug: 'macos-firewall-enable-stealth-mode',
-                tooltip: 'If true, the system enables stealth mode.',
-                category: 'Firewall',
-                payload: 'Firewall',
-                payloadType: 'com.apple.security.firewall',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'EnableStealthMode',
-                },
-              },
-              // { TODO: add support for specifying arrays of objects.
-              //   name: 'Allow/block specified applications',
-              //   uniqueSlug: 'macos-firewall-application-list',
-              //   tooltip: 'If true, the system enables stealth mode.',
-              //   category: 'Firewall',
-              //   payload: 'Firewall',
-              //   payloadType: 'com.apple.security.firewall',
-              //   formInput: {
-              //     type: 'array',
-              //     unitLabel: 'Bundle identifier'
-              //   },
-              //   formOutput: {
-              //     settingFormat: 'list',
-              //     settingKey: 'Applications',
-              //     trueValue: '<true/>',
-              //     falseValue: '<false/>',
-              //   },
-              // },
-            ]
-          }
-        ]
-      }
-    ],
+    // macosCategoriesAndPayloads: [
+    //   {
+    //     categoryName: 'Privacy & security',
+    //     categorySlug: 'macos-privacy-and-security',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'Device lock',
+    //         subcategorySlug: 'macos-device-lock',
+    //         description: 'Settings related to screen lock and passwords.',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
+    //         payloads: [
+    //           {
+    //             name: 'Require device password',
+    //             uniqueSlug: 'macos-enable-force-pin',
+    //             tooltip: 'Require a password to unlock the device',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'forcePIN',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum inactivity time before device locks',
+    //             uniqueSlug: 'macos-max-inactivity',
+    //             tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 4,
+    //               minValue: 0,
+    //               maxValue: 60,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxInactivity',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum password length',
+    //             uniqueSlug: 'macos-min-length',
+    //             tooltip: 'The minimum overall length of the passcode.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 16,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minLength',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow simple password',
+    //             uniqueSlug: 'macos-enable-allow-simple-pin',
+    //             tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowSimple',
+    //             },
+    //           },
+    //           {
+    //             name: 'Require alphanumeric password',
+    //             uniqueSlug: 'macos-require-alphanumeric-password',
+    //             tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'requireAlphanumeric',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum complex characters',
+    //             uniqueSlug: 'macos-min-complex-characters',
+    //             tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 4,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minComplexChars',
+    //             },
+    //           },
+    //           {
+    //             name: 'Change passcode at next login',
+    //             uniqueSlug: 'macos-change-at-next-auth',
+    //             tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'changeAtNextAuth',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum grace period',
+    //             uniqueSlug: 'macos-max-grace-period',
+    //             tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxGracePeriod',
+    //             },
+    //           },
+    //           {
+    //             name: 'Passcode history',
+    //             uniqueSlug: 'macos-passcode-history',
+    //             tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 1,
+    //               maxValue: 50,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'pinHistory',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum passcode age',
+    //             uniqueSlug: 'macos-max-pin-age',
+    //             tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'days'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxPINAgeInDays',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum number of failed attempts',
+    //             uniqueSlug: 'macos-max-failed-attempts',
+    //             tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 11,
+    //               minValue: 2,
+    //               maxValue: 11,
+    //               unitLabel: 'attempts'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxFailedAttempts',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minutes until failed login reset',
+    //             uniqueSlug: 'macos-minutes-until-failed-login-reset',
+    //             tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 4,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minutesUntilFailedLoginReset',
+    //             },
+    //           },
+    //         ],
+    //       },
+    //       {
+    //         subcategoryName: 'Restrictions',
+    //         subcategorySlug: 'macos-restrictions',
+    //         description: 'Settings that configures restrictions on a device..',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+    //         docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+    //         payloads: [
+    //           {
+    //             name: 'Allow erasing all content and settings',
+    //             uniqueSlug: 'macos-disable-erase-content',
+    //             tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowEraseContentAndSettings',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow device name modification',
+    //             uniqueSlug: 'macos-enable-device-name-modification',
+    //             tooltip: 'If false, the system prevents the user from changing the device name.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowDeviceNameModification',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow UI configuration profile installation',
+    //             uniqueSlug: 'macos-allow-configuration-profile-installation',
+    //             tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowUIConfigurationProfileInstallation',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow content caching',
+    //             uniqueSlug: 'macos-allow-content-caching',
+    //             tooltip: 'If false, the system disables content caching.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowContentCaching',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow camera',
+    //             uniqueSlug: 'macos-allow-camera',
+    //             tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in macOS 10.11 and later. Support for this restriction on unsupervised devices is deprecated.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowCamera',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow AirDrop',
+    //             uniqueSlug: 'macos-allow-airdrop',
+    //             tooltip: 'If false, the system disables AirDrop. Available in macOS 10.13 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowAirDrop',
+    //             },
+    //           },
+    //         ]
+    //       }
+    //       // {
+    //       //   subcategoryName: 'FileVault',
+    //       //   subcategorySlug: 'macos-filevault',
+    //       //   description: 'Settings related disk encryption on macOS devices.',
+    //       //   learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/fdefilevault',
+    //       //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+    //       //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+    //       //   payloads: [
+    //       //     // {// TODO: how do we want to accept this value?
+    //       //     //   name: 'Filevault certificate',
+    //       //     //   uniqueSlug: 'macos-filevault-certificate',
+    //       //     //   tooltip: 'The DER-encoded certificate data if the system creates an institutional recovery key. This key isn’t supported on Macs with Apple silicon.',
+    //       //     //   category: 'FileVault',
+    //       //     //   payload: 'FDEFileVault',
+    //       //     //   payloadType: 'com.apple.MCX.FileVault2',
+    //       //     //   formInput: {
+    //       //     //     type: 'text',
+    //       //     //   },
+    //       //     //   formOutput: {
+    //       //     //     settingFormat: 'data',
+    //       //     //     settingKey: 'Certificate',
+    //       //     //   },
+    //       //     // },
+    //       //     {
+    //       //       name: 'Enable FileVault',
+    //       //       uniqueSlug: 'macos-enable-filevault',
+    //       //       tooltip: 'Enables FileVault on macOS devices. Payloads that enable filevault sent through MDM need to either include full authentication information in the payload or have the Defer option set to true.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'Enable',
+    //       //         trueValue: 'On',
+    //       //         falseValue: 'Off'
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Create FileVault recovery key',
+    //       //       uniqueSlug: 'macos-use-recovery-key',
+    //       //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UseRecoveryKey',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Show recovery key to user after enabling FileVault',
+    //       //       uniqueSlug: 'macos-show-recovery-key',
+    //       //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UseRecoveryKey',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Open directory username',
+    //       //       uniqueSlug: 'macos-filevault-od-username',
+    //       //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'text',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'Username',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Open directory password',
+    //       //       uniqueSlug: 'macos-filevault-od-password',
+    //       //       tooltip: 'The password of the Open Directory user to add to FileVault. Use the "Ask end-user for missing information" key to prompt for this information.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'text',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'Password',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Ask end-user for missing information',
+    //       //       uniqueSlug: 'macos-filevault-ask-for-missing-info',
+    //       //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UserEntersMissingInfo',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Defer FileVault activation',
+    //       //       uniqueSlug: 'macos-defer-filevault-activation',
+    //       //       tooltip: 'If true, the system defers enabling FileVault until the designated user logs out. Only a local user or a mobile account user can enable FileVault.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'Defer',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Disable requests to enable FileVault when users log out.',
+    //       //       uniqueSlug: 'macos-disable-filevault-activiation-log-out',
+    //       //       tooltip: 'If true, the system prevents requests to enable FileVault at user logout time.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'DeferDontAskAtUserLogout',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Maximum number of times users can defer',
+    //       //       uniqueSlug: 'macos-filevault-max-bypass-attempts',
+    //       //       tooltip: 'The maximum number of times users can bypass enabling FileVault before the system requires the user to enable it to log in. If the value is 0, the system requires the user to enable FileVault the next time they attempt to log in. Set this key to -1 to disable this feature.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'number',
+    //       //         maxValue: 9999,
+    //       //         minValue: -1,
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'integer',
+    //       //         settingKey: 'DeferForceAtUserLoginMaxBypassAttempts',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Specify a path to FileVault recovery key',
+    //       //       uniqueSlug: 'macos-filevault-recovery-key',
+    //       //       tooltip: 'The path to the location of the recovery key and computer information property list.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'text',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'OutputPath',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Store recovery key in keychain',
+    //       //       uniqueSlug: 'macos-filevault-recovery-key-in-keychain',
+    //       //       tooltip: 'If true and you don’t include certificate information in this payload, the system uses the keychain created at /Library/Keychains/FileVaultMaster.keychain when it adds the institutional recovery key.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UseKeychain',
+    //       //       },
+    //       //     },
+    //       //     // {
+    //       //     //   name: 'Certificate UUID',
+    //       //     //   uniqueSlug: 'macos-filevault-certificate-uuid',
+    //       //     //   tooltip: 'The UUID of the payload within the same profile containing the asymmetric recovery key certificate payload.',
+    //       //     //   category: 'FileVault',
+    //       //     //   payload: 'FDEFileVault',
+    //       //     //   payloadType: 'com.apple.MCX.FileVault2',
+    //       //     //   formInput: {
+    //       //     //     type: 'text',
+    //       //     //   },
+    //       //     //   formOutput: {
+    //       //     //     settingFormat: 'string',
+    //       //     //     settingKey: 'PayloadCertificateUUID',
+    //       //     //   },
+    //       //     // },
+    //       //   ],
+    //       // },
+    //     ]
+    //   },
+    //   {
+    //     categoryName: 'Software & updates',
+    //     categorySlug: 'macos-software-and-updates',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'Gatekeeper',
+    //         subcategorySlug: 'macos-gatekeeper',
+    //         description: 'Settings related to Gatekeeper',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/systempolicycontrol',
+    //         payloads: [
+    //           {
+    //             name: 'Enable Gatekeeper',
+    //             uniqueSlug: 'macos-enable-gatekeeper',
+    //             tooltip: 'If true, enables Gatekeeper. If false, disables Gatekeeper.',
+    //             category: 'Gatekeeper',
+    //             payload: 'Control',
+    //             payloadType: 'com.apple.systempolicy.control',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableAssessment',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow identified developers',
+    //             uniqueSlug: 'macos-allow-identified-developers',
+    //             tooltip: 'If true, enables Gatekeeper’s “Mac App Store and identified developers” option. \n If false, enables Gatekeeper’s “Mac App Store” option.',
+    //             category: 'Gatekeeper',
+    //             payload: 'Control',
+    //             payloadType: 'com.apple.systempolicy.control',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AllowIdentifiedDevelopers',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable XProtect malware upload',
+    //             uniqueSlug: 'macos-enable-xprotect-malware-upload',
+    //             tooltip: 'If false, prevents Gatekeeper from prompting the user to upload blocked malware to Apple for purposes of improving malware detection.',
+    //             category: 'Gatekeeper',
+    //             payload: 'Control',
+    //             payloadType: 'com.apple.systempolicy.control',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableXProtectMalwareUpload',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //     ]
+    //   },
+    //   {
+    //     categoryName: 'Network',
+    //     categorySlug: 'macos-network',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'WiFi',
+    //         subcategorySlug: 'macos-wifi',
+    //         description: 'Settings related to wireless network configuration on macOS',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
+    //         payloads: [
+    //           {
+    //             name: 'Network SSID',
+    //             uniqueSlug: 'macos-wifi-ssid',
+    //             tooltip: 'The SSID of the Wi-Fi network to use.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'SSID_STR',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network password',
+    //             uniqueSlug: 'macos-wifi-password',
+    //             tooltip: 'The password for the access point.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'Password',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network encryption type',
+    //             uniqueSlug: 'macos-wifi-encryption-type',
+    //             tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               options: [
+    //                 {
+    //                   name: 'WEP',
+    //                   value: 'WEP'
+    //                 },
+    //                 {
+    //                   name: 'WPA',
+    //                   value: 'WPA'
+    //                 },
+    //                 {
+    //                   name: 'WPA2',
+    //                   value: 'WPA2',
+    //                 },
+    //                 {
+    //                   name: 'WPA3',
+    //                   value: 'WPA3',
+    //                 },
+    //                 {
+    //                   name: 'Any',
+    //                   value: 'Any',
+    //                 },
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None',
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'EncryptionType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Join network automatically',
+    //             uniqueSlug: 'macos-wifi-auto-join',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AutoJoin',
+    //             },
+    //           },
+    //           {
+    //             name: 'Hidden network',
+    //             uniqueSlug: 'macos-wifi-hidden-network',
+    //             tooltip: 'If true, defines this network as hidden.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'HIDDEN_NETWORK',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable IPV6',
+    //             uniqueSlug: 'macos-wifi-enable-ipv6',
+    //             tooltip: 'If true, enables IPv6 on this interface.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableIPv6',
+    //             },
+    //           },
+    //           {
+    //             name: 'Domain name',
+    //             uniqueSlug: 'macos-wifi-domain-name',
+    //             tooltip: 'The primary domain of the tunnel. Available in macOS 10.9 and later.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'DomainName',
+    //             },
+    //           },
+    //           {
+    //             name: 'Treat network as a hotspot',
+    //             uniqueSlug: 'macos-wifi-hotspot',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'IsHotspot',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow connection to roaming service providers',
+    //             uniqueSlug: 'macos-wifi-service-provider-roaming',
+    //             tooltip: 'If true, allows connection to roaming service providers.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ServiceProviderRoamingEnabled',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network HESSID',
+    //             uniqueSlug: 'macos-wifi-hessid',
+    //             tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'HESSID',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy type',
+    //             uniqueSlug: 'macos-wifi-proxy-type',
+    //             tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               controlsOtherFields: true,
+    //               options: [
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None'
+    //                 },
+    //                 {
+    //                   name: 'Manual',
+    //                   value: 'Manual',
+    //                   alsoSelectedWhenSet: [
+    //                     'macos-wifi-proxy-server',
+    //                     'macos-wifi-proxy-server-port',
+    //                   ]
+    //                 },
+    //                 {
+    //                   name: 'Auto',
+    //                   value: 'Auto',
+    //                   alsoSelectedWhenSet: [
+    //                     'macos-wifi-proxy-pac-url',
+    //                     'macos-wifi-proxy-pac-fallback',
+    //                   ]
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server address',
+    //             uniqueSlug: 'macos-wifi-proxy-server',
+    //             tooltip: 'The proxy server’s network address.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyServer',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server port',
+    //             uniqueSlug: 'macos-wifi-proxy-server-port',
+    //             tooltip: 'The proxy server’s port number.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 0,
+    //               maxValue: 65535,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'ProxyServerPort',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server username',
+    //             uniqueSlug: 'macos-wifi-proxy-server-username',
+    //             tooltip: 'The user name used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyUsername',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server password',
+    //             uniqueSlug: 'macos-wifi-proxy-server-password',
+    //             tooltip: 'The password used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPassword',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy PAC URL',
+    //             uniqueSlug: 'macos-wifi-proxy-pac-url',
+    //             tooltip: 'The URL of the PAC file that defines the proxy configuration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPACURL',
+    //             },
+    //           },
+    //           {
+    //             name: `Allow connections if a Proxy\'s PAC file is unreachable`,
+    //             uniqueSlug: 'macos-wifi-proxy-pac-fallback',
+    //             tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ProxyPACFallbackAllowed',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //       {
+    //         subcategoryName: 'Firewall',
+    //         subcategorySlug: 'macos-firewall',
+    //         description: 'Settings related to the built-in firewall on macOS',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/firewall',
+    //         payloads: [
+    //           {
+    //             name: 'Enable firewall',
+    //             uniqueSlug: 'macos-enable-firewall',
+    //             tooltip: 'If true, the system enables the firewall.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableFirewall',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow built-in applications',
+    //             uniqueSlug: 'macos-firewall-allow-signed',
+    //             tooltip: 'If true, the system allows built-in software to receive incoming connections. Available in macOS 12.3 and later.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AllowSigned',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow signed applications',
+    //             uniqueSlug: 'macos-firewall-allow-signed-apps',
+    //             tooltip: 'If true, the system allows downloaded signed software to receive incoming connections. Available in macOS 12.3 and later.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AllowSignedApp',
+    //             },
+    //           },
+    //           {
+    //             name: 'Block all incoming connections',
+    //             uniqueSlug: 'macos-firewall-block-incoming',
+    //             tooltip: 'If true, the system enables blocking all incoming connections.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'BlockAllIncoming',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable stealth mode',
+    //             uniqueSlug: 'macos-firewall-enable-stealth-mode',
+    //             tooltip: 'If true, the system enables stealth mode.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableStealthMode',
+    //             },
+    //           },
+    //           // { TODO: add support for specifying arrays of objects.
+    //           //   name: 'Allow/block specified applications',
+    //           //   uniqueSlug: 'macos-firewall-application-list',
+    //           //   tooltip: 'If true, the system enables stealth mode.',
+    //           //   category: 'Firewall',
+    //           //   payload: 'Firewall',
+    //           //   payloadType: 'com.apple.security.firewall',
+    //           //   formInput: {
+    //           //     type: 'array',
+    //           //     unitLabel: 'Bundle identifier'
+    //           //   },
+    //           //   formOutput: {
+    //           //     settingFormat: 'list',
+    //           //     settingKey: 'Applications',
+    //           //     trueValue: '<true/>',
+    //           //     falseValue: '<false/>',
+    //           //   },
+    //           // },
+    //         ]
+    //       }
+    //     ]
+    //   }
+    // ],
     //ios payloads
-    iosCategoriesAndPayloads: [
-      {
-        categoryName: 'Privacy & security',
-        categorySlug: 'ios-privacy-and-security',
-        subcategories: [
-          {
-            subcategoryName: 'Device lock',
-            subcategorySlug: 'ios-device-lock',
-            description: 'Settings related to screen lock and passwords.',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
-            payloads: [
-              {
-                name: 'Require device password',
-                uniqueSlug: 'ios-enable-force-pin',
-                tooltip: 'Require a password to unlock the device',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'forcePIN',
-                },
-              },
-              {
-                name: 'Maximum inactivity time before device locks',
-                uniqueSlug: 'ios-max-inactivity',
-                tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 4,
-                  minValue: 0,
-                  maxValue: 60,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxInactivity',
-                },
-              },
-              {
-                name: 'Minimum password length',
-                uniqueSlug: 'ios-min-length',
-                tooltip: 'The minimum overall length of the passcode.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 16,
-                  unitLabel: 'characters'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minLength',
-                },
-              },
-              {
-                name: 'Allow simple password',
-                uniqueSlug: 'ios-enable-allow-simple-pin',
-                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowSimple',
-                },
-              },
-              {
-                name: 'Require alphanumeric password',
-                uniqueSlug: 'ios-require-alphanumeric-password',
-                tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'requireAlphanumeric',
-                },
-              },
-              {
-                name: 'Minimum complex characters',
-                uniqueSlug: 'ios-min-complex-characters',
-                tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 4,
-                  unitLabel: 'characters'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minComplexChars',
-                },
-              },
-              {
-                name: 'Maximum grace period',
-                uniqueSlug: 'ios-max-grace-period',
-                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxGracePeriod',
-                },
-              },
-              {
-                name: 'Passcode history',
-                uniqueSlug: 'ios-passcode-history',
-                tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  minValue: 1,
-                  maxValue: 50,
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'pinHistory',
-                },
-              },
-              {
-                name: 'Maximum passcode age',
-                uniqueSlug: 'ios-max-pin-age',
-                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'days'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxPINAgeInDays',
-                },
-              },
-              {
-                name: 'Maximum number of failed attempts',
-                uniqueSlug: 'ios-max-failed-attempts',
-                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in iOS, the system securely erases all data and settings.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 11,
-                  minValue: 2,
-                  maxValue: 11,
-                  unitLabel: 'attempts'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxFailedAttempts',
-                },
-              },
-            ],
-          },
-          {
-            subcategoryName: 'Restrictions',
-            subcategorySlug: 'ios-restrictions',
-            description: 'Settings that configures restrictions on a device.',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
-            payloads: [
-              {
-                name: 'Allow erasing all content and settings',
-                uniqueSlug: 'ios-disable-erase-content',
-                tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI. Available in iOS 8 and later. Requires a supervised device.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowEraseContentAndSettings',
-                },
-              },
-              {
-                name: 'Allow device name modification',
-                uniqueSlug: 'ios-enable-device-name-modification',
-                tooltip: 'If false, the system prevents the user from changing the device name. Available in iOS 9 and later. Requires a supervised device.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowDeviceNameModification',
-                },
-              },
-              {
-                name: 'Allow UI configuration profile installation',
-                uniqueSlug: 'ios-allow-configuration-profile-installation',
-                tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.  Available in iOS 6 and later. Requires a supervised device.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowUIConfigurationProfileInstallation',
-                },
-              },
-              {
-                name: 'Allow camera',
-                uniqueSlug: 'ios-allow-camera',
-                tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in iOS 4 and later. Support for this restriction on unsupervised devices is deprecated.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowCamera',
-                },
-              },
-              {
-                name: 'Allow AirDrop',
-                uniqueSlug: 'ios-allow-airdrop',
-                tooltip: 'If false, the system disables AirDrop. Available in iOS 12 and later.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowAirDrop',
-                },
-              },
-              {
-                name: 'Allow opening documents created by managed apps in unmanaged apps.',
-                uniqueSlug: 'ios-allow-open-from-managed',
-                tooltip: 'If false, documents in managed apps and accounts open only in other managed apps and accounts. Available in iOS 7 and later.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowOpenFromManagedToUnmanaged',
-                },
-              },
-              {
-                name: 'Allow opening documents created by unmanaged apps in managed apps.',
-                uniqueSlug: 'ios-allow-open-from-unmanaged',
-                tooltip: 'If false, documents in unmanaged apps and accounts open only in other unmanaged apps and accounts. Available in iOS 7 and later.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowOpenFromUnmanagedToManaged',
-                },
-              },
-              {
-                name: 'Apply managed app restrictions to clipboard functionality.',
-                uniqueSlug: 'ios-managed-clipboard',
-                tooltip: 'If true, copy-and-paste functionality is limited by the "Allow opening documents created by unmanaged apps in managed apps" and "Allow opening documents created by managed apps in unmanaged apps." restrictions.',
-                category: 'Restrictions',
-                payload: 'Restrictions',
-                payloadType: 'com.apple.applicationaccess',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'requireManagedPasteboard',
-                },
-              },
-            ]
-          },
-        ]
-      },
+    // iosCategoriesAndPayloads: [
+    //   {
+    //     categoryName: 'Privacy & security',
+    //     categorySlug: 'ios-privacy-and-security',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'Device lock',
+    //         subcategorySlug: 'ios-device-lock',
+    //         description: 'Settings related to screen lock and passwords.',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
+    //         payloads: [
+    //           {
+    //             name: 'Require device password',
+    //             uniqueSlug: 'ios-enable-force-pin',
+    //             tooltip: 'Require a password to unlock the device',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'forcePIN',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum inactivity time before device locks',
+    //             uniqueSlug: 'ios-max-inactivity',
+    //             tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 4,
+    //               minValue: 0,
+    //               maxValue: 60,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxInactivity',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum password length',
+    //             uniqueSlug: 'ios-min-length',
+    //             tooltip: 'The minimum overall length of the passcode.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 16,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minLength',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow simple password',
+    //             uniqueSlug: 'ios-enable-allow-simple-pin',
+    //             tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowSimple',
+    //             },
+    //           },
+    //           {
+    //             name: 'Require alphanumeric password',
+    //             uniqueSlug: 'ios-require-alphanumeric-password',
+    //             tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'requireAlphanumeric',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum complex characters',
+    //             uniqueSlug: 'ios-min-complex-characters',
+    //             tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 4,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minComplexChars',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum grace period',
+    //             uniqueSlug: 'ios-max-grace-period',
+    //             tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxGracePeriod',
+    //             },
+    //           },
+    //           {
+    //             name: 'Passcode history',
+    //             uniqueSlug: 'ios-passcode-history',
+    //             tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 1,
+    //               maxValue: 50,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'pinHistory',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum passcode age',
+    //             uniqueSlug: 'ios-max-pin-age',
+    //             tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'days'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxPINAgeInDays',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum number of failed attempts',
+    //             uniqueSlug: 'ios-max-failed-attempts',
+    //             tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in iOS, the system securely erases all data and settings.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 11,
+    //               minValue: 2,
+    //               maxValue: 11,
+    //               unitLabel: 'attempts'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxFailedAttempts',
+    //             },
+    //           },
+    //         ],
+    //       },
+    //       {
+    //         subcategoryName: 'Restrictions',
+    //         subcategorySlug: 'ios-restrictions',
+    //         description: 'Settings that configures restrictions on a device.',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+    //         payloads: [
+    //           {
+    //             name: 'Allow erasing all content and settings',
+    //             uniqueSlug: 'ios-disable-erase-content',
+    //             tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI. Available in iOS 8 and later. Requires a supervised device.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowEraseContentAndSettings',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow device name modification',
+    //             uniqueSlug: 'ios-enable-device-name-modification',
+    //             tooltip: 'If false, the system prevents the user from changing the device name. Available in iOS 9 and later. Requires a supervised device.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowDeviceNameModification',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow UI configuration profile installation',
+    //             uniqueSlug: 'ios-allow-configuration-profile-installation',
+    //             tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.  Available in iOS 6 and later. Requires a supervised device.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowUIConfigurationProfileInstallation',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow camera',
+    //             uniqueSlug: 'ios-allow-camera',
+    //             tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in iOS 4 and later. Support for this restriction on unsupervised devices is deprecated.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowCamera',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow AirDrop',
+    //             uniqueSlug: 'ios-allow-airdrop',
+    //             tooltip: 'If false, the system disables AirDrop. Available in iOS 12 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowAirDrop',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow opening documents created by managed apps in unmanaged apps.',
+    //             uniqueSlug: 'ios-allow-open-from-managed',
+    //             tooltip: 'If false, documents in managed apps and accounts open only in other managed apps and accounts. Available in iOS 7 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowOpenFromManagedToUnmanaged',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow opening documents created by unmanaged apps in managed apps.',
+    //             uniqueSlug: 'ios-allow-open-from-unmanaged',
+    //             tooltip: 'If false, documents in unmanaged apps and accounts open only in other unmanaged apps and accounts. Available in iOS 7 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowOpenFromUnmanagedToManaged',
+    //             },
+    //           },
+    //           {
+    //             name: 'Apply managed app restrictions to clipboard functionality.',
+    //             uniqueSlug: 'ios-managed-clipboard',
+    //             tooltip: 'If true, copy-and-paste functionality is limited by the "Allow opening documents created by unmanaged apps in managed apps" and "Allow opening documents created by managed apps in unmanaged apps." restrictions.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'requireManagedPasteboard',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //     ]
+    //   },
 
-      {
-        categoryName: 'Network',
-        categorySlug: 'ios-network',
-        subcategories: [
-          {
-            subcategoryName: 'WiFi',
-            subcategorySlug: 'ios-wifi',
-            description: 'Settings related to wireless network configuration on iOS',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
-            payloads: [
-              {
-                name: 'Network SSID',
-                uniqueSlug: 'ios-wifi-ssid',
-                tooltip: 'The SSID of the Wi-Fi network to use.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'SSID_STR',
-                },
-              },
-              {
-                name: 'Network password',
-                uniqueSlug: 'ios-wifi-password',
-                tooltip: 'The password for the access point.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'Password',
-                },
-              },
-              {
-                name: 'Network encryption type',
-                uniqueSlug: 'ios-wifi-encryption-type',
-                tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'radio',
-                  options: [
-                    {
-                      name: 'WEP',
-                      value: 'WEP'
-                    },
-                    {
-                      name: 'WPA',
-                      value: 'WPA'
-                    },
-                    {
-                      name: 'WPA2',
-                      value: 'WPA2',
-                    },
-                    {
-                      name: 'WPA3',
-                      value: 'WPA3',
-                    },
-                    {
-                      name: 'Any',
-                      value: 'Any',
-                    },
-                    {
-                      name: 'None',
-                      value: 'None',
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'EncryptionType',
-                },
-              },
-              {
-                name: 'Join network automatically',
-                uniqueSlug: 'ios-wifi-auto-join',
-                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'AutoJoin',
-                },
-              },
-              {
-                name: 'Hidden network',
-                uniqueSlug: 'ios-wifi-hidden-network',
-                tooltip: 'If true, defines this network as hidden.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'HIDDEN_NETWORK',
-                },
-              },
-              {
-                name: 'Enable IPV6',
-                uniqueSlug: 'ios-wifi-enable-ipv6',
-                tooltip: 'If true, enables IPv6 on this interface.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'EnableIPv6',
-                },
-              },
-              {
-                name: 'Domain name',
-                uniqueSlug: 'ios-wifi-domain-name',
-                tooltip: 'The primary domain of the tunnel.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'DomainName',
-                },
-              },
-              {
-                name: 'Treat network as a hotspot',
-                uniqueSlug: 'ios-wifi-hotspot',
-                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'IsHotspot',
-                },
-              },
-              {
-                name: 'Allow connection to roaming service providers',
-                uniqueSlug: 'ios-wifi-service-provider-roaming',
-                tooltip: 'If true, allows connection to roaming service providers.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'ServiceProviderRoamingEnabled',
-                },
-              },
-              {
-                name: 'Network HESSID',
-                uniqueSlug: 'ios-wifi-hessid',
-                tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'HESSID',
-                },
-              },
-              {
-                name: 'Proxy type',
-                uniqueSlug: 'ios-wifi-proxy-type',
-                tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'radio',
-                  controlsOtherFields: true,
-                  options: [
-                    {
-                      name: 'None',
-                      value: 'None'
-                    },
-                    {
-                      name: 'Manual',
-                      value: 'Manual',
-                      alsoSelectedWhenSet: [
-                        'ios-wifi-proxy-server',
-                        'ios-wifi-proxy-server-port',
-                      ]
-                    },
-                    {
-                      name: 'Auto',
-                      value: 'Auto',
-                      alsoSelectedWhenSet: [
-                        'ios-wifi-proxy-pac-url',
-                        'ios-wifi-proxy-pac-fallback',
-                      ]
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyType',
-                },
-              },
-              {
-                name: 'Proxy server address',
-                uniqueSlug: 'ios-wifi-proxy-server',
-                tooltip: 'The proxy server’s network address.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyServer',
-                },
-              },
-              {
-                name: 'Proxy server port',
-                uniqueSlug: 'ios-wifi-proxy-server-port',
-                tooltip: 'The proxy server’s port number.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'number',
-                  minValue: 0,
-                  maxValue: 65535,
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'ProxyServerPort',
-                },
-              },
-              {
-                name: 'Proxy server username',
-                uniqueSlug: 'ios-wifi-proxy-server-username',
-                tooltip: 'The user name used to authenticate to the proxy server.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyUsername',
-                },
-              },
-              {
-                name: 'Proxy server password',
-                uniqueSlug: 'ios-wifi-proxy-server-password',
-                tooltip: 'The password used to authenticate to the proxy server.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyPassword',
-                },
-              },
-              {
-                name: 'Proxy PAC URL',
-                uniqueSlug: 'ios-wifi-proxy-pac-url',
-                tooltip: 'The URL of the PAC file that defines the proxy configuration.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'ProxyPACURL',
-                },
-              },
-              {
-                name: `Allow connections if a proxy\'s PAC file is unreachable`,
-                uniqueSlug: 'ios-wifi-proxy-pac-fallback',
-                tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
-                category: 'WiFi',
-                payload: 'WiFi',
-                payloadGroup: 'Proxy',
-                payloadType: 'com.apple.wifi.managed',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'ProxyPACFallbackAllowed',
-                },
-              },
-            ]
-          },
-        ]
-      }
-    ],
+    //   {
+    //     categoryName: 'Network',
+    //     categorySlug: 'ios-network',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'WiFi',
+    //         subcategorySlug: 'ios-wifi',
+    //         description: 'Settings related to wireless network configuration on iOS',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
+    //         payloads: [
+    //           {
+    //             name: 'Network SSID',
+    //             uniqueSlug: 'ios-wifi-ssid',
+    //             tooltip: 'The SSID of the Wi-Fi network to use.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'SSID_STR',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network password',
+    //             uniqueSlug: 'ios-wifi-password',
+    //             tooltip: 'The password for the access point.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'Password',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network encryption type',
+    //             uniqueSlug: 'ios-wifi-encryption-type',
+    //             tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               options: [
+    //                 {
+    //                   name: 'WEP',
+    //                   value: 'WEP'
+    //                 },
+    //                 {
+    //                   name: 'WPA',
+    //                   value: 'WPA'
+    //                 },
+    //                 {
+    //                   name: 'WPA2',
+    //                   value: 'WPA2',
+    //                 },
+    //                 {
+    //                   name: 'WPA3',
+    //                   value: 'WPA3',
+    //                 },
+    //                 {
+    //                   name: 'Any',
+    //                   value: 'Any',
+    //                 },
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None',
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'EncryptionType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Join network automatically',
+    //             uniqueSlug: 'ios-wifi-auto-join',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AutoJoin',
+    //             },
+    //           },
+    //           {
+    //             name: 'Hidden network',
+    //             uniqueSlug: 'ios-wifi-hidden-network',
+    //             tooltip: 'If true, defines this network as hidden.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'HIDDEN_NETWORK',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable IPV6',
+    //             uniqueSlug: 'ios-wifi-enable-ipv6',
+    //             tooltip: 'If true, enables IPv6 on this interface.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableIPv6',
+    //             },
+    //           },
+    //           {
+    //             name: 'Domain name',
+    //             uniqueSlug: 'ios-wifi-domain-name',
+    //             tooltip: 'The primary domain of the tunnel.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'DomainName',
+    //             },
+    //           },
+    //           {
+    //             name: 'Treat network as a hotspot',
+    //             uniqueSlug: 'ios-wifi-hotspot',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'IsHotspot',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow connection to roaming service providers',
+    //             uniqueSlug: 'ios-wifi-service-provider-roaming',
+    //             tooltip: 'If true, allows connection to roaming service providers.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ServiceProviderRoamingEnabled',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network HESSID',
+    //             uniqueSlug: 'ios-wifi-hessid',
+    //             tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'HESSID',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy type',
+    //             uniqueSlug: 'ios-wifi-proxy-type',
+    //             tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               controlsOtherFields: true,
+    //               options: [
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None'
+    //                 },
+    //                 {
+    //                   name: 'Manual',
+    //                   value: 'Manual',
+    //                   alsoSelectedWhenSet: [
+    //                     'ios-wifi-proxy-server',
+    //                     'ios-wifi-proxy-server-port',
+    //                   ]
+    //                 },
+    //                 {
+    //                   name: 'Auto',
+    //                   value: 'Auto',
+    //                   alsoSelectedWhenSet: [
+    //                     'ios-wifi-proxy-pac-url',
+    //                     'ios-wifi-proxy-pac-fallback',
+    //                   ]
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server address',
+    //             uniqueSlug: 'ios-wifi-proxy-server',
+    //             tooltip: 'The proxy server’s network address.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyServer',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server port',
+    //             uniqueSlug: 'ios-wifi-proxy-server-port',
+    //             tooltip: 'The proxy server’s port number.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 0,
+    //               maxValue: 65535,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'ProxyServerPort',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server username',
+    //             uniqueSlug: 'ios-wifi-proxy-server-username',
+    //             tooltip: 'The user name used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyUsername',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server password',
+    //             uniqueSlug: 'ios-wifi-proxy-server-password',
+    //             tooltip: 'The password used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPassword',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy PAC URL',
+    //             uniqueSlug: 'ios-wifi-proxy-pac-url',
+    //             tooltip: 'The URL of the PAC file that defines the proxy configuration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPACURL',
+    //             },
+    //           },
+    //           {
+    //             name: `Allow connections if a proxy\'s PAC file is unreachable`,
+    //             uniqueSlug: 'ios-wifi-proxy-pac-fallback',
+    //             tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ProxyPACFallbackAllowed',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //     ]
+    //   }
+    // ],
     // windows payloads
     windowsCategoriesAndPayloads: [
+      {
+        categoryName: 'Date & time',
+        categorySlug: 'windows-date-and-time',
+        subcategorySlug: 'windows-date-and-time',
+        subcategoryName: 'Date & time',
+        description: 'Settings related to screen lock and passwords.',
+        learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
+        payloads: [
+          {
+            name: 'Allow users to change date and time settings',
+            uniqueSlug: 'windows-device-lock-enable-device-lock',
+            tooltip: 'Allows the user to change date and time settings.',
+            category: 'Date & time',
+            supportedAccessTypes: ['add', 'replace'],
+            formInput: {
+              type: 'boolean',
+            },
+            formOutput: {
+              settingFormat: 'int',
+              settingTarget: './Device/Vendor/MSFT/Policy/Config/Settings/AllowDateTime',
+              trueValue: 1,
+              falseValue: 0,
+            },
+          },
+        ],
+      },
       {
         categoryName: 'Privacy & security',
         categorySlug: 'windows-privacy-and-security',
@@ -2199,6 +2226,204 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'int',
                   settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableAppInstallControl',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'Personalization',
+            subcategorySlug: 'windows-personalization',
+            description: 'Settings for personalizing a Windows devices.',// TODO: improve/rewrite.
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
+            payloads: [
+              {
+                name: 'Allow personalization policies on non-EDU versions of Windows',
+                tooltip: `Allows Personalization CSPs to be deployed on non-Enterprise versions of Windows. Setting this value to true triggers the action to configure a device as education environment. Thorough testing is crucial to ensure it does not disrupt workflows or create compatibility issues.`,
+                uniqueSlug: 'windows-allow-personalization-policies',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/SharedPC/SetEduPolicies',
+                  trueValue: true,
+                  falseValue: false,
+                },
+              },
+              {
+                name: 'Set wallpaper from a URL',
+                tooltip: `Sets a device's wallpaper from a URL.`,
+                uniqueSlug: 'windows-set-wallpaper-url',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-allow-personalization-policies',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Vendor/MSFT/Personalization/DesktopImageUrl',
+                },
+              },
+              {
+                name: 'Set lockscreen image from a URL',
+                tooltip: `Sets a device's lockscreen image from a URL.`,
+                uniqueSlug: 'windows-set-lockscreen-url',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-allow-personalization-policies',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Vendor/MSFT/Personalization/LockScreenImageUrl',
+                },
+              },
+              {
+                name: 'Set device name',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-set-device-name',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/DeviceName',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'Functionality',
+            subcategorySlug: 'windows-functionality',
+            description: 'Settings that restrict specific windows features',// TODO: improve/rewrite.
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
+            payloads: [
+              {
+                name: 'Disable AI data analysis',
+                tooltip: `Whether snapshots of the screen can be saved for use with Recall. By default, snapshots for Recall aren't enabled. IT administrators can't, on their own, enable saving snapshots on behalf of their users. If you set this policy to disabled, end users will have a choice to save snapshots of their screen and use Recall to find things they've seen on their device.`,
+                uniqueSlug: 'windows-disable-ai-analysis',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/WindowsAI/DisableAIDataAnalysis',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable clipboard history',
+                tooltip: `Whether the history of clipboard contents can be stored in memory.`,
+                uniqueSlug: 'windows-disable-clipboard-history',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowClipboardHistory',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable Cortana',
+                tooltip: `Whether Cortana is allowed on the device`,
+                uniqueSlug: 'windows-disable-cortana',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable screen capture',
+                tooltip: `Whether screen capture is disabled on the device.`,
+                uniqueSlug: 'windows-disable-screen-capture',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowScreenCapture',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable Windows spotlight',
+                tooltip: `Whether to turn off all Windows spotlight features.`,
+                uniqueSlug: 'windows-disable-windows-spotlight',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './User/Vendor/MSFT/Policy/Config/Experience/AllowWindowsSpotlight',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable OneDrive',
+                tooltip: `Prevent apps and features from working with files on OneDrive`,
+                uniqueSlug: 'windows-disable-onedrive',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable quick setting panel',
+                tooltip: `Remove the quick settings from the bottom right area on the taskbar.`,
+                uniqueSlug: 'windows-disable-quick-settings',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './User/Vendor/MSFT/Policy/Config/Start/DisableControlCenter',
+                  trueValue: 1,
+                  falseValue: 0,
                 },
               },
             ],
@@ -4534,6 +4759,7 @@ parasails.registerPage('configuration-builder', {
         this.selectedPayloads = _.uniq(newSelectedPayloads);
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       }
+      await this._enableToolTips();
       await this.forceRender();
     },
     clickOpenResetFormModal: function() {

@@ -1,18 +1,28 @@
 import React, { useContext, useState } from "react";
-import { Link } from "react-router";
 
 import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
 import classnames from "classnames";
 
+import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "end-user-auth-form";
 
+const getTooltipCopy = (android = false) => {
+  return (
+    <>
+      {android ? "Android" : "Apple"} MDM must be turned on in <b>Settings</b>{" "}
+      &gt; <b>Integrations</b> &gt; <b>Mobile Device Management (MDM)</b> to
+      turn on end user authentication.
+    </>
+  );
+};
 interface IEndUserAuthFormProps {
   currentTeamId: number;
   defaultIsEndUserAuthEnabled: boolean;
@@ -64,9 +74,20 @@ const EndUserAuthForm = ({
         <p className={classes}>
           Require end users to authenticate with your identity provider (IdP)
           and agree to an end user license agreement (EULA) when they setup
-          their new macOS, iOS, iPadOS and Android hosts.{" "}
-          <Link to={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}>View IdP</Link>{" "}
-          and <Link to={PATHS.ADMIN_INTEGRATIONS_MDM}>EULA</Link>.
+          their new{" "}
+          <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>,{" "}
+          <TooltipWrapper tipContent={getTooltipCopy()}>iOS</TooltipWrapper>,{" "}
+          <TooltipWrapper tipContent={getTooltipCopy()}>iPadOS</TooltipWrapper>{" "}
+          and{" "}
+          <TooltipWrapper tipContent={getTooltipCopy(true)}>
+            Android
+          </TooltipWrapper>{" "}
+          hosts.{" "}
+          <CustomLink
+            url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
+            text="View IdP"
+          />{" "}
+          and <CustomLink url={PATHS.ADMIN_INTEGRATIONS_MDM} text="EULA" />.
         </p>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (

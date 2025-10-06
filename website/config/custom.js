@@ -129,6 +129,7 @@ module.exports.custom = {
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     '/docs/get-started/faq': 'zayhanlon',
+    'docs/Contributing/rituals': 'lukeheath',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // Fleet's internal IT and security (+dogfooding)
@@ -266,6 +267,8 @@ module.exports.custom = {
     '.github/workflows/deploy-vulnerability-dashboard.yml': ['eashaw','mikermcneil'],// (vulnerabiltiy dashboard deploy script)
     '.github/workflows/test-vulnerability-dashboard-changes.yml': ['eashaw','mikermcneil'],//« vulnerabiltiy dashboard CI test script
     '.github/workflows': ['lukeheath', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
+    '.github/workflows/dogfood-automated-policy-updates.yml': 'allenhouchins',
+    '.github/workflows/dogfood-gitops.yml': 'allenhouchins',
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],// (« for changing who reviews is automatically requested from for given paths)
@@ -331,7 +334,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.18.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.19.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -380,7 +383,7 @@ module.exports.custom = {
     'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
   ],
 
-  // For website signups & contact form submissions:
+  // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
     'gmail.com',
     'yahoo.com',
@@ -395,6 +398,13 @@ module.exports.custom = {
     'yandex.ru',
     'ymail.com',
     'qq.com',
+    'example.com',
+  ],
+
+  // For contact form submissions.
+  // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
+  bannedEmailDomainsForContactFormSubmissions: [
+    'example.com'
   ],
 
   /***************************************************************************
@@ -406,10 +416,14 @@ module.exports.custom = {
     projects: {
       orchestration: 71,
       mdm: 58,
-      software: 70
+      software: 70,
+      'security-compliance': 97
     },
     excludeWeekends: true
   },
+
+  // Docsearch search-only public key.
+  algoliaPublicKey: 'f3c02b646222734376a5e94408d6fead',// [?]: https://docsearch.algolia.com/docs/legacy/faq/#can-i-share-the-apikey-in-my-repo
 
   // Zapier:
   // zapierWebhookSecret: '…',

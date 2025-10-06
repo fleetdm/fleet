@@ -41,13 +41,16 @@
   &__host_vitals-fields {
     width: auto;
     display: flex;
-    align-items: center;
-    gap: $pad-medium;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $pad-small;
+
+    #criterion-and-value {
+      display: flex;
+      align-items: center;
+      gap: $pad-medium;
+    }
     .form-field--dropdown {
-      margin-right: -14px;
-      .form-field__help-text {
-        white-space: nowrap;
-      }
       .Select {
         width: 300px;
       }

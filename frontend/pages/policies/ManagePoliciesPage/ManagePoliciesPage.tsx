@@ -52,6 +52,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
 import LastUpdatedText from "components/LastUpdatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -363,8 +364,7 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canManageAutomations = canAddOrDeletePolicies;
 
   const {
     data: globalConfig,
@@ -1308,37 +1308,39 @@ const ManagePolicyPage = ({
   }
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
+
+            {showCtaButtons && (
+              <div className={`${baseClass} button-wrap`}>
+                {automationsDropdown}
+                {canAddOrDeletePolicies && (
+                  <div className={`${baseClass}__action-button-container`}>
+                    <Button
+                      className={`${baseClass}__select-policy-button`}
+                      onClick={onAddPolicyClick}
+                    >
+                      Add policy
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          {showCtaButtons && (
-            <div className={`${baseClass} button-wrap`}>
-              {automationsDropdown}
-              {canAddOrDeletePolicies && (
-                <div className={`${baseClass}__action-button-container`}>
-                  <Button
-                    className={`${baseClass}__select-policy-button`}
-                    onClick={onAddPolicyClick}
-                  >
-                    Add policy
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className={`${baseClass}__description`}>
-          <p>{teamsDropdownHelpText}</p>
+          <PageDescription content={teamsDropdownHelpText} />
         </div>
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
-            availableIntegrations={automationsConfig.integrations}
+            availableIntegrations={
+              // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.
+              globalConfig?.integrations || automationsConfig.integrations
+            }
             availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
@@ -1396,7 +1398,7 @@ const ManagePolicyPage = ({
             teamId={currentTeamId ?? 0}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

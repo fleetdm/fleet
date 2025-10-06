@@ -6,7 +6,7 @@ This page covers the things every team member needs to know to effectively contr
 
 Every month, Fleet holds a company-wide meeting called the "All hands". 
 
-All team members should attend the "All hands" every month.  "All hands" meetings are recorded, To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
+All team members should attend the "All hands" every month.  "All hands" meetings are recorded. To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
 
 
 ### E-group 
@@ -54,8 +54,8 @@ Fleet is successful because of our customers and community, and those relationsh
 | SWAG                                 | <sup><sub>_See [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Onboarding and training              | <sup><sub>_See [🧑‍🚀 Interim Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
-| Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Interim Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
+| Onboarding and training              | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
+| Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 | Internal tools & equipment           | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 | Bookkeeping, AR/AP                   | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
@@ -69,12 +69,12 @@ Fleet is successful because of our customers and community, and those relationsh
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
+| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Product introduction docs            | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Product reference docs               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Product reference docs               | <sup><sub>_[Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
@@ -218,7 +218,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assitant, Interim Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assitant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -227,7 +227,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Executive Assistant, Interim Head of People, and Head of Digital Workplace & GTM Systems)_
+- **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and Head of Digital Workplace & GTM Systems)_
 
 
 ## Company database
@@ -251,11 +251,19 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 ### Key Slack channels
 
 We use these prefixes to organize the Fleet Slack:
- - ***g-***: for cross-functional group channels (i.e. a product or GTM group) *(Note: "g-" is short for "grupo" or "group")*.
- - ***oooh-***: used to discuss and share interesting information about a topic.
- - ***help-***: for asking for help on specific topics.
- - ***at*** or ***fleet-at***: for customer channels.
- - ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
+ - ***2025-***: For temporary channels that will be closed in a matter of weeks or months. _(Note: specify the relevant year in four digits, like "YYYY-`)_
+ - ***_***: An automated feed.
+ - ***test-***: For testing custom Slack integrations before connecting to real channels.
+ - ***oooh-***: For sharing news/tips/cool finds about a non-political, work-related subject.
+ - ***2025-hiring-***: For private communication during the hiring process.
+ - ***help-***: For questions, assistance, and resources on a topic or from a vendor.
+   - ***help-`VENDOR_NAME`-vendor***: A channel for communication between one of Fleet's vendors and the internal stakeholders.
+   - ***help-`PARTNER_NAME`-partnership***: A channel for communication between one of Fleet's partners and the internal stakeholders. 
+ - ***g-***: A cross-functional group channel (i.e. a product or GTM group, "g-" is short for "grupo" or "group").
+ - ***op-***: A private internal channel about a new revenue opportunity.
+ - ***acc-***: A private internal channel about a customer account.
+ - ***fleet-at-***: A Fleet support+sales channel for a customer or prospect, with them in it.
+
 
 We have specific channels for various topics, but we also have more general channels for the teams at Fleet. The following Slack channels are useful for every fleetie:
 
@@ -725,7 +733,7 @@ When _receiving_ feedback:
 
 When attending a conference or traveling for Fleet, keep the following in mind:
 - **No reimbursements:** Use your company Brex card.  Reimbursements are time-consuming, so Fleet does not offer reimbursements for spending on personal credit cards.
-- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _There are many good reasons to make exceptions to this allowance, such as dinners with customers.
+- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. There are many good reasons to make exceptions to this allowance, such as dinners with customers.
 - **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
 - **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 - **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
@@ -770,7 +778,7 @@ From time to time, Fleet organizes offsites to bring team members together in pe
 Offsites are:
   - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
   - Sometimes also attended by founders or other team members on a case-by-case basis.
-  - 1-3 full days long (2-4 nights stay)
+  - 1-3 full days long (2-4 nights stay).
   - A ritual of effective teams, not a reward or vacation.
   - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
   - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
@@ -825,71 +833,143 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Retirement contributions
 
-**US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employee’s contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
+**US-based team members:** Starting August 2023, Fleet offers the ability for US-based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employees' contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
 
 **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
+
+
+### Wellness budget 
+
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation
 
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
-### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions. 
+#### Payroll dates
 
+US-based Fleeties get paid on the last business day of the month. International teammates' pay dates follow the same structure as US pay unless there are in-country requirements that dictate a more frequent cadence.
 
-### Payroll dates
-
-US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
-
-Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
+Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions.
 
 
-### Workiversaries
+#### Compensation changes
+
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
+
+
+#### Exercise stock options
+
+Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
+
+- For *Fleeties exercising Non-Qualified Stock Options (NSOs)*, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
+- For *Fleeties who are US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
+
+> FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
+> I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
+
+As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
+
+> Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
+
+- For *Fleeties who are non-US tax residents*, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
+
+
+## Workiversaries
 
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
 
 
-### Compensation changes
-
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation). 
-
-
-### Relocating
+## Relocating
 
 When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
 ## Writing
 
-Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more.
+Learn how to write as Fleet: 
+- [Writing style](https://fleetdm.com/handbook/company/communication#writing-style)
+- [Writing types](https://fleetdm.com/handbook/company/communication#writing-types)
+- [Editing and publishing](https://fleetdm.com/handbook/company/communication#editing-and-publishing)
+- [Writing assistance](https://fleetdm.com/handbook/company/communication#writing-assistance).
+- [Writing mechanics](https://fleetdm.com/handbook/company/communication#writing-mechanics)
+- [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communication#writing-in-fleet-flavored-markdown)
 
 
 ### Writing style
 
-  - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
-  - Read and reread, then rewrite to make it shorter. Use links rather than explanations, and favor short sentences. 
-  - Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
-  - Don’t sound formal, sound welcoming so that anyone can understand. Translate "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)" into "ease of use" or "readability".
-    - Disarm puffery for engineers by replacing puffery with real data.
-    - Disarm puffery for the business by replacing puffery with ROI/RTO  (how much time and/or money is it going save the business?  Forget the details.  When will it pay itself back?)
-  - Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
-  - Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). 
-  - Read your PRs, check it carefully with each change and edit until the diff looks good.
-  - Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
+Fleet’s writing style is clear, simple, and welcoming. We use short sentences, plain English, and an active voice so anyone can follow along. Instead of sounding formal, we aim for approachable and easy to read. We infuse the company’s [values](https://fleetdm.com/handbook/company#values) into everything we write. That means being transparent, straightforward, and respectful of the reader’s time.
 
-#### Use links in your writing
+We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)". For engineers, replace hype with real data. For business readers, translate it into clear outcomes such as time saved or return on investment. Links are better than long explanations, since they keep content short and point people to more detail when they need it.
 
-Don’t duplicate content. Link to existing places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. Linking to existing material when something comes up is a gentle way to remind and train using the foundation we've already built.
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communication#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
 
-Create headings that make good permalinks, use links and add missing links. Don't anchor links with "here" or "click here"; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO. We run `grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .` in CI to make sure those link anchors don't slip in.
+When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 
-### What would Mister Rogers say?
 
-[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
+### Writing types
 
-Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
+Different types of writing at Fleet have slightly different expectations. Keep the shared principles in mind (plain English, brevity, clarity), but adjust for the format.
+
+
+#### Guides and tutorials
+
+- Write in short sentences, imperative mood, and active voice.
+  - Example: “Click Save.” not “The button should then be clicked.”
+- Format as directional, step-by-step instructions, not narrative prose.
+- Use **bold** text when referencing UI elements.
+  - Example: “Navigate to **Hosts** and click **Add a host**.”
+- Surface the simple, high-level steps first.
+- Place advanced or technical details, including troubleshooting, in a separate section at the bottom.
+- Keep it practical, avoid marketing fluff, superlatives, and unnecessary adjectives.
+
+
+#### Announcements
+
+- Lead with the news. Put the key point in the first sentence.
+- Keep it brief (two to four sentences).
+- Use plain, factual language without fluff.
+- Include a clear link or call to action if readers need to follow up.
+
+
+#### Articles
+
+- Keep the tone conversational and approachable, while still representing Fleet.
+- Provide context or insight (the “why”), not just the “what.”
+- Avoid jargon unless you explain it.
+- Stay aligned with Fleet’s values and overall voice.
+
+> To propose an article for Fleet to publish, create an ["📝 Article" issue](https://github.com/fleetdm/fleet/issues/new?template=fleet-article.md) 
+ and follow the instructions in the template.
+
+
+#### Website copy
+
+- Keep it simple: short sentences, plain English, imperative mood.
+- Avoid fluff, filler, or jargon.
+- Emphasize reader outcomes. Show what someone can do with Fleet, not just what Fleet is.
+  - Example: _“Manage all your devices in one place”_ instead of _“Fleet is the leading platform for device management.”_
+- Use headings and subheadings to make scanning easy.
+- Keep calls to action direct and specific 
+  - Example: _“Try Fleet”_ instead of _“Learn more about our amazing platform.”_
+
+
+### Editing and publishing
+
+Follow these steps before merging a change:
+
+- Avoid unnecessary changes to headings, since this can break handbook links shared in other places.
+- Link instead of duplicating content. If a concept exists elsewhere, link to it rather than restating it.
+- Review your pull request carefully. Read the diff line by line until it looks intentional.
+- Check preview mode in GitHub to make sure formatting renders correctly.
+- Look for and remove any unintentional changes in your diff.
+
+
+#### What would Mister Rogers say?
+
+[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity. Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
 
 - State the idea you want to express as clearly as possible.
 - Rephrase the idea in a positive manner.
@@ -909,7 +989,9 @@ What would Mister Rogers say? The tweet could look something like this...
 By Mister Rogersing our writing, we can encourage our readers to succeed by emphasizing optimism. You might not be able to apply all of these steps every time. That’s fine. Think of these as guidelines to help you simplify complex topics.
 
 
-### Grammarly
+### Writing assistance
+
+#### Grammarly
 
 All of our writers and editors have access to Grammarly, which comes with a handy set of tools, including:
 - **Style guide**, which helps us write consistently in the style of Fleet.
@@ -917,14 +999,42 @@ All of our writers and editors have access to Grammarly, which comes with a hand
 - **Snippets** to turn commonly used phrases, sentences, and paragraphs (such as calls to action, thank you messages, etc.) into consistent, reusable snippets to save time.
 
 
-### Using sentence case and capitalization
+#### Generative AI
+
+Collaborating with AI can be helpful for outlines, rewrites, and drafts. But it’s not a substitute for judgment. You (a human) are responsible for accuracy, tone, and format. 
+- Don’t paste sensitive data.
+- Always fact-check names, versions, dates, and links.
+- Question everything you don't understand and strip out anything fabricated.
+- Make sure the tone sounds like Fleet (plain English, short sentences, active voice) and watch for common AI habits like the overuse of em dashes, over-bolding, or passive voice.
+
+Finally, check the format that you are writing for. [Guides](https://fleetdm.com/handbook/company/communication#guides-and-tutorials) should be step-by-step instructions, [announcements](https://fleetdm.com/handbook/company/communication#announcements) should be short and factual, and [articles](https://fleetdm.com/handbook/company/communication#articles) can be more conversational but still simple and professional.
+
+
+#### Prompt template
+
+```
+Act as a Fleet editor. Audience: IT and security practitioners.
+Goal: <what you need>.
+Tone: simple, plain English; short sentences; imperative mood; active voice.
+Format: <guide | announcement | article>.
+Constraints:
+- No marketing fluff, superlatives, or filler adjectives.
+- Use sentence case for headings.
+- For guides: numbered, step-by-step instructions; no narrative prose.
+- Bold UI elements only (e.g., **Hosts**, **Add a host**).
+- Prefer commas over em dashes; use colons sparingly.
+Output: valid Markdown.
+```
+
+
+### Writing mechanics
+
+Writing mechanics cover everything from capitalization and punctuation to list formatting and SQL examples. Following them keeps our content consistent and easy to read. For Markdown-specific rules, see [Writing in Fleet-flavored Markdown](#writing-in-fleet-flavored-markdown).
 
 
 #### Sentence case
 
-Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
-
-In sentence case, we write and capitalize words as if they were in sentences:
+Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation. In sentence case, we write and capitalize words as if they were in sentences:
 
 <blockquote purpose= "large-quote"> Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS.</blockquote>
 
@@ -932,7 +1042,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 - Proper nouns _("Nudge", "Skimbleshanks", "Kleenex")_
   - "Yeah, we use Nudge."
-  - "Introducing our friend Skimbleshanks."
+  - "Introducing our friend, Skimbleshanks."
   - "Please, can I have a Kleenex?"
 - Acronyms _("MDM", "REST", "API", "JSON")_
   - "MDM commands in Fleet are available over a REST API that returns JSON."
@@ -942,8 +1052,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
   - "Does it work with MySQL?"
   - "Does it use APNs (the Apple Push Notification service)?"
 
-- ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/cca980db-24e1-4303-a120-ecdb7419aac4">
+> ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
 
 
 #### Capitalization and proper nouns
@@ -957,28 +1066,39 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - **Fleetctl:** Fleetctl should always be written in lowercase unless used to start a sentence or heading. Fleetctl should always be in plain text and not inside codeblocks text unless used in a command (ex. `fleetctl -help`).
 
 
+#### Links and anchors
+
+- Make links meaningful (avoid “here” / “click here”); link descriptive words.
+- Link to existing pages instead of duplicating content.
+- Favor permalinks and headings that make good anchors (people link to sections).
+
+> > **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
+
+
 #### Device vs endpoint
 
 - When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
 
 
-### Headings and titles
+#### Headings and titles
 
 Headings and titles should:
-
 - Give an accurate idea of a topic's content.
 - Help guide readers through your writing so they can quickly find what they need.
 - [Make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing).
 
-#### Static headings
+
+##### Static headings
 
 Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
 
-#### Task-based headings
+
+##### Task-based headings
 
 Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
 
-#### Avoid _-ing_ verb forms in headings
+
+##### Avoid _-ing_ verb forms in headings
 
 Avoid starting a heading with _-ing_ verb form, if possible.
 
@@ -988,20 +1108,22 @@ _-ing_ verb forms are more difficult for non-native English readers to understan
 | ---------------- | -------------------- |
 | “Configure a log destination” | “Configuring a log destination” |
 
-#### Avoid vague verbs in headings
 
-Were possible, avoid starting a heading with a vague verb, like “understand,” “learn,” or “Use.” Headings that start with a vague verb can mislead readers by making a topic appear to be task-oriented (a guide) when it is actually reference or conceptual information. 
+##### Avoid vague verbs in headings
+
+Where possible, avoid starting a heading with a vague verb, like “understand,” “learn,” or “Use.” Headings that start with a vague verb can mislead readers by making a topic appear to be task-oriented (a guide) when it is actually reference or conceptual information. 
 
 | ✅ Recommended | ❌ Not recommended | 
 | ---------------- | -------------------- |
 | “Log destinations” | “Understand log destinations.” |
 
 
-#### Avoid code in headings
+##### Avoid code in headings
 
 While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document. That aside, it doesn't render well on the website.
 
-#### Heading hierarchy 
+
+##### Heading hierarchy 
 
 Use heading tags to structure your content hierarchically. Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
 
@@ -1010,7 +1132,8 @@ Use heading tags to structure your content hierarchically. Try to stay within th
 - H3: Subheadings
 - H4: Sub-subheadings
 
-#### Punctuation in headings
+
+##### Punctuation in headings
 
 Fleet headings do not use end punctuation unless the heading is a question:
 
@@ -1019,12 +1142,9 @@ Fleet headings do not use end punctuation unless the heading is a question:
 If the heading is a question, end the heading with a question mark.
 
 
-### Grammar mechanics
-
-
 #### Contractions 
 
-They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable
+They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable.
 
 
 #### Ampersands 
@@ -1083,9 +1203,6 @@ Then use the short version for all other references.
 If the abbreviation or acronym is well known, like API or HTML, use it instead (and don’t worry about spelling it out).
 
 
-### Numbers and times
-
-
 #### Numbers
 
 Spell out a number when it begins a sentence. Otherwise, use the numeral. 
@@ -1123,7 +1240,7 @@ Spell out international time zones:
 - Japan Standard Time
 
 
-### Emphasis
+#### Emphasis
 
 - **Bold:** Use bold text to emphasize words or phrases. Just don’t overdo it. Too much bold text may make it hard to see what’s really important.
 
@@ -1131,21 +1248,21 @@ Spell out international time zones:
   - On the settings page, go to *Organization Settings* and select *Fleet Desktop*.
 
 
-### Lists
+#### Lists
 
 Lists help readers scan content for essential information. They should be as concise and symmetrical as possible.
 If you find your list running long, or if each item contains several sentences, you may want to reconsider whether a list is the best approach.
 Use a numbered list if it follows a specific order or includes a set number of items. Otherwise, use bullet points.
 
 
-#### How to introduce a list 
+##### How to introduce a list 
 
 ✅ **Do** use a colon if you introduce a list with a complete sentence.
 
 ❌ **Don’t** use a colon if you start a list right after a heading.
 
 
-#### How to use end punctuation with list items
+##### How to use end punctuation with list items
 
 End punctuation refers to punctuation marks that are used to end sentences, such as periods, question marks, and exclamation points.
 
@@ -1164,12 +1281,9 @@ End punctuation refers to punctuation marks that are used to end sentences, such
 ❌ **Don’t** use commas or semicolons to end bullet points.
 
 
-#### How to capitalize list items
+##### How to capitalize list items
 
 ✅ **Do** use a capital letter at the beginning of every bullet point. The only exceptions are words that follow specific style guides (e.g., macOS).
-
-
-### Web elements
 
 
 #### SQL statements
@@ -1181,7 +1295,9 @@ When adding SQL statements, all SQL reserved words should be uppercase, and all 
 
 ### Writing in Fleet-flavored Markdown
 
-Markdown is a simple formatting syntax used to write content on the web. In order to publish content like [docs](https://fleetdm.com/docs), [handbook entries](https://fleetdm.com/handbook), and [articles](https://fleetdm.com/articles), you must format your content in Markdown. 
+Writing in Fleet-flavored Markdown ensures that content on fleetdm.com, the docs, and the handbook looks consistent. These rules are specific to publishing on the website.
+
+Markdown itself is a simple formatting syntax used to write content on the web. In order to publish content like [docs](https://fleetdm.com/docs), [handbook entries](https://fleetdm.com/handbook), and [articles](https://fleetdm.com/articles), you must format your content in Markdown. 
 
 
 #### Headings
@@ -1328,7 +1444,7 @@ Add angle brackets "< >" around a URL to turn it into a link.
 - **Rendered output:** <https://fleetdm.com>
 
 
-#### Emails
+##### Emails
 
 To create a mailto link... oh wait, I'm not going to tell you.
 - ***Important: To avoid spam, we **NEVER** use mailto links.***
@@ -1428,107 +1544,6 @@ This is a large blockquote.
 
 You can use a large quote blockquote to reduce the font size and line height of the rendered text.
 </blockquote>
-
-
-##### Mermaid diagrams
-
-The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
-
-To add a mermaid diagram to the docs, you need to add a code block and specify that it is written in the mermaid language by adding `mermaid` to the opening backticks (i.e., ` ```mermaid`).
-
-For example, the following code block is a mermaid diagram that has **not** been specified as a mermaid code block:
-
-```
-graph TD;
-    A-->D
-    B-->D
-    C-->D
-    D-->E
-```
-
-Once we specify the `mermaid` as the language in the code block, it will render as a mermaid diagram on fleetdm.com and GitHub.
-
-```mermaid
-graph TD;
-    A-->D
-    B-->D
-    C-->D
-    D-->E
-```
-
-If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error, as shown in the following example where the code block was written with **intentional** syntax errors:
-
-```mermaid
-graph TD;
-    A--D
-```
-
-
-
-## Commonly used terms
-
-This glossary provides definitions to commonly used terms within our space.
-
-| Term | Meaning | 
-|:------ |:-----------------|
-| **antivirus** | A class of programs designed to detect, block, and clear away malware from devices, networks, and IT systems. |
-| **API** | (Application Programming Interface) a software go-between that allows applications to communicate.  |
-| **automation** | A system that operates without needing intervention from a human to do so. |
-| **AWS** | (Amazon Web Services) An ever-evolving cloud computing platform designed to allow application providers, ISVs, and vendors to host applications. |
-| **CI/CD** | (Continuous Integration and Continuous Delivery/Continuous Deployment) A software development practice where cumulative code changes are made regularly and accurately. |
-| **CLI** | (Command Line Interface) A tool for managing Fleet from the command line. |
-| **Client Platform Engineer (CPE)** | See: CPE. |
-| **cloud** | Data storage, networking, servers, databases, software, intelligence, and analytics through the internet instead of a device's hard drive. |
-| **command line** | A horizontal row on an interface for text to allow you to type in a variety of commands. Also, see "CLI." |
-| **compliance** | The act of being in line with the established risk-based expectations to preserve the strength and confidentiality of data stored, used, and transmitted. |
-| **CPE** | (Client Platform Engineer) A person who constructs, evaluates, and deploys solutions to administrate a fleet of "clients" or end-users and does so in a scalable manner. |
-| **CVE** | (Common Vulnerabilities and Exposures) A system that provides a technique for sharing information publicly. |
-| **data leaks** | When crucial and confidential data is unwittingly exposed physically, on the Internet, or any other way. This includes misplaced hard drives or devices. |
-| **device management** | The process of overseeing the execution, process, and upkeep of a device, be it physical or virtual. |
-| **DevOps** | Practices that incorporate both software development (Dev) and IT operations (Ops). |
-| **Docker** | An open source platform that allows one to manage containerized applications. |
-| **DRI** | The person who is singularly responsible for a given aspect of the open source project, the product, or the company. |
-| **EDR** | (Endpoint Detection and Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDTR. |
-| **EDTR** | (Endpoint Detection and Threat Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDR. |
-| **encryption** | The act of converting data into a cipher that requires a key to be deciphered. |
-| **end-users** | Someone using a distributed device or service. This could be a computer or a mobile device. |
-| **FileVault** | The macOS feature to encrypt entire drives. |
-| **Firewall** | A device or software that is used to block unwanted network traffic. |
-| **fleetctl** | A CLI tool for managing Fleet from the command line. It can be used to accomplish many tasks you would typically need to do through the UI (User Interface). Also, fleetctl enables a GitOps workflow with Fleet and osquery. |
-| **GitHub** | Cloud-based service for software development and version control using Git. |
-| **historical compliance** | The ability to view past behavior around established risk-based controls to safeguard the integrity, confidentiality, and access of data storage, processing, or transfers. |
-| **IETF** | (Internet Engineering Task Force) An organization that defines standardizing operations of internet protocols |
-| **Internet Engineering Task Force (IETF)** | See: IETF |
-| **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
-| **Linux** | An open source operating system. |
-| **macOS** | The operating system used in all of Apple's Mac computers. |
-| **Munki** | Open-source software deployment tool for macOS. |
-| **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |
-| **open source** | Software with intentionally public code for the sake of transparency. |
-| **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
-| **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
-| **out-of-policy device** | A device that fails any security or vulnerability policy created in Fleet. |
-| **permissions** | Users have different abilities depending on the access level they have. |
-| **platform** | Any software or hardware for hosting an application, data, or service. |
-| **policies** | Yes or no questions you can ask using Fleet about your host devices. |
-| **policy compliance** | The state of whether a device is passing or failing policies created in Fleet. |
-| **queries** | Questions you can ask an end-user device's operating system via Fleet. |
-| **SAML** | (Security Assertion Markup Language) A standard that allows identity providers (IdP) to authorize credentials for service providers, enabling SSO (Single Sign-On). |
-| **security audits** | An assessment of an organization's security posture. |
-| **security engineer** | Individuals in charge of managing and implementing security systems in an organization. |
-| **SIEM** | (Security Information and Event Management) Technology that assembles data, security warnings, and events into one platform and provides almost real-time analyzed data to help you better monitor your organization's security. |
-| **Site Reliability Engineers (SREs)** | Individuals who apply site reliability principles to improve reliability and scalability of systems in a systematic manner. |
-| **SQL** | (Structured Query Language) A language used to manage databases and complete a variety of operations tasks within said databases. |
-| **SRE** | See "Site Reliability Engineers." |
-| **SSO authentication** | (Single Sign-On authentication) Allows identity providers (IdP) to authorize credentials for service providers once and use that as the authentication for multiple outside accounts. |
-| **TLS** | (Transport Layer Security) An Internet Engineering Task Force (IETF) standardized protocol that authenticates and provides privacy and data protection over computer networks. |
-| **token** | A physical Two-Factor Authentication (2FA) login security device to prove one's identity. |
-| **Transport Layer Security (TLS)** | See: TLS |
-| **UI** | (User Interface) An interactive space in a program that concentrates on style and intuitive use. |
-| **URL** | Uniform resource locator. Specifies where a web resource is located (ex: https://fleetdm.com/articles/) |
-| **vulnerabilities** | An exploitable weakness that can lead to unauthorized access or other negative consequences to a computer system. |
-| **Windows** | Microsoft's graphical operating system. |
-| **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
 
 
 

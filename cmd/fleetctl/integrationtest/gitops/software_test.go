@@ -48,6 +48,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
+		{"testdata/gitops/team_software_installer_no_url_multi.yml", "multi_missing_url.yml, list item #1"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
 			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.self_service\", expected type bool but got string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",

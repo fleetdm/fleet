@@ -31,6 +31,37 @@ labels:
   label_membership_type: host_vitals
   name: Label C
 org_settings:
+  certificate_authorities:
+    custom_scep_proxy:
+    - challenge: # TODO: Add your custom SCEP proxy challenge here
+      name: some-custom-scep-proxy-name
+      url: https://some-custom-scep-proxy-url.com
+    digicert:
+    - api_token: # TODO: Add your Digicert API token here
+      certificate_common_name: some-digicert-certificate-common-name
+      certificate_seat_id: some-digicert-certificate-seat-id
+      certificate_user_principal_names:
+      - some-digicert-certificate-user-principal-name
+      - some-other-digicert-certificate-user-principal-name
+      name: some-digicert-name
+      profile_id: some-digicert-profile-id
+      url: https://some-digicert-url.com
+    hydrant:
+    - client_id: some-hydrant-client-id
+      client_secret: # TODO: Add your Hydrant client secret here
+      name: some-hydrant-name
+      url: https://some-hydrant-url.com
+    ndes_scep_proxy:
+      admin_url: https://some-ndes-admin-url.com
+      password: # TODO: Add your NDES SCEP proxy password here
+      url: https://some-ndes-scep-proxy-url.com
+      username: some-ndes-username
+    smallstep:
+    - challenge_url: https://some-smallstep-challenge-url.com
+      name: some-smallstep-name
+      password: # TODO: Add your Smallstep password here
+      url: https://some-smallstep-url.com
+      username: # TODO: Add your Smallstep username here
   features:
     additional_queries:
       macs: SELECT mac FROM interface_details
@@ -48,20 +79,6 @@ org_settings:
     host_expiry_window: 59995
   integrations:
     conditional_access_enabled: true
-    custom_scep_proxy:
-    - challenge: # TODO: Add your custom SCEP proxy challenge here
-      name: some-custom-scep-proxy-name
-      url: https://some-custom-scep-proxy-url.com
-    digicert:
-    - api_token: # TODO: Add your Digicert API token here
-      certificate_common_name: some-digicert-certificate-common-name
-      certificate_seat_id: some-digicert-certificate-seat-id
-      certificate_user_principal_names:
-      - some-digicert-certificate-user-principal-name
-      - some-other-digicert-certificate-user-principal-name
-      name: some-digicert-name
-      profile_id: some-digicert-profile-id
-      url: https://some-digicert-url.com
     google_calendar:
     - api_key_json:
         owl: hoot
@@ -74,11 +91,6 @@ org_settings:
       project_key: some-jira-project-key
       url: https://some-jira-url.com
       username: some-jira-username
-    ndes_scep_proxy:
-      admin_url: https://some-ndes-admin-url.com
-      password: # TODO: Add your NDES SCEP proxy password here
-      url: https://some-ndes-scep-proxy-url.com
-      username: some-ndes-username
     zendesk:
     - api_token: # TODO: Add your Zendesk API token here
       email: some-zendesk-email@example.com
@@ -88,9 +100,9 @@ org_settings:
       url: https://some-zendesk-url.com
   mdm:
     apple_business_manager:
-    - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      macos_team: "\U0001F4BB Workstations"
+    - ios_team: "📱🏢 Company-owned mobile devices"
+      ipados_team: "📱🏢 Company-owned mobile devices"
+      macos_team: "💻 Workstations"
       organization_name: Fleet Device Management Inc.
     apple_server_url: http://some-apple-server-url.com
     end_user_authentication:
@@ -103,10 +115,10 @@ org_settings:
     volume_purchasing_program:
     - location: Fleet Device Management Inc.
       teams:
-      - "\U0001F4BB Workstations"
-      - "\U0001F4BB\U0001F423 Workstations (canary)"
-      - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      - "\U0001F4F1\U0001F510 Personal mobile devices"
+      - "💻 Workstations"
+      - "💻🐣 Workstations (canary)"
+      - "📱🏢 Company-owned mobile devices"
+      - "📱🔐 Personal mobile devices"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: http://some-org-logo-url.com

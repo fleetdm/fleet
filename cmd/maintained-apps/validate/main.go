@@ -369,8 +369,8 @@ func detectApplicationChange(installationSearchDirectory string, appListPre, app
 }
 
 func validateSqlInput(input string) error {
-	// Allow alphanumeric, spaces, dots, hyphens, underscores, forward/back slashes, colons, parentheses
-	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9\s.\-_/\\:()]*$`, input); !matched {
+	// Allow alphanumeric, spaces, dots, hyphens, underscores, forward/back slashes, colons, parentheses, pluses.
+	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9\s.\-_/\\:()+]*$`, input); !matched {
 		return fmt.Errorf("invalid characters in input: %s", input)
 	}
 

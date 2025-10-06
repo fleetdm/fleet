@@ -16,8 +16,13 @@ import (
 )
 
 type putSetupExperienceSoftwareRequest struct {
+	Platform string `json:"platform"`
 	TeamID   uint   `json:"team_id"`
 	TitleIDs []uint `json:"software_title_ids"`
+}
+
+func (r *putSetupExperienceSoftwareRequest) ValidateRequest() error {
+	return validateSetupExperiencePlatform(r.Platform)
 }
 
 type putSetupExperienceSoftwareResponse struct {
@@ -28,16 +33,15 @@ func (r putSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putSetupExperienceSoftwareRequest)
-
-	err := svc.SetSetupExperienceSoftware(ctx, req.TeamID, req.TitleIDs)
+	platform := transformPlatformForSetupExperience(req.Platform)
+	err := svc.SetSetupExperienceSoftware(ctx, platform, req.TeamID, req.TitleIDs)
 	if err != nil {
 		return &putSetupExperienceSoftwareResponse{Err: err}, nil
 	}
-
 	return &putSetupExperienceSoftwareResponse{}, nil
 }
 
-func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error {
+func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -46,8 +50,13 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint,
 }
 
 type getSetupExperienceSoftwareRequest struct {
+	Platform string `query:"platform,optional"`
 	fleet.ListOptions
 	TeamID uint `query:"team_id"`
+}
+
+func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
+	return validateSetupExperiencePlatform(r.Platform)
 }
 
 type getSetupExperienceSoftwareResponse struct {
@@ -61,16 +70,15 @@ func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
-
-	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, req.TeamID, req.ListOptions)
+	platform := transformPlatformForSetupExperience(req.Platform)
+	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, platform, req.TeamID, req.ListOptions)
 	if err != nil {
 		return &getSetupExperienceSoftwareResponse{Err: err}, nil
 	}
-
 	return &getSetupExperienceSoftwareResponse{SoftwareTitles: titles, Count: count, Meta: meta}, nil
 }
 
-func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -194,8 +202,6 @@ type deleteSetupExperienceScriptResponse struct {
 
 func (r deleteSetupExperienceScriptResponse) Error() error { return r.Err }
 
-// func (r deleteSetupExperienceScriptResponse) Status() int  { return http.StatusNoContent }
-
 func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSetupExperienceScriptRequest)
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
@@ -215,7 +221,7 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error) {
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Host) (bool, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -243,7 +249,6 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 
 	case fleet.SetupExperienceSoftwareInstallResult:
 		status := v.SetupExperienceStatus()
-		fmt.Println(status)
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
 		} else if requireTerminalStatus && !status.IsTerminalStatus() {
@@ -265,4 +270,18 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	default:
 		return false, fmt.Errorf("unsupported result type: %T", result)
 	}
+}
+
+func validateSetupExperiencePlatform(platform string) error {
+	if platform != "" && platform != "macos" && platform != "ios" && platform != "ipados" && platform != "windows" && platform != "linux" {
+		return badRequestf("platform %q unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"", platform)
+	}
+	return nil
+}
+
+func transformPlatformForSetupExperience(platform string) string {
+	if platform == "" || platform == "macos" {
+		return "darwin"
+	}
+	return platform
 }

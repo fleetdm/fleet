@@ -63,7 +63,7 @@ To get the latest version of a Fleet-maintained app,
 2. Re-add it from the Fleet-maintained list on the **Software** page.
 3. Install the new version of the app via one of the three methods above.
 
-A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/25636).
+A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/32993).
 
 ## Manage apps with GitOps
 

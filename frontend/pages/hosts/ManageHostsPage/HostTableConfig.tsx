@@ -11,8 +11,9 @@ import {
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
+import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
 
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -176,7 +177,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "hostname",
     id: "hostname",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {
@@ -285,20 +286,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      const {
-        id,
-        platform,
-        percent_disk_space_available,
-      } = cellProps.row.original;
+      const { platform, percent_disk_space_available } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
-          baseClass="gigs_disk_space_available__cell"
+          inTableCell
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
-          id={`disk-space__${id}`}
           platform={platform}
         />
       );
@@ -314,10 +310,28 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "os_version",
     id: "os_version",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
-      <TextCell value={cellProps.cell.value} />
-    ),
+    // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      const value = cellProps.cell.value;
+      if (
+        value === "Arch Linux rolling" ||
+        value === "Arch Linux ARM rolling" ||
+        value === "Manjaro Linux rolling" ||
+        value === "Manjaro Linux ARM rolling"
+      ) {
+        return (
+          <TooltipTruncatedTextCell
+            value={
+              <span>
+                {value.slice(0, -7 /* removing lowercase rolling suffix */)}
+                <TooltipWrapperArchLinuxRolling />
+              </span>
+            }
+          />
+        );
+      }
+      return <TooltipTruncatedTextCell value={value} />;
+    },
   },
   {
     title: "Osquery",
@@ -630,7 +644,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // TODO(android): is iOS/iPadOS supported?
       if (
         isAndroid(cellProps.row.original.platform) ||
-        isPersonalEnrollmentInMdm(cellProps.row.original.mdm.enrollment_status)
+        isBYODAccountDrivenEnrollment(
+          cellProps.row.original.mdm.enrollment_status
+        )
       ) {
         return NotSupported;
       }

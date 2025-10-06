@@ -4,7 +4,7 @@ With Fleet, you can integrate with Microsoft Entra ID to enforce conditional acc
 
 When a device fails a Fleet policy, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
 
->**Note:** [Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're using Fleet's managed cloud.
+[Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're a Fleet Premium customer using managed cloud. To learn more, [get in touch with sales](https://fleetdm.com/contact). We'd love to chat.
 
 ## 1: Create a "Fleet conditional access" group in Entra
 

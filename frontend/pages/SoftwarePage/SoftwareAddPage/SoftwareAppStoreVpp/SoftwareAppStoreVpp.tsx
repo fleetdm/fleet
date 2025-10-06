@@ -16,6 +16,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
+import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -52,15 +53,11 @@ interface IAddTeamToVppMessage {
 }
 
 const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
-  <div className={`${baseClass}__enable-vpp-message`}>
-    <p className={`${baseClass}__enable-vpp-title`}>
-      This team isn&apos;t added to Volume Purchasing Program (VPP)
-    </p>
-    <p className={`${baseClass}__enable-vpp-description`}>
-      To add App Store apps, first add this team to VPP.
-    </p>
-    <Button onClick={onEditVpp}>Edit VPP</Button>
-  </div>
+  <EmptyTable
+    header="This team isn't added to Volume Purchasing Program (VPP)"
+    info="To add App Store apps, first add this team to VPP."
+    primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}
+  />
 );
 
 const NoVppAppsMessage = () => (

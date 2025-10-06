@@ -504,7 +504,7 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 		// Update the script to point to the new content
 		if newContentID != oldContentID {
 			updateStmt := `
-				UPDATE scripts 
+				UPDATE scripts
 				SET script_content_id = ?
 				WHERE id = ?
 			`
@@ -535,7 +535,6 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating script contents")
 	}
@@ -639,8 +638,8 @@ func (ds *Datastore) cleanupScriptContent(ctx context.Context, tx sqlx.ExtContex
 			UNION ALL
 			SELECT 1 FROM setup_experience_scripts WHERE script_content_id = ?
 			UNION ALL
-			SELECT 1 FROM software_installers WHERE 
-				install_script_content_id = ? 
+			SELECT 1 FROM software_installers WHERE
+				install_script_content_id = ?
 				OR uninstall_script_content_id = ?
 				OR post_install_script_content_id = ?
 			UNION ALL
@@ -970,83 +969,84 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 	}
 
 	sql := `
+WITH all_latest_activities AS (
+	-- Use window function to efficiently find the latest execution per script
+	-- This is O(n) (a self-join approach would be O(n²))
+	SELECT * FROM (
+		SELECT
+			id,
+			host_id,
+			script_id,
+			execution_id,
+			created_at,
+			exit_code,
+			'completed' as source,
+			ROW_NUMBER() OVER (
+				PARTITION BY script_id
+				ORDER BY created_at DESC, id DESC
+			) AS row_num
+		FROM
+			host_script_results
+		WHERE
+			host_id = ? AND
+			canceled = 0
+	) completed_ranked
+	WHERE row_num = 1
+
+	UNION ALL
+
+	-- latest from upcoming_activities
+	SELECT * FROM (
+		SELECT
+			NULL as id,
+			ua.host_id,
+			sua.script_id,
+			ua.execution_id,
+			ua.created_at,
+			NULL as exit_code,
+			'upcoming' as source,
+			ROW_NUMBER() OVER (
+				PARTITION BY sua.script_id
+				ORDER BY ua.created_at DESC, ua.id DESC
+			) AS row_num
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.host_id = ? AND
+			ua.activity_type = 'script'
+	) upcoming_ranked
+	WHERE row_num = 1
+)
 SELECT
 	s.id AS script_id,
 	s.name,
-	hsr.id AS hsr_id,
-	hsr.created_at AS executed_at,
-	hsr.execution_id,
-	hsr.exit_code
+	latest.id AS hsr_id,
+	latest.created_at AS executed_at,
+	latest.execution_id,
+	latest.exit_code
 FROM
 	scripts s
 	LEFT JOIN (
-		-- latest is in host_script_results only if none in upcoming_activities
-		SELECT
-			r.id,
-			r.host_id,
-			r.script_id,
-			r.execution_id,
-			r.created_at,
-			r.exit_code
-		FROM
-			host_script_results r
-			LEFT OUTER JOIN host_script_results r2
-				ON r.host_id = r2.host_id AND
-					r.script_id = r2.script_id AND
-					r2.canceled = 0 AND
-					(r2.created_at > r.created_at OR (r.created_at = r2.created_at AND r2.id > r.id))
-		WHERE
-			r.host_id = ? AND
-			r.canceled = 0 AND
-			r2.id IS NULL AND -- no other row at a later time
-			NOT EXISTS (
-				SELECT 1
-				FROM upcoming_activities ua
-				INNER JOIN script_upcoming_activities sua
-					ON ua.id = sua.upcoming_activity_id
-				WHERE
-					ua.host_id = r.host_id AND
-					ua.activity_type = 'script' AND
-					sua.script_id = r.script_id
-			)
-
-	UNION
-
-	-- latest is in upcoming_activities
-	SELECT
-		NULL as id,
-		ua.host_id,
-		sua.script_id,
-		ua.execution_id,
-		ua.created_at,
-		NULL as exit_code
-	FROM
-		upcoming_activities ua
-		INNER JOIN script_upcoming_activities sua
-			ON ua.id = sua.upcoming_activity_id
-	WHERE
-		ua.host_id = ? AND
-		ua.activity_type = 'script' AND
-		NOT EXISTS (
-			-- no later entry in upcoming activities, not sure how
-			-- or if it can be done with the LEFT OUTER JOIN approach
-			-- because it involves 2 tables.
+		-- Pick the most recent between completed and upcoming for each script
+		SELECT * FROM (
 			SELECT
-				1
-			FROM
-				upcoming_activities ua2
-				INNER JOIN script_upcoming_activities sua2
-					ON ua2.id = sua2.upcoming_activity_id
-			WHERE
-				ua.host_id = ua2.host_id AND
-				ua2.activity_type = 'script' AND
-				sua.script_id = sua2.script_id AND
-				(ua2.created_at > ua.created_at OR (ua.created_at = ua2.created_at AND ua2.id > ua.id))
-			)
-	) hsr
-	ON s.id = hsr.script_id
+				*,
+				ROW_NUMBER() OVER (
+					PARTITION BY script_id
+					ORDER BY
+						CASE WHEN source = 'upcoming' THEN 1 ELSE 2 END,  -- Prefer upcoming over completed
+						created_at DESC,
+						id DESC
+				) AS final_rn
+			FROM all_latest_activities
+		) final_ranked
+		WHERE final_rn = 1
+	) latest
+	ON s.id = latest.script_id
 WHERE
-	(hsr.host_id IS NULL OR hsr.host_id = ?)
+	(latest.host_id IS NULL OR latest.host_id = ?)
 	AND s.global_or_team_id = ?
 `
 
@@ -2277,7 +2277,7 @@ SELECT
 	COUNT(*) as num_targeted,
 	COUNT(bsehr.error) as num_did_not_run,
 	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_succeeded,
-	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_failed,
+	COUNT(CASE WHEN hsr.exit_code <> 0 THEN 1 END) as num_failed,
 	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
 FROM
 	batch_activity_host_results bsehr
@@ -2372,15 +2372,15 @@ FROM (
     COUNT(bahr.host_id)                     AS num_targeted,
     COUNT(bahr.error)                       AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
-    COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
-    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled,
+    COUNT(IF(hsr.exit_code <> 0, 1, NULL))   AS num_errored,
+    COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL)) AS num_cancelled,
     (
       COUNT(bahr.host_id)
       - COUNT(bahr.error)
       - COUNT(IF(hsr.exit_code = 0, 1, NULL))
-      - COUNT(IF(hsr.exit_code > 0, 1, NULL))
-      - COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL))
-    )                                       AS num_pending,
+      - COUNT(IF(hsr.exit_code <> 0, 1, NULL))
+      - COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL))
+    ) AS num_pending,
     ba.execution_id,
     ba.script_id,
     ba.status,
@@ -2392,7 +2392,7 @@ FROM (
     ba.created_at                           AS created_at,
     j.not_before                            AS not_before,
     ba.id                                   AS id
-  FROM batch_activities ba 
+  FROM batch_activities ba
   LEFT JOIN batch_activity_host_results bahr
          ON ba.execution_id = bahr.batch_execution_id
   LEFT JOIN host_script_results hsr
@@ -2405,12 +2405,13 @@ FROM (
   GROUP BY ba.id
 ) AS u
 ORDER BY
-  u.not_before ASC, u.created_at DESC, u.id DESC
+  %s
 LIMIT %d OFFSET %d
 	`
 	limit := 10
 	offset := 0
 	args := []any{}
+	orderBy := []string{"u.created_at DESC", "u.id DESC"}
 	whereClauses := make([]string, 0, 2)
 	// If an execution ID is provided, use it to filter the results.
 	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
@@ -2421,6 +2422,16 @@ LIMIT %d OFFSET %d
 		if filter.Status != nil && *filter.Status != "" {
 			whereClauses = append(whereClauses, "ba.status = ?")
 			args = append(args, *filter.Status)
+			switch *filter.Status {
+			case string(fleet.ScheduledBatchExecutionScheduled):
+				orderBy = append([]string{"u.not_before ASC"}, orderBy...)
+			case string(fleet.ScheduledBatchExecutionStarted):
+				orderBy = append([]string{"u.started_at DESC"}, orderBy...)
+			case string(fleet.ScheduledBatchExecutionFinished):
+				orderBy = append([]string{"u.finished_at DESC"}, orderBy...)
+			default:
+				// no additional ordering
+			}
 		}
 		if filter.TeamID != nil {
 			whereClauses = append(whereClauses, "s.global_or_team_id = ?")
@@ -2439,8 +2450,7 @@ LIMIT %d OFFSET %d
 		offset = int(*filter.Offset) //nolint:gosec // dismiss G115
 	}
 	where := strings.Join(whereClauses, " AND ")
-	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, limit, offset)
-
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, strings.Join(orderBy, ", "), limit, offset)
 	var summary []fleet.BatchActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
@@ -2488,16 +2498,16 @@ UPDATE batch_activities AS ba
 JOIN (
   SELECT
     ba2.id AS batch_id,
-    COUNT(*)                                                   AS num_targeted,
+    COUNT(bahr.host_id)                                        AS num_targeted,
     COUNT(bahr.error)                                          AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
-    COUNT(IF(hsr.exit_code > 0, 1, NULL))                      AS num_errored,
-    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled
-  FROM batch_activity_host_results AS bahr
+    COUNT(IF(hsr.exit_code <> 0, 1, NULL))                     AS num_errored,
+	COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba2.canceled = 1), 1, NULL)) AS num_canceled
+  FROM batch_activities AS ba2
+  LEFT JOIN batch_activity_host_results AS bahr
+	  ON ba2.execution_id = bahr.batch_execution_id
   LEFT JOIN host_script_results AS hsr
-         ON bahr.host_execution_id = hsr.execution_id
-  JOIN batch_activities AS ba2
-         ON ba2.execution_id = bahr.batch_execution_id
+	  ON bahr.host_execution_id = hsr.execution_id
   WHERE ba2.status = 'started'
   GROUP BY ba2.id
   HAVING (num_incompatible + num_ran + num_errored + num_canceled) >= num_targeted

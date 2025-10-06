@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -23,6 +24,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -160,6 +162,9 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
 	var swInstallResp putSetupExperienceSoftwareResponse
 	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
+
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, tm.ID, tm.Name), 0)
 
 	// add a script to execute
 	body, headers := generateNewScriptMultipartRequest(t,
@@ -348,8 +353,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually
 	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
-	require.Len(t, results, 2)
 	require.NoError(t, err)
+	require.Len(t, results, 2)
 	var installUUID string
 	for _, r := range results {
 		if r.HostSoftwareInstallsExecutionID != nil {
@@ -430,7 +435,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
-	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -453,8 +458,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 
 	// Get script exec ID
 	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
-	require.Len(t, results, 2)
 	require.NoError(t, err)
+	require.Len(t, results, 2)
 	var execID string
 	for _, r := range results {
 		if r.ScriptExecutionID != nil {
@@ -865,8 +870,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually
 	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
-	require.Len(t, results, 3)
 	require.NoError(t, err)
+	require.Len(t, results, 3)
 	var installUUID string
 	for _, r := range results {
 		if r.HostSoftwareInstallsExecutionID != nil &&
@@ -905,21 +910,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Len(t, statusResp.Results.Software, 2)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
-	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
-	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
-
-	statusResp = getOrbitSetupExperienceStatusResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
-	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
-	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
-	require.NotNil(t, statusResp.Results.Script)
-	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
-	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
-	require.Len(t, statusResp.Results.Software, 2)
-	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
-	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
-
 	// App 5 has no licenses available, so we should get a status failed here and setup experience
 	// should continue
 	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
@@ -940,8 +930,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 
 	// Get script exec ID
 	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
-	require.Len(t, results, 3)
 	require.NoError(t, err)
+	require.Len(t, results, 3)
 	var execID string
 	for _, r := range results {
 		if r.ScriptExecutionID != nil {
@@ -1056,8 +1046,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually (for now only the software install has its execution id)
 	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
-	require.Len(t, results, 2)
 	require.NoError(t, err)
+	require.Len(t, results, 2)
 
 	var swExecID string
 	for _, r := range results {
@@ -1103,8 +1093,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually (this time get the script exec ID)
 	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
-	require.Len(t, results, 2)
 	require.NoError(t, err)
+	require.Len(t, results, 2)
 
 	var scrExecID string
 	for _, r := range results {
@@ -1613,4 +1603,312 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 		}
 
 	}
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Add a macOS software to the setup experience on team 1.
+	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Title:         "DummyApp",
+		TeamID:        &team1.ID,
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   team1.ID,
+		TitleIDs: []uint{titleID},
+	}, http.StatusOK, &swInstallResp)
+
+	// Get "Setup experience" items using platform and the endpoint without platform that we cannot remove (for backwards compatibility).
+	var respGetSetupExperience getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
+	noPlatformTitles := respGetSetupExperience.SoftwareTitles
+	require.Len(t, noPlatformTitles, 1)
+	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "macos",
+		"team_id", fmt.Sprint(team1.ID),
+	)
+	macOSPlatformTitles := respGetSetupExperience.SoftwareTitles
+	require.Equal(t, macOSPlatformTitles, noPlatformTitles)
+
+	// Test invalid platform in GET and PUT.
+	res := s.DoRawWithHeaders("PUT", "/api/v1/fleet/setup_experience/software", []byte(`{"platform": "foobar", "team_id": 0}`), http.StatusBadRequest, nil)
+	errMsg := extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"")
+	res = s.DoRawWithHeaders("GET", "/api/v1/fleet/setup_experience/software?platform=foobar&team_id=0", nil, http.StatusBadRequest, nil)
+	errMsg = extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"")
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Just for testing isolation
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	var getVPPTokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+
+	// Associate team to the VPP token.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, otherTeam.ID}}, http.StatusOK, &resPatchVPP)
+
+	// app 1 macOS only
+	macOSApp1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 1",
+		BundleIdentifier: "a-1",
+		IconURL:          "https://example.com/images/1",
+		LatestVersion:    "1.0.0",
+	}
+	// App 2 supports macOS, iOS, iPadOS
+	macOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	iOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	iPadOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+
+	// App 3 is iPadOS only
+	iPadOSApp3 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "3",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 3",
+		BundleIdentifier: "c-3",
+		IconURL:          "https://example.com/images/3",
+		LatestVersion:    "3.0.0",
+	}
+
+	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, iOSApp2, iPadOSApp2, iPadOSApp3}
+
+	var addAppResp addAppStoreAppResponse
+	// Add apps
+	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
+		var titleID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, app.AdamID, app.Platform)
+		})
+		require.NoError(t, err)
+
+		return titleID
+	}
+
+	titleIDsByApp := make(map[*fleet.VPPApp]uint)
+	for _, app := range expectedApps {
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			http.StatusOK, &addAppResp)
+		titleIDsByApp[app] = getSoftwareTitleIDFromApp(app)
+
+		// Add apps to the other team as well so that they are available but should not show up in setup experience
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &otherTeam.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			http.StatusOK, &addAppResp)
+	}
+
+	// Helper function for inspecting returned list of software marked for setup experience
+	getReturnedSetupExperienceTitleIDs := func(titles []fleet.SoftwareTitleListResult) []uint {
+		var titleIDs []uint
+		for _, title := range titles {
+			if (title.AppStoreApp != nil && title.AppStoreApp.InstallDuringSetup != nil && *title.AppStoreApp.InstallDuringSetup == true) ||
+				(title.SoftwarePackage != nil && title.SoftwarePackage.InstallDuringSetup != nil && *title.SoftwarePackage.InstallDuringSetup == true) {
+				titleIDs = append(titleIDs, title.ID)
+			}
+		}
+		return titleIDs
+	}
+
+	checkSetupExperienceSoftware := func(t *testing.T, platform string, teamID uint, expectedTitleIDs []uint) {
+		var respGetSetupExperience getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+			http.StatusOK,
+			&respGetSetupExperience,
+			"platform", platform,
+			"team_id", fmt.Sprint(teamID),
+		)
+		assert.ElementsMatch(t, getReturnedSetupExperienceTitleIDs(respGetSetupExperience.SoftwareTitles), expectedTitleIDs)
+	}
+
+	putSetupExperienceSoftwareForPlatform := func(t *testing.T, platform string, teamID uint, titleIDs []uint) {
+		var swInstallResp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: platform,
+			TeamID:   teamID,
+			TitleIDs: titleIDs,
+		}, http.StatusOK, &swInstallResp)
+	}
+
+	// Set the 2 apps for macOS
+	putSetupExperienceSoftwareForPlatform(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+
+	// Should return both of the items we set for macOS
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+
+	// Should return nothing for iOS/iPadOS
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{})
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{})
+
+	// Should return nothing for macOS on other team
+	checkSetupExperienceSoftware(t, "macos", otherTeam.ID, []uint{})
+
+	// Add an app for iOS
+	putSetupExperienceSoftwareForPlatform(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+
+	// Fetch iOS apps for the team and now it should be listed
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+
+	// Should still return nothing for iPadOS
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{})
+
+	// Should still return both of the items we set for macOS
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+
+	// Add apps for iPadOS
+	putSetupExperienceSoftwareForPlatform(t, "ipados", team.ID, []uint{titleIDsByApp[iPadOSApp2], titleIDsByApp[iPadOSApp3]})
+
+	// Fetch iPadOS apps for the team and now they should be listed
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{titleIDsByApp[iPadOSApp2], titleIDsByApp[iPadOSApp3]})
+
+	// Should return nothing for iOS/iPadOS/macOS on the other team
+	checkSetupExperienceSoftware(t, "ios", otherTeam.ID, []uint{})
+	checkSetupExperienceSoftware(t, "ipados", otherTeam.ID, []uint{})
+	checkSetupExperienceSoftware(t, "macos", otherTeam.ID, []uint{})
+
+	// try to add an ipadOS app to macOS and iOS, both should fail
+	res := s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "macos", "team_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	assert.Contains(t, errMsg, "invalid platform for requested AppStoreApp")
+
+	res = s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "ios", "team_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	assert.Contains(t, errMsg, "invalid platform for requested AppStoreApp")
+
+	// Lists should be unchanged after the failed attempts
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+
+	// Clear iPadOS and verify macOS and iPadOS are unaffected
+	putSetupExperienceSoftwareForPlatform(t, "ipados", team.ID, []uint{})
+
+	// iPadOS should be empty now
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{})
+
+	// macOS/iPadOS lists should be unchanged
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+}
+
+// TestSetupExperienceEndpointsPlatformIsolation tests that setting the setup experience software items
+// for one platform doesn't remove the items for another platform on the same team.
+func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsPlatformIsolation() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Add a macOS software to the setup experience on team 1.
+	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Title:         "DummyApp",
+		TeamID:        &team1.ID,
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   team1.ID,
+		TitleIDs: []uint{titleID},
+	}, http.StatusOK, &swInstallResp)
+
+	// Clear all Linux software on the setup experience.
+	swInstallResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   team1.ID,
+		TitleIDs: []uint{},
+	}, http.StatusOK, &swInstallResp)
+
+	// Get setup experience items for macOS should return the one item.
+	var respGetSetupExperience getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "macos",
+		"team_id", fmt.Sprint(team1.ID),
+	)
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 1)
 }

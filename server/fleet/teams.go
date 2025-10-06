@@ -218,7 +218,14 @@ type TeamSpecAppStoreApp struct {
 	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
 	// if not supplied (Valid field is false) then the server-side value for setup experience membership
 	// is not changed, for compatibility with the old fleetctl apply format
-	InstallDuringSetup optjson.Bool `json:"setup_experience"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
+}
+
+func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+
+	return spec
 }
 
 type TeamMDM struct {
@@ -232,6 +239,8 @@ type TeamMDM struct {
 	MacOSSetup           MacOSSetup            `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	AndroidSettings AndroidSettings `json:"android_settings"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -273,6 +282,13 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
+	if t.AndroidSettings.CustomSettings.Set {
+		androidSettings := make([]MDMProfileSpec, len(t.AndroidSettings.CustomSettings.Value))
+		for i, mps := range t.AndroidSettings.CustomSettings.Value {
+			androidSettings[i] = *mps.Copy()
+		}
+		clone.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
+	}
 	if t.MacOSSetup.Software.Set {
 		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
 		for i, s := range t.MacOSSetup.Software.Value {
@@ -308,6 +324,8 @@ type TeamSpecMDM struct {
 	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	AndroidSettings AndroidSettings `json:"android_settings"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
@@ -369,19 +387,9 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	// Deep copy all MDM fields (includes macOS/windows custom settings and setup software)
 	clone.MDM = *t.MDM.Copy()
 
-	// Deep copy Scripts slice
-	if t.Scripts.Set && len(t.Scripts.Value) > 0 {
-		clone.Scripts = optjson.Slice[string]{
-			Set:   true,
-			Value: make([]string, len(t.Scripts.Value)),
-		}
-		copy(clone.Scripts.Value, t.Scripts.Value)
-	}
-
-	// Deep copy Software if present
-	if t.Software != nil {
-		clone.Software = t.Software.Copy()
-	}
+	// Do not copy script and software since they will not be stored/cached in the database.
+	clone.Scripts = optjson.Slice[string]{}
+	clone.Software = nil
 
 	return &clone
 }
@@ -573,6 +581,7 @@ type TeamSpecIntegrations struct {
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
 type TeamSpecsDryRunAssumptions struct {
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
+	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -602,6 +611,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 
 	var webhookSettings TeamSpecWebhookSettings
 	if t.Config.WebhookSettings.HostStatusWebhook != nil {

@@ -1,9 +1,11 @@
-import { find, lowerCase, noop, trimEnd } from "lodash";
+import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
 import {
   AppleDisplayPlatform,
+  isAndroid,
+  isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
 import { getInstallStatusPredicate } from "interfaces/software";
@@ -14,6 +16,7 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
 
@@ -35,13 +38,28 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.CanceledScriptBatch,
 ]);
 
+const getProfilesPlatformDisplayName = (
+  platform: "apple" | "windows" | "android"
+) => {
+  switch (platform) {
+    case "apple":
+      return "macOS, iOS, and iPadOS";
+    case "android":
+      return "Android";
+    case "windows":
+      return "Windows";
+    default:
+      // this should not happen but just in case
+      return platform;
+  }
+};
+
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "apple" | "windows",
+  platform: "apple" | "windows" | "android",
   teamName?: string | null
 ) => {
-  const platformDisplayName =
-    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
+  const platformDisplayName = getProfilesPlatformDisplayName(platform);
   let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
@@ -271,12 +289,24 @@ const TAGGED_TEMPLATES = {
     );
     return <>{hostDisplayName} enrolled in Fleet.</>;
   },
+
   mdmEnrolled: (activity: IActivity) => {
-    if (activity.details?.mdm_platform === "microsoft") {
+    const { mdm_platform, platform = "", host_display_name, host_serial } =
+      activity.details || {};
+
+    if (mdm_platform === "microsoft") {
       return (
         <>
-          Mobile device management (MDM) was turned on for{" "}
-          <b>{activity.details?.host_display_name} (manual)</b>.
+          <b>{activity.actor_full_name} </b>Mobile device management (MDM) was
+          turned on for <b>{activity.details?.host_display_name} (manual)</b>.
+        </>
+      );
+    }
+
+    if (isAndroid(platform) || isIPadOrIPhone(platform)) {
+      return (
+        <>
+          <b>{host_display_name}</b> enrolled to Fleet.
         </>
       );
     }
@@ -284,24 +314,21 @@ const TAGGED_TEMPLATES = {
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
     let enrollmentTypeText = "";
-    if (activity.details?.enrollment_id) {
-      enrollmentTypeText = "personal";
-    } else if (activity.details?.installed_from_dep) {
+    if (activity.details?.installed_from_dep) {
       enrollmentTypeText = "automatic";
     } else {
       enrollmentTypeText = "manual";
     }
 
-    const hostDisplayText =
-      activity.details?.host_display_name || activity.details?.host_serial;
-
-    const hostDisplayPrefixText = activity.details?.host_display_name
+    const hostDisplayText = host_display_name || host_serial;
+    const hostDisplayPrefixText = host_display_name
       ? ""
       : "a host with serial number ";
 
     return (
       <>
-        An end user turned on MDM features for {hostDisplayPrefixText}
+        <b>{activity.actor_full_name} </b>An end user turned on MDM features for{" "}
+        {hostDisplayPrefixText}
         <b>
           {hostDisplayText} ({enrollmentTypeText})
         </b>
@@ -309,16 +336,39 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
   mdmUnenrolled: (activity: IActivity) => {
+    const { actor_full_name } = activity;
+    const { platform = "", host_display_name } = activity.details || {};
+
+    if (isAndroid(platform) || isIPadOrIPhone(platform)) {
+      return actor_full_name ? (
+        <>
+          <b>{actor_full_name}</b> told Fleet to unenroll{" "}
+          <b>{host_display_name}.</b>
+        </>
+      ) : (
+        <>
+          <b>{host_display_name}</b> is unenrolled from Fleet.
+        </>
+      );
+    }
+
     return (
       <>
-        {activity.actor_full_name
-          ? " told Fleet to turn off mobile device management (MDM) for"
-          : "Mobile device management (MDM) was turned off for"}{" "}
-        <b>{activity.details?.host_display_name}</b>.
+        {actor_full_name ? (
+          <>
+            <b>{actor_full_name}</b> told Fleet to turn off mobile device
+            management (MDM) for
+          </>
+        ) : (
+          "Mobile device management (MDM) was turned off for"
+        )}{" "}
+        <b>{host_display_name}</b>.
       </>
     );
   },
+
   editedAppleosMinVersion: (
     applePlatform: AppleDisplayPlatform,
     activity: IActivity
@@ -415,6 +465,66 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  createdAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -951,11 +1061,13 @@ const TAGGED_TEMPLATES = {
   },
 
   resentConfigProfile: (activity: IActivity) => {
+    const actor = activity.actor_full_name
+      ? activity.actor_full_name
+      : "An end user";
     return (
       <>
-        {" "}
-        resent {activity.details?.profile_name} configuration profile to{" "}
-        {activity.details?.host_display_name}.
+        <b>{actor}</b> resent {activity.details?.profile_name} configuration
+        profile to {activity.details?.host_display_name}.
       </>
     );
   },
@@ -1423,6 +1535,25 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedSetupExperienceSoftware: (activity: IActivity) => {
+    const { platform, team_name, team_id } = activity.details || {};
+    return (
+      <>
+        {" "}
+        edited setup experience software for{" "}
+        {platform === "darwin" ? "macOS" : capitalize(platform)} hosts that
+        enroll to{" "}
+        {team_id === API_NO_TEAM_ID ? (
+          "no team"
+        ) : (
+          <>
+            the <b>{team_name}</b> team
+          </>
+        )}
+        .
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1505,6 +1636,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
+    case ActivityType.CreatedAndroidProfile: {
+      return TAGGED_TEMPLATES.createdAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedAndroidProfile: {
+      return TAGGED_TEMPLATES.deletedAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedAndroidProfile: {
+      return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
+    }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
     }
@@ -1515,17 +1655,23 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedCertificateAuthority("NDES");
     }
     case ActivityType.AddedCustomScepProxy:
-    case ActivityType.AddedDigicert: {
+    case ActivityType.AddedDigicert:
+    case ActivityType.AddedHydrant:
+    case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
-    case ActivityType.DeletedDigicert: {
+    case ActivityType.DeletedDigicert:
+    case ActivityType.DeletedHydrant:
+    case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
-    case ActivityType.EditedDigicert: {
+    case ActivityType.EditedDigicert:
+    case ActivityType.EditedHydrant:
+    case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );
@@ -1751,6 +1897,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
     }
 
+    case ActivityType.EditedSetupExperienceSoftware: {
+      return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -1796,7 +1946,13 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
-
+      // these activities have more complicated logic to
+      // determine if we display the actor name so we will handle that in the
+      // template function
+      case ActivityType.MdmUnenrolled:
+      case ActivityType.MdmEnrolled:
+      case ActivityType.ResentConfigurationProfile:
+        return null;
       default:
         return DEFAULT_ACTOR_DISPLAY;
     }

@@ -7,6 +7,7 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import FileSaver from "file-saver";
 import { ISoftwarePackage } from "interfaces/software";
+import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -23,6 +24,9 @@ const baseClass = "view-yaml-modal";
 
 interface IViewYamlModalProps {
   softwareTitleName: string;
+  softwareTitleId: number;
+  teamId: number;
+  iconUrl?: string | null;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
 }
@@ -30,6 +34,7 @@ interface IViewYamlModalProps {
 interface HandleDownloadParams {
   evt: React.MouseEvent;
   content?: string;
+  downloadUrl?: string;
   filename: string;
   filetype: string;
   errorMsg: string;
@@ -37,6 +42,9 @@ interface HandleDownloadParams {
 
 const ViewYamlModal = ({
   softwareTitleName,
+  softwareTitleId: softwareId,
+  teamId,
+  iconUrl,
   softwarePackage,
   onExit,
 }: IViewYamlModalProps) => {
@@ -64,22 +72,33 @@ const ViewYamlModal = ({
     installScript,
     postInstallScript,
     uninstallScript,
+    iconUrl: iconUrl || null,
   });
 
   // Generic download handler
-  const handleDownload = ({
+  const handleDownload = async ({
     evt,
     content,
+    downloadUrl,
     filename,
     filetype,
     errorMsg,
   }: HandleDownloadParams) => {
     evt.preventDefault();
 
-    if (content) {
-      const file = new window.File([content], filename, { type: filetype });
-      FileSaver.saveAs(file);
-    } else {
+    try {
+      if (content) {
+        const file = new window.File([content], filename, { type: filetype });
+        FileSaver.saveAs(file);
+      } else if (downloadUrl) {
+        const response = await fetch(downloadUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        FileSaver.saveAs(blob, filename);
+      } else {
+        throw new Error("No content or URL provided");
+      }
+    } catch (err) {
       renderFlash("error", errorMsg);
     }
     return false;
@@ -134,6 +153,25 @@ const ViewYamlModal = ({
     });
   };
 
+  const onDownloadIcon = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
+
+    try {
+      // Get icon blob + create filename
+      const response = await softwareAPI.getSoftwareIcon(softwareId, teamId);
+      // Different from icon's original filename as we are suggesting a standard name used in YAML
+      const filename = `${hyphenatedSoftwareTitle}-icon.png`;
+
+      // Save the file
+      FileSaver.saveAs(response.data, filename);
+    } catch (err) {
+      renderFlash(
+        "error",
+        "Your icon could not be downloaded. Please download the image manually."
+      );
+    }
+  };
+
   return (
     <Modal className={baseClass} title="YAML" onExit={onExit}>
       <>
@@ -165,7 +203,7 @@ const ViewYamlModal = ({
             readOnly
             name="filename"
             label="Filename"
-            value={`${hyphenatedSoftwareTitle}.yml`}
+            value={`${hyphenatedSoftwareTitle}.package.yml`}
           />
           <Editor label="Contents" value={packageYaml} enableCopy />
         </div>
@@ -175,6 +213,7 @@ const ViewYamlModal = ({
             installScript,
             postInstallScript,
             uninstallScript,
+            iconUrl,
             onClickPreInstallQuery: preInstallQuery
               ? onDownloadPreInstallQuery
               : undefined,
@@ -187,6 +226,7 @@ const ViewYamlModal = ({
             onClickUninstallScript: uninstallScript
               ? onDownloadUninstallScript
               : undefined,
+            onClickIcon: iconUrl ? onDownloadIcon : undefined,
           })}
         </p>
         <div className="modal-cta-wrap">

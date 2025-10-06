@@ -126,7 +126,7 @@ export const SoftwareActionButtons = ({
             }
             variant="icon"
           >
-            <Icon name={option.iconName} color="core-fleet-blue" />
+            <Icon name={option.iconName} color="ui-fleet-black-75" />
           </Button>
         );
 
@@ -159,6 +159,7 @@ interface ISoftwareInstallerCardProps {
   };
   isSelfService: boolean;
   softwareId: number;
+  iconUrl?: string | null;
   teamId: number;
   teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
@@ -181,6 +182,7 @@ const SoftwareInstallerCard = ({
   isSelfService,
   softwareInstaller,
   softwareId,
+  iconUrl,
   teamId,
   teamIdForApi,
   onDelete,
@@ -296,7 +298,7 @@ const SoftwareInstallerCard = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
-    <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
+    <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
         <div className={`${baseClass}__row-1`}>
           <div className={`${baseClass}__row-1--responsive-wrap`}>
@@ -350,13 +352,13 @@ const SoftwareInstallerCard = ({
             )}
           </div>
         </div>
-        <div className={`${baseClass}__row-2`}>
-          {gitOpsModeEnabled && isCustomPackage && (
+        {gitOpsModeEnabled && isCustomPackage && (
+          <div className={`${baseClass}__row-2`}>
             <div className={`${baseClass}__yaml-button-wrapper`}>
               <Button onClick={onToggleViewYaml}>View YAML</Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
@@ -401,6 +403,9 @@ const SoftwareInstallerCard = ({
       {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
+          softwareTitleId={softwareId}
+          teamId={teamId}
+          iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
         />

@@ -842,11 +842,18 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		return nil, err
 	}
 
-	// must get the host uuid for the setup experience and nano table updates
-	const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host uuid")
+	// Must get the host uuid, osquery_host_id, and platform for the setup experience and nano table updates.
+	const getHostUUIDStmt = `SELECT uuid, osquery_host_id, platform FROM hosts WHERE id = ?`
+	var host fleet.Host
+	if err := sqlx.GetContext(ctx, tx, &host, getHostUUIDStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load host UUID fields")
+	}
+	hostUUID := host.UUID
+	if fleet.IsSetupExperienceSupported(host.Platform) {
+		hostUUID, err = fleet.HostUUIDForSetupExperience(&host)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
 	}
 
 	switch act.ActivityType {

@@ -30,5 +30,12 @@
     dt {
       min-width: 40px;
     }
+
+    // Show entire hash and file path, easier to read/compare not hidden in tooltip
+    dd {
+      width: 100%;
+      text-wrap: wrap;
+      overflow-wrap: anywhere;
+    }
   }
 }

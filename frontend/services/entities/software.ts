@@ -384,6 +384,57 @@ export default {
     });
   },
 
+  getSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
+    return sendRequest(
+      "GET",
+      path,
+      undefined,
+      "blob",
+      undefined,
+      undefined,
+      true
+    ); // returnRaw is true to get headers
+  },
+
+  // This API call is for both:
+  // "/api/v1/fleet/software/titles/{softwareId}/icon?team_id={teamId}"
+  // "/api/v1/fleet/device/{deviceToken}/software/titles/{softwareId}/icon"
+  getSoftwareIconFromApiUrl: (apiUrl: string) => {
+    // sendRequest prepends "/api" to the path, so we need to remove it
+    // if it's already included in the apiUrl param
+    const result = apiUrl.replace(/^\/api/, "");
+
+    return sendRequest("GET", result, undefined, "blob");
+  },
+
+  deleteSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
+    return sendRequest("DELETE", path);
+  },
+
+  editSoftwareIcon: (
+    softwareId: number,
+    teamId: number,
+    fileObject: { icon: File }
+  ) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
+
+    const formData = new FormData();
+    formData.append("icon", fileObject.icon);
+
+    return sendRequest("PUT", path, formData);
+  },
+
   // Endpoint for deleting packages or VPP
   deleteSoftwareInstaller: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;

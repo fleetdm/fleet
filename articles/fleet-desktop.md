@@ -33,7 +33,7 @@ Requests sent by Fleet Desktop and the web page that opens when clicking on the 
 
 The server uses this token to authenticate requests that give host information. Fleet uses the following methods to secure access to this information.
 
-Brute-forcing this UUID would take longer than the universe has existed, even with the fastest computers imaginable.
+Successfully brute-forcing this UUID is about [as likely as you getting hit by a meteorite this year](https://pkg.go.dev/github.com/google/uuid#NewRandom).
 
 **Rate limiting**
 

@@ -44,9 +44,13 @@ export interface ISoftware {
   installed_paths?: string[];
   browser?: string;
   vendor?: string;
+  icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
 
-export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
+export type IVulnerabilitySoftware = Omit<
+  ISoftware,
+  "vulnerabilities" | "icon_url"
+> & {
   resolved_in_version: string;
 };
 
@@ -136,6 +140,7 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
   hosts_count: number;
@@ -148,6 +153,7 @@ export interface ISoftwareTitle {
 export interface ISoftwareTitleDetails {
   id: number;
   name: string;
+  icon_url: string | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
@@ -192,6 +198,7 @@ export const SOURCE_TYPE_CONVERSION = {
   portage_packages: "Package (Portage)",
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
+  pacman_packages: "Package (pacman)",
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
@@ -219,6 +226,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   portage_packages: "linux",
   rpm_packages: "linux",
   yum_sources: "linux",
+  pacman_packages: "linux",
   tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,
@@ -418,6 +426,7 @@ export interface IHostAppStoreApp {
 export interface IHostSoftware {
   id: number;
   name: string;
+  icon_url: string | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   source: SoftwareSource;

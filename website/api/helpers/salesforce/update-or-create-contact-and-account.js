@@ -45,6 +45,8 @@ module.exports = {
         'LinkedIn - Reaction',
         'LinkedIn - Share',
         'LinkedIn - Liked the LinkedIn company page',
+        'Event - Marketing-led event',
+        'Event - Sales-led event',
       ],
     },
     getStartedResponses: {
@@ -217,6 +219,26 @@ module.exports = {
             // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
           });
         }
+        // If we didn't find an existing account by name or website, try to get the global domain of the user's organization and look for a matching account record.
+        if(!existingAccountRecord) {
+          let glboalDomainPrompt = `Given this domain "${enrichmentData.employer.emailDomain}", assuming we want a global customer account entry in our CRM, what might be the equivalent global domain? If the website is already the global domain, respond with that. (Respond only with the domain, as a JSON string.)`;
+          let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'gpt-5-nano-2025-08-07', expectJson: true})
+          .tolerate((err)=>{
+            sails.log.warn(`When trying to ask ChatGPT about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+            // If an error occurs getting the global domain, return the emailDomain from the get-enriched helper.
+            return enrichmentData.employer.emailDomain;// Note: This will make the account search below
+          });
+          // Now look for an account record with this global domain.
+          existingAccountRecord = await salesforceConnection.sobject('Account')
+          .findOne({
+            'Website':  globalDomain,
+            // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
+          });
+
+          // Update the employer's emailDomain in the enrichmentData to be the global domain.
+          enrichmentData.employer.emailDomain = globalDomain;
+        }
+
         // console.log(existingAccountRecord);
         // If we found an exisitng account, we'll assign the new contact to the account owner.
         if(existingAccountRecord) {

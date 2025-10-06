@@ -25,8 +25,9 @@ const UploadedPackageView = ({
     <div className={baseClass}>
       <BootstrapPackageTable currentTeamId={currentTeamId} />
       <p>
-        This package is automatically installed on hosts that automatically
-        enroll to this team. Delete the package to upload a new one.{" "}
+        This package is automatically installed on macOS hosts that
+        automatically enroll to this team. Delete the package to upload a new
+        one.{" "}
         <CustomLink
           url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience"
           text="Learn more"
