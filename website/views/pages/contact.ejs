@@ -36,7 +36,7 @@
             <input class="form-control" id="contact-email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : cloudError && cloudError === 'invalidEmailDomain' ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
             <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid work email address</div>
             <cloud-error class="p-0 mt-1 mb-0 bg-transparent invalid-feedback" v-if="cloudError && cloudError === 'invalidEmailDomain'">
-              <p>Please enter a valid work email address</p>
+              <p>Please enter a valid email address</p>
             </cloud-error>
 
           </div>
@@ -66,7 +66,7 @@
         </ajax-form>
       </div>
       <div v-else>
-        <ajax-form action="deliverTalkToUsFormSubmission" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="talkToUsFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedTalkToUsForm()">
+        <ajax-form :handle-submitting="handleSubmittingTalkToUsForm" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="talkToUsFormRules"  :cloud-error.sync="cloudError">
           <div class="form-group">
             <label for="email-address">Work email *</label>
             <input class="form-control" id="email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
@@ -106,20 +106,10 @@
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Linux management
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-misc' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-misc">
-              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              IT engineering
-            </label>
             <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'security-misc' ? 'selected' : '']">
               <input type="radio" v-model.trim="formData.primaryBuyingSituation" value="security-misc">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Security engineering
-            </label>
-            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'security-vm' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData.primaryBuyingSituation" value="security-vm">
-              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              Vulnerability reporting
             </label>
             <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
           </div>

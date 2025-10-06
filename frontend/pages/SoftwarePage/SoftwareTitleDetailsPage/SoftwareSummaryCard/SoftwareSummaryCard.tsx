@@ -69,7 +69,7 @@ const SoftwareSummaryCard = ({
 
   return (
     <>
-      <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
+      <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
           title={title.name}
           type={formatSoftwareType(title)}

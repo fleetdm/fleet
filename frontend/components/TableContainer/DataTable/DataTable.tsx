@@ -543,13 +543,18 @@ const DataTable = ({
             {shouldRenderToggleAllPages && (
               <Button
                 onClick={onToggleAllPagesClick}
-                variant="text-link"
+                variant="inverse"
                 className="light-text"
+                size="small"
               >
                 <>Select all matching {resultsTitle}</>
               </Button>
             )}
-            <Button onClick={onClearSelectionClick} variant="text-link">
+            <Button
+              onClick={onClearSelectionClick}
+              variant="inverse"
+              size="small"
+            >
               Clear selection
             </Button>
           </div>
@@ -577,11 +582,24 @@ const DataTable = ({
                   return (
                     <th
                       className={column.id ? `${column.id}__header` : ""}
-                      {...column.getHeaderProps(
-                        column.getSortByToggleProps({ title: null })
-                      )}
+                      {...column.getHeaderProps()}
                     >
-                      {renderColumnHeader(column)}
+                      {column.canSort ? (
+                        <Button
+                          variant="unstyled"
+                          {...column.getSortByToggleProps({ title: null })}
+                          aria-label={`Sort by ${column.Header} ${
+                            column.isSortedDesc ? "descending" : "ascending"
+                          }`}
+                          tabIndex={0}
+                          className="sortable-header"
+                        >
+                          {renderColumnHeader(column)}
+                          {/* add arrow/icon as needed */}
+                        </Button>
+                      ) : (
+                        renderColumnHeader(column)
+                      )}
                     </th>
                   );
                 })}

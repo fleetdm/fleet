@@ -269,6 +269,16 @@ the way that the Fleet server works.
 				if dev {
 					os.Exit(1)
 				}
+			case fleet.NeedsFleetv4732Fix:
+				printFleetv4732FixNeededMessage()
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
+			case fleet.UnknownFleetv4732State:
+				printFleetv4732UnknownStateMessage(migrationStatus.StatusCode)
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
 			case fleet.SomeMigrationsCompleted:
 				tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
 				printMissingMigrationsWarning(tables, data)
@@ -1057,6 +1067,19 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register mdm_android_profile_manager schedule")
 			}
 
+			// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAndroidMDMDeviceReconcilerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+					config.License.Key,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
+			}
+
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
@@ -1072,7 +1095,7 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
@@ -1200,7 +1223,7 @@ the way that the Fleet server works.
 				}
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
-				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
+				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
 					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
@@ -1577,6 +1600,22 @@ func printMissingMigrationsWarning(tables []int64, data []int64) {
 		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 		"################################################################################\n",
 		tablesAndDataToString(tables, data), os.Args[0])
+}
+
+func printFleetv4732FixNeededMessage() {
+	fmt.Printf("################################################################################\n"+
+		"# WARNING:\n"+
+		"#   Your Fleet database has misnumbered migrations introduced in some released\n"+
+		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n"+
+		"#   migrations. Please back up your data before continuing.\n"+
+		"#\n"+
+		"#   Run `%s prepare db` to perform migrations.\n"+
+		"#\n"+
+		"#   To run the server without performing migrations:\n"+
+		"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
+		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+		"################################################################################\n", os.Args[0])
 }
 
 func initLicense(config configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {

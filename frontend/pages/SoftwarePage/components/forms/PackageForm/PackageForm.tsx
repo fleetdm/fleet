@@ -290,7 +290,7 @@ const PackageForm = ({
           message=".pkg, .msi, .exe, .deb, .rpm, or .tar.gz"
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
-          buttonType="link"
+          buttonType="brand-inverse-icon"
           className={`${baseClass}__file-uploader`}
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined

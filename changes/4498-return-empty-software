@@ -1,1 +1,0 @@
-* Changed `GET /host/:id` to return an empty array for `software` field when exclude_software=true

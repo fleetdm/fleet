@@ -1,4 +1,4 @@
-import { ISetupSoftwareStatus } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
@@ -7,8 +7,8 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
   return `Host "${hostName}" ${DEFAULT_ERROR_MESSAGE}`;
 };
 
-export const getIsSettingUpSoftware = (
-  statuses: ISetupSoftwareStatus[] | null | undefined
+export const hasRemainingSetupSteps = (
+  statuses: ISetupStep[] | null | undefined
 ) => {
   if (!statuses || statuses.length === 0) {
     // not configured or no software selected

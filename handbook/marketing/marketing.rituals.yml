@@ -47,7 +47,7 @@
   task: "Measure intent signals"
   startedOn: "2024-08-09"
   frequency: "Daily"
-  description: "Measure intent signals and update Salesforce"
+  description: "Using the instructions in the [🦄⚡️🌐 Go-To-Market strategy doc](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily), measure intent signals."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#measure-intent-signals"
   dri: "onasismunro"
   autoIssue:   
@@ -101,21 +101,11 @@
     labels: [ ":help-marketing" ] 
     repo: "confidential"
 -
-  task: "Import LinkedIn posts to Clay"
-  startedOn: "2025-08-08"
-  frequency: "Weekly"
-  description: "Every Friday, the Content Specialist will duplicate the previously made Clay table and import all LinkedIn posts listed in the content calendar."
-  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
-  dri: "irenareedy"
-  autoIssue:  
-    labels: [ ":help-marketing" ] 
-    repo: "confidential"
--
   task: "Manage duplicates in CRM"
   startedOn: "2025-08-08"
   frequency: "Daily"
   description: "Daily, the Data & Video Specialist will clean up any duplicate accounts."
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-dupicates-in-crm"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
   dri: "onasismunro"
   autoIssue:  
     labels: [ ":help-marketing" ] 

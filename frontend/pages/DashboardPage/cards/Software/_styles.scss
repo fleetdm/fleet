@@ -1,5 +1,4 @@
 .home-software {
-  margin-top: $pad-large;
   position: relative;
 
   .software-link {
@@ -10,7 +9,7 @@
       vertical-align: middle;
     }
     &:focus-visible {
-      outline: 1px solid $core-vibrant-blue;
+      outline: 1px solid $core-focused-outline;
     }
   }
   .data-table__wrapper {
@@ -79,6 +78,8 @@
         .id__cell {
           padding: 0;
           width: 40px;
+          display: flex;
+          align-items: center;
         }
         .vulnerabilities__cell {
           img {
