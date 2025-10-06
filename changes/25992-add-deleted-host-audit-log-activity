@@ -1,0 +1,1 @@
+- Added `deleted_host` audit log activity for single and bulk host deletion actions.
