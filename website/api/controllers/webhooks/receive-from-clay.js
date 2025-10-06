@@ -35,7 +35,6 @@ module.exports = {
         'Website - Newsletter',
         'Event - Sales-led event',
         'Event - Marketing-led event',
-        'Signed up for Marketing-led event',
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
