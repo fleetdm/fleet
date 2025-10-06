@@ -150,7 +150,7 @@ export const generateEditCertAuthorityData = (
         smallstep: deepDifference(
           {
             name: smallstepName,
-            scep_url: smallstepURL,
+            url: smallstepURL,
             challenge_url: smallstepChallengeURL,
             username: smallstepUsername,
             password: smallstepPassword,
