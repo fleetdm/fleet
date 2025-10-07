@@ -1549,6 +1549,8 @@ type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.Ce
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
+type InsertInHouseAppFunc func(ctx context.Context, payload *fleet.InHouseAppPayload) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3838,6 +3840,9 @@ type DataStore struct {
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
+
+	InsertInHouseAppFunc        InsertInHouseAppFunc
+	InsertInHouseAppFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -9181,4 +9186,11 @@ func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	s.GetCurrentTimeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCurrentTimeFunc(ctx)
+}
+
+func (s *DataStore) InsertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) error {
+	s.mu.Lock()
+	s.InsertInHouseAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertInHouseAppFunc(ctx, payload)
 }
