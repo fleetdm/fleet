@@ -1774,6 +1774,13 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	if payload.RequireAllSoftware != nil {
+		if tm.Config.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
+			tm.Config.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+			didUpdate = true
+		}
+	}
+
 	if payload.ManualAgentInstall != nil {
 		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
 			if *payload.ManualAgentInstall && (!tm.Config.MDM.MacOSSetup.BootstrapPackage.Set || tm.Config.MDM.MacOSSetup.BootstrapPackage.Value == "") {
