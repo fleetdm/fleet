@@ -3201,7 +3201,7 @@ Returns the information of the specified host.
     "software": [
       {
         "id": 321,
-        "name": "SomeApp.app",
+        "name": "macOSApp",
         "version": "1.0",
         "source": "apps",
         "bundle_identifier": "com.some.app",
@@ -3209,7 +3209,18 @@ Returns the information of the specified host.
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some-path-2"]
-      }
+      },
+      {
+        "id": 322,
+        "name": "Windows",
+        "version": "1.0",
+        "source": "programs",
+        "upgrade_code": "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-2"]
+      },
     ],
     "mdm": {
       "encryption_key_available": true,
