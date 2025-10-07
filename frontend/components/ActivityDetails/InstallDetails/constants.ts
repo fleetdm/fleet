@@ -1,11 +1,14 @@
 import { IconNames } from "components/icons";
 import {
+  SoftwareInstallUninstallStatus,
   SoftwareInstallStatus,
   SoftwareUninstallStatus,
 } from "interfaces/software";
 
+// Install/Uninstall helpers
+
 export const INSTALL_DETAILS_STATUS_ICONS: Record<
-  SoftwareInstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
+  SoftwareInstallUninstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
   IconNames
 > = {
   pending_install: "pending-outline",
@@ -17,7 +20,7 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
-  SoftwareInstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
+  SoftwareInstallUninstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
   string
 > = {
   pending_install: "is installing or will install",
@@ -36,7 +39,37 @@ export const getInstallDetailsStatusPredicate = (
   }
   return (
     INSTALL_DETAILS_STATUS_PREDICATES[
-      status.toLowerCase() as SoftwareInstallStatus
+      status.toLowerCase() as SoftwareInstallUninstallStatus
     ] || INSTALL_DETAILS_STATUS_PREDICATES.pending_install
+  );
+};
+
+// Script helpers
+export const SCRIPT_DETAILS_STATUS_ICONS: Record<
+  SoftwareInstallStatus,
+  IconNames
+> = {
+  pending_install: "pending-outline",
+  installed: "success",
+  failed_install: "error",
+} as const;
+
+const SCRIPT_DETAILS_STATUS_PREDICATES: Record<
+  SoftwareInstallStatus,
+  string
+> = {
+  pending_install: "is running or will run",
+  installed: "ran",
+  failed_install: "failed to run",
+} as const;
+
+export const getScriptDetailsStatusPredicate = (status: string | undefined) => {
+  if (!status) {
+    return SCRIPT_DETAILS_STATUS_PREDICATES.pending_install;
+  }
+  return (
+    SCRIPT_DETAILS_STATUS_PREDICATES[
+      status.toLowerCase() as SoftwareInstallStatus
+    ] || SCRIPT_DETAILS_STATUS_PREDICATES.pending_install
   );
 };

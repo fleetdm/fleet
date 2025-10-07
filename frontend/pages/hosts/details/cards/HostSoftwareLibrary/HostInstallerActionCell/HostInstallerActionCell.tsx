@@ -15,7 +15,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   IHostSoftwarePackage,
   IHostAppStoreApp,
-  SoftwareInstallStatus,
+  SoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
@@ -35,7 +35,7 @@ interface IActionButtonState {
 export interface IGetActionButtonStateProps {
   hostScriptsEnabled: boolean;
   softwareId: number;
-  status: SoftwareInstallStatus | null;
+  status: SoftwareInstallUninstallStatus | null;
   softwarePackage: IHostSoftwarePackage | null;
   appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;

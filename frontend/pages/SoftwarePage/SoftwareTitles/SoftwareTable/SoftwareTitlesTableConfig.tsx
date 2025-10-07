@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import {
   ISoftwareTitle,
+  NoVersionOrHostDataAvailable,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
@@ -186,8 +187,11 @@ const generateTableHeaders = (
       id: "view-all-hosts",
       disableSortBy: true,
       Cell: (cellProps: IViewAllHostsLinkProps) => {
-        const hostCountNotSupported =
-          cellProps.row.original.source === "tgz_packages";
+        const { source } = cellProps.row.original;
+
+        const hostCountNotSupported = NoVersionOrHostDataAvailable.includes(
+          source
+        );
 
         if (hostCountNotSupported) return null;
 

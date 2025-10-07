@@ -23,7 +23,7 @@ import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
 import RevealButton from "components/buttons/RevealButton";
 import {
-  getInstallDetailsStatusPredicate,
+  getScriptDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
 import { renderContactOption } from "../SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
@@ -63,7 +63,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{softwareName}</b>
+        Fleet {getScriptDetailsStatusPredicate(status)} <b>{softwareName}</b>
       </>
     );
     let suffix = null;

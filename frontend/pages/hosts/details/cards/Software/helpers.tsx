@@ -7,6 +7,7 @@ import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  ScriptPackage,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -172,11 +173,26 @@ export const getUiStatus = (
   isHostOnline: boolean,
   hostSoftwareUpdatedAt?: string | null
 ): IHostSoftwareUiStatus => {
-  const { status, installed_versions } = software;
+  const { status, installed_versions, source } = software;
 
   const lastInstallDate = getLastInstall(software)?.installed_at;
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
+  const isScriptPackage = ScriptPackage.includes(source);
+
+  // 0. Script Packages states
+  if (isScriptPackage) {
+    if (status === "failed_install") {
+      return "failed_script";
+    }
+    if (status === "pending_install") {
+      return isHostOnline ? "running_script" : "pending_script";
+    }
+    if (status === "installed") {
+      return "ran_script";
+    }
+    return "never_ran_script";
+  }
 
   // 1. Failed install states
   if (status === "failed_install") {
@@ -299,12 +315,23 @@ interface IButtonConfig {
 
 /** Display text and icon are shared across self-service and
  * host details > library action buttons */
+// TODO: "Retry" and "Reinstall" should be "Rerun" for script packages
 export const getInstallerActionButtonConfig = (
   type: ButtonType,
   status: IHostSoftwareUiStatus
 ): IButtonConfig => {
   if (type === "install") {
     switch (status) {
+      // Script statuses
+      case "failed_script":
+        return { text: "Retry", icon: "refresh" };
+      case "ran_script":
+        return { text: "Rerun", icon: "refresh" };
+      case "running_script":
+      case "pending_script":
+      case "never_ran_script":
+        return { text: "Run", icon: "install" };
+      // Normal install statuses
       case "failed_install":
       case "failed_install_update_available":
         return { text: "Retry", icon: "refresh" };
@@ -338,17 +365,22 @@ export const getInstallerActionButtonConfig = (
 const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
   "failed_install_update_available", // Failed install with update available
+  "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
   "failed_uninstall_update_available", // Failed uninstall with update available
   "update_available", // Update available
   "updating", // Updating...
   "pending_update", // Update (pending)
+  "running_script", // Running... (for script packages)
+  "pending_script", // Run (pending) (for script packages)
   "installing", // Installing...
   "pending_install", // Install (pending)
   "uninstalling", // Uninstalling...
   "pending_uninstall", // Uninstall (pending)
+  "ran_script", // Ran (for script packages)
   "installed", // Installed
   "uninstalled", // Empty (---)
+  "never_ran_script", // Empty (---) for script packages
 ];
 
 /** Status column custom sortType */

@@ -8,7 +8,7 @@ import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
   ISoftwareLastInstall,
-  SoftwareInstallStatus,
+  SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { dateAgo } from "utilities/date_format";
 
@@ -31,7 +31,7 @@ const baseClass = "update-software-item";
 
 const STATUS_CONFIG: Record<
   Exclude<
-    SoftwareInstallStatus,
+    SoftwareInstallUninstallStatus,
     "pending_uninstall" | "failed_uninstall" | "uninstalled"
   >,
   IStatusDisplayConfig

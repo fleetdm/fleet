@@ -12,6 +12,7 @@ import {
   isSoftwarePackage,
   ISoftwarePackage,
   IAppStoreApp,
+  NoVersionOrHostDataAvailable,
 } from "interfaces/software";
 
 import Card from "components/Card";
@@ -42,6 +43,8 @@ const SoftwareSummaryCard = ({
   softwareInstaller,
   refetchSoftwareTitle,
 }: ISoftwareSummaryCard) => {
+  const { source } = title;
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -50,8 +53,8 @@ const SoftwareSummaryCard = ({
 
   const [iconUploadedAt, setIconUploadedAt] = useState("");
 
-  // Hide versions table for tgz_packages only
-  const showVersionsTable = title.source !== "tgz_packages";
+  // Hide versions table for tgz_packages, sh_packages, & ps1_packages only
+  const showVersionsTable = !NoVersionOrHostDataAvailable.includes(source);
 
   const hasEditPermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;

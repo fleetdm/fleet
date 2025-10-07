@@ -8,7 +8,10 @@ import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
 
-import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
+import {
+  IHostSoftware,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
 import { IMdmCommandResult } from "interfaces/mdm";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
@@ -32,7 +35,7 @@ interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
   /** "pending" is an edge case here where VPP install activities that were added to the feed prior to v4.57
    * (when we split pending into pending_install/pending_uninstall) will list the status as "pending" rather than "pending_install" */
-  displayStatus: SoftwareInstallStatus | "pending";
+  displayStatus: SoftwareInstallUninstallStatus | "pending";
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
   appName: string;
@@ -149,7 +152,7 @@ export const getStatusMessage = ({
 };
 
 interface IModalButtonsProps {
-  displayStatus: SoftwareInstallStatus | "pending";
+  displayStatus: SoftwareInstallUninstallStatus | "pending";
   deviceAuthToken?: string;
   onCancel: () => void;
   onRetry?: (id: number) => void;
@@ -196,7 +199,7 @@ const baseClass = "vpp-install-details-modal";
 
 export type IVppInstallDetails = {
   /** Status: null when a host manually installed not using Fleet */
-  fleetInstallStatus: SoftwareInstallStatus | null;
+  fleetInstallStatus: SoftwareInstallUninstallStatus | null;
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;

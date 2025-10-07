@@ -14,6 +14,7 @@ interface ISoftwareTitleDetailsTableConfigProps {
   softwareId?: number;
   teamId?: number;
   baseClass?: string;
+  isScriptPackage?: boolean;
 }
 interface ICellProps {
   cell: {
@@ -78,12 +79,13 @@ const generateSoftwareTitleDetailsTableConfig = ({
   softwareId,
   teamId,
   baseClass,
+  isScriptPackage,
 }: ISoftwareTitleDetailsTableConfigProps) => {
   const tableHeaders = [
     {
       accessor: "installed",
       disableSortBy: true,
-      title: "Installed",
+      title: isScriptPackage ? "Ran" : "Installed",
       Header: () => {
         const displayData = STATUS_DISPLAY_OPTIONS.installed;
         const titleWithTooltip = (
