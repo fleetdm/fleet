@@ -1096,7 +1096,7 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}

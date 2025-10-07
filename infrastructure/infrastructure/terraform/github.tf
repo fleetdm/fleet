@@ -20,7 +20,7 @@ resource "aws_iam_openid_connect_provider" "github" {
   ]
 }
 
-# --- Trust policy for fleetdm/confidential repo (restricted to check_cloudflare.yml) ---
+# --- Trust policy for fleetdm/confidential repo ---
 data "aws_iam_policy_document" "fleetdm_confidential_cloudflare_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -30,17 +30,18 @@ data "aws_iam_policy_document" "fleetdm_confidential_cloudflare_trust" {
       identifiers = [aws_iam_openid_connect_provider.github.arn]
     }
 
+    # Required audience condition to ensure only AWS STS can use this role
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    # Restrict to the fleetdm/confidential repo only
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values   = ["repo:fleetdm/confidential:*"]
-    }
-
-    # Require that the workflow file is check_cloudflare.yml
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:workflow"
-      values   = ["check_cloudflare.yml"]
     }
   }
 }
@@ -51,12 +52,14 @@ resource "aws_iam_role" "fleetdm_confidential_cloudflare" {
 }
 
 # --- Policy for backend S3/KMS/DynamoDB ---
-data "aws_iam_policy_document" "fleetdm_confidential_cloudflare_ro" {
-  # Restrict read to the specific Cloudflare tfstate object
+data "aws_iam_policy_document" "fleetdm_confidential_cloudflare_rw" {
+  # Full access to the specific Cloudflare tfstate object
   statement {
-    sid = "S3ReadTfstate"
+    sid = "S3ManageTfstate"
     actions = [
-      "s3:GetObject"
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject"
     ]
     resources = [
       "${module.remote-state-s3-backend.state_bucket.arn}/infrastructure/cloudflare/terraform.tfstate"
@@ -107,13 +110,13 @@ data "aws_iam_policy_document" "fleetdm_confidential_cloudflare_ro" {
   }
 }
 
-resource "aws_iam_policy" "fleetdm_confidential_cloudflare_ro" {
+resource "aws_iam_policy" "fleetdm_confidential_cloudflare_rw" {
   name   = "fleetdm-confidential-cloudflare-terraform"
-  policy = data.aws_iam_policy_document.fleetdm_confidential_cloudflare_ro.json
+  policy = data.aws_iam_policy_document.fleetdm_confidential_cloudflare_rw.json
 }
 
-resource "aws_iam_role_policy_attachment" "fleetdm_confidential_cloudflare_ro_attach" {
+resource "aws_iam_role_policy_attachment" "fleetdm_confidential_cloudflare_rw_attach" {
   role       = aws_iam_role.fleetdm_confidential_cloudflare.name
-  policy_arn = aws_iam_policy.fleetdm_confidential_cloudflare_ro.arn
+  policy_arn = aws_iam_policy.fleetdm_confidential_cloudflare_rw.arn
 }
 

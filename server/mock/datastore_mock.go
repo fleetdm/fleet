@@ -525,7 +525,7 @@ type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS
 
 type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
-type MDMTurnOffFunc func(ctx context.Context, uuid string) error
+type MDMTurnOffFunc func(ctx context.Context, uuid string) (users []*fleet.User, activities []fleet.ActivityDetails, err error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
 
@@ -5599,7 +5599,7 @@ func (s *DataStore) CleanupHostOperatingSystems(ctx context.Context) error {
 	return s.CleanupHostOperatingSystemsFunc(ctx)
 }
 
-func (s *DataStore) MDMTurnOff(ctx context.Context, uuid string) error {
+func (s *DataStore) MDMTurnOff(ctx context.Context, uuid string) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
 	s.mu.Lock()
 	s.MDMTurnOffFuncInvoked = true
 	s.mu.Unlock()

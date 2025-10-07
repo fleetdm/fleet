@@ -719,10 +719,11 @@ type Datastore interface {
 	// upgraded from a prior version).
 	CleanupHostOperatingSystems(ctx context.Context) error
 
-	// MDMTurnOff updates Fleet host information related to MDM when a
-	// host turns off MDM. Anything related to the protocol itself is
-	// managed separately.
-	MDMTurnOff(ctx context.Context, uuid string) error
+	// MDMTurnOff updates Fleet host information related to MDM when a host turns
+	// off MDM. Anything related to the protocol itself is managed separately. It
+	// returns the users and corresponding activities that may need to be created
+	// as a result of turning off MDM.
+	MDMTurnOff(ctx context.Context, uuid string) (users []*User, activities []ActivityDetails, err error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

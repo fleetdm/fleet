@@ -849,6 +849,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		HostSerial:       h.HardwareSerial,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
+		Platform:         h.Platform,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
 	}

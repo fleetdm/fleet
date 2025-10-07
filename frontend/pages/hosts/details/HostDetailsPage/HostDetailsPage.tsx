@@ -42,6 +42,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
+import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -59,7 +60,6 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -1025,11 +1025,11 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for personally enrolled mdm hosts where we are not
+              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
                when we add that feature.
                We also are not currently supporting Android software installs */}
-              {isPersonalEnrollmentInMdm(host.mdm.enrollment_status) ||
+              {isBYODAccountDrivenEnrollment(host.mdm.enrollment_status) ||
               isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
@@ -1040,7 +1040,9 @@ const HostDetailsPage = ({
                         newTab
                         text="Learn more"
                         url={
-                          isPersonalEnrollmentInMdm(host.mdm.enrollment_status)
+                          isBYODAccountDrivenEnrollment(
+                            host.mdm.enrollment_status
+                          )
                             ? BYOD_SW_INSTALL_LEARN_MORE_LINK
                             : ANDROID_SW_INSTALL_LEARN_MORE_LINK
                         }
@@ -1361,14 +1363,12 @@ const HostDetailsPage = ({
               onProfileResent={refetchHostDetails}
             />
           )}
-          {showUnenrollMdmModal && !!host && (
+          {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (
             <UnenrollMdmModal
               hostId={host.id}
               hostPlatform={host.platform}
               hostName={host.display_name}
-              isBYODEnrollment={isPersonalEnrollmentInMdm(
-                host.mdm.enrollment_status
-              )}
+              enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
             />
           )}
