@@ -70,12 +70,8 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       id: "source",
       Cell: (cellProps: ITableStringCellProps) => {
         const { source, extension_for } = cellProps.row.original;
-        return (
-          <TextCell
-            value={source}
-            formatter={() => formatSoftwareType({ source, extension_for })}
-          />
-        );
+        const value = formatSoftwareType({ source, extension_for });
+        return <TextCell value={value} />;
       },
     },
     {
