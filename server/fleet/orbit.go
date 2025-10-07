@@ -162,6 +162,8 @@ func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) Da
 	}
 }
 
+// WithEnrollOrbitIgnoreTeamUpdate sets whether to ignore team updates for datastore Orbit enrollment
+// it only acts on existing hosts (i.e. it won't ignore the team id on new hosts)
 func WithEnrollOrbitIgnoreTeamUpdate(ignore bool) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.IgnoreTeamUpdate = ignore

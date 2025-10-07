@@ -18327,7 +18327,7 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 	// RE-enroll orbit and see team transfer
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", request, http.StatusOK, &response)
 
-	// Check that the host is still in no-team
+	// Check that the host is now in the team
 	hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, hostLite)

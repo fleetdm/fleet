@@ -425,13 +425,15 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	memLimitStore, _ := memstore.New(0)
 	var limitStore throttled.GCRAStore = memLimitStore
-	redisPool := redistest.SetupRedis(t, t.Name(), false, false, false) // We are good to initalize a redis pool here as it is only called by integration tests
+	var redisPool fleet.RedisPool
 	if len(opts) > 0 && opts[0].Pool != nil {
 		redisPool = opts[0].Pool
 		limitStore = &redis.ThrottledStore{
 			Pool:      opts[0].Pool,
 			KeyPrefix: "ratelimit::",
 		}
+	} else {
+		redisPool = redistest.SetupRedis(t, t.Name(), false, false, false) // We are good to initalize a redis pool here as it is only called by integration tests
 	}
 
 	if len(opts) > 0 {
