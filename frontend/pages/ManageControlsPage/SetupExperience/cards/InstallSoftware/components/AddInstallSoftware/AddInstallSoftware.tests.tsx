@@ -13,6 +13,7 @@ describe("AddInstallSoftware", () => {
   it("should render the expected message if there are no software titles to select from", () => {
     render(
       <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={null}
         onAddSoftware={noop}
@@ -27,6 +28,7 @@ describe("AddInstallSoftware", () => {
   it("should render the correct messaging when there are software titles but none have been selected to install at setup", () => {
     render(
       <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
         onAddSoftware={noop}
@@ -42,6 +44,7 @@ describe("AddInstallSoftware", () => {
   it("should render the correct messaging when there are software titles that have been selected to install at setup", () => {
     render(
       <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({

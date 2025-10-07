@@ -178,6 +178,9 @@ const InstallSoftware = ({
             softwareTitles={softwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
+            savedRequireAllSoftwareMacOS={
+              teamConfig?.mdm?.macos_setup?.require_all_software_macos
+            }
           />
           <InstallSoftwarePreview platform={platform} />
         </SetupExperienceContentContainer>
