@@ -2256,10 +2256,13 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 				installedVPPApps,
 			)
 			require.NoError(t, err)
-			// TODO: We don't actually get a command back from the acknowledgement of the InstalledAppList
-			// but we'll get additional install commands if we follow it up with an idle. Is this a bug?
-			cmd, err = mdmDevice.Idle()
-			require.NoError(t, err)
+			// TODO: We don't actually normally get a command back from the acknowledgement of the InstalledAppList
+			// but we'll get additional install commands if we follow it up with an idle. Is this a bug? I think it
+			// may be because of how we handle activating the next upcoming activity?
+			if cmd == nil {
+				cmd, err = mdmDevice.Idle()
+				require.NoError(t, err)
+			}
 			continue
 		default:
 			if logCommands {
