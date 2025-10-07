@@ -1,4 +1,4 @@
-# $0 Migration to Fleet
+# Free migration from Jamf to Fleet
 
 With Apple's release of macOS 26.0, Fleet helps organizations migrate from Jamf to Fleet — for free*. Our delivery team handles the complex parts: exporting profiles, translating smart groups, replacing extension attributes, mapping policies, and redeploying apps, so your IT team doesn’t have to.
 
