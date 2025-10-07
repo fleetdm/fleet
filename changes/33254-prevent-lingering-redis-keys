@@ -1,0 +1,1 @@
+* Fixed a bug in live queries that caused `livequery:*` Redis keys to not be cleaned up or expire.
