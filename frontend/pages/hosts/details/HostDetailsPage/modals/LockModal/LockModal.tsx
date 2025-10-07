@@ -113,8 +113,7 @@ const LockModal = ({
             </Checkbox>
           </div>
         </div>
-        {/* {isIPadOrIPhone(platform) && <IosOrIpadLockPreview />} */}
-        {true && <IosOrIpadLockPreview />}
+        {isIPadOrIPhone(platform) && <IosOrIpadLockPreview />}
         <div className="modal-cta-wrap">
           <Button
             type="button"
