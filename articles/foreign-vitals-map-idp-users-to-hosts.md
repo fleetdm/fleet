@@ -109,7 +109,9 @@ IdPs generally require a Fleet SCIM URL and API token:
 - SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
 - API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
 
-Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these SCIM attributs are mapped to fields in your IdP. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes. 
+Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with ⁠`userName` as the unique identifier. Fleet uses the⁠ `userName` attribute to map to IdP groups and department.
+
+Fleet also supports the `department` attribute (optional). Delete all other attributes.
 
 ### Prerequisites
 
