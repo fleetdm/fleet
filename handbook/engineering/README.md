@@ -267,6 +267,8 @@ Immediately after publishing a new release of Fleet or fleetd, close out the ass
 
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
+When target release dates are changed on the calendar, the release ritual DRI also updates the milestone due date.
+
 
 ### Handle process exceptions for non-released code
 
