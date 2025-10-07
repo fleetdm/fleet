@@ -36,7 +36,7 @@ Fleet follows Apple’s supported migration flow for Automated Device Enrollment
 - Risk-Free – Canary testing ensures safety and planning windows before fleet-wide rollout
 - Future-Proof – Continuous updates from Apple’s ecosystem and Fleet’s open-source foundation.
 
-<meta name="articleTitle" value="$0 Migration to Fleet">
+<meta name="articleTitle" value="Free migration from Jamf to Fleet">
 <meta name="authorFullName" value="Alex Mitchell">
 <meta name="authorGitHubUsername" value="alexmitchelliii">
 <meta name="category" value="articles">
