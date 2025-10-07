@@ -23,7 +23,7 @@ const SettingUpYourDevice = ({
     title = "Setting up your device...";
     message = `
       Your computer is currently being configured by your organization.
-      Please don&apos;t attempt to restart or shut down the computer unless
+      Please don't attempt to restart or shut down the computer unless
       prompted to do so.
     `;
   } else {

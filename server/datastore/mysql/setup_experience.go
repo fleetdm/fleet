@@ -412,10 +412,23 @@ SELECT
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
-	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id
+	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+    CASE
+        WHEN hsi.execution_status = 'failed_install' THEN
+            CASE
+                WHEN post_install_script_exit_code IS NOT NULL AND post_install_script_exit_code != 0 THEN post_install_script_output
+                WHEN install_script_exit_code IS NOT NULL AND install_script_exit_code != 0 THEN install_script_output
+                WHEN pre_install_query_output IS NULL OR pre_install_query_output = '' THEN 'Pre-install query failed'
+                ELSE 'Installation failed'
+            END
+        WHEN hsr.exit_code IS NOT NULL AND hsr.exit_code != 0 THEN hsr.output
+        ELSE NULL
+    END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
 LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
+LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
+LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
 LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id
 WHERE host_uuid = ?

@@ -50,7 +50,7 @@ type SetupExperienceStatusResult struct {
 	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `
 	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
-	Error                           *string                           `db:"error" json:"-" `
+	Error                           *string                           `db:"error" json:"error" `
 	// SoftwareTitleID must be filled through a JOIN
 	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
 }
