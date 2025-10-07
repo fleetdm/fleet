@@ -41,4 +41,4 @@ Fleet follows Apple’s supported migration flow for Automated Device Enrollment
 <meta name="authorGitHubUsername" value="alexmitchelliii">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2025-10-06">
-<meta name="description" value="Migrate from Jamf to Fleet—free, fast, and zero-touch. Fleet’s $0 migration service follows Apple’s new macOS Tahoe 26.0 flow for a seamless switch.">
+<meta name="description" value="Migrate from Jamf to Fleet. It's free, fast, and zero-touch. Fleet’s free migration service follows Apple’s new macOS Tahoe 26.0 flow for a seamless switch.">
