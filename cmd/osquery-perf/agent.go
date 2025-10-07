@@ -256,6 +256,7 @@ var adamIDsToSoftware = map[int]*fleet.Software{
 
 type agent struct {
 	agentIndex                    int
+	hostCount                     int
 	softwareCount                 softwareEntityCount
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	userCount                     entityCount
@@ -391,6 +392,7 @@ type softwareInstaller struct {
 
 func newAgent(
 	agentIndex int,
+	hostCount int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
 	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
@@ -472,6 +474,7 @@ func newAgent(
 
 	agent := &agent{
 		agentIndex:                    agentIndex,
+		hostCount:                     hostCount,
 		serverAddress:                 serverAddress,
 		softwareCount:                 softwareCount,
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
@@ -1647,31 +1650,70 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
-	// Common Software
 	var lastOpenedCount int
-	commonSoftware := make([]map[string]string, a.softwareCount.common)
-	for i := 0; i < len(commonSoftware); i++ {
+
+	totalCommon := a.softwareCount.common
+	totalDuplicates := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
+	totalSoftware := totalCommon + totalDuplicates // total software to distribute
+
+	perHostCount := totalSoftware / a.hostCount
+	remainder := totalSoftware % a.hostCount
+
+	startIdx := (a.agentIndex - 1) * perHostCount
+	if a.agentIndex-1 < remainder {
+		startIdx += a.agentIndex - 1
+	} else {
+		// distribute remainder entries to first hosts
+		startIdx += remainder
+	}
+
+	endIdx := startIdx + perHostCount
+	if a.agentIndex-1 < remainder {
+		endIdx++
+	}
+
+	commonSoftware := make([]map[string]string, 0)
+	duplicateBundleSoftware := make([]map[string]string, 0)
+	groupSize := 4
+
+	for i := startIdx; i < endIdx; i++ {
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = fmt.Sprint(l.Unix())
 		}
-		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
-			"version":           "0.0.1",
-			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
-			"source":            "apps",
-			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
+
+		if i < totalCommon {
+			commonSoftware = append(commonSoftware, map[string]string{
+				"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
+				"version":           "0.0.1",
+				"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
+				"source":            "apps",
+				"last_opened_at":    lastOpenedAt,
+				"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
+			})
+		} else {
+			duplicateIdx := i - totalCommon
+			bundleIDIndex := duplicateIdx / groupSize
+			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%totalCommon)
+
+			var name string
+			if a.softwareCount.softwareRenaming {
+				name = fmt.Sprintf("RENAMED_DuplicateBundle_%d", duplicateIdx)
+			} else {
+				name = fmt.Sprintf("DuplicateBundle_%d", duplicateIdx)
+			}
+
+			duplicateBundleSoftware = append(duplicateBundleSoftware, map[string]string{
+				"name":              name,
+				"version":           "0.0.1",
+				"bundle_identifier": bundleID,
+				"source":            "apps",
+				"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx),
+			})
 		}
 	}
-	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
-		rand.Shuffle(len(commonSoftware), func(i, j int) {
-			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
-		})
-		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
-	}
 
-	// Unique Software
+	// Unique Software (always per-host, not distributed)
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -1692,30 +1734,6 @@ func (a *agent) softwareMacOS() []map[string]string {
 			uniqueSoftware[i], uniqueSoftware[j] = uniqueSoftware[j], uniqueSoftware[i]
 		})
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
-	}
-
-	// Software with Duplicate Bundle identifiers
-	duplicateCount := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
-	duplicateBundleSoftware := make([]map[string]string, duplicateCount)
-	groupSize := 4
-	for i := 0; i < duplicateCount; i++ {
-		bundleIDIndex := i / groupSize
-		bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%a.softwareCount.common)
-
-		var name string
-		if a.softwareCount.softwareRenaming {
-			name = fmt.Sprintf("RENAMED_DuplicateBundle_%d", i)
-		} else {
-			name = fmt.Sprintf("DuplicateBundle_%d", i)
-		}
-
-		duplicateBundleSoftware[i] = map[string]string{
-			"name":              name,
-			"version":           "0.0.1",
-			"bundle_identifier": bundleID,
-			"source":            "apps",
-			"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", i),
-		}
 	}
 
 	// Vulnerable Software
@@ -3060,6 +3078,7 @@ func main() {
 		}
 
 		a := newAgent(i+1,
+			*hostCount,
 			*serverURL,
 			*enrollSecret,
 			tmpl,
