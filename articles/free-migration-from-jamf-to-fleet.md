@@ -10,7 +10,7 @@ Fleet follows Apple’s supported migration flow for Automated Device Enrollment
 
 ### Profile & policy replication
 
-- Export .mobileconfig profiles from Jamf and re-apply them in Fleet.
+- Export `.mobileconfig` profiles from Jamf and re-apply them in Fleet.
 - Translate smart groups into Fleet labels. 
 - Replace extension attributes with Fleet queries, labels, or policies.
 - Map Jamf policies to Fleet policies with automated remediation scripts or package installs.
@@ -20,7 +20,6 @@ Fleet follows Apple’s supported migration flow for Automated Device Enrollment
 - Sync your Apple VPP apps directly into Fleet.
 - Upload and scope custom macOS packages with labels.
 - Preserve license continuity and ensure VPP token migration within Apple’s 30-day window.
-- 
 
 ### Security & compliance first
 
@@ -31,12 +30,13 @@ Fleet follows Apple’s supported migration flow for Automated Device Enrollment
 ## Why customers choose Fleet migration
 
 - It's free! Fleet covers migration as part of the onboarding process.
-- Reduced IT Burden – Fleet’s experts handle prep, mapping, and testing.
+- Reduced IT burden – Fleet’s experts handle prep, mapping, and testing.
 - GitOps by default – Everything version-controlled and repeatable.
-- Risk-Free – Canary testing ensures safety and planning windows before fleet-wide rollout
+- Risk-free – Canary testing ensures safety and planning windows before fleet-wide rollout
 - Future-Proof – Continuous updates from Apple’s ecosystem and Fleet’s open-source foundation.
 
 *For qualified enterprise organizations with >500 devices. [Get in touch to submit a request](https://fleetdm.com/contact).
+
 <meta name="articleTitle" value="Free migration from Jamf to Fleet">
 <meta name="authorFullName" value="Alex Mitchell">
 <meta name="authorGitHubUsername" value="alexmitchelliii">
