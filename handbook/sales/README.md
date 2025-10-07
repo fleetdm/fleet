@@ -25,6 +25,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Add an account to your patch
+
+Use the following steps to add an account to Salesforce if one doesn't exist already:
+1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a dupicate, parent, or child account doesn't already exist. 
+2. If the account already exists, reach out to the [Head of Digital Workspace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
+
+
 ### Respond to a customer feature comparison request
 
 AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to the "🎐🗣 Design review (:help-design)" meeting for CEO review. The rep will:

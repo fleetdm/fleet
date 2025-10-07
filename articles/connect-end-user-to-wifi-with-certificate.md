@@ -374,15 +374,16 @@ Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If e
 
 ### Step 4: Create a custom policy
 
-1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect the certificate's existence:
+1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect the certificate's existence and if it expires in the next 30 days:
 
 ```sql
-SELECT 1 FROM file WHERE path='/opt/company/certificate.pem';
+SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
 ```
 
 2. Select **Save** and select only **Linux** as its target. Select **Save** again to create your policy.
 3. On the **Policies** page, select **Manage automations > Scripts**. Select your newly-created policy and then in the dropdown to the right, select your newly created certificate issuance script.
-4. Now, any host that's doesn't have a certificate in `/opt/company/certificate.pem` will fail the policy. When the policy fails, Fleet will run the script to deploy a certificate!
+4. Now, any host that doesn't have a certificate in `/opt/company/certificate.pem` or has a certificate that expires in the next 30 days will fail the policy. When the policy fails, Fleet will run the script to deploy a new certificate! 
+
 
 ## How the SCEP proxy works
 

@@ -140,7 +140,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Create and edit self-authored labels                                                                                                           |          |            |          |     | ✅      |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
-| Add and delete software                                                                                                          |               |                | ✅              | ✅         | ✅            |
+| Add, edit, and delete software                                                                                                    |               |                | ✅              | ✅         | ✅            |
 | Download added software                                                                                                          |               |                | ✅              | ✅         |              |
 | Install/uninstall software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |

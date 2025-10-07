@@ -1,34 +1,46 @@
 import Card from "components/Card";
-import { ISetupSoftwareStatus } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 import React from "react";
 import InfoButton from "../InfoButton";
-import SetupSoftwareStatusTable from "./SetupSoftwareStatusTable";
+import SetupStatusTable from "./SetupStatusTable";
+
+import { hasRemainingSetupSteps } from "../../helpers";
 
 const baseClass = "setting-up-your-device";
 
 interface ISettingUpYourDevice {
-  softwareStatuses: ISetupSoftwareStatus[];
+  setupSteps: ISetupStep[];
   toggleInfoModal: () => void;
 }
 
 const SettingUpYourDevice = ({
-  softwareStatuses,
+  setupSteps,
   toggleInfoModal,
 }: ISettingUpYourDevice) => {
+  let title;
+  let message;
+  if (hasRemainingSetupSteps(setupSteps)) {
+    title = "Setting up your device...";
+    message = `
+      Your computer is currently being configured by your organization.
+      Please don&apos;t attempt to restart or shut down the computer unless
+      prompted to do so.
+    `;
+  } else {
+    title = "Configuration complete";
+    message =
+      "Your computer has been successfully configured. Setup will continue momentarily.";
+  }
+
   return (
     <div className={`${baseClass} main-content device-user`}>
-      <span className={`${baseClass}__header`}>
-        <h1 className={`${baseClass}__title`}>My device</h1>
-        <InfoButton onClick={toggleInfoModal} />
-      </span>
       <Card borderRadiusSize="xxlarge" paddingSize="xlarge">
-        <h2>Setting up your device...</h2>
-        <p>
-          Your computer is currently being configured by your organization.
-          Please don&apos;t attempt to restart or shut down the computer unless
-          prompted to do so.
-        </p>
-        <SetupSoftwareStatusTable statuses={softwareStatuses} />
+        <div className={`${baseClass}__header`}>
+          <h2>{title}</h2>
+          <InfoButton onClick={toggleInfoModal} />
+        </div>
+        <p>{message}</p>
+        <SetupStatusTable statuses={setupSteps} />
       </Card>
     </div>
   );

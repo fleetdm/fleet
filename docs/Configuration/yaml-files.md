@@ -519,6 +519,7 @@ software:
   - `Productivity`: shown as **🖥️ Productivity**
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience).
 
+
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
@@ -743,6 +744,9 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+
 #### Example
 
 `default.yml`
@@ -880,6 +884,8 @@ Can only be configured for all teams (`org_settings`).
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
+
+Can only be configured for all teams (`org_settings`).
 
 #### smallstep
 
