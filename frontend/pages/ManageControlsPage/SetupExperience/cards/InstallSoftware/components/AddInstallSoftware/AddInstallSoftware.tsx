@@ -55,6 +55,7 @@ const AddInstallSoftware = ({
   );
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Handle clicking Save button for "Cancel setup if software install fails" option.
   const onClickSave = async () => {
     setIsUpdating(true);
     try {
