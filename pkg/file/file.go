@@ -43,7 +43,7 @@ type InstallerMetadata struct {
 func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	// TODO(JVE): fill me in! needs to unzip the file, then use the binary plist reader we have to get the metadata
 	h := sha256.New()
-	io.Copy(h, tfr) // writes to a hash cannot fail
+	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
 	if err := tfr.Rewind(); err != nil {
 		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
@@ -90,9 +90,9 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		if err != nil {
 			err = errors.Join(ErrInvalidTarball, err)
 		}
-	case "ipa":
-		meta, err = ExtractIPAMetadata(tfr)
-		// fmt.Printf("meta.SHASum: %v\n", meta.SHASum)
+	// TODO: implement this
+	// case "ipa":
+	// meta, err = ExtractIPAMetadata(tfr)
 	default:
 		return nil, ErrUnsupportedType
 	}
