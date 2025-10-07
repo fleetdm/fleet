@@ -133,3 +133,6 @@ After the emergency, update Terraform to reflect the change so drift detection r
 | Delegated zones | Managed in environment repos |
 | Responsible team | [🌦️ Infrastructure Engineer](https://fleetdm.com/handbook/customer-success#team) |
 
+<meta name="maintainedBy" value="rfairburn">
+<meta name="title" value="DNS Management">
+
