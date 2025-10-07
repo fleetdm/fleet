@@ -2167,6 +2167,23 @@ This activity contains the following fields:
 }
 ```
 
+## edited_host_idp_data
+
+Generated when a user updates a host's IdP data. Currently IdP username can be edited.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_idp_username": The updated IdP username for this host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_idp_username": "anna.chao@example.com"
+}
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
