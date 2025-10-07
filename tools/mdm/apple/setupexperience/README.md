@@ -12,7 +12,7 @@ To use:
 6. Enroll your macOS VM into a team. 
 7. Run this tool with the appropriate flags to set up the necessary database records, e.g.:
 
-```
+```bash
 go run main.go -server-private-key=$(cat ~/path/to/private/key) -host-uuid="your-enrolled-host-uuid"
 ```
 
