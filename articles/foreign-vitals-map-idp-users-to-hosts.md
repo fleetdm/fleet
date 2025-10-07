@@ -46,14 +46,14 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
 9. Back in Okta, select **Save**.
 10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-11. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
+11. On the same page, make sure that `givenName` and `familyName` have Okta values assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
 #### Step 3: Map users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
-1. In OKta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
+1. In Okta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
 2. On the same page, select the **Rules** tab. Create a rule that will assign users to your  "Fleet human-device mapping" group.
 ![Okta group rule](../website/assets/images/articles/okta-scim-group-rules-1000x522@2x.png)
 3. In the main menu, select **Applications > Applications**  and select your new SCIM app. Then, select the **Assignments** tab.
@@ -106,9 +106,10 @@ Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standa
 
 IdPs generally require a Fleet SCIM URL and API token:
 
-SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
+- SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
+- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
 
-API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
+Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these SCIM attributs are mapped to fields in your IdP. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes. 
 
 ### Prerequisites
 
