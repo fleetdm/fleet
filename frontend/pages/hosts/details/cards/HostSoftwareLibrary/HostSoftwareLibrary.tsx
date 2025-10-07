@@ -130,7 +130,7 @@ const HostSoftwareLibrary = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
-  const isUnsupported = false; // isAndroid(platform); // no Android software
+  const isUnsupported = isAndroid(platform); // no Android software
   const isWindowsHost = platform === "windows";
   const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
   const isMacOSHost = platform === "darwin";
