@@ -625,5 +625,14 @@
       "vendor": ["mozilla"],
       "sw_edition": ["esr"]
     }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.logi.bolt.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
   }
 ]
