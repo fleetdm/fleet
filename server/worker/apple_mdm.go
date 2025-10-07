@@ -530,6 +530,11 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 }
 
 func (a *AppleMDM) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	// Should not happen in the normal course of events but can happen in tests
+	// and likely indicates things weren't initialized properly.
+	if a.VPPInstaller == nil {
+		return "", errors.New("VPP installer not configured")
+	}
 	token, err := a.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
 	if err != nil {
 		return "", err
