@@ -1,7 +1,6 @@
 .setting-up-your-device {
   &__header {
     display: flex;
-    justify-content: space-between;
 
     .info-button {
       padding-top: 0;
@@ -14,6 +13,8 @@
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
+    justify-content: space-between;
+    align-items: flex-start;
   }
   h2 {
     font-size: $medium;
@@ -25,5 +26,11 @@
 
   .empty-table__container {
     max-width: 100%;
+  }
+
+  .textarea-wrapper {
+    font-size: $x-small;
+    line-height: 1.5;
+    width: 100%;
   }
 }

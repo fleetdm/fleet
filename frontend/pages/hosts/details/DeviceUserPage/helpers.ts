@@ -17,3 +17,14 @@ export const hasRemainingSetupSteps = (
 
   return statuses.some((s) => ["pending", "running"].includes(s.status));
 };
+
+export const getFailedSoftwareInstall = (
+  statuses: ISetupStep[] | null | undefined
+): ISetupStep | null => {
+  if (!statuses || statuses.length === 0) {
+    // not configured or no software selected
+    return null;
+  }
+
+  return statuses.find((s) => s.status === "failure") || null;
+};

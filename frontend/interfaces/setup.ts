@@ -16,4 +16,5 @@ export interface ISetupStep {
   name: string | null;
   status: SetupStepStatus;
   type?: SetupStepType;
+  error?: string | null;
 }

@@ -1,10 +1,17 @@
 import Card from "components/Card";
 import { ISetupStep } from "interfaces/setup";
-import React from "react";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import RevealButton from "components/buttons/RevealButton";
+import Textarea from "components/Textarea";
+import React, { useState } from "react";
 import InfoButton from "../InfoButton";
 import SetupStatusTable from "./SetupStatusTable";
 
-import { hasRemainingSetupSteps } from "../../helpers";
+import {
+  hasRemainingSetupSteps,
+  getFailedSoftwareInstall,
+} from "../../helpers";
 
 const baseClass = "setting-up-your-device";
 
@@ -17,19 +24,46 @@ const SettingUpYourDevice = ({
   setupSteps,
   toggleInfoModal,
 }: ISettingUpYourDevice) => {
+  const [showError, setShowError] = useState(false);
   let title;
   let message;
-  if (hasRemainingSetupSteps(setupSteps)) {
+  const failedSoftware = getFailedSoftwareInstall(setupSteps);
+  if (failedSoftware) {
+    title = "Device setup failed";
+    message = (
+      <>
+        <p>
+          Your organization requires that critical software be installed before
+          you use your device. <b>{failedSoftware.name}</b> failed to install.
+        </p>
+        <p>
+          <Icon name="error-outline" color="status-error" size="small" />{" "}
+          <TooltipWrapper
+            tipContent={<>CONTROL (⌃) + Command (⌘) + ⏻ or Touch ID</>}
+          >
+            Restart your device
+          </TooltipWrapper>{" "}
+          to try again. If this keeps happening, please contact your IT admin.
+        </p>
+      </>
+    );
+  } else if (hasRemainingSetupSteps(setupSteps)) {
     title = "Setting up your device...";
-    message = `
-      Your computer is currently being configured by your organization.
-      Please don't attempt to restart or shut down the computer unless
-      prompted to do so.
-    `;
+    message = (
+      <p>
+        Your computer is currently being configured by your organization. Please
+        don&rsquo;t attempt to restart or shut down the computer unless prompted
+        to do so.
+      </p>
+    );
   } else {
     title = "Configuration complete";
-    message =
-      "Your computer has been successfully configured. Setup will continue momentarily.";
+    message = (
+      <p>
+        Your computer has been successfully configured. Setup will continue
+        momentarily.
+      </p>
+    );
   }
 
   return (
@@ -37,10 +71,25 @@ const SettingUpYourDevice = ({
       <Card borderRadiusSize="xxlarge" paddingSize="xlarge">
         <div className={`${baseClass}__header`}>
           <h2>{title}</h2>
-          <InfoButton onClick={toggleInfoModal} />
+          {!failedSoftware && <InfoButton onClick={toggleInfoModal} />}
         </div>
-        <p>{message}</p>
-        <SetupStatusTable statuses={setupSteps} />
+        {message}
+        {!failedSoftware && <SetupStatusTable statuses={setupSteps} />}
+        {failedSoftware && (
+          <>
+            <RevealButton
+              className={`${baseClass}__accordion-title`}
+              isShowing={showError}
+              showText="Details"
+              hideText="Details"
+              caretPosition="after"
+              onClick={() => setShowError(!showError)}
+            />
+            {showError && (
+              <Textarea variant="code">{failedSoftware.error}</Textarea>
+            )}
+          </>
+        )}
       </Card>
     </div>
   );
