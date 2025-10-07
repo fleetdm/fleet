@@ -52,7 +52,7 @@ func TestUp_20251003094629(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			var title fleet.SoftwareTitle
-			err := db.Get(&title, "SELECT id, name, source, browser, application_id, bundle_identifier FROM software_titles WHERE id = ?", tt.titleID)
+			err := db.Get(&title, "SELECT id, name, source, extension_for, application_id, bundle_identifier FROM software_titles WHERE id = ?", tt.titleID)
 			require.NoError(t, err)
 			switch {
 			case tt.expectedBundleID == nil:

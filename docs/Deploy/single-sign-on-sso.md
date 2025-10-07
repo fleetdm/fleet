@@ -79,8 +79,8 @@ Create a new SAML app in Microsoft Entra Admin Center:
  ![The new SAML app's details page in Enta Admin Center](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-step-6.png)
 
 On your Fleet server: 
-1. Navigate to **Settings > Organization settings > Single sign-on options**.
-2. On the **Single sign-on options** page:
+1. Navigate to **Settings > Organization settings > Single sign-on (SSO)**.
+2. On the **Single sign-on (SSO)** page:
    - Check the box to **Enable single sign-on**.
    - For **Identity provider name**, enter `Entra`.
    - For **Entity ID**, enter `fleet`.

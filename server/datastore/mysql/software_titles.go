@@ -42,7 +42,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
 	st.application_id,
 	COALESCE(sthc.hosts_count, 0) AS hosts_count,
@@ -61,7 +61,7 @@ GROUP BY
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
 	hosts_count,
 	vap.icon_url
@@ -350,8 +350,8 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	if k != "source" {
 		secondaryOrderBy += ", source ASC"
 	}
-	if k != "browser" {
-		secondaryOrderBy += ", browser ASC"
+	if k != "extension_for" {
+		secondaryOrderBy += ", extension_for ASC"
 	}
 
 	return strings.Replace(stmt, targetSubstr, targetSubstr+secondaryOrderBy, 1)
@@ -363,7 +363,7 @@ SELECT
 	st.id
 	,st.name
 	,st.source
-	,st.browser
+	,st.extension_for
 	,st.bundle_identifier
 	,st.application_id
 	,MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count

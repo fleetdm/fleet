@@ -43,7 +43,7 @@ func Up_20251003094629(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`
 		ALTER TABLE software_titles
-		ADD UNIQUE INDEX idx_unique_sw_titles (unique_identifier, source, browser);
+		ADD UNIQUE INDEX idx_unique_sw_titles (unique_identifier, source, extension_for);
 	`); err != nil {
 		return fmt.Errorf("failed to add unique index: %w", err)
 	}
