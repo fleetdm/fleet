@@ -157,6 +157,9 @@ const SoftwareCustomPackage = ({
         )
       );
     } catch (e) {
+      console.log(
+        ">>>>> here it should call the same getErrorMessage as for VPP apps..."
+      );
       renderFlash("error", getErrorMessage(e));
     }
     setUploadDetails(null);
