@@ -16,20 +16,15 @@ export const ensurePeriod = (str: string) => {
 };
 
 /**
- * Matches API messages indicating that a software package or VPP is already available
- * for install on a team.
- *
- * Example matches:
- * - When adding a VPP and the team already has a software package
- * - When adding a software package and the team already has a VPP
- *
- * Returns a formatted React element if matched; otherwise, returns null.
- */
+ *  Matches API messages after the fixed Couldn't add software. prefix,
+ * and renders just the part about what is available for install.
+ * Returns a formatted React element if matched; otherwise, returns null. */
 export const formatAlreadyAvailableInstallMessage = (msg: string) => {
-  const regex = new RegExp(
-    `${ADD_SOFTWARE_ERROR_PREFIX} (.+) already.+on the (.+) team.`
-  );
-  const match = msg.match(regex);
+  // Remove prefix (with or without trailing space)
+  const cleaned = msg.replace(/^Couldn't add software\.?\s*/, "");
+  // New regex for "<package> already has a package or app available for install on the <team> team."
+  const regex = /^(.+?) already.+on the (.+?) team\./;
+  const match = cleaned.match(regex);
 
   if (match) {
     return (
