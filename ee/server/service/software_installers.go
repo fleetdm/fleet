@@ -1573,6 +1573,11 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.Extension = meta.Extension
 	payload.UpgradeCode = meta.UpgradeCode
 
+	if payload.Extension == "ipa" {
+		fmt.Println("processing IPA upload")
+		return meta.Extension, nil
+	}
+
 	// reset the reader (it was consumed to extract metadata)
 	if err := payload.InstallerFile.Rewind(); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")

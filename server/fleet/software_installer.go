@@ -584,6 +584,8 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "pkg_packages", nil
 	case "tar.gz":
 		return "tgz_packages", nil
+	case "ipa":
+		return "ipa", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
