@@ -48,6 +48,7 @@ Companies that self-host Fleet can now use IAM (Identity and Access Management) 
 
 ### IT Admins
 - Added setup experience software items for Linux devices.
+- Added ability to upload custom software icons.
 - Added API endpoints for Linux setup experience.
   - Device API endpoints for fleetd: `POST /api/fleet/orbit/setup_experience/init` and `POST /api/v1/fleet/device/{token}/setup_experience/status`.
   - `PUT /api/v1/fleet/setup_experience/software` and `GET /api/v1/fleet/setup_experience/software` now have a `platform` argument (`linux` or `macos`, defaults to `macos`).
