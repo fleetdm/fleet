@@ -103,13 +103,20 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.Extension == "ipa" {
 		fmt.Println("processing IPA upload")
-		if err := svc.ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{TeamID: payload.TeamID, Name: payload.Title, StorageID: payload.StorageID, Platform: payload.Platform}); err != nil {
+		gotID, err := svc.ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{TeamID: payload.TeamID, Name: payload.Title, BundleID: payload.BundleIdentifier, StorageID: payload.StorageID, Platform: payload.Platform})
+		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "insert in-house app")
+		}
+
+		var titleID *uint
+		if gotID != uint(0) {
+			titleID = &gotID
 		}
 
 		// TODO: other processing (e.g. labels)
 		return &fleet.SoftwareInstaller{
 			TeamID:    payload.TeamID,
+			TitleID:   titleID,
 			Name:      payload.Title,
 			StorageID: payload.StorageID,
 			Platform:  payload.Platform,

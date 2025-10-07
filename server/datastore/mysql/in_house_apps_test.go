@@ -27,7 +27,7 @@ func TestInHouseApps(t *testing.T) {
 
 func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	err := ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
+	_, err := ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
 		Name:      "foo",
 		StorageID: "testingtesting123",
 		Platform:  "ios",

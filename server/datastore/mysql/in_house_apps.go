@@ -8,17 +8,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) error {
+func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (titleID uint, err error) {
 
 	stmt := `
 	INSERT INTO in_house_apps (
 		team_id,
+		title_id,
 		global_or_team_id,
 		name,
 		storage_id,
 		platform
 	)
-	VALUES (?, ?, ?, ?, ?)
+	VALUES (?, ?, ?, ?, ?, ?)
 		`
 
 	var tid *uint
@@ -30,10 +31,20 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 			tid = payload.TeamID
 		}
 	}
+	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           tid,
+		Title:            payload.Name,
+		BundleIdentifier: payload.BundleID,
+		Source:           "ios_apps"}, // TODO: what about iPad apps
+	)
+	if err != nil {
+		return 0, err
+	}
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		args := []any{
 			tid,
+			titleID,
 			globalOrTeamID,
 			payload.Name,
 			payload.StorageID,
@@ -52,5 +63,5 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 		return nil
 	})
 
-	return ctxerr.Wrap(ctx, err, "insert in house app")
+	return titleID, ctxerr.Wrap(ctx, err, "insert in house app")
 }

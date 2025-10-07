@@ -2409,7 +2409,7 @@ type Datastore interface {
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
-	InsertInHouseApp(ctx context.Context, payload *InHouseAppPayload) error
+	InsertInHouseApp(ctx context.Context, payload *InHouseAppPayload) (titleID uint, err error)
 }
 
 type AndroidDatastore interface {
