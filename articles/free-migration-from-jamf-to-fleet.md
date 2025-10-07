@@ -36,16 +36,6 @@ Fleet follows Apple’s supported migration flow for Automated Device Enrollment
 - Risk-Free – Canary testing ensures safety and planning windows before fleet-wide rollout
 - Future-Proof – Continuous updates from Apple’s ecosystem and Fleet’s open-source foundation.
 
-[The entire GitHub markdown cheat sheet...](https://www.google.com)
-
-![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
-
-```
-some
-amazing
-program
-```
-
 <meta name="articleTitle" value="$0 Migration to Fleet">
 <meta name="authorFullName" value="Alex Mitchell">
 <meta name="authorGitHubUsername" value="alexmitchelliii">
