@@ -148,6 +148,8 @@ export interface ISoftwareTitle {
   versions: ISoftwareTitleVersion[] | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
+  /** @deprecated Use extension_for instead */
+  browser?: string;
 }
 
 export interface ISoftwareTitleDetails {
@@ -163,6 +165,8 @@ export interface ISoftwareTitleDetails {
   counts_updated_at?: string;
   bundle_identifier?: string;
   versions_count?: number;
+  /** @deprecated Use extension_for instead */
+  browser?: string;
 }
 
 export interface ISoftwareVulnerability {
@@ -190,6 +194,8 @@ export interface ISoftwareVersion {
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
+  /** @deprecated Use extension_for instead */
+  browser?: string;
 }
 
 export const SOURCE_TYPE_CONVERSION = {
