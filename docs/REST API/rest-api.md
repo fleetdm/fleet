@@ -9988,6 +9988,30 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
+    },
+    {
+      "id": 12,
+      "name": "MyCustomApp",
+      "software_package": {
+        "name": "MyCustomApp-1.12.ipa",
+        "platform": "ios",
+        "version": "1.12",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null
+      },
+      "app_store_app": null,
+      "versions_count": 1,
+      "source": "ios_apps",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": null
+        }
+      ],
     }
   ],
   "meta": {
@@ -10298,6 +10322,61 @@ Returns information about the specified software. By default, `versions` are sor
         "hosts_count": 24
       }
     ]
+  }
+}
+```
+
+#### Example (in-house iOS app)
+
+`GET /api/v1/fleet/software/titles/24?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 12,
+    "name": "MyCustomApp",
+    "software_package": {
+      "name": "MyCustomApp-1.12.ipa",
+      "platform": "ios"
+      "fleet_maintained_id": null,
+      "version": "1.12",
+      "self_service": false,
+      "automatic_install_policies": null,
+      "categories": null,
+      "uploaded_at": "2025-08-15T00:55:03.96954Z",
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+      "title_id": 12,
+      "team_id": 3,
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      },
+      "installer_id": 332,
+      "install_script": null, 
+      "uninstall_script": null,
+      "post_install_script": null,
+      "pre_install_query": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+    },
+    "app_store_app": null,
+    "versions_count": 1,
+    "source": "ios_apps",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "1.12",
+        "vulnerabilities": null
+      }
+    ],
   }
 }
 ```
