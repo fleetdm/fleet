@@ -36,7 +36,8 @@ export interface ISoftware {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
-  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | "rpm_packages" | "deb_packages" | ?
+  application_id?: string | null; // e.g., "us.zoom.videomeetings" for Android apps
+  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | "rpm_packages" | "deb_packages" | "android_apps" | ?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
@@ -212,6 +213,7 @@ export const SOURCE_TYPE_CONVERSION = {
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",
+  android_apps: "Application (Android)",
   chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   firefox_addons: "Browser plugin (Firefox)",
   safari_extensions: "Browser plugin (Safari)",
@@ -240,6 +242,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   apps: "darwin",
   ios_apps: "ios",
   ipados_apps: "ipados",
+  android_apps: "android", // 4.76 Currently hidden upstream as not installable
   chrome_extensions: null,
   firefox_addons: null,
   safari_extensions: null,
@@ -580,6 +583,9 @@ export const hasHostSoftwareAppLastInstall = (
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
+
+export const isAndroidSoftwareSource = (source: string) =>
+  source === "android_apps";
 
 export interface IFleetMaintainedApp {
   id: number;
