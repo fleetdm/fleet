@@ -30,7 +30,7 @@ Fleet follows Apple’s supported migration flow for Automated Device Enrollment
 
 ## Why customers choose Fleet migration
 
-- $0 Cost – Fleet covers migration as part of onboarding.
+- It's free! Fleet covers migration as part of the onboarding process.
 - Reduced IT Burden – Fleet’s experts handle prep, mapping, and testing.
 - GitOps by default – Everything version-controlled and repeatable.
 - Risk-Free – Canary testing ensures safety and planning windows before fleet-wide rollout
