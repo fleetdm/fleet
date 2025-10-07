@@ -128,21 +128,15 @@ func TestExtractValues(t *testing.T) {
 func TestExtractValues_DoesNotPanicOnLongLine(t *testing.T) {
 	// Construct a long line to ensure no unexpected behavior for big inputs.
 	longVal := make([]byte, 0, 300_000)
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		longVal = append(longVal, 'a')
 	}
 	line := "[2025-09-18] santad: path=/" + string(longVal) + " | reason=ok"
 
 	got := extractValues(line)
-	if got["timestamp"] != "2025-09-18" {
-		t.Fatalf("timestamp parse failed, got %q", got["timestamp"])
-	}
-	if _, ok := got["path"]; !ok {
-		t.Fatalf("expected path key to be present on long input")
-	}
-	if got["reason"] != "ok" {
-		t.Fatalf("expected reason=ok, got %q", got["reason"])
-	}
+	require.Equal(t, "2025-09-18", got["timestamp"])
+	require.Contains(t, got, "path", "expected path key to be present on long input")
+	require.Equal(t, "ok", got["reason"])
 }
 
 func TestScrapeSantaLogFromBase_EndToEnd(t *testing.T) {
@@ -161,7 +155,7 @@ func TestScrapeSantaLogFromBase_EndToEnd(t *testing.T) {
 	// archive 1 (gz): an ALLOW (older)
 	writeGz(t, base+".1.gz", mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/OK/C", "scope", "ccc"))
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	denied, err := scrapeSantaLogFromBase(ctx, decisionDenied, base)
 	require.NoError(t, err)
@@ -219,7 +213,7 @@ func TestScrapeStream_EnforcesGlobalCap(t *testing.T) {
 	err := scrapeStream(context.Background(), sc, decisionAllowed, rb)
 
 	require.NoError(t, err, "cap should not surface as an error")
-	require.Len(t, rb.SliceChrono(), maxEntries, "SliceReverse should return exactly maxEntries items")
+	require.Len(t, rb.SliceChrono(), maxEntries, "SliceChrono should return exactly maxEntries items")
 }
 
 func TestScrapeSantaLogFromBase_PrefersLatestWithinArchiveOnCap(t *testing.T) {

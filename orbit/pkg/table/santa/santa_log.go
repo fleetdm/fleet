@@ -216,6 +216,5 @@ func scrapeSantaLogFromBase(ctx context.Context, decision santaDecisionType, pat
 	}
 
 	// Return the last N entries (oldest → newest among those last N).
-	// If you prefer newest-first, use rb.SliceReverse().
 	return rb.SliceChrono(), nil
 }
