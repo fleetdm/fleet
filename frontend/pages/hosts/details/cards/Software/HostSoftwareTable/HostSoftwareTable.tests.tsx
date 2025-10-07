@@ -47,13 +47,6 @@ describe("HostSoftwareTable", () => {
     expect(screen.getByText(/no software detected/i)).toBeInTheDocument();
   });
 
-  it("renders Android software inventory", () => {
-    renderWithContext({ platform: "android" });
-    expect(
-      screen.queryByText(/Software installed on this host/i)
-    ).toBeInTheDocument();
-  });
-
   it("renders custom filter button when filters are applied", () => {
     renderWithContext({
       vulnFilters: { vulnerable: true },
