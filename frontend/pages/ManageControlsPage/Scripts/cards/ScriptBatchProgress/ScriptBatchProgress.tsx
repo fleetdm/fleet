@@ -20,6 +20,7 @@ import Icon from "components/Icon/Icon";
 
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
 import getWhen from "../../helpers";
+import ListItem from "components/ListItem";
 
 const baseClass = "script-batch-progress";
 
@@ -139,13 +140,10 @@ const ScriptBatchProgress = ({
     const when = getWhen(summary);
     return (
       <>
-        <div className={`${baseClass}__row-left`}>
-          <b>{script_name}</b>
-          <div className={`${baseClass}__row-when`}>{when}</div>
-        </div>
+        <ListItem title={script_name} details={when} />
         {summary.status !== "scheduled" && (
           <div className={`${baseClass}__row-right`}>
-            <div>
+            <div className={`${baseClass}__status-count`}>
               {ran_host_count + errored_host_count} / {targeted_host_count}{" "}
               hosts
             </div>
