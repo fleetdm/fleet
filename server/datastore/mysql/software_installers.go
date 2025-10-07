@@ -163,6 +163,33 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 	return result, nil
 }
 
+func (ds *Datastore) checkVPPAppExistsForTitleIdentifier(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier, source, browser string) (bool, error) {
+	const stmt = `
+SELECT
+	1
+FROM
+	software_titles st
+	INNER JOIN
+		vpp_apps vpa ON st.id = vpa.title_id AND vpa.platform = ?
+	INNER JOIN
+		vpp_apps_teams vpt ON vpa.adam_id = vpt.adam_id AND vpa.platform = vpt.platform
+			AND vpt.global_or_team_id = ?
+WHERE
+	st.unique_identifier = ? AND st.source = ? AND st.browser = ?
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	var exists int
+	err := sqlx.GetContext(ctx, q, &exists, stmt, fleet.MacOSPlatform, globalOrTeamID, bundleIdentifier, source, browser)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
+	}
+	return exists == 1, nil
+}
+
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID, titleID uint, err error) {
 	if payload.ValidatedLabels == nil {
 		// caller must ensure this is not nil; if caller intends no labels to be created,
@@ -173,6 +200,30 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
+	}
+
+	// check if a VPP app already exists for that software title in the same
+	// platform (macOS) and team.
+	if payload.Platform == string(fleet.MacOSPlatform) {
+		exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx),
+			payload.TeamID, payload.BundleIdentifier, payload.Source, "")
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
+		}
+		if exists {
+			teamName := fleet.TeamNameNoTeam
+			if payload.TeamID != nil && *payload.TeamID > 0 {
+				tm, err := ds.Team(ctx, *payload.TeamID)
+				if err != nil {
+					return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
+				}
+				teamName = tm.Name
+			}
+
+			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+					payload.Title, teamName)}, "vpp app conflicts with existing software installer")
+		}
 	}
 
 	if err := ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload); err != nil {
@@ -1784,13 +1835,17 @@ WHERE
 
 	const checkExistingInstaller = `
 SELECT id,
-storage_id != ? is_package_modified,
-install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
-COALESCE(post_install_script_content_id != ? OR
-	(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
-	(? IS NULL AND post_install_script_content_id IS NOT NULL)
-, FALSE) is_metadata_modified FROM software_installers
-WHERE global_or_team_id = ?	AND title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = '')
+	storage_id != ? is_package_modified,
+	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
+	COALESCE(post_install_script_content_id != ? OR
+		(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
+		(? IS NULL AND post_install_script_content_id IS NOT NULL)
+	, FALSE) is_metadata_modified
+FROM
+	software_installers
+WHERE
+	global_or_team_id = ?	AND
+	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = '')
 `
 
 	const insertNewOrEditedInstaller = `
@@ -1916,8 +1971,14 @@ VALUES
 
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
+	teamName := fleet.TeamNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
+		tm, err := ds.Team(ctx, *tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
+		}
+		teamName = tm.Name
 	}
 
 	// if we're batch-setting installers and replacing the ones installed during
@@ -1976,6 +2037,22 @@ VALUES
 
 		var args []any
 		for _, installer := range installers {
+			// check for installers that target macOS if any package installer is
+			// associated with a software title that already has a VPP app for the same
+			// platform (if that platform is macOS), then this is a conflict.
+			// See https://github.com/fleetdm/fleet/issues/32082
+			if installer.Platform == string(fleet.MacOSPlatform) {
+				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, installer.BundleIdentifier, installer.Source, "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check existing VPP app for installer title identifier")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+							installer.Title, teamName)}, "vpp app conflicts with existing software installer")
+				}
+			}
+
 			args = append(
 				args,
 				installer.Title,

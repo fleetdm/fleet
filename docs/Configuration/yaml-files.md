@@ -795,42 +795,6 @@ Can only be configured for all teams (`org_settings`). Use API to configure Jira
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
-### certificate_authorities
-
-This section lets you configure your certificate authorities (CA) to help your end users connect to Wi-Fi and VPN.
-
-#### Example
-
-`default.yml`
-
-```yaml
-org_settings:
-  certificate_authorities:
-    digicert: # Available in Fleet Premium
-      - name: DIGICERT_WIFI
-        url: https://one.digicert.com
-        api_token: $DIGICERT_API_TOKEN
-        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
-        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_user_principal_names:
-          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy: # Available in Fleet Premium
-      url: https://example.com/certsrv/mscep/mscep.dll
-      admin_url: https://example.com/certsrv/mscep_admin/
-      username: Administrator@example.com
-      password: myPassword
-    custom_scep_proxy: # Available in Fleet Premium
-      - name: SCEP_VPN
-        url: https://example.com/scep
-        challenge: $SCEP_VPN_CHALLENGE
-    hydrant: # Available in Fleet Premium
-      - name: HYDRANT_WIFI
-        url: https://example.hydrantid.com/.well-known/est/abc123
-        client_id: $HYDRANT_CLIENT_ID
-        client_secret: $HYDRANT_CLIENT_SECRET
-```
-
 Can only be configured for all teams (`org_settings`). Use API to configure Zendesk for custom teams and default "No team".
 
 ### certificate_authorities
