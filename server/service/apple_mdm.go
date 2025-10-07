@@ -2388,6 +2388,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 			HostSerial:       h.HardwareSerial,
 			HostDisplayName:  h.DisplayName(),
 			InstalledFromDEP: info.InstalledFromDEP,
+			Platform:         h.Platform,
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
@@ -3566,6 +3567,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 			HostDisplayName:  updatedInfo.DisplayName,
 			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
+			Platform:         updatedInfo.Platform,
 		}
 		if r.Type == mdm.UserEnrollmentDevice {
 			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
@@ -3693,6 +3695,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
+			Platform:         info.Platform,
 		}, svc.ds, svc.logger,
 	)
 }
