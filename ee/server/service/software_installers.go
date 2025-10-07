@@ -69,7 +69,12 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
 	payload.UninstallScript = file.Dos2UnixNewlines(payload.UninstallScript)
 
-	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, true); err != nil {
+	failOnBlankScript := true
+	if strings.HasSuffix(payload.Filename, ".ipa") {
+		failOnBlankScript = false
+	}
+
+	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
@@ -94,6 +99,21 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing software installer")
+	}
+
+	if payload.Extension == "ipa" {
+		fmt.Println("processing IPA upload")
+		if err := svc.ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{TeamID: payload.TeamID, Name: payload.Title, StorageID: payload.StorageID, Platform: payload.Platform}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "insert in-house app")
+		}
+
+		// TODO: other processing (e.g. labels)
+		return &fleet.SoftwareInstaller{
+			TeamID:    payload.TeamID,
+			Name:      payload.Title,
+			StorageID: payload.StorageID,
+			Platform:  payload.Platform,
+		}, nil
 	}
 
 	// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
@@ -1572,11 +1592,6 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.PackageIDs = meta.PackageIDs
 	payload.Extension = meta.Extension
 	payload.UpgradeCode = meta.UpgradeCode
-
-	if payload.Extension == "ipa" {
-		fmt.Println("processing IPA upload")
-		return meta.Extension, nil
-	}
 
 	// reset the reader (it was consumed to extract metadata)
 	if err := payload.InstallerFile.Rewind(); err != nil {

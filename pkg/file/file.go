@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
+	"howett.net/plist"
 )
 
 var (
@@ -48,16 +49,53 @@ func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
 
-	r, err := zip.NewReader(tfr, 1000)
+	fmt.Printf("tfr.Name(): %v\n", tfr.Name())
+
+	r, err := zip.OpenReader(tfr.Name())
 	if err != nil {
 		return nil, err
 	}
 
+	var plistData struct {
+		BundleID string `plist:"CFBundleIdentifier"`
+		Name     string `plist:"CFBundleName"`
+		Version  string `plist:"CFBundleShortVersionString"`
+	}
 	for _, f := range r.File {
 		fmt.Printf("f.Name: %v\n", f.Name)
+		if strings.Contains(f.Name, "Info.plist") {
+			// Get data from plist file
+			archiveFile, err := f.Open()
+			if err != nil {
+				return nil, fmt.Errorf("could not open archive %s: %w", f.Name, err)
+			}
+			defer archiveFile.Close()
+
+			rawData, err := io.ReadAll(archiveFile)
+			if err != nil {
+				return nil, err
+			}
+			_, err = plist.Unmarshal(rawData, &plistData)
+			if err != nil {
+				return nil, err
+			}
+
+			fmt.Printf("plistData: %+v\n", plistData)
+
+		}
 	}
 
-	return &InstallerMetadata{SHASum: h.Sum(nil), PackageIDs: []string{"com.foo.bar"}}, nil
+	if plistData.BundleID == "" {
+		return nil, errors.New("couldn't find bundle identifier for in-house app")
+	}
+
+	return &InstallerMetadata{
+		BundleIdentifier: plistData.BundleID,
+		SHASum:           h.Sum(nil),
+		PackageIDs:       []string{plistData.BundleID},
+		Name:             plistData.Name,
+		Version:          plistData.Version,
+	}, nil
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the
@@ -90,9 +128,8 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		if err != nil {
 			err = errors.Join(ErrInvalidTarball, err)
 		}
-	// TODO: implement this
-	// case "ipa":
-	// meta, err = ExtractIPAMetadata(tfr)
+	case "ipa":
+		meta, err = ExtractIPAMetadata(tfr)
 	default:
 		return nil, ErrUnsupportedType
 	}
