@@ -8,7 +8,7 @@ The installers can come either from your custom packages, or the list of Fleet-m
 
 If you configure software for setup experience, users will see a web browser pop open after their device enrolls in Fleet:
 
-![screen shot of Fleet setup experience webpage](../website/assets/images/articles/setup-experience-browser.png)
+![screen shot of Fleet setup experience webpage](../website/assets/images/articles/setup-experience-browser-1795x1122@1x.png)
 
 This page shows the status of the software installations. The browser can be closed, and the installation will continue in the background. Users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
