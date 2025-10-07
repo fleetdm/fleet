@@ -807,9 +807,13 @@ Can only be configured for all teams (`org_settings`). Use API to configure Jira
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
+Can only be configured for all teams (`org_settings`). Use API to configure Zendesk for custom teams and default "No team".
+
 ### certificate_authorities
 
 _Available in Fleet Premium._
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
 
