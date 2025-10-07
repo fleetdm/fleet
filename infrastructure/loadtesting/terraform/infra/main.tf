@@ -191,7 +191,7 @@ module "ses" {
 }
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.0"
   ecs_cluster              = module.loadtest.byo-db.byo-ecs.service.cluster
   task_definition          = module.loadtest.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.loadtest.byo-db.byo-ecs.task_definition.revision
