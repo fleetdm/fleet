@@ -79,9 +79,9 @@ CREATE TABLE host_in_house_software_installs (
 
 	PRIMARY KEY(id),
 	UNIQUE INDEX idx_host_in_house_software_installs_command_uuid (command_uuid),
-	CONSTRAINT fk_host_in_house_software_installs_user_id 
+	CONSTRAINT fk_host_in_house_software_installs_user_id
 		FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
-	CONSTRAINT fk_host_in_house_software_installs_in_house_app_id 
+	CONSTRAINT fk_host_in_house_software_installs_in_house_app_id
 		FOREIGN KEY (in_house_app_id) REFERENCES in_house_apps (id) ON DELETE CASCADE,
 	INDEX idx_host_in_house_software_installs_verification ((verification_at IS NULL AND verification_failed_at IS NULL))
 ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)

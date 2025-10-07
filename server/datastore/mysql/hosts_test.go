@@ -8194,6 +8194,19 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, certSerial, host.ID, "test-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", []byte{0x04})
 	require.NoError(t, err)
 
+	err = ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
+		Name:      "test",
+		StorageID: uuid.NewString(),
+		Platform:  string(fleet.MacOSPlatform),
+	})
+	require.NoError(t, err)
+	var inHouseID uint
+	err = ds.writer(ctx).Get(&inHouseID, "SELECT id FROM in_house_apps WHERE name = ?", "test")
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec("INSERT INTO host_in_house_software_installs (host_id, in_house_app_id, command_uuid, platform) VALUES (?, ?, ?, ?)",
+		host.ID, inHouseID, uuid.NewString(), fleet.MacOSPlatform)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
