@@ -102,6 +102,14 @@ It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To 
 
 Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to export users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
 
+## Other IdPs
+
+IdPs generally require a Fleet SCIM URL and API token:
+
+SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
+
+API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
+
 ### Prerequisites
 
 - [Install](https://docs.goauthentik.io/docs/install-config/install/aws) and run authentik
