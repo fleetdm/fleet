@@ -98,7 +98,7 @@ func main() {
 		Checksum          string `db:"checksum"`
 	}
 	var mdmProfiles []mdmProfile
-	err = db.SelectContext(ctx, &mdmProfiles, `SELECT identifier, profile_uuid, name, checksum FROM mdm_apple_configuration_profiles`)
+	err = db.SelectContext(ctx, &mdmProfiles, `SELECT identifier, profile_uuid, name, checksum FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
 	if err != nil {
 		log.Fatal("failed to query mdm_apple_configuration_profiles:", err)
 	}
