@@ -1,4 +1,4 @@
-name: 🧪 Testing & QA
+name: "🧪 Testing & QA"
 team_settings:
   features:
     enable_host_users: true
@@ -46,9 +46,31 @@ software:
   packages:
     # Linux apps
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "Debian-based Linux hosts"
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "RPM-based Linux hosts"
     - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "Debian-based Linux hosts"
     - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "RPM-based Linux hosts"
   fleet_maintained_apps:
     # macOS apps
     - slug: santa/darwin # Santa for macOS

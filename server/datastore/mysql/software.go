@@ -422,7 +422,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	}
 
 	// PHASE 2: Main transaction for host-specific operations
-	err = ds.withRetryTxx(
+	err = ds.withTx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
 			if err != nil {
@@ -455,26 +455,29 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				// Check inserted software for renames
 				for _, sw := range r.Inserted {
 					if sw.BundleIdentifier != "" {
-						if updSoftware, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
-							softwareRenames[sw.ID] = updSoftware.Name
+						if updSoftwareList, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
+							// Use the first software in the list for the name (they should all have the same name)
+							if len(updSoftwareList) > 0 {
+								softwareRenames[sw.ID] = updSoftwareList[0].Name
+							}
 						}
 					}
 				}
 				// Check existing software for renames
 				for _, s := range existingSoftware {
 					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
-						if updSoftware, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
-							softwareRenames[s.ID] = updSoftware.Name
+						if updSoftwareList, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+							// Use the first software in the list for the name (they should all have the same name)
+							if len(updSoftwareList) > 0 {
+								softwareRenames[s.ID] = updSoftwareList[0].Name
+							}
 						}
 					}
 				}
 
-				// Update software names for bundle ID matches
-				// TEMPORARILY COMMENTED OUT: Performance issue with updateTargetedBundleIDs SQL statement
-				// TODO: Re-enable after gathering more info and optimizing the query
-				// if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
-				// 	return err
-				// }
+				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
+					return err
+				}
 			}
 
 			// Use r.Inserted which contains all inserted items (including bundle ID matches)
@@ -500,7 +503,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 // updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
 // softwareRenames maps software IDs to their new names.
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error { //nolint:unused
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
 	if len(softwareRenames) == 0 {
 		return nil
 	}
@@ -512,18 +515,74 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRe
 	}
 
 	const batchSize = 100
-	return common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
-		updateCases := make([]string, 0, len(batch))
-		updateCaseArgs := make([]any, 0, len(batch)*2)
-		updateWhereArgs := make([]any, 0, len(batch))
-		updateIDs := make([]string, 0, len(batch))
 
-		for _, id := range batch {
-			newName := softwareRenames[id]
+	err := common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
+		placeholders := make([]string, len(batch))
+		args := make([]any, len(batch))
+		for i, id := range batch {
+			placeholders[i] = "?"
+			args[i] = id
+		}
 
+		// During high concurrency situations, we may have multiple transactions attempting to update the same software rows.
+		// For example, this can happen when many hosts are trying to rename the same software items.
+		// To avoid long locks or even deadlocks, use UPDATE SKIP LOCKED to skip rows that are already locked by another transaction.
+		// This means that some software rows may not be updated in this transaction,
+		// however, eventually they should be updated. This is trading off immediate consistency
+		// for less lock contention.
+		lockQuery := fmt.Sprintf(
+			"SELECT id, name FROM software WHERE id IN (%s) ORDER BY id FOR UPDATE SKIP LOCKED",
+			strings.Join(placeholders, ","),
+		)
+
+		rows, err := tx.QueryContext(ctx, lockQuery, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "lock software rows for rename")
+		}
+		defer rows.Close()
+
+		type lockedRow struct {
+			id          uint
+			currentName string
+		}
+		var lockedRows []lockedRow
+		for rows.Next() {
+			var lr lockedRow
+			if err := rows.Scan(&lr.id, &lr.currentName); err != nil {
+				return ctxerr.Wrap(ctx, err, "scan locked row")
+			}
+			lockedRows = append(lockedRows, lr)
+		}
+		if err := rows.Err(); err != nil {
+			return ctxerr.Wrap(ctx, err, "iterate locked rows")
+		}
+
+		if len(lockedRows) == 0 {
+			return nil
+		}
+
+		var rowsToUpdate []lockedRow
+		for _, lr := range lockedRows {
+			newName := softwareRenames[lr.id]
+			if lr.currentName != newName {
+				rowsToUpdate = append(rowsToUpdate, lr)
+			}
+		}
+
+		if len(rowsToUpdate) == 0 {
+			return nil
+		}
+
+		updateCases := make([]string, 0, len(rowsToUpdate))
+		updateCaseArgs := make([]any, 0, len(rowsToUpdate)*2)
+		updateWhereArgs := make([]any, 0, len(rowsToUpdate))
+		updateIDs := make([]string, 0, len(rowsToUpdate))
+
+		for _, lr := range rowsToUpdate {
+			newName := softwareRenames[lr.id]
 			updateCases = append(updateCases, "WHEN ? THEN ?")
-			updateCaseArgs = append(updateCaseArgs, id, newName)
-			updateWhereArgs = append(updateWhereArgs, id)
+			updateCaseArgs = append(updateCaseArgs, lr.id, newName)
+			updateWhereArgs = append(updateWhereArgs, lr.id)
 			updateIDs = append(updateIDs, "?")
 		}
 
@@ -533,12 +592,15 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRe
 			strings.Join(updateIDs, ","),
 		)
 
-		if _, err := tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...); err != nil {
+		_, err = tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "batch update software names")
 		}
 
 		return nil
 	})
+
+	return err
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -615,15 +677,14 @@ func (ds *Datastore) getExistingSoftware(
 	currentSoftware []softwareIDChecksum,
 	incomingChecksumToSoftware map[string]fleet.Software,
 	incomingChecksumToTitle map[string]fleet.SoftwareTitle,
-	existingBundleIDsToUpdate map[string]fleet.Software,
+	existingBundleIDsToUpdate map[string][]fleet.Software,
 	err error,
 ) {
 	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
 	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
 	newSoftware := make(map[string]struct{})
-	bundleIDsToChecksum := make(map[string]string)
-	bundleIDsToNames := make(map[string]string)
-	existingBundleIDsToUpdate = make(map[string]fleet.Software)
+	incomingBundleIDsToNewSoftwareNames := make(map[string]string)
+	existingBundleIDsToUpdate = make(map[string][]fleet.Software)
 	for uniqueName, s := range incoming {
 		_, ok := current[uniqueName]
 		if !ok {
@@ -635,8 +696,7 @@ func (ds *Datastore) getExistingSoftware(
 			newSoftware[string(checksum)] = struct{}{}
 
 			if s.BundleIdentifier != "" {
-				bundleIDsToChecksum[s.BundleIdentifier] = string(checksum)
-				bundleIDsToNames[s.BundleIdentifier] = s.Name
+				incomingBundleIDsToNewSoftwareNames[s.BundleIdentifier] = s.Name
 			}
 		}
 	}
@@ -652,30 +712,29 @@ func (ds *Datastore) getExistingSoftware(
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
-		for _, s := range currentSoftware {
-			sw, ok := incomingChecksumToSoftware[s.Checksum]
+
+		for _, currentSoftwareItem := range currentSoftware {
+			incomingSoftwareItem, ok := incomingChecksumToSoftware[currentSoftwareItem.Checksum]
 			if !ok {
 				// This should never happen. If it does, we have a bug.
 				return nil, nil, nil, nil, ctxerr.New(
-					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(currentSoftwareItem.Checksum))),
 				)
 			}
-			if s.BundleIdentifier != nil && s.Source == "apps" {
-				if name, ok := bundleIDsToNames[*s.BundleIdentifier]; ok && name != s.Name {
+			if currentSoftwareItem.BundleIdentifier != nil && currentSoftwareItem.Source == "apps" {
+				if name, ok := incomingBundleIDsToNewSoftwareNames[*currentSoftwareItem.BundleIdentifier]; ok && name != currentSoftwareItem.Name {
 					// Then this is a software whose name has changed, so we should update the name
 					// Copy the incoming software but with the existing software's ID
-					swWithID := sw
-					swWithID.ID = s.ID
-					existingBundleIDsToUpdate[*s.BundleIdentifier] = swWithID
+					swWithID := incomingSoftwareItem
+					swWithID.ID = currentSoftwareItem.ID
+					existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier] = append(existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier], swWithID)
 
-					// Remove from incomingChecksumToSoftware to prevent it being treated as new software
-					if cs, ok := bundleIDsToChecksum[*s.BundleIdentifier]; ok {
-						delete(incomingChecksumToSoftware, cs)
-					}
+					// Delete this checksum to prevent it from being treated as new software
+					delete(incomingChecksumToSoftware, currentSoftwareItem.Checksum)
 					continue
 				}
 			}
-			delete(newSoftware, s.Checksum)
+			delete(newSoftware, currentSoftwareItem.Checksum)
 		}
 	}
 
@@ -1076,7 +1135,7 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	existingBundleIDsToUpdate map[string]fleet.Software,
+	existingBundleIDsToUpdate map[string][]fleet.Software,
 ) ([]fleet.Software, error) {
 	if len(existingBundleIDsToUpdate) == 0 {
 		return nil, nil
@@ -1084,12 +1143,14 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 
 	// Collect all software IDs to verify they still exist
 	softwareIDs := make([]uint, 0, len(existingBundleIDsToUpdate))
-	for _, software := range existingBundleIDsToUpdate {
-		// The software.ID should already be set from getExistingSoftware
-		if software.ID == 0 {
-			return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
+	for _, softwareList := range existingBundleIDsToUpdate {
+		for _, software := range softwareList {
+			// The software.ID should already be set from getExistingSoftware
+			if software.ID == 0 {
+				return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
+			}
+			softwareIDs = append(softwareIDs, software.ID)
 		}
-		softwareIDs = append(softwareIDs, software.ID)
 	}
 
 	// Verify software still exists (just like we do in linkSoftwareToHost)
@@ -1114,19 +1175,21 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 	var insertsHostSoftware []any
 	var insertedSoftware []fleet.Software
 
-	for _, software := range existingBundleIDsToUpdate {
-		// Only link if software still exists
-		if _, ok := existingIDSet[software.ID]; ok {
-			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, software)
-		} else {
-			// Log missing software but continue
-			level.Warn(ds.logger).Log(
-				"msg", "bundle ID software not found after pre-insertion",
-				"software_id", software.ID,
-				"name", software.Name,
-				"bundle_id", software.BundleIdentifier,
-			)
+	for _, softwareList := range existingBundleIDsToUpdate {
+		for _, software := range softwareList {
+			// Only link if software still exists
+			if _, ok := existingIDSet[software.ID]; ok {
+				insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
+				insertedSoftware = append(insertedSoftware, software)
+			} else {
+				// Log missing software but continue
+				level.Warn(ds.logger).Log(
+					"msg", "bundle ID software not found after pre-insertion",
+					"software_id", software.ID,
+					"name", software.Name,
+					"bundle_id", software.BundleIdentifier,
+				)
+			}
 		}
 	}
 
@@ -1230,7 +1293,7 @@ func updateModifiedHostSoftwareDB(
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-	existingBundleIDsToUpdate map[string]fleet.Software,
+	existingBundleIDsToUpdate map[string][]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 	logger log.Logger,
 ) error {

@@ -613,18 +613,3 @@ export interface IFleetMaintainedAppDetails {
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
   categories: SoftwareCategory[];
 }
-
-export const SETUP_SOFTWARE_STATUSES = [
-  "pending",
-  "running",
-  "success",
-  "failure",
-  "cancelled", // server should be aggregating cancelled installs with failed, check here just in case
-] as const;
-
-export type SetupSoftwareStatus = typeof SETUP_SOFTWARE_STATUSES[number];
-
-export interface ISetupSoftwareStatus {
-  name: string | null;
-  status: SetupSoftwareStatus;
-}
