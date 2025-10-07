@@ -5,16 +5,10 @@ import "testing"
 func TestUp_20251006163522(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	//
-	// Insert data to test the migration
-	//
-	// ...
+	// These are brand new tables, so no logic to test here.
+	// Leaving it in because it's nice to validate that the migration applies successfully.
 
 	// Apply current migration.
 	applyNext(t, db)
 
-	//
-	// Check data, insert new entries, e.g. to verify migration is safe.
-	//
-	// ...
 }
