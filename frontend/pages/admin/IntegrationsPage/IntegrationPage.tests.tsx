@@ -90,7 +90,7 @@ describe("Integrations Page", () => {
         />
       );
 
-      expect(await screen.findAllByText("Single sign-on options")).toHaveLength(
+      expect(await screen.findAllByText("Single sign-on (SSO)")).toHaveLength(
         3
       );
     });
