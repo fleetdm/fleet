@@ -42,10 +42,11 @@ type SetupExperiencer struct {
 	// its Run method is called within a WaitGroup,
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
-	sd      *swiftdialog.SwiftDialog
-	uiSteps map[string]swiftdialog.ListItem
-	started bool
-	trw     *token.ReadWriter
+	sd                *swiftdialog.SwiftDialog
+	uiSteps           map[string]swiftdialog.ListItem
+	started           bool
+	trw               *token.ReadWriter
+	stopTokenRotation func()
 }
 
 func NewSetupExperiencer(orbitClient OrbitClient, deviceClient DeviceClient, rootDirPath string, trw *token.ReadWriter) *SetupExperiencer {
@@ -67,7 +68,9 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	// Ensure that the token rotation checker is started, so that we have a valid token
 	// when we need to show or refresh the My Device URL in the webview.
-	stopRotation := s.trw.StartRotation()
+	if s.stopTokenRotation == nil {
+		s.stopTokenRotation = s.trw.StartRotation()
+	}
 
 	_, binaryPath, _ := update.LocalTargetPaths(
 		s.rootDirPath,
@@ -217,7 +220,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		// Stop the token rotation checker since we're done with the setup experience.
-		stopRotation()
+		s.stopTokenRotation()
 	}
 
 	return nil
