@@ -175,7 +175,7 @@ FROM
 		vpp_apps_teams vpt ON vpa.adam_id = vpt.adam_id AND vpa.platform = vpt.platform
 			AND vpt.global_or_team_id = ?
 WHERE
-	st.unique_identifier = ? AND st.source = ? AND st.browser = ?
+	st.unique_identifier = ? AND st.source = ? AND st.extension_for = ?
 `
 
 	var globalOrTeamID uint
@@ -1835,14 +1835,8 @@ WHERE
 `
 
 	const checkExistingInstaller = `
-SELECT id,
-storage_id != ? is_package_modified,
-install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
-COALESCE(post_install_script_content_id != ? OR
-	(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
-	(? IS NULL AND post_install_script_content_id IS NOT NULL)
-, FALSE) is_metadata_modified FROM software_installers
-WHERE global_or_team_id = ?	AND title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+SELECT
+	id,
 	storage_id != ? is_package_modified,
 	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
 	COALESCE(post_install_script_content_id != ? OR
