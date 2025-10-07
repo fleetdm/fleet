@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -48,6 +49,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -1175,8 +1177,10 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
+		ds:            ds,
+		mdmLifecycle:  mdmLifecycle,
+		keyValueStore: redis_key_value.New(redistest.NopRedis()),
+		logger:        kitlog.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1243,8 +1247,10 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
+		ds:            ds,
+		mdmLifecycle:  mdmLifecycle,
+		keyValueStore: redis_key_value.New(redistest.NopRedis()),
+		logger:        kitlog.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"

@@ -178,12 +178,19 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
 
+	stickyEnrollment, err := svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hostInfo.HardwareUUID)
+	if err != nil {
+		// We do not want to fail here, just log the error to notify
+		level.Error(svc.logger).Log("msg", "failed to get sticky enrollment", "err", err, "host_uuid", hostInfo.HardwareUUID)
+	}
+
 	host, err := svc.ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
+		fleet.WithEnrollOrbitIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
