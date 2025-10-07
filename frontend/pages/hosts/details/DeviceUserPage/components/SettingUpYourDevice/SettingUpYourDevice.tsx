@@ -18,16 +18,20 @@ const baseClass = "setting-up-your-device";
 interface ISettingUpYourDevice {
   setupSteps: ISetupStep[];
   toggleInfoModal: () => void;
+  requireAllSoftware: boolean;
 }
 
 const SettingUpYourDevice = ({
   setupSteps,
   toggleInfoModal,
+  requireAllSoftware,
 }: ISettingUpYourDevice) => {
   const [showError, setShowError] = useState(false);
   let title;
   let message;
-  const failedSoftware = getFailedSoftwareInstall(setupSteps);
+  const failedSoftware = requireAllSoftware
+    ? getFailedSoftwareInstall(setupSteps)
+    : null;
   if (failedSoftware) {
     title = "Device setup failed";
     message = (
@@ -76,7 +80,7 @@ const SettingUpYourDevice = ({
         {message}
         {!failedSoftware && <SetupStatusTable statuses={setupSteps} />}
         {failedSoftware && (
-          <>
+          <div className={`${baseClass}__failure-state`}>
             <RevealButton
               className={`${baseClass}__accordion-title`}
               isShowing={showError}
@@ -88,7 +92,7 @@ const SettingUpYourDevice = ({
             {showError && (
               <Textarea variant="code">{failedSoftware.error}</Textarea>
             )}
-          </>
+          </div>
         )}
       </Card>
     </div>

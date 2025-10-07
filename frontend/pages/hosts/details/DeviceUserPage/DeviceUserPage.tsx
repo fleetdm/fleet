@@ -516,6 +516,9 @@ const DeviceUserPage = ({
       return (
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
+          requireAllSoftware={
+            globalConfig?.mdm?.require_all_software_macos ?? false
+          }
           toggleInfoModal={toggleInfoModal}
         />
       );
