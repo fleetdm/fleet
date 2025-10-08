@@ -20,6 +20,8 @@
   }
 
   &__tab-content {
+    @include flex-column-16px-gap;
+
     &__header {
       display: flex;
       align-items: center;
