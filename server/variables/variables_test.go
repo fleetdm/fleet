@@ -102,7 +102,16 @@ func TestFindKeepDuplicates(t *testing.T) {
 		{
 			name:     "mixed variables with duplicates",
 			content:  "$FLEET_VAR_HOST_UUID, $FLEET_VAR_HOST_EMAIL, ${FLEET_VAR_HOST_UUID}",
-			expected: []string{"HOST_UUID", "HOST_EMAIL", "HOST_UUID"},
+			expected: []string{"HOST_EMAIL", "HOST_UUID", "HOST_UUID"},
+		},
+		{
+			name:    "sorted by length",
+			content: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME, $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART, $FLEET_VAR_HOST_UUID",
+			expected: []string{
+				"HOST_END_USER_IDP_USERNAME_LOCAL_PART",
+				"HOST_END_USER_IDP_USERNAME",
+				"HOST_UUID",
+			},
 		},
 	}
 

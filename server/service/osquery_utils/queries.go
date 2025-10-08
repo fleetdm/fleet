@@ -872,8 +872,26 @@ var windowsUpdateHistory = DetailQuery{
 // entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
 var entraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
-	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
+	// that logged in to the device (using Company Portal.app with the SSO extension).
+	//
+	// We cannot use LIMIT 1 on the outer SELECT because it breaks fleetd's app_sso_platform table.
+	// For that reason this query can return 0, 1 or 2 results and Fleet will always process the first one.
+	//
+	// This query aims to support the following scenarios:
+	// 1. Hosts enrolled to Company Portal using the legacy SSO extension (aka "Microsoft Entra registered").
+	//    The extension stores the credentials in the keychain.
+	// 2. Hosts enrolled to Company Portal using the new Platform SSO extension (aka "Microsoft Entra joined").
+	//	  The extension stores the credentials in the secure enclave.
+	// 3. Hosts that migrated from (1) to (2). The keychain items in (1) are not removed after the migration,
+	//    so for that reason we query the app_sso_platform first (priority 1).
+	//
+	Query: `SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
+	UNION ALL
+	SELECT device_id, user_principal_name, 2 AS priority FROM (
+		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
+		CROSS JOIN
+		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
+	ORDER BY priority ASC;`,
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
@@ -895,7 +913,7 @@ SELECT
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'apps' AS source,
   '' AS vendor,
   last_opened_time AS last_opened_at,
@@ -907,7 +925,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -919,7 +937,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -931,7 +949,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'safari_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -943,7 +961,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -956,7 +974,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -980,7 +998,7 @@ SELECT
   version,
   '' AS bundle_identifier,
   vscode_extensions.uuid AS extension_id,
-  '' AS browser,
+  vscode_edition AS extension_for,
   'vscode_extensions' AS source,
   publisher AS vendor,
   '' AS last_opened_at,
@@ -1007,7 +1025,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'pacman_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1026,7 +1044,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1039,7 +1057,7 @@ SELECT
   package AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1051,7 +1069,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -1063,7 +1081,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1075,7 +1093,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -1087,7 +1105,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -1105,7 +1123,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path
@@ -1115,7 +1133,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1125,7 +1143,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1135,7 +1153,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1145,7 +1163,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1166,7 +1184,7 @@ var softwarePythonPackages = DetailQuery{
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -1189,7 +1207,7 @@ var softwarePythonPackagesWithUsersDir = DetailQuery{
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -1208,7 +1226,7 @@ var softwareChrome = DetailQuery{
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -1250,7 +1268,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
-				'' AS browser,
+				'' AS extension_for,
 				'apps' AS source,
 				'' AS vendor,
 				apps.last_opened_time AS last_opened_at,
@@ -1702,6 +1720,7 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
+	// We are interested in the first row (see the corresponding query for details).
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -1844,7 +1863,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["arch"],
 			row["bundle_identifier"],
 			row["extension_id"],
-			row["browser"],
+			row["extension_for"],
 			row["last_opened_at"],
 		)
 		if err != nil {

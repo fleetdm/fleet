@@ -1,6 +1,1 @@
 url: https://zoom.us/client/latest/ZoomInstallerFull.msi?archType=winarm64
-self_service: true
-categories:
-  - Communication
-labels_include_any:
-  - "ARM-based Windows hosts"

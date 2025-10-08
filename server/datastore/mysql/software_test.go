@@ -54,6 +54,7 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
 		{"UpdateHostSoftwareSameNameDifferentBundleIDs", testUpdateHostSoftwareSameNameDifferentBundleIDs},
 		{"UpdateHostSoftwareMultipleSameBundleID", testUpdateHostSoftwareMultipleSameBundleID},
+		{"UpdateHostSoftwareMultipleChecksumsPerBundleID", testUpdateHostSoftwareMultipleChecksumsPerBundleID},
 		{"UpdateHostSoftwareLongNameTruncation", testUpdateHostSoftwareLongNameTruncation},
 		{"UpdateHostBundleIDRenameOnlyNoNewSoftware", testUpdateHostBundleIDRenameOnlyNoNewSoftware},
 		{"UpdateHostBundleIDRenameWithNewSoftware", testUpdateHostBundleIDRenameWithNewSoftware},
@@ -96,6 +97,7 @@ func TestSoftware(t *testing.T) {
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
+		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1252,7 +1254,7 @@ func softwareChecksumComputedColumn(tableAlias string, source string) string {
 				`+"%[2]s`release`"+`,
 				%[2]sarch,
 				%[2]svendor,
-				%[2]sbrowser,
+				%[2]sextension_for,
 				%[2]sextension_id
 			)
 		)
@@ -1771,7 +1773,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 
 	// set the initial software list
 	sw := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo", ExtensionFor: "chrome"},
 		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &lastYear},
 		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &now},
 	}
@@ -2019,6 +2021,93 @@ func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, host2.Software, 1, "Host2 should have 1 software entry")
 	require.Equal(t, "GoLand 2024.app", host2.Software[0].Name, "Host2 should see renamed software")
+}
+
+// Test for the bug where multiple software with the same bundle ID causes
+// "software not found for checksum" errors during bundle ID rename operations.
+// This test specifically validates that ALL software entries with the same
+// bundle ID are properly linked to hosts when renaming occurs.
+func testUpdateHostSoftwareMultipleChecksumsPerBundleID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Note: Basic multiple versions scenario is already covered in testUpdateHostSoftwareMultipleSameBundleID
+	// This test focuses on the specific bug fix for renamed apps with many versions
+
+	// First, establish the software with host1 - using 10 versions to stress test
+	host1 := test.NewHost(t, ds, "rename-test-host1", "", "rename-key1", "rename-uuid1", time.Now())
+
+	// Create 10 versions to stress test the checksum tracking
+	var initialSoftware []fleet.Software
+	for i := 0; i < 10; i++ {
+		initialSoftware = append(initialSoftware, fleet.Software{
+			Name:             "TestApp.app",
+			Version:          fmt.Sprintf("1.%d.0", i),
+			Source:           "apps",
+			BundleIdentifier: "com.stresstest.app",
+		})
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, initialSoftware)
+	require.NoError(t, err, "Should handle 10 versions with same bundle ID")
+
+	// Verify all 10 were inserted
+	err = ds.LoadHostSoftware(ctx, host1, false)
+	require.NoError(t, err)
+	require.Len(t, host1.Software, 10, "Host1 should have all 10 versions")
+
+	// Host2 reports the same software but renamed (user renamed the apps)
+	// This triggers the bundle ID rename logic and tests the bug fix
+	host2 := test.NewHost(t, ds, "rename-test-host2", "", "rename-key2", "rename-uuid2", time.Now())
+
+	var renamedSoftware []fleet.Software
+	for i := 0; i < 10; i++ {
+		renamedSoftware = append(renamedSoftware, fleet.Software{
+			Name:             "TestApp Renamed.app", // Different name
+			Version:          fmt.Sprintf("1.%d.0", i),
+			Source:           "apps",
+			BundleIdentifier: "com.stresstest.app",
+		})
+	}
+
+	// This is where the bug would occur - only one software would be linked instead of all 10
+	result, err := ds.UpdateHostSoftware(ctx, host2.ID, renamedSoftware)
+	require.NoError(t, err, "Should handle renamed apps with 10 versions without 'software not found for checksum' error")
+	assert.NotNil(t, result)
+
+	// Verify the rename was processed in the database
+	var dbSoftware []struct {
+		Name       string `db:"name"`
+		Version    string `db:"version"`
+		NameSource string `db:"name_source"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &dbSoftware,
+		`SELECT name, version, name_source FROM software
+		WHERE bundle_identifier = ? ORDER BY version`,
+		"com.stresstest.app")
+	require.NoError(t, err)
+	require.Len(t, dbSoftware, 10, "Should have 10 software entries in database")
+
+	// All should be renamed
+	for _, sw := range dbSoftware {
+		assert.Equal(t, "TestApp Renamed.app", sw.Name, "All software should use the new name")
+		assert.Equal(t, "bundle_4.67", sw.NameSource, "Renamed software should have bundle_4.67 source")
+	}
+
+	// Most importantly, verify that host2 has ALL 10 versions linked (this was the bug)
+	err = ds.LoadHostSoftware(ctx, host2, false)
+	require.NoError(t, err)
+	assert.Len(t, host2.Software, 10, "Host2 should have all 10 versions linked (bug fix verification)")
+
+	// Verify all versions are present
+	versions := make(map[string]bool)
+	for _, sw := range host2.Software {
+		versions[sw.Version] = true
+		assert.Equal(t, "TestApp Renamed.app", sw.Name, "Should see renamed app")
+	}
+	for i := 0; i < 10; i++ {
+		version := fmt.Sprintf("1.%d.0", i)
+		assert.True(t, versions[version], "Should have version %s", version)
+	}
 }
 
 // Test edge case: Software with names exceeding maximum length
@@ -3226,7 +3315,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
 	expectedSoftware := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionFor: "chrome"},
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
@@ -3234,10 +3323,10 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	}
 	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
 	for _, s := range expectedSoftware {
-		expectedTitlesByNSB[s.Name+s.Source+s.Browser] = fleet.SoftwareTitle{
-			Name:    s.Name,
-			Source:  s.Source,
-			Browser: s.Browser,
+		expectedTitlesByNSB[s.Name+s.Source+s.ExtensionFor] = fleet.SoftwareTitle{
+			Name:         s.Name,
+			Source:       s.Source,
+			ExtensionFor: s.ExtensionFor,
 		}
 	}
 
@@ -3255,8 +3344,8 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	getSoftware := func() ([]fleet.Software, error) {
 		var sw []fleet.Software
 		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT
-			id, name, version, bundle_identifier, source, extension_id, browser, `+"`release`"+`, vendor, arch, title_id
-		FROM software ORDER BY name, source, browser, version`)
+			id, name, version, bundle_identifier, source, extension_id, extension_for, `+"`release`"+`, vendor, arch, title_id
+		FROM software ORDER BY name, source, extension_for, version`)
 		if err != nil {
 			return nil, err
 		}
@@ -3265,7 +3354,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getTitles := func() ([]fleet.SoftwareTitle, error) {
 		var swt []fleet.SoftwareTitle
-		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser FROM software_titles ORDER BY name, source, browser`)
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, extension_for FROM software_titles ORDER BY name, source, extension_for`)
 		if err != nil {
 			return nil, err
 		}
@@ -3279,20 +3368,20 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 		byNSBV := map[string]fleet.Software{}
 		for _, s := range wantSoftware {
-			byNSBV[s.Name+s.Source+s.Browser+s.Version] = s
+			byNSBV[s.Name+s.Source+s.ExtensionFor+s.Version] = s
 		}
 
 		for _, r := range gotSoftware {
-			_, ok := byNSBV[r.Name+r.Source+r.Browser+r.Version]
+			_, ok := byNSBV[r.Name+r.Source+r.ExtensionFor+r.Version]
 			require.True(t, ok)
 
 			assert.NotNil(t, r.TitleID)
-			swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.ExtensionFor]
 			require.True(t, ok)
 			assert.Equal(t, swt.ID, *r.TitleID)
 			assert.Equal(t, swt.Name, r.Name)
 			assert.Equal(t, swt.Source, r.Source)
-			assert.Equal(t, swt.Browser, r.Browser)
+			assert.Equal(t, swt.ExtensionFor, r.ExtensionFor)
 		}
 	}
 
@@ -3301,20 +3390,20 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 			if len(expectMissing) > 0 {
 				require.NotContains(t, expectMissing, r.Name)
 			}
-			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.ExtensionFor]
 			require.True(t, ok)
 			require.Equal(t, e.ID, r.ID)
 			require.Equal(t, e.Name, r.Name)
 			require.Equal(t, e.Source, r.Source)
-			require.Equal(t, e.Browser, r.Browser)
+			require.Equal(t, e.ExtensionFor, r.ExtensionFor)
 		}
 	}
 
 	swTitles, err := getTitles()
 	require.NoError(t, err)
 	for _, swt := range swTitles {
-		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser]; ok {
-			expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser] = swt
+		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.ExtensionFor]; ok {
+			expectedTitlesByNSB[swt.Name+swt.Source+swt.ExtensionFor] = swt
 		}
 	}
 
@@ -3328,23 +3417,23 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	require.Equal(t, swt[0].Name, "bar")
 	require.Equal(t, swt[0].Source, "deb_packages")
-	require.Equal(t, swt[0].Browser, "")
-	expectedTitlesByNSB[swt[0].Name+swt[0].Source+swt[0].Browser] = swt[0]
+	require.Equal(t, swt[0].ExtensionFor, "")
+	expectedTitlesByNSB[swt[0].Name+swt[0].Source+swt[0].ExtensionFor] = swt[0]
 
 	require.Equal(t, swt[1].Name, "baz")
 	require.Equal(t, swt[1].Source, "deb_packages")
-	require.Equal(t, swt[1].Browser, "")
-	expectedTitlesByNSB[swt[1].Name+swt[1].Source+swt[1].Browser] = swt[1]
+	require.Equal(t, swt[1].ExtensionFor, "")
+	expectedTitlesByNSB[swt[1].Name+swt[1].Source+swt[1].ExtensionFor] = swt[1]
 
 	require.Equal(t, swt[2].Name, "foo")
 	require.Equal(t, swt[2].Source, "chrome_extensions")
-	require.Equal(t, swt[2].Browser, "")
-	expectedTitlesByNSB[swt[2].Name+swt[2].Source+swt[2].Browser] = swt[2]
+	require.Equal(t, swt[2].ExtensionFor, "")
+	expectedTitlesByNSB[swt[2].Name+swt[2].Source+swt[2].ExtensionFor] = swt[2]
 
 	require.Equal(t, swt[3].Name, "foo")
 	require.Equal(t, swt[3].Source, "chrome_extensions")
-	require.Equal(t, swt[3].Browser, "chrome")
-	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].Browser] = swt[3]
+	require.Equal(t, swt[3].ExtensionFor, "chrome")
+	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].ExtensionFor] = swt[3]
 
 	// Double check software and titles
 	assertSoftware(t, expectedSoftware)
@@ -3400,8 +3489,8 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.Len(t, gotTitles, 5)
 	require.Equal(t, "foo", gotTitles[4].Name)
 	require.Equal(t, "rpm_packages", gotTitles[4].Source)
-	require.Equal(t, "", gotTitles[4].Browser)
-	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
+	require.Equal(t, "", gotTitles[4].ExtensionFor)
+	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].ExtensionFor] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
 	assertSoftware(t, expectedSoftware)
 
@@ -3410,9 +3499,9 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
 	// key (com.example.app1-0) will conflict.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, browser, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
+		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, extension_for, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
 		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, browser, bundle_identifier, checksum, version) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1', UNHEX(MD5(CONCAT_WS(CHAR(0), 'App1', '', 'some_other_source', 'com.example.app1', '', '', '', 'Chrome', ''))), '')`)
+		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, extension_for, bundle_identifier, checksum, version) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1', UNHEX(MD5(CONCAT_WS(CHAR(0), 'App1', '', 'some_other_source', 'com.example.app1', '', '', '', 'Chrome', ''))), '')`)
 		require.NoError(t, err)
 		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 		return nil
@@ -3475,9 +3564,10 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "test"},
-		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
+		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionFor: "firefox"},
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
 		{Name: "foo", Version: "0.0.2", Source: "test"},
+		{Name: "foo", Version: "0.0.2", Source: "test", ApplicationID: ptr.String("foo.bar.baz")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
@@ -3493,7 +3583,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		var got fleet.Software
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &got,
-				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, browser, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id FROM software WHERE checksum = UNHEX(?)`, cs)
 		})
 		require.Equal(t, software[i], got)
 	}
@@ -5552,7 +5642,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	originalCreatedAt := time.Now().Add(-1 * time.Hour).UTC().Truncate(time.Microsecond) // Set to 1 hour ago
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at) 
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			"original-uuid", host.ID, installerID, user.ID, nil, false, originalCreatedAt)
 		return err
@@ -9063,7 +9153,6 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 		"SELECT COUNT(*) FROM software WHERE name LIKE 'idempotent-test-%'")
 	require.NoError(t, err)
 	require.Equal(t, 10, count)
-
 }
 
 // testUpdateHostBundleIDRenameOnlyNoNewSoftware tests if a host reports ONLY renamed software
@@ -9345,4 +9434,84 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 			require.Equal(t, "browser_plugins", s.Source)
 		}
 	}
+}
+
+func testListHostSoftwareWithExtensionFor(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a test host
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+
+	// Add software with extension_for set (browser extensions)
+	// Same extension name but different extension_for values creates different titles
+	software := []fleet.Software{
+		{Name: "Adblock Plus", Version: "3.14", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "Adblock Plus", Version: "3.14", Source: "chrome_extensions", ExtensionFor: "edge"},    // Same name, different extension_for
+		{Name: "Adblock Plus", Version: "3.14", Source: "chrome_extensions", ExtensionFor: "firefox"}, // Same name, another extension_for
+		{Name: "uBlock Origin", Version: "1.42.0", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "Regular App", Version: "1.0", Source: "apps"}, // No extension_for
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Reconcile software titles
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	// List host software
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			PerPage:               10,
+			IncludeMetadata:       true,
+			OrderKey:              "name",
+			TestSecondaryOrderKey: "extension_for", // Sort by extension_for to get deterministic order
+		},
+	}
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Len(t, sw, 5, "Should return 5 software titles (3 Adblock Plus for different browsers, 1 uBlock Origin, 1 Regular App)")
+
+	// Find each Adblock Plus variant
+	adblockChrome := findSoftware(sw, "Adblock Plus", "chrome")
+	adblockEdge := findSoftware(sw, "Adblock Plus", "edge")
+	adblockFirefox := findSoftware(sw, "Adblock Plus", "firefox")
+	ublock := findSoftware(sw, "uBlock Origin", "chrome")
+	regularApp := findSoftware(sw, "Regular App", "")
+
+	// Verify Adblock Plus for Chrome
+	require.NotNil(t, adblockChrome, "Should find Adblock Plus for chrome")
+	require.Equal(t, "chrome_extensions", adblockChrome.Source)
+	require.Equal(t, "chrome", adblockChrome.ExtensionFor)
+
+	// Verify Adblock Plus for Edge
+	require.NotNil(t, adblockEdge, "Should find Adblock Plus for edge")
+	require.Equal(t, "chrome_extensions", adblockEdge.Source)
+	require.Equal(t, "edge", adblockEdge.ExtensionFor)
+
+	// Verify Adblock Plus for Firefox
+	require.NotNil(t, adblockFirefox, "Should find Adblock Plus for firefox")
+	require.Equal(t, "chrome_extensions", adblockFirefox.Source)
+	require.Equal(t, "firefox", adblockFirefox.ExtensionFor)
+
+	// Verify uBlock Origin
+	require.NotNil(t, ublock, "Should find uBlock Origin")
+	require.Equal(t, "chrome_extensions", ublock.Source)
+	require.Equal(t, "chrome", ublock.ExtensionFor)
+
+	// Verify Regular App has empty extension_for
+	require.NotNil(t, regularApp, "Should find Regular App")
+	require.Equal(t, "apps", regularApp.Source)
+	require.Equal(t, "", regularApp.ExtensionFor)
+}
+
+// Helper function to find software by name and extension_for
+func findSoftware(sw []*fleet.HostSoftwareWithInstaller, name, extensionFor string) *fleet.HostSoftwareWithInstaller {
+	for _, s := range sw {
+		if s.Name == name && s.ExtensionFor == extensionFor {
+			return s
+		}
+	}
+	return nil
 }

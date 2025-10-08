@@ -43,6 +43,8 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "macos",
   "windows",
   "linux",
+  "ios",
+  "ipados",
 ];
 export interface InstallSoftwareLocation {
   search: string;
@@ -152,7 +154,9 @@ const InstallSoftware = ({
       const appleMdmAndAbmEnabled =
         globalConfig?.mdm.enabled_and_configured &&
         globalConfig?.mdm.apple_bm_enabled_and_configured;
-      const turnOnAppleMdm = platform === "macos" && !appleMdmAndAbmEnabled;
+      const turnOnAppleMdm =
+        (platform === "macos" || platform === "ios" || platform === "ipados") &&
+        !appleMdmAndAbmEnabled;
 
       const turnOnWindowsMdm =
         platform === "windows" &&
@@ -205,10 +209,18 @@ const InstallSoftware = ({
             <Tab>
               <TabText>Linux</TabText>
             </Tab>
+            <Tab>
+              <TabText>iOS</TabText>
+            </Tab>
+            <Tab>
+              <TabText>iPadOS</TabText>
+            </Tab>
           </TabList>
-          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[0])}</TabPanel>
-          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[1])}</TabPanel>
-          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[2])}</TabPanel>
+          {PLATFORM_BY_INDEX.map((platform) => {
+            return (
+              <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
+            );
+          })}
         </Tabs>
       </TabNav>
       {showSelectSoftwareModal && softwareTitles && (
