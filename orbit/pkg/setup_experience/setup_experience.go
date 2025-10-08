@@ -43,7 +43,6 @@ type SetupExperiencer struct {
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
 	sd                *swiftdialog.SwiftDialog
-	uiSteps           map[string]swiftdialog.ListItem
 	started           bool
 	trw               *token.ReadWriter
 	stopTokenRotation func()
@@ -54,7 +53,6 @@ func NewSetupExperiencer(orbitClient OrbitClient, deviceClient DeviceClient, roo
 		OrbitClient:  orbitClient,
 		DeviceClient: deviceClient,
 		closeChan:    make(chan struct{}),
-		uiSteps:      make(map[string]swiftdialog.ListItem),
 		rootDirPath:  rootDirPath,
 		trw:          trw,
 	}
