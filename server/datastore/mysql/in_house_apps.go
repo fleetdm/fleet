@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (titleID uint, err error) {
+func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
 
 	stmt := `
 	INSERT INTO in_house_apps (
@@ -32,16 +32,17 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
+	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
 		TeamID:           tid,
 		Title:            payload.Name,
 		BundleIdentifier: payload.BundleID,
 		Source:           "ios_apps"}, // TODO: what about iPad apps
 	)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
+	var installerID uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		args := []any{
 			tid,
@@ -62,17 +63,17 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 
 		id64, err := res.LastInsertId()
-		installerID := uint(id64)
+		installerID = uint(id64)
 		if err != nil {
 			return err
 		}
 
-		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouse); err != nil {
+		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert in house app labels")
 		}
 
 		return nil
 	})
 
-	return titleID, ctxerr.Wrap(ctx, err, "insert in house app")
+	return installerID, titleID, ctxerr.Wrap(ctx, err, "insert in house app")
 }

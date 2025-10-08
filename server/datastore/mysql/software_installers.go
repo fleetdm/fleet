@@ -197,6 +197,23 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, 0, errors.New("validated labels must not be nil")
 	}
 
+	// Insert in house app instead of software installer
+	// TODO: match if existing in house app
+	if payload.Extension == "ipa" {
+		fmt.Println("processing IPA upload")
+		installerID, titleID, err := ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
+			TeamID:          payload.TeamID,
+			Name:            payload.Title,
+			BundleID:        payload.BundleIdentifier,
+			StorageID:       payload.StorageID,
+			Platform:        payload.Platform,
+			ValidatedLabels: payload.ValidatedLabels})
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
+		}
+		return installerID, titleID, err
+	}
+
 	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
@@ -501,9 +518,9 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 type softwareType string
 
 const (
-	softwareTypeInstaller softwareType = "software_installer"
-	softwareTypeVPP       softwareType = "vpp_app_team"
-	softwareTypeInHouse   softwareType = "in_house_app"
+	softwareTypeInstaller  softwareType = "software_installer"
+	softwareTypeVPP        softwareType = "vpp_app_team"
+	softwareTypeInHouseApp softwareType = "in_house_app"
 )
 
 // setOrUpdateSoftwareInstallerLabelsDB sets or updates the label associations for the specified software
@@ -778,7 +795,7 @@ WHERE
 
 	// TODO: do we want to include labels on other queries that return software installer metadata
 	// (e.g., GetSoftwareInstallerMetadataByID)?
-	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID)
+	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID, softwareTypeInstaller)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
 	}
@@ -826,23 +843,77 @@ WHERE
 	return &dest, nil
 }
 
-func (ds *Datastore) getSoftwareInstallerLabels(ctx context.Context, installerID uint) ([]fleet.SoftwareScopeLabel, error) {
+func (ds *Datastore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 	query := `
+SELECT
+  iha.id,
+  iha.team_id,
+  iha.title_id,
+  COALESCE(iha.name, '') AS software_title,
+  iha.platform,
+  iha.storage_id
+FROM
+  in_house_apps iha
+  JOIN software_titles st ON st.id = iha.title_id
+WHERE
+  iha.title_id = ? AND iha.global_or_team_id = ?`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var dest fleet.SoftwareInstaller
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, titleID, tmID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("InHouseApp"), "get in house app metadata")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
+	}
+
+	// TODO: do we want to include labels on other queries that return software installer metadata
+	// (e.g., GetSoftwareInstallerMetadataByID)?
+	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID, softwareTypeInHouseApp)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app labels")
+	}
+	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	for _, l := range labels {
+		if l.Exclude {
+			exclAny = append(exclAny, l)
+		} else {
+			inclAny = append(inclAny, l)
+		}
+	}
+
+	if len(inclAny) > 0 && len(exclAny) > 0 {
+		// there's a bug somewhere
+		level.Warn(ds.logger).Log("msg", "in house app has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	}
+	dest.LabelsExcludeAny = exclAny
+	dest.LabelsIncludeAny = inclAny
+
+	return &dest, nil
+}
+
+func (ds *Datastore) getSoftwareInstallerLabels(ctx context.Context, installerID uint, softwareType softwareType) ([]fleet.SoftwareScopeLabel, error) {
+	query := fmt.Sprintf(`
 SELECT
 	label_id,
 	exclude,
 	l.name as label_name,
 	si.title_id
 FROM
-	software_installer_labels sil
-	JOIN software_installers si ON si.id = sil.software_installer_id
+	%[1]s_labels sil
+	JOIN %[1]ss si ON si.id = sil.%[1]s_id
 	JOIN labels l ON l.id = sil.label_id
 WHERE
-	software_installer_id = ?`
+	%[1]s_id = ?`, softwareType)
 
 	var labels []fleet.SoftwareScopeLabel
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get %s labels", softwareType))
 	}
 
 	return labels, nil

@@ -101,59 +101,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "storing software installer")
 	}
 
-	if payload.Extension == "ipa" {
-		fmt.Println("processing IPA upload")
-		gotTitleID, err := svc.ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
-			TeamID:          payload.TeamID,
-			Name:            payload.Title,
-			BundleID:        payload.BundleIdentifier,
-			StorageID:       payload.StorageID,
-			Platform:        payload.Platform,
-			ValidatedLabels: payload.ValidatedLabels})
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "insert in-house app")
-		}
-
-		// This could totally just be called later, need to refactor
-		var teamName *string
-		if payload.TeamID != nil && *payload.TeamID != 0 {
-			t, err := svc.ds.Team(ctx, *payload.TeamID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "getting team name on upload software installer")
-			}
-			teamName = &t.Name
-		}
-
-		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels) // TODO: needs to insert into in_house_app_labels
-		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-			SoftwareTitle:    payload.Title,
-			SoftwarePackage:  payload.Filename,
-			TeamName:         teamName,
-			TeamID:           payload.TeamID,
-			SelfService:      payload.SelfService,
-			SoftwareTitleID:  gotTitleID,
-			LabelsIncludeAny: actLabelsIncl,
-			LabelsExcludeAny: actLabelsExcl,
-		}); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating activity for added software")
-		}
-
-		var titleID *uint
-		if gotTitleID != uint(0) {
-			titleID = &gotTitleID
-		}
-		// TODO: other processing (e.g. labels)
-		return &fleet.SoftwareInstaller{
-			TeamID:    payload.TeamID,
-			TitleID:   titleID,
-			Name:      payload.Title,
-			StorageID: payload.StorageID,
-			Platform:  payload.Platform,
-			// LabelsIncludeAny: actLabelsIncl, // TODO: return labels in json response
-			// LabelsExcludeAny: actLabelsExcl,
-		}, nil
-	}
-
 	// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 	if err := preProcessUninstallScript(payload); err != nil {
 		return nil, &fleet.BadRequestError{
@@ -209,6 +156,15 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if payload.TeamID != nil {
 		tmID = *payload.TeamID
 	}
+
+	if payload.Extension == "ipa" {
+		addedInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &tmID, titleID)
+		if err != nil {
+			return nil, err
+		}
+		return addedInstaller, nil
+	}
+
 	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tmID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
