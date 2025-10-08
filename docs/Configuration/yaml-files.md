@@ -449,6 +449,8 @@ Can only be configured for all teams (`default.yml`).
 
 #### vulnerability_management
 
+Defines automated rules for dismissing vulnerabilities based on CVE identifiers, severity scores, exploit likelihood, and other risk-based criteria. These rules enable organizations to reduce noise from low-priority vulnerabilities and align dismissal behavior with internal security policies.
+
 ```yaml
 apiVersion: v1
 kind: config
