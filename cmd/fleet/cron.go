@@ -858,7 +858,9 @@ func newCleanupsAndAggregationSchedule(
 				}
 
 				targetsStart := time.Now()
-				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, time.Now().Add(-24*time.Hour).UTC())
+				cleanupTimeWindow := time.Now().Add(-config.Server.CleanupDistTargetsAge).UTC()
+				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, cleanupTimeWindow)
+
 				if err != nil {
 					return err
 				}
