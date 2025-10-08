@@ -211,11 +211,9 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
-	if payload.RequireAllSoftware != nil {
-		if ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
-			ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
-			didUpdate = true
-		}
+	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
+		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+		didUpdate = true
 	}
 
 	if payload.EnableReleaseDeviceManually != nil {
