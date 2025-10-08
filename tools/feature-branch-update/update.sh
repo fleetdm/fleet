@@ -56,7 +56,7 @@ main() {
     else
         git push origin $update_branch_name
         origin_branch=`cat fu_origin_branch`
-        gh pr create -f -B $origin_branch
+        gh pr create -f -B $origin_branch -t "Rebase main into long lived feature branch" -b "This is just pulling in commits from main that have landed since this branch was created. Just need a thumb from codeowners to pull in these changes. Thank you for your quick responses!"
         rm -f fu_origin_branch
         echo "Go merge your PR in w/ an additional approval"
     fi
