@@ -43,7 +43,6 @@ type SetupExperiencer struct {
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
 	sd                *swiftdialog.SwiftDialog
-	uiSteps           map[string]swiftdialog.ListItem
 	started           bool
 	trw               *token.ReadWriter
 	stopTokenRotation func()
@@ -54,7 +53,6 @@ func NewSetupExperiencer(orbitClient OrbitClient, deviceClient DeviceClient, roo
 		OrbitClient:  orbitClient,
 		DeviceClient: deviceClient,
 		closeChan:    make(chan struct{}),
-		uiSteps:      make(map[string]swiftdialog.ListItem),
 		rootDirPath:  rootDirPath,
 		trw:          trw,
 	}
@@ -95,7 +93,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	if err != nil {
 		log.Error().Err(err).Msg("marshalling setup experience payload for logging")
 	} else {
-		log.Info().Msgf("setup experience payload: %s", string(payloadBytes))
+		log.Debug().Msgf("setup experience payload: %s", string(payloadBytes))
 	}
 
 	// If swiftDialog isn't up yet, then launch it
@@ -151,19 +149,19 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	// Clear the dialog message.
 	if err := s.sd.HideMessage(); err != nil {
-		log.Info().Err(err).Msg("clearing message in setup experience UI")
+		log.Error().Err(err).Msg("clearing message in setup experience UI")
 	}
 	// Remove the icon.
 	if err := s.sd.HideIcon(); err != nil {
-		log.Info().Err(err).Msg("clearing icon in setup experience UI")
+		log.Error().Err(err).Msg("clearing icon in setup experience UI")
 	}
 	// Hide the title.
 	if err := s.sd.HideTitle(); err != nil {
-		log.Info().Err(err).Msg("hiding title in setup experience UI")
+		log.Error().Err(err).Msg("hiding title in setup experience UI")
 	}
 	// Hide the progress.
 	if err := s.sd.HideProgress(); err != nil {
-		log.Info().Err(err).Msg("hiding progress in setup experience UI")
+		log.Error().Err(err).Msg("hiding progress in setup experience UI")
 	}
 	// Get the device token.
 	token, err := s.trw.Read()
@@ -173,10 +171,10 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	// Get the My Device URL.
 	browserURL := s.DeviceClient.BrowserDeviceURL(token)
 	// log out the url
-	log.Info().Msgf("setup experience: opening web content URL: %s", browserURL)
+	log.Debug().Msgf("setup experience: opening web content URL: %s", browserURL)
 	// Set the web content URL.
 	if err := s.sd.SetWebContent(browserURL + "?setup_only=1"); err != nil {
-		log.Info().Err(err).Msg("setting web content URL in setup experience UI")
+		log.Error().Err(err).Msg("setting web content URL in setup experience UI")
 		return nil
 	}
 

@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -999,7 +1001,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	// turn off MDM for the host
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"host_display_name":%q, "host_serial":%q, "installed_from_dep":false}`, mdmHost.DisplayName(), mdmHost.HardwareSerial), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost.DisplayName(), mdmHost.HardwareSerial), 0)
 
 	// upcoming activities now have only the script
 	listResp = listHostUpcomingActivitiesResponse{}
@@ -1061,7 +1063,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	// turn off MDM for the host
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost2.ID), nil, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"host_display_name":%q, "host_serial":%q, "installed_from_dep":false}`, mdmHost2.DisplayName(), mdmHost2.HardwareSerial), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost2.DisplayName(), mdmHost2.HardwareSerial), 0)
 
 	// upcoming activities are now empty
 	listResp = listHostUpcomingActivitiesResponse{}
@@ -1095,4 +1097,170 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Len(t, listResp.Activities, 1)
 	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[0].Type)
 	require.Contains(t, string(*listResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+}
+
+// for https://github.com/fleetdm/fleet/issues/32082
+func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	oldApps := s.appleITunesSrvData
+	t.Cleanup(func() { s.appleITunesSrvData = oldApps })
+	s.appleITunesSrvData = map[string]string{
+		"1": `{"bundleId": "com.example.dummy", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "DummyApp", "TrackID": 1}`,
+		"2": `{"bundleId": "com.example.noversion", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "NoVersion", "TrackID": 2}`,
+	}
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.setVPPTokenForTeam(team.ID)
+
+	// Add VPP app 1 with bundle ID com.example.dummy (conflicts with DummyApp below)
+	vppApp1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+	}
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+
+	// add the NoVersion installer with bundle id com.example.noversion (conflicts with VPP app 2 below)
+	pkgNoVersion := &fleet.UploadSoftwareInstallerPayload{
+		Filename: "no_version.pkg",
+		Title:    "NoVersion",
+		TeamID:   &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgNoVersion, http.StatusOK, "")
+
+	// the Dummy installer has bundle id com.example.dummy, it should fail with a
+	// conflict with VPP app 1
+	pkgDummy := &fleet.UploadSoftwareInstallerPayload{
+		Filename: "dummy_installer.pkg",
+		Title:    "DummyApp",
+		TeamID:   &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has a package or app available for install on the Team 1 team.")
+
+	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
+	vppApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+	}
+
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict)
+	txt := extractServerErrorText(res.Body)
+	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+
+	// --- test with batch-set (gitops) ---
+
+	// start the HTTP server to serve package installers
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/no_version.pkg":
+			http.ServeFile(w, r, filepath.Join("testdata", "software-installers", "no_version.pkg"))
+		case "/dummy_installer.pkg":
+			http.ServeFile(w, r, filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	// try to set DummyApp and NoVersion installers, but DummyApp conflicts with VPP app 1
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+		Software: []*fleet.SoftwareInstallerPayload{
+			{URL: srv.URL + "/no_version.pkg", SHA256: "4ba383be20c1020e416958ab10e3b472a4d5532a8cd94ed720d495a9c81958fe"},
+			{URL: srv.URL + "/dummy_installer.pkg", SHA256: "7f679541ccfdb56094ca76117fd7cf75071c9d8f43bfd2a6c0871077734ca7c8"},
+		},
+	}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
+	batchResp := waitBatchSetSoftwareInstallers(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusFailed, batchResp.Status)
+	require.Contains(t, batchResp.Message, "DummyApp already has a package or app available for install on the Team 1 team.")
+
+	// batch-set the VPP apps, including one in conflict
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: "1"},
+		{AppStoreID: "2"},
+	}}, http.StatusConflict, "team_name", team.Name)
+	txt = extractServerErrorText(res.Body)
+	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+
+	// listing software available to install only lists the dummy app and noversion installer
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 2)
+	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
+	require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
+	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
+	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+
+	// a different team can batch-add the two installers without conflict
+	newTeamResp = teamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 2")}}, http.StatusOK, &newTeamResp)
+	team2 := newTeamResp.Team
+
+	batchResponse = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+		Software: []*fleet.SoftwareInstallerPayload{
+			{URL: srv.URL + "/no_version.pkg", SHA256: "4ba383be20c1020e416958ab10e3b472a4d5532a8cd94ed720d495a9c81958fe"},
+			{URL: srv.URL + "/dummy_installer.pkg", SHA256: "7f679541ccfdb56094ca76117fd7cf75071c9d8f43bfd2a6c0871077734ca7c8"},
+		},
+	}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	batchResp = waitBatchSetSoftwareInstallers(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResp.Status)
+	require.Empty(t, batchResp.Message)
+	require.Len(t, batchResp.Packages, 2)
+
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team2.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 2)
+	// both are software packages
+	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
+	require.NotNil(t, listSw.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "dummy_installer.pkg", listSw.SoftwareTitles[0].SoftwarePackage.Name)
+	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
+	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+
+	// a different team can batch-add the two VPP apps without conflict
+	newTeamResp = teamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 3")}}, http.StatusOK, &newTeamResp)
+	team3 := newTeamResp.Team
+
+	var tokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
+
+	var batchAppResp batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: "1"},
+		{AppStoreID: "2"},
+	}}, http.StatusOK, &batchAppResp, "team_name", team3.Name)
+	require.Len(t, batchAppResp.Apps, 2)
+
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team3.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 2)
+	// both are VPP apps
+	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
+	require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
+	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
+	require.NotNil(t, listSw.SoftwareTitles[1].AppStoreApp)
+	require.Equal(t, "2", listSw.SoftwareTitles[1].AppStoreApp.AppStoreID)
 }

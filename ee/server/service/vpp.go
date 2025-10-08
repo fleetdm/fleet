@@ -416,9 +416,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if exists {
-			return 0, ctxerr.New(ctx,
-				fmt.Sprintf("Error: Couldn't add software. %s already has software available for install on the %s team.",
-					assetMD.TrackName, teamName))
+			return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+					assetMD.TrackName, teamName)}, "vpp app conflicts with existing software installer")
 		}
 	}
 
