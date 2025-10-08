@@ -111,7 +111,9 @@ IdPs generally require a Fleet SCIM URL and API token:
 
 Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with ⁠`userName` as the unique identifier. Fleet uses the⁠ `userName` attribute to map to IdP groups and department.
 
-Fleet also supports the `department` attribute (optional). Delete all other attributes.
+Fleet also supports the `department` attribute. Delete all other attributes.
+
+To map groups, configure your IdP to provision (push) them to Fleet.
 
 ### Prerequisites
 
