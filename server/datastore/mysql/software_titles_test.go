@@ -1884,7 +1884,7 @@ func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore)
 
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
 	// Uncomment the next line to regenerate the fixture
-	generateSelectSoftwareTitlesSQLFixture(t)
+	// generateSelectSoftwareTitlesSQLFixture(t)
 	// return
 
 	fixturePath := filepath.Join("testdata", "select_software_titles_sql_fixture.gz")

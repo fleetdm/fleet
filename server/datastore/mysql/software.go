@@ -1011,7 +1011,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
 
 				for _, title := range uniqueTitlesToInsert {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel, title.ApplicationID)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.ExtensionFor, title.BundleIdentifier, title.IsKernel, title.ApplicationID)
 				}
 
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
