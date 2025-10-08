@@ -4,12 +4,10 @@ usage() {
     echo "Usage: $0 [options] (optional|start_version)"
     echo ""
     echo "Options:"
-   echo "  -c, --conflicts_resolved The script has been run, had merge conflicts, and those have been resolved."
     echo "  -h, --help             Display this help message and exit"
     echo ""
     echo "Examples:"
     echo "  $0 33499               Update PR 33499"
-    echo "  $0 33499 -c            Finish PR 33499 update after conflicts are resolved"
     echo ""
 }
 
