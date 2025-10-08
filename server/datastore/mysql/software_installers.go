@@ -1122,11 +1122,32 @@ func (ds *Datastore) cancelSoftwareInstallForHostsInTransaction(ctx context.Cont
 		}
 	}
 
-	//
+	// We'll reuse these variables in the steps below.
+	var (
+		query string
+		args  []interface{}
+	)
+
+	// Step one: delete any pending uninstall scripts for the installer on the specified hosts (or all hosts if none specified).
 	// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
-	_, err = tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
+	stmt := `DELETE FROM host_script_results WHERE execution_id IN (
 				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_uninstall'
-			) AND %s`, installerID)
+			) AND %s`
+
+	// If no host IDs were provided, we want to delete all pending uninstall scripts for the installer.
+	if len(hostIDs) == 0 {
+		query = fmt.Sprintf(stmt, "TRUE")
+		args = []interface{}{installerID}
+	} else {
+		// Otherwise, we want to delete only those pending uninstall scripts for the installer on the specified hosts.
+		query = fmt.Sprintf(stmt, "host_id IN (?)")
+
+		query, args, err = sqlx.In(query, installerID, hostIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build delete pending uninstall scripts query")
+		}
+	}
+	_, err = tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 	}
