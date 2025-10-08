@@ -8,7 +8,7 @@ For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator]
 
 For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any [configuration service providers (CSPs)](https://fleetdm.com/guides/creating-windows-csps) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
 
-For Android, copy this [Android configuration profile template](#TODO) and update the profile using options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). If you prefer, you can watch a video.
+For Android, copy this [Android configuration profile template](#TODO) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). If you prefer, you can watch a video.
 
 <EMBED_VIDEO>
 
