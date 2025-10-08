@@ -60,7 +60,7 @@
 - Fixed an alignment issue on the My device page.
 - Fix deadlocks when updating automations for 10+ policies at one time.
 
-## Fleet 4.73.5 (Oct 7, 2025)
+## Fleet 4.73.5 (Oct 8, 2025)
 
 ### Bug fixes
 
