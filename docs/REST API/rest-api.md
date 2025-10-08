@@ -9988,6 +9988,30 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
+    },
+    {
+      "id": 12,
+      "name": "MyCustomApp",
+      "software_package": {
+        "name": "MyCustomApp-1.12.ipa",
+        "platform": "ios",
+        "version": "1.12",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null
+      },
+      "app_store_app": null,
+      "versions_count": 1,
+      "source": "ios_apps",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": null
+        }
+      ],
     }
   ],
   "meta": {
@@ -10302,6 +10326,61 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
+#### Example (in-house iOS app)
+
+`GET /api/v1/fleet/software/titles/24?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 12,
+    "name": "MyCustomApp",
+    "software_package": {
+      "name": "MyCustomApp-1.12.ipa",
+      "platform": "ios"
+      "fleet_maintained_id": null,
+      "version": "1.12",
+      "self_service": false,
+      "automatic_install_policies": null,
+      "categories": null,
+      "uploaded_at": "2025-08-15T00:55:03.96954Z",
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+      "title_id": 12,
+      "team_id": 3,
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      },
+      "installer_id": 332,
+      "install_script": null, 
+      "uninstall_script": null,
+      "post_install_script": null,
+      "pre_install_query": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+    },
+    "app_store_app": null,
+    "versions_count": 1,
+    "source": "ios_apps",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "1.12",
+        "vulnerabilities": null
+      }
+    ],
+  }
+}
+```
+
 ### Get software version
 
 Returns information about the specified software version.
@@ -10477,8 +10556,7 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windows, or Linux hosts.
-
+Add a package (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts.
 
 `POST /api/v1/fleet/software/package`
 
@@ -10486,7 +10564,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windo
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
+| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .ipa, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
 | uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
@@ -10584,7 +10662,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .ipa, .msi, .exe, .deb, and .rpm.  |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | display_name    | string  | form | Optional override for the default `name`. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
