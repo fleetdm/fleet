@@ -148,10 +148,6 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 ) {
 	var dest fleet.VPPAppStatusSummary
 
-	// TODO(sarah): do we need to handle host_deleted_at similar to GetSummaryHostSoftwareInstalls?
-	// Currently there is no host_deleted_at in host_vpp_software_installs, so
-	// not handling it as part of the unified queue work.
-
 	stmt := `
 WITH
 

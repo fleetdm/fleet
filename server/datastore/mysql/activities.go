@@ -933,8 +933,8 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 }
 
 func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, act activityToCancel, hostID uint, hostUUID, executionID string) (fleet.ActivityDetails, error) {
-	// TODO(mna): confirm if this is true: in-house apps cannot be part of setup
-	// experience, so there's no update for that in this case.
+	// in-house apps currently cannot be part of setup experience, so there's no
+	// update for that in this case.
 
 	if act.Activated {
 		const updInHouseStmt = `UPDATE host_in_house_software_installs SET canceled = 1 WHERE command_uuid = ?`
