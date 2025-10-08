@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
@@ -32,9 +32,9 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 
 	// TODO(hca): test free version disallows batch endpoint
 
-	ndesSCEPServer := eeservice.NewTestSCEPServer(t)
-	ndesAdminServer := eeservice.NewTestNDESAdminServer(t, "mscep_admin_password", http.StatusOK)
-	dynamicChallengeServer := eeservice.NewTestDynamicChallengeServer(t)
+	ndesSCEPServer := scep.NewTestSCEPServer(t)
+	ndesAdminServer := scep.NewTestNDESAdminServer(t, "mscep_admin_password", http.StatusOK)
+	dynamicChallengeServer := scep.NewTestDynamicChallengeServer(t)
 
 	pathRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
 	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

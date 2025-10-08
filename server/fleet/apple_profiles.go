@@ -1,6 +1,10 @@
 package fleet
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -40,4 +44,55 @@ func FindProfilesWithSecrets(
 		}
 	}
 	return profilesWithSecrets, nil
+}
+
+func MarkProfilesFailed(
+	ctx context.Context,
+	ds Datastore,
+	target *CmdTarget,
+	hostProfilesToInstallMap map[HostProfileUUID]*MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	profUUID string,
+	detail string,
+	variablesUpdatedAt *time.Time,
+) (bool, error) {
+	profilesToUpdate := make([]*MDMAppleBulkUpsertHostProfilePayload, 0, len(target.EnrollmentIDs))
+	for _, enrollmentID := range target.EnrollmentIDs {
+		profile, ok := GetHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
+		if !ok {
+			// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
+			hostUUID, ok := userEnrollmentsToHostUUIDsMap[enrollmentID]
+			if ok {
+				profile, ok = hostProfilesToInstallMap[HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+			}
+			if !ok {
+				continue
+			}
+		}
+		profile.Status = &MDMDeliveryFailed
+		profile.Detail = detail
+		profile.VariablesUpdatedAt = variablesUpdatedAt
+		profilesToUpdate = append(profilesToUpdate, profile)
+	}
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
+		return false, fmt.Errorf("marking host profiles failed: %w", err)
+	}
+	return false, nil
+}
+
+func GetHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap map[HostProfileUUID]*MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	enrollmentID,
+	profUUID string,
+) (*MDMAppleBulkUpsertHostProfilePayload, bool) {
+	profile, ok := hostProfilesToInstallMap[HostProfileUUID{HostUUID: enrollmentID, ProfileUUID: profUUID}]
+	if !ok {
+		var hostUUID string
+		// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
+		hostUUID, ok = userEnrollmentsToHostUUIDsMap[enrollmentID]
+		if ok {
+			profile, ok = hostProfilesToInstallMap[HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+		}
+	}
+	return profile, ok
 }

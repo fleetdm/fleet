@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -714,20 +716,20 @@ func (a *AppleMDM) installProfiles(ctx context.Context, hostUUID string) ([]stri
 		return nil, ctxerr.Wrap(ctx, err, "getting profile contents")
 	}
 
-	_, err = a.Datastore.GetGroupedCertificateAuthorities(ctx, true)
+	groupedCAs, err := a.Datastore.GetGroupedCertificateAuthorities(ctx, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	_, err = a.Datastore.AppConfig(ctx)
+	appConfig, err := a.Datastore.AppConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("reading app config: %w", err)
 	}
 
-	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
-	var installTargets map[string]*fleet.CmdTarget
+	hostProfilesToInstallMap := make(map[apple_mdm.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
+	var installTargets map[string]*apple_mdm.CmdTarget
 	for _, profile := range profilesToInstall {
-		target := &fleet.CmdTarget{
+		target := &apple_mdm.CmdTarget{
 			CmdUUID:           uuid.NewString(),
 			ProfileIdentifier: profile.ProfileIdentifier,
 		}
@@ -744,18 +746,18 @@ func (a *AppleMDM) installProfiles(ctx context.Context, hostUUID string) ([]stri
 			SecretsUpdatedAt:  profile.SecretsUpdatedAt,
 			Scope:             profile.Scope,
 		}
-		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
+		hostProfilesToInstallMap[apple_mdm.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
 	}
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
-	/* err = preprocessing.PreprocessProfileContents(ctx, appConfig, a.Datastore,
+	err = apple_mdm.PreprocessProfileContents(ctx, appConfig, a.Datastore, scep.NewSCEPConfigService(a.Log, nil), digicert.NewService(digicert.WithLogger(a.Log)),
 		a.Log, installTargets, profileContents, hostProfilesToInstallMap, map[string]string{}, groupedCAs)
 	if err != nil {
 		return nil, err
-	} */
+	}
 
 	// Find the profiles containing secret variables.
-	profilesWithSecrets, err := fleet.FindProfilesWithSecrets(a.Log, installTargets, profileContents)
+	profilesWithSecrets, err := apple_mdm.FindProfilesWithSecrets(a.Log, installTargets, profileContents)
 	if err != nil {
 		return nil, err
 	}

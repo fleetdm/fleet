@@ -3,7 +3,9 @@ package testutils
 import (
 	"os"
 	"strings"
+	"syscall"
 	"testing"
+	"unicode/utf16"
 )
 
 // SaveEnv snapshots the current environment and restores it when the test
@@ -27,4 +29,15 @@ func SaveEnv(t *testing.T) {
 			}
 		}
 	})
+}
+
+// UTF16FromString returns the UTF-16 encoding of the UTF-8 string s, with a terminating NUL added.
+// If s contains a NUL byte at any location, it returns (nil, syscall.EINVAL).
+func UTF16FromString(s string) ([]uint16, error) {
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0 {
+			return nil, syscall.EINVAL
+		}
+	}
+	return utf16.Encode([]rune(s + "\x00")), nil
 }

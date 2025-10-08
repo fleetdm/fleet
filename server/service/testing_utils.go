@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -74,7 +75,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage                      nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer                          fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                               clock.Clock                   = clock.C
-		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
+		scepConfigService                                             = scep.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
 		hydrantService                                                = hydrant.NewService(hydrant.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
@@ -463,7 +464,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		if opts[0].EnableSCEPProxy {
 			var timeout *time.Duration
 			if opts[0].SCEPConfigService != nil {
-				scepConfig, ok := opts[0].SCEPConfigService.(*eeservice.SCEPConfigService)
+				scepConfig, ok := opts[0].SCEPConfigService.(*scep.SCEPConfigService)
 				if ok {
 					// In tests, we share the same Timeout pointer between SCEPConfigService and SCEPProxy
 					timeout = scepConfig.Timeout

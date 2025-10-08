@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -337,9 +338,9 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 	if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, *ndesSCEP); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
 		switch {
-		case errors.As(err, &NDESPasswordCacheFullError{}):
+		case errors.As(err, &scep.NDESPasswordCacheFullError{}):
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
-		case errors.As(err, &NDESInsufficientPermissionsError{}):
+		case errors.As(err, &scep.NDESInsufficientPermissionsError{}):
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
 		default:
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}
@@ -1260,9 +1261,9 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
 			switch {
-			case errors.As(err, &NDESPasswordCacheFullError{}):
+			case errors.As(err, &scep.NDESPasswordCacheFullError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
-			case errors.As(err, &NDESInsufficientPermissionsError{}):
+			case errors.As(err, &scep.NDESInsufficientPermissionsError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
 			default:
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}

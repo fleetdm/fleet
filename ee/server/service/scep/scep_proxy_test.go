@@ -1,7 +1,8 @@
-package service
+package scep
 
 import (
 	"context"
+	_ "embed"
 	"encoding/binary"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
@@ -59,7 +61,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	returnPageFromFile := func(path string) []byte {
 		dat, err := os.ReadFile(path)
 		require.NoError(t, err)
-		datUTF16, err := utf16FromString(string(dat))
+		datUTF16, err := testutils.UTF16FromString(string(dat))
 		require.NoError(t, err)
 		byteData := make([]byte, len(datUTF16)*2)
 		for i, v := range datUTF16 {
