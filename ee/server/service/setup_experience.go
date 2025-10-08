@@ -323,6 +323,9 @@ func (svc *Service) CancelPendingSetupExperienceSteps(ctx context.Context, host 
 		}
 		// If we have a running software installer, cancel it.
 		if status.SoftwareInstallerID != nil && status.Status == fleet.SetupExperienceStatusRunning {
+			if _, err := svc.ds.CancelSoftwareInstallForHosts(ctx, []uint{host.ID}, *status.SoftwareInstallerID); err != nil {
+				return ctxerr.Wrap(ctx, err, "cancelling host software install")
+			}
 		}
 	}
 	return nil

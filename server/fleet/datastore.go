@@ -2006,6 +2006,10 @@ type Datastore interface {
 	// to how the virtual column works).
 	ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
 
+	// CancelSoftwareInstallForHosts cancels installs of the specified software installer for the specified hosts.
+	// If no hosts are specified, it cancels all ongoing installs for the installer.
+	CancelSoftwareInstallForHosts(ctx context.Context, hostIDs []uint, installerID uint) (affectedHostIDs []uint, err error)
+
 	// SaveInstallerUpdates persists new values to an existing installer. See comments in the payload struct
 	// for which fields must be set.
 	SaveInstallerUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error

@@ -1091,7 +1091,7 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 
 func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
-		affectedHostIDs, err = ds.CancelSoftwareInstallForHostsInTransaction(ctx, tx, nil, installerID)
+		affectedHostIDs, err = ds.cancelSoftwareInstallForHostsInTransaction(ctx, tx, nil, installerID)
 	}
 
 	if wasPackageUpdated { // hide existing install counts
@@ -1109,13 +1109,13 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 // If no hosts are provided, all pending software installs will be cancelled for the installer.
 func (ds *Datastore) CancelSoftwareInstallForHosts(ctx context.Context, hostIDs []uint, installerID uint) (affectedHostIDs []uint, err error) {
 	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		affectedHostIDs, err = ds.CancelSoftwareInstallForHostsInTransaction(ctx, tx, hostIDs, installerID)
+		affectedHostIDs, err = ds.cancelSoftwareInstallForHostsInTransaction(ctx, tx, hostIDs, installerID)
 		return err
 	})
 	return affectedHostIDs, err
 }
 
-func (ds *Datastore) CancelSoftwareInstallForHostsInTransaction(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, installerID uint) (affectedHostIDs []uint, err error) {
+func (ds *Datastore) cancelSoftwareInstallForHostsInTransaction(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, installerID uint) (affectedHostIDs []uint, err error) {
 	// If host IDs were provided, get their UUIDs.
 	var hostUUIDs []string
 	if len(hostIDs) > 0 {
