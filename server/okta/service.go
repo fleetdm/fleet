@@ -202,27 +202,63 @@ func (o *oktaDeviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *h
 		email = req.Request.Subject.NameID.Value
 	}
 
-	// Phase 2: Look up device by user email and check policies
 	if email == "" {
-		// No email provided, deny access
 		o.renderRemediationPage(w, "No Email Provided", "Your account does not have an email address associated with it.", nil)
 		return nil
 	}
 
-	// Look up host ID by email
-	hostID, err := o.svc.ds.HostIDByEmail(ctx, email)
-	if err != nil {
-		// No host found for this email, deny access
-		o.renderRemediationPage(w, "Device Not Found", fmt.Sprintf("No device found for email: %s", email), nil)
-		return nil
-	}
+	// Try to get host from client certificate serial (more secure, cryptographically verified)
+	var host *fleet.Host
+	if certSerialStr, ok := ctx.Value(clientCertSerialKey).(string); ok && certSerialStr != "" {
+		level.Info(o.svc.logger).Log("msg", "looking up host by certificate serial", "serial", certSerialStr)
 
-	// Get full host record
-	host, err := o.svc.ds.Host(ctx, hostID)
-	if err != nil {
-		// Host not found, deny access
-		o.renderRemediationPage(w, "Device Error", "Unable to retrieve device information.", nil)
-		return nil
+		// Parse serial number
+		var certSerial uint64
+		if _, err := fmt.Sscanf(certSerialStr, "%d", &certSerial); err != nil {
+			level.Error(o.svc.logger).Log("msg", "invalid certificate serial format", "serial", certSerialStr, "err", err)
+			o.renderRemediationPage(w, "Invalid Certificate", "The client certificate serial number is invalid.", nil)
+			return nil
+		}
+
+		// Look up certificate by serial
+		cert, err := o.svc.ds.GetHostIdentityCertBySerialNumber(ctx, certSerial)
+		if err != nil {
+			level.Error(o.svc.logger).Log("msg", "certificate not found or invalid", "serial", certSerial, "err", err)
+			o.renderRemediationPage(w, "Certificate Not Found", "The client certificate is not recognized or has expired.", nil)
+			return nil
+		}
+
+		// Check if certificate is linked to a host
+		if cert.HostID == nil {
+			level.Error(o.svc.logger).Log("msg", "certificate not linked to host", "serial", certSerial)
+			o.renderRemediationPage(w, "Device Not Enrolled", "This certificate is not yet associated with a device.", nil)
+			return nil
+		}
+
+		// Get host by ID from certificate
+		host, err = o.svc.ds.Host(ctx, *cert.HostID)
+		if err != nil {
+			level.Error(o.svc.logger).Log("msg", "host not found for certificate", "host_id", *cert.HostID, "err", err)
+			o.renderRemediationPage(w, "Device Error", "Unable to retrieve device information.", nil)
+			return nil
+		}
+
+		level.Info(o.svc.logger).Log("msg", "found host by certificate", "host_id", host.ID, "hostname", host.Hostname)
+	} else {
+		// Fallback: look up host ID by email (less secure, for testing without mTLS)
+		level.Info(o.svc.logger).Log("msg", "no certificate serial, falling back to email lookup", "email", email)
+
+		hostID, err := o.svc.ds.HostIDByEmail(ctx, email)
+		if err != nil {
+			o.renderRemediationPage(w, "Device Not Found", fmt.Sprintf("No device found for email: %s", email), nil)
+			return nil
+		}
+
+		host, err = o.svc.ds.Host(ctx, hostID)
+		if err != nil {
+			o.renderRemediationPage(w, "Device Error", "Unable to retrieve device information.", nil)
+			return nil
+		}
 	}
 
 	// Check device health policies

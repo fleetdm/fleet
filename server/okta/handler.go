@@ -1,11 +1,19 @@
 package okta
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/gorilla/mux"
+)
+
+type ctxKey int
+
+const (
+	// clientCertSerialKey is the context key for storing client certificate serial number
+	clientCertSerialKey ctxKey = iota
 )
 
 // MakeHandler creates an HTTP handler for Okta device health endpoints with OTEL middleware
@@ -42,6 +50,17 @@ func (s *Service) makeOktaDeviceHealthMetadataHandler(baseMetadataURL, baseSSOUR
 
 func (s *Service) makeOktaDeviceHealthSSOHandler(baseMetadataURL, baseSSOURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Extract client certificate serial from mTLS proxy header
+		clientCertSerial := r.Header.Get("X-Client-Cert-Serial")
+		if clientCertSerial != "" {
+			s.logger.Log("msg", "client certificate serial", "serial", clientCertSerial)
+			// Add to request context so GetSession can access it
+			ctx := context.WithValue(r.Context(), clientCertSerialKey, clientCertSerial)
+			r = r.WithContext(ctx)
+		} else {
+			s.logger.Log("msg", "no client certificate serial in request")
+		}
+
 		idp, err := s.getOktaDeviceHealthIDP(baseMetadataURL, baseSSOURL)
 		if err != nil {
 			s.logger.Log("err", "error creating IdP", "details", err)
