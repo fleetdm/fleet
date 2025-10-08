@@ -1377,6 +1377,15 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
+	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.require_all_software",
+				`Couldn't update macos_setup.require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
+
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
