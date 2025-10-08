@@ -1,0 +1,91 @@
+name: fleetd_pacman_packages
+platforms:
+  - linux
+description: List the packages installed using the `pacman` package manager.
+columns:
+  - name: name
+    type: text
+    required: false
+    description: Name of the package
+  - name: version
+    type: text
+    required: false
+    description: Version of the package
+  - name: description
+    type: text
+    required: false
+    description: The description of the package
+  - name: arch
+    type: text
+    required: false
+    description: The CPU architecture of the package
+  - name: url
+    type: text
+    required: false
+    description: The upstream URL of the package
+  - name: licenses
+    type: text
+    required: false
+    description: The software license of the package
+  - name: groups
+    type: text
+    required: false
+    description: The package groups that the package is part of
+  - name: provides
+    type: text
+    required: false
+    description: An array of “virtual provisions” this package provides
+  - name: depends_on
+    type: text
+    required: false
+    description: An array of packages this package depends on to run
+  - name: optional_deps
+    type: text
+    required: false
+    description: An array of packages (and accompanying reasons) that are not essential for base functionality, but may be necessary to make full use of the contents of this package
+  - name: required_by
+    type: text
+    required: false
+    description: An array of packages that depend on this package
+  - name: optional_for
+    type: text
+    required: false
+    description: An array of packages that list this package an an optional dependency
+  - name: conflicts_with
+    type: text
+    required: false
+    description: An array of packages that will conflict with this package
+  - name: replaces
+    type: text
+    required: false
+    description: An array of packages this package should replace
+  - name: installed_size
+    type: text
+    required: false
+    description: The size of the package once installed
+  - name: packager
+    type: text
+    required: false
+    description: The maintainer of the package
+  - name: build_date
+    type: text
+    required: false
+    description: The date the package was built
+  - name: install_date
+    type: text
+    required: false
+    description: The date the package was installed
+  - name: install_reason
+    type: text
+    required: false
+    description: The reason the package was installed
+  - name: install_script
+    type: text
+    required: false
+    description: Whether or not the package uses an install script
+  - name: validated_by
+    type: text
+    required: false
+    description: How the package was validated
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

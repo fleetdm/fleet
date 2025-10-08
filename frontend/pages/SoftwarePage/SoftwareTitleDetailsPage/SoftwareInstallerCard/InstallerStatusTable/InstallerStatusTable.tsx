@@ -45,6 +45,7 @@ const InstallerStatusTable = ({
       isAllPagesSelected={false}
       disableHighlightOnHover
       hideFooter
+      disableTableHeader
     />
   );
 };

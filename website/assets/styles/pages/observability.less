@@ -496,6 +496,24 @@
       line-height: 48px;
     }
   }
+  [purpose='bottom-cta'] {
+    text-align: center;
+    h2 {
+      font-size: 48px;
+      margin-bottom: 0px;
+    }
+    h4 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    [purpose='button-row'] {
+      margin-top: 40px;
+      [purpose='contact-button'] {
+        padding: 16px 32px;
+        text-decoration: none;
+      }
+    }
+  }
   [purpose='bottom-gradient'] {
     background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
   }
@@ -671,6 +689,11 @@
       [purpose='quote-attribution'] {
         margin-right: auto;
         margin-left: auto;
+      }
+    }
+    [purpose='bottom-cta'] {
+      h2 {
+        font-size: 32px;
       }
     }
     [purpose='video-modal'] {

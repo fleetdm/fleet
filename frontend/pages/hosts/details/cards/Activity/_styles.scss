@@ -1,5 +1,11 @@
-.activity-card {
-  position: relative;
+.host-activity-card {
+  @include vertical-card-layout;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline; // Aligns bottom of text
+  }
 
   &__loading-overlay {
     // this is to center the loading spinner in the card
@@ -17,11 +23,7 @@
     background-color: rgba(255, 255, 255, 0.8);
   }
 
-  // styles to render the tooltip outside of the content area.
   &__upcoming-tooltip {
     font-size: $xx-small;
-    position: absolute;
-    top: 14px;
-    right: 14px;
   }
 }

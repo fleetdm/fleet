@@ -309,6 +309,15 @@ release_to_production () {
     echo "Release has been pushed to production!"
     echo "NOTE: You might see some clients failing to upgrade due to some sha256 mismatches."
     echo "These temporary failures are expected because it takes some time for caches to be invalidated (these errors should go away after a few minutes minutes)."
+
+    if [[ $COMPONENT == "fleetd" ]]; then
+        milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+        prompt "Sleep 5 minutes and trigger workflow to update orbit/TUF.md"
+        # Sleeping 5 minutes to allow for Cloudflare caches to clear.
+        sleep 300
+        gh workflow run "Update documentation of current versions of TUF fleetd components"
+        prompt "Make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+    fi
 }
 
 prompt () {
@@ -327,6 +336,18 @@ print_reminder () {
     if [[ $ACTION == "release-to-edge" ]]; then
         if [[ $COMPONENT == "fleetd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m --orbit-channel=edge --desktop-channel=edge' on Linux amd64, Linux arm64, Windows, and macOS."
+            milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+            echo "Milestone checks:"
+            if [[ -n $milestone_url ]]; then
+                prompt "1. It seems fleetd version $VERSION milestone is: $milestone_url"
+            else
+                prompt "1. fleetd $VERSION has a milestone in https://github.com/fleetdm/fleet/milestones"
+            fi
+            echo "Orbit changes:"
+            cat orbit/changes/*
+            echo 
+            prompt "2. All items above under orbit/changes/ correspond to a Github issue"
+            prompt "3. All items in the $VERSION milestone are in 'Ready for release'"
         elif [[ $COMPONENT == "osqueryd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --osqueryd-channel=edge --update-interval=1m' on Linux amd64, Linux arm64, Windows, and macOS."
         fi

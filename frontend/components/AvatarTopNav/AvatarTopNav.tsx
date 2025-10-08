@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from "react";
 import classnames from "classnames";
 
-import { DEFAULT_GRAVATAR_LINK_DARK } from "utilities/constants";
+import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 interface IAvatarUserInterface {
-  gravatar_url_dark?: string;
+  gravatar_url?: string;
 }
 
 export interface IAvatarInterface {
@@ -29,14 +29,14 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
   const avatarClasses = classnames(baseClass, className, {
     [`${baseClass}--${size?.toLowerCase()}`]: !!size,
   });
-  const { gravatar_url_dark } = user;
+  const { gravatar_url } = user;
 
   return (
     <div className="avatar-wrapper-top-nav">
       <img
         alt="User avatar"
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}
-        src={gravatar_url_dark || DEFAULT_GRAVATAR_LINK_DARK}
+        src={gravatar_url || DEFAULT_GRAVATAR_LINK}
         onError={onError}
         onLoad={onLoad}
         data-testid="user-avatar"

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -1312,6 +1313,30 @@ func newWindowsMDMProfileManagerSchedule(
 	return s, nil
 }
 
+func newAndroidMDMProfileManagerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	licenseKey string,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMDMAndroidProfileManager)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey)
+		}),
+	)
+
+	return s, nil
+}
+
 func newMDMAppleServiceDiscoverySchedule(
 	ctx context.Context,
 	instanceID string,
@@ -1588,6 +1613,7 @@ func newIPhoneIPadRefetcher(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
+	newActivityFn apple_mdm.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-refetcher")
@@ -1595,7 +1621,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 
@@ -1782,6 +1808,32 @@ func newBatchActivitiesSchedule(
 			}
 
 			return nil
+		}),
+	)
+
+	return s, nil
+}
+
+// newAndroidMDMDeviceReconcilerSchedule periodically reconciles Android device existence
+// with Google AMAPI and flips hosts to unenrolled if missing.
+func newAndroidMDMDeviceReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	licenseKey string,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMDMAndroidDeviceReconciler)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey)
 		}),
 	)
 

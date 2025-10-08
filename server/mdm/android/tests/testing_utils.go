@@ -81,6 +81,11 @@ func (ds *AndroidDSWithMock) DeleteOtherEnterprises(ctx context.Context, id uint
 	return ds.Datastore.DeleteOtherEnterprises(ctx, id)
 }
 
+// Disambiguate method promoted from both mysql.Datastore and mock.Store
+func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
+}
+
 type WithServer struct {
 	suite.Suite
 	Svc      android.Service
@@ -163,9 +168,9 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
 		}, nil
 	}
-	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) error {
+	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 		assert.Contains(t, policyName, EnterpriseID)
-		return nil
+		return &androidmanagement.Policy{}, nil
 	}
 	ts.AndroidAPIClient.EnterpriseDeleteFunc = func(_ context.Context, enterpriseName string) error {
 		assert.Equal(t, "enterprises/"+EnterpriseID, enterpriseName)

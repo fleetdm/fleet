@@ -23,7 +23,7 @@
   task: "Sprint kickoff review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams. After the call, the Head of Product Design @ mentions the API design DRI in #help-design about stories that didn't make it into the sprint so that they can update the reference docs release branches." 
+  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams. For stories that didn't make it into the sprint, API design DRI updates the reference docs release branches." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
@@ -51,13 +51,6 @@
     labels: [ ":product" ]
     repo: "fleet"
 -
-  task: "🦢👁️ Product design check-in"
-  startedOn: "2023-07-11" 
-  frequency: "Weekly" 
-  description: "The Head of Product Design summarizes the current week's design reviews to discuss with the CEO" 
-  moreInfoUrl: "https://fleetdm.com/handbook/product-design#product-design-check-in" # 2024-03-06 TODO: Add responsibility to README and link to it here
-  dri: "noahtalerman"
--
   task: "🦢🗣 Product office hours"
   startedOn: "2023-07-11" 
   frequency: "Weekly" 
@@ -68,7 +61,7 @@
   task: "Maintenance" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-01" 
   frequency: "Weekly" 
-  description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #g-mdm and #g-endpoint-ops Slack channel." 
+  description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and if necessary, creates user stories to test new macOS major versions or update CIS Benchmarks." 
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit?gid=0#gid=0" 
   dri: "noahtalerman"
 -

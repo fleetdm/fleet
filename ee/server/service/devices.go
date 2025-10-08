@@ -264,6 +264,10 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
 	}
 
+	return svc.getHostSetupExperienceStatus(ctx, host)
+}
+
+func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *fleet.Host) (*fleet.DeviceSetupExperienceStatusPayload, error) {
 	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
@@ -282,9 +286,13 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 	}
 
 	var software []*fleet.SetupExperienceStatusResult
+	var scripts []*fleet.SetupExperienceStatusResult
 	for _, result := range results {
 		if result.IsForSoftware() {
 			software = append(software, result)
+		}
+		if result.IsForScript() {
+			scripts = append(scripts, result)
 		}
 	}
 
@@ -295,5 +303,6 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 
 	return &fleet.DeviceSetupExperienceStatusPayload{
 		Software: software,
+		Scripts:  scripts,
 	}, nil
 }

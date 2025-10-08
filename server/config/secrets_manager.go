@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	aws_config "github.com/aws/aws-sdk-go-v2/config"
@@ -20,22 +19,6 @@ type SecretsManagerClient interface {
 		optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
 }
 
-// parseRegionFromSecretARN extracts the AWS region from a Secrets Manager ARN
-func parseRegionFromSecretARN(arn string) (string, error) {
-	// ARN format: arn:aws:secretsmanager:region:account:secret:name
-	parts := strings.Split(arn, ":")
-	if len(parts) < 6 || parts[0] != "arn" || parts[1] != "aws" || parts[2] != "secretsmanager" {
-		return "", fmt.Errorf("invalid Secrets Manager ARN format: %s", arn)
-	}
-
-	region := parts[3]
-	if region == "" {
-		return "", fmt.Errorf("region not found in ARN: %s", arn)
-	}
-
-	return region, nil
-}
-
 // retrieveSecretWithRetry retrieves the secret from AWS with retry logic
 func retrieveSecretWithRetry(ctx context.Context, client SecretsManagerClient, secretArn string) (string, error) {
 	const maxRetries = 3
@@ -43,8 +26,8 @@ func retrieveSecretWithRetry(ctx context.Context, client SecretsManagerClient, s
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff with jitter: base 100ms with ±50% randomization
-			baseBackoff := time.Duration(100*(1<<uint(attempt-1))) * time.Millisecond    // #nosec G115 - attempt is bounded by maxRetries
+			// Exponential backoff with jitter: base 500ms with ±50% randomization
+			baseBackoff := time.Duration(500*(1<<uint(attempt-1))) * time.Millisecond    // #nosec G115 - attempt is bounded by maxRetries
 			jitter := time.Duration(rand.Float64()*float64(baseBackoff)) - baseBackoff/2 // #nosec G404 - not security sensitive
 			backoff := baseBackoff + jitter
 			select {
@@ -98,18 +81,13 @@ func retrieveSecretWithRetry(ctx context.Context, client SecretsManagerClient, s
 
 // RetrieveSecretsManagerSecret retrieves a secret from AWS Secrets Manager
 // with support for STS assume role authentication
-func RetrieveSecretsManagerSecret(ctx context.Context, secretArn, assumeRoleArn, externalID string) (string, error) {
-	return RetrieveSecretsManagerSecretWithOptions(ctx, secretArn, assumeRoleArn, externalID)
+func RetrieveSecretsManagerSecret(ctx context.Context, secretArn, region, assumeRoleArn, externalID string) (string, error) {
+	return RetrieveSecretsManagerSecretWithOptions(ctx, secretArn, region, assumeRoleArn, externalID)
 }
 
 // RetrieveSecretsManagerSecretWithOptions retrieves a secret from AWS Secrets Manager
 // with custom AWS config options (useful for testing with LocalStack)
-func RetrieveSecretsManagerSecretWithOptions(ctx context.Context, secretArn, assumeRoleArn, externalID string, opts ...func(*aws_config.LoadOptions) error) (string, error) {
-	region, err := parseRegionFromSecretARN(secretArn)
-	if err != nil {
-		return "", fmt.Errorf("invalid secret ARN: %w", err)
-	}
-
+func RetrieveSecretsManagerSecretWithOptions(ctx context.Context, secretArn, region, assumeRoleArn, externalID string, opts ...func(*aws_config.LoadOptions) error) (string, error) {
 	configOpts := []func(*aws_config.LoadOptions) error{aws_config.WithRegion(region)}
 	configOpts = append(configOpts, opts...)
 	cfg, err := aws_config.LoadDefaultConfig(ctx, configOpts...)

@@ -766,6 +766,28 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
+	// Test creating a user with empty givenName
+	userWithEmptyGivenName := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "no-given-name@example.com",
+		"name": map[string]interface{}{
+			"familyName": "NoGivenName",
+			"givenName":  "",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "no-given-name@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithEmptyGivenName, http.StatusBadRequest, &errorResp)
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
+
 	// Test creating a user without familyName
 	userWithoutFamilyName := map[string]interface{}{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
@@ -785,6 +807,29 @@ func testCreateUser(t *testing.T, s *Suite) {
 
 	errorResp = nil
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutFamilyName, http.StatusBadRequest, &errorResp)
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
+
+	// Test creating a user with empty familyName
+	userWithEmptyFamilyName := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "no-family-name@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "NoFamilyName",
+			"familyName": "",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "no-family-name@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	errorResp = nil
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithEmptyFamilyName, http.StatusBadRequest, &errorResp)
 	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
@@ -1138,6 +1183,32 @@ func testUpdateUser(t *testing.T, s *Suite) {
 	m, ok := m_.(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "Engineering", m["department"])
+
+	// Test 6: Try to update first user's givenName to be empty (should fail)
+	updatePayload["name"] = map[string]interface{}{
+		"givenName":  "",
+		"familyName": "User",
+	}
+
+	var errorResp3 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusBadRequest, &errorResp3)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp3["detail"], "A required value was missing")
+
+	// Test 7: Try to update first user's familyName to be empty (should fail)
+	updatePayload["name"] = map[string]interface{}{
+		"givenName":  "First",
+		"familyName": "",
+	}
+
+	var errorResp4 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusBadRequest, &errorResp4)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp4["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp4["detail"], "A required value was missing")
 
 	// Delete the users we created.
 	s.Do(t, "DELETE", scimPath("/Users/"+firstUserID), nil, http.StatusNoContent)

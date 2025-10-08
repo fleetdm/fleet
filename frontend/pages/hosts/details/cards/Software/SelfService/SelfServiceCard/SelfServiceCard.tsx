@@ -177,7 +177,6 @@ const SelfServiceCard = ({
       className={`${baseClass}__self-service-card`}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <CardHeader
         header="Self-service"
@@ -208,6 +207,10 @@ const SelfServiceCard = ({
           onQueryChange={onSortChange}
           pageIndex={initialSortPage}
           disableNextPage={selfServiceData?.meta.has_next_results === false}
+          hideFooter={
+            selfServiceData?.meta.has_next_results === false &&
+            initialSortPage === 0
+          }
           pageSize={20}
           searchQuery={queryParams.query}
           searchQueryColumn="name"

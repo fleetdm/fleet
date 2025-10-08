@@ -1,5 +1,3 @@
-import { SetupExperiencePlatform } from "interfaces/platform";
-
 const API_VERSION = "latest";
 
 export default {
@@ -64,9 +62,11 @@ export default {
   DEVICE_CERTIFICATES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/certificates`;
   },
-  DEVICE_SETUP_SOFTWARE_STATUSES: (token: string): string => {
+  DEVICE_SETUP_EXPERIENCE_STATUSES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/setup_experience/status`;
   },
+  DEVICE_RESEND_PROFILE: (token: string, profileUUID: string) =>
+    `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/resend`,
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,

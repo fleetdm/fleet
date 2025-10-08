@@ -198,6 +198,7 @@ export const SOURCE_TYPE_CONVERSION = {
   portage_packages: "Package (Portage)",
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
+  pacman_packages: "Package (pacman)",
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
@@ -225,6 +226,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   portage_packages: "linux",
   rpm_packages: "linux",
   yum_sources: "linux",
+  pacman_packages: "linux",
   tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,
@@ -591,19 +593,4 @@ export interface IFleetMaintainedAppDetails {
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
   categories: SoftwareCategory[];
-}
-
-export const SETUP_SOFTWARE_STATUSES = [
-  "pending",
-  "running",
-  "success",
-  "failure",
-  "cancelled", // server should be aggregating cancelled installs with failed, check here just in case
-] as const;
-
-export type SetupSoftwareStatus = typeof SETUP_SOFTWARE_STATUSES[number];
-
-export interface ISetupSoftwareStatus {
-  name: string | null;
-  status: SetupSoftwareStatus;
 }

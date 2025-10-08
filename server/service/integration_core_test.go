@@ -6966,6 +6966,20 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// Turn on MDM.
+	ctx := t.Context()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origEnabledAndConfigured := appCfg.MDM.EnabledAndConfigured
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.EnabledAndConfigured = origEnabledAndConfigured
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
@@ -7042,12 +7056,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
 
-	// try to update the enable_release_device_manually setting, requires premium
-	// (but /setup_experience catches the error of the MDM middleware check, so not
-	// StatusPaymentRequired)
-	res = s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusBadRequest)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	// try to update the enable_release_device_manually setting, requires premium.
+	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
@@ -8655,6 +8665,15 @@ func (s *integrationTestSuite) TestChangePassword() {
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	clearKeys := func() {
+		clearRedisKey(t, s.redisPool, "ratelimit::forgot_password")
+	}
+	clearKeys()
+	s.T().Cleanup(func() {
+		clearKeys()
+	})
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -10033,25 +10052,28 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
+	h := createHostAndDeviceToken(t, s.ds, tkn)
+	orbitKey := setOrbitEnrollment(t, h, s.ds)
+	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
 
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
-		if route.premiumOnly && route.deviceAuthenticated {
-			// user-authenticated premium-only routes will never see the ErrMissingLicense error
-			// if mdm is not configured, as the MDM middleware will intercept and fail the call.
-			expectedErr = fleet.ErrMissingLicense
-		}
 		if slices.Contains(windowsOnly, path) {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
 		}
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(path, tkn)
 		}
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
+		var params interface{}
+		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+			params = getOrbitSetupExperienceStatusRequest{
+				OrbitNodeKey: *h.OrbitNodeKey,
+			}
+		}
+		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -10308,6 +10330,7 @@ func createOrbitEnrolledHost(t *testing.T, platform, suffix string, ds fleet.Dat
 		NodeKey:         ptr.String(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
+		ComputerName:    name,
 		HardwareSerial:  uuid.New().String(),
 		Platform:        platform,
 	})
@@ -13657,6 +13680,85 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 }
 
+func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create an Android host with a specific UUID
+	const expectedUUID = "TEST-UUID-12345-ANDROID"
+	host := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:       "test-android-uuid",
+			ComputerName:   "AndroidTestDevice",
+			Platform:       "android",
+			OSVersion:      "Android 15",
+			Build:          "test-build-uuid",
+			Memory:         2048,
+			TeamID:         nil,
+			HardwareSerial: "test-serial-uuid",
+			HardwareModel:  "Pixel 8",
+			HardwareVendor: "Google",
+			UUID:           expectedUUID, // Set the UUID explicitly
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(expectedUUID),
+			AppliedPolicyID:      ptr.String("1"),
+			LastPolicySyncTime:   ptr.Time(time.Now()),
+		},
+	}
+	host.SetNodeKey(expectedUUID)
+
+	// Create Android host
+	androidHost, err := s.ds.NewAndroidHost(ctx, host)
+	require.NoError(t, err)
+	require.NotZero(t, androidHost.Host.ID)
+
+	// Test 1: Get the host, verify UUID is present
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.Host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host)
+	require.Equal(t, expectedUUID, getHostResp.Host.UUID, "UUID should be returned in API response")
+	require.Equal(t, "AndroidTestDevice", getHostResp.Host.ComputerName)
+
+	// Test 2: Update the host, verify UUID is preserved
+	updatedHost := androidHost
+	updatedHost.Host.Hostname = "updated-android-hostname"
+	updatedHost.Host.ComputerName = "UpdatedAndroidDevice"
+	updatedHost.Host.OSVersion = "Android 16"
+	updatedHost.Host.UUID = expectedUUID
+
+	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false)
+	require.NoError(t, err)
+
+	// Get the host again, verify UUID is still present
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.Host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host)
+	require.Equal(t, expectedUUID, getHostResp.Host.UUID, "UUID should be preserved after host update")
+	require.Equal(t, "UpdatedAndroidDevice", getHostResp.Host.ComputerName)
+	require.Equal(t, "Android 16", getHostResp.Host.OSVersion)
+
+	// Test 3: List hosts, verify Android host UUID is included
+	var listHostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+
+	// Find our Android host in the list
+	var foundHost *fleet.HostResponse
+	for _, h := range listHostsResp.Hosts {
+		if h.ID == androidHost.Host.ID {
+			foundHost = &h
+			break
+		}
+	}
+	require.NotNil(t, foundHost, "Android host should be in list response")
+	require.Equal(t, expectedUUID, foundHost.UUID, "UUID should be present in list hosts response")
+
+	// Test 4: AndroidHostLite returns UUID
+	androidHostLite, err := s.ds.AndroidHostLite(ctx, expectedUUID)
+	require.NoError(t, err)
+	require.Equal(t, expectedUUID, androidHostLite.Host.UUID, "AndroidHostLite should return UUID")
+}
+
 func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
 	t := s.T()
 	ctx := context.Background()
@@ -13774,7 +13876,7 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			Device: &android.Device{
 				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 				EnterpriseSpecificID: ptr.String(uuid.NewString()),
-				AndroidPolicyID:      ptr.Uint(1),
+				AppliedPolicyID:      ptr.String("1"),
 				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
@@ -13804,7 +13906,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
 			EnterpriseSpecificID: ptr.String(uuid.NewString()),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
 			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
 		},
 	}

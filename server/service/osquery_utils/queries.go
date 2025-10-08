@@ -872,8 +872,26 @@ var windowsUpdateHistory = DetailQuery{
 // entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
 var entraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
-	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
+	// that logged in to the device (using Company Portal.app with the SSO extension).
+	//
+	// We cannot use LIMIT 1 on the outer SELECT because it breaks fleetd's app_sso_platform table.
+	// For that reason this query can return 0, 1 or 2 results and Fleet will always process the first one.
+	//
+	// This query aims to support the following scenarios:
+	// 1. Hosts enrolled to Company Portal using the legacy SSO extension (aka "Microsoft Entra registered").
+	//    The extension stores the credentials in the keychain.
+	// 2. Hosts enrolled to Company Portal using the new Platform SSO extension (aka "Microsoft Entra joined").
+	//	  The extension stores the credentials in the secure enclave.
+	// 3. Hosts that migrated from (1) to (2). The keychain items in (1) are not removed after the migration,
+	//    so for that reason we query the app_sso_platform first (priority 1).
+	//
+	Query: `SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
+	UNION ALL
+	SELECT device_id, user_principal_name, 2 AS priority FROM (
+		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
+		CROSS JOIN
+		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
+	ORDER BY priority ASC;`,
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
@@ -979,7 +997,7 @@ SELECT
   name,
   version,
   '' AS bundle_identifier,
-  uuid AS extension_id,
+  vscode_extensions.uuid AS extension_id,
   '' AS browser,
   'vscode_extensions' AS source,
   publisher AS vendor,
@@ -999,6 +1017,25 @@ var scheduledQueryStats = DetailQuery{
 			FROM osquery_schedule`,
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+}
+
+var softwareLinuxPacman = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS browser,
+  'pacman_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  arch AS arch,
+  '' AS installed_path
+FROM fleetd_pacman_packages`,
+	Platforms: fleet.HostLinuxOSs,
+	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
 }
 
 var softwareLinux = DetailQuery{
@@ -1360,8 +1397,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		// deb_package_files does not have a mode column, so we need to join to the file table and filter there
 		Query: `
 		SELECT package, MAX(atime) AS last_opened_at
-		FROM deb_package_files 
-		CROSS JOIN file USING (path) 
+		FROM deb_package_files
+		CROSS JOIN file USING (path)
 		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
 		GROUP BY package
 	`,
@@ -1683,6 +1720,7 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
+	// We are interested in the first row (see the corresponding query for details).
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -1793,9 +1831,13 @@ const (
 	linuxImageRegex       = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
 	amazonLinuxKernelName = "kernel"
 	rhelKernelName        = "kernel-core"
+	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
-var kernelRegex = regexp.MustCompile(linuxImageRegex)
+var (
+	kernelRegex     = regexp.MustCompile(linuxImageRegex)
+	archKernelRegex = regexp.MustCompile(archKernelName)
+)
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
@@ -1834,7 +1876,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName) {
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName || archKernelRegex.MatchString(s.Name)) {
 			s.IsKernel = true
 		}
 
@@ -2555,7 +2597,7 @@ var tpmPINQueries = map[string]DetailQuery{
 					-- BitLocker is an optional feature but enabled
 					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
 					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
 				)
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
@@ -2622,14 +2664,14 @@ var tpmPINQueries = map[string]DetailQuery{
 					-- BitLocker is an optional feature but enabled
 					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
 					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
 				)
 			)
 			SELECT 1 FROM should_run WHERE yes = 1`,
 		Query: `
 			SELECT EXISTS(
-				SELECT 1 
-				FROM bitlocker_key_protectors 
+				SELECT 1
+				FROM bitlocker_key_protectors
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
 				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
@@ -2685,6 +2727,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages"] = softwarePythonPackages
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
+		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query

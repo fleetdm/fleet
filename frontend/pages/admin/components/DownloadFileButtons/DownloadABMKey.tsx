@@ -73,11 +73,11 @@ export const DownloadABMKey = ({
   return (
     <Button
       className={`${baseClass}__request-button`}
-      variant="text-icon"
+      variant="inverse"
       onClick={handleDownload}
     >
       <label htmlFor="download-key">
-        <Icon name="download" color="core-fleet-blue" size="medium" />
+        <Icon name="download" color="ui-fleet-black-75" size="medium" />
         <span>Download public key</span>
       </label>
     </Button>

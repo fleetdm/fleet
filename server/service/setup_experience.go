@@ -273,8 +273,8 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 }
 
 func validateSetupExperiencePlatform(platform string) error {
-	if platform != "" && platform != "macos" && platform != "linux" {
-		return badRequestf("platform %q unsupported, platform must be \"linux\" or \"macos\"", platform)
+	if platform != "" && platform != "macos" && platform != "ios" && platform != "ipados" && platform != "windows" && platform != "linux" {
+		return badRequestf("platform %q unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"", platform)
 	}
 	return nil
 }

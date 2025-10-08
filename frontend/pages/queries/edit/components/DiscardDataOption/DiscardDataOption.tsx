@@ -53,7 +53,11 @@ const DiscardDataOption = ({
           >
             <>
               Edit anyway
-              <Icon name="chevron-right" color="core-fleet-blue" size="small" />
+              <Icon
+                name="chevron-right"
+                color="ui-fleet-black-75"
+                size="small"
+              />
             </>
           </Link>
         </>
