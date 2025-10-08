@@ -109,7 +109,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key")
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key", ts.DS.Datastore)
 	require.NoError(t, err)
 	ts.Svc = svc
 

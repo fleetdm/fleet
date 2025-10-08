@@ -1,4 +1,4 @@
-# REST API
+Z# REST API
 
 - [Authentication](#authentication)
 - [Activities](#activities)
@@ -647,6 +647,7 @@ Object with the following structure:
 | url | string | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
 | challenge | string | **Required**. Static challenge password used to authenticate requests to SCEP server. |
 
+
 ##### custom_est_proxy
 
 Object with the following structure:
@@ -783,7 +784,7 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
       "id": 5,
       "name": "SECTIGO_WIFI",
       "type": "custom_est_proxy"
-    },
+    }
   ]
 }
 ```
@@ -4341,6 +4342,7 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "icon_url": null,
       "software_package": {
         "name": "GoogleChrome.pkg",
         "platform": "darwin",
@@ -4374,6 +4376,7 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
     {
       "id": 134,
       "name": "Falcon.app",
+      "icon_url": null,
       "software_package": {
         "name": "FalconSensor-6.44.pkg",
         "platform": "darwin",
@@ -4392,11 +4395,11 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
     {
       "id": 147,
       "name": "Logic Pro",
+      "icon_url": "/api/latest/fleet/software/titles/147/icon?team_id=2",
       "software_package": null,
       "app_store_app": {
         "app_store_id": "1091189122",
         "platform": "darwin",
-        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
         "version": "2.04",
         "self_service": false,
         "last_install": {
@@ -6223,7 +6226,9 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific team in Fleet and turn on MDM features.
 
-To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), install the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+If the team in Fleet has [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+
+To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
 #### Parameters
 
@@ -6498,7 +6503,7 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
-| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the DeviceConfigured command.|
+| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
@@ -6675,6 +6680,7 @@ List software that can be automatically installed during setup. If `install_duri
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url": "/api/latest/fleet/software/titles/12/icon?team_id=3",
       "software_package": {
         "name": "FirefoxInstall.pkg",
         "platform": "darwin",
@@ -6882,7 +6888,7 @@ Delete a script that will automatically run during macOS setup.
 
 > `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command) is available for the deprecated endpoint.
 
-This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
+This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, or Windows hosts the next time they come online.
 
 `POST /api/v1/fleet/commands/run`
 
@@ -9848,6 +9854,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
 - [Modify package](#modify-package)
+- [Update software icon](#update-sowftware-icon)
+- [Get software icon](#get-sowftware-icon)
+- [Delete software icon](#delete-sowftware-icon)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 - [Modify App Store app](#modify-app-store-app)
@@ -9905,6 +9914,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -10172,6 +10182,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
@@ -10241,7 +10252,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 #### Example (App Store app)
 
-`GET /api/v1/fleet/software/titles/15`
+`GET /api/v1/fleet/software/titles/15?team_id=3`
 
 ##### Default response
 
@@ -10252,6 +10263,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
     "app_store_app": {
@@ -10261,7 +10273,6 @@ Returns information about the specified software. By default, `versions` are sor
       "platform": "darwin",
       "latest_version": "2.04",
       "created_at": "2024-04-01T14:22:58Z",
-      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
       "automatic_install_policies": [
         {
@@ -10649,6 +10660,118 @@ Content-Type: application/octet-stream
 }
 ```
 
+### Update software icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
+
+`PUT /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                      |
+| ----        | ------- | ---- | --------------------------------------------     |
+| id          | integer | path | ID of the software title being updated. |
+| team_id     | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+| icon        | file    | form | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
+| hash_sha256 | string  | form | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
+| filename    | string  | form | Filename to record for the icon image, if `hash_sha256` was supplied. |
+
+#### Example
+
+`PUT /api/v1/fleet/software/titles/33/icon?team_id=2`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+------------------------d8c247122f594ba0
+Content-Disposition: form-data; name= "icon" filename="crowdstrike-icon-512x512.png"
+Content-Type: image/png
+
+<BINARY_IMAGE_DATA>
+
+------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+  "icon_url": "/api/latest/fleet/software/titles/33/icon?team_id=2"
+```
+
+### Download software icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Download the icon added via [Update software icon](#update-software-icon) or icon from App Store (VPP). **This endpoint requires authentication.**
+
+`GET /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | ID of the software title to get icon for. |
+| team_id         | integer | query | **Required**. The team ID. |
+
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/33/icon?team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: image/png
+Content-Disposition: inline; filename="zoom-icon-512x512.png"
+Content-Length: 124567
+
+<BINARY_IMAGE_DATA>
+```
+
+### Delete software icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Delete a custom icon added via [Update software icon](#update-software-icon). This will revert to using the software title's built-in icon.
+
+`DELETE /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | ID of the software title being updated. |
+| team_id         | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/software/titles/33/icon?team_id=2`
+
+##### Default response
+
+`Status: 204`
+
 ### List App Store apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -10800,7 +10923,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
-    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "self_service": true,
     "labels_include_any": [
       {
@@ -12001,7 +12123,6 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
-| windows_require_bitlocker_pin           | boolean | End users on Windows hosts that belong to this team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>

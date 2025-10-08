@@ -433,7 +433,8 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
+- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host.
+- `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stcuk in Setup Assistant until this command is sent.
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
 
@@ -458,6 +459,8 @@ The `software` section allows you to configure packages, Apple App Store apps, a
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
+
+Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
 #### Example
 
@@ -793,42 +796,6 @@ Can only be configured for all teams (`org_settings`). Use API to configure Jira
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
-### certificate_authorities
-
-This section lets you configure your certificate authorities (CA) to help your end users connect to Wi-Fi and VPN.
-
-#### Example
-
-`default.yml`
-
-```yaml
-org_settings:
-  certificate_authorities:
-    digicert: # Available in Fleet Premium
-      - name: DIGICERT_WIFI
-        url: https://one.digicert.com
-        api_token: $DIGICERT_API_TOKEN
-        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
-        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_user_principal_names:
-          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy: # Available in Fleet Premium
-      url: https://example.com/certsrv/mscep/mscep.dll
-      admin_url: https://example.com/certsrv/mscep_admin/
-      username: Administrator@example.com
-      password: myPassword
-    custom_scep_proxy: # Available in Fleet Premium
-      - name: SCEP_VPN
-        url: https://example.com/scep
-        challenge: $SCEP_VPN_CHALLENGE
-    hydrant: # Available in Fleet Premium
-      - name: HYDRANT_WIFI
-        url: https://example.hydrantid.com/.well-known/est/abc123
-        client_id: $HYDRANT_CLIENT_ID
-        client_secret: $HYDRANT_CLIENT_SECRET
-```
-
 Can only be configured for all teams (`org_settings`). Use API to configure Zendesk for custom teams and default "No team".
 
 ### certificate_authorities
@@ -836,6 +803,8 @@ Can only be configured for all teams (`org_settings`). Use API to configure Zend
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
+
+
 
 #### Example
 

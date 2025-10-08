@@ -1,4 +1,4 @@
-## Fleet 4.74.0 (Oct 1, 2025)
+## Fleet 4.74.0 (Oct 3, 2025)
 
 ### Security Engineers
 - Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a Hydrant.
@@ -11,6 +11,7 @@
 
 ### IT Admins
 - Added setup experience software items for Linux devices.
+- Added ability to upload custom software icons.
 - Added API endpoints for Linux setup experience.
   - Device API endpoints for fleetd: `POST /api/fleet/orbit/setup_experience/init` and `POST /api/v1/fleet/device/{token}/setup_experience/status`.
   - `PUT /api/v1/fleet/setup_experience/software` and `GET /api/v1/fleet/setup_experience/software` now have a `platform` argument (`linux` or `macos`, defaults to `macos`).
@@ -60,6 +61,13 @@
 - Fixed an alignment issue on the My device page.
 - Fix deadlocks when updating automations for 10+ policies at one time.
 
+## Fleet 4.73.4 (Oct 1, 2025)
+
+### Bug fixes
+
+- Added logic to detect and fix migration issues caused by improperly published Fleet v4.73.2 Linux binary
+- Removing the software renaming fix introduced in 4.73.3 due to MySQL DB performance issues.
+
 ## Fleet 4.73.3 (Sep 26, 2025)
 
 ### Bug fixes
@@ -78,7 +86,7 @@
 
 ### Bug fixes
 
-* Changed MDM Enrollment logic so that devices identified as having a Migration deadline by ABM will not run Setup Experience on the next enrollment(the migration) but will on subsequent enrollments.
+- Changed MDM Enrollment logic so that devices identified as having a Migration deadline by ABM will not run Setup Experience on the next enrollment(the migration) but will on subsequent enrollments.
 
 ## Fleet 4.73.0 (Sep 8, 2025)
 

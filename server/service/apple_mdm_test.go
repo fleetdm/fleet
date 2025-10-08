@@ -1059,8 +1059,8 @@ func TestMDMCommandAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
-	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) error {
-		return nil
+	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
+		return nil, nil, nil
 	}
 
 	var mdmEnabled atomic.Bool
@@ -1173,7 +1173,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 
 func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger())
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
@@ -1214,6 +1214,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
+
 		return nil
 	}
 
@@ -1241,7 +1242,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 
 func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger())
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
@@ -1309,7 +1310,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 
 func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger())
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
@@ -1382,8 +1383,8 @@ func TestMDMUnenrollment(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
-	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) error {
-		return nil
+	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
+		return nil, nil, nil
 	}
 
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
@@ -1421,7 +1422,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger())
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
@@ -1575,18 +1576,18 @@ func TestMDMTokenUpdate(t *testing.T) {
 
 func TestMDMCheckout(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger())
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
 		logger:       kitlog.NewNopLogger(),
 	}
 	ctx := context.Background()
-	uuid, serial, installedFromDEP, displayName := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook"
+	uuid, serial, installedFromDEP, displayName, platform := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook", "darwin"
 
-	ds.MDMTurnOffFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMTurnOffFunc = func(ctx context.Context, hostUUID string) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		require.Equal(t, uuid, hostUUID)
-		return nil
+		return nil, nil, nil
 	}
 
 	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
@@ -1595,7 +1596,7 @@ func TestMDMCheckout(t *testing.T) {
 			HardwareSerial:   serial,
 			DisplayName:      displayName,
 			InstalledFromDEP: installedFromDEP,
-			Platform:         "darwin",
+			Platform:         platform,
 		}, nil
 	}
 
@@ -1612,6 +1613,7 @@ func TestMDMCheckout(t *testing.T) {
 		require.Equal(t, serial, a.HostSerial)
 		require.Equal(t, displayName, a.HostDisplayName)
 		require.True(t, a.InstalledFromDEP)
+		require.Equal(t, platform, a.Platform)
 		return nil
 	}
 

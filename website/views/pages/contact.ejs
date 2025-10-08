@@ -36,7 +36,7 @@
             <input class="form-control" id="contact-email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : cloudError && cloudError === 'invalidEmailDomain' ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
             <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid work email address</div>
             <cloud-error class="p-0 mt-1 mb-0 bg-transparent invalid-feedback" v-if="cloudError && cloudError === 'invalidEmailDomain'">
-              <p>Please enter a valid work email address</p>
+              <p>Please enter a valid email address</p>
             </cloud-error>
 
           </div>
@@ -198,32 +198,8 @@
           </div>
         </div>
       </div>
-      <div purpose="logos" class="flex-column flex-wrap align-items-center w-100">
-        <div purpose="logo-row" class="d-flex flex-row justify-content-between">
-          <img alt="Notion logo" src="/images/logo-notion-68x32@2x.png">
-          <img alt="Atlassian logo" src="/images/logo-atlassian-140x32@2x.png">
-          <img alt="Mr Beast logo" src="/images/logo-mr-beast-muted-90x32@2x.png">
-        </div>
-        <div purpose="logo-row" class="d-flex flex-row flex-wrap justify-content-between">
-          <img alt="Rivian logo" src="/images/logo-rivian-120x32@2x.png">
-          <img alt="Flywire logo" src="/images/logo-flywire-69x32@2x.png">
-          <img alt="Snowflake logo" src="/images/logo-snowflake-101x32@2x.png">
-        </div>
-        <div purpose="logo-row" class="d-flex flex-row justify-content-between">
-          <img alt="Uber logo" src="/images/logo-uber-65x32@2x.png">
-          <img alt="Gusto logo" src="/images/logo-gusto-64x32@2x.png">
-          <img alt="Reddit logo" src="/images/logo-reddit-80x32@2x.png">
-        </div>
-        <div purpose="logo-row" class="d-flex flex-row justify-content-between">
-          <img alt="Deloitte logo" src="/images/logo-deloitte-97x32@2x.png">
-          <img alt="Fastly logo" src="/images/logo-fastly-60x32@2x.png">
-          <img alt="Hashicorp logo" src="/images/logo-hashicorp-103x32@2x.png">
-        </div>
-        <div purpose="logo-row" class="d-flex flex-row justify-content-between mb-0">
-          <img alt="Dropbox logo" src="/images/logo-dropbox-122x32@2x.png">
-          <img alt="Vibe logo" src="/images/logo-vibe-72x32@2x.png">
-          <img alt="Nutanix logo" src="/images/logo-nutanix-125x32@2x.png">
-        </div>
+      <div purpose="logos" class="flex-column flex-wrap align-items-center">
+        <logo-carousel></logo-carousel>
       </div>
     </div>
   </div>

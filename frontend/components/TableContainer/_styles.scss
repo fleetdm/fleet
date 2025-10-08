@@ -118,6 +118,7 @@
     justify-content: space-between;
     flex-direction: row;
     align-items: center;
+    gap: $gap-table-elements; // space between filters and host count on low screen widths
 
     &.stack-table-controls {
       flex-direction: column;
@@ -241,11 +242,30 @@
       opacity: 0;
       transition: 250ms;
       text-overflow: none;
+
+      // React-select's dropdown opacity must be controlled at input level for keyboard nav
+      // So must be controlled at input level here as well
+      &.actions-dropdown {
+        opacity: 1;
+        .actions-dropdown-select__control {
+          opacity: 0;
+
+          &:hover,
+          &--is-focused {
+            opacity: 1;
+          }
+        }
+      }
     }
     &:hover,
     &:focus-visible {
       .row-hover-button {
         opacity: 1;
+      }
+      .row-hover-button.actions-dropdown {
+        .actions-dropdown-select__control {
+          opacity: 1;
+        }
       }
     }
   }
