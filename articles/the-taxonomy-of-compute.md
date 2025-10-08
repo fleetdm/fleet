@@ -188,4 +188,4 @@ Curious? You can read about how [Faire migrated 1,000 devices](#) or why hundred
 <meta name="authorGitHubUsername" value="mikermcneil">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2025-10-03">
-<meta name="description" value="> A breakdown of today’s computing landscape, the complexity of device management solutions, and how Fleet is approaching a unified, open, and transparent way to manage every platform across the full device lifecycle."
+<meta name="description" value="An overview of today’s complex device landscape and how Fleet unifies open, transparent management across every platform.">
