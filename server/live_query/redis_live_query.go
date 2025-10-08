@@ -266,7 +266,7 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	// Update the bitfield for this host only if the key exists.
 	// If the key doesn't exist (e.g. query marked as completed or cancelled)
 	// then we don't want to call SETBIT because it will create a new
-	// key (that won't exire and linger "forever").
+	// key (that won't expire and linger "forever").
 	const setBitScript = `
 	if redis.call('EXISTS', KEYS[1]) == 1 then
 		return redis.call('SETBIT', KEYS[1], ARGV[1], ARGV[2])
