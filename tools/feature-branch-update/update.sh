@@ -59,6 +59,7 @@ main() {
         git push origin $update_branch_name
         origin_branch=`cat fu_origin_branch`
         gh pr create -f -B $origin_branch
+        rm -f fu_origin_branch
         echo "Go merge your PR in w/ an additional approval"
     fi
 }
