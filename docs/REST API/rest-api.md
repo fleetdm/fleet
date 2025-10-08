@@ -11216,12 +11216,42 @@ Deletes software that's available for install. This won't uninstall the software
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
+### Dismiss vulnerabilities
 
+Manually dismiss one or more vulnerabilities.
+
+`POST /api/v1/fleet/vulnerabilities/dismiss`
+
+| Name   | Type             | In   | Description                                                                       |
+| ------ | ---------------- | ---- | --------------------------------------------------------------------------------- |
+| cves   | array of strings | body | Required. A list of CVE identifiers (e.g., `CVE-2024-8385`) to dismiss.           |
+| reason | string           | body | Optional. A short reason for dismissal (e.g., “Accepted risk”, “False positive”). |
+| notes  | string           | body | Optional. Additional notes explaining the context or rationale for dismissal.     |
+
+##### Request body
+
+```json
+{
+  "cves": ["CVE-2024-8385", "CVE-2023-1234"],
+  "reason": "Accepted risk",
+  "notes": "Reviewed by security team, not exploitable in our environment."
+}
+```
+
+##### Default response
+`Status: 200`
+
+```json
+{
+  "dismissed": ["CVE-2024-8385", "CVE-2023-1234"]
+}
+```
 ### List vulnerabilities
 
 Retrieves a list of all CVEs affecting software and/or OS versions.
 
 `GET /api/v1/fleet/vulnerabilities`
+
 
 #### Parameters
 
