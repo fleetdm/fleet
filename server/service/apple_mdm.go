@@ -4538,16 +4538,6 @@ func ReconcileAppleDeclarations(
 	return nil
 }
 
-// install/removeTargets are maps from profileUUID -> command uuid and host
-// UUIDs as the underlying MDM services are optimized to send one command to
-// multiple hosts at the same time. Note that the same command uuid is used
-// for all hosts in a given install/remove target operation.
-type cmdTarget struct {
-	cmdUUID       string
-	profIdent     string
-	enrollmentIDs []string
-}
-
 // Number of hours to wait for a user enrollment to exist for a host after its
 // device enrollment. After that duration, the user-scoped profiles will be
 // delivered to the device-channel.
@@ -4662,7 +4652,7 @@ func ReconcileAppleProfiles(
 	// Index host profiles to install by host and profile UUID, for easier bulk error processing
 	hostProfilesToInstallMap := make(map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
-	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
+	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 			// if the profile was in any other status than `failed`
@@ -4717,9 +4707,9 @@ func ReconcileAppleProfiles(
 
 		target := installTargets[p.ProfileUUID]
 		if target == nil {
-			target = &cmdTarget{
-				cmdUUID:   uuid.New().String(),
-				profIdent: p.ProfileIdentifier,
+			target = &fleet.CmdTarget{
+				CmdUUID:           uuid.New().String(),
+				ProfileIdentifier: p.ProfileIdentifier,
 			}
 			installTargets[p.ProfileUUID] = target
 		}
@@ -4749,9 +4739,9 @@ func ReconcileAppleProfiles(
 				continue
 			}
 
-			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollmentID)
+			target.EnrollmentIDs = append(target.EnrollmentIDs, userEnrollmentID)
 		} else {
-			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
+			target.EnrollmentIDs = append(target.EnrollmentIDs, p.HostUUID)
 		}
 		toGetContents[p.ProfileUUID] = true
 
@@ -4760,7 +4750,7 @@ func ReconcileAppleProfiles(
 			HostUUID:          p.HostUUID,
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
-			CommandUUID:       target.cmdUUID,
+			CommandUUID:       target.CmdUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
@@ -4794,9 +4784,9 @@ func ReconcileAppleProfiles(
 
 		target := removeTargets[p.ProfileUUID]
 		if target == nil {
-			target = &cmdTarget{
-				cmdUUID:   uuid.New().String(),
-				profIdent: p.ProfileIdentifier,
+			target = &fleet.CmdTarget{
+				CmdUUID:           uuid.New().String(),
+				ProfileIdentifier: p.ProfileIdentifier,
 			}
 			removeTargets[p.ProfileUUID] = target
 		}
@@ -4813,9 +4803,9 @@ func ReconcileAppleProfiles(
 				continue
 			}
 
-			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollmentID)
+			target.EnrollmentIDs = append(target.EnrollmentIDs, userEnrollmentID)
 		} else {
-			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
+			target.EnrollmentIDs = append(target.EnrollmentIDs, p.HostUUID)
 		}
 
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -4823,7 +4813,7 @@ func ReconcileAppleProfiles(
 			HostUUID:          p.HostUUID,
 			OperationType:     fleet.MDMOperationTypeRemove,
 			Status:            &fleet.MDMDeliveryPending,
-			CommandUUID:       target.cmdUUID,
+			CommandUUID:       target.CmdUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
@@ -4892,7 +4882,7 @@ func ReconcileAppleProfiles(
 	}
 
 	// Find the profiles containing secret variables.
-	profilesWithSecrets, err := findProfilesWithSecrets(logger, installTargets, profileContents)
+	profilesWithSecrets, err := fleet.FindProfilesWithSecrets(logger, installTargets, profileContents)
 	if err != nil {
 		return err
 	}
@@ -4906,19 +4896,19 @@ func ReconcileAppleProfiles(
 	var wgProd, wgCons sync.WaitGroup
 	ch := make(chan remoteResult)
 
-	execCmd := func(profUUID string, target *cmdTarget, op fleet.MDMOperationType) {
+	execCmd := func(profUUID string, target *fleet.CmdTarget, op fleet.MDMOperationType) {
 		defer wgProd.Done()
 
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
 			if _, ok := profilesWithSecrets[profUUID]; ok {
-				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID)
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
 			} else {
-				err = commander.InstallProfile(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID)
+				err = commander.InstallProfile(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
 			}
 		case fleet.MDMOperationTypeRemove:
-			err = commander.RemoveProfile(ctx, target.enrollmentIDs, target.profIdent, target.cmdUUID)
+			err = commander.RemoveProfile(ctx, target.EnrollmentIDs, target.ProfileIdentifier, target.CmdUUID)
 		}
 
 		var e *apple_mdm.APNSDeliveryError
@@ -4927,7 +4917,7 @@ func ReconcileAppleProfiles(
 			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
 		case err != nil:
 			level.Error(logger).Log("err", fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
-			ch <- remoteResult{err, target.cmdUUID}
+			ch <- remoteResult{err, target.CmdUUID}
 		}
 	}
 	for profUUID, target := range installTargets {
@@ -4980,27 +4970,6 @@ func ReconcileAppleProfiles(
 	return nil
 }
 
-func findProfilesWithSecrets(
-	logger kitlog.Logger,
-	installTargets map[string]*cmdTarget,
-	profileContents map[string]mobileconfig.Mobileconfig,
-) (map[string]struct{}, error) {
-	profilesWithSecrets := make(map[string]struct{})
-	for profUUID := range installTargets {
-		p, ok := profileContents[profUUID]
-		if !ok { // Should never happen
-			level.Error(logger).Log("msg", "profile content not found in ReconcileAppleProfiles", "profile_uuid", profUUID)
-			continue
-		}
-		profileStr := string(p)
-		vars := fleet.ContainsPrefixVars(profileStr, fleet.ServerSecretPrefix)
-		if len(vars) > 0 {
-			profilesWithSecrets[profUUID] = struct{}{}
-		}
-	}
-	return profilesWithSecrets, nil
-}
-
 func preprocessProfileContents(
 	ctx context.Context,
 	appConfig *fleet.AppConfig,
@@ -5008,7 +4977,7 @@ func preprocessProfileContents(
 	scepConfig fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	logger kitlog.Logger,
-	targets map[string]*cmdTarget,
+	targets map[string]*fleet.CmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
@@ -5030,7 +4999,7 @@ func preprocessProfileContents(
 	// need to look it up more than once per host.
 	hostIDForUUIDCache := make(map[string]uint)
 
-	var addedTargets map[string]*cmdTarget
+	var addedTargets map[string]*fleet.CmdTarget
 	for profUUID, target := range targets {
 		contents, ok := profileContents[profUUID]
 		if !ok {
@@ -5166,13 +5135,13 @@ func preprocessProfileContents(
 		// The profileUUID in host_mdm_apple_profiles is still the original profileUUID.
 		// We also generate a new commandUUID which is used to install the profile via nano_commands table.
 		if addedTargets == nil {
-			addedTargets = make(map[string]*cmdTarget, 1)
+			addedTargets = make(map[string]*fleet.CmdTarget, 1)
 		}
 		// We store the timestamp when the challenge was retrieved to know if it has expired.
 		var managedCertificatePayloads []*fleet.MDMManagedCertificate
 		// We need to update the profiles of each host with the new command UUID
-		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.enrollmentIDs))
-		for _, enrollmentID := range target.enrollmentIDs {
+		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.EnrollmentIDs))
+		for _, enrollmentID := range target.EnrollmentIDs {
 			tempProfUUID := uuid.NewString()
 			// Use the same UUID for command UUID, which will be the primary key for nano_commands
 			tempCmdUUID := tempProfUUID
@@ -5219,7 +5188,7 @@ func preprocessProfileContents(
 							detail = fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarNDESSCEPChallenge, err.Error())
 						}
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:        target.cmdUUID,
+							CommandUUID:        target.CmdUUID,
 							HostUUID:           hostUUID,
 							Status:             &fleet.MDMDeliveryFailed,
 							Detail:             detail,
@@ -5306,7 +5275,7 @@ func preprocessProfileContents(
 					if err != nil {
 						detail := fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarSmallstepSCEPChallengePrefix, err.Error())
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:        target.cmdUUID,
+							CommandUUID:        target.CmdUUID,
 							HostUUID:           hostUUID,
 							Status:             &fleet.MDMDeliveryFailed,
 							Detail:             detail,
@@ -5447,7 +5416,7 @@ func preprocessProfileContents(
 					if err != nil {
 						detail := fmt.Sprintf("Couldn't get certificate from DigiCert for %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:        target.cmdUUID,
+							CommandUUID:        target.CmdUUID,
 							HostUUID:           hostUUID,
 							Status:             &fleet.MDMDeliveryFailed,
 							Detail:             detail,
@@ -5484,10 +5453,10 @@ func preprocessProfileContents(
 				}
 			}
 			if !failed {
-				addedTargets[tempProfUUID] = &cmdTarget{
-					cmdUUID:       tempCmdUUID,
-					profIdent:     target.profIdent,
-					enrollmentIDs: []string{enrollmentID},
+				addedTargets[tempProfUUID] = &fleet.CmdTarget{
+					CmdUUID:           tempCmdUUID,
+					ProfileIdentifier: target.ProfileIdentifier,
+					EnrollmentIDs:     []string{enrollmentID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 				profilesToUpdate = append(profilesToUpdate, profile)
@@ -5517,7 +5486,7 @@ func preprocessProfileContents(
 	return nil
 }
 
-func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
+func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
 ) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for caVar := range caFleetVars {
@@ -5557,7 +5526,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 	return true, nil
 }
 
-func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdTarget,
+func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget,
 	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint,
 ) (*fleet.HostEndUser, bool, error) {
 	hostID, ok := hostIDForUUIDCache[hostUUID]
@@ -5573,7 +5542,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 			// hosts with the same UUID. Mark the profile as failed with additional
 			// detail.
 			err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
+				CommandUUID:   target.CmdUUID,
 				HostUUID:      hostUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(ids), hostUUID),
@@ -5601,7 +5570,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) && len(idpUser.IdpGroups) == 0 {
 			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
+				CommandUUID:   target.CmdUUID,
 				HostUUID:      hostUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				Detail:        noGroupsErr,
@@ -5614,7 +5583,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 		}
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) && idpUser.Department == "" {
 			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
+				CommandUUID:   target.CmdUUID,
 				HostUUID:      hostUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				Detail:        noDepartmentErr,
@@ -5627,7 +5596,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 		}
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
 			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
+				CommandUUID:   target.CmdUUID,
 				HostUUID:      hostUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				Detail:        noFullnameErr,
@@ -5656,7 +5625,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 		detail = noFullnameErr
 	}
 	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-		CommandUUID:   target.cmdUUID,
+		CommandUUID:   target.CmdUUID,
 		HostUUID:      hostUUID,
 		Status:        &fleet.MDMDeliveryFailed,
 		Detail:        detail,
@@ -5675,7 +5644,7 @@ func getEmailLocalPart(email string) string {
 	return local
 }
 
-func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
+func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostUUID string) (string, bool, error) {
 	// Insert the end user email IDP into the profile contents
 	emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
 	if err != nil {
@@ -5685,7 +5654,7 @@ func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hos
 	if len(emails) == 0 {
 		// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
 		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-			CommandUUID: target.cmdUUID,
+			CommandUUID: target.CmdUUID,
 			HostUUID:    hostUUID,
 			Status:      &fleet.MDMDeliveryFailed,
 			Detail: fmt.Sprintf("There is no IdP email for this host. "+
@@ -5702,7 +5671,7 @@ func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hos
 	return emails[0], true, nil
 }
 
-func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
+func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostUUID string) (string, bool, error) {
 	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostUUID})
 	if err != nil {
 		return "", false, ctxerr.Wrap(ctx, err, "listing hosts")
@@ -5711,7 +5680,7 @@ func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdT
 		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
 		// Mark the profile as failed with additional detail.
 		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-			CommandUUID:   target.cmdUUID,
+			CommandUUID:   target.CmdUUID,
 			HostUUID:      hostUUID,
 			Status:        &fleet.MDMDeliveryFailed,
 			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(hosts), hostUUID),
@@ -5804,7 +5773,7 @@ func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool)
 func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	existingDigiCertCAs map[string]*fleet.DigiCertCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
+	existingDigiCertCAs map[string]*fleet.DigiCertCA, profUUID string, target *fleet.CmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
@@ -5889,7 +5858,7 @@ func (n *ndesVarsFound) SetRenewalID() (*ndesVarsFound, bool) {
 }
 
 func isNDESSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
-	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, userEnrollmentsToHostUUIDsMap map[string]string, profUUID string, target *cmdTarget,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, userEnrollmentsToHostUUIDsMap map[string]string, profUUID string, target *fleet.CmdTarget,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
@@ -6003,7 +5972,7 @@ func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
 func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	existingCustomSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
+	existingCustomSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profUUID string, target *fleet.CmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
@@ -6135,7 +6104,7 @@ func (cs *smallstepVarsFound) SetRenewalID() (*smallstepVarsFound, bool) {
 func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	existingSmallstepSCEPCAs map[string]*fleet.SmallstepSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
+	existingSmallstepSCEPCAs map[string]*fleet.SmallstepSCEPProxyCA, profUUID string, target *fleet.CmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Smallstep SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
@@ -6183,15 +6152,15 @@ func getHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap map[hostProf
 func markProfilesFailed(
 	ctx context.Context,
 	ds fleet.Datastore,
-	target *cmdTarget,
+	target *fleet.CmdTarget,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
 	profUUID string,
 	detail string,
 	variablesUpdatedAt *time.Time,
 ) (bool, error) {
-	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.enrollmentIDs))
-	for _, enrollmentID := range target.enrollmentIDs {
+	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.EnrollmentIDs))
+	for _, enrollmentID := range target.EnrollmentIDs {
 		profile, ok := getHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
 		if !ok {
 			// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
