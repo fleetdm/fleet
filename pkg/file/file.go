@@ -2,7 +2,6 @@ package file
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -23,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
-	"howett.net/plist"
 )
 
 var (
@@ -39,63 +37,6 @@ type InstallerMetadata struct {
 	Extension        string
 	PackageIDs       []string
 	UpgradeCode      string
-}
-
-func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
-	// TODO(JVE): fill me in! needs to unzip the file, then use the binary plist reader we have to get the metadata
-	h := sha256.New()
-	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
-	if err := tfr.Rewind(); err != nil {
-		return nil, fmt.Errorf("rewind reader: %w", err)
-	}
-
-	fmt.Printf("tfr.Name(): %v\n", tfr.Name())
-
-	r, err := zip.OpenReader(tfr.Name())
-	if err != nil {
-		return nil, err
-	}
-
-	var plistData struct {
-		BundleID string `plist:"CFBundleIdentifier"`
-		Name     string `plist:"CFBundleName"`
-		Version  string `plist:"CFBundleShortVersionString"`
-	}
-	for _, f := range r.File {
-		fmt.Printf("f.Name: %v\n", f.Name)
-		if strings.Contains(f.Name, "Info.plist") {
-			// Get data from plist file
-			archiveFile, err := f.Open()
-			if err != nil {
-				return nil, fmt.Errorf("could not open archive %s: %w", f.Name, err)
-			}
-			defer archiveFile.Close()
-
-			rawData, err := io.ReadAll(archiveFile)
-			if err != nil {
-				return nil, err
-			}
-			_, err = plist.Unmarshal(rawData, &plistData)
-			if err != nil {
-				return nil, err
-			}
-
-			fmt.Printf("plistData: %+v\n", plistData)
-
-		}
-	}
-
-	if plistData.BundleID == "" {
-		return nil, errors.New("couldn't find bundle identifier for in-house app")
-	}
-
-	return &InstallerMetadata{
-		BundleIdentifier: plistData.BundleID,
-		SHASum:           h.Sum(nil),
-		PackageIDs:       []string{plistData.BundleID},
-		Name:             plistData.Name,
-		Version:          plistData.Version,
-	}, nil
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the

@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
+func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
 
 	stmt := `
 	INSERT INTO in_house_apps (
@@ -19,8 +19,7 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 		storage_id,
 		platform
 	)
-	VALUES (?, ?, ?, ?, ?, ?)
-		`
+	VALUES (?, ?, ?, ?, ?, ?)`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -39,7 +38,7 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 		Source:           "ios_apps"}, // TODO: what about iPad apps
 	)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 	}
 
 	var installerID uint
@@ -59,13 +58,13 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 				// already exists for this team/no team
 				err = alreadyExists("InHouseApp", payload.Name)
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 
 		id64, err := res.LastInsertId()
 		installerID = uint(id64)
 		if err != nil {
-			return err
+			ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 
 		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
@@ -75,5 +74,5 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 		return nil
 	})
 
-	return installerID, titleID, ctxerr.Wrap(ctx, err, "insert in house app")
+	return installerID, titleID, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 }

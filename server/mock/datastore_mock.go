@@ -1549,8 +1549,6 @@ type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.Ce
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
-type InsertInHouseAppFunc func(ctx context.Context, payload *fleet.InHouseAppPayload) (installerID uint, titleID uint, err error)
-
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3843,9 +3841,6 @@ type DataStore struct {
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
-
-	InsertInHouseAppFunc        InsertInHouseAppFunc
-	InsertInHouseAppFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8169,11 +8164,11 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
-func (s *DataStore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+func (s *DataStore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetInHouseAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
+	return s.GetInHouseAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {
@@ -9196,11 +9191,4 @@ func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	s.GetCurrentTimeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCurrentTimeFunc(ctx)
-}
-
-func (s *DataStore) InsertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (installerID uint, titleID uint, err error) {
-	s.mu.Lock()
-	s.InsertInHouseAppFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertInHouseAppFunc(ctx, payload)
 }

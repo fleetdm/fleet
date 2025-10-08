@@ -198,10 +198,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	}
 
 	// Insert in house app instead of software installer
-	// TODO: match if existing in house app
+	// TODO(JK): match if there is an existing in house app
 	if payload.Extension == "ipa" {
-		fmt.Println("processing IPA upload")
-		installerID, titleID, err := ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
+		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
 			Name:            payload.Title,
 			BundleID:        payload.BundleIdentifier,
