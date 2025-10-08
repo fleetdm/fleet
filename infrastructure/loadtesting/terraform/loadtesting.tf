@@ -82,6 +82,11 @@ resource "aws_ecs_service" "loadtest" {
     subnets         = data.terraform_remote_state.shared.outputs.vpc.private_subnets
     security_groups = [aws_security_group.backend.id]
   }
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
 }
 
 # ----------------------------
