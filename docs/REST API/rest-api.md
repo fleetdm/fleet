@@ -11269,7 +11269,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 ```
 #### Example
 
-`GET /api/v1/fleet/vulnerabilities?include_dismissed=true=true`
+`GET /api/v1/fleet/vulnerabilities?include_dismissed=true`
 
 ##### Response
 
