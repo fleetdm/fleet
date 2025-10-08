@@ -1257,6 +1257,8 @@ type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID u
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
+type GetInHouseAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error)
+
 type GetSoftwareInstallersPendingUninstallScriptPopulationFunc func(ctx context.Context) (map[uint]string, error)
 
 type GetMSIInstallersWithoutUpgradeCodeFunc func(ctx context.Context) (map[uint]string, error)
@@ -3401,7 +3403,7 @@ type DataStore struct {
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
 
-	GetInHouseAppMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
+	GetInHouseAppMetadataByTeamAndTitleIDFunc        GetInHouseAppMetadataByTeamAndTitleIDFunc
 	GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked bool
 
 	GetSoftwareInstallersPendingUninstallScriptPopulationFunc        GetSoftwareInstallersPendingUninstallScriptPopulationFunc
