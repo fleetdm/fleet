@@ -53,7 +53,9 @@ main() {
         git checkout -b $update_branch_name
         git rebase main
         # this is expected to fail with conflicts at this point
-        echo "Please fix the merge conflicts and commit locally then rerun with $0 $1 -c"
+	
+        echo "Please fix the merge conflicts, git add and commit locally then rerun with $0 $1"
+
         exit 0
     else
         git push origin $update_branch_name
