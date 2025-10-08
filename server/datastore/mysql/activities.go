@@ -1247,7 +1247,8 @@ func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Con
 //     order. Activation consists of inserting the activity in its respective
 //     table, e.g. `host_script_results` for scripts, `host_software_installs` for
 //     software installs, `host_vpp_software_installs` and nano command queue for
-//     VPP installs; and setting the activated_at timestamp in the
+//     VPP installs, `host_in_house_software_installs` and nano command queue for
+//     in-house installs;  and setting the activated_at timestamp in the
 //     `upcoming_activities` table.
 //   - As an optimization for MDM, if the activity type is `vpp_app_install`
 //     and the next few upcoming activities are all of this type, they are
@@ -1362,6 +1363,8 @@ WHERE
 		fn = ds.activateNextSoftwareUninstallActivity
 	case "vpp_app_install":
 		fn = ds.activateNextVPPAppInstallActivity
+	case "in_house_app_install":
+		fn = ds.activateNextInHouseAppInstallActivity
 	default:
 		return nil, ctxerr.Errorf(ctx, "unsupported activity type %s", actType)
 	}
@@ -1646,6 +1649,168 @@ ORDER BY
 	}
 
 	// get the host uuid, requires for the nano tables
+	var hostUUID string
+	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	// insert the host vpp app row
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate vpp apps")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
+	}
+
+	// insert the nano command
+	namedArgs := map[string]any{
+		"raw_cmd_part1": rawCmdPart1,
+		"raw_cmd_part2": rawCmdPart2,
+		"raw_cmd_part3": rawCmdPart3,
+		"subtype":       mdm.CommandSubtypeNone,
+		"host_id":       hostID,
+		"execution_ids": execIDs,
+	}
+	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+	}
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano commands")
+	}
+
+	// enqueue the nano command in the nano queue
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano queue")
+	}
+
+	// best-effort APNs push notification to the host, not critical because we
+	// have a cron job that will retry for hosts with pending MDM commands.
+	if ds.pusher != nil {
+		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	// TODO(mna): adjust for in-house apps
+	const insStmt = `
+INSERT INTO
+	host_in_house_software_installs
+(host_id, in_house_app_id, command_uuid, user_id, platform)
+SELECT
+	ua.host_id,
+	ihua.in_house_app_id,
+	ua.execution_id,
+	ua.user_id,
+	iha.platform
+FROM
+	upcoming_activities ua
+	INNER JOIN in_house_app_upcoming_activities ihua
+		ON ihua.upcoming_activity_id = ua.id
+	INNER JOIN in_house_apps iha
+		ON iha.id = ihua.in_house_app_id 
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	const getHostUUIDStmt = `
+SELECT
+	uuid
+FROM
+	hosts
+WHERE
+	id = ?
+`
+
+	const insCmdStmt = `
+INSERT INTO
+	nano_commands
+(command_uuid, request_type, command, subtype)
+SELECT
+	ua.execution_id,
+	'InstallApplication',
+	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
+	:subtype
+FROM
+	upcoming_activities ua
+	INNER JOIN vpp_app_upcoming_activities vaua
+		ON vaua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = :host_id AND
+	ua.execution_id IN (:execution_ids)
+`
+
+	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+		<key>InstallAsManaged</key>
+		<true/>
+        <key>ManagementFlags</key>
+        <integer>0</integer>
+        <key>ChangeManagementState</key>
+        <string>Managed</string>
+        <key>InstallAsManaged</key>
+        <true />
+        <key>Options</key>
+        <dict>
+            <key>PurchaseMethod</key>
+            <integer>1</integer>
+        </dict>
+        <key>RequestType</key>
+        <string>InstallApplication</string>
+        <key>iTunesStoreID</key>
+        <integer>`
+
+	const rawCmdPart2 = `</integer>
+    </dict>
+    <key>CommandUUID</key>
+    <string>`
+
+	const rawCmdPart3 = `</string>
+</dict>
+</plist>`
+
+	const insNanoQueueStmt = `
+INSERT INTO
+	nano_enrollment_queue
+(id, command_uuid, created_at)
+SELECT
+	?,
+	execution_id,
+	created_at -- force same timestamp to keep ordering
+FROM
+	upcoming_activities
+WHERE
+	host_id = ? AND
+	execution_id IN (?)
+ORDER BY
+	priority DESC, created_at ASC
+`
+
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+
+	// get the host uuid, required for the nano tables
 	var hostUUID string
 	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
