@@ -53,7 +53,7 @@ export const renderContactOption = (url?: string) => (
 interface IInstallStatusMessage {
   softwareName: string;
   installResult?: ISoftwareInstallResult;
-  isDUP: boolean;
+  isMyDevicePage: boolean;
   contactUrl?: string;
 }
 
@@ -62,7 +62,7 @@ interface IInstallStatusMessage {
 export const StatusMessage = ({
   softwareName,
   installResult,
-  isDUP,
+  isMyDevicePage,
   contactUrl,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
@@ -108,7 +108,7 @@ export const StatusMessage = ({
       </>
     );
 
-    const middle = isDUP ? (
+    const middle = isMyDevicePage ? (
       <>
         {" "}
         {displayTimeStamp}
@@ -352,7 +352,7 @@ export const SoftwareInstallDetailsModal = ({
         <StatusMessage
           installResult={installResultWithHostDisplayName}
           softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
-          isDUP={!!deviceAuthToken}
+          isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
 

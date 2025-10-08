@@ -19,7 +19,7 @@ import SoftwareInstallDetailsModal, {
 describe("SoftwareInstallDetailsModal", () => {
   describe("StatusMessage component", () => {
     it("renders basic 'is installed' message when not installed by fleet (no installResult provided)", () => {
-      render(<StatusMessage softwareName="CoolApp" isDUP={false} />);
+      render(<StatusMessage softwareName="CoolApp" isMyDevicePage={false} />);
       expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
       expect(screen.getByText(/is installed/)).toBeInTheDocument();
     });
@@ -31,7 +31,7 @@ describe("SoftwareInstallDetailsModal", () => {
           installResult={createMockSoftwareInstallResult({
             status: "pending_install",
           })}
-          isDUP={false}
+          isMyDevicePage={false}
         />
       );
 
@@ -52,7 +52,7 @@ describe("SoftwareInstallDetailsModal", () => {
           installResult={createMockSoftwareInstallResult({
             status: "failed_install",
           })}
-          isDUP
+          isMyDevicePage
           contactUrl="http://support"
         />
       );
@@ -76,7 +76,7 @@ describe("SoftwareInstallDetailsModal", () => {
           installResult={createMockSoftwareInstallResult({
             status: "failed_install",
           })}
-          isDUP
+          isMyDevicePage
         />
       );
 
@@ -100,7 +100,7 @@ describe("SoftwareInstallDetailsModal", () => {
           installResult={createMockSoftwareInstallResult({
             status: "failed_install",
           })}
-          isDUP={false}
+          isMyDevicePage={false}
           contactUrl="http://support"
         />
       );
@@ -119,7 +119,7 @@ describe("SoftwareInstallDetailsModal", () => {
           installResult={createMockSoftwareInstallResult({
             status: "installed",
           })}
-          isDUP={false}
+          isMyDevicePage={false}
         />
       );
 

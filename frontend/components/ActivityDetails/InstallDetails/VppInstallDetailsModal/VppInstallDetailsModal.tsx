@@ -29,7 +29,7 @@ import {
 } from "../constants";
 
 interface IGetStatusMessageProps {
-  isDUP?: boolean;
+  isMyDevicePage?: boolean;
   /** "pending" is an edge case here where VPP install activities that were added to the feed prior to v4.57
    * (when we split pending into pending_install/pending_uninstall) will list the status as "pending" rather than "pending_install" */
   displayStatus: SoftwareInstallStatus | "pending";
@@ -41,7 +41,7 @@ interface IGetStatusMessageProps {
 }
 
 export const getStatusMessage = ({
-  isDUP = false,
+  isMyDevicePage = false,
   displayStatus,
   isMDMStatusNotNow,
   isMDMStatusAcknowledged,
@@ -79,7 +79,7 @@ export const getStatusMessage = ({
     return (
       <>
         Fleet tried to install <b>{appName}</b>
-        {!isDUP && (
+        {!isMyDevicePage && (
           <>
             {" "}
             on {formattedHost} but couldn&apos;t because the host was locked or
@@ -96,9 +96,9 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && <> on {formattedHost}</>} was acknowledged but the
+        {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. To re-check, select <b>Refetch</b>
-        {!isDUP && " for this host"}.
+        {!isMyDevicePage && " for this host"}.
       </>
     );
   }
@@ -108,7 +108,7 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && <> on {formattedHost}</>} was acknowledged but the
+        {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. Please re-attempt this installation.
       </>
     );
@@ -119,7 +119,7 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && <> on {formattedHost}</>} failed
+        {!isMyDevicePage && <> on {formattedHost}</>} failed
         {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt this
         installation.
       </>
@@ -127,7 +127,7 @@ export const getStatusMessage = ({
   }
 
   const renderSuffix = () => {
-    if (isDUP) {
+    if (isMyDevicePage) {
       return <> {displayTimeStamp && <> {displayTimeStamp}</>}</>;
     }
     return (
@@ -299,7 +299,7 @@ export const VppInstallDetailsModal = ({
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const statusMessage = getStatusMessage({
-    isDUP: !!deviceAuthToken,
+    isMyDevicePage: !!deviceAuthToken,
     displayStatus,
     isMDMStatusNotNow,
     isMDMStatusAcknowledged,
