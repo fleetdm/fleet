@@ -2,6 +2,10 @@ package okta
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -12,8 +16,8 @@ import (
 type ctxKey int
 
 const (
-	// clientCertSerialKey is the context key for storing client certificate serial number
-	clientCertSerialKey ctxKey = iota
+	// clientCertHashKey is the context key for storing client certificate SHA-256 hash
+	clientCertHashKey ctxKey = iota
 )
 
 // MakeHandler creates an HTTP handler for Okta device health endpoints with OTEL middleware
@@ -50,15 +54,32 @@ func (s *Service) makeOktaDeviceHealthMetadataHandler(baseMetadataURL, baseSSOUR
 
 func (s *Service) makeOktaDeviceHealthSSOHandler(baseMetadataURL, baseSSOURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract client certificate serial from mTLS proxy header
-		clientCertSerial := r.Header.Get("X-Client-Cert-Serial")
-		if clientCertSerial != "" {
-			s.logger.Log("msg", "client certificate serial", "serial", clientCertSerial)
-			// Add to request context so GetSession can access it
-			ctx := context.WithValue(r.Context(), clientCertSerialKey, clientCertSerial)
-			r = r.WithContext(ctx)
+		// Extract client certificate from mTLS proxy header (DER base64 encoded)
+		clientCertB64 := r.Header.Get("X-Client-Cert")
+		if clientCertB64 != "" {
+			// Decode base64 DER certificate
+			certDER, err := base64.StdEncoding.DecodeString(clientCertB64)
+			if err != nil {
+				s.logger.Log("err", "failed to decode client certificate", "details", err)
+			} else {
+				// Parse certificate
+				cert, err := x509.ParseCertificate(certDER)
+				if err != nil {
+					s.logger.Log("err", "failed to parse client certificate", "details", err)
+				} else {
+					// Compute SHA-256 hash of the certificate (same as MDM does)
+					hash := sha256.Sum256(cert.Raw)
+					certHash := hex.EncodeToString(hash[:])
+
+					s.logger.Log("msg", "extracted client certificate", "serial", cert.SerialNumber, "hash", certHash)
+
+					// Add hash to request context so GetSession can access it
+					ctx := context.WithValue(r.Context(), clientCertHashKey, certHash)
+					r = r.WithContext(ctx)
+				}
+			}
 		} else {
-			s.logger.Log("msg", "no client certificate serial in request")
+			s.logger.Log("msg", "no client certificate in request")
 		}
 
 		idp, err := s.getOktaDeviceHealthIDP(baseMetadataURL, baseSSOURL)

@@ -793,7 +793,7 @@ the way that the Fleet server works.
 
 			// Initialize Okta conditional access service
 			oktaLogger := kitlog.With(logger, "component", "okta-device-health")
-			oktaSvc := okta.NewService(ds, oktaLogger)
+			oktaSvc := okta.NewService(ds, mdmStorage, oktaLogger)
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
