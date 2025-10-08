@@ -4691,7 +4691,11 @@ parasails.registerPage('configuration-builder', {
             this.$set(this.configurationBuilderFormData, payloadToAddSlug+'-value', autoSelectedPayload.dependingOnSettingValue);
             this.autoSelectedPayloadSettings[payloadToAddSlug] = true;
             this.selectedPayloadSettings[payloadToAddSlug] = true;
-            this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
+            if(payloadToAdd.formInput.customFormRule){
+              this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true, custom: payloadToAdd.formInput.customFormRule};
+            } else {
+              this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
+            }
             if(this.selectedPlatform === 'windows') {
               this.configurationBuilderFormRules[payloadToAddSlug+'-access-type'] = {required: true};
               if(payloadToAdd.supportedAccessTypes.length === 1){
@@ -4717,6 +4721,9 @@ parasails.registerPage('configuration-builder', {
         } else {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
           this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-value'] = {required: true};
+          if(selectedPayload.formInput.customFormRule){
+            this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true, custom: selectedPayload.formInput.customFormRule};
+          }
           if(selectedPayload.formInput.type === 'boolean'){
             // default boolean inputs to false.
             this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
