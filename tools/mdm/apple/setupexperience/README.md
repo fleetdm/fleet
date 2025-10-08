@@ -10,6 +10,7 @@ To use:
 4. Ensure no custom setup profile is uploaded.
 5. Add some software and/or scripts to the setup experience config.
 6. Enroll your macOS VM into a team. 
+7. Get the UUID of the VM, either via a live query on Fleet (`SELECT uuid FROM osquery_info`), by inspecting the API response from the `/fleet/device/:token` endpoint on the My Device page, or querying the `hosts` table of the MySQL database directly.
 7. Run this tool with the appropriate flags to set up the necessary database records, e.g.:
 
 ```bash
@@ -18,4 +19,4 @@ go run main.go -server-private-key=$(cat ~/path/to/private/key) -host-uuid="your
 
 If the setup dialog doesn't appear on the VM, or it remains on the initial setup screen, try running the tool again and waiting.
 
-Note that unless your instance is configured to enable manually releasing devices, the setup experience dialog will not auto-dismiss after completing.
+Note that the setup experience dialog may not auto-dismiss after completing. You can dismiss manually it by pressing Command-Shift-X. To test the dialog again, run this tool again and restart Orbit on the device.
