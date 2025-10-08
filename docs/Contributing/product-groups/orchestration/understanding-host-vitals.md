@@ -66,7 +66,13 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
-SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
+SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
+	UNION ALL
+	SELECT device_id, user_principal_name, 2 AS priority FROM (
+		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
+		CROSS JOIN
+		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
+	ORDER BY priority ASC;
 ```
 
 ## disk_encryption_darwin
@@ -564,7 +570,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -605,7 +611,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -618,7 +624,7 @@ SELECT
   package AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -630,7 +636,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -642,7 +648,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -654,7 +660,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -666,7 +672,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -690,7 +696,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'pacman_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -714,7 +720,7 @@ SELECT
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'apps' AS source,
   '' AS vendor,
   last_opened_time AS last_opened_at,
@@ -726,7 +732,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -738,7 +744,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -750,7 +756,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'safari_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -762,7 +768,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -775,7 +781,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -835,7 +841,7 @@ WITH app_paths AS (
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
-				'' AS browser,
+				'' AS extension_for,
 				'apps' AS source,
 				'' AS vendor,
 				apps.last_opened_time AS last_opened_at,
@@ -866,7 +872,7 @@ SELECT
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -898,7 +904,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -945,7 +951,7 @@ SELECT
   version,
   '' AS bundle_identifier,
   vscode_extensions.uuid AS extension_id,
-  '' AS browser,
+  vscode_edition AS extension_for,
   'vscode_extensions' AS source,
   publisher AS vendor,
   '' AS last_opened_at,
@@ -967,7 +973,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path
@@ -977,7 +983,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -987,7 +993,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -997,7 +1003,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1007,7 +1013,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path

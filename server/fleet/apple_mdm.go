@@ -510,6 +510,7 @@ type MDMAppleSetupPayload struct {
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install"`
+	RequireAllSoftware          *bool `json:"require_all_software_macos"`
 }
 
 // AuthzType implements authz.AuthzTyper.

@@ -77,6 +77,7 @@ export interface IMdmConfig {
     macos_setup_assistant: string | null;
     enable_release_device_manually: boolean | null;
     manual_agent_install: boolean | null;
+    require_all_software_macos: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
@@ -89,7 +90,10 @@ export interface IMdmConfig {
 // values if the device is assigned to a team, e.g., features.enable_software_inventory reflects the
 // team config, if applicable, rather than the global config.
 export interface IDeviceGlobalConfig {
-  mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  mdm: {
+    enabled_and_configured: boolean;
+    require_all_software_macos: boolean | null;
+  };
   features: Pick<IConfigFeatures, "enable_software_inventory">;
 }
 

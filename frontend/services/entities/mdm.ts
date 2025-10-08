@@ -275,6 +275,14 @@ const mdmService = {
     });
   },
 
+  updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      team_id: teamId,
+      require_all_software_macos: isEnabled,
+    });
+  },
+
   updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     const body = {

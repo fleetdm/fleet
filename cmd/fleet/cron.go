@@ -860,7 +860,9 @@ func newCleanupsAndAggregationSchedule(
 				}
 
 				targetsStart := time.Now()
-				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, time.Now().Add(-24*time.Hour).UTC())
+				cleanupTimeWindow := time.Now().Add(-config.Server.CleanupDistTargetsAge).UTC()
+				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, cleanupTimeWindow)
+
 				if err != nil {
 					return err
 				}
@@ -1615,6 +1617,7 @@ func newIPhoneIPadRefetcher(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
+	newActivityFn apple_mdm.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-refetcher")
@@ -1622,7 +1625,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 

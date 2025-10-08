@@ -873,7 +873,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
 	require.Equal(t, maintainedApp.ID, *softwareInstallers[0].FleetMaintainedAppID)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: ""},
+		{Name: ins0, Source: "apps", ExtensionFor: ""},
 	})
 
 	// add a new installer + ins0 installer
@@ -927,8 +927,8 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
 	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: ""},
-		{Name: ins1, Source: "apps", Browser: ""},
+		{Name: ins0, Source: "apps", ExtensionFor: ""},
+		{Name: ins1, Source: "apps", ExtensionFor: ""},
 	})
 
 	// remove ins0 fails due to install_during_setup
@@ -1045,7 +1045,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NotNil(t, softwareInstallers[0].TeamID)
 	require.Empty(t, softwareInstallers[0].URL)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins1, Source: "apps", Browser: ""},
+		{Name: ins1, Source: "apps", ExtensionFor: ""},
 	})
 
 	instDetails1, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *softwareInstallers[0].TitleID, false)
@@ -1165,7 +1165,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.different.ins0")},
+		{Name: ins0, Source: "apps", ExtensionFor: "", BundleIdentifier: ptr.String("com.example.different.ins0")},
 	})
 
 	// Add software installer with the same bundle id but different name
@@ -1189,7 +1189,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: "ins0-different", Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.ins0")},
+		{Name: "ins0-different", Source: "apps", ExtensionFor: "", BundleIdentifier: ptr.String("com.example.ins0")},
 	})
 
 	// remove everything
@@ -1298,8 +1298,8 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
 	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: ""},
-		{Name: ins1, Source: "apps", Browser: ""},
+		{Name: ins0, Source: "apps", ExtensionFor: ""},
+		{Name: ins1, Source: "apps", ExtensionFor: ""},
 	})
 
 	// Add setup_experience_status_results for both installers
@@ -2255,7 +2255,7 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 					var swID uint
 					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 						err := sqlx.GetContext(ctx, q, &swID, `SELECT id FROM software_installers WHERE global_or_team_id = ?
-						AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')`,
+						AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = '')`,
 							globalOrTeamID, payload.Installer.Title, payload.Installer.Source)
 						return err
 					})

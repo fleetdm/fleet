@@ -45,7 +45,8 @@ module.exports = {
         'LinkedIn - Reaction',
         'LinkedIn - Share',
         'LinkedIn - Liked the LinkedIn company page',
-        'Event - Engaged with Fleetie at event',
+        'Event - Marketing-led event',
+        'Event - Sales-led event',
       ],
     },
     getStartedResponses: {

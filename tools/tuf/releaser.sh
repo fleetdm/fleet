@@ -309,6 +309,15 @@ release_to_production () {
     echo "Release has been pushed to production!"
     echo "NOTE: You might see some clients failing to upgrade due to some sha256 mismatches."
     echo "These temporary failures are expected because it takes some time for caches to be invalidated (these errors should go away after a few minutes minutes)."
+
+    if [[ $COMPONENT == "fleetd" ]]; then
+        milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+        prompt "Sleep 5 minutes and trigger workflow to update orbit/TUF.md"
+        # Sleeping 5 minutes to allow for Cloudflare caches to clear.
+        sleep 300
+        gh workflow run "Update documentation of current versions of TUF fleetd components"
+        prompt "Make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+    fi
 }
 
 prompt () {

@@ -37,8 +37,8 @@ org_settings:
       - "🧪 Testing & QA"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url: https://fleetdm.com/images/press-kit/fleet-logo-white-rgb.png
+    org_logo_url_light_background: https://fleetdm.com/images/press-kit/fleet-logo-dark-rgb.png
     org_name: Fleet
   secrets:
     - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
@@ -108,5 +108,7 @@ labels:
   - path: ./lib/all/labels/keynote-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/team-g-mdm.yml
+  - path: ./lib/all/labels/team-g-software.yml
   - path: ./lib/all/labels/conditional-access-test-group.yml
   - path: ./lib/all/labels/nudge-test-devices.yml
+  - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
