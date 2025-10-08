@@ -1660,25 +1660,32 @@ func (a *agent) softwareMacOS() []map[string]string {
 
 	totalCommon := a.softwareCount.common
 	totalDuplicates := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
-	totalSoftware := totalCommon + totalDuplicates // total software to distribute
+	totalSoftware := totalCommon + totalDuplicates
 
-	// Calculate global agent index across all containers
-	globalAgentIndex := a.hostIndexOffset + (a.agentIndex - 1)
+	var startIdx, endIdx int
 
-	perHostCount := totalSoftware / a.totalHostCount
-	remainder := totalSoftware % a.totalHostCount
-
-	startIdx := globalAgentIndex * perHostCount
-	if globalAgentIndex < remainder {
-		startIdx += globalAgentIndex
+	if a.totalHostCount == 0 {
+		// non-distributed mode, all hosts get the same software count
+		startIdx = 0
+		endIdx = totalSoftware
 	} else {
-		// distribute remainder entries to first hosts
-		startIdx += remainder
-	}
+		// distributed mode, distribute software across hosts
+		globalAgentIndex := a.hostIndexOffset + (a.agentIndex - 1)
 
-	endIdx := startIdx + perHostCount
-	if globalAgentIndex < remainder {
-		endIdx++
+		perHostCount := totalSoftware / a.totalHostCount
+		remainder := totalSoftware % a.totalHostCount
+
+		startIdx = globalAgentIndex * perHostCount
+		if globalAgentIndex < remainder {
+			startIdx += globalAgentIndex
+		} else {
+			startIdx += remainder
+		}
+
+		endIdx = startIdx + perHostCount
+		if globalAgentIndex < remainder {
+			endIdx++
+		}
 	}
 
 	commonSoftware := make([]map[string]string, 0)
@@ -2976,9 +2983,18 @@ func main() {
 	flag.Parse()
 	rand.Seed(*randSeed)
 
-	// If totalHostCount is not specified, use hostCount
-	if *totalHostCount == 0 {
-		*totalHostCount = *hostCount
+	// There are two modes for osquery-perf:
+	// 1. Non distributed mode (old behavior). All agents get all software specified. This is done when specifying --host_count and --common_software_count
+	// Example --host_count 500 --common_software_count 1000 -> means 500 hosts each with 1000 pieces of software
+	// 2. Distributed mode. All agents get a subset of the total software specified. This is done when specifying --total_host_count and --host_index_offset along with other params.
+	// Example --host_count 500 --common_software_count 1000 --total_host_count 5000 --host_index_offset [0...N...1000]
+	// This example means that each container will run 500 hosts, but each host will only get a subset of the total 5000 software requested.
+	if *totalHostCount > 0 && *totalHostCount > *hostCount {
+		log.Printf("WARNING: total_host_count (%d) > host_count (%d). You are trying to use distributed mode, ensure you have --host_index_offset specified for each container", *totalHostCount, *hostCount)
+		log.Printf("         Container 0 should use: --host_index_offset 0")
+		log.Printf("         Container 1 should use: --host_index_offset %d", *hostCount)
+		log.Printf("         Container 2 should use: --host_index_offset %d", *hostCount*2)
+		log.Printf("         Container N should use: --host_index_offset Y")
 	}
 
 	if *onlyAlreadyEnrolled {
