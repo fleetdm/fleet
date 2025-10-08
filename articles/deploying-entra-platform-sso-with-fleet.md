@@ -37,7 +37,7 @@ Next, find the **Extensible Single Sign-On** payload from the list of available 
 
 Before we start to add values to the payload, double-check to make sure that only macOS is selected in the toolbar at the top of the iMazing window. Some of the keys we’ll be using are macOS only and won’t appear if iOS, tvOS, or watchOS are also selected.
 
->Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. If you wish, you can instead use Password, which prompts the user for their local account password to authenticate with the IdP and keeps it in sync with the IdP.
+>Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. Secure Enclave is the default key storage for all new device registrations [since august 2025](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage) .
 
 Enter the following values for the specified keys:\
 **Extension identifier:** com.microsoft.CompanyPortalMac.ssoextension \
