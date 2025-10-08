@@ -110,6 +110,46 @@ sequenceDiagram
 * On factor evaluation, query required device policies and return pass/fail.
 * Provide a user-facing remediation URL when the factor denies.
 
+**SAML flow with Okta using Fleet as IdP**
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User / Browser
+    participant O as Okta
+    participant I as Fleet (SAML IdP)
+    participant A as Downstream App
+
+    U->>O: Navigate to app / Okta sign-in
+    O->>O: Evaluate sign-on policy (requires external SAML IdP factor)
+
+    Note over O,I: SP-initiated SAML<br/>HTTP-redirect binding to IdP SSO
+
+    O-->>U: 302 Redirect to IdP SSO with AuthnRequest (+RelayState)
+    U->>I: GET /sso?SAMLRequest=...&RelayState=...
+    I->>I: Validate AuthnRequest (Issuer=Okta, ACS, Conditions)
+
+    rect rgb(245,245,245)
+    Note over U,I: Fleet performs device check
+    I->>I: Check device policies and build SAML Assertion
+    I->>I: Sign response/assertion with IdP private key
+    end
+
+    Note over I,O: HTTP-POST binding to Okta ACS
+
+    I-->>U: HTML form (SAMLResponse, RelayState)
+    U->>O: POST SAMLResponse to Okta ACS
+
+    O->>O: Validation
+    O->>O: Mark "external SAML factor" = SUCCESS in policy chain
+    O->>O: Establish Okta session for user
+
+    Note over O,A: Okta now acts as IdP to the downstream app
+
+    O->>A: Send SAML response/assertion to app's ACS (via browser POST)
+    A->>A: Validate Okta assertion, create app session
+    A-->>U: Grant access
+```
+
 **Links.**
 
 * [1Password Extended Access Management's Okta integration](https://blog.1password.com/extended-access-management-okta-guide)
