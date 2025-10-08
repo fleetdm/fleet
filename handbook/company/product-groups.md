@@ -88,7 +88,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 **Areas of expertise**:
 - Software Install / uninstall / patch
 - Fleet-maintained apps (FMAs)
-- Apple Volumne Purchasing Program (VPP) apps
+- Apple Volume Purchasing Program (VPP) apps
 - Google Play apps
 - In-house apps (IPAs) 
 - End user self-service
