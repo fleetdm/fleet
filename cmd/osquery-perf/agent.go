@@ -2878,14 +2878,14 @@ func main() {
 	}
 
 	var (
-		serverURL        = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret     = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount        = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		totalHostCount   = flag.Int("total_host_count", 0, "Total number of hosts across all containers (if 0, uses host_count)")
-		hostIndexOffset  = flag.Int("host_index_offset", 0, "Starting index offset for this container's hosts (default 0)")
-		randSeed         = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		serverURL       = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret    = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount       = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		totalHostCount  = flag.Int("total_host_count", 0, "Total number of hosts across all containers (if 0, uses host_count)")
+		hostIndexOffset = flag.Int("host_index_offset", 0, "Starting index offset for this container's hosts (default 0)")
+		randSeed        = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod     = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval  = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
