@@ -161,7 +161,7 @@ const Sso = ({
   };
 
   return (
-    <SettingsSection title="Single sign-on options">
+    <SettingsSection title="Single sign-on (SSO)">
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
