@@ -11777,7 +11777,6 @@ Specify Platform SSO configuration profile and SSO extension software.
     },
     "macos_setup": {
       "enable_end_user_authentication": false,
-      ""
     }
   }
 }
