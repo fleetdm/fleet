@@ -101,6 +101,13 @@ const updateCampaignStateFromResults = (
       successful: prevUIHostCounts.successful + 1,
       failed: prevUIHostCounts.failed,
     };
+
+    if (curQueryResults) {
+      curQueryResults.forEach((row) => {
+        row.host_id = curHost?.id;
+      });
+    }
+
     const curHostWithResults = { ...curHost, query_results: curQueryResults };
     newHostsWithResults = prevHostsWithResults.concat(curHostWithResults);
   }
