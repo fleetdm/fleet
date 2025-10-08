@@ -17,16 +17,14 @@ conflicts_resolved=false
 for arg in "$@"; do
   shift
   case "$arg" in
-    "--conflicts_resolved") set -- "$@" "-c" ;;
     "--help") set -- "$@" "-h" ;;
     *)        set -- "$@" "$arg"
   esac
 done
 
 # Extract options and their arguments using getopts
-while getopts "acdfhgkmno:pqrs:t:uv:w" opt; do
+while getopts "h" opt; do
     case "$opt" in
-        c) conflicts_resolved=true ;;
         h) usage; exit 0 ;;
         ?) usage; exit 1 ;;
     esac
@@ -43,6 +41,10 @@ main() {
         exit 1
     fi
     update_branch_name="$USER-$1-mu"
+    current_branch=`git rev-parse --abbrev-ref HEAD`
+    if [[ "$current_branch" == "$update_branch_name" ]]; then
+        conflicts_resolved=true
+    fi
     if [[ "$conflicts_resolved" == "false" ]]; then
         git checkout main
         git pull origin main
@@ -56,9 +58,13 @@ main() {
     else
         git push origin $update_branch_name
         origin_branch=`cat fu_origin_branch`
-        gh pr create -f -B $origin_branch -t "Rebase main into long lived feature branch" -b "This is just pulling in commits from main that have landed since this branch was created. Just need a thumb from codeowners to pull in these changes. Thank you for your quick responses!"
+        gh pr create -f -B $origin_branch -t "Rebase main into long lived feature branch" -b "This is j
+ust pulling in commits from main that have landed since this branch was created. Just need a thumb from
+codeowners to pull in these changes. Thank you for your quick responses!"
         rm -f fu_origin_branch
         echo "Go merge your PR in w/ an additional approval"
+        # put us back on feature branch
+        gh pr checkout $1
     fi
 }
 
