@@ -888,6 +888,132 @@ INSERT INTO setup_experience_status_results (
 			installedAdamIDs = append(installedAdamIDs, installed.AdamID)
 		}
 		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
+
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, results, len(expectedAppInstalls))
+		for _, result := range results {
+			require.Equal(t, fleet.SetupExperienceStatusRunning, result.Status)
+		}
+	})
+
+	t.Run("marks failed VPP installs as failed, runs all others", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		test.CreateInsertGlobalVPPToken(t, ds)
+		defer mysql.TruncateTables(t, ds)
+		badCommandUUID := "bad-command-uuid"
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		expectedAppInstalls := []*fleet.VPPApp{}
+
+		for i := 0; i < 3; i++ {
+			idx := fmt.Sprint(i)
+			vppApp := &fleet.VPPApp{
+				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
+				BundleIdentifier: "b" + idx,
+			}
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			require.NoError(t, err)
+			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
+		}
+
+		appInstallResponses := make(map[string]installAppResponse, len(expectedAppInstalls))
+
+		for _, appWithTeam := range expectedAppInstalls {
+			mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				stmt := `
+INSERT INTO setup_experience_status_results (
+	host_uuid,
+	name,
+	status,
+	vpp_app_team_id
+) VALUES (?, ?, ?, ?)
+ `
+				_, err = q.ExecContext(ctx, stmt, h.UUID, appWithTeam.Name, fleet.SetupExperienceStatusPending, appWithTeam.VPPAppTeam.AppTeamID)
+				return err
+			})
+			if len(appInstallResponses) == 0 {
+				// first one, simulate a failure. It shouldn't actually
+				// return a command UUID here but even if it does we
+				// should not wait on it
+				appInstallResponses[appWithTeam.AdamID] = installAppResponse{CommandUUID: badCommandUUID, Error: errors.New("test error")}
+				continue
+			}
+			// rest succeed
+			appInstallResponses[appWithTeam.AdamID] = installAppResponse{CommandUUID: uuid.NewString(), Error: nil}
+		}
+
+		vppInstaller := &mockVPPInstaller{t: t, appInstallResponses: appInstallResponses}
+
+		mdmWorker := &AppleMDM{
+			VPPInstaller: vppInstaller,
+			Datastore:    ds,
+			Log:          nopLog,
+			Commander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
+		require.NoError(t, err)
+		require.NotEmpty(t, jobs)
+		var releaseJob *fleet.Job
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				// THere should only be one release job
+				require.Nil(t, releaseJob)
+				releaseJob = job
+			}
+		}
+		// We should have found a release job
+		require.NotNil(t, releaseJob)
+		// It should be the release task
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+
+		// And it should contain the command IDs for the installs that didn't error
+		expectedAdamIDs := make([]string, 0, len(expectedAppInstalls))
+		installedAdamIDs := make([]string, 0, len(vppInstaller.installedApps))
+		for _, app := range expectedAppInstalls {
+			expectedAdamIDs = append(expectedAdamIDs, app.AdamID)
+			if appInstallResponses[app.AdamID].Error != nil {
+				// this one failed, so it should not be in the release command
+				continue
+			}
+			require.Contains(t, string(*releaseJob.Args), appInstallResponses[app.AdamID].CommandUUID)
+		}
+		require.NotContains(t, string(*releaseJob.Args), badCommandUUID)
+		for _, installed := range vppInstaller.installedApps {
+			installedAdamIDs = append(installedAdamIDs, installed.AdamID)
+		}
+		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
+
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, results, len(expectedAppInstalls))
+		for _, result := range results {
+			require.NotNil(t, result.VPPAppAdamID)
+			if *result.VPPAppAdamID == expectedAppInstalls[0].AdamID {
+				// this is the one we simulated a failure for
+				require.Equal(t, fleet.SetupExperienceStatusFailure, result.Status)
+				continue
+			}
+			require.Equal(t, fleet.SetupExperienceStatusRunning, result.Status)
+		}
 	})
 }
 
