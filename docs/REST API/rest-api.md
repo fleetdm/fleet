@@ -11356,24 +11356,35 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 ### Dismiss vulnerabilities
 
-Manually dismiss one or more vulnerabilities.
+Dismiss one or more vulnerabilities, either by specifying explicit CVEs, rule-based criteria, or a combination of both.
 
 `POST /api/v1/fleet/vulnerabilities/dismiss`
 
-| Name   | Type             | In   | Description                                                                       |
-| ------ | ---------------- | ---- | --------------------------------------------------------------------------------- |
-| cves   | array of strings | body | Required. A list of CVE identifiers (e.g., `CVE-2024-8385`) to dismiss.           |
-| reason | string           | body | Optional. A short reason for dismissal (e.g., “Accepted risk”, “False positive”). |
-| notes  | string           | body | Optional. Additional notes explaining the context or rationale for dismissal.     |
+| Name       | Type             | In   | Description                                                                                                     |
+| ---------- | ---------------- | ---- | --------------------------------------------------------------------------------------------------------------- |
+| `cves`     | array of strings | body | Optional. List of CVE identifiers to dismiss (e.g., `["CVE-2024-8385"]`). Can be used alone or with `criteria`. |
+| `criteria` | object           | body | Optional. Rule-based filters to dismiss matching vulnerabilities. Can be used alone or with `cves`.             |
+| `reason`   | string           | body | Required. A short reason for dismissal (e.g., `"Accepted risk"`). Max 255 characters.                           |
+| `notes`    | string           | body | Optional. Additional notes (max 1000 characters).                                                               |
+
+
 
 ##### Request body
 
 ```json
 {
   "cves": ["CVE-2024-8385", "CVE-2023-1234"],
-  "reason": "Accepted risk",
-  "notes": "Reviewed by security team, not exploitable in our environment."
+  "criteria": {
+    "software_names": ["Firefox", "Chrome"],
+    "cvss": {
+      "max_score": 3.9
+    },
+    "platforms": ["darwin", "windows"]
+  },
+  "reason": "Low severity or reviewed CVEs",
+  "notes": "Some CVEs manually reviewed, others dismissed via policy."
 }
+
 ```
 
 ##### Default response
@@ -11381,9 +11392,19 @@ Manually dismiss one or more vulnerabilities.
 
 ```json
 {
-  "dismissed": ["CVE-2024-8385", "CVE-2023-1234"]
+  "dismissed": [
+    "CVE-2024-8385",
+    "CVE-2023-1234",
+    "CVE-2024-1111",
+    "CVE-2024-2222"
+  ],
+  "matched_count": 2, 
+  "explicit_count": 2
 }
 ```
+
+#### Example
+
 ### Delete vulnerabilities
 
 Undo a previous dismissal. The vulnerability will appear again in the UI and API responses.
