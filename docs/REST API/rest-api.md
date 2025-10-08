@@ -11216,36 +11216,7 @@ Deletes software that's available for install. This won't uninstall the software
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
-### Dismiss vulnerabilities
 
-Manually dismiss one or more vulnerabilities.
-
-`POST /api/v1/fleet/vulnerabilities/dismiss`
-
-| Name   | Type             | In   | Description                                                                       |
-| ------ | ---------------- | ---- | --------------------------------------------------------------------------------- |
-| cves   | array of strings | body | Required. A list of CVE identifiers (e.g., `CVE-2024-8385`) to dismiss.           |
-| reason | string           | body | Optional. A short reason for dismissal (e.g., “Accepted risk”, “False positive”). |
-| notes  | string           | body | Optional. Additional notes explaining the context or rationale for dismissal.     |
-
-##### Request body
-
-```json
-{
-  "cves": ["CVE-2024-8385", "CVE-2023-1234"],
-  "reason": "Accepted risk",
-  "notes": "Reviewed by security team, not exploitable in our environment."
-}
-```
-
-##### Default response
-`Status: 200`
-
-```json
-{
-  "dismissed": ["CVE-2024-8385", "CVE-2023-1234"]
-}
-```
 ### List vulnerabilities
 
 Retrieves a list of all CVEs affecting software and/or OS versions.
@@ -11255,15 +11226,17 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 #### Parameters
 
-| Name                | Type     | In    | Description                                                                                                                          |
-| ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified team. Use `0` to filter by hosts assigned to "No team".  |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| query | string | query | Search query keywords. Searchable fields include `cve`. |
-| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
+| Name                  | Type    | In    | Description                                                                                                                                                         |
+| --------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| team_id               | integer | query | *Available in Fleet Premium*. Filters to vulnerabilities affecting hosts assigned to the specified team. Use `0` to filter by "No team".                            |
+| page                  | integer | query | Page number of the results to fetch.                                                                                                                                |
+| per_page              | integer | query | Results per page.                                                                                                                                                   |
+| order_key             | string  | query | What to order results by. Allowed fields: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, `host_count`. Default: `created_at` (descending). |
+| order_direction       | string  | query | **Requires `order_key`**. The direction of the order. Options: `"asc"` or `"desc"`. Default is `"asc"`.                                                             |
+| query                 | string  | query | Search query keywords. Searchable fields include `cve`.                                                                                                             |
+| exploit               | boolean | query | *Available in Fleet Premium*. If `true`, filters to vulnerabilities that have been exploited in the wild (`cisa_known_exploit: true`).                              |
+| **include_dismissed** | boolean | query | If `true`, includes vulnerabilities that have been previously dismissed. Default is `false`.                                                                        |
+
 
 
 ##### Default response
@@ -11294,8 +11267,28 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
   }
 }
 ```
+#### Example
 
+`GET /api/v1/fleet/vulnerabilities?include_dismissed=true=true`
 
+##### Response
+
+`Status: 200`
+
+```json
+ "dismissed": [
+    {
+      "cve": "CVE-2024-8385",
+      "dismissed_by": "security.lead@company.com",
+      "dismissed_at": "2025-10-07T14:23:55Z"
+    },
+    {
+      "cve": "CVE-2023-1234",
+      "dismissed_by": "security.lead@company.com",
+      "dismissed_at": "2025-10-07T14:23:55Z"
+    }
+  ]
+```
 ### Get vulnerability
 
 Retrieve details about a vulnerability and its affected software and OS versions.
@@ -11361,7 +11354,65 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 ```
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+### Dismiss vulnerabilities
 
+Manually dismiss one or more vulnerabilities.
+
+`POST /api/v1/fleet/vulnerabilities/dismiss`
+
+| Name   | Type             | In   | Description                                                                       |
+| ------ | ---------------- | ---- | --------------------------------------------------------------------------------- |
+| cves   | array of strings | body | Required. A list of CVE identifiers (e.g., `CVE-2024-8385`) to dismiss.           |
+| reason | string           | body | Optional. A short reason for dismissal (e.g., “Accepted risk”, “False positive”). |
+| notes  | string           | body | Optional. Additional notes explaining the context or rationale for dismissal.     |
+
+##### Request body
+
+```json
+{
+  "cves": ["CVE-2024-8385", "CVE-2023-1234"],
+  "reason": "Accepted risk",
+  "notes": "Reviewed by security team, not exploitable in our environment."
+}
+```
+
+##### Default response
+`Status: 200`
+
+```json
+{
+  "dismissed": ["CVE-2024-8385", "CVE-2023-1234"]
+}
+```
+### Delete vulnerabilities
+
+Undo a previous dismissal. The vulnerability will appear again in the UI and API responses.
+
+`DELETE /api/v1/fleet/vulnerabilities/dismiss`
+
+| Name | Type             | In   | Description                                                      |
+| ---- | ---------------- | ---- | ---------------------------------------------------------------- |
+| cves | array of strings | body | Required. A list of CVE identifiers to restore to active status. |
+
+
+##### Request body
+
+```json
+{
+  "cves": ["CVE-2024-8385"]
+}
+
+```
+
+##### Default response
+`Status: 200`
+
+```json
+{
+  "undismissed": ["CVE-2024-8385"]
+}
+
+```
 ---
 
 ## Targets
