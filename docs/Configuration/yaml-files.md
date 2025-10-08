@@ -447,6 +447,136 @@ The `macos_migration` section lets you control the [end user migration workflow]
 
 Can only be configured for all teams (`default.yml`).
 
+#### vulnerability_management
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  vulnerability_dismissal_rules:
+    - type: cve_list
+      cves:
+        - CVE-2024-8385
+        - CVE-2023-1234
+      reason: "Not exploitable in our environment"
+      notes: "Reviewed by security team 2024-01-15. Application runs in isolated container without affected component."
+    
+    - type: cvss_score
+      min_score: 0.0
+      max_score: 3.9
+      reason: "Low severity - accepted per security policy §4.2"
+      notes: "Organization accepts CVSS < 4.0 with quarterly review"
+    
+    - type: epss_probability
+      max_probability: 0.01
+      reason: "Exploitation probability below 1% threshold"
+      notes: "EPSS-based risk acceptance per NIST guidelines"
+
+    - type: combined
+      cvss:
+        min_score: 4.0
+        max_score: 6.9
+      epss:
+        max_probability: 0.05
+      cisa_known_exploit: false
+      reason: "Medium severity + low exploitation risk + no active exploitation"
+      notes: "Risk acceptance formula: CVSS 4.0-6.9 AND EPSS < 5% AND NOT in CISA KEV catalog"
+```
+
+#### cve_list
+
+Dismiss vulnerabilities based on severity rating
+
+| **Property** | **Type** | **Required** | **Description**                                      |
+| ------------ | -------- | ------------ | ---------------------------------------------------- |
+| `type`       | string   | ✓            | Must be `"cve_list"`                                 |
+| `cves`       | array    | ✓            | Array of CVE identifiers (e.g., `["CVE-2024-8385"]`) |
+| `reason`     | string   | ✓            | Short explanation (max 255 chars)                    |
+| `notes`      | string   |              | Additional context (max 1000 chars)                  |
+
+
+#### Example:
+
+```yaml
+yaml- type: cve_list
+  cves: ["CVE-2024-8385", "CVE-2023-4321"]
+  reason: "False positives confirmed by vendor"
+  notes: "Vendor advisory #12345 confirms these do not affect our configuration"
+```
+
+#### cvss_score
+| **Property** | **Type** | **Required** | **Description**                    |
+| ------------ | -------- | ------------ | ---------------------------------- |
+| `type`       | string   | ✓            | Must be `"cvss_score"`             |
+| `min_score`  | float    |              | Minimum CVSS v3.x score (0.0–10.0) |
+| `max_score`  | float    |              | Maximum CVSS v3.x score (0.0–10.0) |
+| `reason`     | string   | ✓            | Short explanation                  |
+| `notes`      | string   |              | Additional context                 |
+
+
+
+#### Example:
+
+```yaml
+- type: cvss_score
+  min_score: 0.0
+  max_score: 3.9
+  reason: "Low severity vulnerabilities - accepted risk"
+  notes: "Organization policy: CVSS < 4.0 requires no immediate action"
+```
+#### epss_probability
+| **Property**      | **Type** | **Required** | **Description**               |
+| ----------------- | -------- | ------------ | ----------------------------- |
+| `type`            | string   | ✓            | Must be `"epss_probability"`  |
+| `min_probability` | float    |              | Minimum probability (0.0–1.0) |
+| `max_probability` | float    |              | Maximum probability (0.0–1.0) |
+| `reason`          | string   | ✓            | Short explanation             |
+| `notes`           | string   |              | Additional context            |
+
+
+
+#### Example:
+
+```yaml
+- type: epss_probability
+  max_probability: 0.02
+  reason: "Exploitation probability below 2%"
+  notes: "FIRST EPSS framework: <2% probability = Low priority"
+```
+
+#### combined
+| **Property**         | **Type** | **Required** | **Description**                                     |
+| -------------------- | -------- | ------------ | --------------------------------------------------- |
+| `type`               | string   | ✓            | Must be `"combined"`                                |
+| `cvss`               | object   |              | CVSS criteria: `{min_score, max_score}`             |
+| `epss`               | object   |              | EPSS criteria: `{min_probability, max_probability}` |
+| `cisa_known_exploit` | boolean  |              | Filter by CISA KEV status                           |
+| `reason`             | string   | ✓            | Short explanation                                   |
+| `notes`              | string   |              | Additional context                                  |
+
+
+
+
+#### Example:
+
+```yaml
+- type: combined
+  cvss:
+    min_score: 4.0
+    max_score: 6.9
+  epss:
+    max_probability: 0.1
+  cisa_known_exploit: false
+  reason: "Medium CVSS + Low EPSS + Not actively exploited"
+  notes: "Risk formula per security framework v2.1 section 4.3"
+```
+
+##### Processing Order
+
+- Manual dismissals take highest precedence (never overridden by automated rules)
+- Automated rules evaluated top-to-bottom in YAML file
+- First match wins - processing stops at first matching rule
+- Re-evaluation occurs when vulnerability data updates (e.g., CVSS score changes)
 ## software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
