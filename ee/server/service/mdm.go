@@ -211,6 +211,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.RequireAllSoftware != nil {
+		if ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
+			ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+			didUpdate = true
+		}
+	}
+
 	if payload.EnableReleaseDeviceManually != nil {
 		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
