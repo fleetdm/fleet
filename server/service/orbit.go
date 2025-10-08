@@ -1398,10 +1398,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	}
 
-	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "save host software installation result")
-	}
 	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// This might be a setup experience software install result, so we attempt to update the
@@ -1423,12 +1419,46 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				"execution_id", result.InstallUUID,
 			)
 			fromSetupExperience = true
+			// If the software install failed on MacOS and we have the RequireAllSoftware
+			// flag set, we need to cancel the rest of the setup experience.
+			if result.Status() == fleet.SoftwareInstallFailed && host.Platform == "darwin" {
+				var requireAllSoftware bool
+				if host.TeamID != nil {
+					// load the team to get the device's team's software inventory config.
+					tm, err := svc.GetTeam(ctx, *host.TeamID)
+					if err != nil && !fleet.IsNotFound(err) {
+						return ctxerr.Wrap(ctx, err, "update setup experience status getting host team")
+					}
+					if tm != nil {
+						requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
+					}
+				} else {
+					ac, err := svc.AppConfigObfuscated(ctx)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "update setup experience status getting app config")
+					}
+					requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
+				}
+				if requireAllSoftware {
+					// Cancel the rest of the setup experience.
+					if err := svc.EnterpriseOverrides.CancelPendingSetupExperienceSteps(ctx, host); err != nil {
+						return ctxerr.Wrap(ctx, err, "cancel setup experience after macos software install failure")
+					}
+					return nil
+				}
+			}
+
 			// We need to trigger the next step to properly support setup experience on Linux.
 			// On Linux, users can skip the setup experience by closing the "My device" page.
 			if _, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host); err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
 		}
+	}
+
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
 	// do not create a "past" activity if the status is not terminal or if the activity

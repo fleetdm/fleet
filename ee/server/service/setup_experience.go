@@ -306,3 +306,24 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 
 	return false, nil
 }
+
+func (svc *Service) CancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
+	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+	}
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
+	}
+
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return ctxerr.Wrap(ctx, err, "invalid row")
+		}
+		// If we have a running software installer, cancel it.
+		if status.SoftwareInstallerID != nil && status.Status == fleet.SetupExperienceStatusRunning {
+		}
+	}
+	return nil
+}

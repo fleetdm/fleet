@@ -1098,6 +1098,12 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	return affectedHostIDs, nil
 }
 
+// Cancels any pending software installs of the specified installer for the given hosts and returns an error, if any.
+// If no hosts are provided, all pending software installs will be cancelled for the installer.
+func (ds *Datastore) CancelSoftwareInstallForHosts(ctx context.Context, hostIDs []uint, installerID uint) error {
+	return nil
+}
+
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	const (
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name

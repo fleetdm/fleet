@@ -99,6 +99,7 @@ func NewService(
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
 		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
 		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
+		CancelPendingSetupExperienceSteps: eeservice.CancelPendingSetupExperienceSteps,
 		GetVPPTokenIfCanInstallVPPApps:    eeservice.GetVPPTokenIfCanInstallVPPApps,
 		InstallVPPAppPostValidation:       eeservice.InstallVPPAppPostValidation,
 	})
