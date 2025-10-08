@@ -107,22 +107,25 @@ export const StatusMessage = ({
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
       </>
     );
-    let middle = null;
-    if (isDUP) {
-      if (status === "failed_install") {
-        middle = <>. You can retry{renderContactOption(contactUrl)}</>;
-      }
-    } else {
-      // host details page
-      middle = (
-        <>
-          {" "}
-          ({software_package}) on {formattedHost}
-          {status === "pending_install" ? " when it comes online" : ""}
-          {displayTimeStamp}
-        </>
-      );
-    }
+
+    const middle = isDUP ? (
+      <>
+        {" "}
+        {displayTimeStamp}
+        {status === "failed_install" && (
+          <>. You can retry{renderContactOption(contactUrl)}</>
+        )}
+      </>
+    ) : (
+      <>
+        {" "}
+        ({software_package}) on {formattedHost}
+        {status === "pending_install"
+          ? " when it comes online"
+          : displayTimeStamp}
+      </>
+    );
+
     return (
       <span>
         {prefix}

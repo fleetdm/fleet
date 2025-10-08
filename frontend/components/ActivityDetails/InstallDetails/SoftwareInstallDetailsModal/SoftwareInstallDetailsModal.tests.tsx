@@ -42,6 +42,7 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/\(com\.cool\.app\)/)).toBeInTheDocument();
       expect(screen.getByText(/Test Host/)).toBeInTheDocument();
       expect(screen.getByText(/when it comes online/)).toBeInTheDocument();
+      expect(screen.queryByText(/\d+.*ago/)).not.toBeInTheDocument();
     });
 
     it("on device user page, renders failed install with retry option with contact link", () => {
@@ -61,6 +62,7 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
       // Host name should not be rendered for device user page
       expect(screen.queryByText(/Test Host/)).not.toBeInTheDocument();
+      expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
       expect(screen.getByText(/You can retry/)).toBeInTheDocument();
       expect(
         screen.getByRole("link", { name: /contact your IT admin/ })
@@ -83,6 +85,7 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
       // Host name should not be rendered for device user page
       expect(screen.queryByText(/Test Host/)).not.toBeInTheDocument();
+      expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
       expect(screen.getByText(/You can retry/)).toBeInTheDocument();
       // Don't show link of not provided
       expect(
@@ -106,6 +109,7 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/failed to install/)).toBeInTheDocument();
       expect(screen.getByText(/Test Host/)).toBeInTheDocument();
       expect(screen.queryByText(/You can retry/)).not.toBeInTheDocument();
+      expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
