@@ -16,11 +16,11 @@ import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import ListItem from "components/ListItem";
 import Icon from "components/Icon/Icon";
 
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
 import getWhen from "../../helpers";
-import ListItem from "components/ListItem";
 
 const baseClass = "script-batch-progress";
 
