@@ -8194,10 +8194,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, certSerial, host.ID, "test-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", []byte{0x04})
 	require.NoError(t, err)
 
-	err = ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
-		Name:      "test",
-		StorageID: uuid.NewString(),
-		Platform:  string(fleet.MacOSPlatform),
+	_, _, err = ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
+		Name:            "test",
+		StorageID:       uuid.NewString(),
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	var inHouseID uint
