@@ -42,11 +42,26 @@ const AddInstallSoftware = ({
   );
 
   const getAddedText = () => {
+    let platformText = "";
+
+    switch (platform) {
+      case "macos":
+        platformText = "macOS";
+        break;
+      case "ios":
+        platformText = "iOS";
+        break;
+      case "ipados":
+        platformText = "iPadOS";
+        break;
+      default:
+        platformText = capitalize(platform);
+    }
+
     if (noSoftwareUploaded) {
       return (
         <>
-          No {platform === "macos" ? "macOS" : capitalize(platform)} software
-          available. You can add software on the{" "}
+          No {platformText} software available. You can add software on the{" "}
           <LinkWithContext
             to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
             currentQueryParams={{ team_id: currentTeamId }}
