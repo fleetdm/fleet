@@ -1704,7 +1704,6 @@ ORDER BY
 }
 
 func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
-	// TODO(mna): adjust for in-house apps
 	const insStmt = `
 INSERT INTO
 	host_in_house_software_installs
@@ -1720,7 +1719,7 @@ FROM
 	INNER JOIN in_house_app_upcoming_activities ihua
 		ON ihua.upcoming_activity_id = ua.id
 	INNER JOIN in_house_apps iha
-		ON iha.id = ihua.in_house_app_id 
+		ON iha.id = ihua.in_house_app_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1737,6 +1736,10 @@ WHERE
 	id = ?
 `
 
+	// TODO(mna): complete the correct XML command for in-house apps once
+	// https://github.com/fleetdm/fleet/issues/33089 is implemented (it may require
+	// some IPA file manifest information to be stored in the
+	// in_house_app_upcoming_activities table).
 	const insCmdStmt = `
 INSERT INTO
 	nano_commands
@@ -1744,17 +1747,18 @@ INSERT INTO
 SELECT
 	ua.execution_id,
 	'InstallApplication',
-	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
+	CONCAT(:raw_cmd_part1, 'ihua.<some in-house manifest info>', :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
 	:subtype
 FROM
 	upcoming_activities ua
-	INNER JOIN vpp_app_upcoming_activities vaua
-		ON vaua.upcoming_activity_id = ua.id
+	INNER JOIN in_house_app_upcoming_activities ihua
+		ON ihua.upcoming_activity_id = ua.id
 WHERE
 	ua.host_id = :host_id AND
 	ua.execution_id IN (:execution_ids)
 `
 
+	// TODO(mna): adjust command details, no iTunesStoreID...
 	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -1816,13 +1820,13 @@ ORDER BY
 		return ctxerr.Wrap(ctx, err, "get host uuid")
 	}
 
-	// insert the host vpp app row
+	// insert the host in-house app row
 	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert to activate vpp apps")
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate in-house apps")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
+		return ctxerr.Wrap(ctx, err, "insert to activate in-house apps")
 	}
 
 	// insert the nano command
