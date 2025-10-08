@@ -6228,7 +6228,7 @@ Specify Platform SSO configuration profile and SSO extension software.
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | configuration_profile_id          | integer | The ID of the Platform SSO configuration profile [added to the team](#list-custom-os-settings-configuration-profiles). |
-| software_id                       | integer | The ID of the SSO extension software [added to the team](#list-software) that's available for install. |
+| software_title_id                       | integer | The ID of the SSO extension software [added to the team](#list-software) that's available for install. |
 
 
 ### Upload an EULA file
