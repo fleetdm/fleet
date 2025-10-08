@@ -503,6 +503,7 @@ type softwareType string
 const (
 	softwareTypeInstaller softwareType = "software_installer"
 	softwareTypeVPP       softwareType = "vpp_app_team"
+	softwareTypeInHouse   softwareType = "in_house_app"
 )
 
 // setOrUpdateSoftwareInstallerLabelsDB sets or updates the label associations for the specified software

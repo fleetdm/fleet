@@ -103,16 +103,45 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.Extension == "ipa" {
 		fmt.Println("processing IPA upload")
-		gotID, err := svc.ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{TeamID: payload.TeamID, Name: payload.Title, BundleID: payload.BundleIdentifier, StorageID: payload.StorageID, Platform: payload.Platform})
+		gotTitleID, err := svc.ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
+			TeamID:          payload.TeamID,
+			Name:            payload.Title,
+			BundleID:        payload.BundleIdentifier,
+			StorageID:       payload.StorageID,
+			Platform:        payload.Platform,
+			ValidatedLabels: payload.ValidatedLabels})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "insert in-house app")
 		}
 
-		var titleID *uint
-		if gotID != uint(0) {
-			titleID = &gotID
+		// This could totally just be called later, need to refactor
+		var teamName *string
+		if payload.TeamID != nil && *payload.TeamID != 0 {
+			t, err := svc.ds.Team(ctx, *payload.TeamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting team name on upload software installer")
+			}
+			teamName = &t.Name
 		}
 
+		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels) // TODO: needs to insert into in_house_app_labels
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+			SoftwareTitle:    payload.Title,
+			SoftwarePackage:  payload.Filename,
+			TeamName:         teamName,
+			TeamID:           payload.TeamID,
+			SelfService:      payload.SelfService,
+			SoftwareTitleID:  gotTitleID,
+			LabelsIncludeAny: actLabelsIncl,
+			LabelsExcludeAny: actLabelsExcl,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating activity for added software")
+		}
+
+		var titleID *uint
+		if gotTitleID != uint(0) {
+			titleID = &gotTitleID
+		}
 		// TODO: other processing (e.g. labels)
 		return &fleet.SoftwareInstaller{
 			TeamID:    payload.TeamID,
@@ -120,6 +149,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			Name:      payload.Title,
 			StorageID: payload.StorageID,
 			Platform:  payload.Platform,
+			// LabelsIncludeAny: actLabelsIncl, // TODO: return labels in json response
+			// LabelsExcludeAny: actLabelsExcl,
 		}, nil
 	}
 

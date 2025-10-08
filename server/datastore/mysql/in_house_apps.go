@@ -31,6 +31,7 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 			tid = payload.TeamID
 		}
 	}
+
 	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
 		TeamID:           tid,
 		Title:            payload.Name,
@@ -51,13 +52,23 @@ func (ds *Datastore) InsertInHouseApp(ctx context.Context, payload *fleet.InHous
 			payload.Platform,
 		}
 
-		_, err := tx.ExecContext(ctx, stmt, args...)
+		res, err := tx.ExecContext(ctx, stmt, args...)
 		if err != nil {
 			if IsDuplicate(err) {
 				// already exists for this team/no team
 				err = alreadyExists("InHouseApp", payload.Name)
 			}
 			return err
+		}
+
+		id64, err := res.LastInsertId()
+		installerID := uint(id64)
+		if err != nil {
+			return err
+		}
+
+		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouse); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert in house app labels")
 		}
 
 		return nil
