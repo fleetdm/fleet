@@ -256,6 +256,9 @@ var adamIDsToSoftware = map[int]*fleet.Software{
 
 type agent struct {
 	agentIndex                    int
+	hostCount                     int
+	totalHostCount                int
+	hostIndexOffset               int
 	softwareCount                 softwareEntityCount
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	userCount                     entityCount
@@ -391,6 +394,9 @@ type softwareInstaller struct {
 
 func newAgent(
 	agentIndex int,
+	hostCount int,
+	totalHostCount int,
+	hostIndexOffset int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
 	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
@@ -472,6 +478,9 @@ func newAgent(
 
 	agent := &agent{
 		agentIndex:                    agentIndex,
+		hostCount:                     hostCount,
+		totalHostCount:                totalHostCount,
+		hostIndexOffset:               hostIndexOffset,
 		serverAddress:                 serverAddress,
 		softwareCount:                 softwareCount,
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
@@ -1647,31 +1656,80 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
-	// Common Software
 	var lastOpenedCount int
-	commonSoftware := make([]map[string]string, a.softwareCount.common)
-	for i := 0; i < len(commonSoftware); i++ {
+
+	totalCommon := a.softwareCount.common
+	totalDuplicates := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
+	totalSoftware := totalCommon + totalDuplicates
+
+	var startIdx, endIdx int
+
+	if a.totalHostCount == 0 {
+		// non-distributed mode, all hosts get the same software count
+		startIdx = 0
+		endIdx = totalSoftware
+	} else {
+		// distributed mode, distribute software across hosts
+		globalAgentIndex := a.hostIndexOffset + (a.agentIndex - 1)
+
+		perHostCount := totalSoftware / a.totalHostCount
+		remainder := totalSoftware % a.totalHostCount
+
+		startIdx = globalAgentIndex * perHostCount
+		if globalAgentIndex < remainder {
+			startIdx += globalAgentIndex
+		} else {
+			startIdx += remainder
+		}
+
+		endIdx = startIdx + perHostCount
+		if globalAgentIndex < remainder {
+			endIdx++
+		}
+	}
+
+	commonSoftware := make([]map[string]string, 0)
+	duplicateBundleSoftware := make([]map[string]string, 0)
+	groupSize := 4
+
+	for i := startIdx; i < endIdx; i++ {
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = fmt.Sprint(l.Unix())
 		}
-		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
-			"version":           "0.0.1",
-			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
-			"source":            "apps",
-			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
+
+		if i < totalCommon {
+			commonSoftware = append(commonSoftware, map[string]string{
+				"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
+				"version":           "0.0.1",
+				"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
+				"source":            "apps",
+				"last_opened_at":    lastOpenedAt,
+				"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
+			})
+		} else {
+			duplicateIdx := i - totalCommon
+			bundleIDIndex := duplicateIdx / groupSize
+			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%totalCommon)
+
+			var name string
+			if a.softwareCount.softwareRenaming {
+				name = fmt.Sprintf("RENAMED_DuplicateBundle_%d", duplicateIdx)
+			} else {
+				name = fmt.Sprintf("DuplicateBundle_%d", duplicateIdx)
+			}
+
+			duplicateBundleSoftware = append(duplicateBundleSoftware, map[string]string{
+				"name":              name,
+				"version":           fmt.Sprintf("0.0.1%d", duplicateIdx),
+				"bundle_identifier": bundleID,
+				"source":            "apps",
+				"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx),
+			})
 		}
 	}
-	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
-		rand.Shuffle(len(commonSoftware), func(i, j int) {
-			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
-		})
-		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
-	}
 
-	// Unique Software
+	// Unique Software (always per-host, not distributed)
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -1692,30 +1750,6 @@ func (a *agent) softwareMacOS() []map[string]string {
 			uniqueSoftware[i], uniqueSoftware[j] = uniqueSoftware[j], uniqueSoftware[i]
 		})
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
-	}
-
-	// Software with Duplicate Bundle identifiers
-	duplicateCount := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
-	duplicateBundleSoftware := make([]map[string]string, duplicateCount)
-	groupSize := 4
-	for i := 0; i < duplicateCount; i++ {
-		bundleIDIndex := i / groupSize
-		bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%a.softwareCount.common)
-
-		var name string
-		if a.softwareCount.softwareRenaming {
-			name = fmt.Sprintf("RENAMED_DuplicateBundle_%d", i)
-		} else {
-			name = fmt.Sprintf("DuplicateBundle_%d", i)
-		}
-
-		duplicateBundleSoftware[i] = map[string]string{
-			"name":              name,
-			"version":           "0.0.1",
-			"bundle_identifier": bundleID,
-			"source":            "apps",
-			"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", i),
-		}
 	}
 
 	// Vulnerable Software
@@ -2851,12 +2885,14 @@ func main() {
 	}
 
 	var (
-		serverURL      = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret   = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount      = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		serverURL       = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret    = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount       = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		totalHostCount  = flag.Int("total_host_count", 0, "Total number of hosts across all containers (if 0, uses host_count)")
+		hostIndexOffset = flag.Int("host_index_offset", 0, "Starting index offset for this container's hosts (default 0)")
+		randSeed        = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod     = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval  = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
@@ -2946,6 +2982,20 @@ func main() {
 
 	flag.Parse()
 	rand.Seed(*randSeed)
+
+	// There are two modes for osquery-perf:
+	// 1. Non distributed mode (old behavior). All agents get all software specified. This is done when specifying --host_count and --common_software_count
+	// Example --host_count 500 --common_software_count 1000 -> means 500 hosts each with 1000 pieces of software
+	// 2. Distributed mode. All agents get a subset of the total software specified. This is done when specifying --total_host_count and --host_index_offset along with other params.
+	// Example --host_count 500 --common_software_count 1000 --total_host_count 5000 --host_index_offset [0...N...1000]
+	// This example means that each container will run 500 hosts, but each host will only get a subset of the total 5000 software requested.
+	if *totalHostCount > 0 && *totalHostCount > *hostCount {
+		log.Printf("WARNING: total_host_count (%d) > host_count (%d). You are trying to use distributed mode, ensure you have --host_index_offset specified for each container", *totalHostCount, *hostCount)
+		log.Printf("         Container 0 should use: --host_index_offset 0")
+		log.Printf("         Container 1 should use: --host_index_offset %d", *hostCount)
+		log.Printf("         Container 2 should use: --host_index_offset %d", *hostCount*2)
+		log.Printf("         Container N should use: --host_index_offset Y")
+	}
 
 	if *onlyAlreadyEnrolled {
 		// Orbit enrollment does not support the "already enrolled" mode at the
@@ -3060,6 +3110,9 @@ func main() {
 		}
 
 		a := newAgent(i+1,
+			*hostCount,
+			*totalHostCount,
+			*hostIndexOffset,
 			*serverURL,
 			*enrollSecret,
 			tmpl,
