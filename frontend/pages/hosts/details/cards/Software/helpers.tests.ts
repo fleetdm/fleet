@@ -327,12 +327,12 @@ describe("getUiStatus", () => {
   });
 
   describe("Script packages UI statuses", () => {
-    it("returns 'failed_run' when status is failed_install and isScriptPackage", () => {
+    it("returns 'failed_script' when status is failed_install and isScriptPackage", () => {
       const sw = createMockHostSoftware({
         status: "failed_install",
         source: "sh_packages",
       });
-      expect(getUiStatus(sw, true)).toBe("failed_run");
+      expect(getUiStatus(sw, true)).toBe("failed_script");
     });
 
     it("returns 'running_script' when status is pending_install, isScriptPackage and host online", () => {

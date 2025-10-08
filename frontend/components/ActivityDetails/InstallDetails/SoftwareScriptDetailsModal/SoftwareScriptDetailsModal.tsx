@@ -96,7 +96,7 @@ export const StatusMessage = ({
     let middle = null;
     if (isDUP) {
       if (status === "failed_install") {
-        middle = <>. You can retry{renderContactOption(contactUrl)}</>;
+        middle = <>. You can rerun{renderContactOption(contactUrl)}</>;
       }
     } else {
       // host details page
@@ -133,7 +133,7 @@ export const StatusMessage = ({
 
 interface IModalButtonsProps {
   deviceAuthToken?: string;
-  status?: string;
+  installResultStatus?: string;
   hostSoftwareId?: number;
   onRerun?: (id: number) => void;
   onCancel: () => void;
@@ -141,12 +141,12 @@ interface IModalButtonsProps {
 
 export const ModalButtons = ({
   deviceAuthToken,
-  status,
+  installResultStatus,
   hostSoftwareId,
   onRerun,
   onCancel,
 }: IModalButtonsProps) => {
-  if (deviceAuthToken && status === "failed_install") {
+  if (!!deviceAuthToken && installResultStatus === "failed_install") {
     const onClickRerun = () => {
       // on DUP, where this is relevant, both will be defined
       if (onRerun && hostSoftwareId) {
@@ -327,7 +327,7 @@ export const SoftwareInstallDetailsModal = ({
         {renderContent()}
         <ModalButtons
           deviceAuthToken={deviceAuthToken}
-          status={swInstallResult?.status}
+          installResultStatus={swInstallResult?.status}
           hostSoftwareId={hostSoftware?.id}
           onRerun={onRerun}
           onCancel={onCancel}

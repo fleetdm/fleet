@@ -126,7 +126,7 @@ describe("SoftwareScriptDetailsModal - ModalButtons component", () => {
     const { user } = renderWithSetup(
       <ModalButtons
         deviceAuthToken="token123"
-        status="failed_script"
+        installResultStatus="failed_install"
         hostSoftwareId={99}
         onCancel={onCancel}
         onRerun={onRerun}
@@ -145,7 +145,9 @@ describe("SoftwareScriptDetailsModal - ModalButtons component", () => {
 
   it("shows Done button for pending run", () => {
     const onCancel = jest.fn();
-    render(<ModalButtons status="pending_script" onCancel={onCancel} />);
+    render(
+      <ModalButtons installResultStatus="pending_script" onCancel={onCancel} />
+    );
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Rerun" })
@@ -157,7 +159,7 @@ describe("SoftwareScriptDetailsModal - ModalButtons component", () => {
     render(
       <ModalButtons
         deviceAuthToken="token123"
-        status="ran_script"
+        installResultStatus="installed"
         onCancel={onCancel}
       />
     );
