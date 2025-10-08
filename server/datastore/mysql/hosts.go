@@ -566,6 +566,11 @@ var hostRefs = []string{
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
 	"host_identity_scep_certificates",
+	// unlike for host_software_installs, where we use soft-delete so that
+	// existing activities can still access the installation details, this is not
+	// needed for in-house apps as the activity contains the MDM command UUID and
+	// can access the request/response without this table's entry.
+	"host_in_house_software_installs",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
