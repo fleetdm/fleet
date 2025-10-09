@@ -3299,7 +3299,7 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	// If an install doesn't have a verification_at or verification_failed_at, then
 	// mark it as failed
-	if err := svc.ds.MarkAllPendingVPPInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
+	if err := svc.ds.MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
 		return ctxerr.Wrap(ctx, err, "marking all pending vpp installs as failed")
 	}
 
