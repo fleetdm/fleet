@@ -30,7 +30,7 @@ on:
       fleet_database_instance_size:
         description: "AWS Instance size for the Fleet database instances"
         type: string
-        defualt: "db.t4g.medium"
+        default: "db.t4g.medium"
         required: true
       fleet_database_instance_count:
         description: "Number of database instance replicas (including the writer)"
@@ -40,7 +40,7 @@ on:
       fleet_redis_instance_size:
         description: "AWS Instance size for the Fleet redis instances"
         type: string
-        defualt: "cache.t4g.micro"
+        default: "cache.t4g.micro"
         required: true
       fleet_redis_instance_count:
         description: "Number of redis instance replicas (including the writer)"
