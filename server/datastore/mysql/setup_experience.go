@@ -14,6 +14,14 @@ import (
 )
 
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, false)
+}
+
+func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, true)
+}
+
+func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetAfterFailure bool) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ?`
