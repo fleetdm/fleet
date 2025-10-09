@@ -2340,7 +2340,17 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				}
 
 				// Preprocess the profile content for this specific host
-				processedContent := microsoft_mdm.PreprocessWindowsProfileContents(hostUUID, string(p.SyncML))
+				// Note this version is considerably different than the one in profile_verifier.go which only substitutes the
+				// host UUID variable. Realistically we likely need either two versions of this function or to refactor it so that
+				// it can operate in a mode to do real profile contents processing for sending to host OR simple for verification.
+				processedContent, err := PreprocessWindowsProfileContents(ctx, ds, logger, hostUUID, profUUID, string(p.SyncML))
+				if err != nil {
+					level.Info(logger).Log("err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
+					// Mark this host's profile as failed
+					hp.Status = &fleet.MDMDeliveryFailed
+					hp.Detail = fmt.Sprintf("Failed to generate profile contents: %s", err.Error())
+					continue
+				}
 
 				// Create a unique command UUID for this host since the content is unique
 				hostCmdUUID := uuid.New().String()
@@ -2392,12 +2402,24 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	return nil
 }
 
-func PreprocessWindowsProfileContents(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID string, profileContents string) (string, error) {
+func PreprocessWindowsProfileContents(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID, profUUID, profileContents string) (string, error) {
 	// Check if Fleet variables are present
 	fleetVars := variables.Find(profileContents)
 	if len(fleetVars) == 0 {
 		// No variables to replace, return original content
 		return profileContents, nil
+	}
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	cas, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+	customSCEPCAs := make(map[string]fleet.CustomSCEPProxyCA, len(cas.CustomScepProxy))
+	for _, ca := range cas.CustomScepProxy {
+		customSCEPCAs[ca.Name] = ca
 	}
 
 	// Process each Fleet variable
@@ -2426,7 +2448,7 @@ func PreprocessWindowsProfileContents(ctx context.Context, ds fleet.Datastore, l
 					"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 				continue
 			}
-			profileContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPChallengePrefix), ca.Name, profileContents, ca.Challenge)
+			result, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPChallengePrefix), ca.Name, result, ca.Challenge)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP challenge")
 			}
@@ -2443,27 +2465,29 @@ func PreprocessWindowsProfileContents(ctx context.Context, ds fleet.Datastore, l
 			// Generate a new SCEP challenge for the profile
 			challenge, err := ds.NewChallenge(ctx)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "generating SCEP challenge")
+				return "", ctxerr.Wrap(ctx, err, "generating SCEP challenge")
 			}
 			// Insert the SCEP URL into the profile contents
 			proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 				url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", hostUUID, profUUID, caName, challenge)))
-			hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPProxyURLPrefix), ca.Name, hostContents, proxyURL)
+			result, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPProxyURLPrefix), ca.Name, result, proxyURL)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
+				return "", ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
 			}
-			managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
-				HostUUID:    hostUUID,
-				ProfileUUID: profUUID,
-				Type:        fleet.CAConfigCustomSCEPProxy,
-				CAName:      caName,
-			})
+			/*
+				managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
+					HostUUID:    hostUUID,
+					ProfileUUID: profUUID,
+					Type:        fleet.CAConfigCustomSCEPProxy,
+					CAName:      caName,
+				})
+			*/
 		}
 
 		// Add other Fleet variables here as they are implemented
 	}
 
-	return result
+	return result, nil
 }
 
 // TODO(roberto): I think this should live separately in the
@@ -2491,6 +2515,12 @@ func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fle
 	// generate a CmdID for any nested <Add>
 	for i := range cmd.AddCommands {
 		cmd.AddCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
+		}
+	}
+	for i := range cmd.ExecCommands {
+		cmd.ExecCommands[i].CmdID = mdm_types.CmdID{
 			Value:               uuid.NewString(),
 			IncludeFleetComment: true,
 		}

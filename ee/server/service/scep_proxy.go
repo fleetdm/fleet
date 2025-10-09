@@ -145,27 +145,35 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	if len(parsedIDs) > 3 {
 		fleetChallenge = parsedIDs[3]
 	}
-	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
-		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
+	if !(strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) || strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix)) {
+		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple and Windows config profiles are supported): %s",
 			profileUUID)}
 	}
-	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
-	}
-	if profile == nil {
-		// Return error that implements kithttp.StatusCoder interface
-		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
-	}
-	if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
-		// This could happen if Fleet DB was updated before the profile was updated on the host.
-		// We expect another certificate request from the host once the profile is updated.
-		status := "null"
-		if profile.Status != nil {
-			status = string(*profile.Status)
+	var profile *fleet.HostMDMCertificateProfile
+	if !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
 		}
-		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
-			hostUUID, profileUUID)}
+		if profile == nil {
+			// Return error that implements kithttp.StatusCoder interface
+			return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
+		}
+		if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
+			// This could happen if Fleet DB was updated before the profile was updated on the host.
+			// We expect another certificate request from the host once the profile is updated.
+			status := "null"
+			if profile.Status != nil {
+				status = string(*profile.Status)
+			}
+			return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
+				hostUUID, profileUUID)}
+		}
+	} else {
+		profile = &fleet.HostMDMCertificateProfile{
+			Type:   fleet.CAConfigCustomSCEPProxy, // only NDES is supported for Windows profiles
+			CAName: caName,
+		}
 	}
 	var scepURL string
 
