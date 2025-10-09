@@ -7,7 +7,12 @@ const Excel = (props: SVGProps<SVGSVGElement>) => {
   const gradientId = uniqueId("gradient-");
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 32 32"
+      {...props}
+    >
       <path fill="#fff" d="M0 0h32v32H0z" />
       <path
         d="M17.814 15.704 9.117 14.17v11.322a.937.937 0 0 0 .937.936H25.06a.936.936 0 0 0 .939-.936V21.32l-8.186-5.618Z"

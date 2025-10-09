@@ -3,7 +3,12 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const Postman = (props: SVGProps<SVGSVGElement>) => (
-  <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+  <svg
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 32 32"
+    {...props}
+  >
     <path fill="#EEE" d="M0 0h32v32H0z" />
     <path fill="#FF6C37" d="M0 0h32v32H0z" />
     <path

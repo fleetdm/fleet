@@ -6,7 +6,12 @@ const Brave = (props: SVGProps<SVGSVGElement>) => {
   const clipPathId = uniqueId("clip-path-");
   const fillPathId = uniqueId("fill-path-");
   return (
-    <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 32 32"
+      {...props}
+    >
       <rect width="32" height="32" fill="white" />
       <g clipPath={`url(#${clipPathId})`}>
         <path

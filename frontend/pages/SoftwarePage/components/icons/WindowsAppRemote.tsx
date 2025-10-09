@@ -4,7 +4,12 @@ import type { SVGProps } from "react";
 
 const WindowsAppRemote = (props: SVGProps<SVGSVGElement>) => {
   return (
-    <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 32 32"
+      {...props}
+    >
       <rect fill="#0078D4" width="32" height="32" />
       <path
         fillRule="evenodd"
