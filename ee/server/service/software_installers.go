@@ -2536,7 +2536,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint
 	// TODO(JVE): create download URL from the app server base URL
 	downloadUrl := "https://example.com"
 
-	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, 3610)
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, inHouseAppID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
 	}
@@ -2569,7 +2569,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint
           <key>bundle-identifier</key>
           <string>{{ .BundleID }}</string>
           <key>bundle-version</key>
-          <string> {{ .Version }}</string>
+          <string>{{ .Version }}</string>
           <key>kind</key>
           <string>software</string>
           <key>title</key>

@@ -206,7 +206,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
 			Platform:        payload.Platform,
-			ValidatedLabels: payload.ValidatedLabels})
+			ValidatedLabels: payload.ValidatedLabels,
+			Version:         payload.Version,
+		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
 		}
@@ -852,7 +854,8 @@ SELECT
   COALESCE(iha.name, '') AS software_title,
   iha.platform,
   iha.storage_id,
-  iha.bundle_identifier
+  st.bundle_identifier AS bundle_identifier,
+  iha.version
 FROM
   in_house_apps iha
   JOIN software_titles st ON st.id = iha.title_id
