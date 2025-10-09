@@ -36,7 +36,7 @@ When procuring SaaS tools and services, analyze the purchase of these subscripti
 - Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
 - Avoid extra features you don't need, and if they're there anyway, avoid using them.
 - Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
-- Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
+- Programmability: Does it have a publicly documented legible REST API that requires at most a single API token?
 - Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
 
 
