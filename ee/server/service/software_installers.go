@@ -69,10 +69,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
 	payload.UninstallScript = file.Dos2UnixNewlines(payload.UninstallScript)
 
-	failOnBlankScript := true
-	if strings.HasSuffix(payload.Filename, ".ipa") {
-		failOnBlankScript = false
-	}
+	failOnBlankScript := strings.HasSuffix(payload.Filename, ".ipa")
 
 	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")

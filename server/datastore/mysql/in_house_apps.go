@@ -62,9 +62,9 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 
 		id64, err := res.LastInsertId()
-		installerID = uint(id64)
+		installerID = uint(id64) //nolint:gosec // dismiss G115
 		if err != nil {
-			ctxerr.Wrap(ctx, err, "insertInHouseApp")
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 
 		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
