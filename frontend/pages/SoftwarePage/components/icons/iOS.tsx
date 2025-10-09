@@ -6,7 +6,12 @@ const iOS = (props: SVGProps<SVGSVGElement>) => {
   // Note: smaller icon on OS table has thicker outline and a smaller Apple logo
   if (props.width === "24") {
     return (
-      <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <svg
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 32 32"
+        {...props}
+      >
         <g transform="translate(4, 4) scale(1.5)">
           <rect
             x="5"

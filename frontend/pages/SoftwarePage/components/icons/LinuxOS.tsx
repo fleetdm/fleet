@@ -3,7 +3,12 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const LinuxOS = (props: SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 32 32"
+    {...props}
+  >
     <path fill="#F9FAFC" d="M0 0h32v32H0z" />
     <path
       fillRule="evenodd"

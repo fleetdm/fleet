@@ -9,7 +9,12 @@ const ChromeApp = (props: SVGProps<SVGSVGElement>) => {
   const fillPathCId = uniqueId("fill-path-c-");
   const fillPathDId = uniqueId("fill-path-d-");
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 32 32"
+      {...props}
+    >
       <path fill="#fff" d="M0 0h32v32H0z" />
       <g clipPath={`url(#${clipPathId})`}>
         <path d="M16 21.997a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" fill="#fff" />

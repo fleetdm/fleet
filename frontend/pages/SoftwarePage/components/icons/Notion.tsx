@@ -3,7 +3,12 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const Notion = (props: SVGProps<SVGSVGElement>) => (
-  <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+  <svg
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 32 32"
+    {...props}
+  >
     <path fill="#fff" d="M0 0h32v32H0z" />
     <path
       d="m4.891 3.864 14.715-1.082c1.806-.155 2.272-.05 3.408.774l4.697 3.301c.774.568 1.033.723 1.033 1.342v18.106c0 1.135-.414 1.806-1.859 1.909L9.798 29.245c-1.085.052-1.601-.103-2.17-.825l-3.46-4.489c-.62-.825-.877-1.443-.877-2.166V5.669c0-.927.413-1.702 1.6-1.804Z"

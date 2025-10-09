@@ -6,7 +6,12 @@ import type { SVGProps } from "react";
 const Teams = (props: SVGProps<SVGSVGElement>) => {
   const linearGradientId = uniqueId("linear-gradient-");
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 32 32"
+      {...props}
+    >
       <path fill="#fff" d="M0 0h32v32H0z" />
       <path
         d="M20.043 14.009h5.94c.562 0 1.017.453 1.017 1.014v5.401a3.732 3.732 0 0 1-3.736 3.73h-.016a3.732 3.732 0 0 1-3.736-3.73v-5.883c0-.294.238-.532.53-.532Zm4.016-1.068a2.405 2.405 0 0 0 2.405-2.402 2.405 2.405 0 0 0-2.406-2.403 2.405 2.405 0 0 0-2.407 2.403 2.405 2.405 0 0 0 2.407 2.402h.001Z"
