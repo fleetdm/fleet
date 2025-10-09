@@ -78,6 +78,7 @@ const updateCampaignStateFromResults = (
     // therefore `campaign.errors.length` === `campaign.hosts_count.failed`
     newErrors = prevErrors.concat([
       {
+        host_id: curHost?.id,
         host_display_name: curHost?.display_name,
         osquery_version: curHost?.osquery_version,
         error:
