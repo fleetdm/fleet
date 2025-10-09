@@ -64,13 +64,13 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		meta, err = ExtractXARMetadata(tfr)
 	case "msi":
 		meta, err = ExtractMSIMetadata(tfr)
+	case "ipa":
+		meta, err = ExtractIPAMetadata(tfr)
 	case "tar.gz":
 		meta, err = ValidateTarball(tfr)
 		if err != nil {
 			err = errors.Join(ErrInvalidTarball, err)
 		}
-	case "ipa":
-		meta, err = ExtractIPAMetadata(tfr)
 	default:
 		return nil, ErrUnsupportedType
 	}

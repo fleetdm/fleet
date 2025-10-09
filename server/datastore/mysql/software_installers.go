@@ -677,6 +677,40 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	return nil
 }
 
+func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := `UPDATE software_installers SET
+			storage_id = ?,
+			name = ?,
+			version = ?,
+			WHERE id = ?`
+
+		args := []interface{}{
+			payload.StorageID,
+			payload.Filename,
+			payload.Version,
+			payload.InstallerID,
+		}
+
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update in house app")
+		}
+
+		if payload.ValidatedLabels != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInstaller); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert in house app labels")
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update in house app")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
 	// NOTE: this is ok to only look in host_software_installs (and ignore
 	// upcoming_activities), because orbit should not be able to get the
