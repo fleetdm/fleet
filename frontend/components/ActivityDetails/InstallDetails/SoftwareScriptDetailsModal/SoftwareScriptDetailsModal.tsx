@@ -1,3 +1,14 @@
+/** This component is intentionally separate from SoftwareInstallDetailsModal
+ * because it handles payload-free/script-based package installs (e.g. sh_packages or ps1_packages)
+ *
+ * Key differences from SoftwareInstallDetailsModal:
+ * - Uses Script/Run/Rerun language in UI instead of Install/Retry.
+ * - Omits current versions section (no InventoryVersions display).
+ * - Omits post-install script output.
+ *
+ * Keeping these components and its tests separate improves maintainability and clarity
+ */
+
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -49,16 +60,12 @@ export const renderContactOption = (url?: string) => (
 );
 
 interface IInstallStatusMessage {
-  softwareName: string;
   installResult: ISoftwareScriptResult;
   isMyDevicePage: boolean;
   contactUrl?: string;
 }
 
-// TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
-// present there
 export const StatusMessage = ({
-  softwareName,
   installResult,
   isMyDevicePage,
   contactUrl,
@@ -309,7 +316,6 @@ export const SoftwareInstallDetailsModal = ({
         <div className={`${baseClass}__modal-content`}>
           <StatusMessage
             installResult={installResultWithHostDisplayName}
-            softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
             isMyDevicePage={!!deviceAuthToken}
             contactUrl={contactUrl}
           />

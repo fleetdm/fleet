@@ -11,7 +11,7 @@ import activitiesAPI, {
 
 import {
   resolveUninstallStatus,
-  SoftwareInstallUninstallApiStatus,
+  SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
 
@@ -268,7 +268,7 @@ const ActivityFeed = ({
           details={{
             appName: vppInstallDetails.software_title || "",
             fleetInstallStatus: (vppInstallDetails.status ||
-              "pending_install") as SoftwareInstallUninstallApiStatus,
+              "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",
             commandUuid: vppInstallDetails.command_uuid || "",
           }}

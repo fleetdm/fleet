@@ -125,14 +125,13 @@ const SoftwareOptionsSelector = ({
       );
     }
 
-    // TODO: Confirm with PM/Design if we want tooltip messaging for script packages
     if (isScriptPackage) {
       return (
         <>
           Fleet can&apos;t create a policy to detect existing installations of
-          software installed by scripts. To automatically install script-based
-          packages, add a custom policy and enable the install software
-          automation on the <b>Policies</b> page.
+          payload-free packages. To automatically install these packages, add a
+          custom policy and enable the install software automation on the{" "}
+          <b>Policies</b> page.
         </>
       );
     }

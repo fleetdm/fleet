@@ -8,7 +8,7 @@ import React from "react";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import paths from "router/paths";
-import { NO_VERSION_OR_HOST_DATA_AVAIL_SOURCES } from "interfaces/software";
+import { NO_VERSION_OR_HOST_DATA_SOURCES } from "interfaces/software";
 
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
@@ -68,8 +68,7 @@ const SoftwareDetailsSummary = ({
   // Remove host count for tgz_packages, sh_packages, and ps1_packages only
   // or if viewing details summary from edit icon preview modal
   const showHostCount =
-    source &&
-    !NO_VERSION_OR_HOST_DATA_AVAIL_SOURCES.includes(source) &&
+    !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source || "") &&
     iconPreviewUrl === undefined;
 
   const renderSoftwareIcon = () => {

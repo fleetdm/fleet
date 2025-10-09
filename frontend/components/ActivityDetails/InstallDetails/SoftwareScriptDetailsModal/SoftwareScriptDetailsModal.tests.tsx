@@ -9,7 +9,6 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
   it("on software library page/pending activity, renders pending install message with host and package name", () => {
     render(
       <StatusMessage
-        softwareName="CoolApp"
         installResult={
           createMockSoftwareInstallResult({
             status: "pending_install",
@@ -29,7 +28,6 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
   it("on device user page, renders failed run with rerun option with contact link", () => {
     render(
       <StatusMessage
-        softwareName="CoolApp"
         installResult={
           createMockSoftwareInstallResult({
             status: "failed_install",
@@ -54,7 +52,6 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
   it("on device user page, renders failed install with retry option without contact link", () => {
     render(
       <StatusMessage
-        softwareName="CoolApp"
         installResult={
           createMockSoftwareInstallResult({
             status: "failed_install",
@@ -79,7 +76,6 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
   it("on host details page, renders failed script without rerun", () => {
     render(
       <StatusMessage
-        softwareName="CoolApp"
         installResult={
           createMockSoftwareInstallResult({
             status: "failed_install",
@@ -99,7 +95,6 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
   it("on host details page/install activity, renders ran message with timestamp", () => {
     render(
       <StatusMessage
-        softwareName="CoolApp"
         installResult={
           createMockSoftwareInstallResult({
             status: "installed",

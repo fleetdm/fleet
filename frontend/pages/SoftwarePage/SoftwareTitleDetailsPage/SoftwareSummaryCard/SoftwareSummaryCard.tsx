@@ -12,7 +12,7 @@ import {
   isSoftwarePackage,
   ISoftwarePackage,
   IAppStoreApp,
-  NO_VERSION_OR_HOST_DATA_AVAIL_SOURCES,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 
 import Card from "components/Card";
@@ -54,9 +54,7 @@ const SoftwareSummaryCard = ({
   const [iconUploadedAt, setIconUploadedAt] = useState("");
 
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages only
-  const showVersionsTable = !NO_VERSION_OR_HOST_DATA_AVAIL_SOURCES.includes(
-    source
-  );
+  const showVersionsTable = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source);
 
   const hasEditPermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;

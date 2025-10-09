@@ -5,7 +5,7 @@ import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
-  SoftwareInstallUninstallApiStatus,
+  SoftwareInstallUninstallStatus,
   IVPPHostSoftware,
   SoftwareUninstallStatus,
   IAppLastInstall,
@@ -28,7 +28,7 @@ const baseClass = "install-status-cell";
 interface CommandUuid {
   command_uuid: string;
   software_title?: string;
-  status?: SoftwareInstallUninstallApiStatus;
+  status?: SoftwareInstallUninstallStatus;
 }
 
 interface InstallUuid {
@@ -110,7 +110,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   pending_install: {
     iconName: "pending-outline",
     displayText: ({ isSelfService, isHostOnline }) =>
-      isSelfService || isHostOnline ? "Installing..." : "Install (pending)", // TODO: "Running..." for script packages / "Run (pending)"
+      isSelfService || isHostOnline ? "Installing..." : "Install (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
         "Fleet is installing software."
@@ -285,6 +285,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   ran_script: {
     iconName: "success",
     displayText: "Ran",
+    // TODO: Confirm tooltip
     tooltip: ({ lastInstalledAt }) =>
       lastInstalledAt ? (
         <>
@@ -296,6 +297,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   failed_script: {
     iconName: "error",
     displayText: "Failed run",
+    // TODO: Confirm tooltip
     tooltip: ({ lastInstalledAt, isSelfService }) => (
       <>
         Payload-free software script failed to run
@@ -317,11 +319,13 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   running_script: {
     iconName: "pending-outline",
     displayText: "Run (pending)",
+    // TODO: Confirm tooltip
     tooltip: () => "Fleet is running the payload-free software script.",
   },
   pending_script: {
     iconName: "pending-outline",
     displayText: "Run (pending)",
+    // TODO: Confirm tooltip
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
         "Fleet is running the payload-free software script."
