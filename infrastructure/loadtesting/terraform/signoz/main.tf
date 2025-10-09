@@ -59,7 +59,7 @@ provider "kubernetes" {
 data "aws_availability_zones" "available" {}
 
 locals {
-  cluster_name = "signoz-loadtest"
+  cluster_name = "signoz-${terraform.workspace}"
   azs          = slice(data.aws_availability_zones.available.names, 0, 2)
 }
 
@@ -179,7 +179,7 @@ resource "helm_release" "signoz" {
   }
 
   set {
-    name  = "queryService.service.type"
+    name  = "signoz.service.type"
     value = "LoadBalancer"
   }
 
