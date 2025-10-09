@@ -2172,8 +2172,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	require.NoError(t, err)
 
 	// The host should be awaiting configuration
-	_, err = s.ds.GetHostAwaitingConfiguration(ctx, mdmDevice.UUID)
+	awaitingConfiguration, err := s.ds.GetHostAwaitingConfiguration(ctx, mdmDevice.UUID)
 	require.NoError(t, err)
+	require.True(t, awaitingConfiguration)
 
 	// run the worker to process the DEP enroll request
 	s.runWorker()
@@ -2312,10 +2313,6 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 
 	pendingReleaseJobs := []*fleet.Job{}
 	if opts.EnableReleaseManually {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			mysql.DumpTable(t, q, "jobs")
-			return nil
-		})
 		// get the worker's pending job from the future, there should not be any
 		// because it needs to be released manually
 		pending, err := s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
