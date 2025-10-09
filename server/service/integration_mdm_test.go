@@ -44,7 +44,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -69,12 +68,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
-	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -18265,72 +18262,4 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", newHost.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
-}
-
-// This test case covers the bug https://github.com/fleetdm/fleet/issues/26879
-func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
-	t := s.T()
-	ctx := t.Context()
-
-	teamEnrollSecret := "sticky-mdm-team-enroll-secret" //nolint:gosec // G101: false positive, test value only
-	// Create a single team with MDM enabled
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "mdm team", Secrets: []*fleet.EnrollSecret{{Secret: teamEnrollSecret}}})
-	require.NoError(t, err)
-
-	// Enable MDM for appconfig
-	appConfig, err := s.ds.AppConfig(ctx)
-	require.NoError(t, err)
-	appConfig.MDM.EnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(ctx, appConfig)
-	require.NoError(t, err)
-
-	// Create a MDM apple device
-	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-
-	// Check that redis key was set
-	keyValueStore := redis_key_value.New(s.redisPool)
-	val, err := keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+host.UUID)
-	require.NoError(t, err)
-	require.NotNil(t, val)
-
-	// Get the team to check that it enrolled into no-team
-	hostLite, err := s.ds.HostLiteByIdentifier(ctx, host.UUID)
-	require.NoError(t, err)
-	require.NotNil(t, hostLite)
-	require.Nil(t, hostLite.TeamID)
-
-	request := contract.EnrollOrbitRequest{
-		EnrollSecret:   teamEnrollSecret,
-		HardwareUUID:   host.UUID,
-		HardwareSerial: mdmDevice.SerialNumber,
-		Hostname:       host.Hostname,
-		Platform:       host.Platform,
-		PlatformLike:   host.PlatformLike,
-		HardwareModel:  host.HardwareModel,
-	}
-	response := EnrollOrbitResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", request, http.StatusOK, &response)
-
-	// Check that the host is still in no-team
-	hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
-	require.NoError(t, err)
-	require.NotNil(t, hostLite)
-	require.Nil(t, hostLite.TeamID)
-
-	// Delete the key to re-enroll
-	conn := redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
-	defer conn.Close()
-
-	_, err = redigo.Int64(conn.Do("DEL", "key_value_"+fleet.StickyMDMEnrollmentKeyPrefix+host.UUID))
-	require.NoError(t, err)
-
-	// RE-enroll orbit and see team transfer
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", request, http.StatusOK, &response)
-
-	// Check that the host is now in the team
-	hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
-	require.NoError(t, err)
-	require.NotNil(t, hostLite)
-	require.NotNil(t, hostLite.TeamID)
-	require.Equal(t, team.ID, *hostLite.TeamID)
 }

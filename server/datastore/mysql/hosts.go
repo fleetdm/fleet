@@ -2493,15 +2493,33 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			sqlUpdate := `
 				UPDATE hosts
 				SET node_key = ?,
-				team_id = ?,
 				last_enrolled_at = NOW(),
 				osquery_host_id = ?,
 				uuid = COALESCE(NULLIF(uuid, ''), ?),
 				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-				refetch_requested = ?
+				refetch_requested = ?%s
 				WHERE id = ?
 			`
-			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID, hardwareUUID, hardwareSerial, refetchRequested, enrolledHostInfo.ID)
+			args := []any{
+				nodeKey,
+				osqueryHostID,
+				hardwareUUID,
+				hardwareSerial,
+				refetchRequested,
+			}
+
+			if !enrollConfig.IgnoreTeamUpdate {
+				args = append(args, teamID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
+			} else {
+				level.Info(ds.logger).Log("msg", "skipping team update on osquery enroll", "host_uuid", hardwareUUID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
+			}
+
+			// WHERE attributes
+			args = append(args, enrolledHostInfo.ID)
+
+			_, err := tx.ExecContext(ctx, sqlUpdate, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host")
 			}

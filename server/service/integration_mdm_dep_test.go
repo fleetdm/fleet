@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -29,8 +30,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -2791,5 +2794,110 @@ func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
 			require.NotEqual(t, then, host.CreatedAt)
 		}
 
+	}
+}
+
+// This test case covers the bug https://github.com/fleetdm/fleet/issues/26879
+func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
+	t := s.T()
+	ctx := t.Context()
+
+	teamEnrollSecret := "sticky-mdm-team-enroll-secret" //nolint:gosec // G101: false positive, test value only
+	// Create a single team with MDM enabled
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "mdm team", Secrets: []*fleet.EnrollSecret{{Secret: teamEnrollSecret}}})
+	require.NoError(t, err)
+
+	// Enable MDM for appconfig
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name          string
+		enrollURL     string
+		enrollRequest func(*fleet.Host, *mdmtest.TestAppleMDMClient) any
+	}{
+		{
+			name:      "Orbit Enrollment",
+			enrollURL: "/api/fleet/orbit/enroll",
+			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
+				return contract.EnrollOrbitRequest{
+					EnrollSecret:   teamEnrollSecret,
+					HardwareUUID:   host.UUID,
+					HardwareSerial: mdmDevice.SerialNumber,
+					Hostname:       host.Hostname,
+					Platform:       host.Platform,
+					PlatformLike:   host.PlatformLike,
+					HardwareModel:  host.HardwareModel,
+				}
+			},
+		},
+		{
+			name:      "Osquery Enrollment",
+			enrollURL: "/api/osquery/enroll",
+			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
+				return contract.EnrollOsqueryAgentRequest{
+					EnrollSecret:   teamEnrollSecret,
+					HostIdentifier: host.UUID,
+					HostDetails: map[string]map[string]string{
+						"osquery_info": {
+							"instance_id": host.UUID,
+						},
+						"system_info": {
+							"hardware_serial": mdmDevice.SerialNumber,
+							"uuid":            host.UUID,
+						},
+					},
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a MDM apple device
+			host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+			// Check that redis key was set
+			keyValueStore := redis_key_value.New(s.redisPool)
+			val, err := keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, val)
+
+			// Get the team to check that it enrolled into no-team
+			hostLite, err := s.ds.HostLiteByIdentifier(ctx, host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, hostLite)
+			require.Nil(t, hostLite.TeamID)
+
+			request := tc.enrollRequest(host, mdmDevice)
+			response := struct{}{}
+			s.DoJSON("POST", tc.enrollURL, request, http.StatusOK, &response)
+
+			// Check that the host is still in no-team
+			hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, hostLite)
+			require.Nil(t, hostLite.TeamID)
+
+			// Delete the key to re-enroll
+			conn := redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
+			defer conn.Close()
+
+			_, err = redigo.Int64(conn.Do("DEL", "key_value_"+fleet.StickyMDMEnrollmentKeyPrefix+host.UUID))
+			require.NoError(t, err)
+
+			// RE-enroll and see team transfer
+			s.DoJSON("POST", tc.enrollURL, request, http.StatusOK, &response)
+
+			// Check that the host is now in the team
+			hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, hostLite)
+			require.NotNil(t, hostLite.TeamID)
+			require.Equal(t, team.ID, *hostLite.TeamID)
+		})
 	}
 }
