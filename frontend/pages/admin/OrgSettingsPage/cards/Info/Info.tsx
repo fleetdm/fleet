@@ -90,7 +90,7 @@ const Info = ({
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
     } else if (
-      !validUrl({ url: orgSupportURL, protocols: ["http", "https"] })
+      !validUrl({ url: orgSupportURL, protocols: ["http", "https", "file"] })
     ) {
       errors.org_support_url = `${orgSupportURL} is not a valid URL`;
     }
@@ -132,9 +132,8 @@ const Info = ({
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
-          className={`form ${
-            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-          }`}
+          className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
         >
           <div className={`${cardClass}__logo-field-set`}>
             <InputField
