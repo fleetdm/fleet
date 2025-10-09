@@ -1267,6 +1267,8 @@ type UpdateInstallerUpgradeCodeFunc func(ctx context.Context, id uint, upgradeCo
 
 type ProcessInstallerUpdateSideEffectsFunc func(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
 
+type CancelSoftwareInstallForHostsFunc func(ctx context.Context, hostIDs []uint, installerID uint) (affectedHostIDs []uint, err error)
+
 type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
 
 type UpdateInstallerSelfServiceFlagFunc func(ctx context.Context, selfService bool, id uint) error
@@ -3415,6 +3417,9 @@ type DataStore struct {
 
 	ProcessInstallerUpdateSideEffectsFunc        ProcessInstallerUpdateSideEffectsFunc
 	ProcessInstallerUpdateSideEffectsFuncInvoked bool
+
+	CancelSoftwareInstallForHostsFunc        CancelSoftwareInstallForHostsFunc
+	CancelSoftwareInstallForHostsFuncInvoked bool
 
 	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
 	SaveInstallerUpdatesFuncInvoked bool
@@ -8194,6 +8199,13 @@ func (s *DataStore) ProcessInstallerUpdateSideEffects(ctx context.Context, insta
 	s.ProcessInstallerUpdateSideEffectsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ProcessInstallerUpdateSideEffectsFunc(ctx, installerID, wasMetadataUpdated, wasPackageUpdated)
+}
+
+func (s *DataStore) CancelSoftwareInstallForHosts(ctx context.Context, hostIDs []uint, installerID uint) (affectedHostIDs []uint, err error) {
+	s.mu.Lock()
+	s.CancelSoftwareInstallForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelSoftwareInstallForHostsFunc(ctx, hostIDs, installerID)
 }
 
 func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {

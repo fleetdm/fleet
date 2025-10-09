@@ -775,7 +775,7 @@ type SetSetupExperienceSoftwareFunc func(ctx context.Context, platform string, t
 
 type ListSetupExperienceSoftwareFunc func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
-type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error)
+type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey string, forceRelease bool, resetAfterFailure bool) (*fleet.SetupExperienceStatusPayload, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error)
 
@@ -4709,11 +4709,11 @@ func (s *Service) ListSetupExperienceSoftware(ctx context.Context, platform stri
 	return s.ListSetupExperienceSoftwareFunc(ctx, platform, teamID, opts)
 }
 
-func (s *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (s *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetAfterFailure bool) (*fleet.SetupExperienceStatusPayload, error) {
 	s.mu.Lock()
 	s.GetOrbitSetupExperienceStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetOrbitSetupExperienceStatusFunc(ctx, orbitNodeKey, forceRelease)
+	return s.GetOrbitSetupExperienceStatusFunc(ctx, orbitNodeKey, forceRelease, resetAfterFailure)
 }
 
 func (s *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error) {

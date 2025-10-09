@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetAfterFailure bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -133,6 +133,44 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+	}
+
+	// If we have a failed software install,
+	// AND "require all software" is configured for the host's team,
+	// AND the resetAfterFailure flag is set,
+	// then re-enqueue any cancelled setup experience steps.
+	if resetAfterFailure {
+		hasFailedSoftwareInstall := false
+		for _, r := range res {
+			if r.IsForSoftware() && r.Status == fleet.SetupExperienceStatusFailure {
+				hasFailedSoftwareInstall = true
+				break
+			}
+		}
+		if hasFailedSoftwareInstall {
+			// Check if "require all software" is configured for the host's team.
+			requireAllSoftware := appCfg.MDM.MacOSSetup.RequireAllSoftware
+			if host.TeamID != nil {
+				tm, err := svc.ds.Team(ctx, *host.TeamID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get Team to read require_all_software")
+				}
+				requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
+			}
+			// If so, call the enqueue function with a flag to retain successful steps.
+			if requireAllSoftware {
+				level.Info(svc.logger).Log("msg", "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
+				_, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.PlatformLike, host.UUID, *host.TeamID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
+				}
+				// Re-fetch the setup experience results after re-enqueuing.
+				res, err = svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+				}
+			}
+		}
 	}
 
 	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
