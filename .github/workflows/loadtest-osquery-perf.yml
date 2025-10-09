@@ -24,7 +24,7 @@ on:
       extra_flags:
         description: "Extra flags for osquery-perf. Example: [\"--orbit_prob\", \"0.0\"]"
         type: string
-        default: ["--orbit_prob", "0.0"]
+        default: "[\"--orbit_prob\", \"0.0\"]"
         required: false
       terraform_action:
         description: Dry run only? No "terraform apply"
