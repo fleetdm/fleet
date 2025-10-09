@@ -3482,9 +3482,10 @@ type MDMAppleCheckinAndCommandService struct {
 	commander       *apple_mdm.MDMAppleCommander
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
+	keyValueStore   fleet.KeyValueStore
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger, keyValueStore fleet.KeyValueStore) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
@@ -3492,6 +3493,7 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:   keyValueStore,
 	}
 }
 
@@ -3574,6 +3576,16 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(updatedInfo.HardwareSerial)
 		}
+
+		if svc.keyValueStore != nil {
+			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
+			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
+			if err != nil {
+				// We do not want to fail here, just log the error to notify
+				level.Error(svc.logger).Log("msg", "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
+			}
+		}
+
 		return newActivity(
 			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
 		)
