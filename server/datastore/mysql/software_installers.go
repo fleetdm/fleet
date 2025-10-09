@@ -175,7 +175,7 @@ FROM
 		vpp_apps_teams vpt ON vpa.adam_id = vpt.adam_id AND vpa.platform = vpt.platform
 			AND vpt.global_or_team_id = ?
 WHERE
-	st.unique_identifier = ? AND st.source = ? AND st.browser = ?
+	st.unique_identifier = ? AND st.source = ? AND st.extension_for = ?
 `
 
 	var globalOrTeamID uint
@@ -238,7 +238,8 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 
 			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
 				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-					payload.Title, teamName)}, "vpp app conflicts with existing software installer")
+					payload.Title, teamName),
+			}, "vpp app conflicts with existing software installer")
 		}
 	}
 
@@ -465,16 +466,16 @@ func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID 
 }
 
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
-	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
+	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`
 	selectArgs := []any{payload.Title, payload.Source}
-	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, '')`
+	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
 	insertArgs := []any{payload.Title, payload.Source}
 
 	if payload.BundleIdentifier != "" {
 		// match by bundle identifier first, or standard matching if we don't have a bundle identifier match
-		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? OR (name = ? AND source = ? AND browser = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
+		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
 		selectArgs = []any{payload.BundleIdentifier, payload.Title, payload.Source, payload.BundleIdentifier}
-		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, payload.BundleIdentifier)
 	}
 
@@ -496,7 +497,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 }
 
 func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, titleID uint, payload *fleet.UploadSoftwareInstallerPayload) error {
-	whereClause := "WHERE (s.name, s.source, s.browser) = (?, ?, '')"
+	whereClause := "WHERE (s.name, s.source, s.extension_for) = (?, ?, '')"
 	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
 		whereClause = "WHERE s.bundle_identifier = ?"
@@ -1715,13 +1716,13 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
-  (name, source, browser, bundle_identifier)
+  (name, source, extension_for, bundle_identifier)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   source = VALUES(source),
-  browser = VALUES(browser),
+  extension_for = VALUES(extension_for),
   bundle_identifier = VALUES(bundle_identifier)
 `
 
@@ -1730,7 +1731,7 @@ SELECT
   id
 FROM
   software_titles
-WHERE (unique_identifier, source, browser) IN (%s)
+WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
 	const unsetAllInstallersFromPolicies = `
@@ -1906,7 +1907,8 @@ WHERE
 `
 
 	const checkExistingInstaller = `
-SELECT id,
+SELECT
+	id,
 	storage_id != ? is_package_modified,
 	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
 	COALESCE(post_install_script_content_id != ? OR
@@ -1917,7 +1919,7 @@ FROM
 	software_installers
 WHERE
 	global_or_team_id = ?	AND
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = '')
+	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
 `
 
 	const insertNewOrEditedInstaller = `
@@ -1945,7 +1947,7 @@ INSERT INTO software_installers (
 	fleet_maintained_app_id
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = ''),
+  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
   ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
 )
 ON DUPLICATE KEY UPDATE
@@ -1975,7 +1977,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	-- this is guaranteed to select a single title_id, due to unique index
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = '')
+	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
 `
 
 	const deleteInstallerLabelsNotInList = `
@@ -2121,7 +2123,8 @@ VALUES
 				if exists {
 					return ctxerr.Wrap(ctx, fleet.ConflictError{
 						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-							installer.Title, teamName)}, "vpp app conflicts with existing software installer")
+							installer.Title, teamName),
+					}, "vpp app conflicts with existing software installer")
 				}
 			}
 

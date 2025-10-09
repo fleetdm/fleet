@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
@@ -48,6 +49,7 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 	}
 	ds, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndService(t, uniqueTestName, &service.TestServerOpts{
 		License: license,
+		Pool:    redistest.SetupRedis(t, t.Name(), false, false, false),
 	})
 
 	// Apply config modifications

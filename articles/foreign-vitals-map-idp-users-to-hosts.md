@@ -6,13 +6,13 @@ _Available in Fleet Premium._
 
 Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/docs/configuration/yaml-files#variables) or criteria for labels.
 
+Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as any other IdP that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
+
 Fleet gathers IdP host vitals when an end user authenticates during these enrollment scenarios:
 - Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
 - Manual enrollment for personal (BYOD) iOS and iPadOS hosts (Android coming soon).
 
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
-
-The IdPs Fleet currently supports are [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace).
 
 ## Okta
 
@@ -46,14 +46,14 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
 9. Back in Okta, select **Save**.
 10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-11. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
+11. On the same page, make sure that `givenName` and `familyName` have Okta values assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
 #### Step 3: Map users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
-1. In OKta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
+1. In Okta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
 2. On the same page, select the **Rules** tab. Create a rule that will assign users to your  "Fleet human-device mapping" group.
 ![Okta group rule](../website/assets/images/articles/okta-scim-group-rules-1000x522@2x.png)
 3. In the main menu, select **Applications > Applications**  and select your new SCIM app. Then, select the **Assignments** tab.
@@ -101,6 +101,19 @@ It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To 
 ## Google Workspace
 
 Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to export users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
+
+## Other IdPs
+
+IdPs generally require a Fleet SCIM URL and API token:
+
+- SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
+- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
+
+Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with ⁠`userName` as the unique identifier. Fleet uses the⁠ `userName` attribute to map to IdP groups and department.
+
+Fleet also supports the `department` attribute. Delete all other attributes.
+
+To map groups, configure your IdP to provision (push) them to Fleet.
 
 ### Prerequisites
 

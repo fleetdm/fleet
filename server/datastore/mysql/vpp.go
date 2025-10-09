@@ -148,10 +148,6 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 ) {
 	var dest fleet.VPPAppStatusSummary
 
-	// TODO(sarah): do we need to handle host_deleted_at similar to GetSummaryHostSoftwareInstalls?
-	// Currently there is no host_deleted_at in host_vpp_software_installs, so
-	// not handling it as part of the unified queue work.
-
 	stmt := `
 WITH
 
@@ -777,9 +773,9 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		source = "apps"
 	}
 
-	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
+	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`
 	selectArgs := []any{app.Name, source}
-	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, '')`
+	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
 	insertArgs := []any{app.Name, source}
 
 	if app.BundleIdentifier != "" {
@@ -790,7 +786,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 			selectStmt = `
 				    SELECT id
 				    FROM software_titles
-				    WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND browser = '')
+				    WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '')
 				    ORDER BY bundle_identifier = ? DESC
 				    LIMIT 1`
 			selectArgs = []any{app.BundleIdentifier, source, app.Name, source, app.BundleIdentifier}
@@ -801,7 +797,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    WHERE bundle_identifier = ? AND additional_identifier = 0`
 			selectArgs = []any{app.BundleIdentifier}
 		}
-		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
@@ -1902,34 +1898,57 @@ WHERE command_uuid = ?
 	})
 }
 
-func (ds *Datastore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error {
-	clearUpcomingActivitiesStmt := `
+func (ds *Datastore) MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+	clearVPPUpcomingActivitiesStmt := `
 DELETE ua FROM
 	upcoming_activities ua
 JOIN
 	host_vpp_software_installs hvsi ON hvsi.command_uuid = ua.execution_id
 WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL AND hvsi.verification_at IS NULL
-	`
+`
 
-	installFailStmt := `
+	clearInHouseUpcomingActivitiesStmt := `
+DELETE ua FROM
+	upcoming_activities ua
+JOIN
+	host_in_house_software_installs hihs ON hihs.command_uuid = ua.execution_id
+WHERE ua.activity_type = ? AND hihs.verification_failed_at IS NULL AND hihs.verification_at IS NULL
+`
+
+	installVPPFailStmt := `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE verification_failed_at IS NULL AND verification_at IS NULL
-	`
+`
 
+	installInHouseFailStmt := `
+UPDATE host_in_house_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE verification_failed_at IS NULL AND verification_at IS NULL
+`
+
+	// TODO(mna): maybe there will be another job to delete for in-house verification?
 	deletePendingJobsStmt := `
 DELETE FROM jobs
 WHERE name = ?
 AND state = ?
-	`
+`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, clearUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
+		if _, err := tx.ExecContext(ctx, clearVPPUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear vpp install upcoming activities")
 		}
 
-		if _, err := tx.ExecContext(ctx, installFailStmt); err != nil {
+		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
 			return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+		}
+
+		if _, err := tx.ExecContext(ctx, clearInHouseUpcomingActivitiesStmt, "in_house_app_install"); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear in-house install upcoming activities")
+		}
+
+		if _, err := tx.ExecContext(ctx, installInHouseFailStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "set all in-house install as failed")
 		}
 
 		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, jobName, fleet.JobStateQueued); err != nil {
