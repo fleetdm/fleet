@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -2522,4 +2524,75 @@ func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeSc
 		})
 	}
 	return include, exclude
+}
+
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint) ([]byte, error) {
+
+	// TODO(JVE): use time-based JWT auth here, this is just for testing
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// TODO(JVE): create download URL from the app server base URL
+	downloadUrl := "https://example.com"
+
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, 3610)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
+	}
+
+	tmpl := template.Must(template.New("").Parse(`
+<plist version="1.0">
+  <dict>
+    <key>items</key>
+    <array>
+      <dict>
+        <key>assets</key>
+        <array>
+          <dict>
+            <key>kind</key>
+            <string>software-package</string>
+            <key>url</key>
+            <string>{{ .URL }}</string>
+          </dict>
+          <dict>
+            <key>kind</key>
+            <string>display-image</string>
+            <key>needs-shine</key>
+            <true/>
+            <key>url</key>
+            <string/>
+          </dict>
+        </array>
+        <key>metadata</key>
+        <dict>
+          <key>bundle-identifier</key>
+          <string>{{ .BundleID }}</string>
+          <key>bundle-version</key>
+          <string> {{ .Version }}</string>
+          <key>kind</key>
+          <string>software</string>
+          <key>title</key>
+          <string>{{ .Name }}</string>
+        </dict>
+      </dict>
+    </array>
+  </dict>
+</plist>
+	`))
+
+	buf := bytes.NewBuffer([]byte{})
+
+	err = tmpl.Execute(buf, struct {
+		BundleID string
+		Version  string
+		Name     string
+		URL      string
+	}{meta.BundleIdentifier, meta.Version, meta.SoftwareTitle, downloadUrl})
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "rendering app manifest")
+	}
+
+	return buf.Bytes(), nil
 }

@@ -850,7 +850,8 @@ SELECT
   iha.title_id,
   COALESCE(iha.name, '') AS software_title,
   iha.platform,
-  iha.storage_id
+  iha.storage_id,
+  iha.bundle_identifier
 FROM
   in_house_apps iha
   JOIN software_titles st ON st.id = iha.title_id

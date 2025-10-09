@@ -390,6 +390,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// and will return a request UUID to be used in GET /api/_version_/fleet/software/batch/{request_uuid} to query for the status of the operation.
 	ue.POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
 	ue.GET("/api/_version_/fleet/software/batch/{request_uuid}", batchSetSoftwareInstallersResultEndpoint, batchSetSoftwareInstallersResultRequest{})
+	ue.GET("/api/_version_/fleet/software/in_house_apps/{id:[0-9]+}/manifest", getInHouseAppManifestEndpoint, getInHouseAppManifestRequest{})
 
 	// software title custom icons
 	ue.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/icon", getSoftwareTitleIconsEndpoint, getSoftwareTitleIconsRequest{})
