@@ -451,12 +451,12 @@ SELECT
     CASE
         WHEN hsi.execution_status = 'failed_install' THEN
             CASE
-                WHEN post_install_script_exit_code IS NOT NULL AND post_install_script_exit_code != 0 THEN post_install_script_output
-                WHEN install_script_exit_code IS NOT NULL AND install_script_exit_code != 0 THEN install_script_output
+                WHEN post_install_script_exit_code IS NOT NULL AND post_install_script_exit_code != 0 THEN COALESCE(post_install_script_output, 'Unknown error in post-install script')
+                WHEN install_script_exit_code IS NOT NULL AND install_script_exit_code != 0 THEN COALESCE(install_script_output, 'Unknown error in install script')
                 WHEN pre_install_query_output IS NULL OR pre_install_query_output = '' THEN 'Pre-install query failed'
                 ELSE 'Installation failed'
             END
-        WHEN hsr.exit_code IS NOT NULL AND hsr.exit_code != 0 THEN hsr.output
+        WHEN hsr.exit_code IS NOT NULL AND hsr.exit_code != 0 THEN COALESCE(hsr.output, 'Unknown error in script')
         ELSE NULL
     END AS error
 FROM setup_experience_status_results sesr

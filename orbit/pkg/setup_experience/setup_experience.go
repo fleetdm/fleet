@@ -20,7 +20,7 @@ import (
 
 // OrbitClient is the minimal interface needed to communicate with the Fleet server.
 type OrbitClient interface {
-	GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error)
+	GetSetupExperienceStatus(resetAfterFailure bool) (*fleet.SetupExperienceStatusPayload, error)
 }
 
 // DeviceClient is the minimal interface needed to get the device's browser URL.
@@ -84,7 +84,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	log.Info().Msg("checking setup experience status")
 
 	// Poll the status endpoint. This also releases the device if we're done.
-	payload, err := s.OrbitClient.GetSetupExperienceStatus()
+	payload, err := s.OrbitClient.GetSetupExperienceStatus(s.started == false)
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,7 @@ func (s *LinuxSetupExperiencer) Run(_ *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	payload, err := s.orbitClient.GetSetupExperienceStatus()
+	payload, err := s.orbitClient.GetSetupExperienceStatus(false)
 	if err != nil {
 		return err
 	}

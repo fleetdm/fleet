@@ -26,5 +26,13 @@ export const getFailedSoftwareInstall = (
     return null;
   }
 
-  return statuses.find((s) => s.status === "failure") || null;
+  const failedSoftware =
+    statuses.filter((s) => s.type === "software" && s.status === "failure") ||
+    [];
+  if (failedSoftware.length === 0) {
+    return null;
+  }
+  // Find the first one with an error message, otherwise return the first one.
+  const firstWithError = failedSoftware.find((s) => s.error);
+  return firstWithError ?? failedSoftware[0];
 };

@@ -321,6 +321,9 @@ func (svc *Service) CancelPendingSetupExperienceSteps(ctx context.Context, host 
 		if err := status.IsValid(); err != nil {
 			return ctxerr.Wrap(ctx, err, "invalid row")
 		}
+		if status.Status != fleet.SetupExperienceStatusPending && status.Status != fleet.SetupExperienceStatusRunning {
+			continue
+		}
 		// Cancel any upcoming software installs, vpp installs or script runs.
 		var executionID string
 		switch {
