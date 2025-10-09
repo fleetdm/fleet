@@ -40,7 +40,7 @@ const getIntegrationSettingsNavItems = (
       Card: ChangeManagement,
     },
     {
-      title: "Single sign-on options",
+      title: "Single sign-on (SSO)",
       urlSection: "sso",
       path: PATHS.ADMIN_INTEGRATIONS_SSO,
       Card: Sso,

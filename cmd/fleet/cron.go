@@ -661,6 +661,7 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -713,6 +714,7 @@ func newWorkerIntegrationsSchedule(
 		Log:                   logger,
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
 	}
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
@@ -858,7 +860,9 @@ func newCleanupsAndAggregationSchedule(
 				}
 
 				targetsStart := time.Now()
-				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, time.Now().Add(-24*time.Hour).UTC())
+				cleanupTimeWindow := time.Now().Add(-config.Server.CleanupDistTargetsAge).UTC()
+				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, cleanupTimeWindow)
+
 				if err != nil {
 					return err
 				}

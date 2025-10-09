@@ -773,9 +773,9 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		source = "apps"
 	}
 
-	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
+	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`
 	selectArgs := []any{app.Name, source}
-	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, '')`
+	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
 	insertArgs := []any{app.Name, source}
 
 	if app.BundleIdentifier != "" {
@@ -786,7 +786,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 			selectStmt = `
 				    SELECT id
 				    FROM software_titles
-				    WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND browser = '')
+				    WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '')
 				    ORDER BY bundle_identifier = ? DESC
 				    LIMIT 1`
 			selectArgs = []any{app.BundleIdentifier, source, app.Name, source, app.BundleIdentifier}
@@ -797,7 +797,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    WHERE bundle_identifier = ? AND additional_identifier = 0`
 			selectArgs = []any{app.BundleIdentifier}
 		}
-		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
