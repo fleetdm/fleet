@@ -1037,7 +1037,7 @@ const HostDetailsPage = ({
                         newTab
                         text="Learn more"
                         url={
-                          isBYODAccountDrivenEnrollment(
+                          isBYODAccountDrivenUserEnrollment(
                             host.mdm.enrollment_status
                           )
                             ? BYOD_SW_INSTALL_LEARN_MORE_LINK
