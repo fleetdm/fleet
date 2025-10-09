@@ -72,6 +72,9 @@ controls:
         labels_include_any:
           - "Macs with 1Password installed"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
+      - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
+        labels_include_any:
+          - "Microsoft AutoUpdate installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true

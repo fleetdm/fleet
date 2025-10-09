@@ -117,11 +117,12 @@ type OrbitHostInfo struct {
 
 // DatastoreEnrollOrbitConfig holds the configuration for datastore Orbit enrollment
 type DatastoreEnrollOrbitConfig struct {
-	IsMDMEnabled bool
-	HostInfo     OrbitHostInfo
-	OrbitNodeKey string
-	TeamID       *uint
-	IdentityCert *types.HostIdentityCertificate
+	IsMDMEnabled     bool
+	HostInfo         OrbitHostInfo
+	OrbitNodeKey     string
+	TeamID           *uint
+	IdentityCert     *types.HostIdentityCertificate
+	IgnoreTeamUpdate bool // when true the host's team won't be updated on enrollment where an entry already exists.
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
@@ -158,6 +159,14 @@ func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.IdentityCert = identityCert
+	}
+}
+
+// WithEnrollOrbitIgnoreTeamUpdate sets whether to ignore team updates for datastore Orbit enrollment
+// it only acts on existing hosts (i.e. it won't ignore the team id on new hosts)
+func WithEnrollOrbitIgnoreTeamUpdate(ignore bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.IgnoreTeamUpdate = ignore
 	}
 }
 

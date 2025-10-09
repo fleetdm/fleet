@@ -184,7 +184,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		NewNanoMDMLogger(pushLog),
 	)
 	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
+	s.redisPool = redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
 	wlog := kitlog.NewJSONLogger(os.Stdout)
@@ -253,7 +253,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		DEPStorage:            depStorage,
 		SCEPStorage:           scepStorage,
 		MDMPusher:             mdmPushService,
-		Pool:                  redisPool,
+		Pool:                  s.redisPool,
 		Lq:                    s.lq,
 		SoftwareInstallStore:  softwareInstallerStore,
 		BootstrapPackageStore: bootstrapPackageStore,
