@@ -133,6 +133,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   chocolatey_packages: Package,
   pkg_packages: Package,
   vscode_extensions: Extension,
+  jetbrains_plugins: Extension,
 } as const;
 
 /**
