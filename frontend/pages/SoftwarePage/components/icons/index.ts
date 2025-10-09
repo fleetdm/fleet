@@ -27,6 +27,7 @@ import Falcon from "./Falcon";
 import AppStore from "./AppStore";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import AndroidApp from "./AndroidApp";
 import TeamViewer from "./TeamViewer";
 import Box from "./Box";
 import Brave from "./Brave";
@@ -124,6 +125,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   ios_apps: AppleApp,
   ipados_apps: AppleApp,
   programs: WindowsApp,
+  android_apps: AndroidApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,
   firefox_addons: Extension,

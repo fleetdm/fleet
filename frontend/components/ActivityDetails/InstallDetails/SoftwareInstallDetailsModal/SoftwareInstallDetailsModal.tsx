@@ -53,7 +53,7 @@ export const renderContactOption = (url?: string) => (
 interface IInstallStatusMessage {
   softwareName: string;
   installResult?: ISoftwareInstallResult;
-  isDUP: boolean;
+  isMyDevicePage: boolean;
   contactUrl?: string;
 }
 
@@ -62,7 +62,7 @@ interface IInstallStatusMessage {
 export const StatusMessage = ({
   softwareName,
   installResult,
-  isDUP,
+  isMyDevicePage,
   contactUrl,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
@@ -107,22 +107,25 @@ export const StatusMessage = ({
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
       </>
     );
-    let middle = null;
-    if (isDUP) {
-      if (status === "failed_install") {
-        middle = <>. You can retry{renderContactOption(contactUrl)}</>;
-      }
-    } else {
-      // host details page
-      middle = (
-        <>
-          {" "}
-          ({software_package}) on {formattedHost}
-          {status === "pending_install" ? " when it comes online" : ""}
-          {displayTimeStamp}
-        </>
-      );
-    }
+
+    const middle = isMyDevicePage ? (
+      <>
+        {" "}
+        {displayTimeStamp}
+        {status === "failed_install" && (
+          <>. You can retry{renderContactOption(contactUrl)}</>
+        )}
+      </>
+    ) : (
+      <>
+        {" "}
+        ({software_package}) on {formattedHost}
+        {status === "pending_install"
+          ? " when it comes online"
+          : displayTimeStamp}
+      </>
+    );
+
     return (
       <span>
         {prefix}
@@ -248,22 +251,40 @@ export const SoftwareInstallDetailsModal = ({
     return "If you uninstalled it outside of Fleet it will still show as installed.";
   };
 
-  const renderInstallDetailsSection = () => (
-    <>
-      <RevealButton
-        isShowing={showInstallDetails}
-        showText="Details"
-        hideText="Details"
-        caretPosition="after"
-        onClick={toggleInstallDetails}
-      />
-      {showInstallDetails && swInstallResult?.output && (
-        <Textarea label="Install script output:" variant="code">
-          {swInstallResult.output}
-        </Textarea>
-      )}
-    </>
-  );
+  const renderInstallDetailsSection = () => {
+    const outputs = [
+      {
+        label: "Install script output:",
+        value: swInstallResult?.output,
+      },
+      {
+        label: "Post-install script output:",
+        value: swInstallResult?.post_install_script_output,
+      },
+    ];
+
+    return (
+      <>
+        <RevealButton
+          isShowing={showInstallDetails}
+          showText="Details"
+          hideText="Details"
+          caretPosition="after"
+          onClick={toggleInstallDetails}
+        />
+        {showInstallDetails &&
+          outputs.map(
+            ({ label, value }) =>
+              value && (
+                <Textarea key={label} label={label} variant="code">
+                  {value}
+                </Textarea>
+              )
+          )}
+      </>
+    );
+  };
+
   const excludeVersions = ["pending_install", "failed_install"].includes(
     swInstallResult?.status || ""
   );
@@ -331,7 +352,7 @@ export const SoftwareInstallDetailsModal = ({
         <StatusMessage
           installResult={installResultWithHostDisplayName}
           softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
-          isDUP={!!deviceAuthToken}
+          isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
 

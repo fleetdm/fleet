@@ -161,7 +161,7 @@ const Sso = ({
   };
 
   return (
-    <SettingsSection title="Single sign-on options">
+    <SettingsSection title="Single sign-on (SSO)">
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
@@ -200,7 +200,7 @@ const Sso = ({
             tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
           />
           <InputField
-            label="IDP image URL"
+            label="IdP image URL"
             onChange={onInputChange}
             name="idpImageUrl"
             value={idpImageUrl}

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		file := filepath.Join(dir, "identifier")
 		defer os.Remove(file)
 
-		rw := NewReadWriter(file)
+		rw := NewReadWriter(file, nil)
 		require.NoError(t, rw.LoadOrGenerate())
 		token, err := rw.Read()
 		require.NoError(t, err)
@@ -36,7 +37,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.NoError(t, err)
 		oldMtime := stat.ModTime()
 
-		rw := NewReadWriter(file.Name())
+		rw := NewReadWriter(file.Name(), nil)
 		err = rw.LoadOrGenerate()
 		require.NoError(t, err)
 		token, err := rw.Read()
@@ -62,7 +63,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 
-		rw := NewReadWriter(file.Name())
+		rw := NewReadWriter(file.Name(), nil)
 		err = rw.LoadOrGenerate()
 		require.NoError(t, err)
 		token, err := rw.Read()
@@ -82,7 +83,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.NoError(t, file.Chmod(0x600))
 		defer os.Remove(file.Name())
 
-		rw := NewReadWriter(file.Name())
+		rw := NewReadWriter(file.Name(), nil)
 		token, err := rw.Read()
 		require.Error(t, err)
 		require.Empty(t, token)
@@ -93,7 +94,7 @@ func TestRotate(t *testing.T) {
 	file, err := os.CreateTemp("", t.Name())
 	require.NoError(t, err)
 	defer os.Remove(file.Name())
-	rw := NewReadWriter(file.Name())
+	rw := NewReadWriter(file.Name(), nil)
 
 	token, err := rw.Read()
 	require.NoError(t, err)
@@ -117,4 +118,68 @@ func TestRotate(t *testing.T) {
 	stat, err = file.Stat()
 	require.NoError(t, err)
 	require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
+}
+
+func TestRotater(t *testing.T) {
+	var numRemoteChecks int
+	file, err := os.CreateTemp("", "identifier")
+	require.NoError(t, err)
+	_, err = file.WriteString("test")
+	require.NoError(t, err)
+	rw := NewReadWriter(file.Name(), func(token string) error {
+		numRemoteChecks++
+		return nil
+	})
+	rw.localCheckDuration = 100 * time.Millisecond
+	rw.remoteCheckDuration = 200 * time.Millisecond
+
+	err = rw.LoadOrGenerate()
+	require.NoError(t, err)
+
+	var numUpdates int
+	rw.SetRemoteUpdateFunc(func(token string) error {
+		numUpdates++
+		return nil
+	})
+
+	// Set the token's mtime to more than an hour ago so that it
+	// will be considered expired and trigger a rotation.
+	rw.mu.Lock()
+	rw.mtime = time.Now().Add(-2 * time.Hour)
+	rw.mu.Unlock()
+
+	stop1 := rw.StartRotation()
+	stop2 := rw.StartRotation()
+
+	time.Sleep(150 * time.Millisecond)
+	require.Equal(t, 1, numUpdates)
+
+	// Close the first stop channel, this should not stop the rotation.
+	stop1()
+	// Do it again to prove that closing multiple times is safe.
+	stop1()
+
+	// Set the token's mtime to more than an hour ago again.
+	rw.mu.Lock()
+	rw.mtime = time.Now().Add(-2 * time.Hour)
+	rw.mu.Unlock()
+
+	// Now wait enough time for the remote check to trigger a rotation.
+	time.Sleep(209 * time.Millisecond)
+	require.Equal(t, 2, numUpdates)
+	require.Equal(t, 1, numRemoteChecks)
+
+	// Reset the mtime one more time.
+	rw.mu.Lock()
+	rw.mtime = time.Now().Add(-2 * time.Hour)
+	rw.mu.Unlock()
+
+	// Now close the second stop channel, this should stop the rotation.
+	stop2()
+
+	// Wait enough time to ensure that if the rotation was still running
+	// we would have done another remote check.
+	time.Sleep(250 * time.Millisecond)
+	require.Equal(t, 2, numUpdates)
+	require.Equal(t, 1, numRemoteChecks)
 }

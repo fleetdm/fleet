@@ -18,13 +18,13 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-type pubSubPushRequest struct {
+type PubSubPushRequest struct {
 	Token                 string `query:"token"`
 	android.PubSubMessage `json:"message"`
 }
 
 func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	req := request.(*pubSubPushRequest)
+	req := request.(*PubSubPushRequest)
 	err := svc.ProcessPubSubPush(ctx, req.Token, &req.PubSubMessage)
 	return android.DefaultResponse{Err: err}
 }
@@ -180,6 +180,50 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	if err != nil {
 		level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
+	}
+	err = svc.updateHostSoftware(ctx, &device, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
+	}
+	return nil
+}
+
+// largely based on refetch apps code from Apple MDM service methods
+func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
+
+	// Do nothing if no app reports returned
+	if len(device.ApplicationReports) == 0 {
+		return nil
+	}
+	truncateString := func(item any, length int) string {
+		str, ok := item.(string)
+		if !ok {
+			return ""
+		}
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return str
+	}
+	software := []fleet.Software{}
+	for _, app := range device.ApplicationReports {
+		if app.State != "INSTALLED" {
+			continue
+		}
+		sw := fleet.Software{
+			Name:          truncateString(app.DisplayName, fleet.SoftwareNameMaxLength),
+			Version:       truncateString(app.VersionName, fleet.SoftwareVersionMaxLength),
+			ApplicationID: ptr.String(truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength)),
+			Source:        "android_apps",
+			Installed:     true,
+		}
+		software = append(software, sw)
+	}
+
+	_, err := svc.fleetDS.UpdateHostSoftware(ctx, host.Host.ID, software)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
 	}
 	return nil
 }

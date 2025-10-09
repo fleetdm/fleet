@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/santa"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
@@ -100,6 +101,10 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("codesign", codesign.Columns(), codesign.Generate),
 
 		table.NewPlugin("app_sso_platform", app_sso_platform.Columns(), app_sso_platform.Generate),
+
+		table.NewPlugin("santa_status", santa.StatusColumns(), santa.GenerateStatus),
+		table.NewPlugin("santa_allowed", santa.LogColumns(), santa.GenerateAllowed),
+		table.NewPlugin("santa_denied", santa.LogColumns(), santa.GenerateDenied),
 	}
 
 	// append platform specific tables
