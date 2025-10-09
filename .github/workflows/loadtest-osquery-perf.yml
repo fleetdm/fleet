@@ -50,7 +50,7 @@ env:
   AWS_REGION: us-east-2
   AWS_IAM_ROLE: arn:aws:iam::917007347864:role/github-actions-role
   TF_ACTIONS_WORKING_DIR: infrastructure/loadtesting/terraform/osquery_perf
-  TF_VAR_extra_flags: "${{ inputs.extra_flags || [\"--orbit_prob\", \"0.0\"] }}"
+  TF_VAR_extra_flags: "${{ inputs.extra_flags || '[\"--orbit_prob\", \"0.0\"]' }}"
   TF_VAR_loadtest_containers: "${{ inputs.loadtest_containers }}"
   TF_VAR_tag: "${{ inputs.tag }}"
   TF_VAR_git_branch: "${{ inputs.git_branch }}"
