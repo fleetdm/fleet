@@ -1,3 +1,85 @@
+## Fleet 4.75.0 (Sep 29, 2025)
+
+### Bug fixes
+
+* Fixed inconsistent spacing in Controls OS settings headers
+Fixed MySQL DB performance regressions introduced in Fleet 4.73.0/4.73.1 affecting OS versions and software titles read queries.
+- Validate setting `manual_agent_install` option on the server
+- Added ability to specify a Fleet host ID when declaring a manual label in a Gitops YAML file
+* Added cron job to reconcile Android profiles.
+* Ignore warning when LastOpenedAt for software is nil on macOS
+* Optimized the query used to list a host’s script results so it performs well with large result sets.
+* Fleet UI: Improved install action tooltips and modals including timestamps to VPP successful installs.
+* Changed the response code for UserAuthenticate checkin messages, which are unsupported, from a 5XX to "410 Gone" as specified in the Apple MDM protocol docs for servers that do not implement this method
+- Fixed inconsistent subtitle text style in Custom Settings
+* Added software ingestion from Arch Linux hosts.
+* Added retries with backoff when Apple's assets API fails with a timeout error.
+* Fixed SentinelOne pkg generating wrong bundle identifier for auto-install policy.
+- Fixed required query parameters using field name instead of parameter name in error messages
+* Fixed a bug where blocking of VPP installs on personally enrolled apple devices was not in place
+- Updated UI to add Smallstep certificate authority integration.
+- Turn off MDM for iOS and iPadOS devices when refetcher returns device token is inactive
+* Ensure product consistency by adding a border to the empty state of End User Authentication section
+* Added missing OpenTelemetry instrumentation to scheduled jobs and several API endpoints.
+* Correctly block edit teams action in VPP table dropdown when Fleet is in GitOps mode.
+- Implement a dedicated page, table, and logical integrations with other parts of the UI for managing labels
+* Added easy to understand error messages when configuring Entra conditional access in fleet.
+- Updated docs for the `pwd_policy` table to better reflect the meaning of `days_to_expiration`.
+* Fixed certificate ingest parser to no longer break on multiple equal signs in certificate key pair values
+* Fixed certificate ingest parser to allow for only multiple relative distinguished names separated by +
+* Add support for Smallstep certificate authority
+* Improve the layout of the IdP-driven label form
+* Update Hosts table > hostname column to truncate overflowing hostnames
+ and place the full name in a tooltip on hover.
+* Extended the number of errors we look for when determining whether we should invalidate the prepared statements cache.
+* Linux/macOS packaging: removed duplicate tar.gz copies of osqueryd and Fleet Desktop from built packages (DEB/RPM/PKG).
+* Fixed 422 error when hitting `/api/v1/fleet/commands` endpoint with team filter.
+* Added false-positive filtering for Linux vulnerability scanning.
+* Fixed deletion of conditional access integration by adding a spinner and clearing the tenant ID after the deletion.
+* Added new rate limiting implementation for Fleet Desktop API endpoints to support all/many hosts of a deployment behind NAT (single IP).
+- Fixes an issue on ChromeOS and Windows where the cursor in the SQL editor is misaligned.
+- Updated instructions in Linux key escrow modal
+* Adjusted log level to "info" instead of "error" when Windows MDM endpoints generate client errors (e.g. empty binary security token).
+* Added filter for removing duplicate RPM python packages and renaming pip packages to match OVAL definitions (same as Ubuntu).
+- Fixed issue where "Controls" link in the top nav didn't always go to the default controls page.
+* Added support for vulnerabilities feed CPE translation JSON to override sw_edition field
+* Fixed cases where Firefox ESR installations would have false-positive vulnerabilities reported that were backported to the ESR
+- Fix a bug where clicking the currently selected navbar item would cause a full-page rerender
+- Disabled debug logging by default in `fleetctl preview` and reformatted login information
+* Bugfix: fixed EULA path to be relative to the YAML file in `fleetctl gitops`, as it is for other settings.
+- Elegantly handle host details page label pills for labels with very long names
+- Modified Controls > OS settings > Custom settings so profile upload time is based on `updated_at` instead of `created_at`. 
+- Added Android MDM profiles to host details API response.
+- Added activity logging for Android profile creation, modification, and deletion.
+* Updated go to 1.25.1
+- update host details and my device UI to show the users card for android hosts
+* Added support to fleetctl to generate fleetd installers for Arch Linux (`.pkg.tar.zst`).
+* Added initial support to Arch Linux to Fleet.
+* Added check to gitops command to throw error if positional arguments are detected.
+* Corrected bundle identifier for privileges macos software pkg and fixed existing software installers to use corrected software title. The privileges application should show the correct status in software inventory.
+* Added a cron job to support applying Android profiles to the devices.
+- DEB and RPM packages generated by `fleetctl package` will now be safe to upgrade in-band through the Software page.
+  - Note that the package will need to be updated out-of-band once, because the pre-removal script from previously-generated packages is called upon an upgrade. The old pre-removal script stopped Orbit unconditionally.
+  - In other words, fleet-osquery can safely be updated through the Software page only _after_ a new package generated with this version of fleetctl has been installed through other means.
+  - If you have a DEB or RPM fleetd package that you uploaded to your Fleet Software page which will be used to upgrade an older fleetd on your Linux hosts, please re-generate and re-upload that package to the Fleet server.
+- update the os updates current versions empty state to match consistancy with other empty states
+* Updated message shown in the 'Delete Script' modal.
+* Return count in list host certificates API response, and use it in the certificate table
+* During setup experience, try software installs up to 3 times by default in case of intermittent failures.
+* Add a delay to the platform compatibility tooltip showing when creating or editing a query
+* Fixed the reported version of fleetd on the Software tab for Linux hosts.
+* Fixed invalid GET and DELETE requests that incorrectly included request bodies in client code, ensuring HTTP compliance.
+* Modified the Apple profile reconciliation cron logic to query for installs and removals within a transaction to avoid race conditions around team or label changes
+- Added support for reading server `private_key` from AWS Secrets Manager
+* Added support for Windows setup experience software.
+* Error when uploading signed profiles instead of when trying to deliver them.
+* Update old end user migration workflow preview, and switch to video for product consistency
+* Add ability to unenroll personal iOS/iPadOS devices from Fleet
+* Replaced outdated Firefox icon with a new one that follows brand guidelines
+* Make policy pass/fail icons and copy consistent across host details, my device, and manage
+policies tables.
+* Implement setup experience software installation capabilities for Windows hosts
+
 ## Fleet 4.73.0 (Oct 1, 2025)
 
 ### Security Engineers

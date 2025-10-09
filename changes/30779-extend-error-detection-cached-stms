@@ -1,1 +1,0 @@
-* Extended the number of errors we look for when determining whether we should invalidate the prepared statements cache.

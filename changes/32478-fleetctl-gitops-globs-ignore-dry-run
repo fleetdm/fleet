@@ -1,1 +1,0 @@
-* Added check to gitops command to throw error if positional arguments are detected.
