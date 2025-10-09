@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
@@ -12,6 +13,7 @@ func init() {
 }
 
 func Up_20251009091733(tx *sql.Tx) error {
+	//
 	// NOTE: This migration was copied from server/datastore/mysql/migrations/data/20210330130314_UpdateBuiltinLabels.go.
 	// We are now running this on the "tables" migration, because the "data" migrations (deprecated) run after
 	// the "tables" migration, and so this causes differences for
@@ -42,8 +44,13 @@ func Up_20251009091733(tx *sql.Tx) error {
 	//    won't run on the host to clear the membership status and will have both "Windows" and "Linux" labels (see #33065 and #33245).
 	//	- For builtin "manual" labels, "platform" does not provide any purpose.
 	//	- At the time of writing there are no builtin "host vital" labels.
-	sql := "UPDATE labels SET platform = '' WHERE label_type = ?"
-	if _, err := tx.Exec(sql, fleet.LabelTypeBuiltIn); err != nil {
+	//
+
+	// Use a constant time so that the generated schema is deterministic
+	updatedAt := time.Date(2025, 10, 9, 0, 0, 0, 0, time.UTC)
+
+	sql := "UPDATE labels SET platform = '', updated_at = ? WHERE label_type = ?"
+	if _, err := tx.Exec(sql, updatedAt, fleet.LabelTypeBuiltIn); err != nil {
 		return errors.Wrap(err, "clear platform column on all builtin labels")
 	}
 	return nil
