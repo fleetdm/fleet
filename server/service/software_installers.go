@@ -953,3 +953,48 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint
 
 	return nil, fleet.ErrMissingLicense
 }
+
+type getInHouseAppPackageRequest struct {
+	TitleID uint `url:"title_id"`
+}
+
+type getInHouseAppPackageResponse struct {
+	payload *fleet.DownloadSoftwareInstallerPayload
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getInHouseAppPackageResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := io.Copy(w, r.payload.Installer); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+	r.payload.Installer.Close()
+}
+
+func (r getInHouseAppPackageResponse) Error() error { return r.Err }
+
+func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getInHouseAppPackageRequest)
+	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID)
+	if err != nil {
+		return &getInHouseAppPackageResponse{Err: err}, nil
+	}
+
+	return &getInHouseAppPackageResponse{payload: file}, nil
+}
+
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}

@@ -713,6 +713,8 @@ type Service interface {
 
 	GetInHouseAppManifest(ctx context.Context, inHouseAppID uint) ([]byte, error)
 
+	GetInHouseAppPackage(ctx context.Context, titleID uint) (*DownloadSoftwareInstallerPayload, error)
+
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//
 	// Per the [spec][1] OTA enrollment is composed of two phases, each

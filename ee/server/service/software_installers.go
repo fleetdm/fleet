@@ -2529,12 +2529,16 @@ func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeSc
 func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint) ([]byte, error) {
 
 	// TODO(JVE): use time-based JWT auth here, this is just for testing
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
+	svc.authz.SkipAuthorization(ctx)
 
 	// TODO(JVE): create download URL from the app server base URL
-	downloadUrl := "https://example.com"
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get app config")
+	}
+
+	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app", appConfig.ServerSettings.ServerURL, inHouseAppID)
 
 	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, inHouseAppID)
 	if err != nil {
@@ -2595,4 +2599,16 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// TODO(JVE): JWT with expiration for auth
+	svc.authz.SkipAuthorization(ctx)
+
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
+	}
+
+	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, "installer.ipa")
 }
