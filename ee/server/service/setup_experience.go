@@ -306,39 +306,3 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 
 	return false, nil
 }
-
-func (svc *Service) CancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
-	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
-	}
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
-	}
-
-	for _, status := range statuses {
-		if err := status.IsValid(); err != nil {
-			return ctxerr.Wrap(ctx, err, "invalid row")
-		}
-		if status.Status != fleet.SetupExperienceStatusPending && status.Status != fleet.SetupExperienceStatusRunning {
-			continue
-		}
-		// Cancel any upcoming software installs, vpp installs or script runs.
-		var executionID string
-		switch {
-		case status.HostSoftwareInstallsExecutionID != nil:
-			executionID = *status.HostSoftwareInstallsExecutionID
-		case status.NanoCommandUUID != nil:
-			executionID = *status.NanoCommandUUID
-		case status.ScriptExecutionID != nil:
-			executionID = *status.ScriptExecutionID
-		default:
-			continue
-		}
-		if _, err := svc.ds.CancelHostUpcomingActivity(ctx, host.ID, executionID); err != nil {
-			return ctxerr.Wrap(ctx, err, "cancelling upcoming setup experience activity")
-		}
-	}
-	return nil
-}

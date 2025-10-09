@@ -36,7 +36,6 @@ type EnterpriseOverrides struct {
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
-	CancelPendingSetupExperienceSteps func(ctx context.Context, host *Host) error
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
