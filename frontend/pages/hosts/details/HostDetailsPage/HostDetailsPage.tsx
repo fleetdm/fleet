@@ -42,7 +42,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -66,7 +66,6 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
 import BackButton from "components/BackButton";
-import Card from "components/Card";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
@@ -1027,10 +1026,8 @@ const HostDetailsPage = ({
             <TabPanel>
               {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
-               when we add that feature.
-               We also are not currently supporting Android software installs */}
-              {isBYODAccountDrivenEnrollment(host.mdm.enrollment_status) ||
-              isAndroidHost ? (
+               when we add that feature. */}
+              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={

@@ -11,7 +11,7 @@ import {
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 import {
-  isBYODAccountDrivenEnrollment,
+  isBYODAccountDrivenUserEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 
@@ -184,7 +184,7 @@ const canWipeHost = ({
   // in MDM. These hosts cannot be wiped.
   const isAccountDrivenEnrolledIosOrIpadosDevice =
     isIPadOrIPhone(hostPlatform) &&
-    isBYODAccountDrivenEnrollment(hostMdmEnrollmentStatus);
+    isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
   return (
     isPremiumTier &&

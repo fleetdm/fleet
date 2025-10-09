@@ -11,7 +11,7 @@ import {
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -66,13 +66,13 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   const condensed =
     users.length === 4
       ? users
-          .slice(-4)
-          .map((u) => u.email)
-          .reverse()
+        .slice(-4)
+        .map((u) => u.email)
+        .reverse()
       : users
-          .slice(-3)
-          .map((u) => u.email)
-          .reverse() || [];
+        .slice(-3)
+        .map((u) => u.email)
+        .reverse() || [];
   return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
@@ -644,7 +644,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // TODO(android): is iOS/iPadOS supported?
       if (
         isAndroid(cellProps.row.original.platform) ||
-        isBYODAccountDrivenEnrollment(
+        isBYODAccountDrivenUserEnrollment(
           cellProps.row.original.mdm.enrollment_status
         )
       ) {
