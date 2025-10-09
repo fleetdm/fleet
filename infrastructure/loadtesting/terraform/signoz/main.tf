@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = ">= 5.68.0"
     }
     helm = {
       source  = "hashicorp/helm"
@@ -15,51 +15,17 @@ terraform {
       version = "~> 2.23"
     }
   }
+}
 
-  backend "s3" {
-    bucket               = "fleet-terraform-state20220408141538466600000002"
-    key                  = "loadtesting/signoz-simple/terraform.tfstate"
-    workspace_key_prefix = "loadtesting"
-    region               = "us-east-2"
-    encrypt              = true
-    kms_key_id           = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
-    dynamodb_table       = "tf-remote-state-lock"
-    assume_role = {
-      role_arn = "arn:aws:iam::353365949058:role/terraform-loadtesting"
-    }
+data "aws_availability_zones" "available" {
+  filter {
+    name   = "region-name"
+    values = [var.aws_region]
   }
 }
-
-provider "aws" {
-  region = var.aws_region
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-    }
-  }
-}
-
-provider "kubernetes" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-  }
-}
-
-data "aws_availability_zones" "available" {}
 
 locals {
-  cluster_name = "signoz-${terraform.workspace}"
+  cluster_name = var.cluster_name
   azs          = slice(data.aws_availability_zones.available.names, 0, 2)
 }
 
@@ -91,12 +57,12 @@ module "vpc" {
 # Simplified EKS
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.0"
+  version = "~> 21.0"
 
-  cluster_name    = local.cluster_name
-  cluster_version = "1.31"
+  name               = local.cluster_name
+  kubernetes_version = "1.31"
 
-  cluster_endpoint_public_access = true
+  endpoint_public_access = true
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -183,9 +149,15 @@ resource "helm_release" "signoz" {
     value = "LoadBalancer"
   }
 
+  # OTLP collector should be internal only (not publicly accessible)
   set {
     name  = "otelCollector.service.type"
     value = "LoadBalancer"
+  }
+
+  set {
+    name  = "otelCollector.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
+    value = "internal"
   }
 
   set {
