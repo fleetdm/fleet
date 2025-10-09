@@ -1126,6 +1126,7 @@ CREATE TABLE `in_house_apps` (
   `team_id` int unsigned DEFAULT NULL,
   `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `storage_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

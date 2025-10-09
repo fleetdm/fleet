@@ -600,6 +600,8 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
+	case "ipa": // TODO(JVE): what about iPads? Can we get the platforms from the Info.plist file?
+		return "ios", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}

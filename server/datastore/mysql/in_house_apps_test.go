@@ -27,11 +27,29 @@ func TestInHouseApps(t *testing.T) {
 
 func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	err := ds.InsertInHouseApp(ctx, &fleet.InHouseAppPayload{
-		Name:      "foo",
-		StorageID: "testingtesting123",
-		Platform:  "ios",
-	})
 
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		Title:            "foo",
+		BundleIdentifier: "com.foo",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+	}
+	// TODO(JK): test with svc.UploadSoftwareInstaller
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.Error(t, err, "ValidatedLabels must not be nil")
+
+	payload.ValidatedLabels = &fleet.LabelIdentsWithScope{}
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+	require.NotZero(t, installerID)
+	require.NotZero(t, titleID)
+
+	installer, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Equal(t, payload.Title, installer.SoftwareTitle)
 }

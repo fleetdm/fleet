@@ -2,7 +2,6 @@ package file
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -40,26 +39,6 @@ type InstallerMetadata struct {
 	UpgradeCode      string
 }
 
-func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
-	// TODO(JVE): fill me in! needs to unzip the file, then use the binary plist reader we have to get the metadata
-	h := sha256.New()
-	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
-	if err := tfr.Rewind(); err != nil {
-		return nil, fmt.Errorf("rewind reader: %w", err)
-	}
-
-	r, err := zip.NewReader(tfr, 1000)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, f := range r.File {
-		fmt.Printf("f.Name: %v\n", f.Name)
-	}
-
-	return &InstallerMetadata{SHASum: h.Sum(nil), PackageIDs: []string{"com.foo.bar"}}, nil
-}
-
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
 // format of the installer is determined based on the magic bytes of the content.
@@ -90,9 +69,8 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		if err != nil {
 			err = errors.Join(ErrInvalidTarball, err)
 		}
-	// TODO: implement this
-	// case "ipa":
-	// meta, err = ExtractIPAMetadata(tfr)
+	case "ipa":
+		meta, err = ExtractIPAMetadata(tfr)
 	default:
 		return nil, ErrUnsupportedType
 	}
