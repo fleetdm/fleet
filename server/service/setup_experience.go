@@ -287,6 +287,10 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 			return ctxerr.Wrap(ctx, err, "cancelling upcoming setup experience activity")
 		}
 	}
+	// Cancel any pending setup experience steps for the host in the database.
+	if err := ds.CancelPendingSetupExperienceSteps(ctx, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
+	}
 	return nil
 }
 

@@ -74,9 +74,9 @@ AND (
 AND %s	
 `
 	if resetAfterFailure {
-		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
 	} else {
-		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
+		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "TRUE")
 	}
 
 	stmtVPPApps := `
@@ -101,9 +101,9 @@ AND vat.global_or_team_id = ?
 AND %s
 `
 	if resetAfterFailure {
-		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
+		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
 	} else {
-		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
+		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "TRUE")
 	}
 
 	stmtSetupScripts := `
@@ -443,7 +443,6 @@ SELECT
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
-	sesr.error,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
@@ -457,7 +456,7 @@ SELECT
                 ELSE 'Installation failed'
             END
         WHEN hsr.exit_code IS NOT NULL AND hsr.exit_code != 0 THEN COALESCE(hsr.output, 'Unknown error in script')
-        ELSE NULL
+        ELSE sesr.error
     END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
@@ -744,4 +743,13 @@ func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context,
 	n, _ := res.RowsAffected()
 
 	return n > 0, nil
+}
+
+func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error {
+	cancelStmt := "UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND status NOT IN (?, ?)"
+	_, err := ds.writer(ctx).ExecContext(ctx, cancelStmt, fleet.SetupExperienceStatusCancelled, hostUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
+	}
+	return nil
 }
