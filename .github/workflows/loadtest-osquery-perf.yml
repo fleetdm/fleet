@@ -89,26 +89,26 @@ jobs:
       - name: Terraform workspace
         id: workspace
         run: |
-          if terraform workspace list | grep -q ${{ input.terraform_workspace }};
+          if terraform workspace list | grep -q ${{ inputs.terraform_workspace }};
           then
-            echo "MATCH - TF_WORKSPACE: ${{ input.terraform_workspace }}\n"
+            echo "MATCH - TF_WORKSPACE: ${{ inputs.terraform_workspace }}\n"
             
-            if [[ ${{ input.terraform_action }} = "apply" || ${{ input.terraform_action }} = "plan" || ${{ input.terraform_action }} = "destroy" ]];
+            if [[ ${{ inputs.terraform_action }} = "apply" || ${{ inputs.terraform_action }} = "plan" || ${{ inputs.terraform_action }} = "destroy" ]];
             then
-              terraform workspace select ${{ input.terraform_workspace }}
+              terraform workspace select ${{ inputs.terraform_workspace }}
               
               if [[ $(echo $?) = "0" ]];
               then
-                echo "WORKSPACE CHANGED TO ${{ input.terraform_workspace }}\n"
+                echo "WORKSPACE CHANGED TO ${{ inputs.terraform_workspace }}\n"
               fi
             fi
           else
-            echo "NO MATCH - TF_WORKSPACE: ${{ input.terraform_workspace }}\n"
+            echo "NO MATCH - TF_WORKSPACE: ${{ inputs.terraform_workspace }}\n"
             
-            if [[ ${{ input.terraform_action }} = "apply" || ${{ input.terraform_action }} = "plan" ]];
+            if [[ ${{ inputs.terraform_action }} = "apply" || ${{ inputs.terraform_action }} = "plan" ]];
             then
-              echo "CREATING NEW TERRAFORM WORKSPACE: ${{ input.terraform_workspace }}"
-              terraform workspace new ${{ input.terraform_workspace }}
+              echo "CREATING NEW TERRAFORM WORKSPACE: ${{ inputs.terraform_workspace }}"
+              terraform workspace new ${{ inputs.terraform_workspace }}
               
               if [[ $(echo $?) = "0" ]];
               then
@@ -129,33 +129,33 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
-            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
             terraform plan -no-color
           else
-            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi
         continue-on-error: true
       - name: Terraform Apply
         if: inputs.terraform_action == 'apply'
         id: apply
         run: |
-          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
-            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
             terraform apply -auto-approve
           else
-            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi
       - name: Terraform Destroy
         if: inputs.terraform_action == 'destroy'
         id: destroy
         run: | 
-          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
-            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
-            if [[ ${{ input.terraform_action }} = "destroy" ]];  
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
+            if [[ ${{ inputs.terraform_action }} = "destroy" ]];  
             then
               if [[ $(terraform state list | wc -l) -gt 0 ]];
               then
@@ -188,8 +188,8 @@ jobs:
                   echo "TERRAFORM WORKSPACE: ERROR SELECTING DEFAULT\n"
                 fi
 
-                echo "REMOVING TERRAFORM WORKSPACE: ${{ input.terraform_workspace }}"
-                terraform workspace delete ${{ input.terraform_workspace }}
+                echo "REMOVING TERRAFORM WORKSPACE: ${{ inputs.terraform_workspace }}"
+                terraform workspace delete ${{ inputs.terraform_workspace }}
 
                 if [[ $(echo $?) = "0" ]];
                 then
@@ -200,5 +200,5 @@ jobs:
               fi
             fi
           else
-            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi
