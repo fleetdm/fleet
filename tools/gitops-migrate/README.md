@@ -56,7 +56,6 @@ software:
 **Software file (`it-and-security/lib/macos/software/firefox.yml`):**
 
 ```yaml
-name: Mozilla Firefox
 url: https://download.mozilla.org/...
 self_service: true
 categories:
@@ -87,7 +86,6 @@ software:
 **Software file (`it-and-security/lib/macos/software/firefox.yml`):**
 
 ```yaml
-name: Mozilla Firefox
 url: https://download.mozilla.org/...
 ```
 
