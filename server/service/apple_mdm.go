@@ -21,12 +21,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/docker/go-units"
-	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
-	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -3657,6 +3654,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
+	if err := InstallProfilesForEnrollingHost(r.Context, svc.logger, svc.ds, svc.commander, r.ID); err != nil {
+		return ctxerr.Wrap(r.Context, err, fmt.Sprintf("installing profiles for enrolling host, host_uuid: %s", r.ID))
+	}
+
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                  mdmlifecycle.HostActionTurnOn,
 		Platform:                info.Platform,
@@ -4841,78 +4842,6 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
-	// Grab the contents of all the profiles we need to install
-	profileUUIDs := make([]string, 0, len(toGetContents))
-	for pUUID := range toGetContents {
-		profileUUIDs = append(profileUUIDs, pUUID)
-	}
-	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get profile contents")
-	}
-
-	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
-	}
-
-	// Insert variables into profile contents of install targets. Variables may be host-specific.
-	err = apple_mdm.PreprocessProfileContents(ctx, appConfig, ds,
-		scep.NewSCEPConfigService(logger, nil),
-		digicert.NewService(digicert.WithLogger(logger)),
-		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
-	if err != nil {
-		return err
-	}
-
-	// Find the profiles containing secret variables.
-	profilesWithSecrets, err := apple_mdm.FindProfilesWithSecrets(logger, installTargets, profileContents)
-	if err != nil {
-		return err
-	}
-
-	type remoteResult struct {
-		Err     error
-		CmdUUID string
-	}
-
-	// Send the install/remove commands for each profile.
-	var wgProd, wgCons sync.WaitGroup
-	ch := make(chan remoteResult)
-
-	execCmd := func(profUUID string, target *apple_mdm.CmdTarget, op fleet.MDMOperationType) {
-		defer wgProd.Done()
-
-		var err error
-		switch op {
-		case fleet.MDMOperationTypeInstall:
-			if _, ok := profilesWithSecrets[profUUID]; ok {
-				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
-			} else {
-				err = commander.InstallProfile(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
-			}
-		case fleet.MDMOperationTypeRemove:
-			err = commander.RemoveProfile(ctx, target.EnrollmentIDs, target.ProfileIdentifier, target.CmdUUID)
-		}
-
-		var e *apple_mdm.APNSDeliveryError
-		switch {
-		case errors.As(err, &e):
-			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
-		case err != nil:
-			level.Error(logger).Log("err", fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
-			ch <- remoteResult{err, target.CmdUUID}
-		}
-	}
-	for profUUID, target := range installTargets {
-		wgProd.Add(1)
-		go execCmd(profUUID, target, fleet.MDMOperationTypeInstall)
-	}
-	for profUUID, target := range removeTargets {
-		wgProd.Add(1)
-		go execCmd(profUUID, target, fleet.MDMOperationTypeRemove)
-	}
-
 	// index the host profiles by cmdUUID, for ease of error processing in the
 	// consumer goroutine below.
 	hostProfsByCmdUUID := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(installTargets)+len(removeTargets))
@@ -4927,29 +4856,120 @@ func ReconcileAppleProfiles(
 	// successfully enqueued, this is only to account for internal errors like DB
 	// failures.
 	failed := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
-	wgCons.Add(1)
-	go func() {
-		defer wgCons.Done()
-
-		for resp := range ch {
-			hostProfs := hostProfsByCmdUUID[resp.CmdUUID]
-			for _, hp := range hostProfs {
-				// clear the command as it failed to enqueue, will need to emit a new command
-				hp.CommandUUID = ""
-				// set status to nil so it is retried on the next cron run
-				hp.Status = nil
-				failed = append(failed, hp)
-			}
+	onErrorEnqueuement := func(cmdUUID string, err error) {
+		hostProfs := hostProfsByCmdUUID[cmdUUID]
+		for _, hp := range hostProfs {
+			// clear the command as it failed to enqueue, will need to emit a new command
+			hp.CommandUUID = ""
+			// set status to nil so it is retried on the next cron run
+			hp.Status = nil
+			failed = append(failed, hp)
 		}
-	}()
+	}
 
-	wgProd.Wait()
-	close(ch) // done sending at this point, this triggers end of for loop in consumer
-	wgCons.Wait()
+	err = apple_mdm.ProcessAndEnqueueProfiles(ctx, ds, logger, appConfig, commander, installTargets, removeTargets, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, onErrorEnqueuement, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "processing and enqueuing profiles")
+	}
 
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
 		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
 	}
+
+	return nil
+}
+
+// InstallProfilesForEnrollingHost installs all configuration profiles for the host immediately after enrollment
+// to speed up the onboarding process for large customers. This runs before the reconciler cycle.
+func InstallProfilesForEnrollingHost(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, hostUUID string) error {
+	start := time.Now()
+
+	// Get all profiles that need to be installed for this host
+	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing profiles to install for host")
+	}
+
+	// Filter out user-scoped profiles as they require special handling
+	profilesToInstall = fleet.FilterOutUserScopedProfiles(profilesToInstall)
+
+	if len(profilesToInstall) == 0 {
+		level.Info(logger).Log("msg", "no profiles to install", "host_uuid", hostUUID)
+		return nil
+	}
+
+	level.Info(logger).Log("msg", "installing profiles post-enrollment", "host_uuid", hostUUID, "profile_count", len(profilesToInstall))
+
+	var cmdUUIDs []string
+
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading app config")
+	}
+
+	hostProfilesToInstallMap := make(map[apple_mdm.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
+	installTargets := make(map[string]*apple_mdm.CmdTarget, len(profilesToInstall))
+	profileByCmdUUID := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload)
+	for _, profile := range profilesToInstall {
+		target := &apple_mdm.CmdTarget{
+			CmdUUID:           uuid.NewString(),
+			ProfileIdentifier: profile.ProfileIdentifier,
+			EnrollmentIDs:     []string{hostUUID},
+		}
+		installTargets[profile.ProfileUUID] = target
+		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileUUID:       profile.ProfileUUID,
+			ProfileIdentifier: profile.ProfileIdentifier,
+			ProfileName:       profile.ProfileName,
+			HostUUID:          hostUUID,
+			CommandUUID:       target.CmdUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
+			Checksum:          profile.Checksum,
+			SecretsUpdatedAt:  profile.SecretsUpdatedAt,
+			Scope:             profile.Scope,
+		}
+		hostProfilesToInstallMap[apple_mdm.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
+		profileByCmdUUID[target.CmdUUID] = hostProfile
+	}
+
+	onFailedEnqueuement := func(cmdUUID string, err error) {
+		profile := profileByCmdUUID[cmdUUID]
+		level.Error(logger).Log("msg", "failed to install profile", "host_uuid", hostUUID, "profile_uuid", profile.ProfileUUID, "error", err)
+	}
+
+	// Prepare bulk payloads for database update
+	var bulkPayloads []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	onSuccessfulEnqueuement := func(cmdUUID string) {
+		profile := profileByCmdUUID[cmdUUID]
+		cmdUUIDs = append(cmdUUIDs, cmdUUID)
+		bulkPayloads = append(bulkPayloads, profile)
+	}
+
+	err = apple_mdm.ProcessAndEnqueueProfiles(ctx, ds, logger, appConfig, commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{}, onFailedEnqueuement, onSuccessfulEnqueuement)
+	if err != nil {
+		return err
+	}
+
+	// Bulk update database to track all profile installations
+	if len(bulkPayloads) > 0 {
+		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, bulkPayloads); err != nil {
+			level.Error(logger).Log("msg", "failed to bulk update profile statuses", "host_uuid", hostUUID, "error", err)
+			// Continue even if database update fails - the commands were sent
+		}
+	}
+
+	end := time.Now()
+	elapsed := end.Sub(start)
+
+	level.Info(logger).Log("msg", "successfully queued profile installations", "host_uuid", hostUUID, "commands_sent", len(cmdUUIDs), "duration", elapsed)
+
+	// send a DeclarativeManagement command to start a sync.
+	declarativeManagementCmdUUID := uuid.NewString()
+	if err := commander.DeclarativeManagement(ctx, []string{hostUUID}, declarativeManagementCmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending DeclarativeManagement command")
+	}
+	cmdUUIDs = append(cmdUUIDs, declarativeManagementCmdUUID)
 
 	return nil
 }
