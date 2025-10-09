@@ -278,6 +278,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
+	// Handle in house apps separately
+	if strings.HasSuffix(payload.Filename, ".ipa") {
+		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName)
+	}
+
 	var scripts []string
 
 	if payload.InstallScript != nil {
@@ -701,11 +706,7 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	return false, nil, nil
 }
 
-func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName string) (*fleet.SoftwareInstaller, error) {
-	// validate ipa
-	if !strings.HasSuffix(payload.Filename, ".ipa") {
-		return nil, ctxerr.New(ctx, "not an in house app")
-	}
+func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string) (*fleet.SoftwareInstaller, error) {
 	// verify in house app update
 	if payload.SelfService != nil && *payload.SelfService {
 		return nil, ctxerr.New(ctx, "self service not supported for .ipa")
@@ -745,7 +746,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
-	dirty := make(map[string]bool)
+	installerUpdated := false
 
 	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 	if err != nil {
@@ -760,7 +761,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
 		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        &teamName,
+		TeamName:        teamName,
 		TeamID:          actTeamID,
 		SelfService:     existingInstaller.SelfService,
 		SoftwarePackage: &existingInstaller.Name,
@@ -800,7 +801,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 			payload.Filename = payloadForNewInstallerFile.Filename
 			payload.Version = payloadForNewInstallerFile.Version
 
-			dirty["Package"] = true
+			installerUpdated = true
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
@@ -814,7 +815,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
-	if len(dirty) > 0 {
+	if installerUpdated {
 		if payloadForNewInstallerFile != nil {
 			if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "storing software installer")
@@ -830,10 +831,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		// for consistency, but independent of the installer update query as the main update should stick
 		// even if side effects fail.
 
-		// TODO(JK): Call the new delete upcoming in house activity
-		// if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, wasMetadataUpdated, dirty["Package"]); err != nil {
-		// 	return nil, err
-		// }
+		// TODO(JK): Do this if installer was changed at all
+		if err := svc.ds.RemovePendingInHouseAppInstalls(ctx, existingInstaller.InstallerID); err != nil {
+			return nil, err
+		}
 
 		// now that the payload has been updated with any patches, we can set the
 		// final fields of the activity
@@ -856,6 +857,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 
 	// TODO(JK): ???? what here
+	// Just select from upcoming_activities join ipa_upcoming_activities?
 	statuses, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, updatedInstaller.InstallerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")

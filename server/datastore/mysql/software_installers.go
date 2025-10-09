@@ -1255,6 +1255,21 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	return affectedHostIDs, nil
 }
 
+func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, installerID uint) error {
+	// If in house app was changed in any way
+
+	// TODO(JK) get the command uuids from that query and then update nano_enrollment_queue
+	// and call cancelHostUpcomingActivity for each host??
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		const updInHouseStmt = `UPDATE host_in_house_software_installs SET canceled = 1 WHERE in_house_app_id = ?`
+		if _, err := tx.ExecContext(ctx, updInHouseStmt, installerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host_in_house_software_installs as canceled")
+		}
+		return nil
+	})
+	return err
+}
+
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	const (
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name

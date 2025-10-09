@@ -2055,6 +2055,9 @@ type Datastore interface {
 	// GetInHouseAppMetadataByTeamAndTitleID returns the in house app corresponding to the specific team and title ids.
 	GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*SoftwareInstaller, error)
 
+	// Remove host inhouseapp installs and upcoming inhouseapp install activities
+	RemovePendingInHouseAppInstalls(ctx context.Context, installerID uint) error
+
 	// CleanupUnusedSoftwareTitleIcons will remove software title icons that have
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error
