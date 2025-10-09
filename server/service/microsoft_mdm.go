@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -2389,6 +2390,80 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	}
 
 	return nil
+}
+
+func PreprocessWindowsProfileContents(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID string, profileContents string) (string, error) {
+	// Check if Fleet variables are present
+	fleetVars := variables.Find(profileContents)
+	if len(fleetVars) == 0 {
+		// No variables to replace, return original content
+		return profileContents, nil
+	}
+
+	// Process each Fleet variable
+	result := profileContents
+	for fleetVar := range fleetVars {
+		if fleetVar == string(fleet.FleetVarHostUUID) {
+			// Replace HOST_UUID with the actual host UUID
+			// Use XML escaping for the replacement value to be safe and prevent XML injection
+			b := make([]byte, 0, len(hostUUID))
+			buf := bytes.NewBuffer(b)
+			_ = xml.EscapeText(buf, []byte(hostUUID))
+			escapedUUID := buf.String()
+
+			result = variables.Replace(result, fleetVar, escapedUUID)
+		}
+		if fleetVar == string(fleet.FleetVarSCEPWindowsCertificateID) {
+			value := strings.Replace(uuid.New().String(), "-", "", -1)
+			result = variables.Replace(result, fleetVar, value)
+		}
+
+		if strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) {
+			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
+			ca, ok := customSCEPCAs[caName]
+			if !ok {
+				level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
+					"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+				continue
+			}
+			profileContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPChallengePrefix), ca.Name, profileContents, ca.Challenge)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP challenge")
+			}
+		}
+
+		if strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
+			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
+			ca, ok := customSCEPCAs[caName]
+			if !ok {
+				level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
+					"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+				continue
+			}
+			// Generate a new SCEP challenge for the profile
+			challenge, err := ds.NewChallenge(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generating SCEP challenge")
+			}
+			// Insert the SCEP URL into the profile contents
+			proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
+				url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", hostUUID, profUUID, caName, challenge)))
+			hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPProxyURLPrefix), ca.Name, hostContents, proxyURL)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
+			}
+			managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
+				HostUUID:    hostUUID,
+				ProfileUUID: profUUID,
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      caName,
+			})
+		}
+
+		// Add other Fleet variables here as they are implemented
+	}
+
+	return result
 }
 
 // TODO(roberto): I think this should live separately in the
