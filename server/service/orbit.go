@@ -1444,7 +1444,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					if err := svc.EnterpriseOverrides.CancelPendingSetupExperienceSteps(ctx, host); err != nil {
 						return ctxerr.Wrap(ctx, err, "cancel setup experience after macos software install failure")
 					}
-					return nil
 				}
 			}
 

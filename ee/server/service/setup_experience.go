@@ -321,11 +321,20 @@ func (svc *Service) CancelPendingSetupExperienceSteps(ctx context.Context, host 
 		if err := status.IsValid(); err != nil {
 			return ctxerr.Wrap(ctx, err, "invalid row")
 		}
-		// If we have a running software installer, cancel it.
-		if status.SoftwareInstallerID != nil && status.Status == fleet.SetupExperienceStatusRunning {
-			if _, err := svc.ds.CancelSoftwareInstallForHosts(ctx, []uint{host.ID}, *status.SoftwareInstallerID); err != nil {
-				return ctxerr.Wrap(ctx, err, "cancelling host software install")
-			}
+		// Cancel any upcoming software installs, vpp installs or script runs.
+		var executionID string
+		switch {
+		case status.HostSoftwareInstallsExecutionID != nil:
+			executionID = *status.HostSoftwareInstallsExecutionID
+		case status.NanoCommandUUID != nil:
+			executionID = *status.NanoCommandUUID
+		case status.ScriptExecutionID != nil:
+			executionID = *status.ScriptExecutionID
+		default:
+			continue
+		}
+		if _, err := svc.ds.CancelHostUpcomingActivity(ctx, host.ID, executionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancelling upcoming setup experience activity")
 		}
 	}
 	return nil

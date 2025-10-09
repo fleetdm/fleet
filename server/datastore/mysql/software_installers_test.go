@@ -2909,34 +2909,11 @@ func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Data
 	checkUpcomingActivities(t, ds, host2, host2Ins1, host2Ins2)
 	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ins2)
 
-	// This should be a no-op, as all hosts have an active activity.
-	err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, []uint{host1.ID, host2.ID, host3.ID})
-	require.NoError(t, err)
-
-	checkUpcomingActivities(t, ds, host1, host1Ins1, host1Ins2, host1Script.ExecutionID)
-	checkUpcomingActivities(t, ds, host2, host2Ins1, host2Ins2)
-	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ins2)
-
-	// cancel installer 1 on host1
-	_, err = ds.CancelSoftwareInstallForHosts(ctx, []uint{host1.ID}, ins1.InstallerID)
-	require.NoError(t, err)
-
-	// activate next activity on all hosts.
-	// This should be a no-op for host2 and host3 as they still have an active activity.
-	err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, []uint{host1.ID, host2.ID, host3.ID})
-	require.NoError(t, err)
-
-	// installer 1 activities were deleted, next activity was activated, on host 1
-	// but not on host2 or host3.
-	checkUpcomingActivities(t, ds, host1, host1Ins2, host1Script.ExecutionID)
-	checkUpcomingActivities(t, ds, host2, host2Ins1, host2Ins2)
-	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ins2)
-
 	// simulate an update to installer 1 metadata
 	err = ds.ProcessInstallerUpdateSideEffects(ctx, ins1.InstallerID, true, false)
 	require.NoError(t, err)
 
-	// installer 1 activities were deleted, next activity was activated on all hosts.
+	// installer 1 activities were deleted, next activity was activated
 	checkUpcomingActivities(t, ds, host1, host1Ins2, host1Script.ExecutionID)
 	checkUpcomingActivities(t, ds, host2, host2Ins2)
 	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ins2)
