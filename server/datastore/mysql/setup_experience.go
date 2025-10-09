@@ -24,7 +24,12 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetAfterFailure bool) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
-WHERE host_uuid = ?`
+WHERE host_uuid = ? AND %s`
+	if resetAfterFailure {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "status != 'success'")
+	} else {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
+	}
 
 	// stmtSoftwareInstallers query currently supports installers for macOS and Linux.
 	stmtSoftwareInstallers := `
@@ -65,7 +70,14 @@ AND (
 			)
 		)
 	)
-)`
+)
+AND %s	
+`
+	if resetAfterFailure {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+	} else {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
+	}
 
 	stmtVPPApps := `
 INSERT INTO setup_experience_status_results (
@@ -85,7 +97,14 @@ INNER JOIN vpp_apps_teams vat
 INNER JOIN software_titles st
 	ON va.title_id = st.id
 WHERE vat.install_during_setup = true
-AND vat.global_or_team_id = ?`
+AND vat.global_or_team_id = ?
+AND %s
+`
+	if resetAfterFailure {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
+	} else {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
+	}
 
 	stmtSetupScripts := `
 INSERT INTO setup_experience_status_results (
@@ -110,7 +129,11 @@ WHERE global_or_team_id = ?`
 
 		// Software installers
 		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		args := []any{hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
+		if resetAfterFailure {
+			args = append(args, hostUUID)
+		}
+		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
 		}
@@ -122,7 +145,11 @@ WHERE global_or_team_id = ?`
 
 		// VPP apps
 		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
+			args := []any{hostUUID, teamID}
+			if resetAfterFailure {
+				args = append(args, hostUUID)
+			}
+			res, err = tx.ExecContext(ctx, stmtVPPApps, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
 			}
