@@ -34,7 +34,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
   resolveUninstallStatus,
-  SoftwareInstallUninstallStatus,
+  SoftwareInstallUninstallApiStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
@@ -704,7 +704,7 @@ const HostDetailsPage = ({
           setActivityVPPInstallDetails({
             appName: details?.software_title || "",
             fleetInstallStatus: (details?.status ||
-              "pending_install") as SoftwareInstallUninstallStatus,
+              "pending_install") as SoftwareInstallUninstallApiStatus,
             commandUuid: details?.command_uuid || "",
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from

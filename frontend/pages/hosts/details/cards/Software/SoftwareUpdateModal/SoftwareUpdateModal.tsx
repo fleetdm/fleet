@@ -2,7 +2,7 @@ import React from "react";
 
 import {
   IHostSoftware,
-  SoftwareInstallUninstallStatus,
+  SoftwareInstallUninstallApiStatus,
 } from "interfaces/software";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -16,7 +16,7 @@ const baseClass = "software-update-modal";
 interface IStatusMessageProps {
   hostDisplayName: string;
   isDeviceUser: boolean;
-  softwareStatus: SoftwareInstallUninstallStatus | null;
+  softwareStatus: SoftwareInstallUninstallApiStatus | null;
   softwareName: string;
   installerName: string;
   installerVersion?: string;

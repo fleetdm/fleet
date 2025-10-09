@@ -3,6 +3,7 @@ import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ISchedulableQueryStats } from "./schedulable_query";
+import { SoftwareSource } from "./software";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -235,6 +236,7 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;
   status?: string;

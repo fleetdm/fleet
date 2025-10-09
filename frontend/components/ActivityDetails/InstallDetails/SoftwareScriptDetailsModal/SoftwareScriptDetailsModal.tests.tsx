@@ -15,7 +15,7 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
             status: "pending_install",
           }) as ISoftwareScriptResult
         }
-        isDUP={false}
+        isMyDevicePage={false}
       />
     );
 
@@ -35,7 +35,7 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
             status: "failed_install",
           }) as ISoftwareScriptResult
         }
-        isDUP
+        isMyDevicePage
         contactUrl="http://support"
       />
     );
@@ -60,7 +60,7 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
             status: "failed_install",
           }) as ISoftwareScriptResult
         }
-        isDUP
+        isMyDevicePage
       />
     );
 
@@ -85,7 +85,7 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
             status: "failed_install",
           }) as ISoftwareScriptResult
         }
-        isDUP={false}
+        isMyDevicePage={false}
         contactUrl="http://support"
       />
     );
@@ -105,7 +105,7 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
             status: "installed",
           }) as ISoftwareScriptResult
         }
-        isDUP={false}
+        isMyDevicePage={false}
       />
     );
 

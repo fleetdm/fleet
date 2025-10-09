@@ -7,7 +7,7 @@ import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
-  ScriptPackage,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -178,7 +178,7 @@ export const getUiStatus = (
   const lastInstallDate = getLastInstall(software)?.installed_at;
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
-  const isScriptPackage = ScriptPackage.includes(source);
+  const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
 
   // 0. Script Packages states
   if (isScriptPackage) {

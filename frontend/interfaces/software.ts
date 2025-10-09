@@ -254,17 +254,16 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   chocolatey_packages: "windows",
   pkg_packages: "darwin",
   vscode_extensions: null,
-  sh_packages: "linux",
+  sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
 } as const;
 
-export const NoVersionOrHostDataAvailable = [
-  "tgz_packages",
-  "sh_packages",
-  "ps1_packages",
-];
+export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
 
-export const ScriptPackage = ["sh_packages", "ps1_packages"];
+export const NO_VERSION_OR_HOST_DATA_AVAIL_SOURCES = [
+  "tgz_packages",
+  ...SCRIPT_PACKAGE_SOURCES,
+];
 
 export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
@@ -325,24 +324,44 @@ export const SOFTWARE_INSTALL_STATUSES = [
   "failed_install",
 ] as const;
 
+// Payload-free (script) software statuses
+export const SOFTWARE_SCRIPT_STATUSES = [
+  "ran_script",
+  "pending_script",
+  "failed_script",
+] as const;
+
 export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
 
-export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
+export const SOFTWARE_INSTALL_UNINSTALL_API_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
+  // Payload-free (script) software statuses use API's SOFTWARE_INSTALL_STATUSES
 ] as const;
 
 /*
- * SoftwareInstallUninstallStatus represents the possible states of software install operations.
+ * SoftwareInstallUninstallApiStatus represents the possible states of software install operations.
  */
-export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
+export type SoftwareInstallUninstallApiStatus = typeof SOFTWARE_INSTALL_UNINSTALL_API_STATUSES[number];
+
+/** Include payload-free statuses */
+export const SOFTWARE_INSTALL_UNINSTALL_UI_STATUSES = [
+  ...SOFTWARE_INSTALL_STATUSES,
+  ...SOFTWARE_UNINSTALL_STATUSES,
+  ...SOFTWARE_SCRIPT_STATUSES, // Payload-free (script) software
+] as const;
+
+/*
+ * SoftwareInstallUninstallUiStatus represents the possible states of software install operations including payload-free.
+ */
+export type SoftwareInstallUninstallUiStatus = typeof SOFTWARE_INSTALL_UNINSTALL_UI_STATUSES[number];
 
 export const isValidSoftwareInstallUninstallStatus = (
   s: string | undefined | null
-): s is SoftwareInstallUninstallStatus =>
+): s is SoftwareInstallUninstallUiStatus =>
   !!s &&
-  SOFTWARE_INSTALL_UNINSTALL_STATUSES.includes(
-    s as SoftwareInstallUninstallStatus
+  SOFTWARE_INSTALL_UNINSTALL_UI_STATUSES.includes(
+    s as SoftwareInstallUninstallUiStatus
   );
 
 export const SOFTWARE_AGGREGATE_STATUSES = [
@@ -397,7 +416,7 @@ export interface ISoftwareInstallResult {
   software_title_id: number;
   software_package: string;
   host_id: number;
-  status: SoftwareInstallUninstallStatus;
+  status: SoftwareInstallUninstallApiStatus;
   detail: string;
   output: string;
   pre_install_query_output: string;
@@ -479,7 +498,7 @@ export interface IHostSoftware {
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
   bundle_identifier?: string;
-  status: Exclude<SoftwareInstallUninstallStatus, "uninstalled"> | null;
+  status: Exclude<SoftwareInstallUninstallApiStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
@@ -545,7 +564,7 @@ export type IDeviceSoftware = IHostSoftware;
 export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;
 
 const INSTALL_STATUS_PREDICATES: Record<
-  SoftwareInstallUninstallStatus | "pending",
+  SoftwareInstallUninstallUiStatus | "pending",
   string
 > = {
   pending: "pending",
@@ -555,15 +574,37 @@ const INSTALL_STATUS_PREDICATES: Record<
   failed_install: "failed to install",
   pending_uninstall: "told Fleet to uninstall",
   failed_uninstall: "failed to uninstall",
+  ran_script: "ran", // Payload-free (script) software
+  failed_script: "failed to run", // Payload-free (script) software
+  pending_script: "told Fleet to run", // Payload-free (script) software
 } as const;
 
-export const getInstallStatusPredicate = (status: string | undefined) => {
+export const getInstallUninstallStatusPredicate = (
+  status: string | undefined,
+  isScriptPackage = false
+) => {
   if (!status) {
     return INSTALL_STATUS_PREDICATES.pending;
   }
+
+  // If it is a script package, map install statuses to script-specific predicates
+  if (isScriptPackage) {
+    switch (status.toLowerCase()) {
+      case "installed":
+        return INSTALL_STATUS_PREDICATES.ran_script;
+      case "pending_install":
+        return INSTALL_STATUS_PREDICATES.pending_script;
+      case "failed_install":
+        return INSTALL_STATUS_PREDICATES.failed_script;
+      default:
+        break;
+    }
+  }
+
+  // For all other cases, return the matching predicate or default to pending
   return (
     INSTALL_STATUS_PREDICATES[
-      status.toLowerCase() as SoftwareInstallUninstallStatus
+      status.toLowerCase() as keyof typeof INSTALL_STATUS_PREDICATES
     ] || INSTALL_STATUS_PREDICATES.pending
   );
 };
@@ -577,7 +618,7 @@ export const aggregateInstallStatusCounts = (
 });
 
 export const INSTALL_STATUS_ICONS: Record<
-  SoftwareInstallUninstallStatus | "pending" | "failed",
+  SoftwareInstallUninstallUiStatus | "pending" | "failed",
   IconNames
 > = {
   pending: "pending-outline",
@@ -588,6 +629,9 @@ export const INSTALL_STATUS_ICONS: Record<
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error-outline",
+  ran_script: "success-outline", // Payload-free (script) software
+  failed_script: "error-outline", // Payload-free (script) software
+  pending_script: "pending-outline", // Payload-free (script) software
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {

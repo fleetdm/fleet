@@ -5,7 +5,7 @@ import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
-  SoftwareInstallUninstallStatus,
+  SoftwareInstallUninstallApiStatus,
   IVPPHostSoftware,
   SoftwareUninstallStatus,
   IAppLastInstall,
@@ -28,7 +28,7 @@ const baseClass = "install-status-cell";
 interface CommandUuid {
   command_uuid: string;
   software_title?: string;
-  status?: SoftwareInstallUninstallStatus;
+  status?: SoftwareInstallUninstallApiStatus;
 }
 
 interface InstallUuid {

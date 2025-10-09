@@ -51,7 +51,7 @@ export const renderContactOption = (url?: string) => (
 interface IInstallStatusMessage {
   softwareName: string;
   installResult: ISoftwareScriptResult;
-  isDUP: boolean;
+  isMyDevicePage: boolean;
   contactUrl?: string;
 }
 
@@ -60,7 +60,7 @@ interface IInstallStatusMessage {
 export const StatusMessage = ({
   softwareName,
   installResult,
-  isDUP,
+  isMyDevicePage,
   contactUrl,
 }: IInstallStatusMessage) => {
   const {
@@ -93,22 +93,24 @@ export const StatusMessage = ({
         Fleet {getScriptDetailsStatusPredicate(status)} <b>{software_title}</b>
       </>
     );
-    let middle = null;
-    if (isDUP) {
-      if (status === "failed_install") {
-        middle = <>. You can rerun{renderContactOption(contactUrl)}</>;
-      }
-    } else {
-      // host details page
-      middle = (
-        <>
-          {" "}
-          ({software_package}) on {formattedHost}
-          {status === "pending_install" ? " when it comes online" : ""}
-          {displayTimeStamp}
-        </>
-      );
-    }
+
+    const middle = isMyDevicePage ? (
+      <>
+        {" "}
+        {displayTimeStamp}
+        {status === "failed_install" && (
+          <>. You can rerun{renderContactOption(contactUrl)}</>
+        )}
+      </>
+    ) : (
+      <>
+        {" "}
+        ({software_package}) on {formattedHost}
+        {status === "pending_install"
+          ? " when it comes online"
+          : displayTimeStamp}
+      </>
+    );
     return (
       <span>
         {prefix}
@@ -148,7 +150,7 @@ export const ModalButtons = ({
 }: IModalButtonsProps) => {
   if (!!deviceAuthToken && installResultStatus === "failed_install") {
     const onClickRerun = () => {
-      // on DUP, where this is relevant, both will be defined
+      // on My Device Page, where this is relevant, both will be defined
       if (onRerun && hostSoftwareId) {
         onRerun(hostSoftwareId);
       }
@@ -182,10 +184,10 @@ interface ISoftwareInstallDetailsProps {
   necessary in the details prop */
   details: IPackageInstallDetails;
   hostSoftware?: IHostSoftware; // for inventory versions, and software name when not Fleet installed (not present on activity feeds)
-  deviceAuthToken?: string; // DUP only
+  deviceAuthToken?: string; // My Device Page only
   onCancel: () => void;
-  onRerun?: (id: number) => void; // DUP only
-  contactUrl?: string; // DUP only
+  onRerun?: (id: number) => void; // My Device Page only
+  contactUrl?: string; // My Device Page only
 }
 
 export const SoftwareInstallDetailsModal = ({
@@ -308,9 +310,10 @@ export const SoftwareInstallDetailsModal = ({
           <StatusMessage
             installResult={installResultWithHostDisplayName}
             softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
-            isDUP={!!deviceAuthToken}
+            isMyDevicePage={!!deviceAuthToken}
             contactUrl={contactUrl}
           />
+          {renderScriptDetailsSection()}
         </div>
       );
     }

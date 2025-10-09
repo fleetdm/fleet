@@ -8,7 +8,10 @@ import {
   isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -1136,16 +1139,18 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
+      source,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
-
+    const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
+        <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.
       </>
@@ -1168,7 +1173,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
         <b>{hostName}</b>.
       </>

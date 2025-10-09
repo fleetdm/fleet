@@ -1,14 +1,14 @@
 import { IconNames } from "components/icons";
 import {
-  SoftwareInstallUninstallStatus,
+  SoftwareInstallUninstallApiStatus,
+  SoftwareInstallUninstallUiStatus,
   SoftwareInstallStatus,
-  SoftwareUninstallStatus,
 } from "interfaces/software";
 
 // Install/Uninstall helpers
 
 export const INSTALL_DETAILS_STATUS_ICONS: Record<
-  SoftwareInstallUninstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
+  SoftwareInstallUninstallApiStatus, // former is superset of latter, latter included in union for type system
   IconNames
 > = {
   pending_install: "pending-outline",
@@ -20,7 +20,7 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
-  SoftwareInstallUninstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
+  SoftwareInstallUninstallUiStatus,
   string
 > = {
   pending_install: "is installing or will install",
@@ -29,6 +29,9 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   failed_install: "failed to install",
   pending_uninstall: "is uninstalling or will uninstall",
   failed_uninstall: "failed to uninstall",
+  pending_script: "is running or will run",
+  failed_script: "failed to run",
+  ran_script: "ran",
 } as const;
 
 export const getInstallDetailsStatusPredicate = (
@@ -39,7 +42,7 @@ export const getInstallDetailsStatusPredicate = (
   }
   return (
     INSTALL_DETAILS_STATUS_PREDICATES[
-      status.toLowerCase() as SoftwareInstallUninstallStatus
+      status.toLowerCase() as SoftwareInstallUninstallUiStatus
     ] || INSTALL_DETAILS_STATUS_PREDICATES.pending_install
   );
 };

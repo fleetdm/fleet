@@ -8,7 +8,11 @@ export const SETUP_STEP_STATUSES = [
 
 export type SetupStepStatus = typeof SETUP_STEP_STATUSES[number];
 
-export const SETUP_STEP_TYPES = ["software_install", "script_run"];
+export const SETUP_STEP_TYPES = [
+  "software_install",
+  "script_run",
+  "software_script_run",
+];
 
 export type SetupStepType = typeof SETUP_STEP_TYPES[number];
 
