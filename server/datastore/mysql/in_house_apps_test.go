@@ -39,6 +39,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		Platform:         "ios",
 		Extension:        "ipa",
 	}
+	// TODO(JK): test with svc.UploadSoftwareInstaller
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.Error(t, err, "ValidatedLabels must not be nil")
 
