@@ -13,7 +13,7 @@ For Android hosts, copy this [Android configuration profile template](#TODO) and
 
 ## Enforce
 
-You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best practice GitOps](https://github.com/fleetdm/fleet-gitops).
 
 Fleet UI:
 
