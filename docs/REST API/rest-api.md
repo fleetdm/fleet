@@ -3721,7 +3721,7 @@ Updates the email for the data source in the human-device mapping. This source c
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id         | integer           | path | **Required**. The host's `id`.                                                |
 | email      | string            | body | **Required**. The custom email.                                               |
-| source     | string            | body | The data source to override. Either `"custom"` or `"idp"`. If `"idp"`, this will update the end user's `"idp_username"`. (Defaults to `"custom"`.)
+| source     | string            | body | The data source to override. Either `"custom"` or `"idp"`. If `"idp"`, this will update the end user's `"idp_username"`. Currently, `"idp"` is supported on macOS. (Defaults to `"custom"`.)
 
 #### Example
 
