@@ -81,7 +81,13 @@ const STATUS_DISPLAY_OPTIONS: Record<
     displayName: "Ran",
     iconName: "success",
     // TODO: Confirm tooltip
-    tooltip: <>Payload-free software script successfully ran on these hosts.</>,
+    tooltip: (
+      <>
+        Payload-free software script successfully
+        <br />
+        ran on these hosts.
+      </>
+    ),
   },
   pending_script: {
     displayName: "Pending",

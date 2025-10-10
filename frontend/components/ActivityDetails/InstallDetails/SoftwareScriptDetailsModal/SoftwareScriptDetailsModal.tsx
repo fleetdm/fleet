@@ -236,22 +236,26 @@ export const SoftwareInstallDetailsModal = ({
     }
   );
 
-  const renderScriptDetailsSection = () => (
-    <>
-      <RevealButton
-        isShowing={showInstallDetails}
-        showText="Details"
-        hideText="Details"
-        caretPosition="after"
-        onClick={toggleInstallDetails}
-      />
-      {showInstallDetails && swInstallResult?.output && (
-        <Textarea label="Install script output:" variant="code">
-          {swInstallResult.output}
-        </Textarea>
-      )}
-    </>
-  );
+  const renderScriptDetailsSection = () => {
+    if (swInstallResult?.status !== "pending_install") {
+      return (
+        <>
+          <RevealButton
+            isShowing={showInstallDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleInstallDetails}
+          />
+          {showInstallDetails && swInstallResult?.output && (
+            <Textarea label="Install script output:" variant="code">
+              {swInstallResult.output}
+            </Textarea>
+          )}
+        </>
+      );
+    }
+  };
 
   const hostDisplayname =
     swInstallResult?.host_display_name || detailsFromProps.host_display_name;
