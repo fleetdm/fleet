@@ -900,7 +900,7 @@ This activity contains the following fields:
 
 ## enabled_macos_setup_end_user_auth
 
-Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns on end user authentication for macOS, iOS, iPadOS, and Android hosts that enroll to a team (or no team).
 
 This activity contains the following fields:
 - "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
@@ -931,6 +931,41 @@ This activity contains the following fields:
   "team_name": "Workstations"
 }
 ```
+
+## enabled_macos_automatically_create_local_user_account
+
+Generated when a user enables automatic local user account creation for macOS hosts that enroll to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations",
+}
+```
+
+## disabled_macos_automatically_create_local_user_account
+
+Generated when a user disables automatic local user account creation for macOS hosts that enroll to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations",
+}
+```
+
 
 ## enabled_windows_mdm
 
