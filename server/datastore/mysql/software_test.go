@@ -1848,10 +1848,6 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 // When software with the same bundle ID but different name is added, the system
 // reuses the existing software entry (matched by bundle ID) and links it to the host
 func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastore) {
-	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
-	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
-	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
-
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "bundle-host", "", "bundlekey", "bundleuuid", time.Now())
 
@@ -1867,47 +1863,98 @@ func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 	require.Len(t, host.Software, 1)
 	require.Equal(t, "GoLand.app", host.Software[0].Name)
-	originalSoftwareID := host.Software[0].ID
 
 	// Now update with the same bundle ID but different name
-	// The behavior depends on how the system handles bundle ID matching
+	// Despite having the same bundle id, the software is added with the new name
 	sw = []fleet.Software{
 		{Name: "GoLand 2.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 
-	// The getExistingSoftware function matches by bundle ID when present,
-	// so it links to the existing software entry and updates the name
 	err = ds.LoadHostSoftware(ctx, host, false)
 	require.NoError(t, err)
 	require.Len(t, host.Software, 1)
-	// The existing software entry is reused (matched by bundle ID) and name is updated
 	require.Equal(t, "GoLand 2.app", host.Software[0].Name, "Name should be updated to reflect what's on the host")
-	require.Equal(t, originalSoftwareID, host.Software[0].ID, "Should reuse the same software row")
 
-	// Verify the name_source was updated
-	var nameSource string
-	err = ds.writer(ctx).GetContext(ctx, &nameSource,
-		`SELECT name_source FROM software WHERE id = ?`, originalSoftwareID)
-	require.NoError(t, err)
-	require.Equal(t, "bundle_4.67", nameSource, "Name source should indicate bundle ID match")
-
-	// Verify only one software title exists
+	// Verify only one software title exists (both software entries map to same title by bundle_identifier)
 	var titleCount int
 	err = ds.writer(ctx).GetContext(ctx, &titleCount,
 		`SELECT COUNT(DISTINCT id) FROM software_titles WHERE bundle_identifier = ?`,
 		"com.jetbrains.goland")
 	require.NoError(t, err)
-	require.Equal(t, 1, titleCount, "Should have only one software title for the bundle ID")
+	require.Equal(t, 1, titleCount)
 
-	// Verify only one software entry exists with this bundle ID
-	var softwareCount int
-	err = ds.writer(ctx).GetContext(ctx, &softwareCount,
-		`SELECT COUNT(DISTINCT id) FROM software WHERE bundle_identifier = ?`,
+	// Verify two software entries exist with this bundle ID (different names, same bundle_identifier)
+	var softwareNames []string
+	err = ds.writer(ctx).SelectContext(ctx, &softwareNames,
+		`SELECT name FROM software WHERE bundle_identifier = ? ORDER BY name`,
 		"com.jetbrains.goland")
 	require.NoError(t, err)
-	require.Equal(t, 1, softwareCount, "Should have only one software entry for the bundle ID")
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, []string{"GoLand 2.app", "GoLand.app"}, softwareNames)
+
+	// Helper app edge case:
+	// We have a main app with a name and bundle id
+	// We have two helper apps with the same bundle id but different name
+	sw = []fleet.Software{
+		{Name: "Postman", Version: "11.60.2", Source: "apps", BundleIdentifier: "com.postmanlabs.mac"},
+		{Name: "Postman Helper (GPU)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+		{Name: "Postman Helper (Renderer)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 3)
+
+	var softwareRecords []struct {
+		Name             string `db:"name"`
+		BundleIdentifier string `db:"bundle_identifier"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &softwareRecords,
+		`SELECT name, bundle_identifier FROM software WHERE bundle_identifier = ? OR bundle_identifier = ?`,
+		"com.postmanlabs.mac", "com.postmanlabs.mac.helper")
+	require.NoError(t, err)
+	require.Len(t, softwareRecords, 3)
+
+	for _, softwareRecord := range softwareRecords {
+		switch softwareRecord.Name {
+		case "Postman":
+			require.Equal(t, "com.postmanlabs.mac", softwareRecord.BundleIdentifier)
+		case "Postman Helper (GPU)", "Postman Helper (Renderer)":
+			require.Equal(t, "com.postmanlabs.mac.helper", softwareRecord.BundleIdentifier)
+		default:
+			t.Fatalf("Unexpected software name: %s", softwareRecord.Name)
+		}
+	}
+
+	// Re-ingest helper apps with new names
+	sw = []fleet.Software{
+		{Name: "Postman 2", Version: "11.60.2", Source: "apps", BundleIdentifier: "com.postmanlabs.mac"},
+		{Name: "Postman Helper 2 (GPU)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+		{Name: "Postman Helper 2 (Renderer)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	err = ds.writer(ctx).SelectContext(ctx, &softwareRecords,
+		`SELECT name, bundle_identifier FROM software WHERE bundle_identifier = ? OR bundle_identifier = ?`,
+		"com.postmanlabs.mac", "com.postmanlabs.mac.helper")
+	require.NoError(t, err)
+	require.Len(t, softwareRecords, 6)
+
+	for _, softwareRecord := range softwareRecords {
+		switch softwareRecord.Name {
+		case "Postman", "Postman 2":
+			require.Equal(t, "com.postmanlabs.mac", softwareRecord.BundleIdentifier)
+		case "Postman Helper (GPU)", "Postman Helper (Renderer)", "Postman Helper 2 (GPU)", "Postman Helper 2 (Renderer)":
+			require.Equal(t, "com.postmanlabs.mac.helper", softwareRecord.BundleIdentifier)
+		default:
+			t.Fatalf("Unexpected software name: %s", softwareRecord.Name)
+		}
+	}
 }
 
 // Test edge case: Software with same name but different bundle identifiers
@@ -1948,10 +1995,6 @@ func testUpdateHostSoftwareSameNameDifferentBundleIDs(t *testing.T, ds *Datastor
 // Test edge case: Multiple software entries with the same bundle ID
 // This validates that bundle ID renaming affects all software with that bundle ID
 func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
-	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
-	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
-	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
-
 	ctx := t.Context()
 	host1 := test.NewHost(t, ds, "multi-bundle-host1", "", "multikey1", "multiuuid1", time.Now())
 	host2 := test.NewHost(t, ds, "multi-bundle-host2", "", "multikey2", "multiuuid2", time.Now())

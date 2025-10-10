@@ -994,14 +994,20 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if title.BundleIdentifier != nil {
 						bundleID = *title.BundleIdentifier
 					}
+					keyName := title.Name
+					if bundleID != "" {
+						keyName = ""
+					}
 					key := titleKey{
-						name:         title.Name,
+						name:         keyName,
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
 						isKernel:     title.IsKernel,
 					}
-					uniqueTitlesToInsert[key] = title
+					if existing, ok := uniqueTitlesToInsert[key]; !ok || (bundleID != "" && len(title.Name) < len(existing.Name)) {
+						uniqueTitlesToInsert[key] = title
+					}
 				}
 
 				// Insert software titles
@@ -1031,11 +1037,12 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
 				for tk := range uniqueTitlesToInsert {
+					title := uniqueTitlesToInsert[tk]
 					bundleID := ""
-					if uniqueTitlesToInsert[tk].BundleIdentifier != nil {
-						bundleID = *uniqueTitlesToInsert[tk].BundleIdentifier
+					if title.BundleIdentifier != nil {
+						bundleID = *title.BundleIdentifier
 					}
-					queryArgs = append(queryArgs, tk.name, tk.source, tk.extensionFor, bundleID)
+					queryArgs = append(queryArgs, title.Name, title.Source, title.ExtensionFor, bundleID)
 				}
 
 				queryTitles := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier
@@ -1057,7 +1064,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						if title.BundleIdentifier != nil {
 							titleBundleID = *title.BundleIdentifier
 						}
-						if td.Name == title.Name && td.Source == title.Source && td.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
+						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
+						// For others, match by name
+						nameMatches := td.Name == title.Name
+						if bundleID != "" && titleBundleID != "" {
+							// Both have bundle_identifier - match by bundle_identifier instead of name
+							nameMatches = true
+						}
+						if nameMatches && td.Source == title.Source && td.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
 							titleIDsByChecksum[checksum] = td.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
