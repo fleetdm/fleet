@@ -1,6 +1,6 @@
-# GitOps Migration Tool
+# GitOps migration tool
 
-A utility tool for Fleet that migrates specific configuration keys from software YAML files to team YAML files.
+Fleet 4.74.0 includes [breaking changes](https://github.com/fleetdm/fleet/pull/30837/files#r2205252594) to the [experimental](https://fleetdm.com/handbook/company/product-groups#experimental-features) software YAML files. This tool automatically migrates your YAML to the new YAML format Fleet 4.74.0 expects.
 
 ## Overview
 
@@ -13,47 +13,25 @@ This script automates the migration of software configuration keys from individu
 
 ## Prerequisites
 
-### Required Dependencies
+**yq** is required (version 4 or higher)
 
-- **yq** (version 4 or higher)
-  ```bash
-  # Install on macOS
-  brew install yq
-  
-  # Install on Ubuntu/Debian
-  # yq installed from apt is NOT supported
-  sudo snap install yq
-  
-  # Install on other systems - see https://github.com/mikefarah/yq
-  ```
+```bash
+# Install on macOS
+brew install yq
 
-### Directory Structure
+# Install on Ubuntu/Debian
+# yq installed from apt is NOT supported
+sudo snap install yq
 
-The script must be run from the Fleet repository root directory. It expects:
-
-```
-fleet/
-├── it-and-security/
-│   └── teams/
-│       ├── team1.yml
-│       ├── team2.yml
-│       └── ...
-└── tools/
-    └── gitops-migrate/
-        ├── migrate.sh
-        └── README.md
+# Install on other systems - see https://github.com/mikefarah/yq
 ```
 
 ## Usage
 
-### Basic Usage
+### Basic usage
 
 ```bash
-# From the fleet repository root
 ./tools/gitops-migrate/migrate.sh <teams_directory_path>
-
-# Example:
-./tools/gitops-migrate/migrate.sh it-and-security/teams
 ```
 
 The script will:
@@ -63,23 +41,21 @@ The script will:
 4. Move those keys to the corresponding package entry in the team file (Pass 1)
 5. Remove the keys from the original software files after all teams are processed (Pass 2)
 
-### What the Script Does
+### What the script does
 
-#### Before Migration
-**Team File (`it-and-security/teams/example.yml`):**
+#### Before migration
+
+**Team file (`it-and-security/teams/example.yml`):**
 ```yaml
-apiVersion: v1
-kind: team
-spec:
-  name: Example Team
-  software:
-    packages:
-      - path: ../lib/macos/software/firefox.yml
+name: Example Team
+software:
+  packages:
+    - path: ../lib/macos/software/firefox.yml
 ```
 
-**Software File (`it-and-security/lib/macos/software/firefox.yml`):**
+**Software file (`it-and-security/lib/macos/software/firefox.yml`):**
+
 ```yaml
-name: Mozilla Firefox
 url: https://download.mozilla.org/...
 self_service: true
 categories:
@@ -90,39 +66,37 @@ labels_exclude_any:
   - "OS:Windows"
 ```
 
-#### After Migration
-**Team File (`it-and-security/teams/example.yml`):**
+#### After migration
+
+**Team file (`it-and-security/teams/example.yml`):**
 ```yaml
-apiVersion: v1
-kind: team
-spec:
-  name: Example Team
-  software:
-    packages:
-      - path: ../lib/macos/software/firefox.yml
-        self_service: true
-        categories:
-          - "Web Browser"
-        labels_include_any:
-          - "Department:Engineering"
-        labels_exclude_any:
-          - "OS:Windows"
+name: Example Team
+software:
+  packages:
+    - path: ../lib/macos/software/firefox.yml
+      self_service: true
+      categories:
+        - "Web Browser"
+      labels_include_any:
+        - "Department:Engineering"
+      labels_exclude_any:
+        - "OS:Windows"
 ```
 
-**Software File (`it-and-security/lib/macos/software/firefox.yml`):**
+**Software file (`it-and-security/lib/macos/software/firefox.yml`):**
+
 ```yaml
-name: Mozilla Firefox
 url: https://download.mozilla.org/...
 ```
 
 ## Features
 
-- **Automatic Discovery**: Finds all team YAML files automatically
-- **Backup Creation**: Creates `.bak` files before making any changes
-- **YAML Validation**: Validates syntax before and after processing
-- **Error Handling**: Graceful error handling with detailed reporting
-- **Path Resolution**: Handles relative paths correctly
-- **Colorized Output**: Easy-to-read colored terminal output
+- **Automatic discovery**: Finds all team YAML files automatically
+- **Backup creation**: Creates `.bak` files before making any changes
+- **YAML validation**: Validates syntax before and after processing
+- **Error handling**: Graceful error handling with detailed reporting
+- **Path resolution**: Handles relative paths correctly
+- **Colorized output**: Easy-to-read colored terminal output
 
 ## Output
 
@@ -163,7 +137,7 @@ Packages processed: 8
 ✓ All files processed successfully!
 ```
 
-## Two-Pass Processing
+## Two-pass processing
 
 The tool uses a two-pass approach to handle multiple teams referencing the same software files:
 
@@ -172,13 +146,13 @@ The tool uses a two-pass approach to handle multiple teams referencing the same 
 
 This ensures that all teams receive the appropriate keys, even when multiple teams reference the same software file.
 
-## Error Recovery
+## Error recovery
 
 If something goes wrong during processing:
 
-1. **Individual File Errors**: The script continues processing other files
-2. **YAML Validation Failures**: Reports errors but continues with other files
-3. **Git Recovery**: Use git to restore files if needed:
+1. **Individual file errors**: The script continues processing other files
+2. **YAML validation failures**: Reports errors but continues with other files
+3. **Git recovery**: Use git to restore files if needed:
    ```bash
    git checkout -- it-and-security/
    ```
@@ -192,7 +166,7 @@ If something goes wrong during processing:
 
 ## Troubleshooting
 
-### Common Issues
+### Common issues
 
 1. **"yq is required but not installed"**
    - Install yq using the instructions in Prerequisites
@@ -207,7 +181,7 @@ If something goes wrong during processing:
 4. **"Software file not found"**
    - Check that the `path` in the team file is correct relative to the team file location
 
-### Debug Mode
+### Debug mode
 
 For troubleshooting, you can add debug output by modifying the script temporarily:
 ```bash

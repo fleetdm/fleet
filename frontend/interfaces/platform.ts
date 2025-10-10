@@ -222,6 +222,8 @@ export const SETUP_EXPERIENCE_PLATFORMS = [
   "macos",
   "windows",
   "linux",
+  "ios",
+  "ipados",
 ] as const;
 
 export type SetupExperiencePlatform = typeof SETUP_EXPERIENCE_PLATFORMS[number];

@@ -510,6 +510,7 @@ type MDMAppleSetupPayload struct {
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install"`
+	RequireAllSoftware          *bool `json:"require_all_software_macos"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -1100,4 +1101,12 @@ type MDMAppleEnrolledDeviceInfo struct {
 	Authenticate string `db:"authenticate"`
 	Platform     string `db:"platform"`
 	EnrollTeamID *uint  `db:"enroll_team_id"`
+}
+
+type AppleMDMVPPInstaller interface {
+	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
+	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
+
+	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
