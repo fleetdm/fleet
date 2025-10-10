@@ -125,6 +125,56 @@ ORDER BY
 	inet_aton(ia.address) IS NOT NULL DESC
 LIMIT 1;`
 
+const linuxGigsAllDiskSpaceSubQueryConditions = `WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- boot files
+AND path NOT LIKE '/boot%' 
+
+-- snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)`
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -378,31 +428,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
-		// LEFT JOIN approach:
-
-		// 		Query: `
-		// SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-		//        round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-		//        round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-		// 			 round(SUM(m2.blocks * m2.blocks_size) * 1.0 / (1024 * 1024 * 1024), 2) AS gigs_all_disk_space
-		// FROM mounts m1 LEFT JOIN mounts m2 WHERE m1.path = '/' LIMIT 1 AND m2.blocks IS NOT NULL AND
-		// blocks_size IS NOT NULL;`,
-
-		// Subquery approach:
-		Query: `
+		Query: fmt.Sprintf(`
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(m2.blocks * m2.blocks_size) * 1.0 / (1024 * 1024 * 1024), 2) FROM mounts WHERE <condition TBD>) AS gigs_all_disk_space
-		FROM mounts WHERE path = '/' LIMIT 1;`,
-
-		// original
-
-		// 		Query: `
-		// SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-		//        round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-		//        round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-		// FROM mounts WHERE path = '/' LIMIT 1;`,
+					 (SELECT round(SUM(blocks_free * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
@@ -482,14 +513,17 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 	if err != nil {
 		return err
 	}
-	gigsAll, err := strconv.ParseFloat(EmptyToZero((rows[0]["gigs_all_disk_space"])), 64)
-	if err != nil {
-		return err
+
+	var gigsAllForFnCall *float64
+	if fleet.IsLinux(host.Platform) {
+		gigsAll, err := strconv.ParseFloat(EmptyToZero((rows[0]["gigs_all_disk_space"])), 64)
+		if err != nil {
+			return err
+		}
+		gigsAllForFnCall = &gigsAll
 	}
 
-	// TODO - only store here for Linux hosts
-
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAll)
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAllForFnCall)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
