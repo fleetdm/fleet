@@ -3371,6 +3371,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Allow non-Microsoft-signed updates',
                 uniqueSlug: 'windows-updates-allow-non-signed',
                 tooltip: 'Allows the IT admin to manage whether Automatic Updates accepts updates signed by entities other than Microsoft when the update is found at the UpdateServiceUrl location.',
+                category: 'Updates',
                 payloadGroup: 'Windows update service',
                 supportedAccessTypes: ['replace', 'add'],
                 formInput: {
