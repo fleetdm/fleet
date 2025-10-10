@@ -908,7 +908,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 }
 
 type getInHouseAppManifestRequest struct {
-	InHouseAppID uint `url:"id"`
+	TitleID uint `url:"title_id"`
 }
 
 type getInHouseAppManifestResponse struct {
@@ -938,7 +938,7 @@ func (r getInHouseAppManifestResponse) HijackRender(ctx context.Context, w http.
 
 func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInHouseAppManifestRequest)
-	manifest, err := svc.GetInHouseAppManifest(ctx, req.InHouseAppID)
+	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID)
 	if err != nil {
 		return &getInHouseAppManifestResponse{Err: err}, nil
 	}
@@ -946,7 +946,7 @@ func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.S
 	return &getInHouseAppManifestResponse{Manifest: manifest}, nil
 }
 
-func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint) ([]byte, error) {
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]byte, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

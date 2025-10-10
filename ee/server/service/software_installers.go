@@ -2526,21 +2526,19 @@ func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeSc
 	return include, exclude
 }
 
-func (svc *Service) GetInHouseAppManifest(ctx context.Context, inHouseAppID uint) ([]byte, error) {
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]byte, error) {
 
 	// TODO(JVE): use time-based JWT auth here, this is just for testing
 	svc.authz.SkipAuthorization(ctx)
-
-	// TODO(JVE): create download URL from the app server base URL
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get app config")
 	}
 
-	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app", appConfig.ServerSettings.ServerURL, inHouseAppID)
+	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app", appConfig.ServerSettings.ServerURL, titleID)
 
-	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, inHouseAppID)
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
 	}
