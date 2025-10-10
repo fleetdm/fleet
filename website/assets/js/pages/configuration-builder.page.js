@@ -3360,6 +3360,971 @@ parasails.registerPage('configuration-builder', {
                 },
               },
             ]
+          },
+          {
+            subcategoryName: 'Updates',
+            subcategorySlug: 'windows-updates',
+            description: 'Settings related to Windows updates',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update',
+            payloads: [
+              {
+                name: 'Allow non-Microsoft-signed updates',
+                uniqueSlug: 'windows-updates-allow-non-signed',
+                tooltip: 'Allows the IT admin to manage whether Automatic Updates accepts updates signed by entities other than Microsoft when the update is found at the UpdateServiceUrl location.',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Not allowed or not configured. Updates from an intranet Microsoft update service location must be signed by Microsoft.',
+                      value: 0
+                    },
+                    {
+                      name: `Allowed. Accepts updates received through an intranet Microsoft update service location, if they're signed by a certificate found in the 'Trusted Publishers' certificate store of the local computer.`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowNonMicrosoftSignedUpdate',
+                },
+              },
+              {
+                name: 'Allow optional updates',
+                uniqueSlug: 'windows-update-allow-optional-updates',
+                tooltip: 'This policy enables devices to get optional updates including gradual feature rollouts',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Don't receive optional updates.`,
+                      value: 0
+                    },
+                    {
+                      name: `Automatically receive optional updates (including gradual feature rollouts).`,
+                      value: 1
+                    },
+                    {
+                      name: `Automatically receive optional updates.`,
+                      value: 2
+                    },
+                    {
+                      name: `Users can select which optional updates to receive.`,
+                      value: 3
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowOptionalContent',
+                },
+              },
+              {
+                name: 'Specify feature branch readiness level',
+                uniqueSlug: 'windows-updates-feature-branch',
+                tooltip: 'This policy enables devices to get optional updates including gradual feature rollouts',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Insider build - fast`,
+                      value: 2
+                    },
+                    {
+                      name: `Windows Insider build - slow`,
+                      value: 4
+                    },
+                    {
+                      name: ` Release Windows Insider build`,
+                      value: 8
+                    },
+                    {
+                      name: `Semi-Annual enterprise channel preview`,
+                      value: 16
+                    },
+                    {
+                      name: `Semi-Annual enterprise channel.`,
+                      value: 32
+                    },
+                    {
+                      name: `Release preview of quality updates only.`,
+                      value: 64
+                    },
+                    {
+                      name: `Canary channel.`,
+                      value: 1128
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowOptionalContent',
+                },
+              },
+              {
+                name: 'Defer feature updates',
+                uniqueSlug: 'windows-update-defer-feature-updates',
+                tooltip: 'This policy enables devices to defer taking the next Feature Update available for their current product.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 365,
+                  unitLabel: 'days',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DeferFeatureUpdatesPeriodInDays',
+                },
+              },
+              {
+                name: 'Defer quality updates',
+                uniqueSlug: 'windows-update-defer-quality-updates',
+                tooltip: 'This policy enables devices to defer taking the next Quality Update available for their current product.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 30,
+                  unitLabel: 'days',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DeferQualityUpdatesPeriodInDays',
+                },
+              },
+              {
+                name: 'Exclude drivers in quality updates',
+                uniqueSlug: 'windows-exclude-drivers-in-quality-update',
+                tooltip: `Enable this policy to not include drivers with Windows quality updates. If you disable or don't configure this policy, Windows Update will include updates that have a Driver classification.`,
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ExcludeWUDriversInQualityUpdate',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow Windows insider preview builds',
+                uniqueSlug: 'windows-update-preview-builds',
+                tooltip: 'Used to manage Windows 10 Insider Preview builds.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Disable Preview builds.`,
+                      value: 0
+                    },
+                    {
+                      name: `Disable Preview builds once the next release is public.`,
+                      value: 1
+                    },
+                    {
+                      name: `Enable Preview builds.`,
+                      value: 2
+                    },
+                    {
+                      name: `Preview builds is left to user selection.`,
+                      value: 3
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Pause feature updates',
+                uniqueSlug: 'windows-updates-pause-feature-updates',
+                tooltip: 'If enabled, Windows feature updates will be paused for 60 days from when this policy is set',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Don't pause feature updates`,
+                      value: 0
+                    },
+                    {
+                      name: `Pause feature updates for 60 days.`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify a date to pause feature updates',
+                uniqueSlug: 'windows-updates-pause-feature-updates-date',
+                tooltip: 'If configured, Windows will pause feature updates on a specified date. The value of this settings must be a YYYY-MM-DD formated date.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    return val.match(/\d\d\d\d-\d\d-\d\d/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter a date that is formatted as YYYY-MM-DD'
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdatesStartTime',
+                },
+              },
+              {
+                name: 'Pause quality updates',
+                uniqueSlug: 'windows-updates-pause-quality-updates',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the public profile',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Don't pause quality updates`,
+                      value: 0
+                    },
+                    {
+                      name: `Quality updates are paused for 35 days.`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify a date to pause quality updates',
+                uniqueSlug: 'windows-updates-pause-quality-updates-date',
+                tooltip: 'If configured, Windows will pause quality updates on a specified date. The value of this settings must be a YYYY-MM-DD formated date.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    return val.match(/\d\d\d\d-\d\d-\d\d/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter a date that is formatted as YYYY-MM-DD'
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseQualityUpdatesStartTime',
+                },
+              },
+              {
+                name: 'Specify a Windows product version',
+                uniqueSlug: 'windows-updates-specify-product-version',
+                tooltip: 'Specify the product version associated with the target feature update you would like your device(s) to move to',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    console.log(val.match(/^windows\s\d\d/gi), val.match(/^\d+/));
+                    return val.match(/^windows\s\d\d/gi) || val.match(/^\d+/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter the full name of a Windows version or a version number. e.g., for Windows 11, you can enter either Windows 11, or just 11.'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-specify-release-version',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ProductVersion',
+                },
+              },
+              {
+                name: 'Specify a Windows release version',
+                uniqueSlug: 'windows-updates-specify-release-version',
+                tooltip: 'Specify the release version associated with the target feature update you would like your device(s) to move to',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-specify-product-version',
+                  }
+                ],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    return val.match(/\d{4}/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter a release version. e.g., 1909'
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/TargetReleaseVersion',
+                },
+              },
+              {
+                name: 'Disable Windows update service',
+                uniqueSlug: 'windows-updates-disable-update-service',
+                tooltip: 'Whether the device can use Microsoft Update, Windows Server Update Services, or Microsoft Store. Even when Windows Update is configured to receive updates from an intranet update service, it will periodically retrieve information from the public Windows Update service to enable future connections to Windows Update, and other services like Microsoft Update or the Microsoft Store. Enabling this policy will disable that functionality, and may cause connection to public services such as the Microsoft Store to stop working.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowUpdateService',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+              },
+              {
+                name: 'Windows update service detection frequency',
+                uniqueSlug: 'windows-updates-detection-frequency',
+                tooltip: 'Specifies the hours that Windows will use to determine how long to wait before checking for available updates. The exact wait time is a sum of the specific value and a random variant of 0-4 hours.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 22,
+                  minValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DetectionFrequency',
+                },
+              },
+              {
+                name: 'Disable enforcing TLS certificate pinning for Windows Update client',
+                uniqueSlug: 'windows-updates-tls-certificate-pinning',
+                tooltip: 'Enforce TLS certificate pinning for the Windows Update client.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DoNotEnforceEnterpriseTLSCertPinningForUpdateDetection',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Fill empty content URLs',
+                uniqueSlug: 'windows-updates-fill-empty-content-urls',
+                tooltip: 'Allows Windows Update Agent to determine the download URL when it\'s missing from the metadata. This scenario will occur when intranet update service stores the metadata files but the download contents are stored in the ISV file cache.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/FillEmptyContentUrls',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Set update source for driver updates.',
+                uniqueSlug: 'windows-driver-updates-source',
+                tooltip: `Configure this policy to specify whether to receive Windows Driver Updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.`,
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForDriverUpdates',
+                },
+              },
+              {
+                name: 'Set update source for feature updates.',
+                uniqueSlug: 'windows-feature-updates-source',
+                tooltip: 'Configure this policy to specify whether to receive Windows Feature Updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForFeatureUpdates',
+                },
+              },
+              {
+                name: 'Set update source for quality updates.',
+                uniqueSlug: 'windows-quality-updates-source',
+                tooltip: 'Configure this policy to specify whether to receive Windows Quality Updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForQualityUpdates',
+                },
+              },
+              {
+                name: 'Set update source for other updates.',
+                uniqueSlug: 'windows-other-updates-source',
+                tooltip: 'Configure this policy to specify whether to receive other updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForOtherUpdates',
+                },
+              },
+              {
+                name: 'Configure update service URL',
+                uniqueSlug: 'windows-updates-update-service-url',
+                tooltip: 'Allows the device to check for updates from a WSUS server instead of Microsoft Update. This is useful for on-premises MDMs that need to update devices that can\'t connect to the Internet.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/UpdateServiceUrl',
+                },
+              },
+              {
+                name: 'Configure alternate update service URL',
+                uniqueSlug: 'windows-updates-alternate-update-service-url',
+                tooltip: 'Specifies an alternate intranet server to host updates from Microsoft Update.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/UpdateServiceUrlAlternate',
+                },
+              },
+              {
+                name: 'Configure start of active hours for automatic updates',
+                uniqueSlug: 'windows-updates-active-hours-start',
+                tooltip: 'If you enable this policy, the PC won\'t automatically restart after updates during active hours. The PC will attempt to restart outside of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 23,
+                  minValue: 0,
+                  defaultValue: 8
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-active-hours-end',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursStart',
+                },
+              },
+              {
+                name: 'Configure end of active hours for automatic updates',
+                uniqueSlug: 'windows-updates-active-hours-end',
+                tooltip: 'If you enable this policy, the PC won\'t automatically restart after updates during active hours. The PC will attempt to restart outside of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 23,
+                  minValue: 0,
+                  defaultValue: 17
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-active-hours-start',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd',
+                },
+              },
+              {
+                name: 'Configure max range of active hours for automatic updates',
+                uniqueSlug: 'windows-updates-active-hours-max-range',
+                tooltip: 'Enable this policy to specify the maximum number of hours from the start time that users can set their active hours. The max active hours range can be set between 8 and 18 hours. If you disable or don\'t configure this policy, the default max active hours range will be used.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 18,
+                  minValue: 8,
+                  defaultValue: 18
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd',
+                },
+              },
+              {
+                name: 'Configure update notifications during active hours',
+                uniqueSlug: 'windows-updates-configure-active-hours-notification',
+                tooltip: 'This policy allows you to define what Windows update notifications users see during configured active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Notifications disabled`,
+                      value: 0
+                    },
+                    {
+                      name: `Notifications enabled`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/NoUpdateNotificationsDuringActiveHours',
+                },
+              },
+              {
+                name: 'Configure automatic updates',
+                uniqueSlug: 'windows-updates-configure-automatic-updates',
+                tooltip: 'Enables the IT admin to manage automatic update behavior to scan, download, and install updates.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Notify the user before downloading the update.`,
+                      value: 0
+                    },
+                    {
+                      name: `Automatically install the update and then notify the user to schedule a device restart. `,
+                      value: 1
+                    },
+                    {
+                      name: `Automatically install and restart.`,
+                      value: 2
+                    },
+                    {
+                      name: `Automatically install and restart at a specified time. The IT specifies the installation day and time. If no day and time are specified, the default is 3 AM daily.`,
+                      value: 3
+                    },
+                    {
+                      name: `Automatically install and restart without end-user control.`,
+                      value: 4
+                    },
+                    {
+                      name: `Turn off automatic updates.`,
+                      value: 5
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate',
+                },
+              },
+              {
+                name: 'Allow updates to be downloaded automatically over metered connections',
+                uniqueSlug: 'windows-updates-download-over-metered-connection',
+                tooltip: 'Enabling this policy will automatically download updates, even over metered data connections (charges may apply)',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowAutoWindowsUpdateDownloadOverMeteredNetwork',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Install updates for other Microsoft products',
+                uniqueSlug: 'windows-updates-install-other-microsoft-updates',
+                tooltip: 'Allows an IT admin to manage whether to scan for app updates from Microsoft Update.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowMUUpdateService',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Enable features introduced via servicing that are off by default',
+                uniqueSlug: 'windows-updates-enable-introduced-features',
+                tooltip: 'Enable features introduced via servicing (outside of the annual feature update) that are off by default for devices that have their Windows updates managed.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowTemporaryEnterpriseFeatureControl',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Specify deadline for automatic updates and restarts for feature updates',
+                uniqueSlug: 'windows-updates-feature-update-deadline',
+                tooltip: 'Number of days before feature updates are installed on devices automatically regardless of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 30,
+                  defaultValue: 2,
+                  unitLabel: 'days'
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify feature update deadline grace period',
+                uniqueSlug: 'windows-updates-feature-update-deadline-grace-period',
+                tooltip: 'Minimum number of days from update installation until restarts occur automatically for feature updates.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 7,
+                  defaultValue: 7,
+                  unitLabel: 'days'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-feature-update-deadline',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriodForFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify deadline for automatic updates and restarts for quality updates',
+                uniqueSlug: 'windows-updates-quality-update-deadline',
+                tooltip: 'Number of days before quality updates are installed on devices automatically regardless of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 30,
+                  defaultValue: 7,
+                  unitLabel: 'days'
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForQualityUpdates',
+                },
+              },
+              {
+                name: 'Specify quality update deadline grace period',
+                uniqueSlug: 'windows-updates-quality-update-deadline-grace-period',
+                tooltip: 'Minimum number of days from update installation until restarts occur automatically for quality updates.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 7,
+                  defaultValue: 2,
+                  unitLabel: 'days'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-quality-update-deadline',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriod',
+                },
+              },
+              {
+                name: 'Remove access to "Pause updates" feature',
+                uniqueSlug: 'windows-updates-disable-pause-updates',
+                tooltip: 'Allows IT admins to remove end-user access to "Pause updates" feature.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetDisablePauseUXAccess',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Remove access to use all Windows Update features',
+                uniqueSlug: 'windows-updates-disable-pause-updates',
+                tooltip: 'Allows IT admins to remove end-user access to Windows Update scan.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetDisableUXWUAccess',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Set power policy for cart restarts',
+                uniqueSlug: 'windows-updates-disable-pause-updates',
+                tooltip: 'Enabling this policy for EDU devices that remain on carts overnight will skip power checks to ensure update reboots will happen at the scheduled install time. This setting is designed for education devices that remain in carts overnight that are left in sleep mode. It isn\'t designed for 1:1 devices.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetEDURestart',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Configure update notifications',
+                uniqueSlug: 'windows-updates-configure-active-hours-notification',
+                tooltip: 'This policy allows you to define what Windows Update notifications users see.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Use the default Windows Update notifications.`,
+                      value: 0
+                    },
+                    {
+                      name: `Turn off all notifications, excluding restart warnings.`,
+                      value: 1
+                    },
+                    {
+                      name: `Turn off all notifications, including restart warnings.`,
+                      value: 2
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/UpdateNotificationLevel',
+                },
+              },
+            ],
           }
         ],
       },
@@ -3636,7 +4601,8 @@ parasails.registerPage('configuration-builder', {
             ],
           },
         ],
-      }
+      },
+
     ],
     // Android payloads
     androidCategoriesAndPayloads: [
