@@ -78,24 +78,3 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 
 	return installerID, titleID, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 }
-
-func (ds *Datastore) GetInHouseAppByID(ctx context.Context, id uint) (*fleet.InHouseAppPayload, error) {
-	stmt := `
-	SELECT
-		team_id,
-		title_id,
-		global_or_team_id,
-		name,
-		storage_id,
-		platform,
-		bundle_identifier
-	FROM in_house_apps WHERE id = ?
-	`
-
-	var app fleet.InHouseAppPayload
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, id); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get in house app by id")
-	}
-
-	return &app, nil
-}
