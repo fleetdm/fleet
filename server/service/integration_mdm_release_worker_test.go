@@ -22,15 +22,26 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	ctx := context.Background()
 	mysql.TruncateTables(t, s.ds, "nano_commands", "host_mdm_apple_profiles", "mdm_apple_configuration_profiles") // We truncate this table beforehand to avoid persistence from other tests.
 
-	expectMDMCommandsOfType := func(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, commandType string, count int) {
+	type mdmCommandOfType struct {
+		CommandType string
+		Count       int
+	}
+	expectMDMCommandsOfType := func(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, commandTypes []mdmCommandOfType) {
 		// Get the first command
 		cmd, err := mdmDevice.Idle()
 
-		for range count {
-			require.NoError(t, err)
-			require.NotNil(t, cmd)
-			require.Equal(t, commandType, cmd.Command.RequestType)
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		for _, ct := range commandTypes {
+			commandType := ct.CommandType
+			count := ct.Count
+			// Acknowledge and get next command of the expected type, for the expected count
+			// of times.
+
+			for range count {
+				require.NoError(t, err)
+				require.NotNil(t, cmd)
+				require.Equal(t, commandType, cmd.Command.RequestType)
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			}
 		}
 
 		// We do not expect any other commands
@@ -75,7 +86,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		return mdmDevice
 	}
 
-	device := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
+	device := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "darwin", OpType: "added"}
 
 	profileAssignmentReqs := []profileAssignmentReq{}
 	s.setSkipWorkerJobs(t)
@@ -139,6 +150,10 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			config := mobileconfigForTest("N1", "I1")
 			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
 
+			// TODO(mhj): Is the test case check here good enough, or should it live in the actual code.
+			// We run the reconciler before enrolling to ensure fleet profiles exist
+			s.awaitTriggerProfileSchedule(t)
+
 			// enroll the host
 			mdmDevice := enrollAppleDevice(t, device)
 
@@ -147,25 +162,32 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			speedUpQueuedAppleMdmJob(t)
 
 			// Get install enterprise application command and acknowledge it
-			expectMDMCommandsOfType(t, mdmDevice, "InstallEnterpriseApplication", 1)
+			expectMDMCommandsOfType(t, mdmDevice, []mdmCommandOfType{
+				{
+					CommandType: "InstallEnterpriseApplication",
+					Count:       1,
+				},
+				{
+					CommandType: "InstallProfile",
+					Count:       3,
+				},
+				{
+					CommandType: "DeclarativeManagement",
+					Count:       1,
+				},
+			})
 
-			s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
+			s.runWorker() // Run after install enterprise command to install profiles.
 
-			// Verify device was not released yet
-			expectDeviceConfiguredSent(t, false)
-
-			// Trigger profiles scheduler to set which profiles should be installed on the host.
-			s.awaitTriggerProfileSchedule(t)
-			speedUpQueuedAppleMdmJob(t)
-
-			// Verify install profiles three times due to the two default fleet profiles and our custom one added.
-			expectMDMCommandsOfType(t, mdmDevice, "InstallProfile", 3)
-
-			s.runWorker() // release device
-
-			// See DeviceConfigured is in Database and next command for mdm device
+			// Since moving profile installation to POSTDepEnrollment worker, we can now release the device immediately, as we only wait for sending.
+			// Verify device was released
 			expectDeviceConfiguredSent(t, true)
-			expectMDMCommandsOfType(t, mdmDevice, "DeviceConfigured", 1)
+			expectMDMCommandsOfType(t, mdmDevice, []mdmCommandOfType{
+				{
+					CommandType: "DeviceConfigured",
+					Count:       1,
+				},
+			})
 		})
 
 		t.Run("ignores user scoped config profiles", func(t *testing.T) {
@@ -175,6 +197,10 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			userScopedConfig := scopedMobileconfigForTest("N-USER-SCOPED", "I-USER-SCOPED", &userScope)
 			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{systemScopedConfig, userScopedConfig}}, http.StatusNoContent)
 
+			// TODO(mhj): Is the test case check here good enough, or should it live in the actual code.
+			// We run the reconciler before enrolling to ensure fleet profiles exist
+			s.awaitTriggerProfileSchedule(t)
+
 			// enroll the host
 			mdmDevice := enrollAppleDevice(t, device)
 
@@ -183,25 +209,31 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			speedUpQueuedAppleMdmJob(t)
 
 			// Get install enterprise application command and acknowledge it
-			expectMDMCommandsOfType(t, mdmDevice, "InstallEnterpriseApplication", 1)
+			expectMDMCommandsOfType(t, mdmDevice, []mdmCommandOfType{
+				{
+					CommandType: "InstallEnterpriseApplication",
+					Count:       1,
+				},
+				{
+					CommandType: "InstallProfile",
+					Count:       3, // Only the system scoped profile is installed
+				},
+				{
+					CommandType: "DeclarativeManagement",
+					Count:       1,
+				},
+			})
 
-			s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
+			s.runWorker() // Run after post dep enrollment to release device.
 
 			// Verify device was not released yet
-			expectDeviceConfiguredSent(t, false)
-
-			// Trigger profiles scheduler to set which profiles should be installed on the host.
-			s.awaitTriggerProfileSchedule(t)
-			speedUpQueuedAppleMdmJob(t)
-
-			// Verify install profiles three times due to the two default fleet profiles and our custom one added, and it ignores the user scope.
-			expectMDMCommandsOfType(t, mdmDevice, "InstallProfile", 3)
-
-			s.runWorker() // release device
-
-			// See DeviceConfigured is in Database and next command for mdm device
 			expectDeviceConfiguredSent(t, true)
-			expectMDMCommandsOfType(t, mdmDevice, "DeviceConfigured", 1)
+			expectMDMCommandsOfType(t, mdmDevice, []mdmCommandOfType{
+				{
+					CommandType: "DeviceConfigured",
+					Count:       1,
+				},
+			})
 		})
 	})
 }

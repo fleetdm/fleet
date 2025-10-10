@@ -47,9 +47,6 @@ func ProcessAndEnqueueProfiles(
 	for pUUID := range installTargets {
 		profileUUIDs = append(profileUUIDs, pUUID)
 	}
-	for pUUID := range removeTargets {
-		profileUUIDs = append(profileUUIDs, pUUID)
-	}
 
 	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
 	if err != nil {

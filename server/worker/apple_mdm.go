@@ -632,11 +632,15 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
 	start := time.Now()
 
+	// TODO(mhj): Should we ensureFleetProfiles here as well, as we do in the reconciler? In real environments, we most likely have that ran already, but for testing purposes and what not it's not present if not ran
+
 	// Get all profiles that need to be installed for this host
 	profilesToInstall, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing profiles to install for host")
 	}
+
+	profilesToInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesToInstall)
 
 	// Filter out user-scoped profiles as they require special handling
 	profilesToInstall = fleet.FilterOutUserScopedProfiles(profilesToInstall)
