@@ -2462,7 +2462,7 @@ None.
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
 - [Batch-delete hosts by filter or ids](#batch-delete-hosts-by-filter-or-ids)
-- [Update custom human-device mapping](#update-custom-human-device-mapping)
+- [Update human-device mapping](#update-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
@@ -3910,11 +3910,11 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Update custom human-device mapping
+### Update human-device mapping
 
 `PUT /api/v1/fleet/hosts/:id/device_mapping`
 
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+Updates the email for the data source in the human-device mapping. This source can only have one email.
 
 #### Parameters
 
@@ -3922,6 +3922,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id         | integer           | path | **Required**. The host's `id`.                                                |
 | email      | string            | body | **Required**. The custom email.                                               |
+| source     | string            | body | The data source to override. Either `"custom"` or `"idp"`. If `"idp"`, this will update the end user's `"idp_username"`. Currently, `"idp"` is supported on macOS. (Defaults to `"custom"`.)
 
 #### Example
 
