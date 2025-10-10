@@ -1015,6 +1015,60 @@ INSERT INTO setup_experience_status_results (
 			require.Equal(t, fleet.SetupExperienceStatusRunning, result.Status)
 		}
 	})
+
+	t.Run("installs profiles on post dep enrollment", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		profile1 := []byte("profile1")
+		profile2 := []byte("profile2")
+		profile3 := []byte("profile3")
+
+		_, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Mobileconfig: profile1,
+			Identifier:   "profile1",
+			Name:         "Profile 1",
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Mobileconfig: profile2,
+			Identifier:   "profile2",
+			Name:         "Profile 2",
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Mobileconfig: profile3,
+			Identifier:   "profile3",
+			Name:         "Profile 3",
+		}, nil)
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		require.NoError(t, err)
+
+		// run the worker, should send install profiles commands, and a ddm request
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		// check all commands that were enqueued
+		require.ElementsMatch(t, []string{"InstallProfile", "DeclarativeManagement", "InstallProfile", "InstallProfile", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+	})
 }
 
 func TestGetSignedURL(t *testing.T) {
