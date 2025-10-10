@@ -1027,7 +1027,8 @@ const HostDetailsPage = ({
               {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
                when we add that feature. */}
-              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ? (
+              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
+              isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
