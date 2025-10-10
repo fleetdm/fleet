@@ -45,6 +45,7 @@ spec:
       enable_end_user_authentication: false
       macos_setup_assistant: %s
       manual_agent_install: null
+      require_all_software_macos: false
       enable_release_device_manually: false
       script: null
       software: null

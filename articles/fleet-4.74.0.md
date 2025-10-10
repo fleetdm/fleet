@@ -1,4 +1,4 @@
-# Fleet 4.74.0 | Custom software icons, batch script details, and more...
+# Fleet 4.74.0 | Linux setup experience, custom software icons, and more...
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/n35ROwlHGTU?si=tAvx2YiVbR-ycqWo" frameborder="0" allowfullscreen></iframe>
@@ -8,15 +8,15 @@ Fleet 4.74.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
+- Linux setup experience
 - Custom software icons
 - Batch script details
-- Linux setup experience
 - Self-service software intrucutions
 - AWS IAM authentication for MySQL and Redis
 
 ### Custom software icons
 
-IT Admins can now add custom icons for software. This makes it easier for end users to visually identify and install the tools they need from self-service. Learn more in the [self-service software guide](https://fleetdm.com/guides/software-self-service).
+IT admins can now add custom icons for software. This makes it easier for end users to visually identify and install the tools they need from self-service. Learn more in the [self-service software guide](https://fleetdm.com/guides/software-self-service).
 
 ### Batch script details
 
@@ -36,7 +36,7 @@ Companies that self-host Fleet can now use IAM (Identity and Access Management) 
 
 ## Changes
 
-### Security Engineers
+### Security engineers
 - Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a Hydrant.
 - Added a check to disallow FLEET_SECRET variables in Apple configuration profile `<PayloadDisplayName>` fields for security.
 - Added `/batch/{batch_execution_id:[a-zA-Z0-9-]+}/host-results` API endpoint to list hosts targeted in batch.
@@ -46,8 +46,9 @@ Companies that self-host Fleet can now use IAM (Identity and Access Management) 
 - Added support for AWS ElastiCache (Redis) IAM authentication.
 - Added support for hosts enrolled with Company Portal using the legacy SSO extension for Entra's conditional access.
 
-### IT Admins
+### IT admins
 - Added setup experience software items for Linux devices.
+- Added ability to upload custom software icons.
 - Added API endpoints for Linux setup experience.
   - Device API endpoints for fleetd: `POST /api/fleet/orbit/setup_experience/init` and `POST /api/v1/fleet/device/{token}/setup_experience/status`.
   - `PUT /api/v1/fleet/setup_experience/software` and `GET /api/v1/fleet/setup_experience/software` now have a `platform` argument (`linux` or `macos`, defaults to `macos`).
@@ -107,5 +108,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2025-10-06">
-<meta name="articleTitle" value="Fleet 4.74.0 | Custom software icons, batch script details, and more...">
+<meta name="articleTitle" value="Fleet 4.74.0 | Linux setup experience, custom software icons, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.74.0-1600x900@2x.png">

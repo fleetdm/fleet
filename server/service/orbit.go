@@ -178,12 +178,26 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
 
+	var stickyEnrollment *string
+	if svc.keyValueStore != nil {
+		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
+		// this prevents enrollment-based team changes for a time window to avoid race conditions
+		// with MDM profile delivery.
+		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hostInfo.HardwareUUID)
+		if err != nil {
+			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
+			// enrollment proceeds without sticky behavior rather than blocking.
+			level.Error(svc.logger).Log("msg", "failed to get sticky enrollment", "err", err, "host_uuid", hostInfo.HardwareUUID)
+		}
+	}
+
 	host, err := svc.ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
+		fleet.WithEnrollOrbitIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
