@@ -68,7 +68,10 @@ If you want to make sure the profile stays device-scoped, update `PayloadScope` 
 #### Broken profiles
 
 If one or more labels included in the profile's scope are deleted, the profile will not apply to new hosts that enroll.
-On macOS, iOS, iPadOS, and Windows, a broken profile will not remove the enforcement of the OS settings applied to existing hosts. However, on Android, a broken profile will remove the enforcement of the OS settings for existing hosts. To apply the profile to new hosts, delete it and upload it again.
+
+On macOS, iOS, iPadOS, and Windows, a broken profile will not remove the enforcement of the OS settings applied to existing hosts. To enforce the OS setting on new hosts, delete it and upload it again.
+
+On Android hosts, a broken profile will remove the enforcement of the OS settings for existing hosts. To enforce the OS setting on existing and new hosts, delete it and upload it again.
 
 ## See status
 
