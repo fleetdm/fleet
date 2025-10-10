@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // MD5 is used for checksums, not security
 	"database/sql"
 	"fmt"
 	"strings"
@@ -88,24 +88,25 @@ func TestUp_20251010153829(t *testing.T) {
 	require.Len(t, software, 5)
 
 	for _, sw := range software {
-		if sw.Name == app1Name {
+		switch sw.Name {
+		case app1Name:
 			require.Equal(t, app1NewChecksum, sw.Checksum)
 			require.True(t, sw.BundleIdentifier.Valid)
 			require.Equal(t, app1BundleID, sw.BundleIdentifier.String)
-		} else if sw.Name == app2Name {
+		case app2Name:
 			require.Equal(t, app2NewChecksum, sw.Checksum)
 			require.True(t, sw.BundleIdentifier.Valid)
 			require.Equal(t, app2BundleID, sw.BundleIdentifier.String)
-		} else if sw.Name == app3Name {
+		case app3Name:
 			require.Equal(t, app3OldChecksum, sw.Checksum)
 			require.False(t, sw.BundleIdentifier.Valid)
-		} else if sw.Name == winName {
+		case winName:
 			require.Equal(t, winOldChecksum, sw.Checksum)
 			require.Equal(t, "programs", sw.Source)
-		} else if sw.Name == linuxName {
+		case linuxName:
 			require.Equal(t, linuxOldChecksum, sw.Checksum)
 			require.Equal(t, "deb_packages", sw.Source)
-		} else {
+		default:
 			t.Fatalf("Unexpected software entry: %s", sw.Name)
 		}
 	}
