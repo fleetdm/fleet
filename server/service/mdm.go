@@ -2411,12 +2411,12 @@ func getAppleProfiles(
 		}
 
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof.Contents, tmID)
-		mdmProf.SecretsUpdatedAt = prof.SecretsUpdatedAt
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
 				"invalid mobileconfig profile")
 		}
+		mdmProf.SecretsUpdatedAt = prof.SecretsUpdatedAt
 
 		for _, labelName := range prof.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
