@@ -19,8 +19,6 @@ func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
 
-	fmt.Printf("tfr.Name(): %v\n", tfr.Name())
-
 	r, err := zip.OpenReader(tfr.Name())
 	if err != nil {
 		return nil, err

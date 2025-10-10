@@ -128,6 +128,8 @@ type SoftwareInstaller struct {
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
 	Categories []string `json:"categories"`
+
+	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
