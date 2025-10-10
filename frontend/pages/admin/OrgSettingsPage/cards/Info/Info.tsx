@@ -132,8 +132,9 @@ const Info = ({
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
-          className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-            }`}
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
         >
           <div className={`${cardClass}__logo-field-set`}>
             <InputField
