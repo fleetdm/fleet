@@ -943,6 +943,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
 	neAppleMDM.POST("/api/_version_/fleet/ota_enrollment", mdmAppleOTAEndpoint, mdmAppleOTARequest{})
 
+	neAppleMDM.GET("/api/_version_/fleet/mdm/apple/psso_installer", mdmApplePSSOInstallerEndpoint, struct{}{})
+	neAppleMDM.GET("/api/_version_/fleet/mdm/apple/psso_installer/manifest", mdmApplePSSOManifestEndpoint, struct{}{})
+	neAppleMDM.GET("/api/_version_/fleet/mdm/apple/psso_installer/profile", mdmApplePSSOProfileEndpoint, struct{}{})
+
 	// Deprecated: GET /mdm/bootstrap is now deprecated, replaced by the
 	// GET /bootstrap endpoint.
 	neAppleMDM.GET("/api/_version_/fleet/mdm/bootstrap", downloadBootstrapPackageEndpoint, downloadBootstrapPackageRequest{})
@@ -1320,7 +1324,8 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 			return
 		}
 
-		// if x-apple-aspen-deviceinfo custom header is present, we need to check for minimum os version
+		// if x-apple-aspen-deviceinfo custom header is present, we need to check for minimum os
+		// version and PSSO enrollment requirements before proceeding
 		di := r.Header.Get("x-apple-aspen-deviceinfo")
 		if di != "" {
 			parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
@@ -1351,6 +1356,9 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				}
 				return
 			}
+
+			// TODO(pssopoc): confirm whether Apple intended that the PSSO flow is not supported with
+			// the `configuration_web_url`, if not we would need to implement support for that here.
 
 			// TODO: Do non-Apple devices ever use this route? If so, we probably need to change the
 			// approach below so we don't endlessly redirect non-Apple clients to the same URL.

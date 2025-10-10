@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5" // nolint:gosec // used for declarative management token
 	"crypto/x509"
+	_ "embed"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -1913,6 +1914,18 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 		}
 	}
 
+	// // TODO(pssopoc): figure out implementation details for bearer token
+	// // See https://developer.apple.com/documentation/devicemanagement/implementing-platform-sso-during-device-enrollment#Enroll-the-device
+	// var bearerToken string
+	// authHdr := r.Header.Get("Authorization")
+	// headerParts := strings.Split(authHdr, " ")
+	// if len(headerParts) == 2 && strings.ToUpper(headerParts[0]) == "BEARER" {
+	// 	bearerToken = headerParts[1]
+	// 	// TODO(pssopoc): add to the request struct and validate in the endpoint
+	// } else {
+	// 	// TODO(pssopoc): figure out what we want to do if missing/malformed auth header
+	// }
+
 	return &decoded, nil
 }
 
@@ -1925,6 +1938,7 @@ type mdmAppleEnrollResponse struct {
 	Profile []byte
 
 	SoftwareUpdateRequired *fleet.MDMAppleSoftwareUpdateRequired
+	PSSORequired           *fleet.MDMApplePSSORequired
 }
 
 func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -1933,6 +1947,15 @@ func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.Respons
 		w.WriteHeader(http.StatusForbidden)
 		if err := json.NewEncoder(w).Encode(r.SoftwareUpdateRequired); err != nil {
 			endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to encode software update required"), w)
+		}
+		return
+	}
+
+	if r.PSSORequired != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		if err := json.NewEncoder(w).Encode(r.PSSORequired); err != nil {
+			endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to encode psso required"), w)
 		}
 		return
 	}
@@ -1966,6 +1989,19 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 				SoftwareUpdateRequired: sur,
 			}, nil
 		}
+	}
+
+	psso, err := svc.CheckMDMAppleEnrollmentWithPSSO(ctx, req.MachineInfo)
+	if err != nil {
+		// // TODO: do we instead want to just log the error and continue to next?
+		// level.Error(logger).Log("msg", "checking pss enrollment for mdm", "err", err)
+		// next.ServeHTTP(w, r)
+		return mdmAppleEnrollResponse{Err: err}, nil
+	}
+	if psso != nil {
+		return mdmAppleEnrollResponse{
+			PSSORequired: psso,
+		}, nil
 	}
 
 	legacyRef, err := svc.ReconcileMDMAppleEnrollRef(ctx, req.EnrollmentReference, req.MachineInfo)

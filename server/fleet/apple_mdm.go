@@ -999,6 +999,7 @@ type MDMBootstrapPackageStore interface {
 type MDMAppleMachineInfo struct {
 	IMEI                        string `plist:"IMEI,omitempty"`
 	Language                    string `plist:"LANGUAGE,omitempty"`
+	MDMCanRequestPSSOConfig     bool   `plist:"MDM_CAN_REQUEST_PSSO_CONFIG,omitempty"`
 	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
 	MEID                        string `plist:"MEID,omitempty"`
 	OSVersion                   string `plist:"OS_VERSION"`
@@ -1025,6 +1026,54 @@ type MDMAppleAccountDrivenUserEnrollDeviceInfo struct {
 	SoftwareUpdateDeviceID   string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
 	SupplementalBuildVersion string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
 }
+
+// MDMApplePSSORequiredCode is the [code][1] specified by Apple to indicate that the device
+// needs to configure PSSO before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodeplatformssorequired
+const MDMApplePSSORequiredCode = "com.apple.psso.required"
+
+// MDMApplePSSORequiredDetails is the [details][1] specified by Apple for the
+// required PSSO.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodeplatformssorequired/details-data.dictionary
+type MDMApplePSSORequiredDetails struct {
+	AuthURL    string                      `json:"AuthURL"`
+	Package    MDMApplePSSORequiredPackage `json:"Package"`
+	ProfileURL string                      `json:"ProfileURL"`
+}
+
+// MDMApplePSSORequiredPackage is the [package][1] specified by Apple for the
+// required PSSO.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodeplatformssorequired/details-data.dictionary/package-data.dictionary
+type MDMApplePSSORequiredPackage struct {
+	ManifestURL                    string   `json:"ManifestURL"`
+	PinningCerts                   []string `json:"PinningCerts,omitempty"`
+	PinningRevocationCheckRequired bool     `json:"PinningRevocationCheckRequired,omitempty"`
+}
+
+type MDMApplePSSORequiredConfig struct {
+	AuthURL    string `json:"AuthURL"`
+	Package    string `json:"Package"`
+	ProfileURL string `json:"ProfileURL"`
+}
+
+// MDMApplePSSORequired is the [error response][1] specified by Apple to indicate that the device
+// needs to perform a software update before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodeplatformssorequired
+type MDMApplePSSORequired struct {
+	Code    string                      `json:"code"` // "com.apple.psso.required"
+	Details MDMApplePSSORequiredDetails `json:"details"`
+}
+
+// func NewMDMApplePSSORequired(asset MDMApplePSSORequiredConfig) *MDMApplePSSORequired {
+// 	return &MDMApplePSSORequired{
+// 		Code:    MDMApplePSSORequiredCode,
+// 		Details: MDMApplePSSORequiredDetails{AuthURL: asset.AuthURL, Package: asset.Package, ProfileURL: asset.ProfileURL},
+// 	}
+// }
 
 // MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device
 // needs to perform a software update before enrollment and setup can proceed.

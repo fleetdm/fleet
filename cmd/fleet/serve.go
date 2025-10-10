@@ -1249,6 +1249,9 @@ the way that the Fleet server works.
 					ds,
 					logger,
 				)
+
+				// TODO(pssopoc): determine if we will use a middleware chain here to support a
+				// Fleet-hosted AuthURL flow
 			}
 
 			healthCheckers := make(map[string]health.Checker)
