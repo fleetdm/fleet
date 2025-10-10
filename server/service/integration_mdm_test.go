@@ -1323,6 +1323,19 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 
 	// valid token downloads the profile
 	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+
+	// set end user auth enabled
+	appConfig, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup.EnableEndUserAuthentication = true
+
+	err = s.ds.SaveAppConfig(t.Context(), appConfig)
+	require.NoError(t, err)
+
+	// fails since team has end user auth enabled
+	res := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusBadRequest)
+	errText := extractServerErrorText(res.Body)
+	require.Contains(t, errText, "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work.")
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
