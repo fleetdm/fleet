@@ -63,6 +63,22 @@ data "terraform_remote_state" "shared" {
   }
 }
 
+data "terraform_remote_state" "eks_vpc" {
+  count   = var.enable_otel ? 1 : 0
+  backend = "s3"
+  config = {
+    bucket         = "fleet-terraform-state20220408141538466600000002"
+    key            = "loadtesting/shared/eks-vpc/terraform.tfstate"
+    region         = "us-east-2"
+    encrypt        = true
+    kms_key_id     = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
+    dynamodb_table = "tf-remote-state-lock"
+    assume_role = {
+      role_arn = "arn:aws:iam::353365949058:role/terraform-loadtesting"
+    }
+  }
+}
+
 provider "docker" {
   # Configuration options
   registry_auth {
@@ -73,3 +89,34 @@ provider "docker" {
 }
 
 provider "git" {}
+
+# Data sources for SigNoz EKS cluster authentication
+data "aws_eks_cluster" "signoz" {
+  count = var.enable_otel ? 1 : 0
+  name  = module.signoz[0].cluster_name
+}
+
+data "aws_eks_cluster_auth" "signoz" {
+  count = var.enable_otel ? 1 : 0
+  name  = module.signoz[0].cluster_name
+}
+
+# Helm provider for SigNoz EKS cluster
+provider "helm" {
+  alias = "signoz"
+
+  kubernetes {
+    host                   = var.enable_otel ? data.aws_eks_cluster.signoz[0].endpoint : ""
+    cluster_ca_certificate = var.enable_otel ? base64decode(data.aws_eks_cluster.signoz[0].certificate_authority[0].data) : ""
+    token                  = var.enable_otel ? data.aws_eks_cluster_auth.signoz[0].token : ""
+  }
+}
+
+# Kubernetes provider for SigNoz EKS cluster
+provider "kubernetes" {
+  alias = "signoz"
+
+  host                   = var.enable_otel ? data.aws_eks_cluster.signoz[0].endpoint : ""
+  cluster_ca_certificate = var.enable_otel ? base64decode(data.aws_eks_cluster.signoz[0].certificate_authority[0].data) : ""
+  token                  = var.enable_otel ? data.aws_eks_cluster_auth.signoz[0].token : ""
+}

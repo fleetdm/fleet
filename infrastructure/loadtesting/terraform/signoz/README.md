@@ -14,11 +14,11 @@ terraform apply -var=enable_otel=true
 
 ## What gets deployed
 
-- **EKS cluster** for SigNoz in shared fleet-vpc (K8s 1.31, 2x t3.large nodes)
+- **EKS cluster** for SigNoz in shared eks-vpc (K8s 1.31, 2x t3.large nodes)
 - **OTLP endpoint**: Internal LoadBalancer (not publicly accessible)
 - **SigNoz UI**: Public LoadBalancer on port 8080
 - **Storage**: EBS CSI driver with gp2 default storage class
 
 ## Architecture
 
-SigNoz uses the shared fleet-vpc to avoid VPC limits. The EKS cluster is deployed in the private subnets of the fleet-vpc.
+SigNoz uses the shared `eks-vpc` (not fleet-vpc) which has proper Kubernetes subnet tags. The eks-vpc is shared across all workspaces (like fleet-vpc), but each workspace deploys its own SigNoz EKS cluster within it.

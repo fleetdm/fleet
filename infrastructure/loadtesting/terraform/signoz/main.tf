@@ -9,10 +9,12 @@ terraform {
     helm = {
       source  = "hashicorp/helm"
       version = "~> 2.11"
+      configuration_aliases = [helm]
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
+      configuration_aliases = [kubernetes]
     }
   }
 }
@@ -34,6 +36,25 @@ module "eks" {
   vpc_id     = var.vpc_id
   subnet_ids = var.subnet_ids
 
+  # IMPORTANT: Install critical addons BEFORE node group to avoid circular dependency
+  # Nodes need VPC CNI to become Ready, but terraform waits for nodes to be Ready
+  # before creating addons. This causes a deadlock where nodes are stuck NotReady.
+  # Solution: Use addons with before_compute=true to install VPC CNI before node group completes.
+  addons = {
+    vpc-cni = {
+      most_recent    = true
+      before_compute = true
+    }
+    kube-proxy = {
+      most_recent    = true
+      before_compute = true
+    }
+    coredns = {
+      most_recent    = true
+      before_compute = true
+    }
+  }
+
   # Managed node group
   eks_managed_node_groups = {
     default = {
@@ -41,59 +62,50 @@ module "eks" {
       max_size       = 2
       desired_size   = 2
       instance_types = ["t3.large"]
-
-      # IAM policies for EBS CSI driver
-      iam_role_additional_policies = {
-        AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-      }
     }
   }
 
   # Enable cluster creator admin access
   enable_cluster_creator_admin_permissions = true
+
+  # Enable OIDC provider for IRSA (IAM Roles for Service Accounts)
+  enable_irsa = true
 }
 
-# Explicit EKS Addons - install BEFORE node group completes
-resource "aws_eks_addon" "vpc_cni" {
-  cluster_name = module.eks.cluster_name
-  addon_name   = "vpc-cni"
+# IAM Role for EBS CSI Driver Service Account (IRSA)
+module "ebs_csi_irsa_role" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
 
-  depends_on = [module.eks]
+  role_name             = "${local.cluster_name}-ebs-csi-driver"
+  attach_ebs_csi_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
+    }
+  }
 }
 
-resource "aws_eks_addon" "kube_proxy" {
-  cluster_name = module.eks.cluster_name
-  addon_name   = "kube-proxy"
-
-  depends_on = [aws_eks_addon.vpc_cni]
-}
-
-resource "aws_eks_addon" "coredns" {
-  cluster_name = module.eks.cluster_name
-  addon_name   = "coredns"
-
-  depends_on = [aws_eks_addon.kube_proxy]
-}
-
+# EBS CSI Driver addon with IRSA support
+# This must be created separately to avoid circular dependency with OIDC provider
 resource "aws_eks_addon" "ebs_csi" {
-  cluster_name = module.eks.cluster_name
-  addon_name   = "aws-ebs-csi-driver"
+  cluster_name             = module.eks.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  addon_version            = data.aws_eks_addon_version.ebs_csi.version
+  service_account_role_arn = module.ebs_csi_irsa_role.iam_role_arn
 
-  depends_on = [aws_eks_addon.coredns]
+  depends_on = [
+    module.ebs_csi_irsa_role,
+    module.eks
+  ]
 }
 
-# Set gp2 as default storage class
-resource "kubernetes_annotations" "gp2_default" {
-  api_version = "storage.k8s.io/v1"
-  kind        = "StorageClass"
-  metadata {
-    name = "gp2"
-  }
-  annotations = {
-    "storageclass.kubernetes.io/is-default-class" = "true"
-  }
-
-  depends_on = [module.eks]
+data "aws_eks_addon_version" "ebs_csi" {
+  addon_name         = "aws-ebs-csi-driver"
+  kubernetes_version = module.eks.cluster_version
+  most_recent        = true
 }
 
 # SigNoz via Helm
@@ -132,8 +144,12 @@ resource "helm_release" "signoz" {
     value = "20Gi"
   }
 
+  set {
+    name  = "clickhouse.persistence.storageClassName"
+    value = "gp3"
+  }
+
   depends_on = [
-    aws_eks_addon.ebs_csi,
     module.eks
   ]
 }

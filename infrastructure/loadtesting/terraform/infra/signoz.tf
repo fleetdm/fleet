@@ -5,12 +5,12 @@ module "signoz" {
   count  = var.enable_otel ? 1 : 0
   source = "../signoz"
 
-  aws_region   = "us-east-2"
+  aws_region   = data.aws_region.current.region
   cluster_name = "signoz-${terraform.workspace}"
 
-  # Use shared fleet VPC
-  vpc_id     = data.terraform_remote_state.shared.outputs.vpc.vpc_id
-  subnet_ids = data.terraform_remote_state.shared.outputs.vpc.private_subnets
+  # Use dedicated EKS VPC with proper Kubernetes tags
+  vpc_id     = data.terraform_remote_state.eks_vpc[0].outputs.vpc.vpc_id
+  subnet_ids = data.terraform_remote_state.eks_vpc[0].outputs.vpc.private_subnets
 
   providers = {
     aws        = aws

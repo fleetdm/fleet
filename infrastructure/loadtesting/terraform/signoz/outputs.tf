@@ -38,5 +38,5 @@ data "kubernetes_service" "otlp_collector" {
 # Output for programmatic access - internal LoadBalancer hostname
 output "otel_collector_endpoint" {
   description = "Internal OTLP collector endpoint (hostname:port)"
-  value       = "${data.kubernetes_service.otlp_collector.status[0].load_balancer[0].ingress[0].hostname}:4317"
+  value       = try("${data.kubernetes_service.otlp_collector.status[0].load_balancer[0].ingress[0].hostname}:4317", "LoadBalancer not ready yet")
 }
