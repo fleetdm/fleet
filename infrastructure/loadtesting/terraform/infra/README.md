@@ -80,6 +80,14 @@ terraform apply -var=tag=v4.72.0 -var=enable_otel=true
 
 This deploys both Fleet and SigNoz in a single command. See [../signoz/README.md](../signoz/README.md) for architecture details.
 
+### Accessing the SigNoz UI
+
+After deploying with `enable_otel=true`, get the SigNoz UI URL:
+
+```sh
+$(terraform output -raw signoz_configure_kubectl) && kubectl get svc signoz -n signoz -o jsonpath='http://{.status.loadBalancer.ingress[0].hostname}:8080'
+```
+
 # Destroy environment manually
 
 1. Clone the repository (if not already cloned)
