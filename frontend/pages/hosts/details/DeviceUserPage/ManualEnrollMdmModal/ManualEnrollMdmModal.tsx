@@ -7,6 +7,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
 import { IDeviceUserResponse } from "interfaces/host";
+import { AxiosResponse } from "axios";
 
 interface IManualEnrollMdmModalProps {
   host: IDeviceUserResponse["host"];
@@ -28,12 +29,35 @@ const ManualEnrollMdmModal = ({
       const profileContent = await mdmAPI.downloadManualEnrollmentProfile(
         token
       );
+      console.log(profileContent);
       const file = new File(
         [profileContent],
         "fleet-mdm-enrollment-profile.mobileconfig"
       );
       FileSaver.saveAs(file);
-    } catch (e) {
+    } catch (e: AxiosResponse | unknown) {
+      // We need to do some additional parsing here, as the data is a blob.
+      if (e && typeof e === "object" && "data" in e) {
+        const axiosResponse = e as AxiosResponse;
+        if (axiosResponse.data) {
+          console.log(axiosResponse);
+          const dataBlob = axiosResponse.data as Blob;
+          const blobText = await dataBlob.text();
+          console.log("blob text", blobText);
+          if (
+            blobText.includes(
+              "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work."
+            )
+          ) {
+            renderFlash(
+              "error",
+              "The team associated with the enroll_secret has end user authentication enabled so the enrollment profile doesn't work. Please contact your IT admin."
+            );
+            return;
+          }
+        }
+      }
+
       renderFlash("error", "Failed to download the profile. Please try again.");
     }
   };
