@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251009140116, Down_20251009140116)
+	MigrationClient.AddMigration(Up_20251010153829, Down_20251010153829)
 }
 
-func Up_20251009140116(tx *sql.Tx) error {
+func Up_20251010153829(tx *sql.Tx) error {
 	var minID, maxID sql.NullInt64
 	err := tx.QueryRow(`
 		SELECT MIN(id), MAX(id)
@@ -65,6 +65,6 @@ func Up_20251009140116(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251009140116(tx *sql.Tx) error {
+func Down_20251010153829(tx *sql.Tx) error {
 	return nil
 }

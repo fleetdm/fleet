@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251009140116(t *testing.T) {
+func TestUp_20251010153829(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	computeOldChecksum := func(name, version, source, bundleID, release, arch, vendor, extensionFor, extensionID string) []byte {
