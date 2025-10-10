@@ -10,12 +10,7 @@ const IntuneCompanyPortal = (props: SVGProps<SVGSVGElement>) => {
   const fillPathDId = uniqueId("fill-path-d-");
 
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 32 32"
-      {...props}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
       <g clipPath={`url(#${clipPathId})`}>
         <path fill="#fff" d="M32 0H0v32h32V0Z" />
         <mask

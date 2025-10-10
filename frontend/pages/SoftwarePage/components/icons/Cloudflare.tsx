@@ -3,12 +3,7 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const Cloudflare = (props: SVGProps<SVGSVGElement>) => (
-  <svg
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 32 32"
-    {...props}
-  >
+  <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path fill="#fff" d="M0 0h32v32H0z" />
     <path
       d="M20.688 20.375C21.375 18.75 20.438 18 19.5 18l-9.25-.125c-.25 0-.25-.375.063-.438l9.374-.125c1.063-.062 2.313-.937 2.688-2.062 0 0 .625-1.313.563-1.5a6.063 6.063 0 0 0-11.688-.688c-2.375-1.562-4.875.563-4.313 2.876a3.913 3.913 0 0 0-3.75 4.5c0 .062.063.125.188.125H20.5c.063 0 .188-.063.188-.188Z"

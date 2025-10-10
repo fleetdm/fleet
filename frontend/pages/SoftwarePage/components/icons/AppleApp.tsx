@@ -3,12 +3,7 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const AppleApp = (props: SVGProps<SVGSVGElement>) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 32 32"
-    {...props}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
     <path fill="#515774" d="M0 0h32v32H0z" />
     <path
       fillRule="evenodd"

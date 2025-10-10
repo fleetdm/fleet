@@ -9,12 +9,7 @@ const Safari = (props: SVGProps<SVGSVGElement>) => {
   const linearGradientCId = uniqueId("Name=safari_svg__c");
 
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 32 32"
-      {...props}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
       <path fill="#fff" d="M0 0h32v32H0z" />
       <path
         d="M16 28c6.627 0 12-5.373 12-12S22.627 4 16 4 4 9.373 4 16s5.373 12 12 12Z"

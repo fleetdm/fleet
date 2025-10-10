@@ -3,12 +3,7 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const WindowsOS = (props: SVGProps<SVGSVGElement>) => (
-  <svg
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 32 32"
-    {...props}
-  >
+  <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path fill="#F9FAFC" d="M0 0h32v32H0z" />
     <path
       fillRule="evenodd"

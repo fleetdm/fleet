@@ -11,12 +11,7 @@ const Word = (props: SVGProps<SVGSVGElement>) => {
   const gradEId = uniqueId("word-gradient-e-");
 
   return (
-    <svg
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 32 32"
-      {...props}
-    >
+    <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path fill="#fff" d="M0 0h32v32H0z" />
       <path
         d="M24.625 6.5h-13.75c-.76 0-1.375.616-1.375 1.375v16.5c0 .76.616 1.375 1.375 1.375h13.75c.76 0 1.375-.616 1.375-1.375v-16.5c0-.76-.616-1.375-1.375-1.375Z"

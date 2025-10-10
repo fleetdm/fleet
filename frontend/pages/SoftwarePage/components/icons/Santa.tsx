@@ -6,12 +6,7 @@ import type { SVGProps } from "react";
 const Santa = (props: SVGProps<SVGSVGElement>) => {
   const clipPathId = uniqueId("clip-path-");
   return (
-    <svg
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 32 32"
-      {...props}
-    >
+    <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       <g clipPath={`url(#${clipPathId})`}>
         <path fill="#DC2626" d="M32 0H0v32h32V0Z" />
         <path
