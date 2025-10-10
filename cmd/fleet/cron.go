@@ -653,6 +653,53 @@ func triggerFailingPoliciesAutomation(
 	return nil
 }
 
+func newAppleMDMWorkerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+) (*schedule.Schedule, error) {
+	const (
+		name             = string(fleet.CronAppleMDMWorker)
+		scheduleInterval = 10 * time.Second // schedule a worker to run every 10 seconds if none is running
+		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	appleMDM := &worker.AppleMDM{
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
+	}
+
+	w.Register(appleMDM)
+
+	s := schedule.New(
+		ctx, name, instanceID, scheduleInterval, ds, ds,
+		schedule.WithAltLockID("apple_mdm"),
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_worker", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			if err := w.ProcessJobs(workCtx); err != nil {
+				return fmt.Errorf("processing apple mdm jobs: %w", err)
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
 func newWorkerIntegrationsSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -660,8 +707,6 @@ func newWorkerIntegrationsSchedule(
 	logger kitlog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
-	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
-	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -709,13 +754,6 @@ func newWorkerIntegrationsSchedule(
 		DEPService: depSvc,
 		DEPClient:  depCli,
 	}
-	appleMDM := &worker.AppleMDM{
-		Datastore:             ds,
-		Log:                   logger,
-		Commander:             commander,
-		BootstrapPackageStore: bootstrapPackageStore,
-		VPPInstaller:          vppInstaller,
-	}
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
 		Log:       logger,
@@ -725,7 +763,7 @@ func newWorkerIntegrationsSchedule(
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -862,7 +900,6 @@ func newCleanupsAndAggregationSchedule(
 				targetsStart := time.Now()
 				cleanupTimeWindow := time.Now().Add(-config.Server.CleanupDistTargetsAge).UTC()
 				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, cleanupTimeWindow)
-
 				if err != nil {
 					return err
 				}

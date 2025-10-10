@@ -1018,10 +1018,17 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+			}); err != nil {
+				initFatal(err, "failed to register apple_mdm_worker schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
