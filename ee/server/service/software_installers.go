@@ -2536,7 +2536,11 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get app config")
 	}
 
-	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app", appConfig.ServerSettings.ServerURL, titleID)
+	var tid uint
+	if teamID != nil {
+		tid = *teamID
+	}
+	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
 	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
