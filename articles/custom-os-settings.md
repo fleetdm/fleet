@@ -10,7 +10,6 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](#TODO) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how watch [this Android configuration profiles video](TODO).
 
-<EMBED_VIDEO>
 
 ## Enforce
 
