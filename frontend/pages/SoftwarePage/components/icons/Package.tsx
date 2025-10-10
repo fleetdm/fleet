@@ -6,12 +6,7 @@ import type { SVGProps } from "react";
 const Package = (props: SVGProps<SVGSVGElement>) => {
   const clipPathId = uniqueId("clip-path-");
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 32 32"
-      {...props}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
       <path fill="#fff" d="M0 0h32v32H0z" />
       <g clipPath={`url(#${clipPathId})`}>
         <path

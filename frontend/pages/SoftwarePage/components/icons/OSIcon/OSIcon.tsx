@@ -38,6 +38,7 @@ const OSIcon = ({ name = "", size = "small", url }: IOSIconProps) => {
     <MatchedIcon
       width={SOFTWARE_ICON_SIZES[size]}
       height={SOFTWARE_ICON_SIZES[size]}
+      viewBox="0 0 32 32"
       className={classNames}
     />
   );

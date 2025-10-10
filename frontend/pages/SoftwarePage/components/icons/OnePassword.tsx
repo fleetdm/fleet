@@ -3,12 +3,7 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const OnePassword = (props: SVGProps<SVGSVGElement>) => (
-  <svg
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 32 32"
-    {...props}
-  >
+  <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <rect width="32" height="32" fill="#C0C4CF" />
     <path
       fillRule="evenodd"
