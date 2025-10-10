@@ -85,8 +85,6 @@ func (a *AppleMDM) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
-	fmt.Println("===APPLE_MDM_QUEUE", args.Task)
-
 	switch args.Task {
 	case AppleMDMPostDEPEnrollmentTask:
 		err := a.runPostDEPEnrollment(ctx, args)
