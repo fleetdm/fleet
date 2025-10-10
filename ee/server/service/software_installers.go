@@ -2526,7 +2526,7 @@ func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeSc
 	return include, exclude
 }
 
-func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]byte, error) {
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
 
 	// TODO(JVE): use time-based JWT auth here, this is just for testing
 	svc.authz.SkipAuthorization(ctx)
@@ -2538,9 +2538,9 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]
 
 	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app", appConfig.ServerSettings.ServerURL, titleID)
 
-	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, titleID)
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
+		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get in house app metadata")
 	}
 
 	tmpl := template.Must(template.New("").Parse(`
@@ -2580,8 +2580,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]
       </dict>
     </array>
   </dict>
-</plist>
-	`))
+</plist>`))
 
 	buf := bytes.NewBuffer([]byte{})
 
@@ -2599,13 +2598,13 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]
 	return buf.Bytes(), nil
 }
 
-func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// TODO(JVE): JWT with expiration for auth
 	svc.authz.SkipAuthorization(ctx)
 
-	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, titleID)
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
+		return nil, ctxerr.Wrap(ctx, err, "get in house app package: get in house app metadata")
 	}
 
 	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, "installer.ipa")

@@ -908,7 +908,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 }
 
 type getInHouseAppManifestRequest struct {
-	TitleID uint `url:"title_id"`
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
 }
 
 type getInHouseAppManifestResponse struct {
@@ -938,7 +939,7 @@ func (r getInHouseAppManifestResponse) HijackRender(ctx context.Context, w http.
 
 func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInHouseAppManifestRequest)
-	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID)
+	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID, req.TeamID)
 	if err != nil {
 		return &getInHouseAppManifestResponse{Err: err}, nil
 	}
@@ -946,7 +947,7 @@ func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.S
 	return &getInHouseAppManifestResponse{Manifest: manifest}, nil
 }
 
-func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]byte, error) {
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -955,7 +956,8 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint) ([]
 }
 
 type getInHouseAppPackageRequest struct {
-	TitleID uint `url:"title_id"`
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
 }
 
 type getInHouseAppPackageResponse struct {
@@ -983,7 +985,7 @@ func (r getInHouseAppPackageResponse) Error() error { return r.Err }
 
 func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInHouseAppPackageRequest)
-	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID)
+	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID, req.TeamID)
 	if err != nil {
 		return &getInHouseAppPackageResponse{Err: err}, nil
 	}
@@ -991,7 +993,7 @@ func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Se
 	return &getInHouseAppPackageResponse{payload: file}, nil
 }
 
-func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

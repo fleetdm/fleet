@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
+	"github.com/tj/assert"
 )
 
 func TestInHouseApps(t *testing.T) {
@@ -38,6 +39,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		StorageID:        "testingtesting123",
 		Platform:         "ios",
 		Extension:        "ipa",
+		Version:          "1.2.3",
 	}
 	// TODO(JK): test with svc.UploadSoftwareInstaller
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
@@ -52,4 +54,5 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	installer, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.NoError(t, err)
 	require.Equal(t, payload.Title, installer.SoftwareTitle)
+	assert.Equal(t, payload.Version, installer.Version)
 }
