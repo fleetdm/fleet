@@ -45,7 +45,7 @@ func Up_20251009140116(tx *sql.Tx) error {
 					` + "`release`" + `,
 					arch,
 					vendor,
-					browser,
+					extension_for,
 					extension_id,
 					name
 				)
