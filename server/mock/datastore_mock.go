@@ -1345,7 +1345,9 @@ type GetInHouseAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID 
 
 type SaveInHouseAppUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
 
-type RemovePendingInHouseAppInstallsFunc func(ctx context.Context, installerID uint) error
+type RemovePendingInHouseAppInstallsFunc func(ctx context.Context, inHouseAppID uint) error
+
+type GetSummaryInHouseAppInstallsFunc func(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
 type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 
@@ -3607,6 +3609,9 @@ type DataStore struct {
 
 	RemovePendingInHouseAppInstallsFunc        RemovePendingInHouseAppInstallsFunc
 	RemovePendingInHouseAppInstallsFuncInvoked bool
+
+	GetSummaryInHouseAppInstallsFunc        GetSummaryInHouseAppInstallsFunc
+	GetSummaryInHouseAppInstallsFuncInvoked bool
 
 	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
 	BulkUpsertMDMManagedCertificatesFuncInvoked bool
@@ -8344,11 +8349,18 @@ func (s *DataStore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.Up
 	return s.SaveInHouseAppUpdatesFunc(ctx, payload)
 }
 
-func (s *DataStore) RemovePendingInHouseAppInstalls(ctx context.Context, installerID uint) error {
+func (s *DataStore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {
 	s.mu.Lock()
 	s.RemovePendingInHouseAppInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.RemovePendingInHouseAppInstallsFunc(ctx, installerID)
+	return s.RemovePendingInHouseAppInstallsFunc(ctx, inHouseAppID)
+}
+
+func (s *DataStore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+	s.mu.Lock()
+	s.GetSummaryInHouseAppInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSummaryInHouseAppInstallsFunc(ctx, teamID, inHouseAppID)
 }
 
 func (s *DataStore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {

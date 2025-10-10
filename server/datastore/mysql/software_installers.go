@@ -206,7 +206,8 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
 			Platform:        payload.Platform,
-			ValidatedLabels: payload.ValidatedLabels})
+			ValidatedLabels: payload.ValidatedLabels,
+		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
 		}
@@ -1255,19 +1256,21 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	return affectedHostIDs, nil
 }
 
-func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, installerID uint) error {
-	// If in house app was changed in any way
+func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {
+	type ipaInstall struct {
+		hostID      uint   `db:"host_id"`
+		executionID string `db:"command_name"`
+	}
+	var installs []ipaInstall
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &installs, `SELECT host_id, command_uuid FROM host_in_house_software_installs WHERE in_house_app_id = ?`, inHouseAppID)
+	if err != nil {
+		return err
+	}
 
-	// TODO(JK) get the command uuids from that query and then update nano_enrollment_queue
-	// and call cancelHostUpcomingActivity for each host??
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		const updInHouseStmt = `UPDATE host_in_house_software_installs SET canceled = 1 WHERE in_house_app_id = ?`
-		if _, err := tx.ExecContext(ctx, updInHouseStmt, installerID); err != nil {
-			return ctxerr.Wrap(ctx, err, "update host_in_house_software_installs as canceled")
-		}
-		return nil
-	})
-	return err
+	for _, in := range installs {
+		ds.CancelHostUpcomingActivity(ctx, in.hostID, in.executionID)
+	}
+	return nil
 }
 
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
@@ -1528,6 +1531,111 @@ FROM upcoming
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software install status")
 	}
 
+	return &dest, nil
+}
+
+func (ds *Datastore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+	var dest fleet.SoftwareInstallerStatusSummary // Using this struct for in house apps for now
+	// NOTE(JK): tested query manually for pending, not yet for installed/failed
+	stmt := `
+WITH
+-- select most recent upcoming activities for each host
+upcoming AS (
+	SELECT
+		ua.host_id,
+		:software_status_pending AS status
+	FROM
+		upcoming_activities ua
+		JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
+		JOIN hosts h ON host_id = h.id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN in_house_app_upcoming_activities ihaua2
+				ON ua2.id = ihaua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			ihaua.in_house_app_id = ihaua2.in_house_app_id AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	WHERE
+		ua.activity_type = 'in_house_app_install'
+		AND ua2.id IS NULL
+		AND ihaua.in_house_app_id = :in_house_app_id
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+),
+
+-- select most recent past activities for each host
+past AS (
+	SELECT
+		hihsi.host_id,
+		CASE
+			WHEN ncr.status = :mdm_status_acknowledged THEN
+				:software_status_installed
+			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
+				:software_status_failed
+			ELSE
+				NULL -- either pending or not installed
+		END AS status
+	FROM
+		host_in_house_software_installs hihsi
+		JOIN hosts h ON host_id = h.id
+		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
+		LEFT JOIN host_in_house_software_installs hihsi2
+			ON hihsi.host_id = hihsi2.host_id AND
+				 hihsi.in_house_app_id = hvsi2.in_house_app_id AND
+				 hihsi2.removed = 0 AND
+				 hihsi2.canceled = 0 AND
+				 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+	WHERE
+		hihsi2.id IS NULL
+		AND hihsi.in_house_app_id = :in_house_app_id
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+		AND hihsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND hihsi.removed = 0
+		AND hihsi.canceled = 0
+)
+
+-- count each status
+SELECT
+	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
+FROM (
+
+-- union most recent past and upcoming activities after joining to get statuses for most recent activities
+SELECT
+	past.host_id,
+	past.status
+FROM past
+UNION
+SELECT
+	upcoming.host_id,
+	upcoming.status
+FROM upcoming
+) t`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	query, args, err := sqlx.Named(stmt, map[string]any{
+		"in_house_app_id":           inHouseAppID,
+		"team_id":                   tmID,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_installed": fleet.SoftwareInstalled,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host in house app installs: named query")
+	}
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host in house install status")
+	}
 	return &dest, nil
 }
 

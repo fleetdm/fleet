@@ -2056,7 +2056,10 @@ type Datastore interface {
 	GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*SoftwareInstaller, error)
 
 	// Remove host inhouseapp installs and upcoming inhouseapp install activities
-	RemovePendingInHouseAppInstalls(ctx context.Context, installerID uint) error
+	RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error
+
+	// GetSummaryHostSoftwareInstalls returns the software install summary for the in house app ID
+	GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*SoftwareInstallerStatusSummary, error)
 
 	// CleanupUnusedSoftwareTitleIcons will remove software title icons that have
 	// no references to them from the software_title_icons table.

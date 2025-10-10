@@ -709,13 +709,22 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string) (*fleet.SoftwareInstaller, error) {
 	// verify in house app update
 	if payload.SelfService != nil && *payload.SelfService {
-		return nil, ctxerr.New(ctx, "self service not supported for .ipa")
+		return nil, &fleet.BadRequestError{
+			Message:     "Self service is not supported for .ipa package.",
+			InternalErr: ctxerr.New(ctx, "self service not supported in .ipa"),
+		}
 	}
 	if payload.InstallScript != nil || payload.UninstallScript != nil || payload.PreInstallQuery != nil {
-		return nil, ctxerr.New(ctx, "installation scripts are not supported for .ipa")
+		return nil, &fleet.BadRequestError{
+			Message:     "Installion scripts are not supported for .ipa package.",
+			InternalErr: ctxerr.New(ctx, "installation scripts not supported in .ipa"),
+		}
 	}
 	if payload.PreInstallQuery != nil {
-		return nil, ctxerr.New(ctx, "pre install queries are not supported for .ipa")
+		return nil, &fleet.BadRequestError{
+			Message:     "Pre install query is not supported for .ipa package.",
+			InternalErr: ctxerr.New(ctx, "pre install query not supported in .ipa"),
+		}
 	}
 
 	// get software by ID, fail if it does not exist or does not have an existing installer
@@ -763,7 +772,6 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		SoftwareTitle:   existingInstaller.SoftwareTitle,
 		TeamName:        teamName,
 		TeamID:          actTeamID,
-		SelfService:     existingInstaller.SelfService,
 		SoftwarePackage: &existingInstaller.Name,
 		SoftwareTitleID: payload.TitleID,
 		SoftwareIconURL: existingInstaller.IconUrl,
@@ -826,12 +834,6 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 			return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 		}
 
-		// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
-		// and if we're updating the package we reset counts. This is run in its own transaction internally
-		// for consistency, but independent of the installer update query as the main update should stick
-		// even if side effects fail.
-
-		// TODO(JK): Do this if installer was changed at all
 		if err := svc.ds.RemovePendingInHouseAppInstalls(ctx, existingInstaller.InstallerID); err != nil {
 			return nil, err
 		}
@@ -856,9 +858,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
 	}
 
-	// TODO(JK): ???? what here
-	// Just select from upcoming_activities join ipa_upcoming_activities?
-	statuses, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, updatedInstaller.InstallerID)
+	statuses, err := svc.ds.GetSummaryInHouseAppInstalls(ctx, payload.TeamID, updatedInstaller.InstallerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")
 	}
