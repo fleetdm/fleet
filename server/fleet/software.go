@@ -237,6 +237,9 @@ type SoftwareTitle struct {
 	// This is an internal field for an optimization so that the extra queries to
 	// fetch app information is done only if necessary.
 	VPPAppsCount int `json:"-" db:"vpp_apps_count"`
+	// InHouseAppsCount is 0 or 1, indicating if the software title has
+	// an in house app (.ipa) installer
+	InHouseAppCount int `json:"-" db:"in_house_apps_count"`
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// AppStoreApp is the VPP app information for this title.

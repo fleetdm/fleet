@@ -23,16 +23,19 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		teamFilter                            string // used to filter software titles host counts by team
 		softwareInstallerGlobalOrTeamIDFilter string
 		vppAppsTeamsGlobalOrTeamIDFilter      string
+		inHouseAppsTeamsGlobalOrTeamIDFilter  string
 	)
 
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
+		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
 		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
 		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
+		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 	}
 
 	// Select software title but filter out if the software has zero host counts
@@ -49,14 +52,16 @@ SELECT
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
 	COUNT(vat.adam_id) AS vpp_apps_count,
+	COUNT(iha.id) AS in_house_apps_count,
 	vap.icon_url AS icon_url
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
+LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
 WHERE st.id = ? AND
-	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
+	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
@@ -65,7 +70,7 @@ GROUP BY
 	st.bundle_identifier,
 	hosts_count,
 	vap.icon_url
-	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
+	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter,
 	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {

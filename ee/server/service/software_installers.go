@@ -278,11 +278,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
-	// Handle in house apps separately
-	if strings.HasSuffix(payload.Filename, ".ipa") {
-		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName)
-	}
-
 	var scripts []string
 
 	if payload.InstallScript != nil {
@@ -316,6 +311,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
+	}
+
+	// Handle in house apps separately
+	if software.InHouseAppCount == 1 {
+		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
 	}
 
 	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
@@ -706,42 +706,14 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	return false, nil, nil
 }
 
-func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string) (*fleet.SoftwareInstaller, error) {
-	// verify in house app update
-	if payload.SelfService != nil && *payload.SelfService {
-		return nil, &fleet.BadRequestError{
-			Message:     "Self service is not supported for .ipa package.",
-			InternalErr: ctxerr.New(ctx, "self service not supported in .ipa"),
-		}
-	}
-	if payload.InstallScript != nil || payload.UninstallScript != nil || payload.PreInstallQuery != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "Installion scripts are not supported for .ipa package.",
-			InternalErr: ctxerr.New(ctx, "installation scripts not supported in .ipa"),
-		}
-	}
-	if payload.PreInstallQuery != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "Pre install query is not supported for .ipa package.",
-			InternalErr: ctxerr.New(ctx, "pre install query not supported in .ipa"),
-		}
-	}
-
-	// get software by ID, fail if it does not exist or does not have an existing installer
-	software, err := svc.ds.SoftwareTitleByID(ctx, payload.TitleID, payload.TeamID, fleet.TeamFilter{
-		User:            vc.User,
-		IncludeObserver: true,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
-	}
-
-	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
-	if software.SoftwareInstallersCount != 1 {
-		return nil, &fleet.BadRequestError{
-			Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
-		}
-	}
+func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
+	// Shouldn't reach this code in this function until installers are reworked
+	// // TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
+	// if software.InHouseAppCount != 1 {
+	// 	return nil, &fleet.BadRequestError{
+	// 		Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
+	// 	}
+	// }
 
 	existingInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
 	if err != nil {
@@ -755,7 +727,6 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
-	installerUpdated := false
 
 	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 	if err != nil {
@@ -809,7 +780,6 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 			payload.Filename = payloadForNewInstallerFile.Filename
 			payload.Version = payloadForNewInstallerFile.Version
 
-			installerUpdated = true
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
@@ -823,33 +793,31 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
-	if installerUpdated {
-		if payloadForNewInstallerFile != nil {
-			if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "storing software installer")
-			}
+	if payloadForNewInstallerFile != nil {
+		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "storing software installer")
 		}
+	}
 
-		if err := svc.ds.SaveInHouseAppUpdates(ctx, payload); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
-		}
+	if err := svc.ds.SaveInHouseAppUpdates(ctx, payload); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
+	}
 
-		if err := svc.ds.RemovePendingInHouseAppInstalls(ctx, existingInstaller.InstallerID); err != nil {
-			return nil, err
-		}
+	if err := svc.ds.RemovePendingInHouseAppInstalls(ctx, existingInstaller.InstallerID); err != nil {
+		return nil, err
+	}
 
-		// now that the payload has been updated with any patches, we can set the
-		// final fields of the activity
-		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
-			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
-		if payload.ValidatedLabels != nil {
-			actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
-		}
-		activity.LabelsIncludeAny = actLabelsIncl
-		activity.LabelsExcludeAny = actLabelsExcl
-		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
-		}
+	// now that the payload has been updated with any patches, we can set the
+	// final fields of the activity
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
+		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+	if payload.ValidatedLabels != nil {
+		actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+	}
+	activity.LabelsIncludeAny = actLabelsIncl
+	activity.LabelsExcludeAny = actLabelsExcl
+	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
 	}
 
 	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later

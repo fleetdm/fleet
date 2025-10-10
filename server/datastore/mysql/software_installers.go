@@ -680,16 +680,24 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 
 func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		stmt := `UPDATE software_installers SET
-			storage_id = ?,
-			name = ?,
-			version = ?,
-			WHERE id = ?`
+		stmt := `UPDATE in_house_apps SET
+                    storage_id = ?,
+                    name = ?,
+                    version = ?,
+                    platform = ?
+                 WHERE id = ?`
 
-		args := []interface{}{
+		ext := "ipa"
+		if i := strings.LastIndex(ext, "."); i != -1 {
+			ext = ext[i+1:]
+		}
+		platform, _ := fleet.SoftwareInstallerPlatformFromExtension(ext)
+
+		args := []any{
 			payload.StorageID,
 			payload.Filename,
 			payload.Version,
+			platform,
 			payload.InstallerID,
 		}
 
@@ -698,7 +706,7 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		}
 
 		if payload.ValidatedLabels != nil {
-			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInstaller); err != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert in house app labels")
 			}
 		}
@@ -906,6 +914,7 @@ WHERE
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
 	}
+	dest.Extension = "ipa"
 
 	// TODO: do we want to include labels on other queries that return software installer metadata
 	// (e.g., GetSoftwareInstallerMetadataByID)?
@@ -1258,17 +1267,17 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 
 func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {
 	type ipaInstall struct {
-		hostID      uint   `db:"host_id"`
-		executionID string `db:"command_name"`
+		HostID      uint   `db:"host_id"`
+		ExecutionID string `db:"command_uuid"`
 	}
 	var installs []ipaInstall
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &installs, `SELECT host_id, command_uuid FROM host_in_house_software_installs WHERE in_house_app_id = ?`, inHouseAppID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &installs, `SELECT host_id, command_uuid FROM host_in_house_software_installs WHERE in_house_app_id = ?`, inHouseAppID)
 	if err != nil {
 		return err
 	}
 
 	for _, in := range installs {
-		ds.CancelHostUpcomingActivity(ctx, in.hostID, in.executionID)
+		ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
 	}
 	return nil
 }
@@ -1581,7 +1590,7 @@ past AS (
 		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
 		LEFT JOIN host_in_house_software_installs hihsi2
 			ON hihsi.host_id = hihsi2.host_id AND
-				 hihsi.in_house_app_id = hvsi2.in_house_app_id AND
+				 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
 				 hihsi2.removed = 0 AND
 				 hihsi2.canceled = 0 AND
 				 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
@@ -1596,8 +1605,8 @@ past AS (
 
 -- count each status
 SELECT
-	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
-	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending_install,
+	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed_install,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 
