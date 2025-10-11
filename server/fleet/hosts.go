@@ -1551,3 +1551,56 @@ func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTea
 	params.BatchSize = batchSize
 	return params
 }
+
+func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
+	if err != nil && !IsNotFound(err) {
+		return nil, fmt.Errorf("get scim user by host id: %w", err)
+	}
+
+	var endUsers []HostEndUser
+	if scimUser != nil {
+		endUser := HostEndUser{
+			IdpUserName:      scimUser.UserName,
+			IdpFullName:      scimUser.DisplayName(),
+			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
+		}
+
+		if scimUser.ExternalID != nil {
+			endUser.IdpID = *scimUser.ExternalID
+		}
+		for _, group := range scimUser.Groups {
+			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		if scimUser.Department != nil {
+			endUser.Department = *scimUser.Department
+		}
+		endUsers = append(endUsers, endUser)
+	}
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get host device mapping: %w", err)
+	}
+
+	if len(deviceMapping) > 0 {
+		endUser := HostEndUser{}
+		for _, email := range deviceMapping {
+			switch {
+			case email.Source == DeviceMappingMDMIdpAccounts && len(endUsers) == 0:
+				// If SCIM data is missing, we still populate IdpUserName if present.
+				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
+				endUser.IdpUserName = email.Email
+			case email.Source != DeviceMappingMDMIdpAccounts:
+				endUser.OtherEmails = append(endUser.OtherEmails, *email)
+			}
+		}
+		if len(endUsers) > 0 {
+			endUsers[0].OtherEmails = endUser.OtherEmails
+		} else {
+			endUsers = append(endUsers, endUser)
+		}
+	}
+
+	return endUsers, nil
+}

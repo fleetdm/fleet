@@ -2588,6 +2588,22 @@ func IsNotFound(err error) bool {
 	return false
 }
 
+type notFoundError struct {
+	ErrorWithUUID
+}
+
+func (e notFoundError) Error() string {
+	return "not found"
+}
+
+func (e notFoundError) IsNotFound() bool {
+	return true
+}
+
+func NewNotFoundError() notFoundError {
+	return notFoundError{}
+}
+
 // AlreadyExistsError is returned when creating a datastore resource that already exists.
 type AlreadyExistsError interface {
 	error

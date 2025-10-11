@@ -39,6 +39,7 @@ const (
 	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
 	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
 	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	CronAppleMDMWorker                 CronScheduleName = "apple_mdm_worker"
 )
 
 type CronSchedulesService interface {

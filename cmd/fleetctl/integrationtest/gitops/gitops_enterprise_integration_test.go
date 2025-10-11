@@ -18,8 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -96,7 +96,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		SCEPStorage:       scepStorage,
 		Pool:              redisPool,
 		APNSTopic:         "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		SCEPConfigService: eeservice.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
+		SCEPConfigService: scep.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
 		DigiCertService:   digicert.NewService(),
 	}
 	err = s.DS.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{

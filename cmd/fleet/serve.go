@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -744,7 +745,7 @@ the way that the Fleet server works.
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
-			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
+			scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
@@ -1017,10 +1018,17 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+			}); err != nil {
+				initFatal(err, "failed to register apple_mdm_worker schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
