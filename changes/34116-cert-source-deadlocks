@@ -1,0 +1,1 @@
+Fixed MySQL deadlocks when multiple hosts are updating their certificates in host vitals at the same time.
