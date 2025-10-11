@@ -749,7 +749,11 @@ const DeviceUserPage = ({
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
-                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                  {isLoadingHost ? (
+                    <Spinner />
+                  ) : (
+                    <OrgLogoIcon className="logo" src={orgLogoURL} />
+                  )}
                 </div>
               </div>
             </li>
