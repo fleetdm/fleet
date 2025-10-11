@@ -284,6 +284,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 
 func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	t := s.T()
+	s.buf.Reset()
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
