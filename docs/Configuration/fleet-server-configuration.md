@@ -728,6 +728,56 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
     private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
+### server_private_key_region
+
+AWS region to use for Identity and Access Management (IAM) authentication. This flag only has effect if `server_private_key` is not set.
+
+- Default value: none
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_REGION`
+- Config file format:
+  ```yaml
+  server:
+    private_key_region: ca-central-1
+  ```
+
+### server_private_key_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the server private key.
+
+If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  server:
+    server_private_key_arn: arn:aws:secretsmanager:us-east-1:123456789012:secret:SecretName-473945
+  ```
+
+### server_private_key_sts_assume_role_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  server:
+    private_key_sts_assume_role_arn: arn:aws:iam::1234567890:role/rds-auth-role
+  ```
+
+### server_private_key_sts_external_id
+
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  server:
+    private_key_sts_external_id: your_unique_id
+  ```
+
 ## Auth
 
 ### auth_sso_session_validity_period
