@@ -120,7 +120,6 @@ At Fleet, we keep everything in one repo ([`fleetdm/fleet`](https://github.com/f
 - One repo pools GitHub stars and more accurately reflects Fleet’s presence.
 - One repo means one set of automations and labels to manage, resulting in a consistent GitHub experience that is easier to keep organized.
 
-
 The only exceptions are:
 1. **Other open-source projects:** When we contribute to open-source projects owned by other people and organizations, we contribute to those outside repositories.  For example, Fleet contributes to [osquery](https://github.com/osquery/osquery/commits/master), [Sails.js](https://github.com/balderdashy/sails/commits/master), and [other open-source projects](https://github.com/orgs/fleetdm/sponsoring).
 2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
@@ -132,9 +131,7 @@ The only exceptions are:
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
-
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
-
 
 > _**Tip:** Did you know that you can [search through issues from all public and non-public Fleet repos](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+) at the same time?_
 > 
@@ -271,6 +268,11 @@ Why bother with all that?  And why do it in this particular order?
 ## Why fix small inconsistencies quickly?
 
 Fixing small inconsistencies quickly is worth it. When we tolerate and overlook little things, we send contributors mixed messages, like "[broken windows](https://en.wikipedia.org/wiki/Broken_windows_theory)". (Are these things actually important?) Since new contributors join the team all the time, we also prevent learning the right way to do things through osmosis, since pattern matching from a bad pattern creates even more inconsistencies. Plus these things add up over time, creating problems for both users and contributors.
+
+
+## Why t-shirt size customer promises before committing? 
+
+[Customer promises](https://fleetdm.com/handbook/company/product-groups#new-customer-promise-s) are one of the ways we collaborate with our customers to improve Fleet. We [t-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) all customer promises and place them on our product roadmap before committing to them. This allows us to make sure there is available product design and engineering capacity to deliver the promise before we commit to a delivery date.
 
 
 ## Why make it obvious when stuff breaks?
