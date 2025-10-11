@@ -635,6 +635,14 @@ type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.
 
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
+type CheckMDMAppleEnrollmentWithPSSOFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMApplePSSORequired, error)
+
+type GetMDMApplePSSOInstallerFunc func(ctx context.Context, request interface{}) ([]byte, string, error)
+
+type GetMDMApplePSSOProfileFunc func(ctx context.Context, request interface{}) (string, error)
+
+type GetMDMApplePSSOManifestFunc func(ctx context.Context, request interface{}) (string, error)
+
 type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpUUID string) ([]byte, error)
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
@@ -1758,6 +1766,18 @@ type Service struct {
 
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFunc        CheckMDMAppleEnrollmentWithMinimumOSVersionFunc
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked bool
+
+	CheckMDMAppleEnrollmentWithPSSOFunc        CheckMDMAppleEnrollmentWithPSSOFunc
+	CheckMDMAppleEnrollmentWithPSSOFuncInvoked bool
+
+	GetMDMApplePSSOInstallerFunc        GetMDMApplePSSOInstallerFunc
+	GetMDMApplePSSOInstallerFuncInvoked bool
+
+	GetMDMApplePSSOProfileFunc        GetMDMApplePSSOProfileFunc
+	GetMDMApplePSSOProfileFuncInvoked bool
+
+	GetMDMApplePSSOManifestFunc        GetMDMApplePSSOManifestFunc
+	GetMDMApplePSSOManifestFuncInvoked bool
 
 	GetOTAProfileFunc        GetOTAProfileFunc
 	GetOTAProfileFuncInvoked bool
@@ -4217,6 +4237,34 @@ func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Contex
 	s.CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.CheckMDMAppleEnrollmentWithMinimumOSVersionFunc(ctx, m)
+}
+
+func (s *Service) CheckMDMAppleEnrollmentWithPSSO(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMApplePSSORequired, error) {
+	s.mu.Lock()
+	s.CheckMDMAppleEnrollmentWithPSSOFuncInvoked = true
+	s.mu.Unlock()
+	return s.CheckMDMAppleEnrollmentWithPSSOFunc(ctx, m)
+}
+
+func (s *Service) GetMDMApplePSSOInstaller(ctx context.Context, request interface{}) ([]byte, string, error) {
+	s.mu.Lock()
+	s.GetMDMApplePSSOInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMApplePSSOInstallerFunc(ctx, request)
+}
+
+func (s *Service) GetMDMApplePSSOProfile(ctx context.Context, request interface{}) (string, error) {
+	s.mu.Lock()
+	s.GetMDMApplePSSOProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMApplePSSOProfileFunc(ctx, request)
+}
+
+func (s *Service) GetMDMApplePSSOManifest(ctx context.Context, request interface{}) (string, error) {
+	s.mu.Lock()
+	s.GetMDMApplePSSOManifestFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMApplePSSOManifestFunc(ctx, request)
 }
 
 func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpUUID string) ([]byte, error) {

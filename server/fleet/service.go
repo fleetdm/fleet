@@ -1025,6 +1025,16 @@ type Service interface {
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
+	// CheckMDMAppleEnrollmentWithPSSO checks if the PSSO requirement is met for a MDM enrollment
+	CheckMDMAppleEnrollmentWithPSSO(ctx context.Context, m *MDMAppleMachineInfo) (*MDMApplePSSORequired, error)
+
+	// GetMDMApplePSSOInstaller retrieves the PSSO installer
+	GetMDMApplePSSOInstaller(ctx context.Context, request interface{}) ([]byte, string, error)
+	// GetMDMApplePSSOProfile retrieves the PSSO profile
+	GetMDMApplePSSOProfile(ctx context.Context, request interface{}) (string, error)
+	// GetMDMApplePSSOManifest retrieves the PSSO manifest
+	GetMDMApplePSSOManifest(ctx context.Context, request interface{}) (string, error)
+
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
 	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error)
 
