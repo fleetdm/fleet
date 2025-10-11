@@ -71,18 +71,19 @@ const generateActionDropdownOptions = (
     label.author_id === currentUser.id;
 
   if (hasGlobalWritePermission || hasLabelAuthorWritePermission) {
-    options.push(
-      {
+    if (label.label_membership_type !== "host_vitals") {
+      options.push({
         label: "Edit",
         disabled: false,
         value: "edit",
-      },
-      {
-        label: "Delete",
-        disabled: false,
-        value: "delete",
-      }
-    );
+      });
+    }
+
+    options.push({
+      label: "Delete",
+      disabled: false,
+      value: "delete",
+    });
   }
 
   return options;
