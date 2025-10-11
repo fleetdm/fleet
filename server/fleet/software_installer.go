@@ -584,6 +584,8 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "pkg_packages", nil
 	case "tar.gz":
 		return "tgz_packages", nil
+	case "sh", "ps1":
+		return "scripts", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -598,9 +600,20 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
+	case "sh":
+		return "linux", nil
+	case "ps1":
+		return "windows", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
+}
+
+// IsScriptPackage returns true if the extension represents a script package
+// (.sh or .ps1 files where the file contents become the install script).
+func IsScriptPackage(ext string) bool {
+	ext = strings.TrimPrefix(ext, ".")
+	return ext == "sh" || ext == "ps1"
 }
 
 // HostSoftwareWithInstaller represents the list of software installed on a

@@ -1541,7 +1541,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb, .rpm, or .tar.gz.",
+				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
