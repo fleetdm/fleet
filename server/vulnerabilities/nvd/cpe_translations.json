@@ -362,6 +362,15 @@
   },
   {
     "software": {
+      "name": ["/golang\\.go/"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["ms-vscode-remote.vscode-remote-extensionpack"],
       "source": ["vscode_extensions"]
     },
