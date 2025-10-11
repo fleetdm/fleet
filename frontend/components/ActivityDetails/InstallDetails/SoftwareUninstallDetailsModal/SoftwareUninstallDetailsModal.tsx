@@ -149,7 +149,7 @@ export interface ISWUninstallDetailsParentState {
   /** Optional since may come from dedicated state, may come from elsewhere */
   hostDisplayName?: string;
 
-  /** Optional since DUP only */
+  /** Optional since My Device Page only */
   hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
 }
 export interface ISoftwareUninstallDetailsModalProps {
@@ -160,7 +160,7 @@ export interface ISoftwareUninstallDetailsModalProps {
   onCancel: () => void;
   softwarePackageName?: string;
 
-  /** DUP only */
+  /** My Device Page only */
   onRetry?: (s: IHostSoftwareWithUiStatus) => void;
   hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
   deviceAuthToken?: string;

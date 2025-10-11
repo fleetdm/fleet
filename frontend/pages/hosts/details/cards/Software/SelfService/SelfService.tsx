@@ -31,6 +31,7 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 
 import UpdatesCard from "./UpdatesCard/UpdatesCard";
@@ -138,6 +139,10 @@ const SoftwareSelfService = ({
   const [
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | undefined>(undefined);
+  const [
+    selectedHostSWScriptDetails,
+    setSelectedHostSWScriptDetails,
   ] = useState<IHostSoftware | undefined>(undefined);
   const [
     selectedVPPInstallDetails,
@@ -466,6 +471,13 @@ const SoftwareSelfService = ({
     [setSelectedHostSWInstallDetails]
   );
 
+  const onShowScriptDetails = useCallback(
+    (hostSoftware?: IHostSoftware) => {
+      setSelectedHostSWScriptDetails(hostSoftware);
+    },
+    [setSelectedHostSWScriptDetails]
+  );
+
   const onShowVPPInstallDetails = useCallback(
     (s: IVPPHostSoftware) => {
       setSelectedVPPInstallDetails(s);
@@ -531,6 +543,7 @@ const SoftwareSelfService = ({
     return generateSoftwareTableHeaders({
       onShowUpdateDetails,
       onShowInstallDetails,
+      onShowScriptDetails,
       onShowVPPInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
@@ -540,6 +553,7 @@ const SoftwareSelfService = ({
   }, [
     onShowUpdateDetails,
     onShowInstallDetails,
+    onShowScriptDetails,
     onShowVPPInstallDetails,
     onShowUninstallDetails,
     onClickInstallAction,
@@ -600,6 +614,21 @@ const SoftwareSelfService = ({
           }}
           onRetry={onClickInstallAction}
           onCancel={() => setSelectedHostSWInstallDetails(undefined)}
+          deviceAuthToken={deviceToken}
+          contactUrl={contactUrl}
+        />
+      )}
+      {selectedHostSWScriptDetails && (
+        <SoftwareScriptDetailsModal
+          hostSoftware={selectedHostSWInstallDetails}
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWScriptDetails.software_package?.last_install
+                ?.install_uuid,
+          }}
+          onRerun={onClickInstallAction}
+          onCancel={() => setSelectedHostSWScriptDetails(undefined)}
           deviceAuthToken={deviceToken}
           contactUrl={contactUrl}
         />

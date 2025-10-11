@@ -149,6 +149,7 @@ export const SoftwareActionButtons = ({
 
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
+  isScriptPackage?: boolean;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -175,6 +176,7 @@ interface ISoftwareInstallerCardProps {
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
   softwareTitleName,
+  isScriptPackage = false,
   name,
   version,
   addedTimestamp,
@@ -362,6 +364,7 @@ const SoftwareInstallerCard = ({
       </div>
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
+          isScriptPackage={isScriptPackage}
           softwareId={softwareId}
           teamId={teamId}
           status={status}

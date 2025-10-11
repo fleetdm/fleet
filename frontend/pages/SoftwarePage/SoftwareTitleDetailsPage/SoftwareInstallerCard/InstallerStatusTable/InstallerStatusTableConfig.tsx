@@ -14,6 +14,7 @@ interface ISoftwareTitleDetailsTableConfigProps {
   softwareId?: number;
   teamId?: number;
   baseClass?: string;
+  isScriptPackage?: boolean;
 }
 interface ICellProps {
   cell: {
@@ -32,9 +33,13 @@ interface IStatusDisplayOption {
 
 // "pending" and "failed" each encompass both "_install" and "_uninstall" sub-statuses
 type SoftwareInstallDisplayStatus = "installed" | "pending" | "failed";
+type SoftwareScriptDisplayStatus =
+  | "ran_script"
+  | "pending_script"
+  | "failed_script";
 
 const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallDisplayStatus,
+  SoftwareInstallDisplayStatus | SoftwareScriptDisplayStatus,
   IStatusDisplayOption
 > = {
   installed: {
@@ -72,20 +77,59 @@ const STATUS_DISPLAY_OPTIONS: Record<
       </>
     ),
   },
+  ran_script: {
+    displayName: "Ran",
+    iconName: "success",
+    // TODO: Confirm tooltip
+    tooltip: (
+      <>
+        Payload-free software script successfully
+        <br />
+        ran on these hosts.
+      </>
+    ),
+  },
+  pending_script: {
+    displayName: "Pending",
+    iconName: "pending-outline",
+    // TODO: Confirm tooltip
+    tooltip: (
+      <>
+        Fleet is running or will do so
+        <br />
+        when the host comes online.
+      </>
+    ),
+  },
+  failed_script: {
+    displayName: "Failed",
+    iconName: "error",
+    // TODO: Confirm tooltip
+    tooltip: (
+      <>
+        These hosts failed to run the payload-free software script.
+        <br />
+        Click on a host to view error(s).
+      </>
+    ),
+  },
 };
 
 const generateSoftwareTitleDetailsTableConfig = ({
   softwareId,
   teamId,
   baseClass,
+  isScriptPackage,
 }: ISoftwareTitleDetailsTableConfigProps) => {
   const tableHeaders = [
     {
       accessor: "installed",
       disableSortBy: true,
-      title: "Installed",
+      title: isScriptPackage ? "Ran" : "Installed",
       Header: () => {
-        const displayData = STATUS_DISPLAY_OPTIONS.installed;
+        const displayData = isScriptPackage
+          ? STATUS_DISPLAY_OPTIONS.ran_script
+          : STATUS_DISPLAY_OPTIONS.installed;
         const titleWithTooltip = (
           <TooltipWrapper
             position="top"
@@ -120,7 +164,9 @@ const generateSoftwareTitleDetailsTableConfig = ({
       disableSortBy: true,
       title: "Pending",
       Header: () => {
-        const displayData = STATUS_DISPLAY_OPTIONS.pending;
+        const displayData = isScriptPackage
+          ? STATUS_DISPLAY_OPTIONS.pending_script
+          : STATUS_DISPLAY_OPTIONS.pending;
         return (
           <TooltipWrapper
             position="top"
@@ -154,7 +200,9 @@ const generateSoftwareTitleDetailsTableConfig = ({
       disableSortBy: true,
       title: "Failed",
       Header: () => {
-        const displayData = STATUS_DISPLAY_OPTIONS.failed;
+        const displayData = isScriptPackage
+          ? STATUS_DISPLAY_OPTIONS.failed_script
+          : STATUS_DISPLAY_OPTIONS.failed;
         return (
           <TooltipWrapper
             position="top"

@@ -27,7 +27,7 @@ import {
 } from "interfaces/certificates";
 import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
-import { ISetupStep } from "interfaces/setup";
+import { IEnhancedSetupStep } from "interfaces/setup";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -54,7 +54,11 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import { getErrorMessage, hasRemainingSetupSteps } from "./helpers";
+import {
+  getErrorMessage,
+  hasRemainingSetupSteps,
+  isSoftwareScriptSetup,
+} from "./helpers";
 
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -336,7 +340,7 @@ const DeviceUserPage = ({
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     Error,
-    ISetupStep[] | null | undefined
+    IEnhancedSetupStep[] | null | undefined
   >(
     ["software-setup-statuses", deviceAuthToken],
     () => deviceUserAPI.getSetupExperienceStatuses({ token: deviceAuthToken }),
@@ -347,15 +351,17 @@ const DeviceUserPage = ({
       refetchIntervalInBackground: true,
       select: (response) => {
         // Marshal the response to include a `type` property so we can differentiate
-        // between software and script setup steps in the UI.
+        // between software, payload-free software, and script setup steps in the UI.
         return [
           ...(response.setup_experience_results.software ?? []).map((s) => ({
             ...s,
-            type: "software" as const,
+            type: isSoftwareScriptSetup(s)
+              ? "software_script_run" // used for payload-free software
+              : "software_install",
           })),
           ...(response.setup_experience_results.scripts ?? []).map((s) => ({
             ...s,
-            type: "script" as const,
+            type: "script_run" as const,
           })),
         ];
       },

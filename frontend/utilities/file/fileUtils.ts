@@ -15,6 +15,8 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   deb: "Linux",
   rpm: "Linux",
   "tar.gz": "Linux",
+  sh: "Linux",
+  ps1: "Windows",
 };
 
 /** Currently only using tar.gz, but keeping the others for future use

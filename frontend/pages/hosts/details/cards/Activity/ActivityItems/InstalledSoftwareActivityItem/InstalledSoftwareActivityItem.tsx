@@ -1,6 +1,9 @@
 import React from "react";
 
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 
 import ActivityItem from "components/ActivityItem";
 
@@ -17,9 +20,10 @@ const InstalledSoftwareActivityItem = ({
   isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
-  const { self_service, software_title: title } = details;
+  const { self_service, software_title: title, source } = details;
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
+  const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
   const actorDisplayName = self_service ? (
     <span>End user</span>
@@ -27,7 +31,10 @@ const InstalledSoftwareActivityItem = ({
     <b>{actorName ?? "Fleet"}</b>
   );
 
-  let installedSoftwarePrefix = getInstallStatusPredicate(status);
+  let installedSoftwarePrefix = getInstallUninstallStatusPredicate(
+    status,
+    isScriptPackageSource
+  );
   if (tab !== "past" && activity.fleet_initiated) {
     installedSoftwarePrefix =
       status === "pending_uninstall" ? "will uninstall" : "will install";

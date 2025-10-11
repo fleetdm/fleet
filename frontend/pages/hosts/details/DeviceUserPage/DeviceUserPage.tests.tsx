@@ -136,9 +136,9 @@ describe("Device User Page", () => {
   });
 
   describe("Setup experience software installation", () => {
-    const REGULAR_DUP_MATCHER = /Last fetched/;
-    const SETTING_UP_YOUR_DEVICE_MATCHER = /Setting up your device/;
-    const CONFIG_COMPLETE_MATCHER = /Configuration complete/;
+    const REGULAR_DUP_MATCHER = /Last fetched/i;
+    const SETTING_UP_YOUR_DEVICE_MATCHER = /Setting up your device/i;
+    const CONFIG_COMPLETE_MATCHER = /Configuration complete/i;
 
     const setupTest = async (
       deviceUserResponseOverrides?: Partial<IDeviceUserResponse>,
@@ -232,10 +232,8 @@ describe("Device User Page", () => {
         { host },
         {
           setup_experience_results: {
-            software: [
-              { type: "software_installer", name: "step 1", status: "success" },
-            ],
-            scripts: [{ type: "script", name: "step 2", status: "failure" }],
+            software: [{ name: "step 1.sh", status: "success" }],
+            scripts: [{ name: "step 2.sh", status: "failure" }],
           },
         },
         { query: { setup_only: "1" } }
