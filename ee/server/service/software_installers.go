@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -78,7 +79,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		//
 		// For "msi", addMetadataToSoftwarePayload fails before this point if product code cannot be extracted.
 		//
-		case payload.Extension == "exe" || payload.Extension == "tar.gz":
+		case payload.Extension == "exe" || payload.Extension == "tar.gz" || fleet.IsScriptPackage(payload.Extension):
 			return nil, &fleet.BadRequestError{
 				Message: fmt.Sprintf("Couldn't add. Fleet can't create a policy to detect existing installations for .%s packages. Please add the software, add a custom policy, and enable the install software policy automation.", payload.Extension),
 			}
@@ -1537,6 +1538,16 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.New(ctx, "installer file is required")
 	}
 
+	ext := strings.ToLower(filepath.Ext(payload.Filename))
+	ext = strings.TrimPrefix(ext, ".")
+
+	if fleet.IsScriptPackage(ext) {
+		if err := svc.addScriptPackageMetadata(ctx, payload, ext); err != nil {
+			return "", err
+		}
+		return ext, nil
+	}
+
 	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
@@ -1619,6 +1630,60 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.Platform = platform
 
 	return meta.Extension, nil
+}
+
+func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload, extension string) error {
+	if payload == nil {
+		return ctxerr.New(ctx, "payload is required")
+	}
+
+	if payload.InstallerFile == nil {
+		return ctxerr.New(ctx, "installer file is required")
+	}
+
+	scriptBytes, err := io.ReadAll(payload.InstallerFile)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading script file")
+	}
+
+	if err := payload.InstallerFile.Rewind(); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting script file reader")
+	}
+
+	scriptContents := string(scriptBytes)
+
+	if err := fleet.ValidateHostScriptContents(scriptContents, false); err != nil {
+		return &fleet.BadRequestError{
+			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			InternalErr: ctxerr.Wrap(ctx, err, "validating script contents"),
+		}
+	}
+
+	shaSum, err := file.SHA256FromTempFileReader(payload.InstallerFile)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "calculating script SHA256")
+	}
+
+	if payload.Title == "" {
+		base := filepath.Base(payload.Filename)
+		payload.Title = strings.TrimSuffix(base, filepath.Ext(base))
+	}
+
+	payload.Version = ""
+	payload.InstallScript = scriptContents
+	payload.StorageID = shaSum
+	payload.BundleIdentifier = ""
+	payload.PackageIDs = nil
+	payload.Extension = extension
+	payload.Source = "scripts"
+
+	platform, err := fleet.SoftwareInstallerPlatformFromExtension(extension)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "determining platform from extension")
+	}
+	payload.Platform = platform
+
+	return nil
 }
 
 const (
