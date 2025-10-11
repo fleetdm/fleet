@@ -36,6 +36,7 @@ Connect and provision Fleet to operate on your Entra ID tenant (activate partner
 2. In Fleet, go to **Settings > Integrations > Conditional access** and enter the tenant ID.
 
 ![Conditional access setup](../website/assets/images/articles/conditional-access-setup-554x250@2x.png)
+> **Note:** If you’re on **Fleet Cloud** and the **Conditional access** integration is missing, please [reach out to support](https://fleetdm.com/support).
 
 3. Click **Save**. You will be redirected to https://login.microsoftonline.com to consent to Fleet's multi-tenant app permissions.
 
