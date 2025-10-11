@@ -90,7 +90,7 @@ const Info = ({
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
     } else if (
-      !validUrl({ url: orgSupportURL, protocols: ["http", "https"] })
+      !validUrl({ url: orgSupportURL, protocols: ["http", "https", "file"] })
     ) {
       errors.org_support_url = `${orgSupportURL} is not a valid URL`;
     }
