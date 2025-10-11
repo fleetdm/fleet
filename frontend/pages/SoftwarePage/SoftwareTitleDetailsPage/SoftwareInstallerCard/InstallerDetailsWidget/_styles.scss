@@ -20,6 +20,7 @@
     display: flex;
     gap: $pad-xsmall;
     font-size: $xx-small;
+    align-items: center;
   }
 
   &__sha256 {
