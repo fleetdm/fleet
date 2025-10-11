@@ -71,6 +71,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   "google chrome": ChromeApp,
+  darwin: MacOS,
+  "windows app": WindowsApp,
+  windows: WindowsOS,
+  chrome: ChromeOS,
+  ios: iOS,
+  ipados: iPadOS,
   whatsapp: WhatsApp,
   notion: Notion,
   figma: Figma,
@@ -91,7 +97,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
   "vnc viewer": VncViewer,
-  "windows app": WindowsAppRemote,
   "omnissa horizon client": OmnissaHorizonClient,
 } as const;
 
