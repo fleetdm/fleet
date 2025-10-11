@@ -4,14 +4,13 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
-import CustomLink from "components/CustomLink";
 
 import mdmAPI from "services/entities/mdm";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
-  isBYODAccountDrivenEnrollment,
+  isAutomaticDeviceEnrollment,
+  isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
-  isCompanyOwnedEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 
@@ -81,7 +80,7 @@ const UnenrollMdmModal = ({
           share the link with end user.
         </p>
       );
-    } else if (isBYODAccountDrivenEnrollment(enrollmentStatus)) {
+    } else if (isBYODAccountDrivenUserEnrollment(enrollmentStatus)) {
       return (
         <p>
           To re-enroll, ask your end user to navigate to{" "}
@@ -92,7 +91,7 @@ const UnenrollMdmModal = ({
           on their host and to log in with their work email.
         </p>
       );
-    } else if (isCompanyOwnedEnrollment(enrollmentStatus)) {
+    } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {
       return (
         <p>
           To re-enroll, make sure that the host is still in Apple Business

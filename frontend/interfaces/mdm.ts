@@ -297,14 +297,22 @@ export const isBYODManualEnrollment = (
   return enrollmentStatus === "On (manual)";
 };
 
-export const isBYODAccountDrivenEnrollment = (
+/** This checks if the device is enrolled via an Apple ID user enrollment.
+ * We refer to that as "account driven user enrollment" */
+export const isBYODAccountDrivenUserEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
   return enrollmentStatus === "On (personal)";
 };
 
-export const isCompanyOwnedEnrollment = (
+/** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
+ * This was previously known as automatic enrollment but was updatd to company owned. Here we check
+ * for both to current and legacy enrollment status */
+export const isAutomaticDeviceEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
-  return enrollmentStatus === "On (company-owned)";
+  return (
+    enrollmentStatus === "On (company-owned)" ||
+    enrollmentStatus === "On (automatic)"
+  );
 };
