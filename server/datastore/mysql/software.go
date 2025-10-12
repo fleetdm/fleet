@@ -404,7 +404,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, nil
 	}
 
-	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, existingBundleIDsToUpdate, err := ds.getExistingSoftware(ctx, current, incoming)
+	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, err := ds.getExistingSoftware(ctx, current, incoming)
 	if err != nil {
 		return r, err
 	}
@@ -438,54 +438,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Inserted = inserted
 
-			// Also link existing software that matches by bundle ID
-			// This handles the case where software has the same bundle ID but different name.
-			// Since this is a rare case, it is not optimized for performance.
-			if len(existingBundleIDsToUpdate) > 0 {
-				bundleInserted, err := ds.linkExistingBundleIDSoftware(ctx, tx, hostID, existingBundleIDsToUpdate)
-				if err != nil {
-					return err
-				}
-				r.Inserted = append(r.Inserted, bundleInserted...)
-
-				// Build map of software IDs to their new names for renaming.
-				// softwareRenames should match existingBundleIDsToUpdate, but we create this extra map to handle
-				// software entries that share the same bundle ID as well as other potential corner cases.
-				softwareRenames := make(map[uint]string, len(existingBundleIDsToUpdate))
-				// Check inserted software for renames
-				for _, sw := range r.Inserted {
-					if sw.BundleIdentifier != "" {
-						if updSoftwareList, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
-							// Use the first software in the list for the name (they should all have the same name)
-							if len(updSoftwareList) > 0 {
-								softwareRenames[sw.ID] = updSoftwareList[0].Name
-							}
-						}
-					}
-				}
-				// Check existing software for renames
-				for _, s := range existingSoftware {
-					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
-						if updSoftwareList, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
-							// Use the first software in the list for the name (they should all have the same name)
-							if len(updSoftwareList) > 0 {
-								softwareRenames[s.ID] = updSoftwareList[0].Name
-							}
-						}
-					}
-				}
-
-				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
-					return err
-				}
-			}
-
-			// Use r.Inserted which contains all inserted items (including bundle ID matches)
 			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, r.Inserted, hostID); err != nil {
 				return err
 			}
 
-			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, existingBundleIDsToUpdate, ds.minLastOpenedAtDiff, ds.logger); err != nil {
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff); err != nil {
 				return err
 			}
 
@@ -499,108 +456,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, err
 	}
 	return r, err
-}
-
-// updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
-// softwareRenames maps software IDs to their new names.
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
-	if len(softwareRenames) == 0 {
-		return nil
-	}
-
-	// Extract software IDs for batch processing
-	softwareIDs := make([]uint, 0, len(softwareRenames))
-	for id := range softwareRenames {
-		softwareIDs = append(softwareIDs, id)
-	}
-
-	const batchSize = 100
-
-	err := common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
-		placeholders := make([]string, len(batch))
-		args := make([]any, len(batch))
-		for i, id := range batch {
-			placeholders[i] = "?"
-			args[i] = id
-		}
-
-		// During high concurrency situations, we may have multiple transactions attempting to update the same software rows.
-		// For example, this can happen when many hosts are trying to rename the same software items.
-		// To avoid long locks or even deadlocks, use UPDATE SKIP LOCKED to skip rows that are already locked by another transaction.
-		// This means that some software rows may not be updated in this transaction,
-		// however, eventually they should be updated. This is trading off immediate consistency
-		// for less lock contention.
-		lockQuery := fmt.Sprintf(
-			"SELECT id, name FROM software WHERE id IN (%s) ORDER BY id FOR UPDATE SKIP LOCKED",
-			strings.Join(placeholders, ","),
-		)
-
-		rows, err := tx.QueryContext(ctx, lockQuery, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "lock software rows for rename")
-		}
-		defer rows.Close()
-
-		type lockedRow struct {
-			id          uint
-			currentName string
-		}
-		var lockedRows []lockedRow
-		for rows.Next() {
-			var lr lockedRow
-			if err := rows.Scan(&lr.id, &lr.currentName); err != nil {
-				return ctxerr.Wrap(ctx, err, "scan locked row")
-			}
-			lockedRows = append(lockedRows, lr)
-		}
-		if err := rows.Err(); err != nil {
-			return ctxerr.Wrap(ctx, err, "iterate locked rows")
-		}
-
-		if len(lockedRows) == 0 {
-			return nil
-		}
-
-		var rowsToUpdate []lockedRow
-		for _, lr := range lockedRows {
-			newName := softwareRenames[lr.id]
-			if lr.currentName != newName {
-				rowsToUpdate = append(rowsToUpdate, lr)
-			}
-		}
-
-		if len(rowsToUpdate) == 0 {
-			return nil
-		}
-
-		updateCases := make([]string, 0, len(rowsToUpdate))
-		updateCaseArgs := make([]any, 0, len(rowsToUpdate)*2)
-		updateWhereArgs := make([]any, 0, len(rowsToUpdate))
-		updateIDs := make([]string, 0, len(rowsToUpdate))
-
-		for _, lr := range rowsToUpdate {
-			newName := softwareRenames[lr.id]
-			updateCases = append(updateCases, "WHEN ? THEN ?")
-			updateCaseArgs = append(updateCaseArgs, lr.id, newName)
-			updateWhereArgs = append(updateWhereArgs, lr.id)
-			updateIDs = append(updateIDs, "?")
-		}
-
-		updateStmt := fmt.Sprintf(
-			`UPDATE software SET name = CASE id %s END, name_source = 'bundle_4.67' WHERE id IN (%s)`,
-			strings.Join(updateCases, " "),
-			strings.Join(updateIDs, ","),
-		)
-
-		_, err = tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "batch update software names")
-		}
-
-		return nil
-	})
-
-	return err
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -677,27 +532,20 @@ func (ds *Datastore) getExistingSoftware(
 	currentSoftware []softwareIDChecksum,
 	incomingChecksumToSoftware map[string]fleet.Software,
 	incomingChecksumToTitle map[string]fleet.SoftwareTitle,
-	existingBundleIDsToUpdate map[string][]fleet.Software,
 	err error,
 ) {
 	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
 	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
 	newSoftware := make(map[string]struct{})
-	incomingBundleIDsToNewSoftwareNames := make(map[string]string)
-	existingBundleIDsToUpdate = make(map[string][]fleet.Software)
 	for uniqueName, s := range incoming {
 		_, ok := current[uniqueName]
 		if !ok {
 			checksum, err := s.ComputeRawChecksum()
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, err
 			}
 			incomingChecksumToSoftware[string(checksum)] = s
 			newSoftware[string(checksum)] = struct{}{}
-
-			if s.BundleIdentifier != "" {
-				incomingBundleIDsToNewSoftwareNames[s.BundleIdentifier] = s.Name
-			}
 		}
 	}
 
@@ -710,45 +558,32 @@ func (ds *Datastore) getExistingSoftware(
 		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
 		currentSoftware, err = getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		for _, currentSoftwareItem := range currentSoftware {
-			incomingSoftwareItem, ok := incomingChecksumToSoftware[currentSoftwareItem.Checksum]
+			_, ok := incomingChecksumToSoftware[currentSoftwareItem.Checksum]
 			if !ok {
 				// This should never happen. If it does, we have a bug.
-				return nil, nil, nil, nil, ctxerr.New(
+				return nil, nil, nil, ctxerr.New(
 					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(currentSoftwareItem.Checksum))),
 				)
-			}
-			if currentSoftwareItem.BundleIdentifier != nil && currentSoftwareItem.Source == "apps" {
-				if name, ok := incomingBundleIDsToNewSoftwareNames[*currentSoftwareItem.BundleIdentifier]; ok && name != currentSoftwareItem.Name {
-					// Then this is a software whose name has changed, so we should update the name
-					// Copy the incoming software but with the existing software's ID
-					swWithID := incomingSoftwareItem
-					swWithID.ID = currentSoftwareItem.ID
-					existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier] = append(existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier], swWithID)
-
-					// Delete this checksum to prevent it from being treated as new software
-					delete(incomingChecksumToSoftware, currentSoftwareItem.Checksum)
-					continue
-				}
 			}
 			delete(newSoftware, currentSoftwareItem.Checksum)
 		}
 	}
 
 	if len(newSoftware) == 0 {
-		return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, nil
+		return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
 	}
 
 	// There's new software, so we try to get the titles already stored in `software_titles` for them.
 	incomingChecksumToTitle, _, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, newSoftware, incomingChecksumToSoftware)
 	if err != nil {
-		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
 	}
 
-	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, nil
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
 }
 
 // getIncomingSoftwareChecksumsToExistingTitles loads the existing titles for the new incoming software.
@@ -1147,81 +982,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	return err
 }
 
-// linkExistingBundleIDSoftware links existing software entries that match by bundle ID to the host.
-// This handles the case where incoming software has the same bundle ID as existing software but a different name.
-func (ds *Datastore) linkExistingBundleIDSoftware(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	hostID uint,
-	existingBundleIDsToUpdate map[string][]fleet.Software,
-) ([]fleet.Software, error) {
-	if len(existingBundleIDsToUpdate) == 0 {
-		return nil, nil
-	}
-
-	// Collect all software IDs to verify they still exist
-	softwareIDs := make([]uint, 0, len(existingBundleIDsToUpdate))
-	for _, softwareList := range existingBundleIDsToUpdate {
-		for _, software := range softwareList {
-			// The software.ID should already be set from getExistingSoftware
-			if software.ID == 0 {
-				return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
-			}
-			softwareIDs = append(softwareIDs, software.ID)
-		}
-	}
-
-	// Verify software still exists (just like we do in linkSoftwareToHost)
-	// This prevents creating orphaned references if software was deleted between pre-insertion and now
-	// This DB call could be removed to squeeze our a little more performance at the risk of orphaned references.
-	stmt, args, err := sqlx.In(`SELECT id FROM software WHERE id IN (?)`, softwareIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build query for existing software verification")
-	}
-
-	var existingIDs []uint
-	if err := sqlx.SelectContext(ctx, tx, &existingIDs, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "verify existing bundle ID software")
-	}
-
-	// Build a set of existing IDs for quick lookup
-	existingIDSet := make(map[uint]struct{}, len(existingIDs))
-	for _, id := range existingIDs {
-		existingIDSet[id] = struct{}{}
-	}
-
-	var insertsHostSoftware []any
-	var insertedSoftware []fleet.Software
-
-	for _, softwareList := range existingBundleIDsToUpdate {
-		for _, software := range softwareList {
-			// Only link if software still exists
-			if _, ok := existingIDSet[software.ID]; ok {
-				insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-				insertedSoftware = append(insertedSoftware, software)
-			} else {
-				// Log missing software but continue
-				level.Warn(ds.logger).Log(
-					"msg", "bundle ID software not found after pre-insertion",
-					"software_id", software.ID,
-					"name", software.Name,
-					"bundle_id", software.BundleIdentifier,
-				)
-			}
-		}
-	}
-
-	if len(insertsHostSoftware) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
-		stmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
-		if _, err := tx.ExecContext(ctx, stmt, insertsHostSoftware...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "link existing bundle ID software")
-		}
-	}
-
-	return insertedSoftware, nil
-}
-
 // linkSoftwareToHost links pre-inserted software to a host.
 // This assumes software inventory entries already exist.
 func (ds *Datastore) linkSoftwareToHost(
@@ -1311,9 +1071,7 @@ func updateModifiedHostSoftwareDB(
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-	existingBundleIDsToUpdate map[string][]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
-	logger log.Logger,
 ) error {
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
@@ -1322,23 +1080,8 @@ func updateModifiedHostSoftwareDB(
 		if !ok {
 			continue
 		}
-		// if the new software has no last opened timestamp, we only
-		// update if the current software has no last opened timestamp
-		// and is marked as having a name change.
+		// if the new software has no last opened timestamp, skip it
 		if newSw.LastOpenedAt == nil {
-			if _, ok := existingBundleIDsToUpdate[newSw.BundleIdentifier]; ok && curSw.LastOpenedAt == nil {
-				keysToUpdate = append(keysToUpdate, key)
-			}
-			// Log cases where the new software has no last opened timestamp, the current software does,
-			// and the software is marked as having a name change.
-			// This is expected on macOS, but not on windows/linux.
-			if ok && curSw.LastOpenedAt != nil && newSw.Source != "apps" {
-				level.Warn(logger).Log(
-					"msg", "updateModifiedHostSoftwareDB: last opened at is nil for new software, but not for current software",
-					"new_software", newSw.Name, "current_software", curSw.Name,
-					"bundle_identifier", newSw.BundleIdentifier,
-				)
-			}
 			continue
 		}
 		// update if the new software has been opened more recently.
