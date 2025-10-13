@@ -19,7 +19,7 @@ jest.mock("lodash", () => ({
 const testSoftwarePackage = createMockHostSoftwarePackage();
 
 describe("InstallStatusCell - component", () => {
-  it("renders 'Installed' status with tooltip", async () => {
+  it("renders 'Installed' status without tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -43,9 +43,10 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("Installed"));
 
-    await waitFor(() => {
-      expect(screen.getByText(/Software was installed/i)).toBeInTheDocument();
-    });
+    // No tooltip on install status
+    expect(
+      screen.queryByText(/Software was installed/i)
+    ).not.toBeInTheDocument();
 
     // There SHOULD be a button with this label
     expect(

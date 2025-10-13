@@ -59,7 +59,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 4. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
    - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
    - Add a link to the issue in the PR description.
-   - Attach the `~api-or-yaml-design` label.
+   - Attach the `~api-or-yaml-design` label and add a milestone. (This helps us spot unmerged PRs.)
    - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
    - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
@@ -171,10 +171,10 @@ Ensure the interview process follows these steps in order. This process must fol
 
 1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30 minute introduction call.
 2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
-3. **IHOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Interim Head of People (IHOP) to set up the IHOP interview.
+3. **HOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Head of People (HOP) to set up the HOP interview.
 4. **Deliver design challenge and schedule interview**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and send a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
-5. **Schedule EM interview**: Send the candidate a calendly link for 30m talk with the Engineering Manager (EM) of the [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) the candidate will be working with.
-6. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
+5. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
+6. **Schedule CTO interview**: Send the candidate a Calendly link for 30m talk with our CTO @lukeheath.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 

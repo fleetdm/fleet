@@ -184,7 +184,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		NewNanoMDMLogger(pushLog),
 	)
 	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
+	s.redisPool = redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
 	wlog := kitlog.NewJSONLogger(os.Stdout)
@@ -253,7 +253,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		DEPStorage:            depStorage,
 		SCEPStorage:           scepStorage,
 		MDMPusher:             mdmPushService,
-		Pool:                  redisPool,
+		Pool:                  s.redisPool,
 		Lq:                    s.lq,
 		SoftwareInstallStore:  softwareInstallerStore,
 		BootstrapPackageStore: bootstrapPackageStore,
@@ -343,7 +343,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger)
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+								return newActivity(ctx, user, act, ds, logger)
+							})
 						}),
 					)
 					return refetcherSchedule, nil
@@ -363,7 +365,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)},
 	}, nil)
 	require.NoError(s.T(), err)
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
+
+	svc, ctx := NewTestService(s.T(), s.ds, fleetCfg, &serverConfig)
+	// This is a bit of a code smell but I don't see a better way to initialize this for the tests. The
+	// initialization pattern works fine in our normal fleet server setup
+	appleMDMJob.VPPInstaller = svc
+
+	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
+
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -1334,12 +1343,12 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
+		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
 	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
+		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1412,7 +1421,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 			found = true
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
-			require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*activity.Details))
+			require.JSONEq(t, fmt.Sprintf(`{"enrollment_id": null, "host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "platform": "darwin"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*activity.Details))
 		}
 	}
 	require.True(t, found)
@@ -7436,7 +7445,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 			"host_serial": "%s",
 			"installed_from_dep": false,
 			"host_display_name": "%s",
-			"enrollment_id": null
+			"enrollment_id": null,
+			"platform": "windows"
 		 }`, windowsHost.HardwareSerial, windowsHost.DisplayName()),
 		0)
 
@@ -7487,7 +7497,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 			"host_serial": "",
 			"installed_from_dep": false,
 			"host_display_name": "DESKTOP-0C89RC0",
-			"enrollment_id": null
+			"enrollment_id": null,
+			"platform": "windows"
 		 }`,
 		0)
 
@@ -9599,24 +9610,6 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	t := s.T()
 
-	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-		foundInstallFleetdCommand := false
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-				foundInstallFleetdCommand = true
-				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-			}
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-		require.Equal(t, wantCommand, foundInstallFleetdCommand)
-	}
-
 	// create a device that's not enrolled into Fleet, it should get a command to
 	// install fleetd
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -9627,7 +9620,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, true)
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 	// create a device that's enrolled into Fleet before turning on MDM features,
 	// it should still get the command to install fleetd if turns on MDM.
@@ -9640,7 +9633,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, true)
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
 }
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
@@ -9890,12 +9883,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
 
-	// try locking the host while it is pending lock returns the same PIN
-	var lockResp2 lockHostResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp2, "view_pin", "true")
-	require.Equal(t, lockResp.UnlockPIN, lockResp2.UnlockPIN, "Should return the same PIN for duplicate lock request")
-	require.Equal(t, fleet.PendingActionLock, lockResp2.PendingAction)
-	require.Equal(t, fleet.DeviceStatusUnlocked, lockResp2.DeviceStatus)
+	// try locking the host while it is pending lock returns error
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity, &lockResp, "view_pin", "true")
 
 	// simulate a successful MDM result for the lock command
 	cmd, err := mdmClient.Idle()
@@ -14038,24 +14027,6 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	})
 
 	t.Run("succeeds", func(t *testing.T) {
-		checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-			foundInstallFleetdCommand := false
-			cmd, err := mdmDevice.Idle()
-			require.NoError(t, err)
-			for cmd != nil {
-				var fullCmd micromdm.CommandPayload
-				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-					foundInstallFleetdCommand = true
-					require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-					require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-				}
-				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-				require.NoError(t, err)
-			}
-			require.Equal(t, wantCommand, foundInstallFleetdCommand)
-		}
-
 		verifySuccessfulOTAEnrollment := func(mdmDevice *mdmtest.TestAppleMDMClient, hwModel, platform string, enrollTime time.Time) getHostResponse {
 			var hostByIdentifierResp getHostResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
@@ -14087,7 +14058,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, true)
+			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			require.Nil(t, hostByIdentifierResp.Host.TeamID)
@@ -14108,7 +14079,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, false)
+			checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "ipados", enrollTime)
 			require.NotNil(t, hostByIdentifierResp.Host.TeamID)
@@ -14125,7 +14096,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, true)
+			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			account, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), resp.Host.UUID)
@@ -14153,7 +14124,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.runWorker()
-			checkInstallFleetdCommandSent(mdmDevice, true)
+			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
@@ -14211,7 +14182,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
 
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
+		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPhoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
@@ -14234,7 +14205,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	assert.Equal(t, iPadMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user2@example.com")
 
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
+		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ipados"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPadMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
@@ -18173,7 +18144,9 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled

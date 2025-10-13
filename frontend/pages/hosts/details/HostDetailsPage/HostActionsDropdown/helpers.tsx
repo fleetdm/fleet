@@ -10,7 +10,10 @@ import {
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
-import { isPersonalEnrollmentInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -177,16 +180,16 @@ const canWipeHost = ({
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
-  // there is a special case for iOS and iPadOS devices that are personally enrolled
+  // there is a special case for iOS and iPadOS devices that are account driven enrolled
   // in MDM. These hosts cannot be wiped.
-  const isPersonallyEnrolledIosOrIpadDevice =
+  const isAccountDrivenEnrolledIosOrIpadosDevice =
     isIPadOrIPhone(hostPlatform) &&
-    isPersonalEnrollmentInMdm(hostMdmEnrollmentStatus);
+    isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
   return (
     isPremiumTier &&
     !isAndroid(hostPlatform) &&
-    !isPersonallyEnrolledIosOrIpadDevice &&
+    !isAccountDrivenEnrolledIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)

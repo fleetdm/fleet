@@ -2388,11 +2388,12 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 			HostSerial:       h.HardwareSerial,
 			HostDisplayName:  h.DisplayName(),
 			InstalledFromDEP: info.InstalledFromDEP,
+			Platform:         h.Platform,
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
 	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
 		Platform: info.Platform,
@@ -3481,16 +3482,18 @@ type MDMAppleCheckinAndCommandService struct {
 	commander       *apple_mdm.MDMAppleCommander
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
+	keyValueStore   fleet.KeyValueStore
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
-	mdmLifecycle := mdmlifecycle.New(ds, logger)
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger, keyValueStore fleet.KeyValueStore) *MDMAppleCheckinAndCommandService {
+	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
 		commander:       commander,
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:   keyValueStore,
 	}
 }
 
@@ -3566,12 +3569,23 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 			HostDisplayName:  updatedInfo.DisplayName,
 			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
+			Platform:         updatedInfo.Platform,
 		}
 		if r.Type == mdm.UserEnrollmentDevice {
 			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(updatedInfo.HardwareSerial)
 		}
+
+		if svc.keyValueStore != nil {
+			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
+			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
+			if err != nil {
+				// We do not want to fail here, just log the error to notify
+				level.Error(svc.logger).Log("msg", "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
+			}
+		}
+
 		return newActivity(
 			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
 		)
@@ -3606,7 +3620,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
-		if !info.MigrationInProgress {
+		// Always run setup experience on non-macOS hosts(i.e. iOS/iPadOS), only run it on macOS if
+		// this is not an ABM MDM migration
+		if info.Platform != "darwin" || !info.MigrationInProgress {
 			// Enqueue setup experience items and mark the host as being in setup experience
 			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
 			if err != nil {
@@ -3693,6 +3709,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
+			Platform:         info.Platform,
 		}, svc.ds, svc.logger,
 	)
 }
@@ -3864,7 +3881,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
-			// TODO: consider limiting this to only macOS hosts
 			var fromSetupExperience bool
 			if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      cmdResult.Identifier(),
