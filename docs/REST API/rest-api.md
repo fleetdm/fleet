@@ -10839,7 +10839,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
-| self_service | boolean | body | Specifies whether the app shows up on the **Fleet Desktop > My device** page for macOS, or self-service web app for iOS/iPadOS, and is available for install by the end user. |
+| self_service | boolean | body | Specifies whether the app shows up on the **Fleet Desktop > Self-service** page for macOS, or [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app for iOS/iPadOS, and is available for install by the end user. |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
