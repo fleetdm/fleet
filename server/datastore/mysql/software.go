@@ -446,7 +446,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				return err
 			}
 
-			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff); err != nil {
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff, ds.logger); err != nil {
 				return err
 			}
 
@@ -1132,6 +1132,7 @@ func updateModifiedHostSoftwareDB(
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
+	logger log.Logger,
 ) error {
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
@@ -1140,8 +1141,18 @@ func updateModifiedHostSoftwareDB(
 		if !ok {
 			continue
 		}
-		// if the new software has no last opened timestamp, skip it
+		// if the new software has no last opened timestamp, log if the current one did
+		// (but only for non-apps sources, as apps sources are managed by osquery)
 		if newSw.LastOpenedAt == nil {
+			if curSw.LastOpenedAt != nil && newSw.Source != "apps" {
+				level.Info(logger).Log(
+					"msg", "software last_opened_at changed to nil",
+					"host_id", hostID,
+					"software_id", curSw.ID,
+					"software_name", newSw.Name,
+					"source", newSw.Source,
+				)
+			}
 			continue
 		}
 		// update if the new software has been opened more recently.
