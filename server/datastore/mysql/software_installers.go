@@ -1276,7 +1276,10 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 	}
 
 	for _, in := range installs {
-		ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
+		_, err := ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1869,9 +1872,14 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 
 	// get the list of software installers hashes that are in use
 	var storageIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_installers`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `
+		SELECT storage_id FROM software_installers 
+		UNION 
+		SELECT storage_id FROM in_house_apps`,
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "get list of software installers in use")
 	}
+	// Add in house apps to software installers in use
 
 	_, err := softwareInstallStore.Cleanup(ctx, storageIDs, removeCreatedBefore)
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
