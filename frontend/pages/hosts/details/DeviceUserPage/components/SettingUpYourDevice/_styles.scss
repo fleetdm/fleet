@@ -1,6 +1,7 @@
 .setting-up-your-device {
   &__header {
     display: flex;
+    justify-content: space-between;
 
     .info-button {
       padding-top: 0;
