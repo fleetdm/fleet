@@ -377,7 +377,17 @@ This policy passes if a host has a host identity certificate.
 
 #### Important considerations
 
-- Hosts without TPM 2.0 will fail to enroll when this option is enabled
+- Hosts without TPM 2.0 will fail to enroll when this option is enabled. You can run this osuery query to check if hosts have TPM 2.0:
+
+```sql
+SELECT
+  COUNT(*) AS compliant
+FROM
+  file 
+WHERE 
+  path = '/dev/tpmrm0';
+```
+
 - This feature cannot be combined with other client certificate options (`--fleet-tls-client-certificate`)
 - SCEP certificate requests can be throttled by the [osquery_enroll_cooldown](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-enroll-cooldown) server option, similar to how fleetd enrollments are throttled
 - When a host requests a host identity certificate, the server will expect all future traffic from that host to be signed with HTTP message signatures. This allows mixed environments where some hosts use managed client certificates and others do not
