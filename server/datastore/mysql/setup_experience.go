@@ -487,7 +487,7 @@ SET
 	nano_command_uuid = ?,
 	setup_experience_script_id = ?,
 	script_execution_id = ?,
-	error = ?
+	error = LEFT(?, 255)
 WHERE id = ?
 `
 	if err := status.IsValid(); err != nil {

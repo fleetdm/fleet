@@ -230,6 +230,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	return false, fleet.ErrMissingLicense
 }
 
+func (svc *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
+	return maybeCancelPendingSetupExperienceSteps(ctx, svc.ds, host)
+}
+
 func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datastore, host *fleet.Host) error {
 	// If the host is not MacOS, we do nothing.
 	if host.Platform != "darwin" {

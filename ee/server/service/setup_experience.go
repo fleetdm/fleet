@@ -237,7 +237,11 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 		}
 	case installersRunning == 0 && len(appsPending) > 0:
 		// enqueue vpp apps
+		var skipRemainingVPPInstalls bool
 		for _, app := range appsPending {
+			if skipRemainingVPPInstalls {
+				continue
+			}
 			vppAppID, err := app.VPPAppID()
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
@@ -269,6 +273,27 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				level.Warn(svc.logger).Log("msg", "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
 				app.Status = fleet.SetupExperienceStatusFailure
 				app.Error = ptr.String(err.Error())
+				// At this point we need to check whether the "cancel if software install fails" setting is active,
+				// in which case we'll cancel the remaining pending items.
+				teamID := host.TeamID
+				requireAllSoftware := false
+				if teamID == nil || *teamID == 0 {
+					ac, err := svc.ds.AppConfig(ctx)
+					if err != nil {
+						return false, ctxerr.Wrap(ctx, err, "getting app config")
+					}
+					requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
+				} else {
+					team, err := svc.ds.Team(ctx, *teamID)
+					if err != nil {
+						return false, ctxerr.Wrap(ctx, err, "load team")
+					}
+					requireAllSoftware = team.Config.MDM.MacOSSetup.RequireAllSoftware
+				}
+				if requireAllSoftware {
+					svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
+					skipRemainingVPPInstalls = true
+				}
 			}
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")

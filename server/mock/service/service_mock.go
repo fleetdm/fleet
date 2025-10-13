@@ -789,6 +789,8 @@ type SetupExperienceInitFunc func(ctx context.Context) (*fleet.SetupExperienceIn
 
 type GetDeviceSetupExperienceStatusFunc func(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error)
 
+type MaybeCancelPendingSetupExperienceStepsFunc func(ctx context.Context, host *fleet.Host) error
+
 type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error)
 
 type ListFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
@@ -1989,6 +1991,9 @@ type Service struct {
 
 	GetDeviceSetupExperienceStatusFunc        GetDeviceSetupExperienceStatusFunc
 	GetDeviceSetupExperienceStatusFuncInvoked bool
+
+	MaybeCancelPendingSetupExperienceStepsFunc        MaybeCancelPendingSetupExperienceStepsFunc
+	MaybeCancelPendingSetupExperienceStepsFuncInvoked bool
 
 	AddFleetMaintainedAppFunc        AddFleetMaintainedAppFunc
 	AddFleetMaintainedAppFuncInvoked bool
@@ -4756,6 +4761,13 @@ func (s *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.De
 	s.GetDeviceSetupExperienceStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceSetupExperienceStatusFunc(ctx)
+}
+
+func (s *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.MaybeCancelPendingSetupExperienceStepsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeCancelPendingSetupExperienceStepsFunc(ctx, host)
 }
 
 func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error) {

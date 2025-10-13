@@ -1277,6 +1277,8 @@ type Service interface {
 	// GetDeviceSetupExperienceStatus returns the "Setup experience" status for a "Fleet Desktop" device.
 	GetDeviceSetupExperienceStatus(ctx context.Context) (*DeviceSetupExperienceStatusPayload, error)
 
+	MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *Host) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
 
