@@ -115,7 +115,7 @@ go.mod @fleetdm/go
 /handbook/finance/finance.rituals.yml                           @sampfluger88
 /handbook/people                    			        	    @sampfluger88
 /handbook/it-and-enablement                             	    @sampfluger88
-/handbook/customer-success                                    	@sampfluger88
+/handbook/customer-success                                    	@sampfluger88 @zayhanlon
 /handbook/marketing                                            	@sampfluger88
 /handbook/sales                                             	@sampfluger88
 #/handbook/product-design                                     	Covered in custom.js
