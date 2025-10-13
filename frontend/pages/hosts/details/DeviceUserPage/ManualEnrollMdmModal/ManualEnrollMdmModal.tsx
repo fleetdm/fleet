@@ -41,7 +41,6 @@ const ManualEnrollMdmModal = ({
         if (axiosResponse.data) {
           const dataBlob = axiosResponse.data as Blob;
           const blobText = await dataBlob.text();
-          console.log("blob text", blobText);
           if (
             blobText.includes(
               "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work."
