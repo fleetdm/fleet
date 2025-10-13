@@ -160,7 +160,11 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			// If so, call the enqueue function with a flag to retain successful steps.
 			if requireAllSoftware {
 				level.Info(svc.logger).Log("msg", "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
-				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, host.PlatformLike, host.UUID, *host.TeamID)
+				platform := host.PlatformLike
+				if platform == "" {
+					platform = host.Platform
+				}
+				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, platform, host.UUID, *host.TeamID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
 				}

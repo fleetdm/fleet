@@ -2183,6 +2183,21 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
 	require.Equal(t, len(hostActivitiesResp.Activities), 0)
+
+	// Reset the setup experience items.
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_after_failure": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	// The script should be back to "pending"
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 3)
+	// The successful install should remain successful.
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	// Other two software should go back to "pending"
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[2].Status)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP() {
