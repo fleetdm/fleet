@@ -382,8 +382,7 @@ This policy passes if a host has a host identity certificate.
 - SCEP certificate requests can be throttled by the [osquery_enroll_cooldown](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-enroll-cooldown) server option, similar to how fleetd enrollments are throttled
 - When a host requests a host identity certificate, the server will expect all future traffic from that host to be signed with HTTP message signatures. This allows mixed environments where some hosts use managed client certificates and others do not
 - Fleet administrators can enforce HTTP message signature requirements server-wide using the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option
-- HTTP message signatures use P384 elliptic curve cryptography by default, which requires additional CPU resources to verify on the Fleet server. This can impact performance and should be considered when planning your Fleet deployment.
-
+- HTTP message signatures use P384 elliptic curve cryptography by default, which requires 50% more CPU resources for the Fleet server. This can impact performance and should be considered when planning your Fleet deployment.
 
 ### Specifying update channels
 
