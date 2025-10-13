@@ -2291,7 +2291,7 @@ func (ds *Datastore) cleanupOrphanedSoftwareTitles(ctx context.Context) error {
 		level.Debug(ds.logger).Log(
 			"msg", "cleanup orphaned software titles",
 			"rows_affected", n,
-			"took", start,
+			"took", time.Since(start),
 		)
 	}(time.Now())
 
@@ -2318,7 +2318,7 @@ func (ds *Datastore) updateSoftwareTitleNames(ctx context.Context) error {
 		level.Debug(ds.logger).Log(
 			"msg", "update software titles names bundle_4.67",
 			"rows_affected", n,
-			"took", start,
+			"took", time.Since(start),
 		)
 	}(time.Now())
 
