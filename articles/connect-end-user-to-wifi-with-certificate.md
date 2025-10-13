@@ -12,7 +12,6 @@ Fleet will automatically renew certificates 30 days before expiration. If an end
 >
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
 
-
 ## DigiCert
 
 To connect end users to Wi-Fi or VPN with DigiCert certificates, we'll do the following steps:
