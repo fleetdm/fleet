@@ -177,6 +177,8 @@ func (ds *Datastore) ListSoftwareTitles(
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software titles count")
 	}
 
+	fmt.Printf("softwareList: %v\n", softwareList)
+
 	// if we don't have any matching titles, there's no point trying to
 	// find matching versions. Early return
 	if len(softwareList) == 0 {
@@ -375,7 +377,7 @@ SELECT
 	,MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at
 	{{if hasTeamID .}}
 		,si.self_service as package_self_service
-		,si.filename as package_name
+		,COALESCE(si.filename, iha.name) as package_name
 		,si.version as package_version
 		,si.platform as package_platform
 		,si.url AS package_url
@@ -393,6 +395,8 @@ FROM software_titles st
 	{{if hasTeamID .}}
 		{{$installerJoin := printf "%s JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %d" (yesNo .PackagesOnly "INNER" "LEFT") (teamID .)}}
 		{{$installerJoin}}
+		{{$ihaJoin := printf "%s JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %d" (yesNo .PackagesOnly "INNER" "LEFT") (teamID .)}}
+		{{$ihaJoin}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
@@ -434,7 +438,7 @@ WHERE
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer or VPP app exists", and see next condition.
-	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)" "FALSE"}}
+	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL OR iha.id IS NOT NULL)" "FALSE"}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}

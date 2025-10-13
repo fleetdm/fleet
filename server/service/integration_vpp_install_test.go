@@ -1264,3 +1264,78 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.NotNil(t, listSw.SoftwareTitles[1].AppStoreApp)
 	require.Equal(t, "2", listSw.SoftwareTitles[1].AppStoreApp.AppStoreID)
 }
+
+func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Upload in-house app for iOS
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	// Get title ID
+
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", "0")
+
+	assert.Len(t, resp.SoftwareTitles, 1)
+	assert.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
+
+	// Enroll iPhone
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+
+	// Install in-house app
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
+		iosHost.ID, resp.SoftwareTitles[0].ID), nil, http.StatusAccepted, &installResp)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "software_titles")
+		mysql.DumpTable(t, q, "software")
+		mysql.DumpTable(t, q, "host_in_house_software_installs")
+		mysql.DumpTable(t, q, "nano_commands")
+		return nil
+	})
+
+	var installCmdUUID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
+	})
+	require.NotEmpty(t, installCmdUUID)
+
+	// TODO(JVE): installation should show up in upcoming activity feed
+	// get upcoming activity
+	// var listUpcomingAct listHostUpcomingActivitiesResponse
+	// s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listUpcomingAct)
+	// require.Len(t, listUpcomingAct.Activities, 1)
+	// require.Nil(t, listUpcomingAct.Activities[0].ActorID)
+	// require.False(t, listUpcomingAct.Activities[0].FleetInitiated)
+
+	// var details fleet.ActivityTypeInstalledSoftware
+	// err := json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
+	// require.NoError(t, err)
+	// require.Equal(t, iosHost.ID, details.HostID)
+	// require.Equal(t, details.SoftwareTitle, resp.SoftwareTitles[0].Name)
+	// require.True(t, details.SelfService)
+	// require.EqualValues(t, fleet.SoftwareInstallPending, details.Status)
+	// installID := details.InstallUUID
+
+	// Process the InstallApplication command
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
+
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
+}

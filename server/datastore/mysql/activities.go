@@ -1729,7 +1729,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid
+	uuid, team_id
 FROM
 	hosts
 WHERE
@@ -1747,7 +1747,7 @@ INSERT INTO
 SELECT
 	ua.execution_id,
 	'InstallApplication',
-	CONCAT(:raw_cmd_part1, 'ihua.<some in-house manifest info>', :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
+	CONCAT(:raw_cmd_part1, :manifest_url, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
 	:subtype
 FROM
 	upcoming_activities ua
@@ -1780,10 +1780,10 @@ WHERE
         </dict>
         <key>RequestType</key>
         <string>InstallApplication</string>
-        <key>iTunesStoreID</key>
-        <integer>`
+        <key>ManifestURL</key>
+        <string>`
 
-	const rawCmdPart2 = `</integer>
+	const rawCmdPart2 = `</string>
     </dict>
     <key>CommandUUID</key>
     <string>`
@@ -1815,8 +1815,11 @@ ORDER BY
 	}
 
 	// get the host uuid, required for the nano tables
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+	var hostData struct {
+		UUID   string `db:"uuid"`
+		TeamID *uint  `db:"team_id"`
+	}
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
 	}
 
@@ -1829,8 +1832,21 @@ ORDER BY
 		return ctxerr.Wrap(ctx, err, "insert to activate in-house apps")
 	}
 
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "activate in house app install: get app config")
+	}
+
+	var tid uint
+	if hostData.TeamID != nil {
+		tid = *hostData.TeamID
+	}
+
+	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, 836, tid)
+
 	// insert the nano command
 	namedArgs := map[string]any{
+		"manifest_url":  manifestURL,
 		"raw_cmd_part1": rawCmdPart1,
 		"raw_cmd_part2": rawCmdPart2,
 		"raw_cmd_part3": rawCmdPart3,
@@ -1851,7 +1867,7 @@ ORDER BY
 	}
 
 	// enqueue the nano command in the nano queue
-	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostData.UUID, hostID, execIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
 	}
@@ -1862,8 +1878,8 @@ ORDER BY
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
-		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
+		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
 		}
 	}
 	return nil

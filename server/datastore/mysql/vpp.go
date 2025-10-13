@@ -1025,6 +1025,73 @@ VALUES
 	return err
 }
 
+func (ds *Datastore) InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID uint, commandUUID string, opts fleet.HostSoftwareInstallOptions) error {
+	const (
+		insertUAStmt = `
+INSERT INTO upcoming_activities
+		(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
+VALUES
+		(?, ?, ?, ?, 'in_house_app_install', ?,
+			JSON_OBJECT(
+				'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
+			)
+		)`
+
+		insertVAUAStmt = `
+INSERT INTO in_house_app_upcoming_activities
+		(upcoming_activity_id, in_house_app_id)
+VALUES
+		(?, ?)`
+
+		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
+	)
+
+	// we need to explicitly do this check here because we can't set a FK constraint on the schema
+	var hostExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostExists, hostExistsStmt, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return notFound("Host").WithID(hostID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "checking if host exists")
+	}
+
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, insertUAStmt,
+			hostID,
+			opts.Priority(),
+			userID,
+			opts.IsFleetInitiated(),
+			commandUUID,
+			userID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert in house app install request")
+		}
+
+		activityID, _ := res.LastInsertId()
+		_, err = tx.ExecContext(ctx, insertVAUAStmt,
+			activityID,
+			inHouseAppID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert in house app install request join table")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
+		}
+		return nil
+	})
+	return err
+}
+
 func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 	var adamIds []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
