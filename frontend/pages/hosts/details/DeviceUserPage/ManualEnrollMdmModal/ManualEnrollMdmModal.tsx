@@ -39,7 +39,6 @@ const ManualEnrollMdmModal = ({
       if (e && typeof e === "object" && "data" in e) {
         const axiosResponse = e as AxiosResponse;
         if (axiosResponse.data) {
-          console.log(axiosResponse);
           const dataBlob = axiosResponse.data as Blob;
           const blobText = await dataBlob.text();
           console.log("blob text", blobText);
