@@ -19,9 +19,10 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		global_or_team_id,
 		name,
 		storage_id,
-		platform
+		platform,
+		version
 	)
-	VALUES (?, ?, ?, ?, ?, ?)`
+	VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -54,6 +55,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			payload.Name,
 			payload.StorageID,
 			payload.Platform,
+			payload.Version,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)

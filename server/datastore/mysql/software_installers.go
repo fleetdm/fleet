@@ -207,6 +207,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			StorageID:       payload.StorageID,
 			Platform:        payload.Platform,
 			ValidatedLabels: payload.ValidatedLabels,
+			Version:         payload.Version,
 		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
@@ -894,7 +895,9 @@ SELECT
   iha.title_id,
   COALESCE(iha.name, '') AS software_title,
   iha.platform,
-  iha.storage_id
+  iha.storage_id,
+  st.bundle_identifier AS bundle_identifier,
+  iha.version
 FROM
   in_house_apps iha
   JOIN software_titles st ON st.id = iha.title_id
@@ -1874,8 +1877,8 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 	// get the list of software installers hashes that are in use
 	var storageIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `
-		SELECT storage_id FROM software_installers 
-		UNION 
+		SELECT storage_id FROM software_installers
+		UNION
 		SELECT storage_id FROM in_house_apps`,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "get list of software installers in use")
