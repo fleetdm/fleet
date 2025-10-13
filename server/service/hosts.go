@@ -1384,9 +1384,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.Policies = policies
 
+	var endUsers []fleet.HostEndUser
 	endUser, err := svc.ds.GetEndUser(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get end user for host")
+	}
+	if endUser != nil {
+		endUsers = append(endUsers, *endUser)
 	}
 
 	return &fleet.HostDetail{
@@ -1395,7 +1399,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Packs:              packs,
 		Batteries:          &bats,
 		MaintenanceWindow:  nextMw,
-		EndUsers:           []fleet.HostEndUser{*endUser},
+		EndUsers:           endUsers,
 		LastMDMEnrolledAt:  mdmLastEnrollment,
 		LastMDMCheckedInAt: mdmLastCheckedIn,
 	}, nil
