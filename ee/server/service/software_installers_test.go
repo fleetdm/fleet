@@ -376,7 +376,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
             <key>kind</key>
             <string>software-package</string>
             <key>url</key>
-            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app</string>
+            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app?team_id=0</string>
           </dict>
           <dict>
             <key>kind</key>

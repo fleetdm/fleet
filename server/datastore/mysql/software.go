@@ -2372,7 +2372,8 @@ DELETE st FROM software_titles st
 	LEFT JOIN software s ON s.title_id = st.id
 	WHERE s.title_id IS NULL AND
 		NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id) AND
-		NOT EXISTS (SELECT 1 FROM vpp_apps vap WHERE vap.title_id = st.id)`
+		NOT EXISTS (SELECT 1 FROM vpp_apps vap WHERE vap.title_id = st.id) AND
+		NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = st.id)`
 
 		res, err = tx.ExecContext(ctx, cleanupStmt)
 		if err != nil {

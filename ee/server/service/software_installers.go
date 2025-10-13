@@ -315,6 +315,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
+	// Handle in house apps separately
+	if software.InHouseAppCount == 1 {
+		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
+	}
+
 	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
 	if software.SoftwareInstallersCount != 1 {
 		return nil, &fleet.BadRequestError{
@@ -701,6 +706,135 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	}
 
 	return false, nil, nil
+}
+
+func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
+	// Shouldn't reach this code in this function until installers are reworked
+	// // TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
+	// if software.InHouseAppCount != 1 {
+	// 	return nil, &fleet.BadRequestError{
+	// 		Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
+	// 	}
+	// }
+
+	existingInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
+	}
+
+	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
+		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
+		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
+		return existingInstaller, nil // no payload, noop
+	}
+
+	payload.InstallerID = existingInstaller.InstallerID
+
+	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
+	}
+	payload.ValidatedLabels = validatedLabels
+
+	// activity team ID must be null if no team, not zero
+	var actTeamID *uint
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		actTeamID = payload.TeamID
+	}
+	activity := fleet.ActivityTypeEditedSoftware{
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          actTeamID,
+		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+		SoftwareIconURL: existingInstaller.IconUrl,
+	}
+
+	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
+	if payload.InstallerFile != nil {
+		payloadForNewInstallerFile = &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: payload.InstallerFile,
+			Filename:      payload.Filename,
+		}
+
+		newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForNewInstallerFile, false)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
+		}
+
+		if newInstallerExtension != existingInstaller.Extension {
+			return nil, &fleet.BadRequestError{
+				Message:     "The selected package is for a different file type.",
+				InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
+			}
+		}
+
+		if payloadForNewInstallerFile.Title != software.Name {
+			return nil, &fleet.BadRequestError{
+				Message:     "The selected package is for different software.",
+				InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
+			}
+		}
+
+		if payloadForNewInstallerFile.StorageID != existingInstaller.StorageID {
+			activity.SoftwarePackage = &payload.Filename
+			payload.StorageID = payloadForNewInstallerFile.StorageID
+			payload.Filename = payloadForNewInstallerFile.Filename
+			payload.Version = payloadForNewInstallerFile.Version
+
+		} else { // noop if uploaded installer is identical to previous installer
+			payloadForNewInstallerFile = nil
+			payload.InstallerFile = nil
+		}
+	}
+
+	if payload.InstallerFile == nil { // fill in existing existingInstaller data to payload
+		payload.StorageID = existingInstaller.StorageID
+		payload.Filename = existingInstaller.Name
+		payload.Version = existingInstaller.Version
+	}
+
+	// persist changes starting here, now that we've done all the validation/diffing we can
+	if payloadForNewInstallerFile != nil {
+		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "storing software installer")
+		}
+	}
+
+	if err := svc.ds.SaveInHouseAppUpdates(ctx, payload); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
+	}
+
+	if err := svc.ds.RemovePendingInHouseAppInstalls(ctx, existingInstaller.InstallerID); err != nil {
+		return nil, err
+	}
+
+	// now that the payload has been updated with any patches, we can set the
+	// final fields of the activity
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
+		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+	if payload.ValidatedLabels != nil {
+		actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+	}
+	activity.LabelsIncludeAny = actLabelsIncl
+	activity.LabelsExcludeAny = actLabelsExcl
+	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
+	}
+
+	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later
+	updatedInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
+	}
+
+	statuses, err := svc.ds.GetSummaryInHouseAppInstalls(ctx, payload.TeamID, updatedInstaller.InstallerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")
+	}
+	updatedInstaller.Status = statuses
+
+	return updatedInstaller, nil
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
