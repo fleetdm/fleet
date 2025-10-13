@@ -184,6 +184,7 @@ func TestHosts(t *testing.T) {
 		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
+		{"GetEndUser", testGetEndUser},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -11691,4 +11692,84 @@ func testSetOrUpdateHostDiskTpmPIN(t *testing.T, ds *Datastore) {
 		)
 		require.NotEqual(t, expected, tpmPINSet)
 	}
+}
+
+func testGetEndUser(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		HardwareSerial:  "serial-1",
+		TeamID:          nil,
+		ID:              1,
+	})
+	require.NoError(t, err)
+
+	// No initial end user
+	endUser, err := ds.GetEndUser(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, endUser)
+
+	// Add some device mappings
+	mappings := []*fleet.HostDeviceMapping{
+		{
+			ID:     1,
+			HostID: host.ID,
+			Email:  "user1@example.com",
+			Source: "test",
+		},
+		{
+			ID:     2,
+			HostID: host.ID,
+			Email:  "user2@example.com",
+			Source: "test",
+		},
+	}
+	require.NoError(t, ds.ReplaceHostDeviceMapping(ctx, host.ID, mappings, "test"))
+
+	// Verify the end user is now present, but only with OtherEmails populated
+	endUser, err = ds.GetEndUser(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, endUser)
+	require.ElementsMatch(t, []fleet.HostDeviceMapping{{ID: 1, HostID: host.ID, Email: "user1@example.com", Source: "test"}, {ID: 2, HostID: host.ID, Email: "user2@example.com", Source: "test"}}, endUser.OtherEmails)
+	require.Empty(t, endUser.Department)
+	require.Empty(t, endUser.IdpFullName)
+	require.Empty(t, endUser.IdpGroups)
+	require.Empty(t, endUser.IdpID)
+	require.Empty(t, endUser.IdpUserName)
+
+	// Add scim user
+	scimUser := &fleet.ScimUser{
+		ID:         1,
+		ExternalID: ptr.String("external-id-1"),
+		UserName:   "user-scim@example.com",
+		Active:     ptr.Bool(true),
+		Department: ptr.String("Engineering"),
+		GivenName:  ptr.String("User"),
+		FamilyName: ptr.String("One"),
+	}
+	_, err = ds.CreateScimUser(ctx, scimUser)
+	require.NoError(t, err)
+	_, err = ds.CreateScimGroup(ctx, &fleet.ScimGroup{ID: 1, DisplayName: "group1", ScimUsers: []uint{scimUser.ID}})
+	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, host.ID, scimUser.ID)
+	require.NoError(t, err)
+
+	// Verify the end user is now present, with all fields populated
+	endUser, err = ds.GetEndUser(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, endUser)
+	require.Equal(t, "Engineering", endUser.Department)
+	require.ElementsMatch(t, []string{"group1"}, endUser.IdpGroups)
+	require.Equal(t, "external-id-1", endUser.IdpID)
+	require.Equal(t, "User One", endUser.IdpFullName)
+	require.Equal(t, "user-scim@example.com", endUser.IdpUserName)
+	require.ElementsMatch(t, []fleet.HostDeviceMapping{{ID: 1, HostID: host.ID, Email: "user1@example.com", Source: "test"}, {ID: 2, HostID: host.ID, Email: "user2@example.com", Source: "test"}}, endUser.OtherEmails)
 }

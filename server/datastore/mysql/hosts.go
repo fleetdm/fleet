@@ -6137,3 +6137,56 @@ func (ds *Datastore) CleanupHostIssues(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (ds *Datastore) GetEndUser(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, fmt.Errorf("get scim user by host id: %w", err)
+	}
+
+	var endUserReturn *fleet.HostEndUser
+	if scimUser != nil {
+		endUser := &fleet.HostEndUser{
+			IdpUserName:      scimUser.UserName,
+			IdpFullName:      scimUser.DisplayName(),
+			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
+		}
+
+		if scimUser.ExternalID != nil {
+			endUser.IdpID = *scimUser.ExternalID
+		}
+		for _, group := range scimUser.Groups {
+			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		if scimUser.Department != nil {
+			endUser.Department = *scimUser.Department
+		}
+		endUserReturn = endUser
+	}
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get host device mapping: %w", err)
+	}
+
+	if len(deviceMapping) > 0 {
+		endUser := fleet.HostEndUser{}
+		for _, email := range deviceMapping {
+			switch {
+			case email.Source == fleet.DeviceMappingMDMIdpAccounts && endUserReturn == nil:
+				// If SCIM data is missing, we still populate IdpUserName if present.
+				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
+				endUser.IdpUserName = email.Email
+			case email.Source != fleet.DeviceMappingMDMIdpAccounts:
+				endUser.OtherEmails = append(endUser.OtherEmails, *email)
+			}
+		}
+		if endUserReturn != nil {
+			endUserReturn.OtherEmails = endUser.OtherEmails
+		} else {
+			endUserReturn = &endUser
+		}
+	}
+
+	return endUserReturn, nil
+}

@@ -751,16 +751,16 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *CmdT
 		hostIDForUUIDCache[hostUUID] = hostID
 	}
 
-	users, err := fleet.GetEndUsers(ctx, ds, hostID)
+	user, err := ds.GetEndUser(ctx, hostID)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "get end users for host")
+		return nil, false, ctxerr.Wrap(ctx, err, "get end user for host")
 	}
 
 	noGroupsErr := fmt.Sprintf("There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
 	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
 	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
-	if len(users) > 0 && users[0].IdpUserName != "" {
-		idpUser := users[0]
+	if user != nil && user.IdpUserName != "" {
+		idpUser := user
 
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) && len(idpUser.IdpGroups) == 0 {
 			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
@@ -802,7 +802,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *CmdT
 			return nil, false, nil
 		}
 
-		return &idpUser, true, nil
+		return idpUser, true, nil
 	}
 
 	// otherwise there's no IdP user, mark the profile as failed with the
