@@ -29,7 +29,6 @@ const ManualEnrollMdmModal = ({
       const profileContent = await mdmAPI.downloadManualEnrollmentProfile(
         token
       );
-      console.log(profileContent);
       const file = new File(
         [profileContent],
         "fleet-mdm-enrollment-profile.mobileconfig"
