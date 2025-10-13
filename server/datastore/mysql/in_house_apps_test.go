@@ -39,8 +39,8 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		Platform:         "ios",
 		Extension:        "ipa",
 	}
-	// Upload software installer
 
+	// Upload software installer
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.Error(t, err, "ValidatedLabels must not be nil")
 
@@ -55,7 +55,6 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, payload.Title, installer.SoftwareTitle)
 
 	// Update software installer
-
 	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-1", Query: "select 1"})
 	require.NoError(t, err)
 
@@ -79,10 +78,10 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	err = ds.SaveInHouseAppUpdates(ctx, &updatePayload)
 	require.NoError(t, err)
 
-	// RemovePendingInHouseAppInstalls
+	// ds.RemovePendingInHouseAppInstalls()
 	// dont test pending/failed/installed for now
 
-	// Installer has expected values
+	// Installer updates correctly
 	var expectedLabels []fleet.SoftwareScopeLabel
 	expectedLabels = append(expectedLabels, fleet.SoftwareScopeLabel{LabelID: label.ID, LabelName: label.Name, Exclude: false, TitleID: titleID})
 
