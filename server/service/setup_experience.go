@@ -313,7 +313,6 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	switch v := result.(type) {
 	case fleet.SetupExperienceScriptResult:
 		status = v.SetupExperienceStatus()
-		hostUUID = v.HostUUID
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
 		} else if requireTerminalStatus && !status.IsTerminalStatus() {

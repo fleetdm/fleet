@@ -291,7 +291,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					requireAllSoftware = team.Config.MDM.MacOSSetup.RequireAllSoftware
 				}
 				if requireAllSoftware {
-					svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
+					err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
+					if err != nil {
+						return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
+					}
 					skipRemainingVPPInstalls = true
 				}
 			}

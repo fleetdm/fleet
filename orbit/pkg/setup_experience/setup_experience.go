@@ -84,7 +84,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	log.Info().Msg("checking setup experience status")
 
 	// Poll the status endpoint. This also releases the device if we're done.
-	payload, err := s.OrbitClient.GetSetupExperienceStatus(s.started == false)
+	payload, err := s.OrbitClient.GetSetupExperienceStatus(!s.started)
 	if err != nil {
 		return err
 	}
