@@ -416,7 +416,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		return ctxerr.Wrap(ctx, err, "failed to list profiles missing installation")
 	}
 	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
-	if args.Platform != "darwin" {
+	if !isMacOS(args.Platform) {
 		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
 	}
 
@@ -427,6 +427,22 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			return ctxerr.Wrap(ctx, err, "failed to re-enqueue task")
 		}
 		return nil
+	}
+
+	if !isMacOS(args.Platform) {
+		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP reelease")
+		}
+		for _, status := range setupExperienceStatuses {
+			if status.Status == fleet.SetupExperienceStatusPending || status.Status == fleet.SetupExperienceStatusRunning {
+				level.Info(a.Log).Log("msg", "re-enqueuing due to setup experience items still pending or running", "host_uuid", args.HostUUID, "status_id", status.ID)
+				if err := reenqueueTask(); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to re-enqueue task due to pending setup experience items")
+				}
+				return nil
+			}
+		}
 	}
 
 	// release the device
