@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,6 +43,9 @@ var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/datastore/mysql")
 // Since DB may have millions of software items, we need to batch the aggregation counts to avoid long SQL query times.
 // This is a variable so it can be adjusted during unit testing.
 var countHostSoftwareBatchSize = uint64(100000)
+
+// trailingNonWordChars matches trailing anything not a letter, digit, or underscore
+var trailingNonWordChars = regexp.MustCompile(`\W+$`)
 
 // Since a host may have a lot of software items, we need to batch the inserts.
 // The maximum number of software items we can insert at one time is governed by max_allowed_packet, which already be set to a high value for MDM bootstrap packages,
@@ -748,6 +752,33 @@ func deleteUninstalledHostSoftwareDB(
 	return deletedSoftware, nil
 }
 
+// longestCommonPrefix finds the longest common prefix among a slice of strings.
+// Returns empty string if there's no common prefix.
+func longestCommonPrefix(strs []string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	if len(strs) == 1 {
+		return strs[0]
+	}
+
+	firstLen := len(strs[0])
+	i := 0
+	for {
+		if i >= firstLen {
+			return strs[0]
+		}
+
+		c := strs[0][i]
+		for _, s := range strs[1:] {
+			if i >= len(s) || s[i] != c {
+				return strs[0][:i]
+			}
+		}
+		i++
+	}
+}
+
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
 // to reduce lock contention. These operations are idempotent due to INSERT IGNORE.
 func (ds *Datastore) preInsertSoftwareInventory(
@@ -823,7 +854,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					bundleID     string
 					isKernel     bool
 				}
-				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle, len(newTitlesNeeded))
+
+				titleGroups := make(map[titleKey][]fleet.SoftwareTitle)
 				for _, title := range newTitlesNeeded {
 					bundleID := ""
 					if title.BundleIdentifier != nil {
@@ -840,8 +872,36 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID:     bundleID,
 						isKernel:     title.IsKernel,
 					}
-					if existing, ok := uniqueTitlesToInsert[key]; !ok || (bundleID != "" && len(title.Name) < len(existing.Name)) {
-						uniqueTitlesToInsert[key] = title
+					titleGroups[key] = append(titleGroups[key], title)
+				}
+
+				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle, len(titleGroups))
+				for key, titles := range titleGroups {
+					if key.bundleID != "" && len(titles) > 1 {
+						// Pick the best represenative name for the group of names
+						names := make([]string, len(titles))
+						for i, t := range titles {
+							names[i] = t.Name
+						}
+						commonPrefix := longestCommonPrefix(names)
+						commonPrefix = trailingNonWordChars.ReplaceAllString(commonPrefix, "")
+						if len(commonPrefix) > 0 {
+							title := titles[0]
+							title.Name = commonPrefix
+							uniqueTitlesToInsert[key] = title
+						} else {
+							// Fall back to shortest name
+							shortest := titles[0]
+							for _, t := range titles[1:] {
+								if len(t.Name) < len(shortest.Name) {
+									shortest = t
+								}
+							}
+							uniqueTitlesToInsert[key] = shortest
+						}
+					} else {
+						// Single title or no bundle_identifier
+						uniqueTitlesToInsert[key] = titles[0]
 					}
 				}
 

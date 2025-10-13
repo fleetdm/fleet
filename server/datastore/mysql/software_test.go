@@ -98,6 +98,7 @@ func TestSoftware(t *testing.T) {
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
 		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
+		{"LongestCommonPrefix", testLongestCommonPrefix},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -9547,6 +9548,30 @@ func testListHostSoftwareWithExtensionFor(t *testing.T, ds *Datastore) {
 	require.NotNil(t, regularApp, "Should find Regular App")
 	require.Equal(t, "apps", regularApp.Source)
 	require.Equal(t, "", regularApp.ExtensionFor)
+}
+
+func testLongestCommonPrefix(t *testing.T, ds *Datastore) {
+	tests := []struct {
+		input    []string
+		expected string
+	}{
+		{input: []string{}, expected: ""},
+		{input: []string{"no_common1", "another_one3"}, expected: ""},
+		{input: []string{"single"}, expected: "single"},
+		{input: []string{"prefix_common", "prefix_common_suffix1", "prefix_common_suffix2"}, expected: "prefix_common"},
+		{input: []string{"common_prefix_suffix1", "common_prefix_suffix2", "common_prefix"}, expected: "common_prefix"},
+		{input: []string{"same", "same", "same"}, expected: "same"},
+		{input: []string{"partial_common1", "partial_common2", "none"}, expected: ""},
+		{input: []string{"", "softwarename"}, expected: ""},
+		{input: []string{"softwarename", "prefix_common", "prefix_common"}, expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.input), func(t *testing.T) {
+			result := longestCommonPrefix(tt.input)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 // Helper function to find software by name and extension_for
