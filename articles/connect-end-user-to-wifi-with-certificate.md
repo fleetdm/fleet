@@ -6,7 +6,11 @@ Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates 
 
 Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline more than 30 days), their certificate might expire and they'll lose access to Wi-Fi or VPN. To get them reconnected, ask your end users to momentarily connect to a different network so that Fleet can deliver a new certificate.
 
-> Fleet uses the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable in the certificate's CN (Common Name) field during renewal. Since the CN field has a maximum length of 64 characters, any characters beyond this limit will be truncated, causing the renewal to fail. The renewal ID is a UUID with 36 characters, so make sure that any additional variables or content combined with it do not exceed 28 characters.
+> Currently, for NDES and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's CN (Common Name) for automatic renewal to work. Since the CN has a maximum length of 64 characters, any characters beyond this limit get truncated, causing the renewal to fail.
+>
+> The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
+>
+> If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
 
 For information on adding a certificate authority (CA) via GitOps, see the [GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files#integrations).
 
