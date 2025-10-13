@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25.27.73",
+      "version": "25.28.75",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';"
       },
-      "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.25.27.73\u0026extension=zip\u0026configuration=Release\u0026branch=relbranch",
+      "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.25.28.75\u0026extension=zip\u0026configuration=Release\u0026branch=relbranch",
       "install_script_ref": "0787f97b",
       "uninstall_script_ref": "1601899d",
-      "sha256": "04bbe3ba7adbe73ab38522af2b05ed7cee229dc71f177c81c2a77096c2f090dc",
+      "sha256": "b99ce1c00c3123cfd87f21266f08e8d102090873f3b35d1ac208c681ff41f7dc",
       "default_categories": [
         "Communication"
       ]
