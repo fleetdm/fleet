@@ -365,7 +365,7 @@ TODO
 
 This policy passes if a host has a host identity certificate.
 
-4. Last, you can enforce that all hosts need a host identity certificate to communicate with Fleet by enabling the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option.
+4. Last, you can enforce that all hosts need a host identity certificate to communicate with Fleet by enabling the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option. When this is enforced, hosts that don't have a certificate will stop communicating with Fleet.
 
 #### Important considerations
 
