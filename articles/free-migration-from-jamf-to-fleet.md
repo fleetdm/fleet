@@ -6,36 +6,27 @@ With Apple's release of macOS 26.0, Fleet helps organizations migrate from Jamf 
 
 ## How It works
 
-Fleet follows Apple’s supported migration flow for Automated Device Enrollment (ADE). Devices re-enroll automatically, preserving user data and managed apps when possible. Migration deadlines, user notifications, and “await configuration” states are all handled in accordance with Apple's best practices. 
+Fleet follows Apple’s supported Automated Device Enrollment (ADE) flow. Devices re-enroll automatically, keeping user data and managed apps when possible. Migration deadlines, notifications, and “await configuration” states follow Apple’s best practices. 
 
->**Note:** seamless migrations with no user interaction are currently supported for Jamf on-prem instances only.)
+>**Note:** Seamless, zero-touch migrations are currently supported for Jamf on-prem instances only.
 
 ### Profile & policy replication
 
-- Export `.mobileconfig` profiles from Jamf and re-apply them in Fleet.
-- Translate smart groups into Fleet labels. 
-- Replace extension attributes with Fleet queries, labels, or policies.
-- Map Jamf policies to Fleet policies with automated remediation scripts or package installs.
+Configuration profiles exported from Jamf can be re-applied in Fleet. Smart groups become labels, and extension attributes are replaced with queries, labels, or policies. Jamf policies map directly to Fleet policies using automated remediation scripts or package installs.
 
 ### Software deployment, simplified
 
-- Sync your Apple VPP apps directly into Fleet.
-- Upload and scope custom macOS packages with labels.
-- Preserve license continuity and ensure VPP token migration within Apple’s 30-day window.
+Apple VPP apps sync directly into Fleet. Custom macOS packages can be uploaded and scoped with labels. License continuity and VPP token migration are maintained automatically within Apple’s 30-day window.
 
 ### Security & compliance first
 
-- FileVault recovery keys are automatically escrowed to Fleet at migration.
-- New Activation Lock and security controls are applied automatically during enrollment. 
-- Continuous inventory and compliance monitoring.
+FileVault recovery keys are escrowed to Fleet, and new Activation Lock and security controls are applied during enrollment. Continuous inventory and compliance monitoring keep every device visible and compliant.
 
 ## Why customers choose Fleet migration
 
-- It's free! Fleet covers migration as part of the onboarding process.
-- Reduced IT burden – Fleet’s experts handle prep, mapping, and testing.
-- GitOps by default – Everything version-controlled and repeatable.
-- Risk-free – Canary testing ensures safety and planning windows before fleet-wide rollout
-- Future-Proof – Continuous updates from Apple’s ecosystem and Fleet’s open-source foundation.
+Fleet’s Jamf migration is free for qualified enterprise customers. The Fleet team handles preparation, mapping, and testing to reduce IT workload.
+
+GitOps by default keeps every configuration version-controlled and repeatable. Canary testing ensures safe rollout windows, and Fleet’s open-source foundation keeps your migration and operations future-proof.
 
 \*For qualified enterprise organizations with >500 devices. [Get in touch to submit a request](https://fleetdm.com/contact).
 

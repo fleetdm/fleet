@@ -1,6 +1,13 @@
-import React, { ReactElement } from "react";
+import { ReactElement } from "react";
 import { getErrorReason } from "interfaces/errors";
 import { IMdmVppToken } from "interfaces/mdm";
+
+import {
+  ADD_SOFTWARE_ERROR_PREFIX,
+  DEFAULT_ADD_SOFTWARE_ERROR_MESSAGE,
+  ensurePeriod,
+  formatAlreadyAvailableInstallMessage,
+} from "../helpers";
 
 /**
  * Checks if the given team has an available VPP token (either a token
@@ -26,47 +33,27 @@ export const teamHasVPPToken = (
   });
 };
 
-const ADD_SOFTWARE_ERROR_PREFIX = "Couldn't add software.";
-const DEFAULT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
-
-const generateAlreadyAvailableMessage = (
-  msg: string
-): string | ReactElement => {
-  // This regex matches the API message where the title already has a software package (non-VPP) available for install.
-  const regex = new RegExp(
-    `${ADD_SOFTWARE_ERROR_PREFIX} (.+) already.+on the (.+) team.`
-  );
-
-  const match = msg.match(regex);
-
-  if (match) {
-    return (
-      <>
-        {ADD_SOFTWARE_ERROR_PREFIX} <b>{match[1]}</b> already has software
-        available for install on the <b>{match[2]}</b> team.{" "}
-      </>
-    );
-  }
-
-  if (msg.includes("VPPApp")) {
-    return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install on this team.`;
-  }
-
-  return DEFAULT_ERROR_MESSAGE;
-};
-
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (e: unknown): string | ReactElement => {
-  let reason = getErrorReason(e);
+  const reason = getErrorReason(e);
 
   // software is already available for install
   if (reason.toLowerCase().includes("already")) {
-    return generateAlreadyAvailableMessage(reason);
+    const alreadyAvailableMessage = formatAlreadyAvailableInstallMessage(
+      reason
+    );
+    if (alreadyAvailableMessage) {
+      return alreadyAvailableMessage;
+    }
+
+    if (reason.includes("VPPApp")) {
+      return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install on this team.`;
+    }
   }
 
-  if (reason && !reason.endsWith(".")) {
-    reason += ".";
+  if (reason) {
+    return `${ADD_SOFTWARE_ERROR_PREFIX} ${ensurePeriod(reason)}`;
   }
 
-  return reason || DEFAULT_ERROR_MESSAGE;
+  return DEFAULT_ADD_SOFTWARE_ERROR_MESSAGE;
 };
