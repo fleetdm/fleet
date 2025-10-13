@@ -198,7 +198,6 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	}
 
 	// Insert in house app instead of software installer
-	// TODO(JK): match if there is an existing in house app
 	if payload.Extension == "ipa" {
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
@@ -206,7 +205,8 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
 			Platform:        payload.Platform,
-			ValidatedLabels: payload.ValidatedLabels})
+			ValidatedLabels: payload.ValidatedLabels,
+		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
 		}
@@ -677,6 +677,48 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	return nil
 }
 
+func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := `UPDATE in_house_apps SET
+                    storage_id = ?,
+                    name = ?,
+                    version = ?,
+                    platform = ?
+                 WHERE id = ?`
+
+		ext := "ipa"
+		if i := strings.LastIndex(ext, "."); i != -1 {
+			ext = ext[i+1:]
+		}
+		platform, _ := fleet.SoftwareInstallerPlatformFromExtension(ext)
+
+		args := []any{
+			payload.StorageID,
+			payload.Filename,
+			payload.Version,
+			platform,
+			payload.InstallerID,
+		}
+
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update in house app")
+		}
+
+		if payload.ValidatedLabels != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert in house app labels")
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update in house app")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
 	// NOTE: this is ok to only look in host_software_installs (and ignore
 	// upcoming_activities), because orbit should not be able to get the
@@ -871,6 +913,7 @@ WHERE
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
 	}
+	dest.Extension = "ipa"
 
 	// TODO: do we want to include labels on other queries that return software installer metadata
 	// (e.g., GetSoftwareInstallerMetadataByID)?
@@ -1221,6 +1264,26 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	return affectedHostIDs, nil
 }
 
+func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {
+	type ipaInstall struct {
+		HostID      uint   `db:"host_id"`
+		ExecutionID string `db:"command_uuid"`
+	}
+	var installs []ipaInstall
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &installs, `SELECT host_id, command_uuid FROM host_in_house_software_installs WHERE in_house_app_id = ?`, inHouseAppID)
+	if err != nil {
+		return err
+	}
+
+	for _, in := range installs {
+		_, err := ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	const (
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
@@ -1482,6 +1545,111 @@ FROM upcoming
 	return &dest, nil
 }
 
+func (ds *Datastore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+	var dest fleet.SoftwareInstallerStatusSummary // Using this struct for in house apps for now
+	// NOTE(JK): tested query manually for pending, not yet for installed/failed
+	stmt := `
+WITH
+-- select most recent upcoming activities for each host
+upcoming AS (
+	SELECT
+		ua.host_id,
+		:software_status_pending AS status
+	FROM
+		upcoming_activities ua
+		JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
+		JOIN hosts h ON host_id = h.id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN in_house_app_upcoming_activities ihaua2
+				ON ua2.id = ihaua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			ihaua.in_house_app_id = ihaua2.in_house_app_id AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	WHERE
+		ua.activity_type = 'in_house_app_install'
+		AND ua2.id IS NULL
+		AND ihaua.in_house_app_id = :in_house_app_id
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+),
+
+-- select most recent past activities for each host
+past AS (
+	SELECT
+		hihsi.host_id,
+		CASE
+			WHEN ncr.status = :mdm_status_acknowledged THEN
+				:software_status_installed
+			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
+				:software_status_failed
+			ELSE
+				NULL -- either pending or not installed
+		END AS status
+	FROM
+		host_in_house_software_installs hihsi
+		JOIN hosts h ON host_id = h.id
+		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
+		LEFT JOIN host_in_house_software_installs hihsi2
+			ON hihsi.host_id = hihsi2.host_id AND
+				 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
+				 hihsi2.removed = 0 AND
+				 hihsi2.canceled = 0 AND
+				 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+	WHERE
+		hihsi2.id IS NULL
+		AND hihsi.in_house_app_id = :in_house_app_id
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+		AND hihsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND hihsi.removed = 0
+		AND hihsi.canceled = 0
+)
+
+-- count each status
+SELECT
+	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending_install,
+	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed_install,
+	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
+FROM (
+
+-- union most recent past and upcoming activities after joining to get statuses for most recent activities
+SELECT
+	past.host_id,
+	past.status
+FROM past
+UNION
+SELECT
+	upcoming.host_id,
+	upcoming.status
+FROM upcoming
+) t`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	query, args, err := sqlx.Named(stmt, map[string]any{
+		"in_house_app_id":           inHouseAppID,
+		"team_id":                   tmID,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_installed": fleet.SoftwareInstalled,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host in house app installs: named query")
+	}
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host in house install status")
+	}
+	return &dest, nil
+}
+
 func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
 	// for pending status, we'll join through upcoming_activities
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
@@ -1704,9 +1872,14 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 
 	// get the list of software installers hashes that are in use
 	var storageIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_installers`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `
+		SELECT storage_id FROM software_installers 
+		UNION 
+		SELECT storage_id FROM in_house_apps`,
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "get list of software installers in use")
 	}
+	// Add in house apps to software installers in use
 
 	_, err := softwareInstallStore.Cleanup(ctx, storageIDs, removeCreatedBefore)
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")

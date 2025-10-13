@@ -1257,8 +1257,6 @@ type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID u
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
-type GetInHouseAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error)
-
 type GetSoftwareInstallersPendingUninstallScriptPopulationFunc func(ctx context.Context) (map[uint]string, error)
 
 type GetMSIInstallersWithoutUpgradeCodeFunc func(ctx context.Context) (map[uint]string, error)
@@ -1342,6 +1340,14 @@ type GetIncludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID ui
 type GetExcludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
 
 type ClearVPPAppAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error
+
+type GetInHouseAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error)
+
+type SaveInHouseAppUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
+
+type RemovePendingInHouseAppInstallsFunc func(ctx context.Context, inHouseAppID uint) error
+
+type GetSummaryInHouseAppInstallsFunc func(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
 type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 
@@ -3403,9 +3409,6 @@ type DataStore struct {
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
 
-	GetInHouseAppMetadataByTeamAndTitleIDFunc        GetInHouseAppMetadataByTeamAndTitleIDFunc
-	GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked bool
-
 	GetSoftwareInstallersPendingUninstallScriptPopulationFunc        GetSoftwareInstallersPendingUninstallScriptPopulationFunc
 	GetSoftwareInstallersPendingUninstallScriptPopulationFuncInvoked bool
 
@@ -3597,6 +3600,18 @@ type DataStore struct {
 
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
+
+	GetInHouseAppMetadataByTeamAndTitleIDFunc        GetInHouseAppMetadataByTeamAndTitleIDFunc
+	GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked bool
+
+	SaveInHouseAppUpdatesFunc        SaveInHouseAppUpdatesFunc
+	SaveInHouseAppUpdatesFuncInvoked bool
+
+	RemovePendingInHouseAppInstallsFunc        RemovePendingInHouseAppInstallsFunc
+	RemovePendingInHouseAppInstallsFuncInvoked bool
+
+	GetSummaryInHouseAppInstallsFunc        GetSummaryInHouseAppInstallsFunc
+	GetSummaryInHouseAppInstallsFuncInvoked bool
 
 	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
 	BulkUpsertMDMManagedCertificatesFuncInvoked bool
@@ -8166,13 +8181,6 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
-func (s *DataStore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
-	s.mu.Lock()
-	s.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetInHouseAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
-}
-
 func (s *DataStore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallersPendingUninstallScriptPopulationFuncInvoked = true
@@ -8325,6 +8333,34 @@ func (s *DataStore) HasSelfServiceSoftwareInstallers(ctx context.Context, platfo
 	s.HasSelfServiceSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasSelfServiceSoftwareInstallersFunc(ctx, platform, teamID)
+}
+
+func (s *DataStore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	s.mu.Lock()
+	s.SaveInHouseAppUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveInHouseAppUpdatesFunc(ctx, payload)
+}
+
+func (s *DataStore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {
+	s.mu.Lock()
+	s.RemovePendingInHouseAppInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemovePendingInHouseAppInstallsFunc(ctx, inHouseAppID)
+}
+
+func (s *DataStore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+	s.mu.Lock()
+	s.GetSummaryInHouseAppInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSummaryInHouseAppInstallsFunc(ctx, teamID, inHouseAppID)
 }
 
 func (s *DataStore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {

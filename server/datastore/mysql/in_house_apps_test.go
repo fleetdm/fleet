@@ -39,7 +39,8 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		Platform:         "ios",
 		Extension:        "ipa",
 	}
-	// TODO(JK): test with svc.UploadSoftwareInstaller
+
+	// Upload software installer
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.Error(t, err, "ValidatedLabels must not be nil")
 
@@ -52,4 +53,45 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	installer, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.NoError(t, err)
 	require.Equal(t, payload.Title, installer.SoftwareTitle)
+
+	// Update software installer
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-1", Query: "select 1"})
+	require.NoError(t, err)
+
+	validatedLabels := fleet.LabelIdentsWithScope{
+		LabelScope: "include_any",
+		ByName: map[string]fleet.LabelIdent{
+			"include-any-1": {
+				LabelID:   label.ID,
+				LabelName: label.Name,
+			},
+		}}
+	updatePayload := fleet.UpdateSoftwareInstallerPayload{
+		TeamID:          &team.ID,
+		TitleID:         titleID,
+		InstallerID:     installerID,
+		Filename:        "ipa_test.ipa",
+		StorageID:       "new_storage_id",
+		ValidatedLabels: &validatedLabels,
+	}
+
+	err = ds.SaveInHouseAppUpdates(ctx, &updatePayload)
+	require.NoError(t, err)
+
+	// ds.RemovePendingInHouseAppInstalls()
+	// dont test pending/failed/installed for now
+
+	// Installer updates correctly
+	var expectedLabels []fleet.SoftwareScopeLabel
+	expectedLabels = append(expectedLabels, fleet.SoftwareScopeLabel{LabelID: label.ID, LabelName: label.Name, Exclude: false, TitleID: titleID})
+
+	newInstaller, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Equal(t, "new_storage_id", newInstaller.StorageID)
+	require.Equal(t, expectedLabels, newInstaller.LabelsIncludeAny)
+
+	// Summary returns expected pending/failed/installed numbers
+	// Don't test for now
+	_, err = ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
+	require.NoError(t, err)
 }
