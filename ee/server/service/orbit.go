@@ -150,8 +150,10 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		if hasFailedSoftwareInstall {
 			// Check if "require all software" is configured for the host's team.
 			requireAllSoftware := appCfg.MDM.MacOSSetup.RequireAllSoftware
+			teamID := uint(0)
 			if host.TeamID != nil {
-				tm, err := svc.ds.Team(ctx, *host.TeamID)
+				teamID = *host.TeamID
+				tm, err := svc.ds.Team(ctx, teamID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get Team to read require_all_software")
 				}
@@ -164,7 +166,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 				if platform == "" {
 					platform = host.Platform
 				}
-				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, platform, host.UUID, *host.TeamID)
+				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, platform, host.UUID, teamID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
 				}
