@@ -918,8 +918,6 @@ WHERE
 	}
 	dest.Extension = "ipa"
 
-	// TODO: do we want to include labels on other queries that return software installer metadata
-	// (e.g., GetSoftwareInstallerMetadataByID)?
 	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID, softwareTypeInHouseApp)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app labels")
@@ -1265,6 +1263,21 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	}
 
 	return affectedHostIDs, nil
+}
+
+func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "remove pending in house app installs")
+		}
+		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete in house app")
+		}
+		return err
+	})
+	return err
 }
 
 func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {

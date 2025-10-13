@@ -849,19 +849,28 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 	}
 
 	// first, look for a software installer
-	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// no software installer, look for a VPP app
-			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting software app metadata")
-			}
-			return svc.deleteVPPApp(ctx, teamID, meta)
-		}
-		return ctxerr.Wrap(ctx, err, "getting software installer metadata")
+	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
+	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+
+	switch {
+	case errInstaller != nil && !fleet.IsNotFound(errInstaller):
+		return ctxerr.Wrap(ctx, errInstaller, "getting software installer metadata")
+	case errVPP != nil && !fleet.IsNotFound(errVPP):
+		return ctxerr.Wrap(ctx, errVPP, "getting vpp app metadata")
+	case errInHouse != nil && !fleet.IsNotFound(errInHouse):
+		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
-	return svc.deleteSoftwareInstaller(ctx, meta)
+
+	switch {
+	case metaInstaller != nil:
+		return svc.deleteSoftwareInstaller(ctx, metaInstaller)
+	case metaVPP != nil:
+		return svc.deleteVPPApp(ctx, teamID, metaVPP)
+	case metaInHouse != nil:
+		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
+	}
+	return ctxerr.Wrap(ctx, &notFoundError{}, "getting software installer")
 }
 
 func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.VPPAppStoreApp) error {
@@ -914,8 +923,14 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting software installer")
+	if meta.Extension == "ipa" {
+		if err := svc.ds.DeleteInHouseApp(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting software installer")
+		}
+	} else {
+		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting software installer")
+		}
 	}
 
 	var teamName *string

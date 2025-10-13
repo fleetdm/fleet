@@ -1349,6 +1349,8 @@ type RemovePendingInHouseAppInstallsFunc func(ctx context.Context, inHouseAppID 
 
 type GetSummaryInHouseAppInstallsFunc func(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
+type DeleteInHouseAppFunc func(ctx context.Context, id uint) error
+
 type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 
 type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
@@ -3609,6 +3611,9 @@ type DataStore struct {
 
 	RemovePendingInHouseAppInstallsFunc        RemovePendingInHouseAppInstallsFunc
 	RemovePendingInHouseAppInstallsFuncInvoked bool
+
+	DeleteInHouseAppFunc        DeleteInHouseAppFunc
+	DeleteInHouseAppFuncInvoked bool
 
 	GetSummaryInHouseAppInstallsFunc        GetSummaryInHouseAppInstallsFunc
 	GetSummaryInHouseAppInstallsFuncInvoked bool
@@ -8361,6 +8366,13 @@ func (s *DataStore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *ui
 	s.GetSummaryInHouseAppInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSummaryInHouseAppInstallsFunc(ctx, teamID, inHouseAppID)
+}
+
+func (s *DataStore) DeleteInHouseApp(ctx context.Context, inHouseAppID uint) error {
+	s.mu.Lock()
+	s.DeleteInHouseAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteInHouseAppFunc(ctx, inHouseAppID)
 }
 
 func (s *DataStore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
