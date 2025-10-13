@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -2656,4 +2658,92 @@ func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeSc
 		})
 	}
 	return include, exclude
+}
+
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+
+	// TODO(JVE): use time-based JWT auth here, this is just for testing
+	svc.authz.SkipAuthorization(ctx)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get app config")
+	}
+
+	var tid uint
+	if teamID != nil {
+		tid = *teamID
+	}
+	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
+
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get in house app metadata")
+	}
+
+	tmpl := template.Must(template.New("").Parse(`
+<plist version="1.0">
+  <dict>
+    <key>items</key>
+    <array>
+      <dict>
+        <key>assets</key>
+        <array>
+          <dict>
+            <key>kind</key>
+            <string>software-package</string>
+            <key>url</key>
+            <string>{{ .URL }}</string>
+          </dict>
+          <dict>
+            <key>kind</key>
+            <string>display-image</string>
+            <key>needs-shine</key>
+            <true/>
+            <key>url</key>
+            <string/>
+          </dict>
+        </array>
+        <key>metadata</key>
+        <dict>
+          <key>bundle-identifier</key>
+          <string>{{ .BundleID }}</string>
+          <key>bundle-version</key>
+          <string>{{ .Version }}</string>
+          <key>kind</key>
+          <string>software</string>
+          <key>title</key>
+          <string>{{ .Name }}</string>
+        </dict>
+      </dict>
+    </array>
+  </dict>
+</plist>`))
+
+	buf := bytes.NewBuffer([]byte{})
+
+	err = tmpl.Execute(buf, struct {
+		BundleID string
+		Version  string
+		Name     string
+		URL      string
+	}{meta.BundleIdentifier, meta.Version, meta.SoftwareTitle, downloadUrl})
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "rendering app manifest")
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// TODO(JVE): JWT with expiration for auth
+	svc.authz.SkipAuthorization(ctx)
+
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get in house app package: get in house app metadata")
+	}
+
+	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, "installer.ipa")
 }
