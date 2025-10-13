@@ -349,6 +349,24 @@ fleetctl package \
   --fleet-managed-host-identity-certificate
 ```
 
+#### Migration
+
+If you already have Linux hosts enrolled to Fleet, here's how to migrate these hosts to use host identity certificates for authentication to the Fleet server:
+
+1. [Generate fleetd](#generating-fleetd-with-host-identity-certificates) with the `--fleet-managed-host-identity-certificate` flag.
+
+2. Install the new fleetd on your hosts that are already enrolled.
+
+3. Monitor the rollout by adding the following policy to Fleet:
+
+```sql
+TODO
+```
+
+This policy passes if a host has a host identity certificate.
+
+4. Last, you can enforce that all hosts need a host identity certificate to communicate with Fleet by enabling the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option.
+
 #### Important considerations
 
 - Hosts without TPM 2.0 will fail to enroll when this option is enabled
