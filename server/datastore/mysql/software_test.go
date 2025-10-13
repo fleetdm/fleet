@@ -87,7 +87,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
-		{"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
+		{"TestListHostSoftwareVulnerableAndVPP", testListHostSoftwareVulnerableAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
@@ -6990,7 +6990,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.False(t, scoped)
 }
 
-func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
+func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// filter by only vulnerable software
@@ -7064,12 +7064,24 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, mutationResults.Inserted, len(software))
 
-	bTitleId := mutationResults.Inserted[0].TitleID
-	// insert vulnerable software with the same software title as c, but this version is not added to host
+	var cSoftwareID uint
+	for _, inserted := range mutationResults.Inserted {
+		if inserted.Name == "c" {
+			cSoftwareID = inserted.ID
+		}
+	}
+	require.NotZero(t, cSoftwareID)
+
+	var cTitleID uint
+	err = sqlx.GetContext(ctx, ds.primary, &cTitleID, `SELECT title_id FROM software WHERE id = ?`, cSoftwareID)
+	require.NoError(t, err)
+
+	// Insert vulnerable software with the same software title as c,
+	// but this version is not added to host.
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
 		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
-		"c", "0.0.1", "apps", &bTitleId, []byte("c.0.0.1apps"),
+		"c", "0.0.1", "apps", &cTitleID, []byte("c.0.0.1apps"),
 	)
 	require.NoError(t, err)
 	insertedID, err := result.LastInsertId()

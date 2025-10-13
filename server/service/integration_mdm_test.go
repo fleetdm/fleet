@@ -11689,24 +11689,6 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedTitles, resp.SoftwareTitles)
 
-	// Delete from software titles table and make sure titles are recreated
-	mysql.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), "DELETE FROM software_titles")
-		return err
-	})
-	hostsCountTs = time.Now().UTC()
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
-	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, "query", "Evernote")
-	require.Len(t, resp.SoftwareTitles, 2)
-	// Cleaning up the response to make it easier to compare using ElementsMatch
-	for index := range resp.SoftwareTitles {
-		resp.SoftwareTitles[index].ID = 0
-		assert.Len(t, resp.SoftwareTitles[index].Versions, 1)
-		resp.SoftwareTitles[index].Versions = nil
-	}
-	assert.ElementsMatch(t, expectedTitles, resp.SoftwareTitles)
-
 	// Test that software was deleted from device
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
 	commandsSent += commandsSentPerRefetch

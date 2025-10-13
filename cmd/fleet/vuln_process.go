@@ -112,7 +112,7 @@ by an exit code of zero.`,
 			}
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
 			start := time.Now()
-			vulnFuncs := getVulnFuncs(ctx, ds, logger, &vulnConfig)
+			vulnFuncs := getVulnFuncs(ds, logger, &vulnConfig)
 			for _, vulnFunc := range vulnFuncs {
 				if err := vulnFunc.VulnFunc(ctx); err != nil {
 					return err
@@ -159,7 +159,7 @@ type NamedVulnFunc struct {
 	VulnFunc func(ctx context.Context) error
 }
 
-func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
+func getVulnFuncs(ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
 	vulnFuncs := []NamedVulnFunc{
 		{
 			Name: "cron_vulnerabilities",
