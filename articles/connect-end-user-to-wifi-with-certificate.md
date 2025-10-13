@@ -6,12 +6,6 @@ Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates 
 
 Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline more than 30 days), their certificate might expire and they'll lose access to Wi-Fi or VPN. To get them reconnected, ask your end users to momentarily connect to a different network so that Fleet can deliver a new certificate.
 
-> Currently, for NDES and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's CN (Common Name) for automatic renewal to work. Since the CN has a maximum length of 64 characters, any characters beyond this limit get truncated, causing the renewal to fail.
->
-> The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
->
-> If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
-
 ## DigiCert
 
 To connect end users to Wi-Fi or VPN with DigiCert certificates, we'll do the following steps:
@@ -128,8 +122,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `CN`.
-
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
 2. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
@@ -164,13 +157,13 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI</string>
                           </array>
                         </array>
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>FLEET DEVICE MANAGEMENT</string>
+                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>
@@ -220,7 +213,7 @@ To connect end users to Wi-Fi or VPN with a custom SCEP server, we'll do the fol
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `CN`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
 
 2. Replace the `<CA_NAME>`, with name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
@@ -256,13 +249,13 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI</string>
                           </array>
                         </array>
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>FLEET DEVICE MANAGEMENT</string>
+                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>
