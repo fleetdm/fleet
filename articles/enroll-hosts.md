@@ -360,7 +360,15 @@ If you already have Linux hosts enrolled to Fleet, here's how to migrate these h
 3. Monitor the rollout by adding the following policy to Fleet:
 
 ```sql
-TODO
+SELECT 1
+WHERE (
+    SELECT COUNT(*)
+    FROM file 
+    WHERE path IN (
+        '/opt/orbit/host_identity.crt',
+        '/opt/orbit/host_identity_tpm.pem'
+    )
+) = 2;
 ```
 
 This policy passes if a host has a host identity certificate.
