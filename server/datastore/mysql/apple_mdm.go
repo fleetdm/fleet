@@ -849,7 +849,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	values := []interface{}{fleet.MDMOperationTypeInstall}
 
 	totalHostCertsToRenew := 0
-	hostCertTypesToRenew := fleet.ListCATypesWithRenewalIDSupport()
+	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
 	for _, hostCertType := range hostCertTypesToRenew {
 		hostCertsToRenew := []struct {
 			HostUUID       string    `db:"host_uuid"`
