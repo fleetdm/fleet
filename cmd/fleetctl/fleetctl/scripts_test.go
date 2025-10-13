@@ -60,6 +60,9 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) (bool, error) {
 		return false, nil
 	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
+	}
 
 	generateValidPath := func() string {
 		return writeTmpScriptContents(t, "echo hello world", ".sh")
