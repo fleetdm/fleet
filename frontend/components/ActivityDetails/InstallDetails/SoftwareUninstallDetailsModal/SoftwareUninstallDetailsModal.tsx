@@ -36,7 +36,7 @@ interface IUninstallStatusMessage {
   softwareName: string;
   softwarePackageName?: string;
   timestamp?: string;
-  isDUP: boolean;
+  isMyDevicePage: boolean;
   contactUrl?: string;
 }
 
@@ -46,7 +46,7 @@ export const StatusMessage = ({
   softwareName,
   softwarePackageName,
   timestamp,
-  isDUP,
+  isMyDevicePage,
   contactUrl,
 }: IUninstallStatusMessage) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
@@ -67,7 +67,7 @@ export const StatusMessage = ({
       </>
     );
     let suffix = null;
-    if (isDUP) {
+    if (isMyDevicePage) {
       if (status === "failed_uninstall") {
         suffix = <>. You can retry{renderContactOption(contactUrl)}</>;
       }
@@ -232,7 +232,7 @@ const SoftwareUninstallDetailsModal = ({
           softwareName={softwareName}
           softwarePackageName={softwarePackageName}
           timestamp={uninstallResult?.created_at}
-          isDUP={!!deviceAuthToken}
+          isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
         {uninstallStatus !== "pending_uninstall" && (

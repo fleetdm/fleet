@@ -71,7 +71,7 @@ AND (
 		)
 	)
 )
-AND %s	
+AND %s ORDER BY st.name ASC	
 `
 	if resetAfterFailure {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
@@ -98,7 +98,9 @@ INNER JOIN software_titles st
 	ON va.title_id = st.id
 WHERE vat.install_during_setup = true
 AND vat.global_or_team_id = ?
+AND va.platform = ?
 AND %s
+ORDER BY st.name ASC
 `
 	if resetAfterFailure {
 		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
@@ -122,6 +124,8 @@ WHERE global_or_team_id = ?`
 
 	var totalInsertions uint
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		totalInsertions = 0 // reset for each attempt
+
 		// Clean out old statuses for the host
 		if _, err := tx.ExecContext(ctx, stmtClearSetupStatus, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing stale setup experience entries")
@@ -133,27 +137,29 @@ WHERE global_or_team_id = ?`
 		if resetAfterFailure {
 			args = append(args, hostUUID)
 		}
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+		if fleetPlatform != "ios" && fleetPlatform != "ipados" {
+			res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+			}
+			inserts, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
+			}
+			totalInsertions += uint(inserts) // nolint: gosec
 		}
-		inserts, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
-		}
-		totalInsertions += uint(inserts) // nolint: gosec
 
 		// VPP apps
-		if fleetPlatform == "darwin" {
-			args := []any{hostUUID, teamID}
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
+			args := []any{hostUUID, teamID, fleetPlatform}
 			if resetAfterFailure {
 				args = append(args, hostUUID)
 			}
-			res, err = tx.ExecContext(ctx, stmtVPPApps, args...)
+			res, err := tx.ExecContext(ctx, stmtVPPApps, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
 			}
@@ -162,19 +168,19 @@ WHERE global_or_team_id = ?`
 
 		// Scripts
 		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
+			res, err := tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience scripts")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
 			}
 			totalInsertions += uint(inserts) // nolint: gosec
 		}
 
-		// Set setup experience on darwin hosts only if they have something configured.
-		if fleetPlatform == "darwin" {
+		// Set setup experience on Apple hosts only if they have something configured.
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
 			if totalInsertions > 0 {
 				if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
@@ -464,7 +470,7 @@ LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
 LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
 LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
-LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id
+LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
 WHERE host_uuid = ?
 	`
 	var results []*fleet.SetupExperienceStatusResult

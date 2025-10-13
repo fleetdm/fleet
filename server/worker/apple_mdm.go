@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -43,6 +44,7 @@ type AppleMDM struct {
 	Log                   kitlog.Logger
 	Commander             *apple_mdm.MDMAppleCommander
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
+	VPPInstaller          fleet.AppleMDMVPPInstaller
 }
 
 // Name returns the name of the job.
@@ -154,6 +156,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		if bootstrapCmdUUID != "" {
 			awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
 		}
+	} else {
+		// TODO: We likely want to wait for the actual installs to complete not just the commands to be ack'd
+		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
+		}
+		awaitCmdUUIDs = append(awaitCmdUUIDs, commandUUIDs...)
 	}
 
 	if ref := args.EnrollReference; ref != "" {
@@ -436,6 +445,102 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	}
 	a.Log.Log("info", "sent command to install fleetd", "host_uuid", hostUUID)
 	return cmdUUID, nil
+}
+
+func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string) ([]string, error) {
+	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
+	}
+
+	var appsPending []*fleet.SetupExperienceStatusResult
+	commandUUIDs := []string{}
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "invalid row")
+		}
+
+		switch {
+		case status.VPPAppTeamID != nil:
+			if status.Status == fleet.SetupExperienceStatusPending {
+				appsPending = append(appsPending, status)
+			}
+		case status.SetupExperienceScriptID != nil, status.SoftwareInstallerID != nil:
+			status.Status = fleet.SetupExperienceStatusFailure
+			err = a.Datastore.UpdateSetupExperienceStatusResult(ctx, status)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
+			}
+			// If we enqueued a non-VPP item for an iOS/iPadOS device, it likely a code bug
+			level.Error(a.Log).Log("msg", "unexpected setup experience item for iOS/iPadOS device, only VPP apps are supported", "host_uuid", hostUUID, "status_id", status.ID)
+		}
+	}
+
+	if len(appsPending) > 0 {
+		// enqueue vpp apps
+		// TODO Is there a better way to get a host by UUID? This is a somewhat "wide" search which feels unnecessary
+		host, err := a.Datastore.HostByIdentifier(ctx, hostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "retrieving host by UUID")
+		}
+		for _, app := range appsPending {
+			vppAppID, err := app.VPPAppID()
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
+			}
+
+			if app.SoftwareTitleID == nil {
+				return nil, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", app.ID)
+			}
+
+			vppApp := &fleet.VPPApp{
+				TitleID: *app.SoftwareTitleID,
+				VPPAppTeam: fleet.VPPAppTeam{
+					VPPAppID: *vppAppID,
+				},
+			}
+
+			opts := fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			}
+
+			cmdUUID, err := a.installSoftwareFromVPP(ctx, host, vppApp, true, opts)
+
+			app.NanoCommandUUID = &cmdUUID
+			app.Status = fleet.SetupExperienceStatusRunning
+
+			if err != nil {
+				// if we get an error (e.g. no available licenses) while attempting to enqueue the
+				// install, then we should immediately go to an error state so setup experience
+				// isn't blocked.
+				level.Error(a.Log).Log("msg", "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
+				app.Status = fleet.SetupExperienceStatusFailure
+				app.Error = ptr.String(err.Error())
+			} else {
+				commandUUIDs = append(commandUUIDs, cmdUUID)
+			}
+			if err := a.Datastore.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+			}
+		}
+	}
+
+	return commandUUIDs, nil
+}
+
+func (a *AppleMDM) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	// Should not happen in the normal course of events but can happen in tests
+	// and likely indicates things weren't initialized properly.
+	if a.VPPInstaller == nil {
+		return "", errors.New("VPP installer not configured")
+	}
+	token, err := a.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
+	if err != nil {
+		return "", err
+	}
+
+	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
 }
 
 func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string, teamID *uint) (string, error) {
