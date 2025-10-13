@@ -55,10 +55,15 @@ func TestUp_20251010153829(t *testing.T) {
 	_, err = db.Exec(insertSoftware, app2Name, "2023.2", "apps", app2BundleID, "", "x86_64", "JetBrains", "", "", app2OldChecksum, titleID)
 	require.NoError(t, err)
 
-	// software without bundle_identifier - no update
+	// softwares without bundle_identifier - no update
 	app3Name := "SomeApp.app"
 	app3OldChecksum := computeOldChecksum(app3Name, "1.0", "apps", "", "", "x86_64", "Vendor", "", "")
 	_, err = db.Exec(insertSoftware, app3Name, "1.0", "apps", nil, "", "x86_64", "Vendor", "", "", app3OldChecksum, titleID)
+	require.NoError(t, err)
+
+	app4Name := "AnotherApp.app"
+	app4OldChecksum := computeOldChecksum(app4Name, "2.0", "apps", "", "", "arm64", "Another Vendor", "", "")
+	_, err = db.Exec(insertSoftware, app4Name, "2.0", "apps", "", "", "arm64", "Another Vendor", "", "", app4OldChecksum, titleID)
 	require.NoError(t, err)
 
 	// Windows software - no update
@@ -85,7 +90,7 @@ func TestUp_20251010153829(t *testing.T) {
 	var software []softwareRow
 	err = db.Select(&software, `SELECT name, source, bundle_identifier, checksum FROM software ORDER BY name`)
 	require.NoError(t, err)
-	require.Len(t, software, 5)
+	require.Len(t, software, 6)
 
 	for _, sw := range software {
 		switch sw.Name {
@@ -100,6 +105,10 @@ func TestUp_20251010153829(t *testing.T) {
 		case app3Name:
 			require.Equal(t, app3OldChecksum, sw.Checksum)
 			require.False(t, sw.BundleIdentifier.Valid)
+		case app4Name:
+			require.Equal(t, app4OldChecksum, sw.Checksum)
+			require.True(t, sw.BundleIdentifier.Valid)
+			require.Equal(t, "", sw.BundleIdentifier.String)
 		case winName:
 			require.Equal(t, winOldChecksum, sw.Checksum)
 			require.Equal(t, "programs", sw.Source)

@@ -906,7 +906,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				}
 
 				// Insert software titles
-				const numberOfArgsPerSoftwareTitles = 5
+				const numberOfArgsPerSoftwareTitles = 6
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id) VALUES %s", titlesValues)
 				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
@@ -976,7 +976,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			// Insert software entries
-			const numberOfArgsPerSoftware = 11
+			const numberOfArgsPerSoftware = 12
 			values := strings.TrimSuffix(
 				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
