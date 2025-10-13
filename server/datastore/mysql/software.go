@@ -2295,39 +2295,19 @@ func (ds *Datastore) cleanupOrphanedSoftwareTitles(ctx context.Context) error {
 		)
 	}(time.Now())
 
-	const getOrphanedSoftwareTitlesStmt = `
-	SELECT st.id FROM software_titles st
+	const deleteOrphanedSoftwareTitlesStmt = `
+	DELETE st FROM software_titles st
 	LEFT JOIN software s ON st.id = s.title_id
 	LEFT JOIN software_installers si ON st.id = si.title_id
 	LEFT JOIN vpp_apps vap ON st.id = vap.title_id
 	WHERE s.title_id IS NULL AND si.title_id IS NULL AND vap.title_id IS NULL`
 
-	var softwareTitleIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareTitleIDs, getOrphanedSoftwareTitlesStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting software title ids")
+	res, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedSoftwareTitlesStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "executing delete of software titles")
 	}
-
-	if len(softwareTitleIDs) == 0 {
-		return nil
-	}
-
-	const batchTitleIDs = 5_000
-	if err := common_mysql.BatchProcessSimple(softwareTitleIDs, batchTitleIDs, func(batch []uint) error {
-		stmt := `DELETE FROM software_titles WHERE id IN (?)`
-		stmt, args, err := sqlx.In(stmt, batch)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building statement to delete software titles")
-		}
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "executing delete of software titles")
-		}
-		ra, _ := res.RowsAffected()
-		n += ra
-		return nil
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting software title in batches")
-	}
+	ra, _ := res.RowsAffected()
+	n += ra
 
 	return nil
 }
