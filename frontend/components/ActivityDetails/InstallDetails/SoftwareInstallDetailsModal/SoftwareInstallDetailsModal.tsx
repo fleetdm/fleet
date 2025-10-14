@@ -1,5 +1,5 @@
 /** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
- * we use SoftwareIScriptDetailsModal */
+ * we use SoftwareScriptDetailsModal */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
