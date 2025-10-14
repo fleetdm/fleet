@@ -94,7 +94,7 @@ labels:
       value: Engineering
 ```
 
-`lib/default.yml`
+`default.yml`
 
 ```yaml
 labels:
