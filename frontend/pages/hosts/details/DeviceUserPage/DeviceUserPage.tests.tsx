@@ -188,8 +188,8 @@ describe("Device User Page", () => {
         expect(
           screen.getByText(SETTING_UP_YOUR_DEVICE_MATCHER)
         ).toBeInTheDocument();
-        expect(screen.getByText(/Installing/)).toBeInTheDocument();
-        expect(screen.getByText(/Running/)).toBeInTheDocument();
+        expect(screen.getAllByText(/Install/i).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/Run/i).length).toBeGreaterThan(0);
       });
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();

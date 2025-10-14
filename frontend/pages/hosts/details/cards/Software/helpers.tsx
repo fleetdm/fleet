@@ -315,7 +315,6 @@ interface IButtonConfig {
 
 /** Display text and icon are shared across self-service and
  * host details > library action buttons */
-// TODO: "Retry" and "Reinstall" should be "Rerun" for script packages
 export const getInstallerActionButtonConfig = (
   type: ButtonType,
   status: IHostSoftwareUiStatus

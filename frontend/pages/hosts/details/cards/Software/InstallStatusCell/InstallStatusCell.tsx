@@ -76,7 +76,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
 > = {
   installed: {
     iconName: "success",
-    displayText: "Installed", // TODO: "Ran" for script packages
+    displayText: "Installed",
     tooltip: () => undefined, // No tooltip for installed state
   },
   recently_updated: {
@@ -285,22 +285,19 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   ran_script: {
     iconName: "success",
     displayText: "Ran",
-    // TODO: Confirm tooltip
     tooltip: ({ lastInstalledAt }) =>
       lastInstalledAt ? (
         <>
-          Payload-free software script ran (finished with exit code 0){" "}
-          {dateAgo(lastInstalledAt)}.
+          The script ran (finished with exit code 0) {dateAgo(lastInstalledAt)}.
         </>
       ) : undefined,
   },
   failed_script: {
     iconName: "error",
     displayText: "Failed run",
-    // TODO: Confirm tooltip
     tooltip: ({ lastInstalledAt, isSelfService }) => (
       <>
-        Payload-free software script failed to run
+        The script failed to run
         {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
         {isSelfService ? (
           <>
@@ -318,21 +315,19 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   running_script: {
     iconName: "pending-outline",
-    displayText: "Run (pending)",
-    // TODO: Confirm tooltip
-    tooltip: () => "Fleet is running the payload-free software script.",
+    displayText: "Running...",
+    tooltip: () => "Fleet is running the script.",
   },
   pending_script: {
     iconName: "pending-outline",
     displayText: "Run (pending)",
-    // TODO: Confirm tooltip
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
-        "Fleet is running the payload-free software script."
+        "Fleet is running the script."
       ) : (
         <>
-          Fleet will run the payload-free software
-          <br /> script when the host comes online.
+          Fleet will run the script when the host
+          <br /> comes online.
         </>
       ),
   },

@@ -248,7 +248,7 @@ export const SoftwareInstallDetailsModal = ({
             onClick={toggleInstallDetails}
           />
           {showInstallDetails && swInstallResult?.output && (
-            <Textarea label="Install script output:" variant="code">
+            <Textarea label="Script output:" variant="code">
               {swInstallResult.output}
             </Textarea>
           )}
@@ -268,65 +268,61 @@ export const SoftwareInstallDetailsModal = ({
     : undefined;
 
   const renderContent = () => {
-    if (isInstalledByFleet) {
-      if (isLoading) {
-        return <Spinner />;
-      }
+    if (isLoading) {
+      return <Spinner />;
+    }
 
-      if (isError) {
-        if (error?.status === 404) {
-          return deviceAuthToken ? (
-            <DeviceUserError />
-          ) : (
-            <DataError
-              description="Couldn't get script details"
-              excludeIssueLink
-            />
-          );
-        }
-
-        if (error?.status === 401) {
-          return deviceAuthToken ? (
-            <DeviceUserError />
-          ) : (
-            <DataError description="Close this modal and try again." />
-          );
-        }
-      }
-
-      if (!swInstallResult) {
+    if (isError) {
+      if (error?.status === 404) {
         return deviceAuthToken ? (
           <DeviceUserError />
         ) : (
-          <DataError description="No data returned." />
+          <DataError
+            description="Couldn't get script details"
+            excludeIssueLink
+          />
         );
       }
 
-      if (
-        !["installed", "pending_install", "failed_install"].includes(
-          swInstallResult.status
-        )
-      ) {
-        return (
-          <DataError
-            description={`Unexpected software install status ${swInstallResult.status}`}
-          />
+      if (error?.status === 401) {
+        return deviceAuthToken ? (
+          <DeviceUserError />
+        ) : (
+          <DataError description="Close this modal and try again." />
         );
       }
     }
 
-    if (installResultWithHostDisplayName) {
-      return (
-        <div className={`${baseClass}__modal-content`}>
-          <StatusMessage
-            installResult={installResultWithHostDisplayName}
-            isMyDevicePage={!!deviceAuthToken}
-            contactUrl={contactUrl}
-          />
-          {renderScriptDetailsSection()}
-        </div>
+    if (!installResultWithHostDisplayName) {
+      return deviceAuthToken ? (
+        <DeviceUserError />
+      ) : (
+        <DataError description="No data returned." />
       );
     }
+
+    if (
+      !["installed", "pending_install", "failed_install"].includes(
+        installResultWithHostDisplayName.status
+      )
+    ) {
+      return (
+        <DataError
+          description={`Unexpected software install status ${installResultWithHostDisplayName.status}`}
+        />
+      );
+    }
+
+    return (
+      <div className={`${baseClass}__modal-content`}>
+        <StatusMessage
+          installResult={installResultWithHostDisplayName}
+          isMyDevicePage={!!deviceAuthToken}
+          contactUrl={contactUrl}
+        />
+        {renderScriptDetailsSection()}
+      </div>
+    );
   };
 
   return (

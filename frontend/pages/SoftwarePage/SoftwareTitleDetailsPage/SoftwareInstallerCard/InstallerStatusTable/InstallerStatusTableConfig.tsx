@@ -80,10 +80,9 @@ const STATUS_DISPLAY_OPTIONS: Record<
   ran_script: {
     displayName: "Ran",
     iconName: "success",
-    // TODO: Confirm tooltip
     tooltip: (
       <>
-        Payload-free software script successfully
+        The script successfully
         <br />
         ran on these hosts.
       </>
@@ -92,10 +91,9 @@ const STATUS_DISPLAY_OPTIONS: Record<
   pending_script: {
     displayName: "Pending",
     iconName: "pending-outline",
-    // TODO: Confirm tooltip
     tooltip: (
       <>
-        Fleet is running or will do so
+        Fleet is running the script or will do so
         <br />
         when the host comes online.
       </>
@@ -104,10 +102,9 @@ const STATUS_DISPLAY_OPTIONS: Record<
   failed_script: {
     displayName: "Failed",
     iconName: "error",
-    // TODO: Confirm tooltip
     tooltip: (
       <>
-        These hosts failed to run the payload-free software script.
+        These hosts failed to run the script.
         <br />
         Click on a host to view error(s).
       </>
