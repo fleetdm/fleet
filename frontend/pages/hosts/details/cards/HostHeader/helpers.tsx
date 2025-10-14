@@ -47,7 +47,7 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
         <>
           Host is locked. The end user can&apos;t use the host until
           <br />
-          unlocked. To unlock select<b>Actions &gt; Unlock</b>.
+          unlocked. To unlock select <b>Actions &gt; Unlock</b>.
         </>
       );
     },
