@@ -20,8 +20,8 @@ terraform {
       version = "~> 2.16.0"
     }
     git = {
-      source  = "paultyng/git"
-      version = "~> 0.1.0"
+      source  = "metio/git"
+      version = "2025.10.10"
     }
   }
   backend "s3" {
@@ -41,7 +41,7 @@ terraform {
 data "aws_caller_identity" "current" {}
 
 data "git_repository" "tf" {
-  path = "${path.module}/../../../../"
+  directory = "${path.module}/../../../../"
 }
 
 resource "random_pet" "main" {
