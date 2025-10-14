@@ -787,15 +787,37 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	softwareChecksums map[string]fleet.Software,
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 ) error {
+	type titleKey struct {
+		name         string
+		source       string
+		extensionFor string
+		bundleID     string
+		isKernel     bool
+	}
+
 	// Collect all software that needs to be inserted
 	needsInsert := make(map[string]fleet.Software)
+	bundleGroups := make(map[titleKey][]string)
+	keys := make([]string, 0, len(softwareChecksums))
+
 	existingSet := make(map[string]struct{}, len(existingSoftware))
 	for _, es := range existingSoftware {
 		existingSet[es.Checksum] = struct{}{}
 	}
+
 	for checksum, sw := range softwareChecksums {
 		if _, ok := existingSet[checksum]; !ok {
 			needsInsert[checksum] = sw
+			keys = append(keys, checksum)
+
+			if sw.BundleIdentifier != "" {
+				key := titleKey{
+					bundleID:     sw.BundleIdentifier,
+					source:       sw.Source,
+					extensionFor: sw.ExtensionFor,
+				}
+				bundleGroups[key] = append(bundleGroups[key], sw.Name)
+			}
 		}
 	}
 
@@ -803,12 +825,31 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		return nil
 	}
 
-	// Process in smaller batches to reduce lock time
-	keys := make([]string, 0, len(needsInsert))
-	for checksum := range needsInsert {
-		keys = append(keys, checksum)
+	bestTitleNames := make(map[titleKey]string)
+	for key, names := range bundleGroups {
+		if len(names) > 1 {
+			// Pick the best represenative name for the group of names
+			commonPrefix := longestCommonPrefix(names)
+			commonPrefix = trailingNonWordChars.ReplaceAllString(commonPrefix, "")
+			if len(commonPrefix) > 0 {
+				bestTitleNames[key] = commonPrefix
+			} else {
+				// Fall back to shortest name
+				shortest := names[0]
+				for _, name := range names[1:] {
+					if len(name) < len(shortest) {
+						shortest = name
+					}
+				}
+				bestTitleNames[key] = shortest
+			}
+		} else if len(names) == 1 {
+			// Single title or no bundle_identifier
+			bestTitleNames[key] = names[0]
+		}
 	}
 
+	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
 		batchSoftware := make(map[string]fleet.Software, len(batchKeys))
 		for _, key := range batchKeys {
@@ -821,8 +862,20 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for checksum, sw := range batchSoftware {
 				if _, ok := existingTitlesForNewSoftware[checksum]; !ok {
+					titleName := sw.Name
+					if sw.BundleIdentifier != "" {
+						key := titleKey{
+							bundleID:     sw.BundleIdentifier,
+							source:       sw.Source,
+							extensionFor: sw.ExtensionFor,
+						}
+						if computedName, exists := bestTitleNames[key]; exists {
+							titleName = computedName
+						}
+					}
+
 					st := fleet.SoftwareTitle{
-						Name:         sw.Name,
+						Name:         titleName,
 						Source:       sw.Source,
 						ExtensionFor: sw.ExtensionFor,
 						IsKernel:     sw.IsKernel,
@@ -846,62 +899,22 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			if len(newTitlesNeeded) > 0 {
-				// Deduplicate titles before insertion to avoid unnecessary duplicate INSERTs
-				type titleKey struct {
-					name         string
-					source       string
-					extensionFor string
-					bundleID     string
-					isKernel     bool
-				}
-
-				titleGroups := make(map[titleKey][]fleet.SoftwareTitle)
+				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
 				for _, title := range newTitlesNeeded {
 					bundleID := ""
 					if title.BundleIdentifier != nil {
 						bundleID = *title.BundleIdentifier
 					}
-					keyName := title.Name
-					if bundleID != "" {
-						keyName = ""
-					}
 					key := titleKey{
-						name:         keyName,
+						name:         title.Name,
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
 						isKernel:     title.IsKernel,
 					}
-					titleGroups[key] = append(titleGroups[key], title)
-				}
 
-				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle, len(titleGroups))
-				for key, titles := range titleGroups {
-					if key.bundleID != "" && len(titles) > 1 {
-						// Pick the best represenative name for the group of names
-						names := make([]string, len(titles))
-						for i, t := range titles {
-							names[i] = t.Name
-						}
-						commonPrefix := longestCommonPrefix(names)
-						commonPrefix = trailingNonWordChars.ReplaceAllString(commonPrefix, "")
-						if len(commonPrefix) > 0 {
-							title := titles[0]
-							title.Name = commonPrefix
-							uniqueTitlesToInsert[key] = title
-						} else {
-							// Fall back to shortest name
-							shortest := titles[0]
-							for _, t := range titles[1:] {
-								if len(t.Name) < len(shortest.Name) {
-									shortest = t
-								}
-							}
-							uniqueTitlesToInsert[key] = shortest
-						}
-					} else {
-						// Single title or no bundle_identifier
-						uniqueTitlesToInsert[key] = titles[0]
+					if _, exists := uniqueTitlesToInsert[key]; !exists {
+						uniqueTitlesToInsert[key] = title
 					}
 				}
 
@@ -928,7 +941,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					BundleIdentifier *string `db:"bundle_identifier"`
 				}
 
-				// Build query to retrieve title IDs using the same unique titles we inserted
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
 				for tk := range uniqueTitlesToInsert {
@@ -937,12 +949,17 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if title.BundleIdentifier != nil {
 						bundleID = *title.BundleIdentifier
 					}
-					queryArgs = append(queryArgs, title.Name, title.Source, title.ExtensionFor, bundleID)
+
+					firstArg := title.Name
+					if bundleID != "" {
+						firstArg = bundleID
+					}
+					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 				}
 
 				queryTitles := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier
 					FROM software_titles
-					WHERE (name, source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
 
 				if err := sqlx.SelectContext(ctx, tx, &titlesData, queryTitles, queryArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "select software titles")
