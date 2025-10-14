@@ -70,8 +70,8 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 				"id": 1,
 				"result": {
 					"tools": [
-						{"name": "get_weather"},
-						{"name": "search_web"}
+						{"name": "get_weather", "description": "Get weather for a location"},
+						{"name": "search_web", "description": "Search the web"}
 					]
 				}
 			}`,
@@ -80,8 +80,8 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 				"id": 1,
 				"result": {
 					"prompts": [
-						{"name": "code_review"},
-						{"name": "summarize"}
+						{"name": "code_review", "description": "Review code for quality"},
+						{"name": "summarize", "description": "Summarize content"}
 					]
 				}
 			}`,
@@ -90,8 +90,8 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 				"id": 1,
 				"result": {
 					"resources": [
-						{"uri": "file:///data/doc1.txt"},
-						{"uri": "file:///data/doc2.txt"}
+						{"uri": "file:///data/doc1.txt", "name": "Document 1", "description": "First document"},
+						{"uri": "file:///data/doc2.txt", "name": "Document 2", "description": "Second document"}
 					]
 				}
 			}`,
@@ -143,14 +143,14 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	if rows[0]["instructions"] != "Testing and demonstration server for MCP protocol features." {
 		t.Fatalf("expected instructions=Testing and demonstration server for MCP protocol features., got %s", rows[0]["instructions"])
 	}
-	if rows[0]["tools"] != `["get_weather","search_web"]` {
-		t.Fatalf("expected tools=[\"get_weather\",\"search_web\"], got %s", rows[0]["tools"])
+	if rows[0]["tools"] != `[{"name":"get_weather","description":"Get weather for a location"},{"name":"search_web","description":"Search the web"}]` {
+		t.Fatalf("expected tools with descriptions, got %s", rows[0]["tools"])
 	}
-	if rows[0]["prompts"] != `["code_review","summarize"]` {
-		t.Fatalf("expected prompts=[\"code_review\",\"summarize\"], got %s", rows[0]["prompts"])
+	if rows[0]["prompts"] != `[{"name":"code_review","description":"Review code for quality"},{"name":"summarize","description":"Summarize content"}]` {
+		t.Fatalf("expected prompts with descriptions, got %s", rows[0]["prompts"])
 	}
-	if rows[0]["resources"] != `["file:///data/doc1.txt","file:///data/doc2.txt"]` {
-		t.Fatalf("expected resources=[\"file:///data/doc1.txt\",\"file:///data/doc2.txt\"], got %s", rows[0]["resources"])
+	if rows[0]["resources"] != `[{"name":"Document 1","description":"First document"},{"name":"Document 2","description":"Second document"}]` {
+		t.Fatalf("expected resources with name and description (no URI), got %s", rows[0]["resources"])
 	}
 }
 
@@ -264,9 +264,9 @@ func TestGenerate_WithSSEResponse(t *testing.T) {
 id: 4b74868e-307e-416c-951d-6f305856cb43_1760466849580_vmzdy66v
 data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"resources":{"subscribe":true},"tools":{},"logging":{},"completions":{}},"serverInfo":{"name":"example-servers/everything","title":"Everything Example Server","version":"1.0.0"},"instructions":"Testing and demonstration server for MCP protocol features."},"jsonrpc":"2.0","id":1}
 `,
-			"tools/list":     `{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"test_tool"}]}}`,
-			"prompts/list":   `{"jsonrpc":"2.0","id":1,"result":{"prompts":[{"name":"test_prompt"}]}}`,
-			"resources/list": `{"jsonrpc":"2.0","id":1,"result":{"resources":[{"uri":"test://resource"}]}}`,
+			"tools/list":     `{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"test_tool","description":"A test tool"}]}}`,
+			"prompts/list":   `{"jsonrpc":"2.0","id":1,"result":{"prompts":[{"name":"test_prompt","description":"A test prompt"}]}}`,
+			"resources/list": `{"jsonrpc":"2.0","id":1,"result":{"resources":[{"uri":"test://resource","name":"Test Resource","description":"A test resource"}]}}`,
 		},
 		statusCode: 200,
 	}
