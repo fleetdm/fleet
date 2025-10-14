@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	osqclient "github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
@@ -212,7 +213,7 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 		},
 		"clientInfo": map[string]interface{}{
 			"name":    "fleetd",
-			"version": "1.0.0",
+			"version": build.Version,
 		},
 	}
 
