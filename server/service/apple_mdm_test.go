@@ -4491,7 +4491,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.WithinDuration(t, time.Now(), host.DetailUpdatedAt, 1*time.Minute)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 		require.Equal(t, hostID, hostID)
 		require.NotZero(t, 51, int64(gigsAvailable))
 		require.NotZero(t, 79, int64(percentAvailable))
