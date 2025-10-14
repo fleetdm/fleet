@@ -2,10 +2,8 @@ package okta
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -16,8 +14,8 @@ import (
 type ctxKey int
 
 const (
-	// clientCertHashKey is the context key for storing client certificate SHA-256 hash
-	clientCertHashKey ctxKey = iota
+	// clientCertSerialKey is the context key for storing client certificate serial number
+	clientCertSerialKey ctxKey = iota
 )
 
 // MakeHandler creates an HTTP handler for Okta device health endpoints with OTEL middleware
@@ -67,14 +65,13 @@ func (s *Service) makeOktaDeviceHealthSSOHandler(baseMetadataURL, baseSSOURL str
 				if err != nil {
 					s.logger.Log("err", "failed to parse client certificate", "details", err)
 				} else {
-					// Compute SHA-256 hash of the certificate (same as MDM does)
-					hash := sha256.Sum256(cert.Raw)
-					certHash := hex.EncodeToString(hash[:])
+					// Extract serial number for host identity lookup
+					serialNumber := cert.SerialNumber.Uint64()
 
-					s.logger.Log("msg", "extracted client certificate", "serial", cert.SerialNumber, "hash", certHash)
+					s.logger.Log("msg", "extracted client certificate", "serial", serialNumber, "subject", cert.Subject.String())
 
-					// Add hash to request context so GetSession can access it
-					ctx := context.WithValue(r.Context(), clientCertHashKey, certHash)
+					// Add serial number to request context so GetSession can access it
+					ctx := context.WithValue(r.Context(), clientCertSerialKey, serialNumber)
 					r = r.WithContext(ctx)
 				}
 			}

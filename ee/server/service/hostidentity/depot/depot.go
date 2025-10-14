@@ -2,9 +2,9 @@ package depot
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
@@ -92,17 +92,14 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 		return errors.New("cannot represent serial number as int64")
 	}
 
-	// Extract the ECC uncompressed point (04-prefixed X || Y); 0x04 means this is the raw representation
-	// Lengths:
-	//   - P-256: 65 bytes
-	//   - P-384: 97 bytes
-	key, ok := crt.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return errors.New("public key not in ECDSA format")
-	}
-	pubKeyRaw, err := types.CreateECDSAPublicKeyRaw(key)
+	// Extract the public key in raw format
+	// For ECC keys: uncompressed point format (0x04 prefix + X + Y)
+	//   - P-256: 65 bytes (1 + 32 + 32)
+	//   - P-384: 97 bytes (1 + 48 + 48)
+	// For RSA keys: PKIX, ASN.1 DER encoded format
+	pubKeyRaw, err := types.CreatePublicKeyRaw(crt.PublicKey)
 	if err != nil {
-		return fmt.Errorf("creating public key raw: %w", err)
+		return fmt.Errorf("extracting public key: %w", err)
 	}
 	certPEM := certificate.EncodeCertPEM(crt)
 
@@ -127,8 +124,8 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 		// Note: Because the challenge is shared, it is possible for a bad actor to revoke a cert for an existing host
 		// if they have the challenge and the host identifier (CN).
 		result, err := tx.ExecContext(context.Background(), `
-			UPDATE host_identity_scep_certificates 
-			SET revoked = 1 
+			UPDATE host_identity_scep_certificates
+			SET revoked = 1
 			WHERE name = ?`, name)
 		if err != nil {
 			return err
@@ -138,17 +135,31 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 			d.logger.Log("msg", "revoked existing host identity certificate", "name", name)
 		}
 
+		// Look up host by UUID to populate host_id during certificate creation
+		var hostID *uint
+		var foundHostID uint
+		err = sqlx.GetContext(context.Background(), tx, &foundHostID, `
+			SELECT id FROM hosts WHERE uuid = ?`, name)
+		if err == nil {
+			hostID = &foundHostID
+			d.logger.Log("msg", "found existing host for certificate", "name", name, "host_id", foundHostID)
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			// Log the error but continue without host_id (will be populated during enrollment)
+			d.logger.Log("msg", "error looking up host by uuid", "name", name, "err", err)
+		}
+
 		_, err = tx.ExecContext(context.Background(), `
 			INSERT INTO host_identity_scep_certificates
-				(serial, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw)
+				(serial, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, host_id)
 			VALUES
-				(?, ?, ?, ?, ?, ?)`,
+				(?, ?, ?, ?, ?, ?, ?)`,
 			crt.SerialNumber.Int64(),
 			name,
 			crt.NotBefore,
 			crt.NotAfter,
 			certPEM,
 			pubKeyRaw,
+			hostID,
 		)
 		return err
 	}, d.logger)

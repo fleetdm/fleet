@@ -12,7 +12,6 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	dsig "github.com/russellhaering/goxmldsig"
@@ -20,17 +19,15 @@ import (
 
 // Service handles Okta conditional access integration
 type Service struct {
-	ds             fleet.Datastore
-	nanoMDMStorage storage.AllStorage
-	logger         kitlog.Logger
+	ds     fleet.Datastore
+	logger kitlog.Logger
 }
 
 // NewService creates a new Okta service
-func NewService(ds fleet.Datastore, nanoMDMStorage storage.AllStorage, logger kitlog.Logger) *Service {
+func NewService(ds fleet.Datastore, logger kitlog.Logger) *Service {
 	return &Service{
-		ds:             ds,
-		nanoMDMStorage: nanoMDMStorage,
-		logger:         logger,
+		ds:     ds,
+		logger: logger,
 	}
 }
 
@@ -210,34 +207,35 @@ func (o *oktaDeviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *h
 		return nil
 	}
 
-	// Try to get host from client certificate hash (more secure, cryptographically verified)
+	// Try to get host from client certificate serial (more secure, cryptographically verified)
 	var host *fleet.Host
-	if certHash, ok := ctx.Value(clientCertHashKey).(string); ok && certHash != "" {
-		level.Info(o.svc.logger).Log("msg", "looking up host by certificate hash", "hash", certHash)
+	if serialNumber, ok := ctx.Value(clientCertSerialKey).(uint64); ok && serialNumber != 0 {
+		level.Info(o.svc.logger).Log("msg", "looking up host by certificate serial", "serial", serialNumber)
 
-		// Look up enrollment ID from certificate hash (same as MDM does)
-		enrollmentID, err := o.svc.nanoMDMStorage.EnrollmentFromHash(ctx, certHash)
+		// Look up certificate in host_identity_scep_certificates table
+		hostIdentityCert, err := o.svc.ds.GetHostIdentityCertBySerialNumber(ctx, serialNumber)
 		if err != nil {
-			level.Error(o.svc.logger).Log("msg", "failed to lookup enrollment from certificate hash", "hash", certHash, "err", err)
+			level.Error(o.svc.logger).Log("msg", "failed to lookup certificate by serial", "serial", serialNumber, "err", err)
 			o.renderRemediationPage(w, "Certificate Lookup Failed", "Unable to verify device certificate.", nil)
 			return nil
 		}
 
-		if enrollmentID == "" {
-			level.Error(o.svc.logger).Log("msg", "certificate not associated with any enrollment", "hash", certHash)
+		// Check if certificate is associated with a host
+		if hostIdentityCert.HostID == nil {
+			level.Error(o.svc.logger).Log("msg", "certificate not associated with any host", "serial", serialNumber)
 			o.renderRemediationPage(w, "Device Not Enrolled", "This certificate is not associated with an enrolled device.", nil)
 			return nil
 		}
 
-		// The enrollment ID is the device UUID, use HostByIdentifier to get the host
-		host, err = o.svc.ds.HostByIdentifier(ctx, enrollmentID)
+		// Get the host by ID
+		host, err = o.svc.ds.Host(ctx, *hostIdentityCert.HostID)
 		if err != nil {
-			level.Error(o.svc.logger).Log("msg", "host not found for enrollment", "enrollment_id", enrollmentID, "err", err)
-			o.renderRemediationPage(w, "Device Not Found", "Device is enrolled in MDM but not found in Fleet.", nil)
+			level.Error(o.svc.logger).Log("msg", "host not found for certificate", "host_id", *hostIdentityCert.HostID, "err", err)
+			o.renderRemediationPage(w, "Device Not Found", "Device certificate is valid but host not found in Fleet.", nil)
 			return nil
 		}
 
-		level.Info(o.svc.logger).Log("msg", "found host by certificate", "host_id", host.ID, "hostname", host.Hostname, "enrollment_id", enrollmentID)
+		level.Info(o.svc.logger).Log("msg", "found host by certificate serial", "host_id", host.ID, "hostname", host.Hostname, "serial", serialNumber)
 	} else {
 		// Fallback: look up host ID by email (less secure, for testing without mTLS)
 		level.Info(o.svc.logger).Log("msg", "no certificate serial, falling back to email lookup", "email", email)
