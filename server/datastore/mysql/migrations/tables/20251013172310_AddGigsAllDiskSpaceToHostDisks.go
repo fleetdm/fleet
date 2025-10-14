@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250923165754, Down_20250923165754)
+	MigrationClient.AddMigration(Up_20251013172310, Down_20251013172310)
 }
 
-func Up_20250923165754(tx *sql.Tx) error {
+func Up_20251013172310(tx *sql.Tx) error {
 	// NULLable since only relevant for Linux hosts
 	stmt := `
 		ALTER TABLE host_disks
@@ -21,6 +21,6 @@ func Up_20250923165754(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250923165754(tx *sql.Tx) error {
+func Down_20251013172310(tx *sql.Tx) error {
 	return nil
 }
