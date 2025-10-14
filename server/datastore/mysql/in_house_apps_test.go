@@ -105,7 +105,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 
 	_, err = ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.Error(t, err)
-	status, err := ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
+	status, _ := ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
 	require.Zero(t, *status)
 
 	// Check that entire tables are empty for this test
