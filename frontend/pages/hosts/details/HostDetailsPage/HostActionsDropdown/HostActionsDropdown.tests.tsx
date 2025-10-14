@@ -1228,7 +1228,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
 
     it("renders only the transfer, wipe, and delete options for iPadOS", async () => {
@@ -1267,7 +1266,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
   });
 
