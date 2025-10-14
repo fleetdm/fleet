@@ -728,6 +728,7 @@ SELECT
   COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
   COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
   COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+  hd.gigs_all_disk_space,
   hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
