@@ -3762,7 +3762,146 @@ TODO
 `Status: 200`
 
 ```json
-TODO
+{
+  "host": {
+    "created_at": "2024-12-16T17:52:45Z",
+    "updated_at": "2025-09-28T20:41:19Z",
+    "software": [],
+    "software_updated_at": "2025-09-08T15:12:24Z",
+    "id": 1204,
+    "detail_updated_at": "2025-09-28T20:41:20Z",
+    "label_updated_at": "2000-01-01T00:00:00Z",
+    "policy_updated_at": "2000-01-01T00:00:00Z",
+    "last_enrolled_at": "2025-04-14T14:00:00Z",
+    "seen_time": "2024-12-16T17:52:45Z",
+    "refetch_requested": false,
+    "hostname": "Allen’s iPad",
+    "uuid": "00008101-0009275S019BA01Z",
+    "platform": "ipados",
+    "osquery_version": "",
+    "orbit_version": null,
+    "fleet_desktop_version": null,
+    "scripts_enabled": null,
+    "os_version": "iOS 18.5",
+    "build": "",
+    "platform_like": "",
+    "code_name": "",
+    "uptime": 0,
+    "memory": 0,
+    "cpu_type": "",
+    "cpu_subtype": "",
+    "cpu_brand": "",
+    "cpu_physical_cores": 0,
+    "cpu_logical_cores": 0,
+    "hardware_vendor": "",
+    "hardware_model": "iPhone14,7",
+    "hardware_version": "",
+    "hardware_serial": "LRZGYWT3QV",
+    "computer_name": "Allen’s iPad",
+    "public_ip": "",
+    "primary_ip": "",
+    "primary_mac": "bc:bb:58:30:6e:43",
+    "distributed_interval": 0,
+    "config_tls_refresh": 0,
+    "logger_tls_period": 0,
+    "team_id": 303,
+    "pack_stats": null,
+    "team_name": "📱🏢 Company-owned mobile devices",
+    "gigs_disk_space_available": 42.85,
+    "percent_disk_space_available": 66.96,
+    "gigs_total_disk_space": 64,
+    "issues": {
+      "failing_policies_count": 0,
+      "critical_vulnerabilities_count": 0,
+      "total_issues_count": 0
+    },
+    "mdm": {
+      "enrollment_status": "On (manual)",
+      "dep_profile_error": false,
+      "server_url": "",
+      "name": "",
+      "encryption_key_available": false,
+      "encryption_key_archived": false,
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
+      "profiles": [
+        {
+          "profile_uuid": "a57c5b8df-14cb-11f0-8b30-0632b6ccc5e2",
+          "name": "Lock Screen message",
+          "status": "verified",
+          "operation_type": "install",
+          "detail": "",
+          "platform": "ipados",
+          "scope": "device",
+          "managed_local_account": ""
+        }
+      ],
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "",
+        "detail": "",
+        "bootstrap_package_name": ""
+      },
+      "device_status": "unlocked",
+      "pending_action": "",
+      "connected_to_fleet": true
+    },
+    "refetch_critical_queries_until": null,
+    "last_restarted_at": "0001-01-01T00:00:00Z",
+    "policies": [],
+    "labels": [
+      {
+        "created_at": "2021-09-14T05:11:02Z",
+        "updated_at": "2021-09-14T05:11:02Z",
+        "id": 6,
+        "author_id": null,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "select 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2024-06-28T00:00:00Z",
+        "updated_at": "2024-06-28T00:00:00Z",
+        "id": 157,
+        "author_id": null,
+        "name": "iPadOS",
+        "description": "All iPadOS hosts",
+        "query": "",
+        "platform": "ipados",
+        "label_type": "builtin",
+        "label_membership_type": "manual"
+      }
+    ],
+    "packs": [],
+    "batteries": null,
+    "end_users": [
+      {
+        "idp_info_updated_at": null,
+        "other_emails": [
+          {
+            "email": "anna@example.com",
+            "source": "custom"
+          }
+        ]
+      }
+    ],
+    "last_mdm_enrolled_at": "2025-04-14T13:59:59Z",
+    "last_mdm_checked_in_at": "2025-09-28T20:41:20Z",
+    "status": "offline",
+    "display_text": "Anna's iPhone",
+    "display_name": "Anna's iPhone"
+  }
+}
 ```
 
 `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
