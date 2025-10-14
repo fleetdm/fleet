@@ -56,7 +56,6 @@ import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
 import { getErrorMessage, hasRemainingSetupSteps } from "./helpers";
 
-import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
