@@ -926,9 +926,17 @@ func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 	for i := 0; i < len(val.Subject); i++ {
 		for j := 0; j < len(val.Subject[i]); j++ {
 			if len(val.Subject[i][j]) == 2 && val.Subject[i][j][0] == "CN" {
+				// adding a separator here in the case of multiple CNs so someting silly like the required var split over
+				// multiple CNs gets caught
+				if commonName != "" {
+					commonName += ","
+				}
 				commonName += val.Subject[i][j][1]
 			}
 			if len(val.Subject[i][j]) == 2 && val.Subject[i][j][0] == "OU" {
+				if organizationalUnit != "" {
+					organizationalUnit += ","
+				}
 				organizationalUnit += val.Subject[i][j][1]
 			}
 		}
