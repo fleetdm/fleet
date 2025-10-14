@@ -68,32 +68,6 @@ go.mod @fleetdm/go
 /docs                                                   @rachaelshaw
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-
-//  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐
-//  ║ ║││││││├┤  ││  ├┴┐└┬┘  ├─┘├┬┘│ │ │││ ││   │   │ ┬├┬┘│ ││ │├─┘└─┐
-//  ╚═╝└┴┘┘└┘└─┘─┴┘  └─┘ ┴   ┴  ┴└─└─┘─┴┘└─┘└─┘ ┴   └─┘┴└─└─┘└─┘┴  └─┘
------------------------------------------------------------------
-
-# MDM
-/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery
-/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery
-/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
-# Orchestration
-/docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
-/docs/Contributing/product-groups/orchestration         @sharon-fdm @sgress454
-/docs/Contributing/research/orchestration               @sharon-fdm @sgress454
-# Software
-/docs/Contributing/architecture/software                @georgekarrv @cdcme
-/docs/Contributing/product-groups/software              @georgekarrv @cdcme
-/docs/Contributing/research/software                    @georgekarrv @cdcme
-# Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor
-/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor
-/docs/Contributing/reference/patterns-backend.md        @fleetdm/go
-
-### End of product group owned docs ###
-
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference/api-for-contributors.md    @rachaelshaw @lukeheath # « Advanced / contributors-only API reference documentation
@@ -102,6 +76,34 @@ go.mod @fleetdm/go
 /schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
+
+################################################################################################
+#  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐
+#  ║ ║││││││├┤  ││  ├┴┐└┬┘  ├─┘├┬┘│ │ │││ ││   │   │ ┬├┬┘│ ││ │├─┘└─┐
+#  ╚═╝└┴┘┘└┘└─┘─┴┘  └─┘ ┴   ┴  ┴└─└─┘─┴┘└─┘└─┘ ┴   └─┘┴└─└─┘└─┘┴  └─┘
+################################################################################################
+
+# MDM
+/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery
+/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery
+/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
+
+# Orchestration
+/docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
+/docs/Contributing/product-groups/orchestration         @sharon-fdm @sgress454
+/docs/Contributing/research/orchestration               @sharon-fdm @sgress454
+
+# Software
+/docs/Contributing/architecture/software                @georgekarrv @cdcme
+/docs/Contributing/product-groups/software              @georgekarrv @cdcme
+/docs/Contributing/research/software                    @georgekarrv @cdcme
+
+# Security & Compliance
+/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor
+/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor
+/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor
+/docs/Contributing/reference/patterns-backend.md        @fleetdm/go
+
 ##############################################################################################
 # 🌐 Repo automation and change control settings
 ##############################################################################################
