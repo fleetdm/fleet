@@ -517,30 +517,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:nokia:transcend_network_management_system:19.10.3:*:*:*:*:macos:*:*",
 		},*/
-		// Same issue as above
-		/*
-					  {
-			    "software": {
-			      "bundle_identifier": ["com.oracle.SQLDeveloper"],
-			      "source": ["apps"]
-			    },
-			    "filter": {
-			      "product": ["oracle"],
-			      "vendor": ["sql_developer"]
-			    }
-			  },
-		*/
-		/*
-				{
-				software: fleet.Software{
-					Name:             "Oracle SQLDeveloper",
-					BundleIdentifier: "com.oracle.SQLDeveloper",
-					Source:           "apps",
-					Version:          "24.3.1",
-				},
-				cpe: "cpe:2.3:a:oracle:sql_developer:24.3.1:*:*:*:*:macos:*:*",
+		{
+			software: fleet.Software{
+				Name:             "Oracle SQLDeveloper",
+				BundleIdentifier: "com.oracle.SQLDeveloper",
+				Source:           "apps",
+				Version:          "24.3.1",
 			},
-		*/
+			cpe: "cpe:2.3:a:oracle:sql_developer:24.3.1:*:*:*:*:macos:*:*",
+		},
 		// This would work with a CPE translations JSON mapping, but we can't currently map a blank version
 		/*{
 			software: fleet.Software{

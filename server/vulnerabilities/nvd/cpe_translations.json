@@ -551,6 +551,16 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.oracle.SQLDeveloper"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["sql_developer"],
+      "vendor": ["oracle"]
+    }
+  },
+  {
+    "software": {
       "name": ["Microsoft Edge"],
       "source": ["programs", "apps"]
     },
