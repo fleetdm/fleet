@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -176,9 +177,8 @@ func Columns() []table.ColumnDefinition {
 		table.BigIntColumn("pid"),
 		table.TextColumn("name"),
 		table.TextColumn("cmdline"),
-		table.TextColumn("port"),
+		table.IntegerColumn("port"),
 		table.TextColumn("address"),
-		table.IntegerColumn("mcp_active"),
 		table.TextColumn("protocol_version"),
 		table.TextColumn("server_name"),
 		table.TextColumn("server_title"),
@@ -246,14 +246,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 			continue
 		}
 
-		// Convert booleans to "0" or "1" for osquery compatibility
-		boolToStr := func(b bool) string {
-			if b {
-				return "1"
-			}
-			return "0"
-		}
-
 		// Create result row with all required columns
 		result := map[string]string{
 			"pid":              row["pid"],
@@ -261,16 +253,15 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 			"cmdline":          row["cmdline"],
 			"port":             port,
 			"address":          address,
-			"mcp_active":       "1",
 			"protocol_version": mcpInfo.ProtocolVersion,
 			"server_name":      mcpInfo.ServerName,
 			"server_title":     mcpInfo.ServerTitle,
 			"server_version":   mcpInfo.ServerVersion,
-			"has_prompts":      boolToStr(mcpInfo.HasPrompts),
-			"has_resources":    boolToStr(mcpInfo.HasResources),
-			"has_tools":        boolToStr(mcpInfo.HasTools),
-			"has_logging":      boolToStr(mcpInfo.HasLogging),
-			"has_completions":  boolToStr(mcpInfo.HasCompletions),
+			"has_prompts":      strconv.FormatBool(mcpInfo.HasPrompts),
+			"has_resources":    strconv.FormatBool(mcpInfo.HasResources),
+			"has_tools":        strconv.FormatBool(mcpInfo.HasTools),
+			"has_logging":      strconv.FormatBool(mcpInfo.HasLogging),
+			"has_completions":  strconv.FormatBool(mcpInfo.HasCompletions),
 			"instructions":     mcpInfo.Instructions,
 		}
 		results = append(results, result)

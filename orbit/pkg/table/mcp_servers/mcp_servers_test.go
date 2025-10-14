@@ -77,9 +77,6 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 		t.Fatalf("expected 1 row, got %d", len(rows))
 	}
 
-	if rows[0]["mcp_active"] != "1" {
-		t.Fatalf("expected mcp_active=1, got %s", rows[0]["mcp_active"])
-	}
 	if rows[0]["port"] != "3001" {
 		t.Fatalf("expected port=3001, got %s", rows[0]["port"])
 	}
@@ -95,20 +92,20 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	if rows[0]["server_version"] != "1.0.0" {
 		t.Fatalf("expected server_version=1.0.0, got %s", rows[0]["server_version"])
 	}
-	if rows[0]["has_prompts"] != "1" {
-		t.Fatalf("expected has_prompts=1, got %s", rows[0]["has_prompts"])
+	if rows[0]["has_prompts"] != "true" {
+		t.Fatalf("expected has_prompts=true, got %s", rows[0]["has_prompts"])
 	}
-	if rows[0]["has_resources"] != "1" {
-		t.Fatalf("expected has_resources=1, got %s", rows[0]["has_resources"])
+	if rows[0]["has_resources"] != "true" {
+		t.Fatalf("expected has_resources=true, got %s", rows[0]["has_resources"])
 	}
-	if rows[0]["has_tools"] != "1" {
-		t.Fatalf("expected has_tools=1, got %s", rows[0]["has_tools"])
+	if rows[0]["has_tools"] != "true" {
+		t.Fatalf("expected has_tools=true, got %s", rows[0]["has_tools"])
 	}
-	if rows[0]["has_logging"] != "1" {
-		t.Fatalf("expected has_logging=1, got %s", rows[0]["has_logging"])
+	if rows[0]["has_logging"] != "true" {
+		t.Fatalf("expected has_logging=true, got %s", rows[0]["has_logging"])
 	}
-	if rows[0]["has_completions"] != "1" {
-		t.Fatalf("expected has_completions=1, got %s", rows[0]["has_completions"])
+	if rows[0]["has_completions"] != "true" {
+		t.Fatalf("expected has_completions=true, got %s", rows[0]["has_completions"])
 	}
 	if rows[0]["instructions"] != "Testing and demonstration server for MCP protocol features." {
 		t.Fatalf("expected instructions=Testing and demonstration server for MCP protocol features., got %s", rows[0]["instructions"])
@@ -196,12 +193,6 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("expected 2 rows, got %d", len(rows))
 	}
-	if rows[0]["mcp_active"] != "1" {
-		t.Fatalf("expected mcp_active=1 for first row, got %s", rows[0]["mcp_active"])
-	}
-	if rows[1]["mcp_active"] != "1" {
-		t.Fatalf("expected mcp_active=1 for second row, got %s", rows[1]["mcp_active"])
-	}
 }
 
 func TestGenerate_WithSSEResponse(t *testing.T) {
@@ -239,9 +230,6 @@ data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"re
 		t.Fatalf("expected 1 row, got %d", len(rows))
 	}
 
-	if rows[0]["mcp_active"] != "1" {
-		t.Fatalf("expected mcp_active=1, got %s", rows[0]["mcp_active"])
-	}
 	if rows[0]["protocol_version"] != "2025-03-26" {
 		t.Fatalf("expected protocol_version=2025-03-26, got %s", rows[0]["protocol_version"])
 	}
