@@ -1297,14 +1297,6 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
 		iosHost.ID, titleID), nil, http.StatusAccepted, &installResp)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_titles")
-		mysql.DumpTable(t, q, "software")
-		mysql.DumpTable(t, q, "host_in_house_software_installs")
-		mysql.DumpTable(t, q, "nano_commands")
-		return nil
-	})
-
 	var installCmdUUID string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
