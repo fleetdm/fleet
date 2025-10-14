@@ -94,11 +94,11 @@ labels:
       value: Engineering
 ```
 
-`lib/default.yml`
+`default.yml`
 
 ```yaml
 labels:
-  path: ./lib/labels-name.labels.yml
+  - path: ./lib/labels-name.labels.yml
 ```
 
 
