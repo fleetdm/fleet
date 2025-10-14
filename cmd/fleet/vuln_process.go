@@ -174,9 +174,9 @@ func getVulnFuncs(ds fleet.Datastore, logger kitlog.Logger, config *config.Vulne
 			},
 		},
 		{
-			Name: "cron_reconcile_software_titles",
+			Name: "cron_cleanup_software_titles",
 			VulnFunc: func(ctx context.Context) error {
-				return ds.ReconcileSoftwareTitles(ctx)
+				return ds.CleanupSoftwareTitles(ctx)
 			},
 		},
 		{

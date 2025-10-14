@@ -2275,17 +2275,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	return nil
 }
 
-func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
-	if err := ds.cleanupOrphanedSoftwareTitles(ctx); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
-	}
-	if err := ds.updateSoftwareTitleNames(ctx); err != nil {
-		return ctxerr.Wrap(ctx, err, "update software title names")
-	}
-	return nil
-}
-
-func (ds *Datastore) cleanupOrphanedSoftwareTitles(ctx context.Context) error {
+func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	var n int64
 	defer func(start time.Time) {
 		level.Debug(ds.logger).Log(
@@ -2309,39 +2299,6 @@ func (ds *Datastore) cleanupOrphanedSoftwareTitles(ctx context.Context) error {
 	ra, _ := res.RowsAffected()
 	n += ra
 
-	return nil
-}
-
-func (ds *Datastore) updateSoftwareTitleNames(ctx context.Context) error {
-	var n int64
-	defer func(start time.Time) {
-		level.Debug(ds.logger).Log(
-			"msg", "update software titles names bundle_4.67",
-			"rows_affected", n,
-			"took", time.Since(start),
-		)
-	}(time.Now())
-
-	const softwareBundle467Stmt = `
-	UPDATE software_titles st
-	JOIN (
-	    SELECT s.bundle_identifier, s.name
-		FROM software s
-		JOIN (
-			SELECT bundle_identifier, MAX(id) AS max_id
-			FROM software
-			WHERE
-				bundle_identifier IS NOT NULL AND bundle_identifier != '' AND name_source = 'bundle_4.67'
-			GROUP BY bundle_identifier
-		) latest ON latest.bundle_identifier = s.bundle_identifier AND s.id = latest.max_id
-	) latest_name ON latest_name.bundle_identifier = st.bundle_identifier
-	SET st.name = latest_name.name`
-
-	res, err := ds.writer(ctx).ExecContext(ctx, softwareBundle467Stmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "exec update software title names")
-	}
-	n, _ = res.RowsAffected()
 	return nil
 }
 
