@@ -2044,8 +2044,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 		"iPad":   {iPadOSApp2, iPadOSApp3},
 	}
 
-	for _, enableReleaseManually := range []bool{true, false} {
-		for _, enrollmentProfileFromDEPUsingPost := range []bool{true, false} {
+	for _, enableReleaseManually := range []bool{false, true} {
+		for _, enrollmentProfileFromDEPUsingPost := range []bool{false, true} {
 			for _, device := range devices {
 				t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost), func(t *testing.T) {
 					s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
@@ -2149,6 +2149,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 		// delete the enrolled host
 		err := s.ds.DeleteHost(ctx, enrolledHost.ID)
 		require.NoError(t, err)
+		// clear out any left behind jobs
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM jobs`)
+			return err
+		})
 	})
 
 	// enroll the host
@@ -2251,11 +2256,17 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 			// If we are polling to verify the install, we should get an
 			// InstalledApplicationList command instead of an InstallApplication command.
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			// Hold off on verifying the last install until later so we can ensure it waits for verification
+			if len(installedVPPApps) == len(opts.VppAppsToInstall) {
+				installedVPPApps[len(installedVPPApps)-1].Installed = false
+			}
 			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
 				mdmDevice.UUID,
 				cmd.CommandUUID,
 				installedVPPApps,
 			)
+			// flip the status back for later
+			installedVPPApps[len(installedVPPApps)-1].Installed = true
 			require.NoError(t, err)
 			// TODO: We don't actually normally get a command back from the acknowledgement of the InstalledAppList
 			// but we'll get additional install commands if we follow it up with an idle. Is this a bug? I think it
@@ -2329,63 +2340,124 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 			}
 		}
 		require.Len(t, pendingReleaseJobs, 0)
-	} else {
-		// otherwise the device release job should be enqueued
-		pending, err := s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
-		require.NoError(t, err)
-		for _, job := range pending {
-			if job.Name == "apple_mdm" && strings.Contains(string(*job.Args), string(worker.AppleMDMPostDEPReleaseDeviceTask)) {
-				pendingReleaseJobs = append(pendingReleaseJobs, job)
-			} else if job.Name == "apple_software" {
-				// Just delete the job for now to keep things clean
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `DELETE FROM jobs WHERE id = ?`, job.ID)
-					return err
-				})
-			}
+		return
+	}
+
+	// Automatic release - device release job should be enqueued
+	pending, err := s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
+	pendingVerifyJobs := []*fleet.Job{}
+	require.NoError(t, err)
+	for _, job := range pending {
+		if job.Name == "apple_mdm" && strings.Contains(string(*job.Args), string(worker.AppleMDMPostDEPReleaseDeviceTask)) {
+			pendingReleaseJobs = append(pendingReleaseJobs, job)
 		}
-		require.Len(t, pendingReleaseJobs, 1)
-		require.Equal(t, "apple_mdm", pendingReleaseJobs[0].Name)
-		require.Contains(t, string(*pendingReleaseJobs[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+		if job.Name == "apple_software" {
+			pendingVerifyJobs = append(pendingVerifyJobs, job)
+		}
+	}
+	require.Len(t, pendingReleaseJobs, 1)
+	require.Equal(t, "apple_mdm", pendingReleaseJobs[0].Name)
+	require.Contains(t, string(*pendingReleaseJobs[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
 
-		// make the pending job ready to run immediately and run the job
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pendingReleaseJobs[0].ID)
-			return err
-		})
+	require.Len(t, pendingVerifyJobs, 1)
 
-		s.runWorker()
+	// make the pending jobs ready to run immediately and run the job
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id IN (?, ?)`, time.Now().Add(-1*time.Minute).UTC(), pendingReleaseJobs[0].ID, pendingVerifyJobs[0].ID)
+		return err
+	})
 
-		// make the device process the commands, it should receive the
-		// DeviceConfigured one.
-		cmds = cmds[:0]
-		cmd, err = mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			cmds = append(cmds, &fullCmd)
+	s.runWorker()
+
+	// make the device process the commands, it should receive the VPP Verify.
+	// It should not receive a DeviceConfigured command!
+	cmds = cmds[:0]
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUID()) {
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+			continue
 		}
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
-		require.Len(t, cmds, 1)
-		var deviceConfiguredCount int
-		for _, cmd := range cmds {
-			if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) || strings.HasPrefix(cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
-				refetchVerifyCount++
-				continue
+		if cmd.Command.RequestType == "InstalledApplicationList" {
+			if logCommands {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
 			}
-			switch cmd.Command.RequestType {
-			case "DeviceConfigured":
-				deviceConfiguredCount++
-			default:
-				otherCount++
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
+				mdmDevice.UUID,
+				cmd.CommandUUID,
+				installedVPPApps,
+			)
+			require.NoError(t, err)
+			// See above comment about cmd==nil, just want to make sure we don't get any additional
+			// commands on the acknowledgement
+			if cmd == nil {
+				cmd, err = mdmDevice.Idle()
+				require.NoError(t, err)
 			}
+			continue
 		}
-		require.Equal(t, 1, deviceConfiguredCount)
-		require.Equal(t, 0, otherCount)
+		require.FailNowf(t, "unexpected command", "got command %s of type %s", cmd.CommandUUID, cmd.Command.RequestType)
 	}
+
+	pending, err = s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
+	pendingReleaseJobs = pendingReleaseJobs[:0]
+	pendingVerifyJobs = pendingVerifyJobs[:0]
+	require.NoError(t, err)
+	for _, job := range pending {
+		if job.Name == "apple_mdm" && strings.Contains(string(*job.Args), string(worker.AppleMDMPostDEPReleaseDeviceTask)) {
+			pendingReleaseJobs = append(pendingReleaseJobs, job)
+		}
+		if job.Name == "apple_software" {
+			pendingVerifyJobs = append(pendingVerifyJobs, job)
+		}
+	}
+	require.Len(t, pendingReleaseJobs, 1)
+	require.Equal(t, "apple_mdm", pendingReleaseJobs[0].Name)
+	require.Contains(t, string(*pendingReleaseJobs[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+	require.Len(t, pendingVerifyJobs, 0)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pendingReleaseJobs[0].ID)
+		return err
+	})
+
+	s.runWorker()
+
+	// make the device process the commands, it should receive the
+	// DeviceConfigured one.
+	cmds = cmds[:0]
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	var deviceConfiguredCount int
+	for _, cmd := range cmds {
+		if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) || strings.HasPrefix(cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
+			refetchVerifyCount++
+			continue
+		}
+		switch cmd.Command.RequestType {
+		case "DeviceConfigured":
+			deviceConfiguredCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 1, deviceConfiguredCount)
+	require.Equal(t, 0, otherCount)
 }
 
 // TestSetupExperienceEndpointsPlatformIsolation tests that setting the setup experience software items
