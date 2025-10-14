@@ -164,6 +164,12 @@ describe("formatSoftwareType", () => {
         expected: "IDE extension (Windsurf)",
         description: "Windsurf extensions",
       },
+      {
+        source: "jetbrains_plugins" as const,
+        extension_for: "intellij_idea" as const,
+        expected: "IDE extension (IntelliJ IDEA)",
+        description: "IntelliJ IDEA plugins",
+      },
     ];
 
     testCases.forEach(({ source, extension_for, expected, description }) => {
