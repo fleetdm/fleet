@@ -338,6 +338,7 @@ type IInstallStatusCellProps = {
   onShowInventoryVersions?: (software: IHostSoftware) => void;
   onShowUpdateDetails: (software: IHostSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowIpaInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowScriptDetails: (hostSoftware: IHostSoftware) => void;
   onShowVPPInstallDetails: (s: IVPPHostSoftware) => void;
   onShowUninstallDetails: (details: ISWUninstallDetailsParentState) => void;
@@ -385,6 +386,7 @@ const InstallStatusCell = ({
   onShowInventoryVersions,
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowIpaInstallDetails,
   onShowScriptDetails,
   onShowVPPInstallDetails,
   onShowUninstallDetails,
@@ -439,6 +441,10 @@ const InstallStatusCell = ({
           commandUuid: (lastInstall as IAppLastInstall).command_uuid,
         }),
       });
+    }
+    // TODO: Is this the best way to check for IPA installer?
+    if (software.source === "ios_apps" || software.source === "ipados_apps") {
+      onShowIpaInstallDetails(software);
     } else {
       onShowInstallDetails(software);
     }
