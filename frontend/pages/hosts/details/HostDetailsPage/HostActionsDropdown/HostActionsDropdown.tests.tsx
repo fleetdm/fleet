@@ -190,6 +190,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
           },
@@ -221,6 +222,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
           },
@@ -253,6 +255,7 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isPremiumTier: true,
+            isGlobalAdmin: true,
             currentUser: createMockUser(),
           },
         },
@@ -283,6 +286,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
           },
@@ -311,6 +315,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
           },
@@ -339,6 +344,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
           },
