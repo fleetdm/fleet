@@ -6,6 +6,8 @@ import { SetupExperiencePlatform } from "interfaces/platform";
 
 import LinuxAndWindowsInstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/linux-windows-install-software-preview.mp4";
 import MacInstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/mac-install-software-preview.mp4";
+import IphoneInstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/iphone-install-software-preview.mp4";
+import IpadInstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/ipad-install-software-preview.mp4";
 
 const baseClass = "install-software-preview";
 
@@ -41,7 +43,7 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
         software is installed.
       </p>
     ),
-    videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
+    videoSrc: IphoneInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
   },
   ipados: {
     description: (
@@ -50,7 +52,7 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
         selected software is installed.
       </p>
     ),
-    videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
+    videoSrc: IpadInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
   },
   linux: {
     description: (
