@@ -33,7 +33,7 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	defer func() { newClient = oldClient }()
 	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
 		return &mockClient{rows: []map[string]string{
-			{"pid": "1234", "port": "3001", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
+			{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
 		}}, nil
 	}
 
@@ -121,7 +121,7 @@ func TestGenerate_WithMCPServerInactive(t *testing.T) {
 	defer func() { newClient = oldClient }()
 	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
 		return &mockClient{rows: []map[string]string{
-			{"pid": "5678", "port": "8080", "protocol": "6", "address": "0.0.0.0", "name": "nginx", "cmdline": "nginx"},
+			{"pid": "5678", "port": "8080", "address": "0.0.0.0", "name": "nginx", "cmdline": "nginx"},
 		}}, nil
 	}
 
@@ -152,8 +152,8 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 	defer func() { newClient = oldClient }()
 	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
 		return &mockClient{rows: []map[string]string{
-			{"pid": "1234", "port": "3001", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp1.js"},
-			{"pid": "5678", "port": "3002", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp2.js"},
+			{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp1.js"},
+			{"pid": "5678", "port": "3002", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp2.js"},
 		}}, nil
 	}
 
@@ -210,7 +210,7 @@ func TestGenerate_WithSSEResponse(t *testing.T) {
 	defer func() { newClient = oldClient }()
 	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
 		return &mockClient{rows: []map[string]string{
-			{"pid": "1234", "port": "3001", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
+			{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
 		}}, nil
 	}
 

@@ -12,6 +12,14 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	osqclient "github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
+)
+
+const (
+	// Socket address family constants (as strings for osquery comparison)
+	afUnix  = "1"  // AF_UNIX - Unix domain sockets
+	afInet  = "2"  // AF_INET - IPv4
+	afInet6 = "10" // AF_INET6 - IPv6
 )
 
 // osqClient abstracts the osquery client for ease of testing.
@@ -169,7 +177,6 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn("name"),
 		table.TextColumn("cmdline"),
 		table.TextColumn("port"),
-		table.TextColumn("protocol"),
 		table.TextColumn("address"),
 		table.IntegerColumn("mcp_active"),
 		table.TextColumn("protocol_version"),
@@ -201,7 +208,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 	defer c.Close()
 
 	// Get the running processes with listening ports
-	sql := `SELECT DISTINCT lp.pid, lp.port, lp.protocol, lp.address, p.name, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.protocol IN ('6', '17')`
+	sql := `
+	SELECT DISTINCT lp.pid, lp.port, lp.address, lp.family, p.name, p.cmdline
+	FROM listening_ports lp JOIN processes p ON lp.pid = p.pid
+	`
 
 	rows, err := c.QueryRowsContext(ctx, sql)
 	if err != nil {
@@ -219,6 +229,13 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 		address, ok := row["address"]
 		if !ok {
 			address = "127.0.0.1"
+		}
+
+		// Check family and log a warning if it's not a known address family
+		if family, ok := row["family"]; ok {
+			if family != afUnix && family != afInet && family != afInet6 {
+				log.Warn().Str("family", family).Str("port", port).Str("pid", row["pid"]).Msg("unexpected family value")
+			}
 		}
 
 		// Check if MCP server is active on this port
@@ -243,7 +260,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 			"name":             row["name"],
 			"cmdline":          row["cmdline"],
 			"port":             port,
-			"protocol":         row["protocol"],
 			"address":          address,
 			"mcp_active":       "1",
 			"protocol_version": mcpInfo.ProtocolVersion,
