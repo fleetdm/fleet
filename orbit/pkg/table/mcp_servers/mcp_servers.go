@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/google/uuid"
 	osqclient "github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -49,6 +50,9 @@ type mcpServerInfo struct {
 	HasLogging      bool
 	HasCompletions  bool
 	Instructions    string
+	Tools           []string // List of tool names
+	Prompts         []string // List of prompt names
+	Resources       []string // List of resource URIs
 }
 
 // mcpResponse represents the JSON-RPC response from an MCP server
@@ -73,6 +77,103 @@ type mcpResponse struct {
 	} `json:"result"`
 }
 
+// mcpListResponse represents responses to tools/list, prompts/list, resources/list
+type mcpListResponse struct {
+	JSONRPC string `json:"jsonrpc"`
+	ID      int    `json:"id"`
+	Result  struct {
+		Tools []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
+		Prompts []struct {
+			Name string `json:"name"`
+		} `json:"prompts"`
+		Resources []struct {
+			URI string `json:"uri"`
+		} `json:"resources"`
+	} `json:"result"`
+}
+
+// makeMCPRequest makes an MCP JSON-RPC request and returns the response body and session ID
+func makeMCPRequest(ctx context.Context, url, method, sessionID string, params interface{}) ([]byte, string, error) {
+	reqBody := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  method,
+	}
+	if params != nil {
+		reqBody["params"] = params
+	}
+
+	bodyJSON, err := json.Marshal(reqBody)
+	if err != nil {
+		log.Debug().Err(err).Str("method", method).Msg("failed to marshal MCP request")
+		return nil, "", err
+	}
+
+	log.Debug().Str("url", url).Str("method", method).Str("session_id", sessionID).Str("request", string(bodyJSON)).Msg("sending MCP request")
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		log.Debug().Err(err).Str("method", method).Msg("failed to create HTTP request")
+		return nil, "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json,text/event-stream")
+	if sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", sessionID)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		log.Debug().Err(err).Str("url", url).Str("method", method).Msg("HTTP request failed")
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Debug().Int("status", resp.StatusCode).Str("method", method).Msg("MCP server returned non-2xx status")
+		return nil, "", fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	// Extract session ID from response header
+	responseSessionID := resp.Header.Get("Mcp-Session-Id")
+	if responseSessionID != "" {
+		log.Debug().Str("method", method).Str("session_id", responseSessionID).Msg("received session ID from server")
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Debug().Err(err).Str("method", method).Msg("failed to read response body")
+		return nil, "", err
+	}
+
+	log.Debug().Str("method", method).Str("raw_response", string(bodyBytes)).Msg("received MCP response")
+
+	// Handle SSE format (Server-Sent Events) - responses may contain lines like:
+	// event: message
+	// id: ...
+	// data: {...}
+	jsonData := bodyBytes
+
+	// Check if this looks like SSE format (contains "data: " on a line)
+	if bytes.Contains(bodyBytes, []byte("data: ")) {
+		log.Debug().Str("method", method).Msg("detected SSE format, extracting JSON")
+		// Extract JSON from SSE format
+		lines := bytes.Split(bodyBytes, []byte("\n"))
+		for _, line := range lines {
+			if bytes.HasPrefix(line, []byte("data: ")) {
+				jsonData = bytes.TrimPrefix(line, []byte("data: "))
+				log.Debug().Str("method", method).Str("extracted_json", string(jsonData)).Msg("extracted JSON from SSE")
+				break
+			}
+		}
+	}
+
+	return jsonData, responseSessionID, nil
+}
+
 // checkMCPServer attempts to connect to an MCP server at the given address and port.
 // It returns information about the MCP server if it responds successfully, or nil otherwise.
 func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
@@ -83,68 +184,35 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 	}
 	url := fmt.Sprintf("http://%s:%s/mcp", host, port)
 
-	// MCP initialize request body
+	log.Debug().Str("url", url).Msg("connecting to MCP server")
+
+	// MCP initialize request
 	// 2025-06-18 is the latest version of the MCP protocol as of 2025-10-14
 	// TODO update this to the latest version of the MCP protocol when it is released
-	body := `{
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "initialize",
-		"params": {
-			"protocolVersion": "2025-06-18",
-			"capabilities": {
-				"tools": {},
-				"resources": {},
-				"prompts": {}
-			},
-			"clientInfo": {
-				"name": "fleetd",
-				"version": "1.0.0"
-			}
-		}
-	}`
+	initParams := map[string]interface{}{
+		"protocolVersion": "2025-06-18",
+		"capabilities": map[string]interface{}{
+			"tools":     map[string]interface{}{},
+			"resources": map[string]interface{}{},
+			"prompts":   map[string]interface{}{},
+		},
+		"clientInfo": map[string]interface{}{
+			"name":    "fleetd",
+			"version": "1.0.0",
+		},
+	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBufferString(body))
+	// Send initialize request without a session ID - server will provide one
+	jsonData, sessionID, err := makeMCPRequest(ctx, url, "initialize", "", initParams)
 	if err != nil {
 		return nil
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json,text/event-stream")
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-
-	// Check if we got a successful response (2xx status code)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil
-	}
-
-	// Read and parse the response body
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil
-	}
-
-	// Handle SSE format (Server-Sent Events) - responses may contain lines like:
-	// event: message
-	// id: ...
-	// data: {...}
-	jsonData := bodyBytes
-
-	// Check if this looks like SSE format (contains "data: " on a line)
-	if bytes.Contains(bodyBytes, []byte("data: ")) {
-		// Extract JSON from SSE format
-		lines := bytes.Split(bodyBytes, []byte("\n"))
-		for _, line := range lines {
-			if bytes.HasPrefix(line, []byte("data: ")) {
-				jsonData = bytes.TrimPrefix(line, []byte("data: "))
-				break
-			}
-		}
+	if sessionID == "" {
+		log.Debug().Str("url", url).Msg("server did not provide session ID")
+		// Generate one ourselves if server doesn't provide it
+		sessionID = uuid.New().String()
+		log.Debug().Str("url", url).Str("session_id", sessionID).Msg("generated client-side session ID")
 	}
 
 	var mcpResp mcpResponse
@@ -168,6 +236,58 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 		Instructions:    mcpResp.Result.Instructions,
 	}
 
+	// Fetch lists of tools, prompts, and resources if capabilities are available
+	if info.HasTools {
+		log.Debug().Str("url", url).Str("session_id", sessionID).Msg("fetching tools list")
+		if listData, _, err := makeMCPRequest(ctx, url, "tools/list", sessionID, nil); err == nil {
+			var listResp mcpListResponse
+			if err := json.Unmarshal(listData, &listResp); err == nil {
+				for _, tool := range listResp.Result.Tools {
+					info.Tools = append(info.Tools, tool.Name)
+				}
+				log.Debug().Int("count", len(info.Tools)).Strs("tools", info.Tools).Msg("parsed tools list")
+			} else {
+				log.Debug().Err(err).Str("data", string(listData)).Msg("failed to unmarshal tools/list response")
+			}
+		} else {
+			log.Debug().Err(err).Msg("failed to fetch tools list")
+		}
+	}
+
+	if info.HasPrompts {
+		log.Debug().Str("url", url).Str("session_id", sessionID).Msg("fetching prompts list")
+		if listData, _, err := makeMCPRequest(ctx, url, "prompts/list", sessionID, nil); err == nil {
+			var listResp mcpListResponse
+			if err := json.Unmarshal(listData, &listResp); err == nil {
+				for _, prompt := range listResp.Result.Prompts {
+					info.Prompts = append(info.Prompts, prompt.Name)
+				}
+				log.Debug().Int("count", len(info.Prompts)).Strs("prompts", info.Prompts).Msg("parsed prompts list")
+			} else {
+				log.Debug().Err(err).Str("data", string(listData)).Msg("failed to unmarshal prompts/list response")
+			}
+		} else {
+			log.Debug().Err(err).Msg("failed to fetch prompts list")
+		}
+	}
+
+	if info.HasResources {
+		log.Debug().Str("url", url).Str("session_id", sessionID).Msg("fetching resources list")
+		if listData, _, err := makeMCPRequest(ctx, url, "resources/list", sessionID, nil); err == nil {
+			var listResp mcpListResponse
+			if err := json.Unmarshal(listData, &listResp); err == nil {
+				for _, resource := range listResp.Result.Resources {
+					info.Resources = append(info.Resources, resource.URI)
+				}
+				log.Debug().Int("count", len(info.Resources)).Strs("resources", info.Resources).Msg("parsed resources list")
+			} else {
+				log.Debug().Err(err).Str("data", string(listData)).Msg("failed to unmarshal resources/list response")
+			}
+		} else {
+			log.Debug().Err(err).Msg("failed to fetch resources list")
+		}
+	}
+
 	return info
 }
 
@@ -189,6 +309,9 @@ func Columns() []table.ColumnDefinition {
 		table.IntegerColumn("has_logging"),
 		table.IntegerColumn("has_completions"),
 		table.TextColumn("instructions"),
+		table.TextColumn("tools"),     // JSON array of tool names
+		table.TextColumn("prompts"),   // JSON array of prompt names
+		table.TextColumn("resources"), // JSON array of resource URIs
 	}
 }
 
@@ -246,6 +369,22 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 			continue
 		}
 
+		// Convert lists to JSON
+		toolsJSON, _ := json.Marshal(mcpInfo.Tools)
+		promptsJSON, _ := json.Marshal(mcpInfo.Prompts)
+		resourcesJSON, _ := json.Marshal(mcpInfo.Resources)
+
+		log.Debug().
+			Str("port", port).
+			Str("server_name", mcpInfo.ServerName).
+			Int("tools_count", len(mcpInfo.Tools)).
+			Int("prompts_count", len(mcpInfo.Prompts)).
+			Int("resources_count", len(mcpInfo.Resources)).
+			Str("tools_json", string(toolsJSON)).
+			Str("prompts_json", string(promptsJSON)).
+			Str("resources_json", string(resourcesJSON)).
+			Msg("creating result row for MCP server")
+
 		// Create result row with all required columns
 		result := map[string]string{
 			"pid":              row["pid"],
@@ -263,6 +402,9 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 			"has_logging":      strconv.FormatBool(mcpInfo.HasLogging),
 			"has_completions":  strconv.FormatBool(mcpInfo.HasCompletions),
 			"instructions":     mcpInfo.Instructions,
+			"tools":            string(toolsJSON),
+			"prompts":          string(promptsJSON),
+			"resources":        string(resourcesJSON),
 		}
 		results = append(results, result)
 	}

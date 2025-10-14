@@ -3,6 +3,7 @@ package mcp_servers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
@@ -37,33 +38,65 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 		}}, nil
 	}
 
-	// Mock the HTTP client to return a successful response
+	// Mock the HTTP client to return successful responses
 	oldHTTPClient := httpClient
 	defer func() { httpClient = oldHTTPClient }()
 	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
-	mockResponse := `{
-		"jsonrpc": "2.0",
-		"id": 1,
-		"result": {
-			"protocolVersion": "2025-03-26",
-			"capabilities": {
-				"prompts": {},
-				"resources": {"subscribe": true},
-				"tools": {},
-				"logging": {},
-				"completions": {}
-			},
-			"serverInfo": {
-				"name": "example-servers/everything",
-				"title": "Everything Example Server",
-				"version": "1.0.0"
-			},
-			"instructions": "Testing and demonstration server for MCP protocol features."
-		}
-	}`
+
 	mockClient.Transport = &mockTransport{
-		responseBody: mockResponse,
-		statusCode:   200,
+		responses: map[string]string{
+			"initialize": `{
+				"jsonrpc": "2.0",
+				"id": 1,
+				"result": {
+					"protocolVersion": "2025-03-26",
+					"capabilities": {
+						"prompts": {},
+						"resources": {"subscribe": true},
+						"tools": {},
+						"logging": {},
+						"completions": {}
+					},
+					"serverInfo": {
+						"name": "example-servers/everything",
+						"title": "Everything Example Server",
+						"version": "1.0.0"
+					},
+					"instructions": "Testing and demonstration server for MCP protocol features."
+				}
+			}`,
+			"tools/list": `{
+				"jsonrpc": "2.0",
+				"id": 1,
+				"result": {
+					"tools": [
+						{"name": "get_weather"},
+						{"name": "search_web"}
+					]
+				}
+			}`,
+			"prompts/list": `{
+				"jsonrpc": "2.0",
+				"id": 1,
+				"result": {
+					"prompts": [
+						{"name": "code_review"},
+						{"name": "summarize"}
+					]
+				}
+			}`,
+			"resources/list": `{
+				"jsonrpc": "2.0",
+				"id": 1,
+				"result": {
+					"resources": [
+						{"uri": "file:///data/doc1.txt"},
+						{"uri": "file:///data/doc2.txt"}
+					]
+				}
+			}`,
+		},
+		statusCode: 200,
 	}
 	httpClient = mockClient
 
@@ -109,6 +142,15 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	}
 	if rows[0]["instructions"] != "Testing and demonstration server for MCP protocol features." {
 		t.Fatalf("expected instructions=Testing and demonstration server for MCP protocol features., got %s", rows[0]["instructions"])
+	}
+	if rows[0]["tools"] != `["get_weather","search_web"]` {
+		t.Fatalf("expected tools=[\"get_weather\",\"search_web\"], got %s", rows[0]["tools"])
+	}
+	if rows[0]["prompts"] != `["code_review","summarize"]` {
+		t.Fatalf("expected prompts=[\"code_review\",\"summarize\"], got %s", rows[0]["prompts"])
+	}
+	if rows[0]["resources"] != `["file:///data/doc1.txt","file:///data/doc2.txt"]` {
+		t.Fatalf("expected resources=[\"file:///data/doc1.txt\",\"file:///data/doc2.txt\"], got %s", rows[0]["resources"])
 	}
 }
 
@@ -158,29 +200,34 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 	oldHTTPClient := httpClient
 	defer func() { httpClient = oldHTTPClient }()
 	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
-	mockResponse := `{
-		"jsonrpc": "2.0",
-		"id": 1,
-		"result": {
-			"protocolVersion": "2025-03-26",
-			"capabilities": {
-				"prompts": {},
-				"resources": {"subscribe": true},
-				"tools": {},
-				"logging": {},
-				"completions": {}
-			},
-			"serverInfo": {
-				"name": "example-servers/everything",
-				"title": "Everything Example Server",
-				"version": "1.0.0"
-			},
-			"instructions": "Testing and demonstration server for MCP protocol features."
-		}
-	}`
+
 	mockClient.Transport = &mockTransport{
-		responseBody: mockResponse,
-		statusCode:   200,
+		responses: map[string]string{
+			"initialize": `{
+				"jsonrpc": "2.0",
+				"id": 1,
+				"result": {
+					"protocolVersion": "2025-03-26",
+					"capabilities": {
+						"prompts": {},
+						"resources": {"subscribe": true},
+						"tools": {},
+						"logging": {},
+						"completions": {}
+					},
+					"serverInfo": {
+						"name": "example-servers/everything",
+						"title": "Everything Example Server",
+						"version": "1.0.0"
+					},
+					"instructions": "Testing and demonstration server for MCP protocol features."
+				}
+			}`,
+			"tools/list":     `{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}`,
+			"prompts/list":   `{"jsonrpc":"2.0","id":1,"result":{"prompts":[]}}`,
+			"resources/list": `{"jsonrpc":"2.0","id":1,"result":{"resources":[]}}`,
+		},
+		statusCode: 200,
 	}
 	httpClient = mockClient
 
@@ -205,18 +252,23 @@ func TestGenerate_WithSSEResponse(t *testing.T) {
 		}}, nil
 	}
 
-	// Mock the HTTP client to return an SSE-formatted response
+	// Mock the HTTP client to return SSE-formatted responses
 	oldHTTPClient := httpClient
 	defer func() { httpClient = oldHTTPClient }()
 	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+
 	// Full SSE format with event, id, and data lines
-	sseResponse := `event: message
+	mockClient.Transport = &mockTransport{
+		responses: map[string]string{
+			"initialize": `event: message
 id: 4b74868e-307e-416c-951d-6f305856cb43_1760466849580_vmzdy66v
 data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"resources":{"subscribe":true},"tools":{},"logging":{},"completions":{}},"serverInfo":{"name":"example-servers/everything","title":"Everything Example Server","version":"1.0.0"},"instructions":"Testing and demonstration server for MCP protocol features."},"jsonrpc":"2.0","id":1}
-`
-	mockClient.Transport = &mockTransport{
-		responseBody: sseResponse,
-		statusCode:   200,
+`,
+			"tools/list":     `{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"test_tool"}]}}`,
+			"prompts/list":   `{"jsonrpc":"2.0","id":1,"result":{"prompts":[{"name":"test_prompt"}]}}`,
+			"resources/list": `{"jsonrpc":"2.0","id":1,"result":{"resources":[{"uri":"test://resource"}]}}`,
+		},
+		statusCode: 200,
 	}
 	httpClient = mockClient
 
@@ -238,19 +290,31 @@ data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"re
 	}
 }
 
-// mockTransport is a simple HTTP transport that returns a fixed response or error
+// mockTransport is an HTTP transport that returns different responses based on the MCP method
 type mockTransport struct {
-	responseBody string
-	statusCode   int
-	err          error
+	responses  map[string]string // method -> response
+	statusCode int
+	err        error
 }
 
 func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
+
+	// Parse the request to determine which method is being called
+	var reqBody map[string]interface{}
+	bodyBytes, _ := io.ReadAll(req.Body)
+	_ = json.Unmarshal(bodyBytes, &reqBody)
+
+	method, _ := reqBody["method"].(string)
+	responseBody := m.responses[method]
+	if responseBody == "" {
+		responseBody = `{"jsonrpc":"2.0","id":1,"result":{}}`
+	}
+
 	return &http.Response{
 		StatusCode: m.statusCode,
-		Body:       io.NopCloser(bytes.NewBufferString(m.responseBody)),
+		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
 	}, nil
 }
