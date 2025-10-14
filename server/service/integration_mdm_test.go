@@ -1326,6 +1326,19 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 
 	// valid token downloads the profile
 	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+
+	// set end user auth enabled
+	appConfig, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup.EnableEndUserAuthentication = true
+
+	err = s.ds.SaveAppConfig(t.Context(), appConfig)
+	require.NoError(t, err)
+
+	// fails since team has end user auth enabled
+	res := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusBadRequest)
+	errText := extractServerErrorText(res.Body)
+	require.Contains(t, errText, "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work.")
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -9930,6 +9943,14 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	t := s.T()
 	ctx := context.Background()
 
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup = fleet.MacOSSetup{
+		EnableEndUserAuthentication: false,
+	}
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
 	// Create a host and a couple of profiles
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
@@ -14731,6 +14752,14 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 	digiCertServer := createMockDigiCertServer(t)
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup = fleet.MacOSSetup{
+		EnableEndUserAuthentication: false,
+	}
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
 
 	// Add DigiCert config
 	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")
