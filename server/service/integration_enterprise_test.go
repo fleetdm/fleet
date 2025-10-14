@@ -20473,7 +20473,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 					"install_script_output": "ok"
 				}`,
 			*ubuntuHost.OrbitNodeKey,
-			executionIDs["vim"],
+			executionIDs["test.tar.gz"],
 		),
 	), http.StatusNoContent)
 
@@ -20489,9 +20489,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
 	})
 	require.Equal(t, "test.tar.gz", orbitRes.Results.Software[0].Name)
-	require.EqualValues(t, "running", orbitRes.Results.Software[0].Status)
+	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
 	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
-	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+	require.EqualValues(t, "running", orbitRes.Results.Software[1].Status)
 
 	// Record a result for test.tar.gz.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -20502,7 +20502,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 					"install_script_output": "ok"
 				}`,
 			*ubuntuHost.OrbitNodeKey,
-			executionIDs["test.tar.gz"],
+			executionIDs["vim"],
 		),
 	), http.StatusNoContent)
 
