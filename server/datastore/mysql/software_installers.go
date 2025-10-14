@@ -768,7 +768,7 @@ WHERE
 	}
 
 	var dest fleet.SoftwareInstaller
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &dest, query, titleID, tmID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, titleID, tmID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "get software installer metadata")
@@ -841,7 +841,7 @@ WHERE
 	software_installer_id = ?`
 
 	var labels []fleet.SoftwareScopeLabel
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &labels, query, installerID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, installerID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
 	}
 

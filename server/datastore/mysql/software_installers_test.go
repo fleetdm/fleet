@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
@@ -3218,6 +3219,7 @@ func testSoftwareInstallerReplicaLag(t *testing.T, _ *Datastore) {
 	require.NotZero(t, installerID)
 	require.NotZero(t, titleID)
 	// opts.RunReplication() // - replication should not be needed after fix
+	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	// then validate it GetSoftwareInstallerMetadataByTeamAndTitleID()
 	gotInstaller, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
