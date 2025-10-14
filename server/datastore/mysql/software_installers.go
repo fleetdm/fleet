@@ -199,7 +199,6 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 
 	// Insert in house app instead of software installer
 	if payload.Extension == "ipa" {
-		fmt.Println("hmmm")
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
 			Name:            payload.Title,

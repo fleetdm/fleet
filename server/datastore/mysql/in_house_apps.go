@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -10,8 +9,6 @@ import (
 )
 
 func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
-	fmt.Println("here")
-
 	stmt := `
 	INSERT INTO in_house_apps (
 		team_id,
@@ -43,8 +40,6 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 	}
-
-	fmt.Printf("created title for payload.Name: %v\n", payload.Name)
 
 	var installerID uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
