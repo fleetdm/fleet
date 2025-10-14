@@ -432,7 +432,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	if !isMacOS(args.Platform) {
 		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP reelease")
+			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP release")
 		}
 		for _, status := range setupExperienceStatuses {
 			if status.Status == fleet.SetupExperienceStatusPending || status.Status == fleet.SetupExperienceStatusRunning {
