@@ -45,6 +45,7 @@ func TestSoftware(t *testing.T) {
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
 		{"SyncHostsSoftware", testSoftwareSyncHostsSoftware},
+		{"LoadHostsPopulateSoftware", testLoadHostSoftwarePopulateSoftwareInstalledPath},
 		{"DeleteSoftwareVulnerabilities", testDeleteSoftwareVulnerabilities},
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
@@ -1260,6 +1261,41 @@ func softwareChecksumComputedColumn(tableAlias string, source string) string {
 		)
 	) `, nameCol, tableAlias,
 	)
+}
+
+func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithComputerName("computer1"))
+
+	software := []fleet.Software{
+		{
+			Name:    "banana",
+			Version: "0.0.1",
+			Source:  "apps",
+		},
+	}
+
+	mutation, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	installpaths := []fleet.HostSoftwareInstalledPath{
+		{
+			HostID:           host.ID,
+			SoftwareID:       mutation.Inserted[0].ID,
+			InstalledPath:    "/the/path",
+			ExecutableSHA256: ptr.String("frog"),
+		},
+	}
+
+	err = insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), installpaths)
+	require.NoError(t, err)
+
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+
+	require.Equal(t, "/the/path", host.Software[0].PathSignatureInformation[0].InstalledPath)
+	require.Equal(t, "frog", *host.Software[0].PathSignatureInformation[0].HashSha256)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
