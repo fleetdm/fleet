@@ -3208,7 +3208,14 @@ Returns the information of the specified host.
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
         "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-2"]
+        "installed_paths": ["/usr/lib/some-path-2"],
+        "signature_information": [
+          {
+            "installed_path": "/usr/lib/some-path-2",
+            "team_identifier": "EQHXZ8M8AV",
+            "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b"
+          }
+        ]
       }
     ],
     "mdm": {
