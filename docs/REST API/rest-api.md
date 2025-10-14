@@ -1,4 +1,4 @@
-Z# REST API
+# REST API
 
 - [Authentication](#authentication)
 - [Activities](#activities)
