@@ -98,7 +98,7 @@ labels:
 
 ```yaml
 labels:
-  path: ./lib/labels-name.labels.yml
+  - path: ./lib/labels-name.labels.yml
 ```
 
 
