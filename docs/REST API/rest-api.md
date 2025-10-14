@@ -3753,7 +3753,7 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 
 ##### Request header
 
-```json
+```http
 TODO
 ```
 
