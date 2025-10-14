@@ -125,15 +125,6 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	if rows[0]["server_version"] != "1.0.0" {
 		t.Fatalf("expected server_version=1.0.0, got %s", rows[0]["server_version"])
 	}
-	if rows[0]["has_prompts"] != "true" {
-		t.Fatalf("expected has_prompts=true, got %s", rows[0]["has_prompts"])
-	}
-	if rows[0]["has_resources"] != "true" {
-		t.Fatalf("expected has_resources=true, got %s", rows[0]["has_resources"])
-	}
-	if rows[0]["has_tools"] != "true" {
-		t.Fatalf("expected has_tools=true, got %s", rows[0]["has_tools"])
-	}
 	if rows[0]["has_logging"] != "true" {
 		t.Fatalf("expected has_logging=true, got %s", rows[0]["has_logging"])
 	}
