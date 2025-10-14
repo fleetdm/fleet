@@ -3,8 +3,6 @@ package mcp_servers
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	osqclient "github.com/osquery/osquery-go"
@@ -46,79 +44,13 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 	}
 	defer c.Close()
 
-	sql, singleRow, err := buildSQL(queryContext)
-	if err != nil {
-		return nil, err
-	}
-
-	if singleRow {
-		row, err := c.QueryRowContext(ctx, sql)
-		if err != nil {
-			return nil, err
-		}
-		if row == nil {
-			return nil, nil
-		}
-		return []map[string]string{row}, nil
-	}
+	// First get the running processes with listening ports
+	sql := `SELECT DISTINCT lp.pid, lp.port, lp.protocol, lp.family, lp.address, lp.path, p.name, p.path, p.cmdline from listening_ports lp CROSS JOIN processes p USING (pid)`
 
 	rows, err := c.QueryRowsContext(ctx, sql)
 	if err != nil {
 		return nil, err
 	}
+
 	return rows, nil
-}
-
-// buildSQL constructs the SQL query string for the processes table based on
-// constraints in the query context. It returns the SQL string and whether the
-// query is constrained to a single pid (singleRow=true).
-func buildSQL(queryContext table.QueryContext) (string, bool, error) {
-	var whereClauses []string
-	singleRow := false
-
-	// Handle pid equality constraint for single-row optimization.
-	if cons, ok := queryContext.Constraints["pid"]; ok {
-		for _, c := range cons.Constraints {
-			if c.Operator == table.OperatorEquals {
-				// Accept only valid integers for pid to avoid SQL injection.
-				if _, err := strconv.ParseInt(c.Expression, 10, 64); err != nil {
-					continue
-				}
-				whereClauses = append(whereClauses, "pid = "+c.Expression)
-				singleRow = true
-				break
-			}
-		}
-	}
-
-	// Handle name LIKE constraint(s).
-	if cons, ok := queryContext.Constraints["name"]; ok {
-		var likes []string
-		for _, c := range cons.Constraints {
-			if c.Operator == table.OperatorLike || c.Operator == table.OperatorEquals {
-				pattern := escapeSQLString(c.Expression)
-				likes = append(likes, "name LIKE '"+pattern+"'")
-			}
-		}
-		if len(likes) > 0 {
-			// Combine multiple LIKEs with OR, and group them.
-			whereClauses = append(whereClauses, "("+strings.Join(likes, " OR ")+")")
-			// If singleRow wasn't already true due to pid, keep as is. Name LIKE may match multiple.
-		}
-	}
-
-	// Build final SQL.
-	base := "SELECT pid, name, cmdline FROM processes"
-	if len(whereClauses) > 0 {
-		base += " WHERE " + strings.Join(whereClauses, " AND ")
-	} else {
-		// Defensive cap to avoid extremely large responses when unconstrained.
-		base += " LIMIT 5000"
-	}
-	return base, singleRow, nil
-}
-
-// escapeSQLString escapes single quotes for inclusion in a single-quoted SQL literal.
-func escapeSQLString(in string) string {
-	return strings.ReplaceAll(in, "'", "''")
 }
