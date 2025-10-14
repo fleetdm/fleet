@@ -136,21 +136,6 @@ WHERE
 	return &dest, nil
 }
 
-func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "remove pending in house app installs")
-		}
-		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete in house app")
-		}
-		return err
-	})
-	return err
-}
-
 func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `UPDATE in_house_apps SET
@@ -191,6 +176,21 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 	}
 
 	return nil
+}
+
+func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "remove pending in house app installs")
+		}
+		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete in house app")
+		}
+		return err
+	})
+	return err
 }
 
 func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {

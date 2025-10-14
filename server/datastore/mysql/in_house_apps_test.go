@@ -2,11 +2,12 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
-	"github.com/tj/assert"
 )
 
 func TestInHouseApps(t *testing.T) {
@@ -55,7 +56,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	installer, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.NoError(t, err)
 	require.Equal(t, payload.Title, installer.SoftwareTitle)
-	assert.Equal(t, payload.Version, installer.Version)
+	require.Equal(t, payload.Version, installer.Version)
 
 	// Update software installer
 	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-1", Query: "select 1"})
@@ -82,7 +83,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// ds.RemovePendingInHouseAppInstalls()
-	// dont test pending/failed/installed for now
+	// TODO: add tests for this
 
 	// Installer updates correctly
 	var expectedLabels []fleet.SoftwareScopeLabel
@@ -94,16 +95,30 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedLabels, newInstaller.LabelsIncludeAny)
 
 	// Summary returns expected pending/failed/installed numbers
-	// Don't test for now
+	// TODO: add tests for this
 	_, err = ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
 	require.NoError(t, err)
 
 	// Delete software installer
-	// appropriate records get deleted from:
-	//
-	// 1. in_house_apps
-	// 2. in_house_app_labels
-	// 3. host_in_house_software_installs
-	// 4. in_house_app_upcoming_activities
-	// 5. upcoming_activities
+	err = ds.DeleteInHouseApp(ctx, installerID)
+	require.NoError(t, err)
+
+	_, err = ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.Error(t, err)
+	status, err := ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
+	require.Zero(t, *status)
+
+	// Check that entire tables are empty for this test
+	checkEmpty := func(table string) {
+		var count int
+		err := sqlx.GetContext(ctx, ds.reader(ctx), &count, fmt.Sprintf(`SELECT COUNT(*) FROM %s`, table))
+		require.NoError(t, err)
+		require.Zero(t, count, "expected %s to be empty", table)
+	}
+
+	checkEmpty("in_house_apps")
+	checkEmpty("in_house_app_labels")
+	checkEmpty("host_in_house_software_installs")
+	checkEmpty("in_house_app_upcoming_activities")
+	checkEmpty("upcoming_activities")
 }
