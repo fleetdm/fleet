@@ -50,15 +50,9 @@ type mcpPrompt struct {
 	Description string `json:"description,omitempty"`
 }
 
-// mcpResource represents a resource with its metadata (for internal use)
+// mcpResource represents a resource with its metadata
 type mcpResource struct {
 	URI         string `json:"uri"`
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-}
-
-// mcpResourceOutput represents a resource for output (name and description only)
-type mcpResourceOutput struct {
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
 }
@@ -373,16 +367,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 		// Convert lists to JSON
 		toolsJSON, _ := json.Marshal(mcpInfo.Tools)
 		promptsJSON, _ := json.Marshal(mcpInfo.Prompts)
-
-		// Convert resources to output format (name and description only, no URI)
-		resourcesOutput := make([]mcpResourceOutput, len(mcpInfo.Resources))
-		for i, res := range mcpInfo.Resources {
-			resourcesOutput[i] = mcpResourceOutput{
-				Name:        res.Name,
-				Description: res.Description,
-			}
-		}
-		resourcesJSON, _ := json.Marshal(resourcesOutput)
+		resourcesJSON, _ := json.Marshal(mcpInfo.Resources)
 
 		// Create result row with all required columns
 		result := map[string]string{

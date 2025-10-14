@@ -149,8 +149,8 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	if rows[0]["prompts"] != `[{"name":"code_review","description":"Review code for quality"},{"name":"summarize","description":"Summarize content"}]` {
 		t.Fatalf("expected prompts with descriptions, got %s", rows[0]["prompts"])
 	}
-	if rows[0]["resources"] != `[{"name":"Document 1","description":"First document"},{"name":"Document 2","description":"Second document"}]` {
-		t.Fatalf("expected resources with name and description (no URI), got %s", rows[0]["resources"])
+	if rows[0]["resources"] != `[{"uri":"file:///data/doc1.txt","name":"Document 1","description":"First document"},{"uri":"file:///data/doc2.txt","name":"Document 2","description":"Second document"}]` {
+		t.Fatalf("expected resources with uri, name, and description, got %s", rows[0]["resources"])
 	}
 }
 
