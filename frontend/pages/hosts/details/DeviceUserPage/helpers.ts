@@ -26,9 +26,9 @@ export const getFailedSoftwareInstall = (
     return null;
   }
 
-  const failedSoftware =
-    statuses.filter((s) => s.type === "software" && s.status === "failure") ||
-    [];
+  const failedSoftware = statuses.filter(
+    (s) => s.type === "software" && s.status === "failure"
+  );
   if (failedSoftware.length === 0) {
     return null;
   }
