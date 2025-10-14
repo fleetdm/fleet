@@ -64,6 +64,8 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 
 	MutateSoftwareOnIngestion(noMatch, log.NewNopLogger())
 	assert.Equal(t, "2024.0 (r8004)", noMatch.Version)
+
+	// TODO #34159
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
