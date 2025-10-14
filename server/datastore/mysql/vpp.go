@@ -1037,7 +1037,7 @@ VALUES
 			)
 		)`
 
-		insertVAUAStmt = `
+		insertIHAUAStmt = `
 INSERT INTO in_house_app_upcoming_activities
 		(upcoming_activity_id, in_house_app_id)
 VALUES
@@ -1076,7 +1076,7 @@ VALUES
 		}
 
 		activityID, _ := res.LastInsertId()
-		_, err = tx.ExecContext(ctx, insertVAUAStmt,
+		_, err = tx.ExecContext(ctx, insertIHAUAStmt,
 			activityID,
 			inHouseAppID,
 		)
