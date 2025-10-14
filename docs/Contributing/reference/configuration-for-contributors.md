@@ -209,20 +209,6 @@ Key that allows the Fleet server to communicate to the Microsoft compliance part
     proxy_api_key: foobar
   ```
 
-### mdm.enable_custom_os_updates_and_filevault
-
-> Experimental feature. This feature will be removed when Fleet adds the ability to add custom OS update and FileVault profiles via Fleet's UI, API, and YAML.
-
-If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles.
-
-- Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
-- Config file format:
-  ```yaml
-  mdm:
-    enable_custom_os_updates_and_filevault: true
-  ```
-
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
 Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error). `fleetd` agents will always report vital errors to Fleet.
