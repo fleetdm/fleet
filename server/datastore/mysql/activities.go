@@ -1842,7 +1842,32 @@ ORDER BY
 		tid = *hostData.TeamID
 	}
 
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, 836, tid)
+	// Get the title ID for the in-house app being installed
+	var titleID uint
+	getTitleIDStmt := `
+SELECT
+		iha.title_id
+FROM
+		upcoming_activities ua
+		INNER JOIN in_house_app_upcoming_activities ihua
+			ON ihua.upcoming_activity_id = ua.id
+		INNER JOIN in_house_apps iha
+			ON iha.id = ihua.in_house_app_id
+WHERE
+		ua.host_id = ? AND
+		ua.execution_id IN (?)
+`
+
+	stmt, args, err = sqlx.In(getTitleIDStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare get in-house app title id")
+	}
+
+	if err := sqlx.GetContext(ctx, tx, &titleID, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get in-house app title id")
+	}
+
+	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
 	// insert the nano command
 	namedArgs := map[string]any{

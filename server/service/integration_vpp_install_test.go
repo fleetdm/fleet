@@ -1304,22 +1304,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	})
 	require.NotEmpty(t, installCmdUUID)
 
-	// TODO(JVE): installation should show up in upcoming activity feed
-	// get upcoming activity
-	// var listUpcomingAct listHostUpcomingActivitiesResponse
-	// s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listUpcomingAct)
-	// require.Len(t, listUpcomingAct.Activities, 1)
-	// require.Nil(t, listUpcomingAct.Activities[0].ActorID)
-	// require.False(t, listUpcomingAct.Activities[0].FleetInitiated)
-
-	// var details fleet.ActivityTypeInstalledSoftware
-	// err := json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
-	// require.NoError(t, err)
-	// require.Equal(t, iosHost.ID, details.HostID)
-	// require.Equal(t, details.SoftwareTitle, resp.SoftwareTitles[0].Name)
-	// require.True(t, details.SelfService)
-	// require.EqualValues(t, fleet.SoftwareInstallPending, details.Status)
-	// installID := details.InstallUUID
+	// TODO(JVE): check upcoming activity feed for installation
 
 	// Process the InstallApplication command
 	s.runWorker()
@@ -1332,6 +1317,10 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
+
+			// Points at the expected manifest URL
+			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, resp.SoftwareTitles[0].ID, 0)
+			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
