@@ -3,6 +3,7 @@ package tables
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,18 +19,18 @@ func TestUp_20251013172310(t *testing.T) {
 	applyNext(t, db)
 
 	type diskSpace struct {
-		HostID           uint    `db:"host_id"`
-		GigsAllDiskSpace float64 `db:"gigs_all_disk_space"`
+		HostID           uint     `db:"host_id"`
+		GigsAllDiskSpace *float64 `db:"gigs_all_disk_space"`
 	}
 
 	var ds diskSpace
 	err = db.Get(&ds, `SELECT host_id, gigs_all_disk_space from host_disks where host_id = 1`)
 	require.NoError(t, err)
-	assert.Equal(t, nil, ds.GigsAllDiskSpace)
+	assert.Nil(t, ds.GigsAllDiskSpace)
 
 	_, err = db.Exec(`INSERT INTO host_disks (host_id, gigs_all_disk_space) VALUES (2, 1.5)`)
 	require.NoError(t, err)
 	err = db.Get(&ds, `SELECT host_id, gigs_all_disk_space from host_disks where host_id = 2`)
 	require.NoError(t, err)
-	assert.Equal(t, 1.5, ds.GigsAllDiskSpace)
+	assert.Equal(t, ptr.Float64(1.5), ds.GigsAllDiskSpace)
 }
