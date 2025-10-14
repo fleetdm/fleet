@@ -213,7 +213,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Show disk encryption key")
+        screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
     });
 
@@ -244,7 +244,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Show disk encryption key")
+        screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
     });
 
@@ -275,7 +275,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Show disk encryption key")
+        screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
     });
 
