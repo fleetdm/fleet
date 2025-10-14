@@ -561,6 +561,16 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.poly.lens.legacyhost.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lens"],
+      "vendor": ["poly"]
+    }
+  },
+  {
+    "software": {
       "name": ["Microsoft Edge"],
       "source": ["programs", "apps"]
     },

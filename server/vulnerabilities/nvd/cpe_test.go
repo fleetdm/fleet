@@ -526,15 +526,14 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:oracle:sql_developer:24.3.1:*:*:*:*:macos:*:*",
 		},
-		// This would work with a CPE translations JSON mapping, but we can't currently map a blank version
-		/*{
+		{
 			software: fleet.Software{
 				Name:             "Poly Lens Desktop",
 				BundleIdentifier: "com.poly.lens.legacyhost.app",
 				Source:           "apps",
 			},
-			cpe: "cpe:2.3:a:poly:lens:-:*:*:*:*:*:*:*",
-		},*/
+			cpe: "cpe:2.3:a:poly:lens:*:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "BlueStacksMIN",
