@@ -1209,13 +1209,15 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 
 	if mobileAppleDevice {
 		iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
 		}
 
-		// TODO(JVE): might need to pull this out into a helper and include activity pieces
-		err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
-		return ctxerr.Wrap(ctx, err, "insert in house app install")
+		if iha != nil {
+			// TODO(JVE): might need to pull this out into a helper and include activity pieces
+			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
+			return ctxerr.Wrap(ctx, err, "insert in house app install")
+		}
 
 	}
 
