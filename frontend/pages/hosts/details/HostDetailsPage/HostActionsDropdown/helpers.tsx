@@ -256,9 +256,17 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    doesStoreEncryptionKey,
+    hostPlatform,
+  } = config;
   return (
-    !isMobilePlatform(hostPlatform) && isPremiumTier && doesStoreEncryptionKey
+    !isMobilePlatform(hostPlatform) &&
+    isPremiumTier &&
+    isConnectedToFleetMdm &&
+    doesStoreEncryptionKey
   );
 };
 

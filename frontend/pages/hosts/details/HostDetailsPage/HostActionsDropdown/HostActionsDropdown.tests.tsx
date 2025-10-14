@@ -185,7 +185,7 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  it("renders the Show Disk Encryption Key action when on premium tier and we store the disk encryption key", async () => {
+  it("hides the Show Disk Encryption Key action when key is stored but device is not connected to Fleet MDM", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -204,6 +204,36 @@ describe("Host Actions Dropdown", () => {
         doesStoreEncryptionKey
         hostMdmDeviceStatus="unlocked"
         hostScriptsEnabled
+      />
+    );
+
+    await user.click(screen.getByText("Actions"));
+
+    expect(
+      screen.getByText("Show disk encryption key")
+    ).not.toBeInTheDocument();
+  });
+
+  it("includes the Show Disk Encryption Key action when key is stored and device is connected to Fleet MDM", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <HostActionsDropdown
+        hostTeamId={null}
+        onSelect={noop}
+        hostStatus="online"
+        hostMdmEnrollmentStatus={null}
+        doesStoreEncryptionKey
+        hostMdmDeviceStatus="unlocked"
+        hostScriptsEnabled
+        isConnectedToFleetMdm
       />
     );
 
