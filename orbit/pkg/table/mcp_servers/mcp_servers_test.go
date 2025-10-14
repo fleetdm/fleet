@@ -41,11 +41,29 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	oldHTTPClient := httpClient
 	defer func() { httpClient = oldHTTPClient }()
 	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+	mockResponse := `{
+		"jsonrpc": "2.0",
+		"id": 1,
+		"result": {
+			"protocolVersion": "2025-03-26",
+			"capabilities": {
+				"prompts": {},
+				"resources": {"subscribe": true},
+				"tools": {},
+				"logging": {},
+				"completions": {}
+			},
+			"serverInfo": {
+				"name": "example-servers/everything",
+				"title": "Everything Example Server",
+				"version": "1.0.0"
+			},
+			"instructions": "Testing and demonstration server for MCP protocol features."
+		}
+	}`
 	mockClient.Transport = &mockTransport{
-		response: &http.Response{
-			StatusCode: 200,
-			Body:       io.NopCloser(bytes.NewBufferString(`{"jsonrpc":"2.0","id":1,"result":{}}`)),
-		},
+		responseBody: mockResponse,
+		statusCode:   200,
 	}
 	httpClient = mockClient
 
@@ -64,6 +82,36 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	}
 	if rows[0]["port"] != "3001" {
 		t.Fatalf("expected port=3001, got %s", rows[0]["port"])
+	}
+	if rows[0]["protocol_version"] != "2025-03-26" {
+		t.Fatalf("expected protocol_version=2025-03-26, got %s", rows[0]["protocol_version"])
+	}
+	if rows[0]["server_name"] != "example-servers/everything" {
+		t.Fatalf("expected server_name=example-servers/everything, got %s", rows[0]["server_name"])
+	}
+	if rows[0]["server_title"] != "Everything Example Server" {
+		t.Fatalf("expected server_title=Everything Example Server, got %s", rows[0]["server_title"])
+	}
+	if rows[0]["server_version"] != "1.0.0" {
+		t.Fatalf("expected server_version=1.0.0, got %s", rows[0]["server_version"])
+	}
+	if rows[0]["has_prompts"] != "1" {
+		t.Fatalf("expected has_prompts=1, got %s", rows[0]["has_prompts"])
+	}
+	if rows[0]["has_resources"] != "1" {
+		t.Fatalf("expected has_resources=1, got %s", rows[0]["has_resources"])
+	}
+	if rows[0]["has_tools"] != "1" {
+		t.Fatalf("expected has_tools=1, got %s", rows[0]["has_tools"])
+	}
+	if rows[0]["has_logging"] != "1" {
+		t.Fatalf("expected has_logging=1, got %s", rows[0]["has_logging"])
+	}
+	if rows[0]["has_completions"] != "1" {
+		t.Fatalf("expected has_completions=1, got %s", rows[0]["has_completions"])
+	}
+	if rows[0]["instructions"] != "Testing and demonstration server for MCP protocol features." {
+		t.Fatalf("expected instructions=Testing and demonstration server for MCP protocol features., got %s", rows[0]["instructions"])
 	}
 }
 
@@ -113,11 +161,29 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 	oldHTTPClient := httpClient
 	defer func() { httpClient = oldHTTPClient }()
 	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+	mockResponse := `{
+		"jsonrpc": "2.0",
+		"id": 1,
+		"result": {
+			"protocolVersion": "2025-03-26",
+			"capabilities": {
+				"prompts": {},
+				"resources": {"subscribe": true},
+				"tools": {},
+				"logging": {},
+				"completions": {}
+			},
+			"serverInfo": {
+				"name": "example-servers/everything",
+				"title": "Everything Example Server",
+				"version": "1.0.0"
+			},
+			"instructions": "Testing and demonstration server for MCP protocol features."
+		}
+	}`
 	mockClient.Transport = &mockTransport{
-		response: &http.Response{
-			StatusCode: 200,
-			Body:       io.NopCloser(bytes.NewBufferString(`{"jsonrpc":"2.0","id":1,"result":{}}`)),
-		},
+		responseBody: mockResponse,
+		statusCode:   200,
 	}
 	httpClient = mockClient
 
@@ -138,15 +204,65 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 	}
 }
 
+func TestGenerate_WithSSEResponse(t *testing.T) {
+	// Mock the osquery client
+	oldClient := newClient
+	defer func() { newClient = oldClient }()
+	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
+		return &mockClient{rows: []map[string]string{
+			{"pid": "1234", "port": "3001", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
+		}}, nil
+	}
+
+	// Mock the HTTP client to return an SSE-formatted response
+	oldHTTPClient := httpClient
+	defer func() { httpClient = oldHTTPClient }()
+	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+	// Full SSE format with event, id, and data lines
+	sseResponse := `event: message
+id: 4b74868e-307e-416c-951d-6f305856cb43_1760466849580_vmzdy66v
+data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"resources":{"subscribe":true},"tools":{},"logging":{},"completions":{}},"serverInfo":{"name":"example-servers/everything","title":"Everything Example Server","version":"1.0.0"},"instructions":"Testing and demonstration server for MCP protocol features."},"jsonrpc":"2.0","id":1}
+`
+	mockClient.Transport = &mockTransport{
+		responseBody: sseResponse,
+		statusCode:   200,
+	}
+	httpClient = mockClient
+
+	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
+
+	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(rows))
+	}
+
+	if rows[0]["mcp_active"] != "1" {
+		t.Fatalf("expected mcp_active=1, got %s", rows[0]["mcp_active"])
+	}
+	if rows[0]["protocol_version"] != "2025-03-26" {
+		t.Fatalf("expected protocol_version=2025-03-26, got %s", rows[0]["protocol_version"])
+	}
+	if rows[0]["server_name"] != "example-servers/everything" {
+		t.Fatalf("expected server_name=example-servers/everything, got %s", rows[0]["server_name"])
+	}
+}
+
 // mockTransport is a simple HTTP transport that returns a fixed response or error
 type mockTransport struct {
-	response *http.Response
-	err      error
+	responseBody string
+	statusCode   int
+	err          error
 }
 
 func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.response, nil
+	return &http.Response{
+		StatusCode: m.statusCode,
+		Body:       io.NopCloser(bytes.NewBufferString(m.responseBody)),
+	}, nil
 }
