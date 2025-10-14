@@ -661,6 +661,7 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -713,6 +714,7 @@ func newWorkerIntegrationsSchedule(
 		Log:                   logger,
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
 	}
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,

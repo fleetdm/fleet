@@ -1756,6 +1756,7 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
 			InstalledPath:  ip.InstalledPath,
 			TeamIdentifier: ip.TeamIdentifier,
+			HashSha256:     ip.ExecutableSHA256,
 		})
 	}
 

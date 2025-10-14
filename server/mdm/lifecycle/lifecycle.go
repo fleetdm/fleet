@@ -228,7 +228,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
-			!opts.HasSetupExperienceItems,
+			!opts.HasSetupExperienceItems || opts.Platform != "darwin",
 		)
 		return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
 	}

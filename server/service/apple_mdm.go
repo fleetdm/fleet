@@ -3482,9 +3482,10 @@ type MDMAppleCheckinAndCommandService struct {
 	commander       *apple_mdm.MDMAppleCommander
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
+	keyValueStore   fleet.KeyValueStore
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger, keyValueStore fleet.KeyValueStore) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
@@ -3492,6 +3493,7 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:   keyValueStore,
 	}
 }
 
@@ -3574,6 +3576,16 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(updatedInfo.HardwareSerial)
 		}
+
+		if svc.keyValueStore != nil {
+			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
+			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
+			if err != nil {
+				// We do not want to fail here, just log the error to notify
+				level.Error(svc.logger).Log("msg", "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
+			}
+		}
+
 		return newActivity(
 			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
 		)
@@ -3608,7 +3620,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
-		if !info.MigrationInProgress {
+		// Always run setup experience on non-macOS hosts(i.e. iOS/iPadOS), only run it on macOS if
+		// this is not an ABM MDM migration
+		if info.Platform != "darwin" || !info.MigrationInProgress {
 			// Enqueue setup experience items and mark the host as being in setup experience
 			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
 			if err != nil {
@@ -3806,7 +3820,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
 		if deletedDevice == nil {
-			if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			if err := svc.ds.CleanAppleMDMLock(r.Context, cmdResult.UDID); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 			}
 		}
@@ -3846,7 +3860,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-	case "DeviceLock", "EraseDevice":
+	case "DeviceLock", "EraseDevice", "EnableLostMode", "DisableLostMode":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
@@ -3877,7 +3891,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			} else if updated {
 				// TODO: call next step of setup experience?
 				fromSetupExperience = true
-				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
+				level.Debug(svc.logger).Log("msg", "setup experience VPP install result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
 			}
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
@@ -4230,7 +4244,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				fromSetupExperience = true
-				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
+				level.Debug(logger).Log("msg", "setup experience VPP install result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
 			}
 
 			// create an activity for installing only if we're in a terminal state
