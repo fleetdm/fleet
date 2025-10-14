@@ -1295,8 +1295,8 @@ func (s *integrationTestSuite) TestHostsCount() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0, nil))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0, nil)) // not low disk
 
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -1513,8 +1513,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0, nil))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0, nil)) // not low disk
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -2388,13 +2388,15 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	assert.Equal(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable)
 	assert.Equal(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable)
+	assert.Equal(t, 500.0, getHostResp.Host.GigsTotalDiskSpace)
+	assert.Equal(t, 600.0, getHostResp.Host.GigsAllDiskSpace)
 
 	var resp getHostSummaryResponse
 
@@ -4873,7 +4875,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	)
 
 	// set disk space information
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0, nil)) // low disk
 
 	// Update host fields
 	host.Uptime = 30 * time.Second
@@ -8158,8 +8160,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	hosts := s.createHosts(t)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	// no search criteria
 	var searchResp searchHostsResponse
@@ -8170,9 +8172,13 @@ func (s *integrationTestSuite) TestSearchHosts() {
 		case hosts[0].ID:
 			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+			assert.Equal(t, 500.0, h.GigsTotalDiskSpace)
+			assert.Equal(t, 600.0, h.GigsAllDiskSpace)
 		case hosts[1].ID:
 			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+			assert.Equal(t, 1000.0, h.GigsTotalDiskSpace)
+			assert.Equal(t, 1200.0, h.GigsAllDiskSpace)
 		}
 		assert.Equal(t, h.SoftwareUpdatedAt, h.CreatedAt)
 	}
@@ -9050,8 +9056,8 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	// create software for host [0]
 	software := []fleet.Software{
@@ -9468,7 +9474,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 
 	// before any disk encryption is received, all hosts report NULL (even if
 	// some have disk space information, i.e. an entry exists in host_disks).
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0, nil))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
