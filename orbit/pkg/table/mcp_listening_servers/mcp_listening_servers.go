@@ -18,6 +18,116 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Columns defines the schema for the mcp_listening_servers table.
+func Columns() []table.ColumnDefinition {
+	return []table.ColumnDefinition{
+		table.BigIntColumn("pid"),
+		table.TextColumn("name"),
+		table.TextColumn("cmdline"),
+		table.IntegerColumn("port"),
+		table.TextColumn("address"),
+		table.TextColumn("protocol_version"),
+		table.TextColumn("server_name"),
+		table.TextColumn("server_title"),
+		table.TextColumn("server_version"),
+		table.IntegerColumn("has_logging"),
+		table.IntegerColumn("has_completions"),
+		table.TextColumn("instructions"),
+		table.TextColumn("tools"),     // JSON array of tool names
+		table.TextColumn("prompts"),   // JSON array of prompt names
+		table.TextColumn("resources"), // JSON array of resource URIs
+	}
+}
+
+// Generate connects to the running osqueryd over the provided socket and queries
+// the listening_ports and processes tables to find processes with listening ports,
+// then checks each port to see if an MCP server is responding.
+func Generate(ctx context.Context, queryContext table.QueryContext, socket string) ([]map[string]string, error) {
+	scanner := newMCPScanner()
+	return generateWithScanner(ctx, queryContext, socket, scanner)
+}
+
+// generateWithScanner is an internal helper that allows dependency injection for testing.
+func generateWithScanner(ctx context.Context, queryContext table.QueryContext, socket string, scanner *mcpScanner) ([]map[string]string, error) {
+	// Ensure we don't hang forever if osquery is unresponsive.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Open an osquery client using the extension socket.
+	c, err := scanner.newClient(socket, 2*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("open osquery client: %w", err)
+	}
+	defer c.Close()
+
+	// Get the running processes with listening ports
+	sql := `
+	SELECT DISTINCT lp.pid, lp.port, lp.address, lp.family, p.name, p.cmdline
+	FROM listening_ports lp JOIN processes p ON lp.pid = p.pid
+	`
+
+	rows, err := c.QueryRowsContext(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+
+	// For each row, check if there's an MCP server listening on that port
+	results := make([]map[string]string, 0, len(rows))
+	for _, row := range rows {
+		port, ok := row["port"]
+		if !ok || port == "" {
+			continue
+		}
+
+		address, ok := row["address"]
+		if !ok {
+			address = "127.0.0.1"
+		}
+
+		// Check family and log a warning if it's not a known address family
+		if family, ok := row["family"]; ok {
+			if family != afUnix && family != afInet && family != afInet6 {
+				log.Warn().Str("family", family).Str("port", port).Str("pid", row["pid"]).Msg("unexpected family value")
+			}
+		}
+
+		// Check if MCP server is active on this port
+		mcpInfo := scanner.checkMCPServer(ctx, address, port)
+
+		// Only include rows where an MCP server is actually responding
+		if mcpInfo == nil {
+			continue
+		}
+
+		// Convert lists to JSON
+		toolsJSON, _ := json.Marshal(mcpInfo.Tools)
+		promptsJSON, _ := json.Marshal(mcpInfo.Prompts)
+		resourcesJSON, _ := json.Marshal(mcpInfo.Resources)
+
+		// Create result row with all required columns
+		result := map[string]string{
+			"pid":              row["pid"],
+			"name":             row["name"],
+			"cmdline":          row["cmdline"],
+			"port":             port,
+			"address":          address,
+			"protocol_version": mcpInfo.ProtocolVersion,
+			"server_name":      mcpInfo.ServerName,
+			"server_title":     mcpInfo.ServerTitle,
+			"server_version":   mcpInfo.ServerVersion,
+			"has_logging":      strconv.FormatBool(mcpInfo.HasLogging),
+			"has_completions":  strconv.FormatBool(mcpInfo.HasCompletions),
+			"instructions":     mcpInfo.Instructions,
+			"tools":            string(toolsJSON),
+			"prompts":          string(promptsJSON),
+			"resources":        string(resourcesJSON),
+		}
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
 const (
 	// Socket address family constants (as strings for osquery comparison)
 	afUnix  = "1"  // AF_UNIX - Unix domain sockets
@@ -25,19 +135,28 @@ const (
 	afInet6 = "10" // AF_INET6 - IPv6
 )
 
-// osqClient abstracts the osquery client for ease of testing.
-type osqClient interface {
+// osqueryClient abstracts the osquery client for ease of testing.
+type osqueryClient interface {
 	QueryRowContext(ctx context.Context, sql string) (map[string]string, error)
 	QueryRowsContext(ctx context.Context, sql string) ([]map[string]string, error)
 	Close()
 }
 
-var newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-	return osqclient.NewClient(socket, timeout)
+// mcpScanner holds the dependencies needed for scanning MCP servers.
+type mcpScanner struct {
+	httpClient *http.Client
+	newClient  func(socket string, timeout time.Duration) (osqueryClient, error)
 }
 
-// httpClient is a variable to allow mocking in tests
-var httpClient = fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+// newMCPScanner creates a new MCP scanner with default dependencies.
+func newMCPScanner() *mcpScanner {
+	return &mcpScanner{
+		httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
+		newClient: func(socket string, timeout time.Duration) (osqueryClient, error) {
+			return osqclient.NewClient(socket, timeout)
+		},
+	}
+}
 
 // mcpTool represents a tool with its metadata
 type mcpTool struct {
@@ -113,7 +232,7 @@ type mcpListResponse struct {
 }
 
 // makeMCPRequest makes an MCP JSON-RPC request and returns the response body and session ID
-func makeMCPRequest(ctx context.Context, url, method, sessionID string, params interface{}) ([]byte, string, error) {
+func (s *mcpScanner) makeMCPRequest(ctx context.Context, url, method, sessionID string, params interface{}) ([]byte, string, error) {
 	reqBody := map[string]interface{}{
 		"jsonrpc": "2.0",
 		"id":      1,
@@ -139,7 +258,7 @@ func makeMCPRequest(ctx context.Context, url, method, sessionID string, params i
 		req.Header.Set("Mcp-Session-Id", sessionID)
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -180,7 +299,7 @@ func makeMCPRequest(ctx context.Context, url, method, sessionID string, params i
 
 // checkMCPServer attempts to connect to an MCP server at the given address and port.
 // It returns information about the MCP server if it responds successfully, or nil otherwise.
-func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
+func (s *mcpScanner) checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 	// Build the URL - handle localhost and IPv6 addresses specially
 	host := address
 
@@ -218,7 +337,7 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 	}
 
 	// Send initialize request without a session ID - server will provide one
-	jsonData, sessionID, err := makeMCPRequest(ctx, url, "initialize", "", initParams)
+	jsonData, sessionID, err := s.makeMCPRequest(ctx, url, "initialize", "", initParams)
 	if err != nil {
 		return nil
 	}
@@ -250,7 +369,7 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 
 	// Fetch lists of tools, prompts, and resources if capabilities are available
 	if info.HasTools {
-		if listData, _, err := makeMCPRequest(ctx, url, "tools/list", sessionID, nil); err == nil {
+		if listData, _, err := s.makeMCPRequest(ctx, url, "tools/list", sessionID, nil); err == nil {
 			var listResp mcpListResponse
 			if err := json.Unmarshal(listData, &listResp); err == nil {
 				// Check if the response contains an error
@@ -264,7 +383,7 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 	}
 
 	if info.HasPrompts {
-		if listData, _, err := makeMCPRequest(ctx, url, "prompts/list", sessionID, nil); err == nil {
+		if listData, _, err := s.makeMCPRequest(ctx, url, "prompts/list", sessionID, nil); err == nil {
 			var listResp mcpListResponse
 			if err := json.Unmarshal(listData, &listResp); err == nil {
 				// Check if the response contains an error
@@ -278,7 +397,7 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 	}
 
 	if info.HasResources {
-		if listData, _, err := makeMCPRequest(ctx, url, "resources/list", sessionID, nil); err == nil {
+		if listData, _, err := s.makeMCPRequest(ctx, url, "resources/list", sessionID, nil); err == nil {
 			var listResp mcpListResponse
 			if err := json.Unmarshal(listData, &listResp); err == nil {
 				// Check if the response contains an error
@@ -292,108 +411,4 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 	}
 
 	return info
-}
-
-// Columns defines the schema for the mcp_listening_servers table.
-func Columns() []table.ColumnDefinition {
-	return []table.ColumnDefinition{
-		table.BigIntColumn("pid"),
-		table.TextColumn("name"),
-		table.TextColumn("cmdline"),
-		table.IntegerColumn("port"),
-		table.TextColumn("address"),
-		table.TextColumn("protocol_version"),
-		table.TextColumn("server_name"),
-		table.TextColumn("server_title"),
-		table.TextColumn("server_version"),
-		table.IntegerColumn("has_logging"),
-		table.IntegerColumn("has_completions"),
-		table.TextColumn("instructions"),
-		table.TextColumn("tools"),     // JSON array of tool names
-		table.TextColumn("prompts"),   // JSON array of prompt names
-		table.TextColumn("resources"), // JSON array of resource URIs
-	}
-}
-
-// Generate connects to the running osqueryd over the provided socket and queries
-// the listening_ports and processes tables to find processes with listening ports,
-// then checks each port to see if an MCP server is responding.
-func Generate(ctx context.Context, queryContext table.QueryContext, socket string) ([]map[string]string, error) {
-	// Ensure we don't hang forever if osquery is unresponsive.
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	// Open an osquery client using the extension socket.
-	c, err := newClient(socket, 2*time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("open osquery client: %w", err)
-	}
-	defer c.Close()
-
-	// Get the running processes with listening ports
-	sql := `
-	SELECT DISTINCT lp.pid, lp.port, lp.address, lp.family, p.name, p.cmdline
-	FROM listening_ports lp JOIN processes p ON lp.pid = p.pid
-	`
-
-	rows, err := c.QueryRowsContext(ctx, sql)
-	if err != nil {
-		return nil, err
-	}
-
-	// For each row, check if there's an MCP server listening on that port
-	results := make([]map[string]string, 0, len(rows))
-	for _, row := range rows {
-		port, ok := row["port"]
-		if !ok || port == "" {
-			continue
-		}
-
-		address, ok := row["address"]
-		if !ok {
-			address = "127.0.0.1"
-		}
-
-		// Check family and log a warning if it's not a known address family
-		if family, ok := row["family"]; ok {
-			if family != afUnix && family != afInet && family != afInet6 {
-				log.Warn().Str("family", family).Str("port", port).Str("pid", row["pid"]).Msg("unexpected family value")
-			}
-		}
-
-		// Check if MCP server is active on this port
-		mcpInfo := checkMCPServer(ctx, address, port)
-
-		// Only include rows where an MCP server is actually responding
-		if mcpInfo == nil {
-			continue
-		}
-
-		// Convert lists to JSON
-		toolsJSON, _ := json.Marshal(mcpInfo.Tools)
-		promptsJSON, _ := json.Marshal(mcpInfo.Prompts)
-		resourcesJSON, _ := json.Marshal(mcpInfo.Resources)
-
-		// Create result row with all required columns
-		result := map[string]string{
-			"pid":              row["pid"],
-			"name":             row["name"],
-			"cmdline":          row["cmdline"],
-			"port":             port,
-			"address":          address,
-			"protocol_version": mcpInfo.ProtocolVersion,
-			"server_name":      mcpInfo.ServerName,
-			"server_title":     mcpInfo.ServerTitle,
-			"server_version":   mcpInfo.ServerVersion,
-			"has_logging":      strconv.FormatBool(mcpInfo.HasLogging),
-			"has_completions":  strconv.FormatBool(mcpInfo.HasCompletions),
-			"instructions":     mcpInfo.Instructions,
-			"tools":            string(toolsJSON),
-			"prompts":          string(promptsJSON),
-			"resources":        string(resourcesJSON),
-		}
-		results = append(results, result)
-	}
-
-	return results, nil
 }

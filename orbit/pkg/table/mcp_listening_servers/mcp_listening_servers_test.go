@@ -31,21 +31,17 @@ func (m *mockClient) QueryRowsContext(ctx context.Context, sql string) ([]map[st
 func (m *mockClient) Close() {}
 
 func TestGenerate_WithMCPServerActive(t *testing.T) {
-	// Mock the osquery client
-	oldClient := newClient
-	defer func() { newClient = oldClient }()
-	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-		return &mockClient{rows: []map[string]string{
-			{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
-		}}, nil
+	// Create a scanner with mock dependencies
+	scanner := &mcpScanner{
+		newClient: func(socket string, timeout time.Duration) (osqueryClient, error) {
+			return &mockClient{rows: []map[string]string{
+				{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
+			}}, nil
+		},
+		httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
 	}
 
-	// Mock the HTTP client to return successful responses
-	oldHTTPClient := httpClient
-	defer func() { httpClient = oldHTTPClient }()
-	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
-
-	mockClient.Transport = &mockTransport{
+	scanner.httpClient.Transport = &mockTransport{
 		responses: map[string]string{
 			"initialize": `{
 				"jsonrpc": "2.0",
@@ -100,11 +96,10 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 		},
 		statusCode: 200,
 	}
-	httpClient = mockClient
 
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
-	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	rows, err := generateWithScanner(context.Background(), qc, "/tmp/osq", scanner)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 
@@ -122,49 +117,41 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 }
 
 func TestGenerate_WithMCPServerInactive(t *testing.T) {
-	// Mock the osquery client
-	oldClient := newClient
-	defer func() { newClient = oldClient }()
-	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-		return &mockClient{rows: []map[string]string{
-			{"pid": "5678", "port": "8080", "address": "0.0.0.0", "name": "nginx", "cmdline": "nginx"},
-		}}, nil
+	// Create a scanner with mock dependencies
+	scanner := &mcpScanner{
+		newClient: func(socket string, timeout time.Duration) (osqueryClient, error) {
+			return &mockClient{rows: []map[string]string{
+				{"pid": "5678", "port": "8080", "address": "0.0.0.0", "name": "nginx", "cmdline": "nginx"},
+			}}, nil
+		},
+		httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
 	}
 
-	// Mock the HTTP client to return an error (connection refused)
-	oldHTTPClient := httpClient
-	defer func() { httpClient = oldHTTPClient }()
-	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
-	mockClient.Transport = &mockTransport{
+	scanner.httpClient.Transport = &mockTransport{
 		err: http.ErrServerClosed,
 	}
-	httpClient = mockClient
 
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
-	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	rows, err := generateWithScanner(context.Background(), qc, "/tmp/osq", scanner)
 	require.NoError(t, err)
 	// Should return 0 rows since no MCP server is active
 	assert.Empty(t, rows)
 }
 
 func TestGenerate_MultipleActiveServers(t *testing.T) {
-	// Mock the osquery client
-	oldClient := newClient
-	defer func() { newClient = oldClient }()
-	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-		return &mockClient{rows: []map[string]string{
-			{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp1.js"},
-			{"pid": "5678", "port": "3002", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp2.js"},
-		}}, nil
+	// Create a scanner with mock dependencies
+	scanner := &mcpScanner{
+		newClient: func(socket string, timeout time.Duration) (osqueryClient, error) {
+			return &mockClient{rows: []map[string]string{
+				{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp1.js"},
+				{"pid": "5678", "port": "3002", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp2.js"},
+			}}, nil
+		},
+		httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
 	}
 
-	// Mock the HTTP client to return success for all
-	oldHTTPClient := httpClient
-	defer func() { httpClient = oldHTTPClient }()
-	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
-
-	mockClient.Transport = &mockTransport{
+	scanner.httpClient.Transport = &mockTransport{
 		responses: map[string]string{
 			"initialize": `{
 				"jsonrpc": "2.0",
@@ -192,32 +179,27 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 		},
 		statusCode: 200,
 	}
-	httpClient = mockClient
 
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
-	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	rows, err := generateWithScanner(context.Background(), qc, "/tmp/osq", scanner)
 	require.NoError(t, err)
 	assert.Len(t, rows, 2)
 }
 
 func TestGenerate_WithSSEResponse(t *testing.T) {
-	// Mock the osquery client
-	oldClient := newClient
-	defer func() { newClient = oldClient }()
-	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-		return &mockClient{rows: []map[string]string{
-			{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
-		}}, nil
+	// Create a scanner with mock dependencies
+	scanner := &mcpScanner{
+		newClient: func(socket string, timeout time.Duration) (osqueryClient, error) {
+			return &mockClient{rows: []map[string]string{
+				{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
+			}}, nil
+		},
+		httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
 	}
 
-	// Mock the HTTP client to return SSE-formatted responses
-	oldHTTPClient := httpClient
-	defer func() { httpClient = oldHTTPClient }()
-	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
-
 	// Full SSE format with event, id, and data lines
-	mockClient.Transport = &mockTransport{
+	scanner.httpClient.Transport = &mockTransport{
 		responses: map[string]string{
 			"initialize": `event: message
 id: 4b74868e-307e-416c-951d-6f305856cb43_1760466849580_vmzdy66v
@@ -229,11 +211,10 @@ data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"re
 		},
 		statusCode: 200,
 	}
-	httpClient = mockClient
 
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
-	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	rows, err := generateWithScanner(context.Background(), qc, "/tmp/osq", scanner)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 
@@ -242,25 +223,21 @@ data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"re
 }
 
 func TestGenerate_WithIPv6Address(t *testing.T) {
-	// Mock the osquery client with IPv6 addresses
-	oldClient := newClient
-	defer func() { newClient = oldClient }()
-	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-		return &mockClient{rows: []map[string]string{
-			{"pid": "1234", "port": "3001", "address": "::1", "family": afInet6, "name": "node", "cmdline": "node mcp-server.js"},
-			{"pid": "5678", "port": "3002", "address": "2001:db8::1", "family": afInet6, "name": "node", "cmdline": "node mcp-server2.js"},
-			{"pid": "9999", "port": "3003", "address": "::", "family": afInet6, "name": "node", "cmdline": "node mcp-server3.js"},
-		}}, nil
+	// Create a scanner with mock dependencies
+	scanner := &mcpScanner{
+		newClient: func(socket string, timeout time.Duration) (osqueryClient, error) {
+			return &mockClient{rows: []map[string]string{
+				{"pid": "1234", "port": "3001", "address": "::1", "family": afInet6, "name": "node", "cmdline": "node mcp-server.js"},
+				{"pid": "5678", "port": "3002", "address": "2001:db8::1", "family": afInet6, "name": "node", "cmdline": "node mcp-server2.js"},
+				{"pid": "9999", "port": "3003", "address": "::", "family": afInet6, "name": "node", "cmdline": "node mcp-server3.js"},
+			}}, nil
+		},
+		httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
 	}
-
-	// Mock the HTTP client to return successful responses
-	oldHTTPClient := httpClient
-	defer func() { httpClient = oldHTTPClient }()
-	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
 
 	// Track which URLs were actually requested to verify IPv6 bracket handling
 	requestedURLs := []string{}
-	mockClient.Transport = &mockTransportWithURLTracking{
+	scanner.httpClient.Transport = &mockTransportWithURLTracking{
 		requestedURLs: &requestedURLs,
 		responses: map[string]string{
 			"initialize": `{
@@ -282,11 +259,10 @@ func TestGenerate_WithIPv6Address(t *testing.T) {
 		},
 		statusCode: 200,
 	}
-	httpClient = mockClient
 
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
-	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	rows, err := generateWithScanner(context.Background(), qc, "/tmp/osq", scanner)
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
 
