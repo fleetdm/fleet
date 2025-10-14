@@ -494,12 +494,67 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		software fleet.Software
 		cpe      string
 	}{
+		// This should work but there are no CPE entries in the database despite CVE-2024-25659 existing, using
+		// the following cpe_translations changes:
+		/*
+		  {
+		    "software": {
+		      "bundle_identifier": ["/^TNMS_/"],
+		      "source": ["apps"]
+		    },
+		    "filter": {
+		      "product": ["nokia"],
+		      "vendor": ["transcend_network_management_system"]
+		    }
+		  },
+		*/
+		/*{
+			software: fleet.Software{
+				Name:             "TNMS",
+				BundleIdentifier: "TNMS_19.10.3",
+				Source:           "apps",
+				Version:          "19.10.3",
+			},
+			cpe: "cpe:2.3:a:nokia:transcend_network_management_system:19.10.3:*:*:*:*:macos:*:*",
+		},*/
+		// Same issue as above
+		/*
+					  {
+			    "software": {
+			      "bundle_identifier": ["com.oracle.SQLDeveloper"],
+			      "source": ["apps"]
+			    },
+			    "filter": {
+			      "product": ["oracle"],
+			      "vendor": ["sql_developer"]
+			    }
+			  },
+		*/
+		/*
+				{
+				software: fleet.Software{
+					Name:             "Oracle SQLDeveloper",
+					BundleIdentifier: "com.oracle.SQLDeveloper",
+					Source:           "apps",
+					Version:          "24.3.1",
+				},
+				cpe: "cpe:2.3:a:oracle:sql_developer:24.3.1:*:*:*:*:macos:*:*",
+			},
+		*/
+		// This would work with a CPE translations JSON mapping, but we can't currently map a blank version
+		/*{
+			software: fleet.Software{
+				Name:             "Poly Lens Desktop",
+				BundleIdentifier: "com.poly.lens.legacyhost.app",
+				Source:           "apps",
+			},
+			cpe: "cpe:2.3:a:poly:lens:-:*:*:*:*:*:*:*",
+		},*/
 		{
 			software: fleet.Software{
 				Name:             "BlueStacksMIN",
 				BundleIdentifier: "com.now.gg.BlueStacksMIM",
 				Source:           "apps",
-				Vendor:           "",
 				Version:          "4.100.1",
 			},
 			cpe: "cpe:2.3:a:bluestacks:bluestacks:4.100.1:*:*:*:*:macos:*:*",
