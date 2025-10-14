@@ -1736,10 +1736,6 @@ WHERE
 	id = ?
 `
 
-	// TODO(mna): complete the correct XML command for in-house apps once
-	// https://github.com/fleetdm/fleet/issues/33089 is implemented (it may require
-	// some IPA file manifest information to be stored in the
-	// in_house_app_upcoming_activities table).
 	const insCmdStmt = `
 INSERT INTO
 	nano_commands
@@ -1758,7 +1754,6 @@ WHERE
 	ua.execution_id IN (:execution_ids)
 `
 
-	// TODO(mna): adjust command details, no iTunesStoreID...
 	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -1846,13 +1841,11 @@ ORDER BY
 	var titleID uint
 	getTitleIDStmt := `
 SELECT
-		iha.title_id
+		ihua.software_title_id
 FROM
 		upcoming_activities ua
 		INNER JOIN in_house_app_upcoming_activities ihua
 			ON ihua.upcoming_activity_id = ua.id
-		INNER JOIN in_house_apps iha
-			ON iha.id = ihua.in_house_app_id
 WHERE
 		ua.host_id = ? AND
 		ua.execution_id IN (?)

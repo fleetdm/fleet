@@ -1270,11 +1270,23 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
-	// Upload in-house app for iOS
-	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+	// Enroll iPhone
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+
+	// Create a label
+	clr := createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:    "foo",
+			HostIDs: []uint{iosHost.ID},
+		},
+	}, http.StatusOK, &clr)
+
+	// Upload in-house app for iOS, with the label as "exclude any"
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa", LabelsExcludeAny: []string{"foo"}}, http.StatusOK, "")
 
 	// Get title ID
-
 	var titleID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE name = 'ipa_test'")
@@ -1288,12 +1300,14 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	// assert.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
 	// titleID := resp.SoftwareTitles[0].ID
 
-	// Enroll iPhone
-	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
-	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
-
-	// Install in-house app
+	// Attempt installation on non-scoped app, should fail
 	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
+		iosHost.ID, titleID), nil, http.StatusBadRequest, &installResp)
+
+	// Update label to be include any, install should succeed
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, Filename: "ipa_test.ipa", LabelsIncludeAny: []string{"foo"}}, http.StatusOK, "")
+
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
 		iosHost.ID, titleID), nil, http.StatusAccepted, &installResp)
 

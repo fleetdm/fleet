@@ -1025,7 +1025,7 @@ VALUES
 	return err
 }
 
-func (ds *Datastore) InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID uint, commandUUID string, opts fleet.HostSoftwareInstallOptions) error {
+func (ds *Datastore) InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID, softwareTitleID uint, commandUUID string, opts fleet.HostSoftwareInstallOptions) error {
 	const (
 		insertUAStmt = `
 INSERT INTO upcoming_activities
@@ -1039,9 +1039,9 @@ VALUES
 
 		insertIHAUAStmt = `
 INSERT INTO in_house_app_upcoming_activities
-		(upcoming_activity_id, in_house_app_id)
+		(upcoming_activity_id, in_house_app_id, software_title_id)
 VALUES
-		(?, ?)`
+		(?, ?, ?)`
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -1079,6 +1079,7 @@ VALUES
 		_, err = tx.ExecContext(ctx, insertIHAUAStmt,
 			activityID,
 			inHouseAppID,
+			softwareTitleID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert in house app install request join table")

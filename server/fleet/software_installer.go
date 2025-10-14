@@ -978,3 +978,20 @@ func (o HostSoftwareInstallOptions) Priority() int {
 	}
 	return 0
 }
+
+type InstallableType string
+
+const (
+	softwareTypeInstaller  InstallableType = "software_installer"
+	softwareTypeVPP        InstallableType = "vpp_app_team"
+	softwareTypeInHouseApp InstallableType = "in_house_app"
+)
+
+type Installable interface {
+	InstallableType() InstallableType
+	InstallableID() uint
+}
+
+func (si SoftwareInstaller) InstallableType() InstallableType {
+	return softwareTypeInstaller
+}
