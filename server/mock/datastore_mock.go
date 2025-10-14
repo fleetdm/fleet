@@ -471,7 +471,7 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type ReconcileSoftwareTitlesFunc func(ctx context.Context) error
+type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
@@ -2186,8 +2186,8 @@ type DataStore struct {
 	SyncHostsSoftwareFunc        SyncHostsSoftwareFunc
 	SyncHostsSoftwareFuncInvoked bool
 
-	ReconcileSoftwareTitlesFunc        ReconcileSoftwareTitlesFunc
-	ReconcileSoftwareTitlesFuncInvoked bool
+	CleanupSoftwareTitlesFunc        CleanupSoftwareTitlesFunc
+	CleanupSoftwareTitlesFuncInvoked bool
 
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
@@ -5320,11 +5320,11 @@ func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) 
 	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) ReconcileSoftwareTitles(ctx context.Context) error {
+func (s *DataStore) CleanupSoftwareTitles(ctx context.Context) error {
 	s.mu.Lock()
-	s.ReconcileSoftwareTitlesFuncInvoked = true
+	s.CleanupSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ReconcileSoftwareTitlesFunc(ctx)
+	return s.CleanupSoftwareTitlesFunc(ctx)
 }
 
 func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error {

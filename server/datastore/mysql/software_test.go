@@ -85,7 +85,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
-		{"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
+		{"TestListHostSoftwareVulnerableAndVPP", testListHostSoftwareVulnerableAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
@@ -3358,7 +3358,7 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, actual, toInsert)
 }
 
-func TestReconcileSoftwareTitles(t *testing.T) {
+func TestCleanupSoftwareTitles(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := context.Background()
 
@@ -3461,8 +3461,6 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	assertSoftware(t, expectedSoftware)
 
-	// reconcile software titles
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	swt, err := getTitles()
 	require.NoError(t, err)
 	require.Len(t, swt, 4)
@@ -3498,7 +3496,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]})
 
 	// bar is no longer associated with any host so the title should be deleted
-	require.NoError(t, ds.ReconcileSoftwareTitles(context.Background()))
+	require.NoError(t, ds.CleanupSoftwareTitles(context.Background()))
 	gotTitles, err := getTitles()
 	require.NoError(t, err)
 	require.Len(t, gotTitles, 3)
@@ -3545,19 +3543,6 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
 	assertSoftware(t, expectedSoftware)
-
-	// Test duplicate key handling in `ReconcileSoftwareTitles`.
-	// Since the existing software_titles and software entries have different `source` values,
-	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
-	// key (com.example.app1-0) will conflict.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, browser, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, browser, bundle_identifier, checksum, version) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1', UNHEX(MD5(CONCAT_WS(CHAR(0), 'App1', '', 'some_other_source', 'com.example.app1', '', '', '', 'Chrome', ''))), '')`)
-		require.NoError(t, err)
-		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
-		return nil
-	})
 }
 
 func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
@@ -3796,9 +3781,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults)
 	require.NoError(t, err)
 
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-
 	expected := map[string]fleet.HostSoftwareWithInstaller{
 		byNSV[a1].Name + byNSV[a1].Source: {Name: byNSV[a1].Name, Source: byNSV[a1].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[a1].Version, Vulnerabilities: []string{vulns[0].CVE, vulns[1].CVE, vulns[2].CVE}, InstalledPaths: []string{installPaths[0]}},
@@ -3852,7 +3834,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 			e, ok := expected[g.Name+g.Source]
 			require.True(t, ok, "unexpected software %s%s", g.Name, g.Source)
-			t.Log("Validating ", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
 			if e.SoftwarePackage != nil {
@@ -5133,9 +5114,6 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-
 	expected := map[string]fleet.HostSoftwareWithInstaller{
 		byNSV[a1].Name + byNSV[a1].Source: {
 			Name: byNSV[a1].Name, Source: byNSV[a1].Source,
@@ -6165,7 +6143,6 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	type swVersion struct {
@@ -6918,7 +6895,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.False(t, scoped)
 }
 
-func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
+func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// filter by only vulnerable software
@@ -6992,12 +6969,24 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, mutationResults.Inserted, len(software))
 
-	bTitleId := mutationResults.Inserted[0].TitleID
-	// insert vulnerable software with the same software title as c, but this version is not added to host
+	var cSoftwareID uint
+	for _, inserted := range mutationResults.Inserted {
+		if inserted.Name == "c" {
+			cSoftwareID = inserted.ID
+		}
+	}
+	require.NotZero(t, cSoftwareID)
+
+	var cTitleID uint
+	err = sqlx.GetContext(ctx, ds.primary, &cTitleID, `SELECT title_id FROM software WHERE id = ?`, cSoftwareID)
+	require.NoError(t, err)
+
+	// Insert vulnerable software with the same software title as c,
+	// but this version is not added to host.
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
 		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
-		"c", "0.0.1", "apps", &bTitleId, []byte("c.0.0.1apps"),
+		"c", "0.0.1", "apps", &cTitleID, []byte("c.0.0.1apps"),
 	)
 	require.NoError(t, err)
 	insertedID, err := result.LastInsertId()
@@ -7045,8 +7034,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	swPaths := map[string]struct{}{}
 	err = ds.UpdateHostSoftwareInstalledPaths(ctx, tmHost.ID, swPaths, mutationResults)
-	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	var ensureVulnerableState []struct {
@@ -7110,8 +7097,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		TitleID: &installerTitleID,
 	})
 	mutationResults, err = ds.UpdateHostSoftware(ctx, tmHost.ID, software)
-	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	// set up vpp
@@ -7222,7 +7207,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// pending install request for foo1.0 (non-vulnerable version)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
 	require.NoError(t, err)
@@ -7251,7 +7235,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// pending install request
 	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID, true)
 	require.NoError(t, err)
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
 	require.NoError(t, err)
@@ -7441,8 +7424,6 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.Len(t, mutationResults.Inserted, len(software))
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
 
 	for _, m := range mutationResults.Inserted {
 		s := byName[m.Name]
@@ -8046,8 +8027,6 @@ func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
 		mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 		require.NoError(t, err)
 		require.Len(t, mutationResults.Inserted, len(software))
-		err = ds.ReconcileSoftwareTitles(ctx)
-		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
 		query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`

@@ -2093,140 +2093,31 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	return nil
 }
 
-func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
-	// TODO: consider if we should batch writes to software or software_titles table
-
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// ensure all software titles are in the software_titles table
-		upsertTitlesStmt := `
-INSERT INTO software_titles (name, source, browser, bundle_identifier)
-SELECT
-    name,
-    source,
-    browser,
-    bundle_identifier
-FROM (
-    SELECT DISTINCT
-        name,
-        source,
-        browser,
-        bundle_identifier
-    FROM
-        software s
-    WHERE
-        NOT EXISTS (
-            SELECT 1 FROM software_titles st
-            WHERE s.bundle_identifier = st.bundle_identifier AND
-				IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
-        )
-        AND COALESCE(bundle_identifier, '') != ''
-
-    UNION ALL
-
-    SELECT DISTINCT
-        name,
-        source,
-        browser,
-        NULL as bundle_identifier
-    FROM
-        software s
-    WHERE
-        NOT EXISTS (
-            SELECT 1 FROM software_titles st
-            WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
-        )
-        AND COALESCE(s.bundle_identifier, '') = ''
-) as combined_results
-ON DUPLICATE KEY UPDATE
-    software_titles.name = software_titles.name,
-    software_titles.source = software_titles.source,
-    software_titles.browser = software_titles.browser,
-    software_titles.bundle_identifier = software_titles.bundle_identifier
-`
-		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "upsert software titles")
-		}
-		n, _ := res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
-
-		// update title ids for software table entries
-		updateSoftwareWithoutIdentifierStmt := `
-UPDATE software s
-JOIN software_titles st
-ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
-SET s.title_id = st.id
-WHERE (s.title_id IS NULL OR s.title_id != st.id)
-AND COALESCE(s.bundle_identifier, '') = '';
-`
-
-		res, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title_id without bundle identifier")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "update software title_id without bundle identifier", "rows_affected", n)
-
-		updateSoftwareWithIdentifierStmt := `
-UPDATE software s
-JOIN software_titles st
-ON s.bundle_identifier = st.bundle_identifier AND
-    IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
-SET s.title_id = st.id
-WHERE s.title_id IS NULL
-OR s.title_id != st.id;
-`
-
-		res, err = tx.ExecContext(ctx, updateSoftwareWithIdentifierStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title_id with bundle identifier")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "update software title_id with bundle identifier", "rows_affected", n)
-
-		// clean up orphaned software titles
-		cleanupStmt := `
-DELETE st FROM software_titles st
-	LEFT JOIN software s ON s.title_id = st.id
-	WHERE s.title_id IS NULL AND
-		NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id) AND
-		NOT EXISTS (SELECT 1 FROM vpp_apps vap WHERE vap.title_id = st.id)`
-
-		res, err = tx.ExecContext(ctx, cleanupStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
-
-		updateNamesStmt := `
-		UPDATE software_titles st
-		JOIN software s on st.id = s.title_id
-		SET st.name = (
-			SELECT
-				software.name
-			FROM
-				software
-			WHERE
-				software.bundle_identifier = st.bundle_identifier
-			ORDER BY
-				id DESC
-			LIMIT 1
+func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
+	var n int64
+	defer func(start time.Time) {
+		level.Debug(ds.logger).Log(
+			"msg", "cleanup orphaned software titles",
+			"rows_affected", n,
+			"took", time.Since(start),
 		)
-		WHERE
-			st.bundle_identifier IS NOT NULL AND
-			st.bundle_identifier != '' AND
-			s.name_source = 'bundle_4.67'
-		`
-		res, err = tx.ExecContext(ctx, updateNamesStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title names")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "update software title names", "rows_affected", n)
+	}(time.Now())
 
-		return nil
-	})
+	const deleteOrphanedSoftwareTitlesStmt = `
+	DELETE st FROM software_titles st
+	LEFT JOIN software s ON st.id = s.title_id
+	LEFT JOIN software_installers si ON st.id = si.title_id
+	LEFT JOIN vpp_apps vap ON st.id = vap.title_id
+	WHERE s.title_id IS NULL AND si.title_id IS NULL AND vap.title_id IS NULL`
+
+	res, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedSoftwareTitlesStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "executing delete of software titles")
+	}
+	ra, _ := res.RowsAffected()
+	n += ra
+
+	return nil
 }
 
 func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
