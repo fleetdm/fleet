@@ -1,10 +1,14 @@
 package mcp_servers
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
@@ -23,82 +27,29 @@ func (m *mockClient) QueryRowsContext(ctx context.Context, sql string) ([]map[st
 }
 func (m *mockClient) Close() {}
 
-func TestBuildSQL_Unconstrained(t *testing.T) {
+func TestGenerate_WithMCPServerActive(t *testing.T) {
+	// Mock the osquery client
+	oldClient := newClient
+	defer func() { newClient = oldClient }()
+	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
+		return &mockClient{rows: []map[string]string{
+			{"pid": "1234", "port": "3001", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
+		}}, nil
+	}
+
+	// Mock the HTTP client to return a successful response
+	oldHTTPClient := httpClient
+	defer func() { httpClient = oldHTTPClient }()
+	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+	mockClient.Transport = &mockTransport{
+		response: &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"jsonrpc":"2.0","id":1,"result":{}}`)),
+		},
+	}
+	httpClient = mockClient
+
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
-	sql, single, err := buildSQL(qc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if single {
-		t.Fatalf("expected single=false")
-	}
-	if want := "SELECT pid, name, cmdline FROM processes LIMIT 5000"; sql != want {
-		t.Fatalf("sql mismatch: %q", sql)
-	}
-}
-
-func TestBuildSQL_PidEquals(t *testing.T) {
-	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{
-		"pid": {Constraints: []table.Constraint{{Expression: "123", Operator: table.OperatorEquals}}},
-	}}
-	sql, single, err := buildSQL(qc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !single {
-		t.Fatalf("expected single=true")
-	}
-	if want := "SELECT pid, name, cmdline FROM processes WHERE pid = 123"; sql != want {
-		t.Fatalf("sql mismatch: %q", sql)
-	}
-}
-
-func TestBuildSQL_NameLike(t *testing.T) {
-	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{
-		"name": {Constraints: []table.Constraint{{Expression: "ssh%", Operator: table.OperatorLike}}},
-	}}
-	sql, single, err := buildSQL(qc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if single {
-		t.Fatalf("expected single=false")
-	}
-	if want := "SELECT pid, name, cmdline FROM processes WHERE (name LIKE 'ssh%')"; sql != want {
-		t.Fatalf("sql mismatch: %q", sql)
-	}
-}
-
-func TestGenerate_MultiRows(t *testing.T) {
-	old := newClient
-	defer func() { newClient = old }()
-	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-		return &mockClient{rows: []map[string]string{{"pid": "1", "name": "a", "cmdline": "a"}, {"pid": "2", "name": "b", "cmdline": "b"}}}, nil
-	}
-
-	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{
-		"name": {Constraints: []table.Constraint{{Expression: "a%", Operator: table.OperatorLike}}},
-	}}
-
-	rows, err := Generate(context.Background(), qc, "/tmp/osq")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows, got %d", len(rows))
-	}
-}
-
-func TestGenerate_SingleRow(t *testing.T) {
-	old := newClient
-	defer func() { newClient = old }()
-	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
-		return &mockClient{row: map[string]string{"pid": "123", "name": "proc", "cmdline": "/proc"}}, nil
-	}
-
-	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{
-		"pid": {Constraints: []table.Constraint{{Expression: "123", Operator: table.OperatorEquals}}},
-	}}
 
 	rows, err := Generate(context.Background(), qc, "/tmp/osq")
 	if err != nil {
@@ -107,4 +58,95 @@ func TestGenerate_SingleRow(t *testing.T) {
 	if len(rows) != 1 {
 		t.Fatalf("expected 1 row, got %d", len(rows))
 	}
+
+	if rows[0]["mcp_active"] != "1" {
+		t.Fatalf("expected mcp_active=1, got %s", rows[0]["mcp_active"])
+	}
+	if rows[0]["port"] != "3001" {
+		t.Fatalf("expected port=3001, got %s", rows[0]["port"])
+	}
+}
+
+func TestGenerate_WithMCPServerInactive(t *testing.T) {
+	// Mock the osquery client
+	oldClient := newClient
+	defer func() { newClient = oldClient }()
+	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
+		return &mockClient{rows: []map[string]string{
+			{"pid": "5678", "port": "8080", "protocol": "6", "address": "0.0.0.0", "name": "nginx", "cmdline": "nginx"},
+		}}, nil
+	}
+
+	// Mock the HTTP client to return an error (connection refused)
+	oldHTTPClient := httpClient
+	defer func() { httpClient = oldHTTPClient }()
+	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+	mockClient.Transport = &mockTransport{
+		err: http.ErrServerClosed,
+	}
+	httpClient = mockClient
+
+	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
+
+	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Should return 0 rows since no MCP server is active
+	if len(rows) != 0 {
+		t.Fatalf("expected 0 rows, got %d", len(rows))
+	}
+}
+
+func TestGenerate_MultipleActiveServers(t *testing.T) {
+	// Mock the osquery client
+	oldClient := newClient
+	defer func() { newClient = oldClient }()
+	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
+		return &mockClient{rows: []map[string]string{
+			{"pid": "1234", "port": "3001", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp1.js"},
+			{"pid": "5678", "port": "3002", "protocol": "6", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp2.js"},
+		}}, nil
+	}
+
+	// Mock the HTTP client to return success for all
+	oldHTTPClient := httpClient
+	defer func() { httpClient = oldHTTPClient }()
+	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+	mockClient.Transport = &mockTransport{
+		response: &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"jsonrpc":"2.0","id":1,"result":{}}`)),
+		},
+	}
+	httpClient = mockClient
+
+	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
+
+	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(rows))
+	}
+	if rows[0]["mcp_active"] != "1" {
+		t.Fatalf("expected mcp_active=1 for first row, got %s", rows[0]["mcp_active"])
+	}
+	if rows[1]["mcp_active"] != "1" {
+		t.Fatalf("expected mcp_active=1 for second row, got %s", rows[1]["mcp_active"])
+	}
+}
+
+// mockTransport is a simple HTTP transport that returns a fixed response or error
+type mockTransport struct {
+	response *http.Response
+	err      error
+}
+
+func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.response, nil
 }
