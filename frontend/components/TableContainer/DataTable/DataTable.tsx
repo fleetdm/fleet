@@ -563,6 +563,11 @@ const DataTable = ({
     </thead>
   );
 
+  const shouldShowFooter =
+    !hideFooter &&
+    ((isClientSidePagination && (canNextPage || canPreviousPage)) ||
+      renderPagination);
+
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -671,7 +676,7 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {!hideFooter && (
+      {shouldShowFooter && (
         <div className={`${baseClass}__footer`}>
           {renderTableHelpText && !!rows?.length && (
             <div className={`${baseClass}__table-help-text`}>
