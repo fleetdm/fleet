@@ -97,4 +97,13 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	// Don't test for now
 	_, err = ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
 	require.NoError(t, err)
+
+	// Delete software installer
+	// appropriate records get deleted from:
+	//
+	// 1. in_house_apps
+	// 2. in_house_app_labels
+	// 3. host_in_house_software_installs
+	// 4. in_house_app_upcoming_activities
+	// 5. upcoming_activities
 }
