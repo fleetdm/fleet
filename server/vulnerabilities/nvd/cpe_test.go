@@ -496,6 +496,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	}{
 		{
 			software: fleet.Software{
+				Name:             "BlueStacksMIN",
+				BundleIdentifier: "com.now.gg.BlueStacksMIM",
+				Source:           "apps",
+				Vendor:           "",
+				Version:          "4.100.1",
+			},
+			cpe: "cpe:2.3:a:bluestacks:bluestacks:4.100.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "Adobe Acrobat Reader DC.app",
 				Source:           "apps",
 				Version:          "22.002.20191",

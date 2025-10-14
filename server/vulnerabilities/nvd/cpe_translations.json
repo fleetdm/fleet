@@ -521,6 +521,16 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.now.gg.BlueStacksMIM"],
+      "source": ["apps"],
+      "filter": {
+        "product": ["bluestacks"],
+        "vendor": ["bluestacks"]
+      }
+    }
+  },
+  {
+    "software": {
       "name": ["sourcegraph.cody-ai"],
       "source": ["vscode_extensions"]
     },
