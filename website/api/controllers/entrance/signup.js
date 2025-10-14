@@ -36,11 +36,12 @@ the account verification message.)`,
     },
 
     organization: {
-      required: true,
+      // required: true,
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
-      description: 'The organization the user works for'
+      description: 'The organization the user works for',
+      defaultsTo: '?',
     },
 
     firstName:  {
