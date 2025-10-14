@@ -69,7 +69,10 @@ go.mod @fleetdm/go
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 
-### Owned by product groups ###
+//  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐
+//  ║ ║││││││├┤  ││  ├┴┐└┬┘  ├─┘├┬┘│ │ │││ ││   │   │ ┬├┬┘│ ││ │├─┘└─┐
+//  ╚═╝└┴┘┘└┘└─┘─┴┘  └─┘ ┴   ┴  ┴└─└─┘─┴┘└─┘└─┘ ┴   └─┘┴└─└─┘└─┘┴  └─┘
+-----------------------------------------------------------------
 
 # MDM
 /docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery
