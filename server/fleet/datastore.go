@@ -2063,6 +2063,9 @@ type Datastore interface {
 	// GetSummaryHostSoftwareInstalls returns the software install summary for the in house app ID
 	GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*SoftwareInstallerStatusSummary, error)
 
+	// DeleteInHouseApp deletes an in house app and removes pending installs for it
+	DeleteInHouseApp(ctx context.Context, id uint) error
+
 	// CleanupUnusedSoftwareTitleIcons will remove software title icons that have
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error

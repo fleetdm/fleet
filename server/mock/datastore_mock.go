@@ -1303,6 +1303,8 @@ type RemovePendingInHouseAppInstallsFunc func(ctx context.Context, inHouseAppID 
 
 type GetSummaryInHouseAppInstallsFunc func(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
+type DeleteInHouseAppFunc func(ctx context.Context, id uint) error
+
 type CleanupUnusedSoftwareTitleIconsFunc func(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
@@ -3479,6 +3481,9 @@ type DataStore struct {
 
 	GetSummaryInHouseAppInstallsFunc        GetSummaryInHouseAppInstallsFunc
 	GetSummaryInHouseAppInstallsFuncInvoked bool
+
+	DeleteInHouseAppFunc        DeleteInHouseAppFunc
+	DeleteInHouseAppFuncInvoked bool
 
 	CleanupUnusedSoftwareTitleIconsFunc        CleanupUnusedSoftwareTitleIconsFunc
 	CleanupUnusedSoftwareTitleIconsFuncInvoked bool
@@ -8345,6 +8350,13 @@ func (s *DataStore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *ui
 	s.GetSummaryInHouseAppInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSummaryInHouseAppInstallsFunc(ctx, teamID, inHouseAppID)
+}
+
+func (s *DataStore) DeleteInHouseApp(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteInHouseAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteInHouseAppFunc(ctx, id)
 }
 
 func (s *DataStore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error {
