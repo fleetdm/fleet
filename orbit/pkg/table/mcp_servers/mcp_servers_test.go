@@ -11,6 +11,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockClient struct {
@@ -103,46 +105,20 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
 	rows, err := Generate(context.Background(), qc, "/tmp/osq")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 row, got %d", len(rows))
-	}
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
 
-	if rows[0]["port"] != "3001" {
-		t.Fatalf("expected port=3001, got %s", rows[0]["port"])
-	}
-	if rows[0]["protocol_version"] != "2025-03-26" {
-		t.Fatalf("expected protocol_version=2025-03-26, got %s", rows[0]["protocol_version"])
-	}
-	if rows[0]["server_name"] != "example-servers/everything" {
-		t.Fatalf("expected server_name=example-servers/everything, got %s", rows[0]["server_name"])
-	}
-	if rows[0]["server_title"] != "Everything Example Server" {
-		t.Fatalf("expected server_title=Everything Example Server, got %s", rows[0]["server_title"])
-	}
-	if rows[0]["server_version"] != "1.0.0" {
-		t.Fatalf("expected server_version=1.0.0, got %s", rows[0]["server_version"])
-	}
-	if rows[0]["has_logging"] != "true" {
-		t.Fatalf("expected has_logging=true, got %s", rows[0]["has_logging"])
-	}
-	if rows[0]["has_completions"] != "true" {
-		t.Fatalf("expected has_completions=true, got %s", rows[0]["has_completions"])
-	}
-	if rows[0]["instructions"] != "Testing and demonstration server for MCP protocol features." {
-		t.Fatalf("expected instructions=Testing and demonstration server for MCP protocol features., got %s", rows[0]["instructions"])
-	}
-	if rows[0]["tools"] != `[{"name":"get_weather","description":"Get weather for a location"},{"name":"search_web","description":"Search the web"}]` {
-		t.Fatalf("expected tools with descriptions, got %s", rows[0]["tools"])
-	}
-	if rows[0]["prompts"] != `[{"name":"code_review","description":"Review code for quality"},{"name":"summarize","description":"Summarize content"}]` {
-		t.Fatalf("expected prompts with descriptions, got %s", rows[0]["prompts"])
-	}
-	if rows[0]["resources"] != `[{"uri":"file:///data/doc1.txt","name":"Document 1","description":"First document"},{"uri":"file:///data/doc2.txt","name":"Document 2","description":"Second document"}]` {
-		t.Fatalf("expected resources with uri, name, and description, got %s", rows[0]["resources"])
-	}
+	assert.Equal(t, "3001", rows[0]["port"])
+	assert.Equal(t, "2025-03-26", rows[0]["protocol_version"])
+	assert.Equal(t, "example-servers/everything", rows[0]["server_name"])
+	assert.Equal(t, "Everything Example Server", rows[0]["server_title"])
+	assert.Equal(t, "1.0.0", rows[0]["server_version"])
+	assert.Equal(t, "true", rows[0]["has_logging"])
+	assert.Equal(t, "true", rows[0]["has_completions"])
+	assert.Equal(t, "Testing and demonstration server for MCP protocol features.", rows[0]["instructions"])
+	assert.Equal(t, `[{"name":"get_weather","description":"Get weather for a location"},{"name":"search_web","description":"Search the web"}]`, rows[0]["tools"])
+	assert.Equal(t, `[{"name":"code_review","description":"Review code for quality"},{"name":"summarize","description":"Summarize content"}]`, rows[0]["prompts"])
+	assert.Equal(t, `[{"uri":"file:///data/doc1.txt","name":"Document 1","description":"First document"},{"uri":"file:///data/doc2.txt","name":"Document 2","description":"Second document"}]`, rows[0]["resources"])
 }
 
 func TestGenerate_WithMCPServerInactive(t *testing.T) {
@@ -167,13 +143,9 @@ func TestGenerate_WithMCPServerInactive(t *testing.T) {
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
 	rows, err := Generate(context.Background(), qc, "/tmp/osq")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	// Should return 0 rows since no MCP server is active
-	if len(rows) != 0 {
-		t.Fatalf("expected 0 rows, got %d", len(rows))
-	}
+	assert.Empty(t, rows)
 }
 
 func TestGenerate_MultipleActiveServers(t *testing.T) {
@@ -225,12 +197,8 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
 	rows, err := Generate(context.Background(), qc, "/tmp/osq")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows, got %d", len(rows))
-	}
+	require.NoError(t, err)
+	assert.Len(t, rows, 2)
 }
 
 func TestGenerate_WithSSEResponse(t *testing.T) {
@@ -266,19 +234,11 @@ data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"re
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
 
 	rows, err := Generate(context.Background(), qc, "/tmp/osq")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 row, got %d", len(rows))
-	}
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
 
-	if rows[0]["protocol_version"] != "2025-03-26" {
-		t.Fatalf("expected protocol_version=2025-03-26, got %s", rows[0]["protocol_version"])
-	}
-	if rows[0]["server_name"] != "example-servers/everything" {
-		t.Fatalf("expected server_name=example-servers/everything, got %s", rows[0]["server_name"])
-	}
+	assert.Equal(t, "2025-03-26", rows[0]["protocol_version"])
+	assert.Equal(t, "example-servers/everything", rows[0]["server_name"])
 }
 
 // mockTransport is an HTTP transport that returns different responses based on the MCP method
