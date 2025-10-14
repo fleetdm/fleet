@@ -783,6 +783,74 @@ WHERE
 	return &dest, nil
 }
 
+func (ds *Datastore) installerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (installerID uint, vppAppID *fleet.VPPAppID, inHouseID uint, err error) {
+	const stmt = `
+SELECT
+	si.id AS installer_id,
+	NULL as vpp_adam_id,
+	NULL as vpp_platform,
+	NULL as in_house_id
+FROM
+	software_installers si
+WHERE
+  si.title_id = ? AND si.global_or_team_id = ?
+
+UNION ALL
+
+SELECT
+	NULL AS installer_id,
+  va.adam_id AS vpp_adam_id,
+  va.platform AS vpp_platform,
+	NULL as in_house_id
+FROM
+	vpp_apps vap
+	JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform
+WHERE 
+	va.title_id = ? AND vat.global_or_team_id = ? 
+
+UNION ALL
+
+SELECT
+	NULL AS installer_id,
+	NULL as vpp_adam_id,
+	NULL as vpp_platform,
+	iha.id as in_house_id
+FROM 
+	in_house_apps iha
+WHERE
+	iha.title_id = ? AND iha.global_or_team_id = ?
+`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	type resultRow struct {
+		InstallerID sql.Null[uint]   `db:"installer_id"`
+		VPPAdamID   sql.Null[string] `db:"vpp_adam_id"`
+		VPPPlatform sql.Null[string] `db:"vpp_platform"`
+		InHouseID   sql.Null[uint]   `db:"in_house_id"`
+	}
+	var row resultRow
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt,
+		titleID, tmID, titleID, tmID, titleID, tmID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil, 0, nil
+		}
+		return 0, nil, 0, ctxerr.Wrap(ctx, err, "check installer/vpp/in-house app availability")
+	}
+
+	if row.VPPAdamID.Valid {
+		vppAppID = &fleet.VPPAppID{
+			AdamID:   row.VPPAdamID.V,
+			Platform: fleet.AppleDevicePlatform(row.VPPPlatform.V),
+		}
+	}
+	return row.InstallerID.V, vppAppID, row.InHouseID.V, nil
+}
+
 func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 	var scriptContentsSelect, scriptContentsFrom string
 	if withScriptContents {
@@ -1801,6 +1869,85 @@ WHERE
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
 		"title_id":        titleID,
+	})
+}
+
+func (ds *Datastore) inHouseAppJoin(inHouseID uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
+	// for pending status, we'll join through upcoming_activities
+	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
+		stmt := `JOIN (
+SELECT DISTINCT
+	host_id
+FROM
+	upcoming_activities ua
+	JOIN in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+WHERE
+	%s) hss ON hss.host_id = h.id`
+
+		filter := "ihua.in_house_app_id = ?"
+		switch status {
+		case fleet.SoftwareInstallPending:
+			filter += " AND ua.activity_type = 'in_house_app_install'"
+		case fleet.SoftwareUninstallPending:
+			// TODO: Update this when in-house supports uninstall, for now we map
+			// uninstall to install to preserve existing behavior of VPP filters
+			filter += " AND ua.activity_type = 'in_house_app_install'"
+		default:
+			// no change, we're just filtering by title id so it will pick up any
+			// activity type that is associated with the app (i.e. both install and
+			// uninstall)
+		}
+
+		return fmt.Sprintf(stmt, filter), []any{inHouseID}, nil
+	}
+
+	// TODO: Update this when in-house app supports uninstall for now we map the
+	// generic failed status to the install status
+	if status == fleet.SoftwareFailed {
+		status = fleet.SoftwareInstallFailed // TODO: When in-house supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
+	}
+
+	stmt := fmt.Sprintf(`JOIN (
+SELECT
+	hihsi.host_id
+FROM
+	host_in_house_software_installs hihsi
+	INNER JOIN
+		nano_command_results ncr ON ncr.command_uuid = hihsi.command_uuid
+	LEFT JOIN host_in_house_software_installs hihsi2
+		ON hihsi.host_id = hihsi2.host_id AND
+			 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
+			 hihsi2.canceled = 0 AND
+			 hihsi2.removed = 0 AND
+			 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+WHERE
+	hihsi2.id IS NULL
+	AND hihsi.in_house_app_id = :in_house_app_id
+	AND hihsi.canceled = 0
+	AND hihsi.removed = 0
+	AND (%s) = :status
+	AND NOT EXISTS (
+		SELECT 1
+		FROM
+			upcoming_activities ua
+			JOIN in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+		WHERE
+			ua.host_id = hihsi.host_id
+			AND ihua.in_house_app_id = hihsi.in_house_app_id
+			AND ua.activity_type = 'in_house_app_install'
+	)
+) hss ON hss.host_id = h.id
+`, inHouseAppHostStatusNamedQuery("hihsi", "ncr", ""))
+
+	return sqlx.Named(stmt, map[string]any{
+		"status":                    status,
+		"in_house_app_id":           inHouseID,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 	})
 }
 
