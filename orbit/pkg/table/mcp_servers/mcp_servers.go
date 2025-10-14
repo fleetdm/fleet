@@ -3,7 +3,6 @@ package mcp_servers
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -37,31 +36,26 @@ func checkMCPServer(ctx context.Context, address, port string) string {
 	}
 	url := fmt.Sprintf("http://%s:%s/mcp", host, port)
 
-	// Build the MCP initialize request
-	initRequest := map[string]interface{}{
+	// MCP initialize request body
+	body := `{
 		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "initialize",
-		"params": map[string]interface{}{
-			"protocolVersion": "2025-03-26",
-			"capabilities": map[string]interface{}{
-				"tools":     map[string]interface{}{},
-				"resources": map[string]interface{}{},
-				"prompts":   map[string]interface{}{},
+		"id": 1,
+		"method": "initialize",
+		"params": {
+			"protocolVersion": "2025-06-18",
+			"capabilities": {
+				"tools": {},
+				"resources": {},
+				"prompts": {}
 			},
-			"clientInfo": map[string]interface{}{
-				"name":    "fleet-osquery",
-				"version": "1.0.0",
-			},
-		},
-	}
+			"clientInfo": {
+				"name": "fleetd",
+				"version": "1.0.0"
+			}
+		}
+	}`
 
-	body, err := json.Marshal(initRequest)
-	if err != nil {
-		return "0"
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBufferString(body))
 	if err != nil {
 		return "0"
 	}
