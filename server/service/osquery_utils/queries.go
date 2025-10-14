@@ -2024,7 +2024,7 @@ var (
 			},
 		},
 		{
-			matchBundleIdentifier: "runemu",
+			matchName: "runemu",
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				if s.BundleIdentifier == "" {
 					s.Name = "Android Emulator"

@@ -127,16 +127,14 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	}
 
 	// Test customAppSanitizers TNMS case
-	tnms := &fleet.Software{
-		Name:             "TNMS 1.2.3",
-		BundleIdentifier: "TNMS_1.2.3",
+	sw := &fleet.Software{
+		Name:             "TNMS 21.10.0.590.1",
+		BundleIdentifier: "TNMS_21.10.0.590.1",
 		Source:           "apps",
 	}
-	MutateSoftwareOnIngestion(tnms, log.NewNopLogger())
-	assert.Equal(t, "TNMS", tnms.Name)
-	assert.Equal(t, "1.2.3", tnms.Version)
-
-	// TODO #34159
+	MutateSoftwareOnIngestion(sw, log.NewNopLogger())
+	assert.Equal(t, "TNMS", sw.Name)
+	assert.Equal(t, "21.10.0.590.1", sw.Version)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
