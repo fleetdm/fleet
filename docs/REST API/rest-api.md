@@ -3751,7 +3751,7 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 
 `GET /api/v1/fleet/device/abcdef012456789`
 
-##### Request body
+##### Request header
 
 ```json
 TODO
