@@ -262,12 +262,17 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
     doesStoreEncryptionKey,
     hostPlatform,
   } = config;
-  return (
-    !isMobilePlatform(hostPlatform) &&
-    isPremiumTier &&
-    isConnectedToFleetMdm &&
-    doesStoreEncryptionKey
-  );
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  // For Apple devices, the encryption key is only available when connected to Fleet MDM
+  if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
+    return false;
+  }
+  return doesStoreEncryptionKey;
 };
 
 const canRunScript = ({
