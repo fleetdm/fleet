@@ -2,6 +2,13 @@
 
 Fleet 4.74.0 includes [breaking changes](https://github.com/fleetdm/fleet/pull/30837/files#r2205252594) to the [experimental](https://fleetdm.com/handbook/company/product-groups#experimental-features) software YAML files. This tool automatically migrates your YAML to the new YAML format Fleet 4.74.0 expects.
 
+How to upgrade to 4.74.0:
+
+1. Update your YAML by running the script documented in this file
+2. In your GitOps repo, open a PR with your updated YAML
+3. Upgrade Fleet to 4.74.0
+4. Merge in your PR
+
 ## Overview
 
 This script automates the migration of software configuration keys from individual software packages to team-level configurations. It processes YAML files in the `it-and-security/teams/` directory and moves the following keys from referenced software files to the team files:
@@ -43,7 +50,7 @@ The script will:
 
 ### What the script does
 
-#### Before migration
+#### Before running the script
 
 **Team file (`it-and-security/teams/example.yml`):**
 ```yaml
@@ -66,7 +73,7 @@ labels_exclude_any:
   - "OS:Windows"
 ```
 
-#### After migration
+#### After running the script
 
 **Team file (`it-and-security/teams/example.yml`):**
 ```yaml
@@ -88,23 +95,6 @@ software:
 ```yaml
 url: https://download.mozilla.org/...
 ```
-
-## Features
-
-- **Automatic discovery**: Finds all team YAML files automatically
-- **Backup creation**: Creates `.bak` files before making any changes
-- **YAML validation**: Validates syntax before and after processing
-- **Error handling**: Graceful error handling with detailed reporting
-- **Path resolution**: Handles relative paths correctly
-- **Colorized output**: Easy-to-read colored terminal output
-
-## Output
-
-The script provides detailed, colorized output showing:
-- Files being processed
-- Keys being moved
-- Success/error status for each operation
-- Final summary with counts of processed teams and packages
 
 Example output:
 ```
@@ -137,32 +127,7 @@ Packages processed: 8
 ✓ All files processed successfully!
 ```
 
-## Two-pass processing
 
-The tool uses a two-pass approach to handle multiple teams referencing the same software files:
-
-1. **Pass 1**: Extract and add keys to ALL team files (without removing keys from software files)
-2. **Pass 2**: Remove keys from software files only after all teams have been processed
-
-This ensures that all teams receive the appropriate keys, even when multiple teams reference the same software file.
-
-## Error recovery
-
-If something goes wrong during processing:
-
-1. **Individual file errors**: The script continues processing other files
-2. **YAML validation failures**: Reports errors but continues with other files
-3. **Git recovery**: Use git to restore files if needed:
-   ```bash
-   git checkout -- it-and-security/
-   ```
-
-## Limitations
-
-- Only processes `.yml` files (not `.yaml`)
-- Requires team files to have `software.packages[]` structure
-- Software file paths must be relative to the team file location
-- Requires yq v4+ for advanced YAML manipulation
 
 ## Troubleshooting
 
