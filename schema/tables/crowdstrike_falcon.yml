@@ -15,6 +15,7 @@ examples: |-
 columns:
   - name: agent_id
     description: The agent ID of the CrowdStrike Falcon agent.
+    required: false
     type: text
   - name: cid
     description: The Customer ID of the CrowdStrike Falcon agent.
