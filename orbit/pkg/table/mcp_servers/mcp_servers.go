@@ -92,6 +92,10 @@ type mcpListResponse struct {
 			URI string `json:"uri"`
 		} `json:"resources"`
 	} `json:"result"`
+	Error *struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
 }
 
 // makeMCPRequest makes an MCP JSON-RPC request and returns the response body and session ID
@@ -195,6 +199,7 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 			"tools":     map[string]interface{}{},
 			"resources": map[string]interface{}{},
 			"prompts":   map[string]interface{}{},
+			"roots":     map[string]interface{}{},
 		},
 		"clientInfo": map[string]interface{}{
 			"name":    "fleetd",
@@ -234,24 +239,38 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 		HasLogging:      mcpResp.Result.Capabilities.Logging != nil,
 		HasCompletions:  mcpResp.Result.Capabilities.Completions != nil,
 		Instructions:    mcpResp.Result.Instructions,
+		// Initialize slices to empty so they marshal to [] instead of null
+		Tools:     []string{},
+		Prompts:   []string{},
+		Resources: []string{},
 	}
 
 	// Fetch lists of tools, prompts, and resources if capabilities are available
 	if info.HasTools {
 		log.Debug().Str("url", url).Str("session_id", sessionID).Msg("fetching tools list")
 		if listData, _, err := makeMCPRequest(ctx, url, "tools/list", sessionID, nil); err == nil {
+			log.Debug().Str("tools_list_data", string(listData)).Msg("received tools/list data")
 			var listResp mcpListResponse
 			if err := json.Unmarshal(listData, &listResp); err == nil {
-				for _, tool := range listResp.Result.Tools {
-					info.Tools = append(info.Tools, tool.Name)
+				// Check if the response contains an error
+				if listResp.Error != nil {
+					log.Warn().Int("code", listResp.Error.Code).Str("message", listResp.Error.Message).Msg("tools/list returned error")
+				} else {
+					log.Debug().Int("tools_in_response", len(listResp.Result.Tools)).Msg("unmarshaled tools/list response")
+					for _, tool := range listResp.Result.Tools {
+						log.Debug().Str("tool_name", tool.Name).Msg("adding tool")
+						info.Tools = append(info.Tools, tool.Name)
+					}
+					log.Debug().Int("count", len(info.Tools)).Strs("tools", info.Tools).Msg("parsed tools list")
 				}
-				log.Debug().Int("count", len(info.Tools)).Strs("tools", info.Tools).Msg("parsed tools list")
 			} else {
 				log.Debug().Err(err).Str("data", string(listData)).Msg("failed to unmarshal tools/list response")
 			}
 		} else {
 			log.Debug().Err(err).Msg("failed to fetch tools list")
 		}
+	} else {
+		log.Debug().Msg("HasTools is false, skipping tools list")
 	}
 
 	if info.HasPrompts {
@@ -259,10 +278,15 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 		if listData, _, err := makeMCPRequest(ctx, url, "prompts/list", sessionID, nil); err == nil {
 			var listResp mcpListResponse
 			if err := json.Unmarshal(listData, &listResp); err == nil {
-				for _, prompt := range listResp.Result.Prompts {
-					info.Prompts = append(info.Prompts, prompt.Name)
+				// Check if the response contains an error
+				if listResp.Error != nil {
+					log.Warn().Int("code", listResp.Error.Code).Str("message", listResp.Error.Message).Msg("prompts/list returned error")
+				} else {
+					for _, prompt := range listResp.Result.Prompts {
+						info.Prompts = append(info.Prompts, prompt.Name)
+					}
+					log.Debug().Int("count", len(info.Prompts)).Strs("prompts", info.Prompts).Msg("parsed prompts list")
 				}
-				log.Debug().Int("count", len(info.Prompts)).Strs("prompts", info.Prompts).Msg("parsed prompts list")
 			} else {
 				log.Debug().Err(err).Str("data", string(listData)).Msg("failed to unmarshal prompts/list response")
 			}
@@ -276,10 +300,15 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 		if listData, _, err := makeMCPRequest(ctx, url, "resources/list", sessionID, nil); err == nil {
 			var listResp mcpListResponse
 			if err := json.Unmarshal(listData, &listResp); err == nil {
-				for _, resource := range listResp.Result.Resources {
-					info.Resources = append(info.Resources, resource.URI)
+				// Check if the response contains an error
+				if listResp.Error != nil {
+					log.Warn().Int("code", listResp.Error.Code).Str("message", listResp.Error.Message).Msg("resources/list returned error")
+				} else {
+					for _, resource := range listResp.Result.Resources {
+						info.Resources = append(info.Resources, resource.URI)
+					}
+					log.Debug().Int("count", len(info.Resources)).Strs("resources", info.Resources).Msg("parsed resources list")
 				}
-				log.Debug().Int("count", len(info.Resources)).Strs("resources", info.Resources).Msg("parsed resources list")
 			} else {
 				log.Debug().Err(err).Str("data", string(listData)).Msg("failed to unmarshal resources/list response")
 			}
