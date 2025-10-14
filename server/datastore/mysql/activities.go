@@ -1832,7 +1832,7 @@ ORDER BY
 		return ctxerr.Wrap(ctx, err, "insert to activate in-house apps")
 	}
 
-	appConfig, err := ds.AppConfig(ctx)
+	appConfig, err := appConfigDB(ctx, tx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "activate in house app install: get app config")
 	}
