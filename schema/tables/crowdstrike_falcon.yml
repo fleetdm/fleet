@@ -1,0 +1,34 @@
+name: crowdstrike_falcon
+notes: |-
+  This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+description: Information on the device's MDM enrollment.
+platforms: 
+  - darwin
+  - linux
+evented: false
+examples: |-
+  Get the agent ID of the CrowdStrike Falcon agent on all macOS and Linux hosts.
+
+  ```
+  SELECT agent_id FROM crowdstrike_falcon;
+  ```
+columns:
+  - name: agent_id
+    description: The agent ID of the CrowdStrike Falcon agent.
+    type: text
+  - name: cid
+    description: The Customer ID of the CrowdStrike Falcon agent.
+    required: false
+    type: text
+  - name: falcon_version
+    description: The version of the CrowdStrike Falcon agent.
+    required: false
+    type: text
+  - name: reduced_functionality_mode
+    description: Whether or not the CrowdStrike Falcon agent is in reduced functionality mode.
+    required: false
+    type: text
+  - name: sensor_loaded
+    description: Whether or not the CrowdStrike Falcon sensor is loaded.
+    required: false
+    type: text
