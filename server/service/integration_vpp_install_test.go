@@ -1312,8 +1312,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType {
-		case "InstallApplication":
+		if cmd.Command.RequestType == "InstallApplication" {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
