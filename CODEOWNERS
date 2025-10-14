@@ -118,6 +118,7 @@ go.mod @fleetdm/go
 /handbook/customer-success                                    	@sampfluger88
 /handbook/marketing                                            	@sampfluger88
 /handbook/sales                                             	@sampfluger88
+handbook/ceo                                                   @sampfluger88
 #/handbook/product-design                                     	Covered in custom.js
 #/handbook/engineering                                     	    Covered in custom.js
 
