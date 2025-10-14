@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/google/uuid"
 	osqclient "github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -210,11 +209,6 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 		return nil
 	}
 
-	if sessionID == "" {
-		// Generate one ourselves if server doesn't provide it
-		sessionID = uuid.New().String()
-	}
-
 	var mcpResp mcpResponse
 	if err := json.Unmarshal(jsonData, &mcpResp); err != nil {
 		// If JSON parsing fails, return nil so the row is not included
@@ -298,9 +292,6 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn("server_name"),
 		table.TextColumn("server_title"),
 		table.TextColumn("server_version"),
-		table.IntegerColumn("has_prompts"),
-		table.IntegerColumn("has_resources"),
-		table.IntegerColumn("has_tools"),
 		table.IntegerColumn("has_logging"),
 		table.IntegerColumn("has_completions"),
 		table.TextColumn("instructions"),
@@ -380,9 +371,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext, socket strin
 			"server_name":      mcpInfo.ServerName,
 			"server_title":     mcpInfo.ServerTitle,
 			"server_version":   mcpInfo.ServerVersion,
-			"has_prompts":      strconv.FormatBool(mcpInfo.HasPrompts),
-			"has_resources":    strconv.FormatBool(mcpInfo.HasResources),
-			"has_tools":        strconv.FormatBool(mcpInfo.HasTools),
 			"has_logging":      strconv.FormatBool(mcpInfo.HasLogging),
 			"has_completions":  strconv.FormatBool(mcpInfo.HasCompletions),
 			"instructions":     mcpInfo.Instructions,
