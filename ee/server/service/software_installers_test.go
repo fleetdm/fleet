@@ -219,6 +219,11 @@ func TestInstallSoftwareTitle(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	host := &fleet.Host{

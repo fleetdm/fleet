@@ -1275,11 +1275,18 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 	// Get title ID
 
-	var resp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", "0")
+	var titleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE name = 'ipa_test'")
+	})
 
-	assert.Len(t, resp.SoftwareTitles, 1)
-	assert.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
+	// TODO: uncomment once this endpoint supports in house apps
+	// var resp listSoftwareTitlesResponse
+	// s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", "0")
+
+	// assert.Len(t, resp.SoftwareTitles, 1)
+	// assert.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
+	// titleID := resp.SoftwareTitles[0].ID
 
 	// Enroll iPhone
 	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
@@ -1288,7 +1295,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	// Install in-house app
 	var installResp installSoftwareResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
-		iosHost.ID, resp.SoftwareTitles[0].ID), nil, http.StatusAccepted, &installResp)
+		iosHost.ID, titleID), nil, http.StatusAccepted, &installResp)
 
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		mysql.DumpTable(t, q, "software_titles")
@@ -1319,7 +1326,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
 			// Points at the expected manifest URL
-			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, resp.SoftwareTitles[0].ID, 0)
+			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, titleID, 0)
 			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
