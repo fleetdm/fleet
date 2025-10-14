@@ -241,11 +241,83 @@ data: {"result":{"protocolVersion":"2025-03-26","capabilities":{"prompts":{},"re
 	assert.Equal(t, "example-servers/everything", rows[0]["server_name"])
 }
 
+func TestGenerate_WithIPv6Address(t *testing.T) {
+	// Mock the osquery client with IPv6 addresses
+	oldClient := newClient
+	defer func() { newClient = oldClient }()
+	newClient = func(socket string, timeout time.Duration) (osqClient, error) {
+		return &mockClient{rows: []map[string]string{
+			{"pid": "1234", "port": "3001", "address": "::1", "family": afInet6, "name": "node", "cmdline": "node mcp-server.js"},
+			{"pid": "5678", "port": "3002", "address": "2001:db8::1", "family": afInet6, "name": "node", "cmdline": "node mcp-server2.js"},
+			{"pid": "9999", "port": "3003", "address": "::", "family": afInet6, "name": "node", "cmdline": "node mcp-server3.js"},
+		}}, nil
+	}
+
+	// Mock the HTTP client to return successful responses
+	oldHTTPClient := httpClient
+	defer func() { httpClient = oldHTTPClient }()
+	mockClient := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+
+	// Track which URLs were actually requested to verify IPv6 bracket handling
+	requestedURLs := []string{}
+	mockClient.Transport = &mockTransportWithURLTracking{
+		requestedURLs: &requestedURLs,
+		responses: map[string]string{
+			"initialize": `{
+				"jsonrpc": "2.0",
+				"id": 1,
+				"result": {
+					"protocolVersion": "2025-03-26",
+					"capabilities": {
+						"tools": {}
+					},
+					"serverInfo": {
+						"name": "test-server",
+						"title": "Test Server",
+						"version": "1.0.0"
+					}
+				}
+			}`,
+			"tools/list": `{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}`,
+		},
+		statusCode: 200,
+	}
+	httpClient = mockClient
+
+	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
+
+	rows, err := Generate(context.Background(), qc, "/tmp/osq")
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+
+	// Verify that IPv6 loopback (::1) was converted to localhost
+	assert.Contains(t, requestedURLs, "http://localhost:3001/mcp")
+
+	// Verify that IPv6 wildcard (::) was converted to localhost
+	assert.Contains(t, requestedURLs, "http://localhost:3003/mcp")
+
+	// Verify that regular IPv6 addresses are wrapped in brackets
+	assert.Contains(t, requestedURLs, "http://[2001:db8::1]:3002/mcp")
+
+	// All should return the same server info
+	assert.Equal(t, "test-server", rows[0]["server_name"])
+	assert.Equal(t, "test-server", rows[1]["server_name"])
+	assert.Equal(t, "test-server", rows[2]["server_name"])
+}
+
 // mockTransport is an HTTP transport that returns different responses based on the MCP method
 type mockTransport struct {
 	responses  map[string]string // method -> response
 	statusCode int
 	err        error
+}
+
+// mockTransportWithURLTracking is like mockTransport but also tracks requested URLs
+type mockTransportWithURLTracking struct {
+	requestedURLs *[]string
+	responses     map[string]string
+	statusCode    int
+	err           error
 }
 
 func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -267,5 +339,31 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: m.statusCode,
 		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
+	}, nil
+}
+
+func (m *mockTransportWithURLTracking) RoundTrip(req *http.Request) (*http.Response, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	// Track the requested URL
+	*m.requestedURLs = append(*m.requestedURLs, req.URL.String())
+
+	// Parse the request to determine which method is being called
+	var reqBody map[string]interface{}
+	bodyBytes, _ := io.ReadAll(req.Body)
+	_ = json.Unmarshal(bodyBytes, &reqBody)
+
+	method, _ := reqBody["method"].(string)
+	responseBody := m.responses[method]
+	if responseBody == "" {
+		responseBody = `{"jsonrpc":"2.0","id":1,"result":{}}`
+	}
+
+	return &http.Response{
+		StatusCode: m.statusCode,
+		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
+		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
 	}, nil
 }

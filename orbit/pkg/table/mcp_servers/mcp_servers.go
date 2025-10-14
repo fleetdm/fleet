@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -179,11 +180,23 @@ func makeMCPRequest(ctx context.Context, url, method, sessionID string, params i
 // checkMCPServer attempts to connect to an MCP server at the given address and port.
 // It returns information about the MCP server if it responds successfully, or nil otherwise.
 func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
-	// Build the URL - handle localhost specially
+	// Build the URL - handle localhost and IPv6 addresses specially
 	host := address
-	if address == "0.0.0.0" || address == "127.0.0.1" || address == "" {
-		host = "localhost"
+
+	// Check if the address is IPv6
+	isIPv6 := false
+	if ip := net.ParseIP(address); ip != nil {
+		isIPv6 = ip.To4() == nil // If To4() returns nil, it's IPv6
 	}
+
+	// Handle wildcard and loopback addresses
+	if address == "0.0.0.0" || address == "127.0.0.1" || address == "::" || address == "::1" || address == "" {
+		host = "localhost"
+	} else if isIPv6 {
+		// IPv6 addresses must be wrapped in brackets in URLs
+		host = "[" + address + "]"
+	}
+
 	url := fmt.Sprintf("http://%s:%s/mcp", host, port)
 
 	// MCP initialize request
