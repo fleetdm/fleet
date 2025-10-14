@@ -3556,7 +3556,9 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
-This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
+This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
+
+This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). On iOS and iPadOS, authentication requires the Fleet identity SCEP certificate. This certificate is deployed to iOS/iPadOS hosts when they enroll to Fleet. To automate
 
 `GET /api/v1/fleet/device/:token`
 
@@ -3564,7 +3566,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
+| token | string | path | The device's token. For macOS, Windows, and Linux, this is random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 
 ##### Example
 
@@ -3743,6 +3745,24 @@ This is the API route used by the **My device** page in Fleet desktop to display
     }
   }
 }
+```
+
+##### Example (iOS/iPadOS)
+
+`GET /api/v1/fleet/device/abcdef012456789`
+
+##### Request body
+
+```json
+TODO
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+TODO
 ```
 
 `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
