@@ -588,7 +588,7 @@ const HostSoftwareLibrary = ({
             host_display_name: hostDisplayName,
             install_uuid:
               selectedHostSWScriptDetails.software_package?.last_install
-                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+                ?.install_uuid,
           }}
           hostSoftware={selectedHostSWScriptDetails}
           onCancel={() => setSelectedHostSWScriptDetails(null)}

@@ -186,11 +186,8 @@ export const ModalButtons = ({
 };
 
 interface ISoftwareInstallDetailsProps {
-  /** note that details.install_uuid is present in hostSoftware, but since it is always needed for
-  this modal while hostSoftware is not, as in the case of the activity feeds, it is specifically
-  necessary in the details prop */
   details: IPackageInstallDetails;
-  hostSoftware?: IHostSoftware; // for inventory versions, and software name when not Fleet installed (not present on activity feeds)
+  hostSoftware?: IHostSoftware; // for software name when not Fleet installed (not present on activity feeds)
   deviceAuthToken?: string; // My Device Page only
   onCancel: () => void;
   onRerun?: (id: number) => void; // My Device Page only
@@ -213,10 +210,6 @@ export const SoftwareInstallDetailsModal = ({
     setShowInstallDetails((prev) => !prev);
   };
 
-  const isInstalledByFleet = hostSoftware
-    ? !!hostSoftware.software_package?.last_install
-    : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
-
   const { data: swInstallResult, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,
     AxiosError,
@@ -229,7 +222,6 @@ export const SoftwareInstallDetailsModal = ({
         : softwareAPI.getSoftwareInstallResult(installUUID);
     },
     {
-      enabled: !!isInstalledByFleet,
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,
       select: (data) => data.results as ISoftwareScriptResult,
