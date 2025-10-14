@@ -1,4 +1,4 @@
-package mcp_servers
+package mcp_listening_servers
 
 import (
 	"bytes"

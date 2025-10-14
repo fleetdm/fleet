@@ -1,4 +1,4 @@
-package mcp_servers
+package mcp_listening_servers
 
 import (
 	"bytes"
@@ -294,7 +294,7 @@ func checkMCPServer(ctx context.Context, address, port string) *mcpServerInfo {
 	return info
 }
 
-// Columns defines the schema for the mcp_servers table.
+// Columns defines the schema for the mcp_listening_servers table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.BigIntColumn("pid"),

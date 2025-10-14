@@ -12,7 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_servers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_listening_servers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -157,12 +157,12 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.XmlType),   // table name is "parse_xml"
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.IniType),   // table name is "parse_ini"
 
-		// mcp_servers: lists running processes from core processes table via osquery client
+		// mcp_listening_servers: lists running processes from core processes table via osquery client
 		table.NewPlugin(
-			"mcp_servers",
-			mcp_servers.Columns(),
+			"mcp_listening_servers",
+			mcp_listening_servers.Columns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-				return mcp_servers.Generate(ctx, queryContext, opts.Socket)
+				return mcp_listening_servers.Generate(ctx, queryContext, opts.Socket)
 			},
 		),
 	}
