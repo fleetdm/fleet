@@ -1,3 +1,10 @@
+## Fleet 4.74.1 (Oct 14, 2025)
+
+### Bug fixes
+
+- Removing the software renaming fix introduced in 4.73.3 due to MySQL DB performance issues.
+- Fixed edge case when renaming macOS software mapped to multiple checksums.
+
 ## Fleet 4.74.0 (Oct 6, 2025)
 
 ### Security Engineers
