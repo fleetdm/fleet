@@ -295,6 +295,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	createBuiltinLabels(t, ds)
+	labelsByName, err := ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelNameAllHosts})
+	require.NoError(t, err)
+	require.Len(t, labelsByName, 1)
+
 	cases := map[string]*uint{
 		"no team": nil,
 		"team":    &team.ID,
@@ -372,10 +377,9 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			require.NotNil(t, hostInHousePendingInstall)
-			// TODO(mna): call this once Jahziel's PR merges
-			// err = ds.InsertHostInHouseAppInstall(...)
-			// require.NoError(t, err)
+			nanoEnroll(t, ds, hostInHousePendingInstall, false)
+			err = ds.InsertHostInHouseAppInstall(ctx, hostInHousePendingInstall.ID, inHouseID, inHouseTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
+			require.NoError(t, err)
 
 			// Host with software install failed
 			tag = "-failed_install"
@@ -397,7 +401,41 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			// TODO(mna): add host with in-house failed install
+			// Host with in-house app failed install
+			tag = "-in-house-failed_install"
+			hostInHouseFailedInstall, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "ios-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-ios" + tag + tc),
+				NodeKey:       ptr.String("node-key-ios" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "ios",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			nanoEnroll(t, ds, hostInHouseFailedInstall, false)
+			cmdUUID := uuid.NewString()
+			err = ds.InsertHostInHouseAppInstall(ctx, hostInHouseFailedInstall.ID, inHouseID, inHouseTitleID, cmdUUID, fleet.HostSoftwareInstallOptions{})
+			require.NoError(t, err)
+
+			// record a failed verification for that in-house app install
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+					INSERT INTO nano_command_results (id, command_uuid, status, result)
+					VALUES (?, ?, 'Error', '<?xml version="1.0"?><plist></plist>')`,
+					hostInHouseFailedInstall.UUID, cmdUUID)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(ctx, `
+					UPDATE host_in_house_software_installs
+					SET verification_command_uuid = ?, verification_failed_at = NOW(6)
+					WHERE command_uuid = ? AND host_id = ?`,
+					uuid.NewString(), cmdUUID, hostInHouseFailedInstall.ID,
+				)
+				return err
+			})
+			_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostInHouseFailedInstall.ID, cmdUUID)
+			require.NoError(t, err)
 
 			// Host with software install successful
 			tag = "-installed"
@@ -419,7 +457,41 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			// TODO(mna): add host with in-house successful install
+			// host with in-house successful install
+			tag = "-in-house-installed"
+			hostInHouseInstalled, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "ios-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-ios" + tag + tc),
+				NodeKey:       ptr.String("node-key-ios" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "ios",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			nanoEnroll(t, ds, hostInHouseInstalled, false)
+			cmdUUID = uuid.NewString()
+			err = ds.InsertHostInHouseAppInstall(ctx, hostInHouseInstalled.ID, inHouseID, inHouseTitleID, cmdUUID, fleet.HostSoftwareInstallOptions{})
+			require.NoError(t, err)
+
+			// record a successful verification for that in-house app install
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+					INSERT INTO nano_command_results (id, command_uuid, status, result)
+					VALUES (?, ?, 'Acknowledged', '<?xml version="1.0"?><plist></plist>')`,
+					hostInHouseInstalled.UUID, cmdUUID)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(ctx, `
+					UPDATE host_in_house_software_installs
+					SET verification_command_uuid = ?, verification_at = NOW(6)
+					WHERE command_uuid = ? AND host_id = ?`,
+					uuid.NewString(), cmdUUID, hostInHouseInstalled.ID,
+				)
+				return err
+			})
+			_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostInHouseInstalled.ID, cmdUUID)
+			require.NoError(t, err)
 
 			// Host with pending uninstall
 			tag = "-pending_uninstall"
@@ -481,6 +553,22 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID, false)
 			assert.ErrorContains(t, err, "Host")
 
+			allHostIDs := []uint{
+				hostPendingInstall.ID,
+				hostFailedInstall.ID,
+				hostInstalled.ID,
+				hostPendingUninstall.ID,
+				hostFailedUninstall.ID,
+				hostUninstalled.ID,
+				hostInHousePendingInstall.ID,
+				hostInHouseFailedInstall.ID,
+				hostInHouseInstalled.ID,
+			}
+			for _, hid := range allHostIDs {
+				err = ds.AddLabelsToHost(ctx, hid, []uint{labelsByName[fleet.BuiltinLabelNameAllHosts]})
+				require.NoError(t, err)
+			}
+
 			userTeamFilter := fleet.TeamFilter{
 				User: &fleet.User{GlobalRole: ptr.String("admin")},
 			}
@@ -493,109 +581,175 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				teamFilter = ptr.Uint(0)
 			}
 
-			// TODO(mna): test list hosts in label too, with the same filters...
-
-			// list hosts with software install pending requests
-			expectStatus := fleet.SoftwareInstallPending
-			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-
 			// get the names of hosts, useful for debugging
 			getHostNames := func(hosts []*fleet.Host) []string {
-				hostNames := make([]string, len(hosts))
+				hostNames := make([]string, 0, len(hosts))
 				for _, h := range hosts {
 					hostNames = append(hostNames, h.Hostname)
 				}
 				return hostNames
 			}
-			require.Len(t, hosts, 1, getHostNames(hosts))
-			require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
+			pluckHostIDs := func(hosts []*fleet.Host) []uint {
+				hostIDs := make([]uint, 0, len(hosts))
+				for _, h := range hosts {
+					hostIDs = append(hostIDs, h.ID)
+				}
+				return hostIDs
+			}
 
-			// list hosts with all pending requests
-			expectStatus = fleet.SoftwarePending
-			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-			require.Len(t, hosts, 2, getHostNames(hosts))
-			assert.ElementsMatch(t, []uint{hostPendingInstall.ID, hostPendingUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
+			cases := []struct {
+				desc        string
+				opts        fleet.HostListOptions
+				wantHostIDs []uint
+			}{
+				{
+					desc: "list hosts with software install pending requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallPending),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostPendingInstall.ID},
+				},
+				{
+					desc: "list hosts with in-house app pending install",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: &inHouseTitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallPending),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostInHousePendingInstall.ID},
+				},
+				{
+					desc: "list hosts with all pending requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwarePending),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostPendingInstall.ID, hostPendingUninstall.ID},
+				},
+				{
+					desc: "list hosts with in-house app all pending requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: &inHouseTitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwarePending),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostInHousePendingInstall.ID},
+				},
+				{
+					desc: "list hosts with software install failed requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallFailed),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostFailedInstall.ID},
+				},
+				{
+					desc: "list hosts with in-house install failed requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: &inHouseTitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallFailed),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostInHouseFailedInstall.ID},
+				},
+				{
+					desc: "list hosts with all failed requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareFailed),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostFailedInstall.ID, hostFailedUninstall.ID},
+				},
+				{
+					desc: "list hosts with in-house all failed requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: &inHouseTitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareFailed),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostInHouseFailedInstall.ID},
+				},
+				{
+					desc: "list hosts with software installed",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstalled),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostInstalled.ID},
+				},
+				{
+					desc: "list hosts with in-house app installed",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: &inHouseTitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstalled),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostInHouseInstalled.ID},
+				},
+				{
+					desc: "list hosts with pending software uninstall requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareUninstallPending),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostPendingUninstall.ID},
+				},
+				{
+					desc: "list hosts with failed software uninstall requests",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						SoftwareStatusFilter:  ptr.T(fleet.SoftwareUninstallFailed),
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{hostFailedUninstall.ID},
+				},
+				{
+					desc: "list all hosts with the software title",
+					opts: fleet.HostListOptions{
+						ListOptions:           fleet.ListOptions{PerPage: 100},
+						SoftwareTitleIDFilter: installerMeta.TitleID,
+						TeamFilter:            teamFilter,
+					},
+					wantHostIDs: []uint{},
+				},
+			}
+			for _, c := range cases {
+				t.Run(c.desc, func(t *testing.T) {
+					hosts, err := ds.ListHosts(ctx, userTeamFilter, c.opts)
+					require.NoError(t, err)
+					require.Len(t, hosts, len(c.wantHostIDs), getHostNames(hosts))
+					require.ElementsMatch(t, c.wantHostIDs, pluckHostIDs(hosts))
 
-			// list hosts with software install failed requests
-			expectStatus = fleet.SoftwareInstallFailed
-			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-			require.Len(t, hosts, 1, getHostNames(hosts))
-			assert.ElementsMatch(t, []uint{hostFailedInstall.ID}, []uint{hosts[0].ID})
-
-			// list hosts with all failed requests
-			expectStatus = fleet.SoftwareFailed
-			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-			require.Len(t, hosts, 2, getHostNames(hosts))
-			assert.ElementsMatch(t, []uint{hostFailedInstall.ID, hostFailedUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
-
-			// list hosts with software installed
-			expectStatus = fleet.SoftwareInstalled
-			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-			require.Len(t, hosts, 1, getHostNames(hosts))
-			assert.ElementsMatch(t, []uint{hostInstalled.ID}, []uint{hosts[0].ID})
-
-			// list hosts with pending software uninstall requests
-			expectStatus = fleet.SoftwareUninstallPending
-			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-			require.Len(t, hosts, 1, getHostNames(hosts))
-			assert.ElementsMatch(t, []uint{hostPendingUninstall.ID}, []uint{hosts[0].ID})
-
-			// list hosts with failed software uninstall requests
-			expectStatus = fleet.SoftwareUninstallFailed
-			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-			require.Len(t, hosts, 1, getHostNames(hosts))
-			assert.ElementsMatch(t, []uint{hostFailedUninstall.ID}, []uint{hosts[0].ID})
-
-			// list all hosts with the software title that shows up in host_software (after fleetd software query is run)
-			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: installerMeta.TitleID,
-				TeamFilter:            teamFilter,
-			})
-			require.NoError(t, err)
-			assert.Empty(t, hosts)
+					if c.opts.SoftwareStatusFilter == nil && c.opts.SoftwareTitleIDFilter != nil {
+						// for list hosts by label, if no status is provided, the title ID filter is ignored/no-op,
+						// so all host IDs are returned
+						c.wantHostIDs = allHostIDs
+					}
+					hosts, err = ds.ListHostsInLabel(ctx, userTeamFilter, labelsByName[fleet.BuiltinLabelNameAllHosts], c.opts)
+					require.NoError(t, err)
+					require.Len(t, hosts, len(c.wantHostIDs), getHostNames(hosts))
+					require.ElementsMatch(t, c.wantHostIDs, pluckHostIDs(hosts))
+				})
+			}
 
 			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
 			require.NoError(t, err)
@@ -605,6 +759,16 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				FailedInstall:    1,
 				PendingUninstall: 1,
 				FailedUninstall:  1,
+			}, *summary)
+
+			summary, err = ds.GetSummaryInHouseAppInstalls(ctx, teamFilter, inHouseID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+				Installed:        1,
+				PendingInstall:   1,
+				FailedInstall:    1,
+				PendingUninstall: 0,
+				FailedUninstall:  0,
 			}, *summary)
 		})
 	}
