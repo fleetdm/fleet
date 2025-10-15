@@ -14850,13 +14850,17 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	require.NotZero(t, titleID)
 
 	// Verify unsupported params were cleared
-	var installer fleet.SoftwareInstaller
+	var scriptIDs struct {
+		UninstallScriptID   *uint  `db:"uninstall_script_content_id"`
+		PostInstallScriptID *uint  `db:"post_install_script_content_id"`
+		PreInstallQuery     string `db:"pre_install_query"`
+	}
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &installer, `SELECT uninstall_script, post_install_script, pre_install_query FROM software_installers WHERE title_id = ?`, titleID)
+		return sqlx.GetContext(context.Background(), q, &scriptIDs, `SELECT uninstall_script_content_id, post_install_script_content_id, pre_install_query FROM software_installers WHERE title_id = ?`, titleID)
 	})
-	require.Empty(t, installer.UninstallScript)
-	require.Empty(t, installer.PostInstallScript)
-	require.Empty(t, installer.PreInstallQuery)
+	require.Nil(t, scriptIDs.UninstallScriptID, "uninstall_script_content_id should be NULL")
+	require.Nil(t, scriptIDs.PostInstallScriptID, "post_install_script_content_id should be NULL")
+	require.Empty(t, scriptIDs.PreInstallQuery, "pre_install_query should be empty")
 
 	// Test editing script package with unsupported params (should be ignored)
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -14870,11 +14874,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 
 	// Verify unsupported params are still cleared after update
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &installer, `SELECT uninstall_script, post_install_script, pre_install_query FROM software_installers WHERE title_id = ?`, titleID)
+		return sqlx.GetContext(context.Background(), q, &scriptIDs, `SELECT uninstall_script_content_id, post_install_script_content_id, pre_install_query FROM software_installers WHERE title_id = ?`, titleID)
 	})
-	require.Empty(t, installer.UninstallScript)
-	require.Empty(t, installer.PostInstallScript)
-	require.Empty(t, installer.PreInstallQuery)
+	require.Nil(t, scriptIDs.UninstallScriptID, "uninstall_script_content_id should still be NULL")
+	require.Nil(t, scriptIDs.PostInstallScriptID, "post_install_script_content_id should still be NULL")
+	require.Empty(t, scriptIDs.PreInstallQuery, "pre_install_query should still be empty")
 }
 
 // 1. host reports software
