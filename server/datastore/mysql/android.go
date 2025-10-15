@@ -922,18 +922,24 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	FROM ds
 		INNER JOIN android_devices ad
 			ON ad.host_id = ds.host_id
+		INNER JOIN host_mdm hmdm
+			ON ad.host_id=hmdm.host_id
 		LEFT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
-	  -- at least one profile is missing from host_mdm_android_profiles
-		hmap.host_uuid IS NULL OR
-		-- profile was never sent or was updated after sent
-		-- TODO(ap): need to make sure we set it to NULL when profile is updated
-		( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
-		hmap.status IS NULL OR
-		-- profile was sent in older policy version than currently applied
-		(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
-			hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+	  -- host is enrolled
+	    hmdm.enrolled = 1 AND
+		(
+		-- at least one profile is missing from host_mdm_android_profiles
+			hmap.host_uuid IS NULL OR
+			-- profile was never sent or was updated after sent
+			-- TODO(ap): need to make sure we set it to NULL when profile is updated
+			( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
+			hmap.status IS NULL OR
+			-- profile was sent in older policy version than currently applied
+			(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
+				hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+		)
 
 	UNION
 
@@ -944,10 +950,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 			ON h.uuid = hmap.host_uuid
 		INNER JOIN android_devices ad
 			ON ad.host_id = h.id
+		INNER JOIN host_mdm hmdm
+			ON hmdm.host_id = h.id
 		LEFT OUTER JOIN ds
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
 	  -- at least one profile was removed from the set of applicable profiles
+	    hmdm.enrolled = 1 AND
 		ds.host_uuid IS NULL AND
 		-- and it is not in pending remove status (in which case it was processed)
 		( hmap.operation_type != ? OR COALESCE(hmap.status, '') <> ? )
