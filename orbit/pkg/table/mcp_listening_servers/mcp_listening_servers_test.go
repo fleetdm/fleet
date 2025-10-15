@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const mockSessionID = "test-session-id"
+
 type mockClient struct {
 	row  map[string]string
 	rows []map[string]string
@@ -42,6 +44,7 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 	}
 
 	scanner.httpClient.Transport = &mockTransport{
+		t: t,
 		responses: map[string]string{
 			"initialize": `{
 				"jsonrpc": "2.0",
@@ -127,6 +130,7 @@ func TestGenerate_WithMCPServerInactive(t *testing.T) {
 	}
 
 	scanner.httpClient.Transport = &mockTransport{
+		t:   t,
 		err: http.ErrServerClosed,
 	}
 
@@ -151,6 +155,7 @@ func TestGenerate_MultipleActiveServers(t *testing.T) {
 	}
 
 	scanner.httpClient.Transport = &mockTransport{
+		t: t,
 		responses: map[string]string{
 			"initialize": `{
 				"jsonrpc": "2.0",
@@ -199,6 +204,7 @@ func TestGenerate_WithSSEResponse(t *testing.T) {
 
 	// Full SSE format with event, id, and data lines
 	scanner.httpClient.Transport = &mockTransport{
+		t: t,
 		responses: map[string]string{
 			"initialize": `event: message
 id: 4b74868e-307e-416c-951d-6f305856cb43_1760466849580_vmzdy66v
@@ -237,6 +243,7 @@ func TestGenerate_WithIPv6Address(t *testing.T) {
 	// Track which URLs were actually requested to verify IPv6 bracket handling
 	requestedURLs := []string{}
 	scanner.httpClient.Transport = &mockTransport{
+		t:             t,
 		requestedURLs: &requestedURLs,
 		responses: map[string]string{
 			"initialize": `{
@@ -312,6 +319,7 @@ func TestSessionTermination(t *testing.T) {
 			}
 
 			scanner.httpClient.Transport = &mockTransport{
+				t:                     t,
 				deleteRequestReceived: &deleteRequestReceived,
 				deleteStatusCode:      tt.deleteStatusCode,
 				responses: map[string]string{
@@ -345,6 +353,7 @@ func TestSessionTermination(t *testing.T) {
 
 // mockTransport is a unified HTTP transport for testing MCP servers
 type mockTransport struct {
+	t                     *testing.T
 	responses             map[string]string // method -> response for POST requests
 	statusCode            int               // status code for POST requests (default 200)
 	err                   error             // error to return instead of response
@@ -368,14 +377,9 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if m.deleteRequestReceived != nil {
 			*m.deleteRequestReceived = true
 		}
-		// Verify that the session ID header is present if tracking DELETE requests
-		if m.deleteRequestReceived != nil && req.Header.Get("Mcp-Session-Id") == "" {
-			return &http.Response{
-				StatusCode: http.StatusBadRequest,
-				Body:       io.NopCloser(bytes.NewBufferString("Missing Mcp-Session-Id header")),
-				Header:     http.Header{},
-			}, nil
-		}
+		// Verify that the session ID header is correct
+		sessionID := req.Header.Get("Mcp-Session-Id")
+		assert.Equal(m.t, mockSessionID, sessionID, "DELETE request should have correct Mcp-Session-Id header")
 		deleteStatus := http.StatusOK
 		if m.deleteStatusCode != 0 {
 			deleteStatus = m.deleteStatusCode
@@ -393,6 +397,18 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	_ = json.Unmarshal(bodyBytes, &reqBody)
 
 	method, _ := reqBody["method"].(string)
+
+	// Verify session ID header requirements:
+	// - initialize request should NOT have a session ID (it's the first request)
+	// - all other requests (tools/list, prompts/list, resources/list) MUST have a session ID
+	sessionID := req.Header.Get("Mcp-Session-Id")
+	if method == "initialize" {
+		assert.Equal(m.t, "", sessionID, "initialize request should not have Mcp-Session-Id header")
+	} else if method != "" {
+		// All non-initialize methods should have the correct session ID
+		assert.Equal(m.t, mockSessionID, sessionID, "%s request should have correct Mcp-Session-Id header", method)
+	}
+
 	responseBody := m.responses[method]
 	if responseBody == "" {
 		responseBody = `{"jsonrpc":"2.0","id":1,"result":{}}`
@@ -406,6 +422,6 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: postStatus,
 		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
-		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
+		Header:     http.Header{"Mcp-Session-Id": []string{mockSessionID}},
 	}, nil
 }
