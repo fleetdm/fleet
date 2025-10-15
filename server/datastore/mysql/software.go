@@ -2474,6 +2474,10 @@ type hostSoftware struct {
 	VPPAppVersion        *string    `db:"vpp_app_version"`
 	VPPAppPlatform       *string    `db:"vpp_app_platform"`
 	VPPAppIconURL        *string    `db:"vpp_app_icon_url"`
+	InHouseAppID         *uint      `db:"in_house_app_id"`
+	InHouseAppName       *string    `db:"in_house_app_name"`
+	InHouseAppPlatform   *string    `db:"in_house_app_platform"`
+	InHouseAppVersion    *string    `db:"in_house_app_version"`
 
 	VulnerabilitiesList      *string `db:"vulnerabilities_list"`
 	SoftwareIDList           *string `db:"software_id_list"`
@@ -3083,83 +3087,79 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 
 func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
 	installsStmt := fmt.Sprintf(`
-		(   -- upcoming_in_house_install
-			SELECT
-				in_house_apps.title_id AS id,
-				ua.execution_id AS last_install_install_uuid,
-				ua.created_at AS last_install_installed_at,
-				vaua.adam_id AS vpp_app_adam_id,
-				vat.self_service AS vpp_app_self_service,
-				'pending_install' AS status
+(   -- upcoming_in_house_install
+	SELECT
+		iha.title_id AS id,
+		ua.execution_id AS last_install_install_uuid,
+		ua.created_at AS last_install_installed_at,
+		ihua.in_house_app_id AS in_house_app_id,
+		iha.name AS in_house_app_name,
+		iha.platform AS in_house_app_platform,
+		iha.version AS in_house_app_version,
+		'pending_install' AS status
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+	LEFT JOIN (
+		upcoming_activities ua2
+		INNER JOIN in_house_app_upcoming_activities ihua2 ON ua2.id = ihua2.upcoming_activity_id
+	) ON ua.host_id = ua2.host_id AND
+			ihua.in_house_app_id = ihua2.in_house_app_id AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	INNER JOIN
+		in_house_apps iha ON ihua.in_house_app_id = iha.id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'in_house_app_install' AND
+		iha.global_or_team_id = :global_or_team_id AND
+		ua2.id IS NULL
+) UNION (
+	-- last_in_house_install
+	SELECT
+		iha.title_id AS id,
+		hihsi.command_uuid AS last_install_install_uuid,
+		hihsi.created_at AS last_install_installed_at,
+		hihsi.in_house_app_id AS in_house_app_id,
+		iha.name AS in_house_app_name,
+		iha.platform AS in_house_app_platform,
+		iha.version AS in_house_app_version,
+		-- inHouseAppHostStatusNamedQuery(hvsi, ncr, status)
+		%s
+	FROM
+		host_in_house_software_installs hihsi
+	LEFT JOIN
+		nano_command_results ncr ON ncr.command_uuid = hihsi.command_uuid
+	LEFT JOIN
+		host_in_house_software_installs hihsi2 ON hihsi.host_id = hihsi2.host_id AND
+			hihsi.in_house_app_id = hihsi2.in_house_app_id AND
+			hihsi2.removed = 0 AND
+			hihsi2.canceled = 0 AND
+			(hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+	INNER JOIN
+		in_house_apps iha ON hihsi.in_house_app_id = iha.id
+	WHERE
+		hihsi.host_id = :host_id AND
+		hihsi.removed = 0 AND
+		hihsi.canceled = 0 AND
+		hihsi2.id IS NULL AND
+		iha.global_or_team_id = :global_or_team_id AND
+		NOT EXISTS (
+			SELECT 1
 			FROM
 				upcoming_activities ua
 			INNER JOIN
-				vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			LEFT JOIN (
-				upcoming_activities ua2
-				INNER JOIN vpp_app_upcoming_activities vaua2 ON ua2.id = vaua2.upcoming_activity_id
-			) ON ua.host_id = ua2.host_id AND
-					vaua.adam_id = vaua2.adam_id AND
-					vaua.platform = vaua2.platform AND
-					ua.activity_type = ua2.activity_type AND
-					(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-			LEFT JOIN
-				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
-			INNER JOIN
-				vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
+				in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
 			WHERE
-				-- selfServiceFilter
-				%s
-				ua.host_id = :host_id AND
-				ua.activity_type = 'vpp_app_install' AND
-				ua2.id IS NULL
-		) UNION (
-		 	-- last_in_house_install
-					SELECT
-						vpp_apps.title_id AS id,
-						hvsi.command_uuid AS last_install_install_uuid,
-						hvsi.created_at AS last_install_installed_at,
-						hvsi.adam_id AS vpp_app_adam_id,
-						vat.self_service AS vpp_app_self_service,
-						-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
-						%s
-					FROM
-						host_vpp_software_installs hvsi
-					LEFT JOIN
-						nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-					LEFT JOIN
-						host_vpp_software_installs hvsi2 ON hvsi.host_id = hvsi2.host_id AND
-							hvsi.adam_id = hvsi2.adam_id AND
-							hvsi.platform = hvsi2.platform AND
-							hvsi2.removed = 0 AND
-							hvsi2.canceled = 0 AND
-							(hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
-			INNER JOIN
-				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
-			INNER JOIN
-				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
-			WHERE
-				-- selfServiceFilter
-				%s
-				hvsi.host_id = :host_id AND
-				hvsi.removed = 0 AND
-				hvsi.canceled = 0 AND
-				hvsi2.id IS NULL AND
-				NOT EXISTS (
-					SELECT 1
-					FROM
-						upcoming_activities ua
-					INNER JOIN
-						vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-					WHERE
-						ua.host_id = hvsi.host_id AND
-						vaua.adam_id = hvsi.adam_id AND
-						vaua.platform = hvsi.platform AND
-						ua.activity_type = 'vpp_app_install'
-			)
+				ua.host_id = hihsi.host_id AND
+				ihua.in_house_app_id = hihsi.in_house_app_id AND
+				ua.activity_type = 'in_house_app_install'
+		)
 )
-`, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
-	vppInstallsStmt, args, err := sqlx.Named(vppInstallsStmt, map[string]any{
+`, inHouseAppHostStatusNamedQuery("hihsi", "ncr", "status"))
+
+	installsStmt, args, err := sqlx.Named(installsStmt, map[string]any{
 		"host_id":                   hostID,
 		"global_or_team_id":         globalOrTeamID,
 		"software_status_installed": fleet.SoftwareInstalled,
@@ -3170,15 +3170,15 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 		"software_status_pending":   fleet.SoftwareInstallPending,
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build named query for host vpp installs")
+		return nil, ctxerr.Wrap(ctx, err, "build named query for host in-house installs")
 	}
-	var vppInstalls []*hostSoftware
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalls, vppInstallsStmt, args...)
+	var installs []*hostSoftware
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, installsStmt, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return vppInstalls, nil
+	return installs, nil
 }
 
 func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostInstalledSoftware hostSoftware) {
@@ -3479,6 +3479,43 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
 				byVPPAdamID[*s.VPPAppAdamID] = s
 			}
+		}
+	}
+
+	hostInHouseInstalls, err := hostInHouseInstalls(ds, ctx, host.ID, globalOrTeamID, opts.SelfServiceOnly, opts.IsMDMEnrolled)
+	if err != nil {
+		return nil, nil, err
+	}
+	byInHouseID := make(map[uint]*hostSoftware)
+	for _, s := range hostInHouseInstalls {
+		// If an in-house app is already installed on the host, we don't need to
+		// double count it (what does that mean? copied from the VPP comment,
+		// please clarify if you know) until we merge the two fetch queries later
+		// on in this method. Until then if the host_software record is not a
+		// software installer nor VPP app, we delete it and keep the in-house app.
+		if _, exists := hostInstalledSoftwareTitleSet[s.ID]; exists {
+			installedTitle := bySoftwareTitleID[s.ID]
+
+			if installedTitle.InstallerID == nil {
+				// not a software installer, so copy over
+				// the installed title information
+				s.LastOpenedAt = installedTitle.LastOpenedAt
+				s.SoftwareID = installedTitle.SoftwareID
+				s.SoftwareSource = installedTitle.SoftwareSource
+				s.SoftwareExtensionFor = installedTitle.SoftwareExtensionFor
+				s.Version = installedTitle.Version
+				s.BundleIdentifier = installedTitle.BundleIdentifier
+				if !opts.VulnerableOnly && !hasCVEMetaFilters {
+					// When we are filtering by vulnerable only
+					// we want to treat the installed vpp app as a regular software title
+					delete(bySoftwareTitleID, s.ID)
+				}
+				byVPPAdamID[*s.VPPAppAdamID] = s
+			} else {
+				continue
+			}
+		} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+			byVPPAdamID[*s.VPPAppAdamID] = s
 		}
 	}
 
