@@ -14817,21 +14817,43 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
+	// Create temporary script files for testing
+	shContent := "#!/bin/bash\necho 'Installing...'\nexit 0\n"
+	ps1Content := "Write-Host 'Installing...'\nExit 0\n"
+
+	shFile, err := fleet.NewTempFileReader(strings.NewReader(shContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer shFile.Close()
+
+	ps1File, err := fleet.NewTempFileReader(strings.NewReader(ps1Content), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer ps1File.Close()
+
 	// Test .sh file with automatic_install (should be rejected)
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		Filename:         "install-app.sh",
 		TeamID:           &team.ID,
 		AutomaticInstall: true,
+		InstallerFile:    shFile,
 	}
 	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .sh packages.")
+
+	// Rewind the file reader for reuse
+	err = shFile.Rewind()
+	require.NoError(t, err)
 
 	// Test .ps1 file with automatic_install (should be rejected)
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		Filename:         "install-app.ps1",
 		TeamID:           &team.ID,
 		AutomaticInstall: true,
+		InstallerFile:    ps1File,
 	}
 	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .ps1 packages.")
+
+	// Rewind the file reader for reuse
+	err = shFile.Rewind()
+	require.NoError(t, err)
 
 	// Test .sh file with unsupported params (should be ignored/cleared)
 	payload = &fleet.UploadSoftwareInstallerPayload{
@@ -14840,6 +14862,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		UninstallScript:   "echo 'uninstall'",
 		PostInstallScript: "echo 'post'",
 		PreInstallQuery:   "SELECT 1;",
+		InstallerFile:     shFile,
 	}
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
