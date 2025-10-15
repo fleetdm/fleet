@@ -6,20 +6,21 @@ import { getFileDetails } from "utilities/file/fileUtils";
 const baseClass = "script-uploader";
 
 interface IScriptPackageUploaderProps {
-  currentTeamId: number;
-  onFileSelected: (file: File) => void;
-  selectedFile: File | null;
+  onFileSelected?: (file: File) => void;
+  selectedFile?: File | null;
   forModal?: boolean;
+  onButtonClick?: () => void;
 }
 
 const ScriptPackageUploader = ({
   forModal,
   onFileSelected,
   selectedFile,
+  onButtonClick,
 }: IScriptPackageUploaderProps) => {
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
-      onFileSelected(files[0]);
+      onFileSelected?.(files[0]);
     }
   };
 
@@ -37,6 +38,7 @@ const ScriptPackageUploader = ({
       buttonType={buttonType}
       buttonMessage={buttonMessage}
       gitopsCompatible
+      onButtonClick={onButtonClick}
     />
   );
 };

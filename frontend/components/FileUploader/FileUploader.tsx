@@ -58,6 +58,12 @@ interface IFileUploaderProps {
   canEdit?: boolean;
   /** renders the current file with the delete trash button */
   onDeleteFile?: () => void;
+  /** if provided, will be called when the button is clicked
+   * instead of opening the file selector. Useful if you want to
+   * show the file selector UI but handle the file selection
+   * in a modal.
+   */
+  onButtonClick?: () => void;
   fileDetails?: {
     name: string;
     description?: string;
@@ -82,6 +88,7 @@ export const FileUploader = ({
   buttonMessage = "Upload",
   buttonType = "button",
   buttonTooltip,
+  onButtonClick,
   onFileUpload,
   canEdit = false,
   onDeleteFile,
@@ -136,6 +143,21 @@ export const FileUploader = ({
   };
 
   const renderUploadButton = () => {
+    let buttonMarkup = (
+      <>
+        {buttonType === "brand-inverse-icon" && (
+          <Icon color="core-fleet-green" name="upload" />
+        )}
+        <span>{buttonMessage}</span>
+      </>
+    );
+    // If we want to actual do file uploading, wrap in a label that
+    // references the hidden file input. Otherwise just use a span.
+    if (!onButtonClick) {
+      buttonMarkup = <label htmlFor="upload-file">{buttonMarkup}</label>;
+    } else {
+      buttonMarkup = <span>{buttonMarkup}</span>;
+    }
     // the gitops mode tooltip wrapper takes presedence over other button
     // renderings
     if (gitopsCompatible) {
@@ -156,15 +178,11 @@ export const FileUploader = ({
                 variant={buttonVariant}
                 isLoading={isLoading}
                 disabled={disabled || disableChildren}
-                customOnKeyDown={handleKeyDown}
+                customOnKeyDown={!onButtonClick ? handleKeyDown : undefined}
+                onClick={onButtonClick || undefined}
                 tabIndex={0}
               >
-                <label htmlFor="upload-file">
-                  {buttonType === "brand-inverse-icon" && (
-                    <Icon color="core-fleet-green" name="upload" />
-                  )}
-                  <span>{buttonMessage}</span>
-                </label>
+                {buttonMarkup}
               </Button>
             </TooltipWrapper>
           )}
@@ -186,15 +204,11 @@ export const FileUploader = ({
           variant={buttonVariant}
           isLoading={isLoading}
           disabled={disabled}
-          customOnKeyDown={handleKeyDown}
+          customOnKeyDown={!onButtonClick ? handleKeyDown : undefined}
+          onClick={onButtonClick || undefined}
           tabIndex={0}
         >
-          <label htmlFor="upload-file">
-            {buttonType === "brand-inverse-icon" && (
-              <Icon color="core-fleet-green" name="upload" />
-            )}
-            <span>{buttonMessage}</span>
-          </label>
+          <label htmlFor="upload-file">{buttonMarkup}</label>
         </Button>
       </TooltipWrapper>
     );
@@ -215,13 +229,16 @@ export const FileUploader = ({
               )}
             </div>
             {renderUploadButton()}
-            <input
-              ref={fileInputRef}
-              accept={accept}
-              id="upload-file"
-              type="file"
-              onChange={onFileSelect}
-            />
+            {/* If onButtonClick is provided, we're not actually uploading files here. */}
+            {!onButtonClick && (
+              <input
+                ref={fileInputRef}
+                accept={accept}
+                id="upload-file"
+                type="file"
+                onChange={onFileSelect}
+              />
+            )}
           </div>
         </div>
       </>

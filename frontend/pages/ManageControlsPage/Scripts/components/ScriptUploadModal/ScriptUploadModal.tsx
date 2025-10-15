@@ -55,7 +55,6 @@ const ScriptUploadModal = ({
       <>
         <div className={`${baseClass}__content`}>
           <ScriptUploader
-            currentTeamId={currentTeamId}
             onFileSelected={(file) => setSelectedFile(file)}
             selectedFile={selectedFile}
             forModal

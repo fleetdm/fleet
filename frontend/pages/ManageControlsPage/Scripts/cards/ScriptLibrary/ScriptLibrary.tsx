@@ -182,7 +182,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
       {!isLoading && currentPage === 0 && !scripts?.length && (
-        <ScriptUploader currentTeamId={teamId} onUpload={onUploadScript} />
+        <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
       )}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
