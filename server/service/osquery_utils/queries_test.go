@@ -64,6 +64,77 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 
 	MutateSoftwareOnIngestion(noMatch, log.NewNopLogger())
 	assert.Equal(t, "2024.0 (r8004)", noMatch.Version)
+
+	for expectedName, s := range map[string]*fleet.Software{
+		"SynologyAssistant": {
+			Name:             "DSAssistant",
+			BundleIdentifier: "com.synology.DSAssistant",
+			Source:           "apps",
+		},
+		"BlueStacksMIM": {
+			Name:             "HD-MultiInstanceManager",
+			BundleIdentifier: "com.now.gg.BlueStacksMIM",
+			Source:           "apps",
+		},
+		"JPKIUninstall": {
+			Name:             "JPKIUninstall.scpt",
+			BundleIdentifier: "jp.go.jpki.JPKIUninstall",
+			Source:           "apps",
+		},
+		"OracleDataModeler": {
+			Name:             "datamodeler.sh",
+			BundleIdentifier: "com.oracle.OracleDataModeler",
+			Source:           "apps",
+		},
+		"EaseUS NTFS Service": {
+			Name:             "euntfsservice",
+			BundleIdentifier: "com.easeus.ntfsformacdaemon",
+			Source:           "apps",
+		},
+		"Poly Lens Desktop": {
+			Name:             "legacyhost",
+			BundleIdentifier: "com.poly.lens.legacyhost.app",
+			Source:           "apps",
+		},
+		"Zen Browser Plugin Container": {
+			Name:             "plugin-container",
+			BundleIdentifier: "app.zen-browser.plugincontainer",
+			Source:           "apps",
+		},
+		"Mozilla Plugin Container": {
+			Name:             "plugin-container",
+			BundleIdentifier: "org.mozilla.plugincontainer",
+			Source:           "apps",
+		},
+		"Chrome Remote Desktop Host Uninstaller": {
+			Name:             "remoting_host_uninstaller",
+			BundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
+			Source:           "apps",
+		},
+		"Android Emulator": {
+			Name:             "runemu",
+			BundleIdentifier: "",
+			Source:           "apps",
+		},
+		"Oracle SQLDeveloper": {
+			Name:             "sqldeveloper.sh/",
+			BundleIdentifier: "com.oracle.SQLDeveloper",
+			Source:           "apps",
+		},
+	} {
+		MutateSoftwareOnIngestion(s, log.NewNopLogger())
+		assert.Equal(t, expectedName, s.Name)
+	}
+
+	// Test customAppSanitizers TNMS case
+	sw := &fleet.Software{
+		Name:             "TNMS 21.10.0.590.1",
+		BundleIdentifier: "TNMS_21.10.0.590.1",
+		Source:           "apps",
+	}
+	MutateSoftwareOnIngestion(sw, log.NewNopLogger())
+	assert.Equal(t, "TNMS", sw.Name)
+	assert.Equal(t, "21.10.0.590.1", sw.Version)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
