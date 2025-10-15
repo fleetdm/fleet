@@ -1999,7 +1999,7 @@ var (
 			matchBundleIdentifier: "com.poly.lens.legacyhost.app",
 			matchName:             "legacyhost",
 			mutate: func(s *fleet.Software, logger log.Logger) {
-				s.Name = "Poly Lens Desktop"
+				s.Name = "Poly Lens Desktop (Legacy)"
 			},
 		},
 		{
