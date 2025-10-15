@@ -1,0 +1,1 @@
+Improved MySQL query performance for /api/latest/fleet/vulnerabilities endpoint.
