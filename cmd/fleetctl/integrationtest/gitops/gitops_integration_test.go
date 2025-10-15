@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
@@ -219,4 +220,242 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	winProfile, err := s.DS.GetMDMWindowsConfigProfile(ctx, windowsProfileUUID)
 	require.NoError(t, err)
 	assert.Contains(t, string(winProfile.SyncML), "${FLEET_SECRET_"+secretName2+"}")
+}
+
+// for https://github.com/fleetdm/fleet/issues/28107,
+// scenario 1: profile with 2 labels, one is deleted and removed from profile in the same apply
+func (s *integrationGitopsTestSuite) TestGitopsDeleteLabelAndRemoveFromProfileScenario1() {
+	t := s.T()
+	ctx := t.Context()
+	fleetctlConfig := s.createFleetctlConfig()
+
+	gitopsDir := t.TempDir()
+
+	// create the labels files
+	labelA := writeGitopsFile(t, gitopsDir, "labelA-*.yml", `
+- name: A
+  query: SELECT 1;
+  label_membership_type: dynamic
+`)
+
+	labelB := writeGitopsFile(t, gitopsDir, "labelB-*.yml", `
+- name: B
+  query: SELECT 2;
+  label_membership_type: dynamic
+`)
+
+	// create the profile file
+	profile := writeGitopsFile(t, gitopsDir, "profile-*.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadDescription</key><string>prof1</string>
+  <key>PayloadDisplayName</key><string>prof1</string>
+  <key>PayloadIdentifier</key><string>com.fleet.1</string>
+  <key>PayloadOrganization</key><string>Fleet</string>
+  <key>PayloadRemovalDisallowed</key><false/>
+  <key>PayloadScope</key><string>System</string>
+  <key>PayloadType</key><string>Configuration</string>
+  <key>PayloadUUID</key><string>D399FCFD-C68A-4939-BFA1-CD2814778D25</string>
+  <key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>
+`)
+
+	// create the gitops file
+	globalFile := writeGitopsFile(t, gitopsDir, "default.yml", fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./%s
+        labels_include_any:
+        - A
+        - B
+labels:
+  - path: ./%s
+  - path: ./%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
+`, filepath.Base(profile), filepath.Base(labelA), filepath.Base(labelB)))
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+
+	// apply this config
+	fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+
+	// at this point the profile is valid and has "include any" with labels A and B
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "prof1", profs[0].Name)
+	require.Len(t, profs[0].LabelsIncludeAny, 2)
+	// labels are sorted by name so this is deterministic
+	require.Equal(t, "A", profs[0].LabelsIncludeAny[0].LabelName)
+	require.False(t, profs[0].LabelsIncludeAny[0].Broken)
+	require.Equal(t, "B", profs[0].LabelsIncludeAny[1].LabelName)
+	require.False(t, profs[0].LabelsIncludeAny[1].Broken)
+
+	// update the gitops config to remove label A from the profile and delete it
+	// from Fleet at the same time (so it shouldn't be "broken" in the proflie as
+	// it is removed from it).
+	globalFile = writeGitopsFile(t, gitopsDir, "default.yml", fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./%s
+        labels_include_any:
+        - B
+labels:
+  - path: ./%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
+`, filepath.Base(profile), filepath.Base(labelB)))
+
+	// apply this config
+	fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+
+	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "prof1", profs[0].Name)
+	// TODO: the following line should fail, it should show as 2 labels and 1
+	// broken, but it doesn't... maybe it's a race?
+	require.Len(t, profs[0].LabelsIncludeAny, 1)
+	require.Equal(t, "B", profs[0].LabelsIncludeAny[0].LabelName)
+	require.False(t, profs[0].LabelsIncludeAny[0].Broken)
+}
+
+// for https://github.com/fleetdm/fleet/issues/28107,
+// scenario 2: profile with 2 labels, one is deleted and both are removed from profile in the same apply
+func (s *integrationGitopsTestSuite) TestGitopsDeleteLabelAndRemoveFromProfileScenario2() {
+	t := s.T()
+	ctx := t.Context()
+	fleetctlConfig := s.createFleetctlConfig()
+
+	gitopsDir := t.TempDir()
+
+	// create the labels files
+	labelA := writeGitopsFile(t, gitopsDir, "labelA-*.yml", `
+- name: A
+  query: SELECT 1;
+  label_membership_type: dynamic
+`)
+
+	labelB := writeGitopsFile(t, gitopsDir, "labelB-*.yml", `
+- name: B
+  query: SELECT 2;
+  label_membership_type: dynamic
+`)
+
+	// create the profile file
+	profile := writeGitopsFile(t, gitopsDir, "profile-*.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadDescription</key><string>prof1</string>
+  <key>PayloadDisplayName</key><string>prof1</string>
+  <key>PayloadIdentifier</key><string>com.fleet.1</string>
+  <key>PayloadOrganization</key><string>Fleet</string>
+  <key>PayloadRemovalDisallowed</key><false/>
+  <key>PayloadScope</key><string>System</string>
+  <key>PayloadType</key><string>Configuration</string>
+  <key>PayloadUUID</key><string>D399FCFD-C68A-4939-BFA1-CD2814778D25</string>
+  <key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>
+`)
+
+	// create the gitops file
+	globalFile := writeGitopsFile(t, gitopsDir, "default.yml", fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./%s
+        labels_include_any:
+        - A
+        - B
+labels:
+  - path: ./%s
+  - path: ./%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
+`, filepath.Base(profile), filepath.Base(labelA), filepath.Base(labelB)))
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+
+	// apply this config
+	fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+
+	// at this point the profile is valid and has "include any" with labels A and B
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "prof1", profs[0].Name)
+	require.Len(t, profs[0].LabelsIncludeAny, 2)
+	// labels are sorted by name so this is deterministic
+	require.Equal(t, "A", profs[0].LabelsIncludeAny[0].LabelName)
+	require.False(t, profs[0].LabelsIncludeAny[0].Broken)
+	require.Equal(t, "B", profs[0].LabelsIncludeAny[1].LabelName)
+	require.False(t, profs[0].LabelsIncludeAny[1].Broken)
+
+	// update the gitops config to remove label A from the profile and delete it
+	// from Fleet at the same time (so it shouldn't be "broken" in the proflie as
+	// it is removed from it).
+	globalFile = writeGitopsFile(t, gitopsDir, "default.yml", fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./%s
+labels:
+  - path: ./%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
+`, filepath.Base(profile), filepath.Base(labelB)))
+
+	// apply this config
+	fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+
+	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "prof1", profs[0].Name)
+	// TODO: the following line should fail, it should show as 2 labels and 1
+	// broken, but it doesn't... maybe it's a race?
+	require.Len(t, profs[0].LabelsIncludeAny, 0)
 }
