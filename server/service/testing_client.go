@@ -671,8 +671,10 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 ) {
 	t.Helper()
 
-	// If InstallerFile is not already set, read from testdata
+	// Determine which file to use: either provided by test or opened from testdata
+	var installerFile io.Reader
 	if payload.InstallerFile == nil {
+		// Open file from testdata and close it when done
 		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
 		// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
 		if errors.Is(err, os.ErrNotExist) {
@@ -684,8 +686,10 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 		}
 		require.NoError(t, err)
 		defer tfr.Close()
-
-		payload.InstallerFile = tfr
+		installerFile = tfr
+	} else {
+		// Use the file provided by the test
+		installerFile = payload.InstallerFile
 	}
 
 	var b bytes.Buffer
@@ -694,7 +698,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	// add the software field
 	fw, err := w.CreateFormFile("software", payload.Filename)
 	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
+	n, err := io.Copy(fw, installerFile)
 	require.NoError(t, err)
 	require.NotZero(t, n)
 
