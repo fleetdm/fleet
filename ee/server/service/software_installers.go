@@ -64,6 +64,16 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.UserID = vc.UserID()
 
+	// Determine extension early so we can clear unsupported params for script packages
+	ext := strings.ToLower(filepath.Ext(payload.Filename))
+	ext = strings.TrimPrefix(ext, ".")
+	if fleet.IsScriptPackage(ext) {
+		// For script packages, clear unsupported params before any processing
+		payload.UninstallScript = ""
+		payload.PostInstallScript = ""
+		payload.PreInstallQuery = ""
+	}
+
 	// make sure all scripts use unix-style newlines to prevent errors when
 	// running them, browsers use windows-style newlines, which breaks the
 	// shebang when the file is directly executed.
@@ -93,8 +103,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 		}
 	}
-
-	clearScriptPackageUnsupportedParams(payload)
 
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing software installer")
@@ -208,14 +216,6 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, labelsInclud
 		LabelScope: scope,
 		ByName:     byName,
 	}, nil
-}
-
-func clearScriptPackageUnsupportedParams(payload *fleet.UploadSoftwareInstallerPayload) {
-	if fleet.IsScriptPackage(payload.Extension) {
-		payload.UninstallScript = ""
-		payload.PostInstallScript = ""
-		payload.PreInstallQuery = ""
-	}
 }
 
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
