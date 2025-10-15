@@ -753,7 +753,10 @@ func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context,
 
 func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error {
 	cancelStmt := "UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND status NOT IN (?, ?)"
-	_, err := ds.writer(ctx).ExecContext(ctx, cancelStmt, fleet.SetupExperienceStatusCancelled, hostUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, cancelStmt, fleet.SetupExperienceStatusCancelled, hostUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure)
+		return err
+	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
 	}
