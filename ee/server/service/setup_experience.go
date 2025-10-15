@@ -238,10 +238,8 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	case installersRunning == 0 && len(appsPending) > 0:
 		// enqueue vpp apps
 		var skipRemainingVPPInstalls bool
+	enqueueVPPApps:
 		for _, app := range appsPending {
-			if skipRemainingVPPInstalls {
-				continue
-			}
 			vppAppID, err := app.VPPAppID()
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
@@ -275,20 +273,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				app.Error = ptr.String(err.Error())
 				// At this point we need to check whether the "cancel if software install fails" setting is active,
 				// in which case we'll cancel the remaining pending items.
-				teamID := host.TeamID
-				requireAllSoftware := false
-				if teamID == nil || *teamID == 0 {
-					ac, err := svc.ds.AppConfig(ctx)
-					if err != nil {
-						return false, ctxerr.Wrap(ctx, err, "getting app config")
-					}
-					requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
-				} else {
-					team, err := svc.ds.Team(ctx, *teamID)
-					if err != nil {
-						return false, ctxerr.Wrap(ctx, err, "load team")
-					}
-					requireAllSoftware = team.Config.MDM.MacOSSetup.RequireAllSoftware
+				requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "checking if all software is required after vpp app install failure")
 				}
 				if requireAllSoftware {
 					err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
@@ -300,6 +287,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			}
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+			}
+			if skipRemainingVPPInstalls {
+				break enqueueVPPApps
 			}
 		}
 	case installersRunning == 0 && appsRunning == 0 && len(scriptsPending) > 0:

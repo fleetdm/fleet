@@ -1279,6 +1279,8 @@ type Service interface {
 
 	MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *Host) error
 
+	IsAllSetupExperienceSoftwareRequired(ctx context.Context, host *Host) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
 

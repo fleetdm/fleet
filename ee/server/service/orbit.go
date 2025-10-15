@@ -149,15 +149,13 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 		if hasFailedSoftwareInstall {
 			// Check if "require all software" is configured for the host's team.
-			requireAllSoftware := appCfg.MDM.MacOSSetup.RequireAllSoftware
+			requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checking if all software is required")
+			}
 			teamID := uint(0)
 			if host.TeamID != nil {
 				teamID = *host.TeamID
-				tm, err := svc.ds.Team(ctx, teamID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get Team to read require_all_software")
-				}
-				requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
 			}
 			// If so, call the enqueue function with a flag to retain successful steps.
 			if requireAllSoftware {

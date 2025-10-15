@@ -230,6 +230,29 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	return false, fleet.ErrMissingLicense
 }
 
+func (svc *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, host *fleet.Host) (bool, error) {
+	return isAllSetupExperienceSoftwareRequired(ctx, svc.ds, host)
+}
+
+func isAllSetupExperienceSoftwareRequired(ctx context.Context, ds fleet.Datastore, host *fleet.Host) (bool, error) {
+	teamID := host.TeamID
+	requireAllSoftware := false
+	if teamID == nil || *teamID == 0 {
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
+	} else {
+		team, err := ds.Team(ctx, *teamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load team")
+		}
+		requireAllSoftware = team.Config.MDM.MacOSSetup.RequireAllSoftware
+	}
+	return requireAllSoftware, nil
+}
+
 func (svc *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
 	return maybeCancelPendingSetupExperienceSteps(ctx, svc.ds, host)
 }
@@ -239,22 +262,10 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if host.Platform != "darwin" {
 		return nil
 	}
-	var requireAllSoftware bool
-	if host.TeamID != nil {
-		// load the team to get the device's team's software inventory config.
-		tm, err := ds.Team(ctx, *host.TeamID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "update setup experience status getting host team")
-		}
-		if tm != nil {
-			requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
-		}
-	} else {
-		ac, err := ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update setup experience status getting app config")
-		}
-		requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
+
+	requireAllSoftware, err := isAllSetupExperienceSoftwareRequired(ctx, ds, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if all software is required")
 	}
 	if !requireAllSoftware {
 		return nil
