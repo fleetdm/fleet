@@ -1,6 +1,6 @@
 name: mcp_listening_servers
 notes: This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).
-description: Lists processes with listening ports that are responding as [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers. This table queries the `listening_ports` and `processes` tables to find listening ports, then probes each port to identify active MCP servers.
+description: Lists processes with listening ports that are responding as [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers via HTTP (Many MCP servers use stdio and will not be detected by this table).  This table queries the `listening_ports` and `processes` tables to find listening ports, then probes each port to identify active MCP servers.
 platforms:
   - darwin
   - windows
