@@ -14810,6 +14810,73 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	}, http.StatusOK, "")
 }
 
+func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	// Test .sh file with automatic_install (should be rejected)
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "install-app.sh",
+		TeamID:           &team.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .sh packages.")
+
+	// Test .ps1 file with automatic_install (should be rejected)
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "install-app.ps1",
+		TeamID:           &team.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .ps1 packages.")
+
+	// Test .sh file with unsupported params (should be ignored/cleared)
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:          "install-app.sh",
+		TeamID:            &team.ID,
+		UninstallScript:   "echo 'uninstall'",
+		PostInstallScript: "echo 'post'",
+		PreInstallQuery:   "SELECT 1;",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	var titleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, payload.Filename)
+	})
+	require.NotZero(t, titleID)
+
+	// Verify unsupported params were cleared
+	var installer fleet.SoftwareInstaller
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &installer, `SELECT uninstall_script, post_install_script, pre_install_query FROM software_installers WHERE title_id = ?`, titleID)
+	})
+	require.Empty(t, installer.UninstallScript)
+	require.Empty(t, installer.PostInstallScript)
+	require.Empty(t, installer.PreInstallQuery)
+
+	// Test editing script package with unsupported params (should be ignored)
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		Filename:          "install-app.sh",
+		UninstallScript:   ptr.String("should be cleared"),
+		PostInstallScript: ptr.String("should be cleared"),
+		PreInstallQuery:   ptr.String("should be cleared"),
+		TitleID:           titleID,
+		TeamID:            &team.ID,
+	}, http.StatusOK, "")
+
+	// Verify unsupported params are still cleared after update
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &installer, `SELECT uninstall_script, post_install_script, pre_install_query FROM software_installers WHERE title_id = ?`, titleID)
+	})
+	require.Empty(t, installer.UninstallScript)
+	require.Empty(t, installer.PostInstallScript)
+	require.Empty(t, installer.PreInstallQuery)
+}
+
 // 1. host reports software
 // 2. reconciler runs, creates title
 // 3. installer is uploaded, matches existing software title
