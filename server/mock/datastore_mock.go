@@ -1437,7 +1437,7 @@ type AndroidHostLiteByHostUUIDFunc func(ctx context.Context, hostUUID string) (*
 
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
-type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) error
+type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) (bool, error)
 
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
 
@@ -8791,7 +8791,7 @@ func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
 }
 
-func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	s.mu.Lock()
 	s.SetAndroidHostUnenrolledFuncInvoked = true
 	s.mu.Unlock()
