@@ -523,3 +523,52 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Equal(t, scriptContents, payload.InstallScript)
 	})
 }
+
+func TestClearScriptPackageUnsupportedParams(t *testing.T) {
+	t.Parallel()
+
+	t.Run("clears params for sh", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:         "sh",
+			UninstallScript:   "echo 'uninstall'",
+			PostInstallScript: "echo 'post'",
+			PreInstallQuery:   "SELECT 1;",
+		}
+
+		clearScriptPackageUnsupportedParams(&payload)
+
+		require.Empty(t, payload.UninstallScript)
+		require.Empty(t, payload.PostInstallScript)
+		require.Empty(t, payload.PreInstallQuery)
+	})
+
+	t.Run("clears params for ps1", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:         "ps1",
+			UninstallScript:   "Write-Host 'uninstall'",
+			PostInstallScript: "Write-Host 'post'",
+			PreInstallQuery:   "SELECT 1;",
+		}
+
+		clearScriptPackageUnsupportedParams(&payload)
+
+		require.Empty(t, payload.UninstallScript)
+		require.Empty(t, payload.PostInstallScript)
+		require.Empty(t, payload.PreInstallQuery)
+	})
+
+	t.Run("preserves params for non-script packages", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:         "pkg",
+			UninstallScript:   "echo 'uninstall'",
+			PostInstallScript: "echo 'post'",
+			PreInstallQuery:   "SELECT 1;",
+		}
+
+		clearScriptPackageUnsupportedParams(&payload)
+
+		require.Equal(t, "echo 'uninstall'", payload.UninstallScript)
+		require.Equal(t, "echo 'post'", payload.PostInstallScript)
+		require.Equal(t, "SELECT 1;", payload.PreInstallQuery)
+	})
+}
