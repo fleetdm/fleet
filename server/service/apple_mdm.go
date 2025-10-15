@@ -4220,7 +4220,6 @@ func NewInstalledApplicationListResultsHandler(
 		var poll, shouldRefetch bool
 		setStatusForExpectedInstall := func(expectedInstall *fleet.HostVPPSoftwareInstall, verifyFn, failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error) error {
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
-			// These are not pointers, so no need to check `ok` here.
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
 			var terminalStatus string
@@ -4277,15 +4276,20 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		for _, expectedInstall := range expectedVPPInstalls {
-			setStatusForExpectedInstall(expectedInstall, ds.SetVPPInstallAsVerified, ds.SetVPPInstallAsFailed)
+			if err := setStatusForExpectedInstall(expectedInstall, ds.SetVPPInstallAsVerified, ds.SetVPPInstallAsFailed); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting status for vpp installs")
+			}
 		}
 
 		for _, expectedInstall := range expectedInHouseInstalls {
-			setStatusForExpectedInstall(expectedInstall, ds.SetInHouseAppInstallAsVerified, ds.SetInHouseAppInstallAsFailed)
+			if err := setStatusForExpectedInstall(expectedInstall, ds.SetInHouseAppInstallAsVerified, ds.SetInHouseAppInstallAsFailed); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting status for in-house app installs")
+			}
 		}
 
 		if poll {
 			// Queue a job to verify the VPP install.
+			fmt.Printf("poll: %v\ncmdUUID: %s\n", poll, installedAppResult.UUID())
 			return ctxerr.Wrap(
 				ctx,
 				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID()),

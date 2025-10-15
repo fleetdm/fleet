@@ -1801,7 +1801,7 @@ SELECT
 		iha.bundle_identifier AS bundle_identifier
 FROM nano_command_results ncr
 JOIN host_in_house_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
-JOIN in_house_apps iha ON iha.id = hvsi.id AND iha.platform = hvsi.platform
+JOIN in_house_apps iha ON iha.id = hvsi.in_house_app_id AND iha.platform = hvsi.platform
 WHERE ncr.id = ?
 AND ncr.status = 'Acknowledged'
 AND hvsi.verification_at IS NULL
@@ -1853,15 +1853,12 @@ func (s softwareType) getInstallMappingTableName() string {
 }
 
 func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error {
-	return ds.associateMDMInstallToVerificationUUID(ctx, installUUID, verifyCommandUUID, softwareTypeVPP, hostUUID)
-}
 
-func (ds *Datastore) associateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string, installableType softwareType, hostUUID string) error {
-	stmt := fmt.Sprintf(`
+	stmt := `
 UPDATE %s
 SET verification_command_uuid = ?
 WHERE command_uuid = ?
-	`, installableType.getInstallMappingTableName())
+	`
 
 	hostCmdStmt := `
 INSERT INTO host_mdm_commands
@@ -1870,7 +1867,11 @@ VALUES ((SELECT id FROM hosts WHERE uuid = ?), ?)
 	`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmt, verifyCommandUUID, installUUID); err != nil {
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, softwareTypeVPP.getInstallMappingTableName()), verifyCommandUUID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update vpp install verification command")
+		}
+
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, softwareTypeInHouseApp.getInstallMappingTableName()), verifyCommandUUID, installUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "update vpp install verification command")
 		}
 

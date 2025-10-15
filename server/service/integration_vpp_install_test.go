@@ -1344,6 +1344,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	s.runWorker()
 
 	cmd, err = iosDevice.Idle()
+	var cmd1 string
 	require.NoError(t, err)
 	assert.NotNil(t, cmd)
 	for cmd != nil {
@@ -1351,17 +1352,48 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		switch cmd.Command.RequestType {
 		case "InstalledApplicationList":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd1 = cmd.CommandUUID
 			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
 			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
 				iosDevice.UUID,
 				cmd.CommandUUID,
 				[]fleet.Software{
-					{
-						Name:             "test",
-						BundleIdentifier: "com.ipa-test.ipa-test",
-						Version:          "1.0",
-						Installed:        true,
-					},
+					// {
+					// 	Name:             "test",
+					// 	BundleIdentifier: "com.ipa-test.ipa-test",
+					// 	Version:          "1.0",
+					// 	Installed:        true,
+					// },
+				},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	s.runWorker()
+
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			require.Equal(t, cmd1, cmd.CommandUUID)
+			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					// {
+					// 	Name:             "test",
+					// 	BundleIdentifier: "com.ipa-test.ipa-test",
+					// 	Version:          "1.0",
+					// 	Installed:        true,
+					// },
 				},
 			)
 			require.NoError(t, err)
