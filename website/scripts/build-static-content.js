@@ -354,6 +354,11 @@ module.exports = {
             if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
               continue;
             }
+            // If this page is in the docs/solutions/ folder, skip it.
+            // TODO: Do we want it downloadable via fleetdm.com url?
+            if (sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'solutions/')) {
+              continue;
+            }
             // Skip pages in folders starting with an underscore character.
             if(sectionRepoPath === 'docs/' &&  _.startsWith(pageRelSourcePath.split(/\//).slice(-2)[0], '_')){
               continue;
