@@ -3543,6 +3543,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
 			}
 		}
+
 	}
 
 	hostSoftwareUninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
