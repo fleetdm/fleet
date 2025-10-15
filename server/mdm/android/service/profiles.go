@@ -42,7 +42,10 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
 	}
-	client.SetAuthenticationSecret(authSecret)
+	err = client.SetAuthenticationSecret(authSecret)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting Android client authentication secret for profile reconciler")
+	}
 
 	reconciler := &profileReconciler{
 		DS:         ds,
