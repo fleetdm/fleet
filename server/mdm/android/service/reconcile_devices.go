@@ -73,7 +73,6 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 				displayName = hosts[0].DisplayName()
 				serial = hosts[0].HardwareSerial
 			}
-			fmt.Println("===COULD_NOT_FIND_DEVICE_RECONCILE")
 			if aerr := ds.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
