@@ -19878,7 +19878,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Record a result for test.tar.gz.
+		// Record a result for vim
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -20103,7 +20103,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Record a result for test.tar.gz.
+		// Record a result for vim.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -20493,7 +20493,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
 	require.EqualValues(t, "running", orbitRes.Results.Software[1].Status)
 
-	// Record a result for test.tar.gz.
+	// Record a result for vim.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 		fmt.Sprintf(`{
 					"orbit_node_key": %q,
