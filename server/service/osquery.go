@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -60,7 +61,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
 
-	if *host.HasHostIdentityCert {
+	// Verify host identity certificate if present, unless disabled for testing
+	disableHTTPSigCheck := os.Getenv("FLEET_DEV_DISABLE_HOST_IDENTITY_HTTP_SIG") != ""
+	if *host.HasHostIdentityCert && !disableHTTPSigCheck {
 		err = httpsig.VerifyHostIdentity(ctx, svc.ds, host)
 		if err != nil {
 			osqueryError := newOsqueryError("authentication error: " + err.Error())
@@ -113,15 +116,17 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	}
 
 	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	// This check can be disabled via FLEET_DEV_DISABLE_HOST_IDENTITY_HTTP_SIG for testing purposes.
+	disableHTTPSigCheck := os.Getenv("FLEET_DEV_DISABLE_HOST_IDENTITY_HTTP_SIG") != ""
 	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
-	if identityCert != nil {
+	if identityCert != nil && !disableHTTPSigCheck {
 		if !httpSigPresent {
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
-	} else if httpSigPresent { // but we couldn't find cert in DB
+	} else if httpSigPresent && !disableHTTPSigCheck { // but we couldn't find cert in DB
 		return "", fleet.NewAuthFailedError("authentication error: certificate matching HTTP message signature not found")
 	}
 

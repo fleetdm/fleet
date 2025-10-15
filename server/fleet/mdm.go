@@ -816,9 +816,9 @@ const (
 	// MDMAssetAndroidFleetServerSecret is the bearer token for Android requests sent to the fleetdm.com Android management proxy.
 	MDMAssetAndroidFleetServerSecret MDMAssetName = "android_fleet_server_secret" // nolint:gosec // Ignore G101: Potential hardcoded credentials
 	// MDMAssetHostIdentityCACert is the name of the root CA certificate used for host identity
-	MDMAssetHostIdentityCACert MDMAssetName = "host_identity_ca_cert"
+	MDMAssetHostIdentityCACert MDMAssetName = "host_identity_ca_cert_v2"
 	// MDMAssetHostIdentityCAKey is the name of the root CA private key used for host identity
-	MDMAssetHostIdentityCAKey MDMAssetName = "host_identity_ca_key"
+	MDMAssetHostIdentityCAKey MDMAssetName = "host_identity_ca_key_v2"
 )
 
 type MDMConfigAsset struct {

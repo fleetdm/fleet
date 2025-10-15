@@ -3,6 +3,8 @@ package types
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"fmt"
@@ -76,4 +78,23 @@ func CreateECDSAPublicKeyRaw(key *ecdsa.PublicKey) ([]byte, error) {
 
 	pubKeyRaw := append([]byte{0x04}, append(xBytes, yBytes...)...)
 	return pubKeyRaw, nil
+}
+
+// CreatePublicKeyRaw creates a raw byte representation of a public key.
+// For ECC keys, it returns the uncompressed point format (0x04 prefix + X + Y).
+// For RSA keys, it returns the PKIX, ASN.1 DER encoded public key.
+func CreatePublicKeyRaw(key any) ([]byte, error) {
+	switch k := key.(type) {
+	case *ecdsa.PublicKey:
+		return CreateECDSAPublicKeyRaw(k)
+	case *rsa.PublicKey:
+		// For RSA keys, marshal to PKIX format (standard ASN.1 DER encoding)
+		pubKeyBytes, err := x509.MarshalPKIXPublicKey(k)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling RSA public key: %w", err)
+		}
+		return pubKeyBytes, nil
+	default:
+		return nil, fmt.Errorf("unsupported key type: %T", key)
+	}
 }

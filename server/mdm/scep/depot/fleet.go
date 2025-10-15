@@ -8,6 +8,7 @@ import (
 
 // NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and
 // returns the certificate and its private key.
+// TODO: The Host Identity CA should be different from the MDM CA.
 func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 	key, err := newPrivateKey()
 	if err != nil {
@@ -15,8 +16,9 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 	}
 
 	caCert := NewCACert(
+		WithCommonName("Fleet Host Identity CA"),
+		WithCountry("US"),
 		WithYears(10),
-		WithCommonName("Fleet"),
 	)
 
 	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)
