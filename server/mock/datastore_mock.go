@@ -23,14 +23,6 @@ import (
 
 var _ fleet.Datastore = (*DataStore)(nil)
 
-// Added to satisfy fleet.Datastore interface after Android unenroll additions.
-func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error { return nil }
-
-// Added to satisfy fleet.Datastore interface after Android reconcile additions.
-func (s *DataStore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) {
-	return nil, nil
-}
-
 type HealthCheckFunc func() error
 
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
@@ -1445,6 +1437,8 @@ type AndroidHostLiteByHostUUIDFunc func(ctx context.Context, hostUUID string) (*
 
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
+type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) (bool, error)
+
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
 
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
@@ -1474,6 +1468,8 @@ type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroid
 type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error)
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
+
+type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*android.Device, error)
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -3675,6 +3671,9 @@ type DataStore struct {
 	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
 	BulkSetAndroidHostsUnenrolledFuncInvoked bool
 
+	SetAndroidHostUnenrolledFunc        SetAndroidHostUnenrolledFunc
+	SetAndroidHostUnenrolledFuncInvoked bool
+
 	NewAndroidHostFunc        NewAndroidHostFunc
 	NewAndroidHostFuncInvoked bool
 
@@ -3719,6 +3718,9 @@ type DataStore struct {
 
 	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
 	GetMDMAndroidProfilesContentsFuncInvoked bool
+
+	ListAndroidEnrolledDevicesForReconcileFunc        ListAndroidEnrolledDevicesForReconcileFunc
+	ListAndroidEnrolledDevicesForReconcileFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -8789,6 +8791,13 @@ func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
 }
 
+func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.SetAndroidHostUnenrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidHostUnenrolledFunc(ctx, hostID)
+}
+
 func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
 	s.mu.Lock()
 	s.NewAndroidHostFuncInvoked = true
@@ -8892,6 +8901,13 @@ func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []s
 	s.GetMDMAndroidProfilesContentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAndroidProfilesContentsFunc(ctx, uuids)
+}
+
+func (s *DataStore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) {
+	s.mu.Lock()
+	s.ListAndroidEnrolledDevicesForReconcileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidEnrolledDevicesForReconcileFunc(ctx)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

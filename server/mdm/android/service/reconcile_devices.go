@@ -63,7 +63,7 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 			// Device exists, no-op.
 			continue
 		case isNotFound(err):
-			if derr := ds.SetAndroidHostUnenrolled(ctx, dev.HostID); derr != nil {
+			if _, derr := ds.SetAndroidHostUnenrolled(ctx, dev.HostID); derr != nil {
 				level.Error(logger).Log("msg", "failed to mark android host unenrolled during reconcile", "host_id", dev.HostID, "err", derr)
 				continue
 			}

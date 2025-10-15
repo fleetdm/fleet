@@ -2414,7 +2414,7 @@ type AndroidDatastore interface {
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
-	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error
+	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
