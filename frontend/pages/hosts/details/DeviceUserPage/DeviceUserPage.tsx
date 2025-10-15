@@ -60,7 +60,6 @@ import {
   isSoftwareScriptSetup,
 } from "./helpers";
 
-import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
@@ -755,7 +754,11 @@ const DeviceUserPage = ({
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
-                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                  {isLoadingHost ? (
+                    <Spinner />
+                  ) : (
+                    <OrgLogoIcon className="logo" src={orgLogoURL} />
+                  )}
                 </div>
               </div>
             </li>

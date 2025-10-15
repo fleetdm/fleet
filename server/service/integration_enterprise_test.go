@@ -8927,7 +8927,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	var resp listSoftwareTitlesResponse
@@ -9183,7 +9182,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// calculate hosts counts
 	hostsCountTs = time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// request software for the team, this time we get results
@@ -9539,7 +9537,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// calculate hosts counts
 	hostsCountTs = time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// valid title with vulnerabilities
@@ -9934,7 +9931,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// add variations of user roles to different teams
@@ -11020,8 +11016,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
 	}
 	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	// Note: the ID returned by ListHostSoftware is the title ID, not the software ID. We need the
@@ -14655,7 +14649,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -14689,7 +14682,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 	require.Len(t, host.Software, 5)
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// titles are the same
@@ -14858,7 +14850,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp := listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -14966,7 +14957,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -16041,7 +16031,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	_, err = s.ds.UpdateHostSoftware(ctx, host1Team1.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	// Get software title ID of the software.
 	resp = listSoftwareTitlesResponse{}
@@ -17421,7 +17410,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	payload := &fleet.UploadSoftwareInstallerPayload{

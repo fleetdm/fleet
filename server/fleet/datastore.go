@@ -625,11 +625,11 @@ type Datastore interface {
 	// on removed hosts, software uninstalled on hosts, etc.)
 	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
 
-	// ReconcileSoftwareTitles ensures the software_titles and software tables are in sync.
-	// It inserts new software titles and updates the software table with the title_id.
-	// It also cleans up any software titles that are no longer associated with any software.
+	// CleanupSoftwareTitles cleans up any software titles (software_titles table)
+	// that are no longer associated with any software version (software table).
+	//
 	// It is intended to be run after SyncHostsSoftware.
-	ReconcileSoftwareTitles(ctx context.Context) error
+	CleanupSoftwareTitles(ctx context.Context) error
 
 	// SyncHostsSoftwareTitles calculates the number of hosts having each
 	// software_title installed and stores that information in the
@@ -1909,9 +1909,9 @@ type Datastore interface {
 	// pending.
 	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
-	// CleanMacOSMDMLock cleans the lock status and pin for a macOS device
+	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
-	CleanMacOSMDMLock(ctx context.Context, hostUUID string) error
+	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
@@ -2453,6 +2453,7 @@ type MDMAppleStore interface {
 	MDMAssetRetriever
 	GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error)
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
+	EnqueueDeviceUnlockCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }
 

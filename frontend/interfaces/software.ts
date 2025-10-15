@@ -225,6 +225,7 @@ export const SOURCE_TYPE_CONVERSION = {
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   sh_packages: "Payload-free (Linux)",
   ps1_packages: "Payload-free (Windows)",
+  jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -256,6 +257,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   vscode_extensions: null,
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
+  jetbrains_plugins: null,
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
@@ -285,6 +287,21 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
   trae: "Trae",
   windsurf: "Windsurf",
   cursor: "Cursor",
+
+  // jebtbrains versions
+  clion: "CLion",
+  datagrip: "DataGrip",
+  goland: "GoLand",
+  intellij_idea: "IntelliJ IDEA",
+  intellij_idea_community_edition: "IntelliJ IDEA Community Edition",
+  phpstorm: "PhpStorm",
+  pycharm: "PyCharm",
+  pycharm_community_edition: "PyCharm Community Edition",
+  resharper: "ReSharper",
+  rider: "Rider",
+  rubymine: "RubyMine",
+  rust_rov: "RustRover",
+  webstorm: "WebStorm",
 } as const;
 
 export type SoftwareExtensionFor =

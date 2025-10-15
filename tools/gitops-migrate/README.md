@@ -13,35 +13,17 @@ This script automates the migration of software configuration keys from individu
 
 ## Prerequisites
 
-### Required dependencies
+**yq** is required (version 4 or higher)
 
-- **yq** (version 4 or higher)
-  ```bash
-  # Install on macOS
-  brew install yq
-  
-  # Install on Ubuntu/Debian
-  # yq installed from apt is NOT supported
-  sudo snap install yq
-  
-  # Install on other systems - see https://github.com/mikefarah/yq
-  ```
+```bash
+# Install on macOS
+brew install yq
 
-### Directory structure
+# Install on Ubuntu/Debian
+# yq installed from apt is NOT supported
+sudo snap install yq
 
-The script must be run from the Fleet repository root directory. It expects:
-
-```
-fleet/
-├── it-and-security/
-│   └── teams/
-│       ├── team1.yml
-│       ├── team2.yml
-│       └── ...
-└── tools/
-    └── gitops-migrate/
-        ├── migrate.sh
-        └── README.md
+# Install on other systems - see https://github.com/mikefarah/yq
 ```
 
 ## Usage
@@ -49,11 +31,7 @@ fleet/
 ### Basic usage
 
 ```bash
-# From the fleet repository root
 ./tools/gitops-migrate/migrate.sh <teams_directory_path>
-
-# Example:
-./tools/gitops-migrate/migrate.sh it-and-security/teams
 ```
 
 The script will:
@@ -78,7 +56,6 @@ software:
 **Software file (`it-and-security/lib/macos/software/firefox.yml`):**
 
 ```yaml
-name: Mozilla Firefox
 url: https://download.mozilla.org/...
 self_service: true
 categories:
@@ -109,7 +86,6 @@ software:
 **Software file (`it-and-security/lib/macos/software/firefox.yml`):**
 
 ```yaml
-name: Mozilla Firefox
 url: https://download.mozilla.org/...
 ```
 

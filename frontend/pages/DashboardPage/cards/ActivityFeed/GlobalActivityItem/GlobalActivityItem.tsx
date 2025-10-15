@@ -1542,12 +1542,26 @@ const TAGGED_TEMPLATES = {
   },
   editedSetupExperienceSoftware: (activity: IActivity) => {
     const { platform, team_name, team_id } = activity.details || {};
+
+    let platformText = "";
+    switch (platform) {
+      case "darwin":
+        platformText = "macOS";
+        break;
+      case "ios":
+        platformText = "iOS";
+        break;
+      case "ipados":
+        platformText = "iPadOS";
+        break;
+      default:
+        platformText = capitalize(platform);
+    }
+
     return (
       <>
         {" "}
-        edited setup experience software for{" "}
-        {platform === "darwin" ? "macOS" : capitalize(platform)} hosts that
-        enroll to{" "}
+        edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
           "no team"
         ) : (

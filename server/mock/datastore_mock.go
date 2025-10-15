@@ -471,7 +471,7 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type ReconcileSoftwareTitlesFunc func(ctx context.Context) error
+type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
@@ -1223,7 +1223,7 @@ type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScript
 
 type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
-type CleanMacOSMDMLockFunc func(ctx context.Context, hostUUID string) error
+type CleanAppleMDMLockFunc func(ctx context.Context, hostUUID string) error
 
 type CleanupUnusedScriptContentsFunc func(ctx context.Context) error
 
@@ -2222,8 +2222,8 @@ type DataStore struct {
 	SyncHostsSoftwareFunc        SyncHostsSoftwareFunc
 	SyncHostsSoftwareFuncInvoked bool
 
-	ReconcileSoftwareTitlesFunc        ReconcileSoftwareTitlesFunc
-	ReconcileSoftwareTitlesFuncInvoked bool
+	CleanupSoftwareTitlesFunc        CleanupSoftwareTitlesFunc
+	CleanupSoftwareTitlesFuncInvoked bool
 
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
@@ -3350,8 +3350,8 @@ type DataStore struct {
 	UnlockHostManuallyFunc        UnlockHostManuallyFunc
 	UnlockHostManuallyFuncInvoked bool
 
-	CleanMacOSMDMLockFunc        CleanMacOSMDMLockFunc
-	CleanMacOSMDMLockFuncInvoked bool
+	CleanAppleMDMLockFunc        CleanAppleMDMLockFunc
+	CleanAppleMDMLockFuncInvoked bool
 
 	CleanupUnusedScriptContentsFunc        CleanupUnusedScriptContentsFunc
 	CleanupUnusedScriptContentsFuncInvoked bool
@@ -5410,11 +5410,11 @@ func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) 
 	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) ReconcileSoftwareTitles(ctx context.Context) error {
+func (s *DataStore) CleanupSoftwareTitles(ctx context.Context) error {
 	s.mu.Lock()
-	s.ReconcileSoftwareTitlesFuncInvoked = true
+	s.CleanupSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ReconcileSoftwareTitlesFunc(ctx)
+	return s.CleanupSoftwareTitlesFunc(ctx)
 }
 
 func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error {
@@ -8042,11 +8042,11 @@ func (s *DataStore) UnlockHostManually(ctx context.Context, hostID uint, hostFle
 	return s.UnlockHostManuallyFunc(ctx, hostID, hostFleetPlatform, ts)
 }
 
-func (s *DataStore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) error {
+func (s *DataStore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
 	s.mu.Lock()
-	s.CleanMacOSMDMLockFuncInvoked = true
+	s.CleanAppleMDMLockFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanMacOSMDMLockFunc(ctx, hostUUID)
+	return s.CleanAppleMDMLockFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) CleanupUnusedScriptContents(ctx context.Context) error {
