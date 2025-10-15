@@ -1110,11 +1110,14 @@ CREATE TABLE `in_house_app_labels` (
 CREATE TABLE `in_house_app_upcoming_activities` (
   `upcoming_activity_id` bigint unsigned NOT NULL,
   `in_house_app_id` int unsigned NOT NULL,
+  `software_title_id` int unsigned DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`upcoming_activity_id`),
   KEY `fk_in_house_app_upcoming_activities_in_house_app_id` (`in_house_app_id`),
+  KEY `fk_in_house_app_upcoming_activities_software_title_id` (`software_title_id`),
   CONSTRAINT `fk_in_house_app_upcoming_activities_in_house_app_id` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_in_house_app_upcoming_activities_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_in_house_app_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

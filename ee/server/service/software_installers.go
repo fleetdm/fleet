@@ -1091,6 +1091,30 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return err
 	}
 
+	if mobileAppleDevice {
+		iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
+		}
+
+		if iha != nil {
+			scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
+			}
+
+			if !scoped {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+				}
+			}
+
+			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
+			return ctxerr.Wrap(ctx, err, "insert in house app install")
+		}
+		// it's OK if we didn't find an in-house app; this might be a VPP app, so continue on
+	}
+
 	if !mobileAppleDevice {
 		installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 		if err != nil {
