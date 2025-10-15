@@ -1,6 +1,6 @@
 # GitOps migration tool
 
-Fleet 4.74.0 includes [breaking changes](https://github.com/fleetdm/fleet/pull/30837/files#r2205252594) to the [experimental](https://fleetdm.com/handbook/company/product-groups#experimental-features) software YAML files. This tool automatically migrates your YAML to the new YAML format Fleet 4.74.0 expects.
+Fleet 4.74.1 includes [breaking changes](https://github.com/fleetdm/fleet/pull/30837/files#r2205252594) to the [experimental](https://fleetdm.com/handbook/company/product-groups#experimental-features) software YAML files. This tool automatically migrates your YAML to the new YAML format Fleet 4.74.1 expects.
 
 How to upgrade to 4.74.0:
 

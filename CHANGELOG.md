@@ -1,4 +1,11 @@
-## Fleet 4.74.0 (Oct 3, 2025)
+## Fleet 4.74.1 (Oct 14, 2025)
+
+### Bug fixes
+
+- Removing the software renaming fix introduced in 4.73.3 due to MySQL DB performance issues.
+- Fixed edge case when renaming macOS software mapped to multiple checksums.
+
+## Fleet 4.74.0 (Oct 6, 2025)
 
 ### Security Engineers
 - Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a Hydrant.
@@ -8,10 +15,10 @@
 - Added a new page in the UI for batch script run details.
 - Added support for AWS RDS (MySQL) IAM authentication.
 - Added support for AWS ElastiCache (Redis) IAM authentication.
+- Added support for hosts enrolled with Company Portal using the legacy SSO extension for Entra's conditional access.
 
 ### IT Admins
 - Added setup experience software items for Linux devices.
-- Added ability to upload custom software icons.
 - Added API endpoints for Linux setup experience.
   - Device API endpoints for fleetd: `POST /api/fleet/orbit/setup_experience/init` and `POST /api/v1/fleet/device/{token}/setup_experience/status`.
   - `PUT /api/v1/fleet/setup_experience/software` and `GET /api/v1/fleet/setup_experience/software` now have a `platform` argument (`linux` or `macos`, defaults to `macos`).
@@ -41,6 +48,8 @@
 - Added clearer error messages when a new password doesn't meet the password criteria.
 - Removed extra spacing from under disk encryption table.
 - Updated `fleetctl get mdm-command-results` to show output in a vertical format instead of a table.
+- Optimized os_versions API response time.
+- Added logic to detect and fix migration issues caused by improperly published Fleet v4.73.2 Linux binary.
 - Refactored ApplyQueries DS method so that queries are upserted in batches, this was done to avoid deadlocks during large gitops runs.
 - Refactored the way failing policies are computed on host details endpoint to avoid discrepancies due to read replica delays and async computation.
 - Refactored PATH fleet/config endpoint to use the primary DB node for both persisting changes and fetching modified App Config.
@@ -61,7 +70,7 @@
 - Fixed an alignment issue on the My device page.
 - Fix deadlocks when updating automations for 10+ policies at one time.
 
-## Fleet 4.73.4 (Oct 1, 2025)
+## Fleet 4.73.4 (Sep 30, 2025)
 
 ### Bug fixes
 
