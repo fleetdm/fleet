@@ -34,6 +34,8 @@ CREATE TABLE in_house_app_upcoming_activities (
 	-- action to be efficient).
 	in_house_app_id            INT UNSIGNED NOT NULL,
 
+	software_title_id          INT UNSIGNED DEFAULT NULL,
+
 	-- Using DATETIME instead of TIMESTAMP to prevent future Y2K38 issues
 	created_at   DATETIME(6) NOT NULL DEFAULT NOW(6),
 	updated_at   DATETIME(6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
@@ -42,7 +44,9 @@ CREATE TABLE in_house_app_upcoming_activities (
 	CONSTRAINT fk_in_house_app_upcoming_activities_upcoming_activity_id
 		FOREIGN KEY (upcoming_activity_id) REFERENCES upcoming_activities (id) ON DELETE CASCADE,
 	CONSTRAINT fk_in_house_app_upcoming_activities_in_house_app_id
-		FOREIGN KEY (in_house_app_id) REFERENCES in_house_apps (id) ON DELETE CASCADE
+		FOREIGN KEY (in_house_app_id) REFERENCES in_house_apps (id) ON DELETE CASCADE,
+	CONSTRAINT fk_in_house_app_upcoming_activities_software_title_id
+		FOREIGN KEY (software_title_id) REFERENCES software_titles (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 `,
 	)
