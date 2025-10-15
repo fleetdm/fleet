@@ -37,8 +37,7 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
   ios: {
     description: (
       <p>
-        When an iOS host in Apple Business Manager (ABM) enrolls, the selected
-        software is installed.
+        When an iOS host enrolls, the selected software is installed.
       </p>
     ),
     videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
@@ -46,8 +45,7 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
   ipados: {
     description: (
       <p>
-        When an iPadOS host in Apple Business Manager (ABM) enrolls, the
-        selected software is installed.
+        When an iPadOS host enrolls, the selected software is installed.
       </p>
     ),
     videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
