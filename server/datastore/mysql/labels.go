@@ -311,7 +311,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, err
 	for _, spec := range specs {
 		if spec.LabelType != fleet.LabelTypeBuiltIn &&
 			spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-			if err := ds.getLabelHostnames(ctx, spec); err != nil {
+			if err := ds.getLabelHostIDs(ctx, spec); err != nil {
 				return nil, err
 			}
 		}
@@ -340,7 +340,7 @@ WHERE name = ?
 	spec := specs[0]
 	if spec.LabelType != fleet.LabelTypeBuiltIn &&
 		spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		err := ds.getLabelHostnames(ctx, spec)
+		err := ds.getLabelHostIDs(ctx, spec)
 		if err != nil {
 			return nil, err
 		}
@@ -349,9 +349,9 @@ WHERE name = ?
 	return spec, nil
 }
 
-func (ds *Datastore) getLabelHostnames(ctx context.Context, label *fleet.LabelSpec) error {
+func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec) error {
 	sql := `
-		SELECT hostname
+		SELECT id
 		FROM hosts
 		WHERE id IN
 		(
