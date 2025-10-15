@@ -2584,10 +2584,6 @@ func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, host
 	return ds.isSoftwareLabelScoped(ctx, vppAppTeamID, hostID, softwareTypeVPP)
 }
 
-func (ds *Datastore) IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID, hostID uint) (bool, error) {
-	return ds.isSoftwareLabelScoped(ctx, inHouseAppID, hostID, softwareTypeInHouseApp)
-}
-
 func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
 	stmt := `
 		SELECT 1 FROM (

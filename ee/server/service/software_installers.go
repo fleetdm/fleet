@@ -1097,13 +1097,11 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
 		}
 
-		if iha != nil && iha.TitleID != nil {
+		if iha != nil {
 			scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, hostID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
 			}
-
-			fmt.Printf("scoped: %v\n", scoped)
 
 			if !scoped {
 				return &fleet.BadRequestError{
@@ -1111,7 +1109,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 				}
 			}
 
-			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, *iha.TitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
+			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
 			return ctxerr.Wrap(ctx, err, "insert in house app install")
 		}
 		// it's OK if we didn't find an in-house app; this might be a VPP app, so continue on
