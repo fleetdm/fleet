@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,14 +145,28 @@ DELETE FROM label_membership WHERE label_id = ?
 				continue
 			}
 
+			intRegex := regexp.MustCompile(`^[0-9]+$`)
 			// Split hostnames into batches to avoid parameter limit in MySQL.
 			for _, hostIdentifiers := range batchHostnames(s.Hosts) {
+				var stringIdents []string
+				// Start with 0 so id IN (?) always has at least one element.
+				// id = 0 never matches any real host.
+				intIdents := []uint64{0}
+
+				for _, s := range hostIdentifiers {
+					stringIdents = append(stringIdents, s)
+					// Use strconv to check if it's a valid integer
+					if intRegex.MatchString(s) {
+						n, _ := strconv.ParseUint(s, 10, 64)
+						intIdents = append(intIdents, n)
+					}
+				}
+
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))
-`
-				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, stringIdents, intIdents)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
