@@ -1303,7 +1303,7 @@ type GetInHouseAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID 
 
 type RemovePendingInHouseAppInstallsFunc func(ctx context.Context, inHouseAppID uint) error
 
-type GetSummaryInHouseAppInstallsFunc func(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error)
+type GetSummaryHostInHouseAppInstallsFunc func(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.VPPAppStatusSummary, error)
 
 type DeleteInHouseAppFunc func(ctx context.Context, id uint) error
 
@@ -3484,8 +3484,8 @@ type DataStore struct {
 	RemovePendingInHouseAppInstallsFunc        RemovePendingInHouseAppInstallsFunc
 	RemovePendingInHouseAppInstallsFuncInvoked bool
 
-	GetSummaryInHouseAppInstallsFunc        GetSummaryInHouseAppInstallsFunc
-	GetSummaryInHouseAppInstallsFuncInvoked bool
+	GetSummaryHostInHouseAppInstallsFunc        GetSummaryHostInHouseAppInstallsFunc
+	GetSummaryHostInHouseAppInstallsFuncInvoked bool
 
 	DeleteInHouseAppFunc        DeleteInHouseAppFunc
 	DeleteInHouseAppFuncInvoked bool
@@ -8357,11 +8357,11 @@ func (s *DataStore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouse
 	return s.RemovePendingInHouseAppInstallsFunc(ctx, inHouseAppID)
 }
 
-func (s *DataStore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+func (s *DataStore) GetSummaryHostInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.VPPAppStatusSummary, error) {
 	s.mu.Lock()
-	s.GetSummaryInHouseAppInstallsFuncInvoked = true
+	s.GetSummaryHostInHouseAppInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSummaryInHouseAppInstallsFunc(ctx, teamID, inHouseAppID)
+	return s.GetSummaryHostInHouseAppInstallsFunc(ctx, teamID, inHouseAppID)
 }
 
 func (s *DataStore) DeleteInHouseApp(ctx context.Context, id uint) error {

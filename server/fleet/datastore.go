@@ -2066,7 +2066,7 @@ type Datastore interface {
 	RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error
 
 	// GetSummaryHostSoftwareInstalls returns the software install summary for the in house app ID
-	GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*SoftwareInstallerStatusSummary, error)
+	GetSummaryHostInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*VPPAppStatusSummary, error)
 
 	// DeleteInHouseApp deletes an in house app and removes pending installs for it
 	DeleteInHouseApp(ctx context.Context, id uint) error

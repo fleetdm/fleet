@@ -3,9 +3,15 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -30,11 +36,23 @@ func TestInHouseApps(t *testing.T) {
 func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now())
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID, host2.ID, host3.ID}))
+	require.NoError(t, err)
+
+	nanoEnroll(t, ds, host1, false)
+	nanoEnroll(t, ds, host2, false)
+	nanoEnroll(t, ds, host3, false)
 
 	payload := fleet.UploadSoftwareInstallerPayload{
 		TeamID:           &team.ID,
+		UserID:           user1.ID,
 		Title:            "foo",
 		BundleIdentifier: "com.foo",
 		StorageID:        "testingtesting123",
@@ -43,6 +61,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		Version:          "1.2.3",
 	}
 
+	// -------------------------
 	// Upload software installer
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.Error(t, err, "ValidatedLabels must not be nil")
@@ -58,6 +77,19 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, payload.Title, installer.SoftwareTitle)
 	require.Equal(t, payload.Version, installer.Version)
 
+	// Install on multiple users with pending, success, failure
+	createInHouseAppInstallRequest(t, ds, host1.ID, installerID, titleID, user1)
+	cmdUUID2 := createInHouseAppInstallRequest(t, ds, host2.ID, installerID, titleID, user1)
+	createInHouseAppInstallResult(t, ds, host2, cmdUUID2, "Acknowledged")
+	cmdUUID3 := createInHouseAppInstallRequest(t, ds, host3.ID, installerID, titleID, user1)
+	createInHouseAppInstallResult(t, ds, host3, cmdUUID3, "Error")
+
+	// Get summary and expect failed, installed, pending
+	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 1, Pending: 1, Failed: 1}, *summary)
+
+	// -------------------------
 	// Update software installer
 	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-1", Query: "select 1"})
 	require.NoError(t, err)
@@ -82,9 +114,6 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	err = ds.SaveInHouseAppUpdates(ctx, &updatePayload)
 	require.NoError(t, err)
 
-	// ds.RemovePendingInHouseAppInstalls()
-	// TODO: add tests for this
-
 	// Installer updates correctly
 	var expectedLabels []fleet.SoftwareScopeLabel
 	expectedLabels = append(expectedLabels, fleet.SoftwareScopeLabel{LabelID: label.ID, LabelName: label.Name, Exclude: false, TitleID: titleID})
@@ -94,18 +123,22 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, "new_storage_id", newInstaller.StorageID)
 	require.Equal(t, expectedLabels, newInstaller.LabelsIncludeAny)
 
-	// Summary returns expected pending/failed/installed numbers
-	// TODO: add tests for this
-	_, err = ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
+	// Summary is unchanged?
+	summary2, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, installerID)
 	require.NoError(t, err)
+	require.Equal(t, summary, summary2)
 
+	// -------------------------
 	// Delete software installer
 	err = ds.DeleteInHouseApp(ctx, installerID)
 	require.NoError(t, err)
 
+	// TODO: test RemovePendingInHouseAppInstalls independently
+
 	_, err = ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.Error(t, err)
-	status, _ := ds.GetSummaryInHouseAppInstalls(ctx, &team.ID, installerID)
+	status, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, installerID)
+	require.NoError(t, err)
 	require.Zero(t, *status)
 
 	// Check that entire tables are empty for this test
@@ -121,4 +154,40 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	checkEmpty("host_in_house_software_installs")
 	checkEmpty("in_house_app_upcoming_activities")
 	checkEmpty("upcoming_activities")
+}
+
+func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, appID uint, titleID uint, user *fleet.User) string {
+	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	cmdUUID := "comm_" + strconv.Itoa(int(hostID))
+
+	err := ds.InsertHostInHouseAppInstall(ctx, hostID, appID, titleID, cmdUUID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	return cmdUUID
+}
+
+func createInHouseAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
+
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: cmdUUID,
+		Status:      status,
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	// inserting the activity is what marks the upcoming activity as completed
+	// (and activates the next one).
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      host.ID,
+		CommandUUID: cmdUUID,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
 }
