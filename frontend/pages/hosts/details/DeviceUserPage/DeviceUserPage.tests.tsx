@@ -290,7 +290,16 @@ describe("Device User Page", () => {
       host.platform = "linux";
 
       await setupTest(
-        { host },
+        {
+          host,
+          global_config: {
+            features: { enable_software_inventory: true },
+            mdm: {
+              enabled_and_configured: true,
+              require_all_software_macos: true,
+            },
+          },
+        },
         {
           setup_experience_results: {
             software: [
