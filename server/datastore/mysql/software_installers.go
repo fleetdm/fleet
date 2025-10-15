@@ -236,9 +236,14 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
 	}
 
-	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
-	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	var uninstallScriptID uint
+	var uninstallScriptIDPtr *uint
+	if payload.UninstallScript != "" {
+		uninstallScriptID, err = ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+		}
+		uninstallScriptIDPtr = &uninstallScriptID
 	}
 
 	var postInstallScriptID *uint
@@ -297,7 +302,7 @@ INSERT INTO software_installers (
 			installScriptID,
 			payload.PreInstallQuery,
 			postInstallScriptID,
-			uninstallScriptID,
+			uninstallScriptIDPtr,
 			payload.Platform,
 			payload.SelfService,
 			payload.UserID,
