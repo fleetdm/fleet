@@ -46,6 +46,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           pending: 8,
           failed: 3,
         },
+        isScriptPackage: false,
         isSelfService: true,
       });
     });
@@ -87,6 +88,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           pending: 5,
           failed: 3,
         },
+        isScriptPackage: false,
         isSelfService: false,
       });
     });
