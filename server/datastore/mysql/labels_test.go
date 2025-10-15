@@ -1867,8 +1867,8 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 2)
-	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0])
-	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
 
 	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
 	require.NoError(t, err)
@@ -1974,9 +1974,9 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 3)
-	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0])
-	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1])
-	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2]) //nolint:gosec // dismiss G115
 }
 
 func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
