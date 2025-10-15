@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
@@ -104,6 +103,16 @@ func generateWithScanner(ctx context.Context, queryContext table.QueryContext, s
 		promptsJSON, _ := json.Marshal(mcpInfo.Prompts)
 		resourcesJSON, _ := json.Marshal(mcpInfo.Resources)
 
+		// Convert boolean to integer string (0 or 1)
+		hasLogging := "0"
+		if mcpInfo.HasLogging {
+			hasLogging = "1"
+		}
+		hasCompletions := "0"
+		if mcpInfo.HasCompletions {
+			hasCompletions = "1"
+		}
+
 		// Create result row with all required columns
 		result := map[string]string{
 			"pid":              row["pid"],
@@ -115,8 +124,8 @@ func generateWithScanner(ctx context.Context, queryContext table.QueryContext, s
 			"server_name":      mcpInfo.ServerName,
 			"server_title":     mcpInfo.ServerTitle,
 			"server_version":   mcpInfo.ServerVersion,
-			"has_logging":      strconv.FormatBool(mcpInfo.HasLogging),
-			"has_completions":  strconv.FormatBool(mcpInfo.HasCompletions),
+			"has_logging":      hasLogging,
+			"has_completions":  hasCompletions,
 			"instructions":     mcpInfo.Instructions,
 			"tools":            string(toolsJSON),
 			"prompts":          string(promptsJSON),
