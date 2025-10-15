@@ -94,7 +94,6 @@ func TestGenerate_WithMCPServerActive(t *testing.T) {
 				}
 			}`,
 		},
-		statusCode: 200,
 	}
 
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
@@ -237,7 +236,7 @@ func TestGenerate_WithIPv6Address(t *testing.T) {
 
 	// Track which URLs were actually requested to verify IPv6 bracket handling
 	requestedURLs := []string{}
-	scanner.httpClient.Transport = &mockTransportWithURLTracking{
+	scanner.httpClient.Transport = &mockTransport{
 		requestedURLs: &requestedURLs,
 		responses: map[string]string{
 			"initialize": `{
@@ -257,7 +256,6 @@ func TestGenerate_WithIPv6Address(t *testing.T) {
 			}`,
 			"tools/list": `{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}`,
 		},
-		statusCode: 200,
 	}
 
 	qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
@@ -313,7 +311,7 @@ func TestSessionTermination(t *testing.T) {
 				httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
 			}
 
-			scanner.httpClient.Transport = &mockTransportWithTermination{
+			scanner.httpClient.Transport = &mockTransport{
 				deleteRequestReceived: &deleteRequestReceived,
 				deleteStatusCode:      tt.deleteStatusCode,
 				responses: map[string]string{
@@ -345,19 +343,14 @@ func TestSessionTermination(t *testing.T) {
 	}
 }
 
-// mockTransport is an HTTP transport that returns different responses based on the MCP method
+// mockTransport is a unified HTTP transport for testing MCP servers
 type mockTransport struct {
-	responses  map[string]string // method -> response
-	statusCode int
-	err        error
-}
-
-// mockTransportWithURLTracking is like mockTransport but also tracks requested URLs
-type mockTransportWithURLTracking struct {
-	requestedURLs *[]string
-	responses     map[string]string
-	statusCode    int
-	err           error
+	responses             map[string]string // method -> response for POST requests
+	statusCode            int               // status code for POST requests (default 200)
+	err                   error             // error to return instead of response
+	requestedURLs         *[]string         // if non-nil, track requested URLs
+	deleteRequestReceived *bool             // if non-nil, track DELETE requests
+	deleteStatusCode      int               // status code for DELETE requests (default 200)
 }
 
 func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -365,89 +358,30 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, m.err
 	}
 
-	// Handle DELETE requests for session termination
-	if req.Method == "DELETE" {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewBufferString("")),
-			Header:     http.Header{},
-		}, nil
+	// Track the requested URL if tracking is enabled
+	if m.requestedURLs != nil {
+		*m.requestedURLs = append(*m.requestedURLs, req.URL.String())
 	}
-
-	// Parse the request to determine which method is being called
-	var reqBody map[string]interface{}
-	bodyBytes, _ := io.ReadAll(req.Body)
-	_ = json.Unmarshal(bodyBytes, &reqBody)
-
-	method, _ := reqBody["method"].(string)
-	responseBody := m.responses[method]
-	if responseBody == "" {
-		responseBody = `{"jsonrpc":"2.0","id":1,"result":{}}`
-	}
-
-	return &http.Response{
-		StatusCode: m.statusCode,
-		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
-		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
-	}, nil
-}
-
-func (m *mockTransportWithURLTracking) RoundTrip(req *http.Request) (*http.Response, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	// Track the requested URL
-	*m.requestedURLs = append(*m.requestedURLs, req.URL.String())
 
 	// Handle DELETE requests for session termination
 	if req.Method == "DELETE" {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewBufferString("")),
-			Header:     http.Header{},
-		}, nil
-	}
-
-	// Parse the request to determine which method is being called
-	var reqBody map[string]interface{}
-	bodyBytes, _ := io.ReadAll(req.Body)
-	_ = json.Unmarshal(bodyBytes, &reqBody)
-
-	method, _ := reqBody["method"].(string)
-	responseBody := m.responses[method]
-	if responseBody == "" {
-		responseBody = `{"jsonrpc":"2.0","id":1,"result":{}}`
-	}
-
-	return &http.Response{
-		StatusCode: m.statusCode,
-		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
-		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
-	}, nil
-}
-
-// mockTransportWithTermination tracks DELETE requests for session termination testing
-type mockTransportWithTermination struct {
-	deleteRequestReceived *bool
-	deleteStatusCode      int
-	responses             map[string]string
-}
-
-func (m *mockTransportWithTermination) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Handle DELETE requests for session termination
-	if req.Method == "DELETE" {
-		*m.deleteRequestReceived = true
-		// Verify that the session ID header is present
-		if req.Header.Get("Mcp-Session-Id") == "" {
+		if m.deleteRequestReceived != nil {
+			*m.deleteRequestReceived = true
+		}
+		// Verify that the session ID header is present if tracking DELETE requests
+		if m.deleteRequestReceived != nil && req.Header.Get("Mcp-Session-Id") == "" {
 			return &http.Response{
 				StatusCode: http.StatusBadRequest,
 				Body:       io.NopCloser(bytes.NewBufferString("Missing Mcp-Session-Id header")),
 				Header:     http.Header{},
 			}, nil
 		}
+		deleteStatus := http.StatusOK
+		if m.deleteStatusCode != 0 {
+			deleteStatus = m.deleteStatusCode
+		}
 		return &http.Response{
-			StatusCode: m.deleteStatusCode,
+			StatusCode: deleteStatus,
 			Body:       io.NopCloser(bytes.NewBufferString("")),
 			Header:     http.Header{},
 		}, nil
@@ -464,8 +398,13 @@ func (m *mockTransportWithTermination) RoundTrip(req *http.Request) (*http.Respo
 		responseBody = `{"jsonrpc":"2.0","id":1,"result":{}}`
 	}
 
+	postStatus := http.StatusOK
+	if m.statusCode != 0 {
+		postStatus = m.statusCode
+	}
+
 	return &http.Response{
-		StatusCode: http.StatusOK,
+		StatusCode: postStatus,
 		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
 		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
 	}, nil
