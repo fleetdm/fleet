@@ -2810,6 +2810,9 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
 			return nil
 		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
+			return nil
+		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: "idp"}}, nil
 		}
@@ -2820,6 +2823,7 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
 		ds.SetOrUpdateHostSCIMUserMappingFuncInvoked = false // reset for next test
 		require.NotNil(t, result)
+		require.Len(t, result, 1)
 		assert.Equal(t, uint(1), result[0].HostID)
 		assert.Equal(t, "user@example.com", result[0].Email)
 		assert.Equal(t, "idp", result[0].Source)

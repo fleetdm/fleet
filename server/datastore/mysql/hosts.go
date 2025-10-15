@@ -3799,6 +3799,31 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 	return ds.listHostDeviceMappingDB(ctx, ds.writer(ctx), hostID)
 }
 
+func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+	const (
+		updStmt = `UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`
+		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
+	)
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// First attempt an update, and if it updates nothing proceed with an insert
+		res, err := tx.ExecContext(ctx, updStmt, email, hostID, "idp")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update IDP device mapping")
+		}
+
+		rowsAffected, _ := res.RowsAffected() // cannot fail for mysql driver
+		if rowsAffected == 0 {
+			// No existing IDP mapping, insert a new one
+			if _, err := tx.ExecContext(ctx, insStmt, email, hostID, "idp"); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
+			}
+		}
+		return nil
+	})
+	return err
+}
+
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
 	for _, m := range mappings {
 		if hid != m.HostID {

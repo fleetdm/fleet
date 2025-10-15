@@ -1752,7 +1752,13 @@ func (svc *Service) SetIDPHostDeviceMapping(ctx context.Context, hostID uint, em
 		return nil, ctxerr.Wrap(ctx, err, "set host SCIM user mapping")
 	}
 
-	// Return the updated device mappings
+	// Also store the IDP mapping in host_emails table so it appears in device_mapping API
+	// Use SetOrUpdateIDPHostDeviceMapping to add/update without replacing other mappings
+	if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
+	}
+
+	// Return the updated device mappings including the IDP mapping
 	return svc.ds.ListHostDeviceMapping(ctx, hostID)
 }
 
