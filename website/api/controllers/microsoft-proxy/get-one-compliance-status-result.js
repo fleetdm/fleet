@@ -24,6 +24,7 @@ module.exports = {
 
 
   exits: {
+    success: { description: 'A compliance status result was returned to the Fleet instance.', outputType: {} },
     tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'}
   },
 
@@ -69,7 +70,7 @@ module.exports = {
     };
     // If the status is "Failed", attach the error details to the response body.
     if(parsedComplianceUpdateResponse.Status === 'Failed') {
-      result.details = parsedComplianceUpdateResponse.ErrorDetail;
+      result.detail = parsedComplianceUpdateResponse.ErrorDetail;
     }
     // All done.
     return result;
