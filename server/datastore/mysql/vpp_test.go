@@ -586,8 +586,6 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	}
 	_, err = ds.UpdateHostSoftware(ctx, h1.ID, software)
 	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
 
 	// Insert some VPP apps for the team, "vpp_app_1" should match the existing "foo" title
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
@@ -1602,7 +1600,6 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// get the ID of the windows title so we can validate that it is not re-used
