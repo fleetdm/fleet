@@ -1676,7 +1676,12 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	payload.BundleIdentifier = ""
 	payload.PackageIDs = nil
 	payload.Extension = extension
-	payload.Source = "scripts"
+	switch extension {
+	case "sh":
+		payload.Source = "sh_packages"
+	case "ps1":
+		payload.Source = "ps1_packages"
+	}
 
 	platform, err := fleet.SoftwareInstallerPlatformFromExtension(extension)
 	if err != nil {

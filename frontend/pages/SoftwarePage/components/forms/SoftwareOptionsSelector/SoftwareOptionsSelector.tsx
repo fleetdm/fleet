@@ -103,7 +103,11 @@ const SoftwareOptionsSelector = ({
   const isPlatformIosOrIpados = platform === "ios" || platform === "ipados";
   const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
-    disableOptions || isPlatformIosOrIpados || isExePackage || isTarballPackage;
+    disableOptions ||
+    isPlatformIosOrIpados ||
+    isExePackage ||
+    isTarballPackage ||
+    isScriptPackage;
 
   /** Tooltip only shows when enabled or for exe/tar.gz/sh/ps1 packages */
   const showAutomaticInstallTooltip =
