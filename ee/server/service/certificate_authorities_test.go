@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -877,7 +878,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		svc.scepConfigService = &scep_mock.SCEPConfigService{
 			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
 			ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-				return NewNDESInvalidError("some error")
+				return scep.NewNDESInvalidError("some error")
 			},
 		}
 
@@ -902,7 +903,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		svc.scepConfigService = &scep_mock.SCEPConfigService{
 			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
 			ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-				return NewNDESPasswordCacheFullError("mock error")
+				return scep.NewNDESPasswordCacheFullError("mock error")
 			},
 		}
 
@@ -927,7 +928,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		svc.scepConfigService = &scep_mock.SCEPConfigService{
 			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
 			ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-				return NewNDESInsufficientPermissionsError("mock error")
+				return scep.NewNDESInsufficientPermissionsError("mock error")
 			},
 		}
 
@@ -1710,7 +1711,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 			svc.scepConfigService = &scep_mock.SCEPConfigService{
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-					return NewNDESInvalidError("some error")
+					return scep.NewNDESInvalidError("some error")
 				},
 			}
 
@@ -1730,7 +1731,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 			svc.scepConfigService = &scep_mock.SCEPConfigService{
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-					return NewNDESPasswordCacheFullError("some error")
+					return scep.NewNDESPasswordCacheFullError("some error")
 				},
 			}
 
@@ -1750,7 +1751,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 			svc.scepConfigService = &scep_mock.SCEPConfigService{
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-					return NewNDESInsufficientPermissionsError("some error")
+					return scep.NewNDESInsufficientPermissionsError("some error")
 				},
 			}
 

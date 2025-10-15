@@ -2444,6 +2444,9 @@ type AndroidDatastore interface {
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+
+	// GetEndUser retrieves the end user associated with a host.
+	GetEndUser(ctx context.Context, hostID uint) (*HostEndUser, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
@@ -2587,6 +2590,22 @@ func IsNotFound(err error) bool {
 		return nfe.IsNotFound()
 	}
 	return false
+}
+
+type notFoundError struct {
+	ErrorWithUUID
+}
+
+func (e notFoundError) Error() string {
+	return "not found"
+}
+
+func (e notFoundError) IsNotFound() bool {
+	return true
+}
+
+func NewNotFoundError() notFoundError {
+	return notFoundError{}
 }
 
 // AlreadyExistsError is returned when creating a datastore resource that already exists.

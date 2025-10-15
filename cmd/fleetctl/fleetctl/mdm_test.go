@@ -269,6 +269,9 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 				return false, nil
 			}
+			ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				return nil, nil
+			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil
@@ -1399,6 +1402,9 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
 	}
 }
 

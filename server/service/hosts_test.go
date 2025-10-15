@@ -87,6 +87,9 @@ func TestHostDetails(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
+	}
 
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -141,6 +144,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
 	}
 
 	cases := []struct {
@@ -437,6 +443,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
+	}
 
 	ts1 := time.Now().Add(-1 * time.Hour).UTC()
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
@@ -584,6 +593,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 			return false, nil
 		}
+		ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+			return nil, nil
+		}
 	}
 
 	for _, c := range cases {
@@ -695,6 +707,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -834,6 +849,9 @@ func TestHostAuth(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
 	}
 
 	testCases := []struct {
@@ -1851,6 +1869,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
+	}
 
 	cases := []struct {
 		name           string
@@ -1985,6 +2006,9 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
 	}
 
 	appleCases := []struct {
@@ -2173,6 +2197,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
 		return nil, nil, nil
+	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
 	}
 
 	cases := []struct {
@@ -2736,6 +2763,9 @@ func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
 	}
 
 	t.Run("ExcludeSoftware=true returns empty slice", func(t *testing.T) {

@@ -411,6 +411,9 @@ func TestGetHosts(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
+	ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+		return nil, nil
+	}
 
 	expectedText := `+------+------------+----------+-----------------+---------+
 | UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS  |
