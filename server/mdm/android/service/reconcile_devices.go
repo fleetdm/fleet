@@ -68,17 +68,16 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 				continue
 			}
 			// Emit system activity to mirror Pub/Sub DELETED handling.
-			var displayName, serial, platform string
+			var displayName, serial string
 			if hosts, herr := ds.ListHostsLiteByIDs(ctx, []uint{dev.HostID}); herr == nil && len(hosts) == 1 && hosts[0] != nil {
 				displayName = hosts[0].DisplayName()
 				serial = hosts[0].HardwareSerial
-				platform = hosts[0].Platform
 			}
 			if aerr := ds.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
-				Platform:         platform,
+				Platform:         "android",
 			}, nil, time.Now()); aerr != nil {
 				level.Debug(logger).Log("msg", "failed to create mdm_unenrolled activity during android reconcile", "host_id", dev.HostID, "err", aerr)
 			}

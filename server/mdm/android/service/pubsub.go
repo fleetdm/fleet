@@ -151,7 +151,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
-				Platform:         host.Platform,
+				Platform:         "android",
 			})
 		}
 		return nil
@@ -224,7 +224,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
-				Platform:         host.Platform,
+				Platform:         "android",
 			})
 		}
 		return nil
