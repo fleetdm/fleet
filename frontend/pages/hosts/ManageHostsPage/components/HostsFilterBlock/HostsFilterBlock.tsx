@@ -658,7 +658,7 @@ const HostsFilterBlock = ({
         case !!macSettingsStatus:
           return renderMacSettingsStatusFilterBlock();
         case !!softwareStatus:
-          return renderSoftwareInstallStatusBlock(isScriptPackage);
+          return renderSoftwareInstallStatusBlock();
         case !!softwareId || !!softwareVersionId || !!softwareTitleId:
           // Software version can be combined with os name and os version
           // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
