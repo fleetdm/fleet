@@ -100,6 +100,7 @@ func TestSoftware(t *testing.T) {
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
 		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
 		{"LongestCommonPrefix", testLongestCommonPrefix},
+		{"ListHostSoftwareInHouseApps", testListHostSoftwareInHouseApps},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -9614,4 +9615,113 @@ func findSoftware(sw []*fleet.HostSoftwareWithInstaller, name, extensionFor stri
 		}
 	}
 	return nil
+}
+
+func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host, false)
+	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("ubuntu"))
+	require.NotNil(t, otherHost)
+	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 11, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
+
+	// create a distinct team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+
+	// create some in-house apps for no-team
+	inHouseID1, inHouseTitleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "inhouse1",
+		Source:          "ios_apps",
+		Filename:        "inhouse1.ipa",
+		Extension:       "ipa",
+		Platform:        "ios",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, inHouseID1)
+	require.NotZero(t, inHouseTitleID1)
+
+	inHouseID2, inHouseTitleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "inhouse2",
+		Source:          "ios_apps",
+		Filename:        "inhouse2.ipa",
+		Extension:       "ipa",
+		Platform:        "ios",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, inHouseID2)
+	require.NotZero(t, inHouseTitleID2)
+
+	inHouseID3, inHouseTitleID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "inhouse3",
+		Source:          "ios_apps",
+		Filename:        "inhouse3.ipa",
+		Extension:       "ipa",
+		Platform:        "ios",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, inHouseID3)
+	require.NotZero(t, inHouseTitleID3)
+
+	// add an in-house app on the team, should not affect the host's results
+	inHouseIDTm, inHouseTitleIDTm, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "inhouse-tm",
+		Source:          "ios_apps",
+		Filename:        "inhouse-tm.ipa",
+		Extension:       "ipa",
+		Platform:        "ios",
+		TeamID:          &team.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, inHouseIDTm)
+	require.NotZero(t, inHouseTitleIDTm)
+
+	// add software to the host
+	software := []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "b", Version: "0.0.3", Source: "apps"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	pluckSoftwareNames := func(sw []*fleet.HostSoftwareWithInstaller) []string {
+		names := make([]string, 0, len(sw))
+		for _, s := range sw {
+			names = append(names, s.Name)
+		}
+		return names
+	}
+
+	// there should be 2 titles installed
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, []string{"a", "b"}, pluckSoftwareNames(sw))
+
+	// 5 titles including the in-house apps available for install
+	opts.IncludeAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 5)
+	require.Equal(t, []string{"a", "b", "inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
 }

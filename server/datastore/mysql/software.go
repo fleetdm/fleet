@@ -3081,6 +3081,106 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	return vppInstalls, nil
 }
 
+func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
+	installsStmt := fmt.Sprintf(`
+		(   -- upcoming_in_house_install
+			SELECT
+				in_house_apps.title_id AS id,
+				ua.execution_id AS last_install_install_uuid,
+				ua.created_at AS last_install_installed_at,
+				vaua.adam_id AS vpp_app_adam_id,
+				vat.self_service AS vpp_app_self_service,
+				'pending_install' AS status
+			FROM
+				upcoming_activities ua
+			INNER JOIN
+				vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			LEFT JOIN (
+				upcoming_activities ua2
+				INNER JOIN vpp_app_upcoming_activities vaua2 ON ua2.id = vaua2.upcoming_activity_id
+			) ON ua.host_id = ua2.host_id AND
+					vaua.adam_id = vaua2.adam_id AND
+					vaua.platform = vaua2.platform AND
+					ua.activity_type = ua2.activity_type AND
+					(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+			LEFT JOIN
+				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+			INNER JOIN
+				vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
+			WHERE
+				-- selfServiceFilter
+				%s
+				ua.host_id = :host_id AND
+				ua.activity_type = 'vpp_app_install' AND
+				ua2.id IS NULL
+		) UNION (
+		 	-- last_in_house_install
+					SELECT
+						vpp_apps.title_id AS id,
+						hvsi.command_uuid AS last_install_install_uuid,
+						hvsi.created_at AS last_install_installed_at,
+						hvsi.adam_id AS vpp_app_adam_id,
+						vat.self_service AS vpp_app_self_service,
+						-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
+						%s
+					FROM
+						host_vpp_software_installs hvsi
+					LEFT JOIN
+						nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+					LEFT JOIN
+						host_vpp_software_installs hvsi2 ON hvsi.host_id = hvsi2.host_id AND
+							hvsi.adam_id = hvsi2.adam_id AND
+							hvsi.platform = hvsi2.platform AND
+							hvsi2.removed = 0 AND
+							hvsi2.canceled = 0 AND
+							(hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+			INNER JOIN
+				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+			INNER JOIN
+				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
+			WHERE
+				-- selfServiceFilter
+				%s
+				hvsi.host_id = :host_id AND
+				hvsi.removed = 0 AND
+				hvsi.canceled = 0 AND
+				hvsi2.id IS NULL AND
+				NOT EXISTS (
+					SELECT 1
+					FROM
+						upcoming_activities ua
+					INNER JOIN
+						vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+					WHERE
+						ua.host_id = hvsi.host_id AND
+						vaua.adam_id = hvsi.adam_id AND
+						vaua.platform = hvsi.platform AND
+						ua.activity_type = 'vpp_app_install'
+			)
+)
+`, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
+	vppInstallsStmt, args, err := sqlx.Named(vppInstallsStmt, map[string]any{
+		"host_id":                   hostID,
+		"global_or_team_id":         globalOrTeamID,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for host vpp installs")
+	}
+	var vppInstalls []*hostSoftware
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalls, vppInstallsStmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return vppInstalls, nil
+}
+
 func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostInstalledSoftware hostSoftware) {
 	seperator := ","
 	if softwareTitleRecord.SoftwareIDList == nil {
@@ -3279,7 +3379,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
 			}
 		}
-
 	}
 
 	hostSoftwareUninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
@@ -3311,11 +3410,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	hostInstalledSoftware, err := hostInstalledSoftware(ds, ctx, host.ID)
-	hostInstalledSoftwareTitleSet := make(map[uint]struct{})
-	hostInstalledSoftwareSet := make(map[uint]*hostSoftware)
 	if err != nil {
 		return nil, nil, err
 	}
+	hostInstalledSoftwareTitleSet := make(map[uint]struct{})
+	hostInstalledSoftwareSet := make(map[uint]*hostSoftware)
 	for _, pointerToSoftware := range hostInstalledSoftware {
 		s := *pointerToSoftware
 		if pointerToSoftware.LastOpenedAt != nil {
@@ -3650,16 +3749,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		// software title records held in bySoftwareTitleID and byVPPAdamID.
 		// If we are just using the `IncludeAvailableForInstall` options, we will simply
 		// add these addtional software titles to bySoftwareTitleID and byVPPAdamID.
-		tempBySoftwareTitleID := make(map[uint]*hostSoftware, len(availableSoftwareTitles))
+		tmpBySoftwareTitleID := make(map[uint]*hostSoftware, len(availableSoftwareTitles))
 		tmpByVPPAdamID := make(map[string]*hostSoftware, len(byVPPAdamID))
 		if opts.OnlyAvailableForInstall {
 			// drop in anything that has been installed or uninstalled as it can be installed again regardless of status
 			for _, s := range hostSoftwareUninstalls {
-				tempBySoftwareTitleID[s.ID] = s
+				tmpBySoftwareTitleID[s.ID] = s
 			}
 			if !opts.VulnerableOnly {
 				for _, s := range hostSoftwareInstallsList {
-					tempBySoftwareTitleID[s.ID] = s
+					tmpBySoftwareTitleID[s.ID] = s
 				}
 				for _, s := range hostVPPInstalls {
 					tmpByVPPAdamID[*s.VPPAppAdamID] = s
@@ -3697,7 +3796,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if software := bySoftwareTitleID[s.TitleID]; software != nil {
 				software.InstallerID = &s.InstallerID
 				software.PackageSelfService = &s.SelfService
-				tempBySoftwareTitleID[s.TitleID] = software
+				tmpBySoftwareTitleID[s.TitleID] = software
 			}
 		}
 		if !opts.SelfServiceOnly || (opts.SelfServiceOnly && opts.IsMDMEnrolled) {
@@ -3798,9 +3897,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 				if opts.OnlyAvailableForInstall {
 					if !found {
-						tempBySoftwareTitleID[s.ID] = s
+						tmpBySoftwareTitleID[s.ID] = s
 					} else {
-						tempBySoftwareTitleID[s.ID] = existingSoftware
+						tmpBySoftwareTitleID[s.ID] = existingSoftware
 					}
 				} else {
 					// We have an existing software record in an installed or pending state, do not overwrite with the
@@ -3813,7 +3912,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		// Clear out all the previous software titles as we are only filtering for available software
 		if opts.OnlyAvailableForInstall {
-			bySoftwareTitleID = tempBySoftwareTitleID
+			bySoftwareTitleID = tmpBySoftwareTitleID
 			byVPPAdamID = tmpByVPPAdamID
 		}
 	}
@@ -4445,7 +4544,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
-		hs := hs
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
