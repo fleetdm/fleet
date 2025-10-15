@@ -1937,7 +1937,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabels() {
 	// Create a global file
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFile.WriteString(`
+	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
 org_settings:
@@ -1949,12 +1949,12 @@ labels:
   - name: my-label
     label_membership_type: manual
     hosts: 
-    - host1
-    - serial2
-    - 3
-    - 4abc-234-5667-890ab-cdef12345678
+    - %s
+    - %s
+    - %d
+    - %s
     - dummy
-`)
+`, host1.Hostname, host2.HardwareSerial, host3.ID, host5.UUID))
 	require.NoError(t, err)
 
 	// Apply the configs
