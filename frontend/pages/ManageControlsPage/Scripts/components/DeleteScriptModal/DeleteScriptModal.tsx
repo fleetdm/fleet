@@ -7,7 +7,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { AxiosResponse } from "axios";
 import { IApiError } from "../../../../../interfaces/errors";
-import { getErrorMessage } from "../ScriptUploader/helpers";
+import { getErrorMessage } from "../ScriptUploadModal/helpers";
 
 const baseClass = "delete-script-modal";
 
