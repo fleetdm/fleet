@@ -91,7 +91,7 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 			BundleIdentifier: "com.easeus.ntfsformacdaemon",
 			Source:           "apps",
 		},
-		"Poly Lens Desktop": {
+		"Poly Lens Desktop (Legacy)": {
 			Name:             "legacyhost",
 			BundleIdentifier: "com.poly.lens.legacyhost.app",
 			Source:           "apps",
