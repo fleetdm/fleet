@@ -232,7 +232,7 @@ If the improvements meet the customer's needs, the request issue is closed with 
 ### Manage DNS records
 
 Fleet-managed DNS records are maintained in Cloudflare using Terraform.  
-See [DNS management](https://fleetdm.com/handbook/customer-success/dns-management) for how changes are reviewed, validated, and applied automatically.
+See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
 
 
 ## Rituals

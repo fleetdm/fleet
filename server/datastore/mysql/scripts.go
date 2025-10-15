@@ -1412,10 +1412,13 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 
 	switch fleetPlatform {
 	case "darwin", "ios", "ipados":
-		if mdmActions.UnlockPIN != nil {
+		if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
+			// Unlock PIN is only available for macOS hosts
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
-		if mdmActions.UnlockRef != nil {
+		if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
+			// the unlock reference is a timestamp
+			// (we only store the timestamp for macOS unlocks)
 			var err error
 			status.UnlockRequestedAt, err = time.Parse(time.DateTime, *mdmActions.UnlockRef)
 			if err != nil {
@@ -1425,6 +1428,14 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				// directly in the DB and messes up the format).
 				status.UnlockRequestedAt = time.Now().UTC()
 			}
+		} else if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
+			// the unlock reference is an MDM command uuid
+			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.UnlockRef, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get unlock reference")
+			}
+			status.UnlockMDMCommand = cmd
+			status.UnlockMDMCommandResult = cmdRes
 		}
 
 		if mdmActions.LockRef != nil {
@@ -1775,6 +1786,10 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	case "DeviceLock":
 		refCol = "lock_ref"
 		setUnlockRef = true
+	case "EnableLostMode":
+		refCol = "lock_ref"
+	case "DisableLostMode":
+		refCol = "unlock_ref"
 	default:
 		return nil
 	}

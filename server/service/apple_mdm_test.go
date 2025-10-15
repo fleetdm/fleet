@@ -271,6 +271,13 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		}, nil
 	}
 
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{
+			Secret: "abcd",
+			TeamID: nil,
+		}, nil
+	}
+
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
 

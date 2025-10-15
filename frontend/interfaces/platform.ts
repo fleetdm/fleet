@@ -144,6 +144,9 @@ export const isAppleDevice = (platform = "") => {
   );
 };
 
+export const isMacOS = (platform: string | HostPlatform) =>
+  platform === "darwin";
+
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
 
