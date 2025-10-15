@@ -17,6 +17,7 @@ import {
   IHostAppStoreApp,
   EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -55,7 +56,10 @@ interface IHostInstallerActionButtonProps {
 
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
-  onClickInstallAction: (softwareId: number) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isSoftwarePackage?: boolean
+  ) => void;
   onClickUninstallAction: () => void;
   onClickOpenInstructionsAction?: () => void;
   baseClass: string;
