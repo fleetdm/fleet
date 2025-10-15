@@ -645,5 +645,13 @@
       "target_sw": ["intellij"],
       "vendor": ["snyk"]
     }
+  },
+  {
+    "software": {
+      "source": ["jetbrains_plugins"]
+    },
+    "filter": {
+      "target_sw": ["intellij"]
+    }
   }
 ]
