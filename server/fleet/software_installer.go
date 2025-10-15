@@ -568,11 +568,6 @@ type DownloadSoftwareInstallerPayload struct {
 	Size      int64
 }
 
-func IsScriptPackage(ext string) bool {
-	ext = strings.TrimPrefix(ext, ".")
-	return ext == "sh" || ext == "ps1"
-}
-
 func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
@@ -605,10 +600,6 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
-	case "sh":
-		return "linux", nil
-	case "ps1":
-		return "windows", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
