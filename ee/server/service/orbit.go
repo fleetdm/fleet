@@ -250,7 +250,8 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
 		}
 		// TODO -- support recording activity for failed VPP apps as well.
-		if r.SoftwareInstallerID != nil {
+		// https://github.com/fleetdm/fleet/issues/34288
+		if r.IsForSoftwarePackage() {
 			softwarePackage := ""
 			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
 			if err != nil && !fleet.IsNotFound(err) {

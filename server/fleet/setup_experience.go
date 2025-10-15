@@ -107,6 +107,11 @@ func (s *SetupExperienceStatusResult) IsForSoftware() bool {
 	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil
 }
 
+// IsForSoftwarePackage indicates if this result is for a setup experience software installer step.
+func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
+	return s.SoftwareInstallerID != nil
+}
+
 type SetupExperienceBootstrapPackageResult struct {
 	Name   string                    `json:"name"`
 	Status MDMBootstrapPackageStatus `json:"status"`
