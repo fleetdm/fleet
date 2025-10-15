@@ -654,6 +654,7 @@ Object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint's URL. |
 | username  | string | **Required**. The username used to authenticate with the EST endpoint. |
 | password  | string | **Required**. The password used to authenticate with the EST endpoint. |
