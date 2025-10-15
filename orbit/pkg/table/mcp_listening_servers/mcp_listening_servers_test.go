@@ -281,6 +281,70 @@ func TestGenerate_WithIPv6Address(t *testing.T) {
 	assert.Equal(t, "test-server", rows[2]["server_name"])
 }
 
+func TestSessionTermination(t *testing.T) {
+	tests := []struct {
+		name             string
+		deleteStatusCode int
+	}{
+		{
+			name:             "server supports termination (200 OK)",
+			deleteStatusCode: http.StatusOK,
+		},
+		{
+			name:             "server doesn't support termination (405 Method Not Allowed)",
+			deleteStatusCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:             "server returns 204 No Content",
+			deleteStatusCode: http.StatusNoContent,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deleteRequestReceived := false
+
+			scanner := &mcpScanner{
+				newClient: func(socket string, timeout time.Duration) (osqueryClient, error) {
+					return &mockClient{rows: []map[string]string{
+						{"pid": "1234", "port": "3001", "address": "127.0.0.1", "name": "node", "cmdline": "node mcp-server.js"},
+					}}, nil
+				},
+				httpClient: fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second)),
+			}
+
+			scanner.httpClient.Transport = &mockTransportWithTermination{
+				deleteRequestReceived: &deleteRequestReceived,
+				deleteStatusCode:      tt.deleteStatusCode,
+				responses: map[string]string{
+					"initialize": `{
+						"jsonrpc": "2.0",
+						"id": 1,
+						"result": {
+							"protocolVersion": "2025-03-26",
+							"capabilities": {},
+							"serverInfo": {
+								"name": "test-server",
+								"title": "Test Server",
+								"version": "1.0.0"
+							}
+						}
+					}`,
+				},
+			}
+
+			qc := table.QueryContext{Constraints: map[string]table.ConstraintList{}}
+
+			rows, err := generateWithScanner(context.Background(), qc, "/tmp/osq", scanner)
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+
+			// Verify DELETE request was sent
+			assert.True(t, deleteRequestReceived, "DELETE request should have been sent for session termination")
+		})
+	}
+}
+
 // mockTransport is an HTTP transport that returns different responses based on the MCP method
 type mockTransport struct {
 	responses  map[string]string // method -> response
@@ -301,6 +365,15 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, m.err
 	}
 
+	// Handle DELETE requests for session termination
+	if req.Method == "DELETE" {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString("")),
+			Header:     http.Header{},
+		}, nil
+	}
+
 	// Parse the request to determine which method is being called
 	var reqBody map[string]interface{}
 	bodyBytes, _ := io.ReadAll(req.Body)
@@ -315,6 +388,7 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: m.statusCode,
 		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
+		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
 	}, nil
 }
 
@@ -325,6 +399,15 @@ func (m *mockTransportWithURLTracking) RoundTrip(req *http.Request) (*http.Respo
 
 	// Track the requested URL
 	*m.requestedURLs = append(*m.requestedURLs, req.URL.String())
+
+	// Handle DELETE requests for session termination
+	if req.Method == "DELETE" {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString("")),
+			Header:     http.Header{},
+		}, nil
+	}
 
 	// Parse the request to determine which method is being called
 	var reqBody map[string]interface{}
@@ -339,6 +422,50 @@ func (m *mockTransportWithURLTracking) RoundTrip(req *http.Request) (*http.Respo
 
 	return &http.Response{
 		StatusCode: m.statusCode,
+		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
+		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
+	}, nil
+}
+
+// mockTransportWithTermination tracks DELETE requests for session termination testing
+type mockTransportWithTermination struct {
+	deleteRequestReceived *bool
+	deleteStatusCode      int
+	responses             map[string]string
+}
+
+func (m *mockTransportWithTermination) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Handle DELETE requests for session termination
+	if req.Method == "DELETE" {
+		*m.deleteRequestReceived = true
+		// Verify that the session ID header is present
+		if req.Header.Get("Mcp-Session-Id") == "" {
+			return &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body:       io.NopCloser(bytes.NewBufferString("Missing Mcp-Session-Id header")),
+				Header:     http.Header{},
+			}, nil
+		}
+		return &http.Response{
+			StatusCode: m.deleteStatusCode,
+			Body:       io.NopCloser(bytes.NewBufferString("")),
+			Header:     http.Header{},
+		}, nil
+	}
+
+	// Parse the request to determine which method is being called
+	var reqBody map[string]interface{}
+	bodyBytes, _ := io.ReadAll(req.Body)
+	_ = json.Unmarshal(bodyBytes, &reqBody)
+
+	method, _ := reqBody["method"].(string)
+	responseBody := m.responses[method]
+	if responseBody == "" {
+		responseBody = `{"jsonrpc":"2.0","id":1,"result":{}}`
+	}
+
+	return &http.Response{
+		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewBufferString(responseBody)),
 		Header:     http.Header{"Mcp-Session-Id": []string{"test-session-id"}},
 	}, nil

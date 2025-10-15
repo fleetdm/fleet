@@ -231,6 +231,29 @@ type mcpListResponse struct {
 	} `json:"error"`
 }
 
+// terminateSession sends an HTTP DELETE to the MCP endpoint to explicitly terminate the session.
+// Per the MCP spec, the server MAY respond with 405 Method Not Allowed if it doesn't support
+// explicit session termination, which is acceptable.
+func (s *mcpScanner) terminateSession(ctx context.Context, url, sessionID string) {
+	if sessionID == "" {
+		return
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("Mcp-Session-Id", sessionID)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		// Best-effort cleanup, don't log errors
+		return
+	}
+	resp.Body.Close()
+}
+
 // makeMCPRequest makes an MCP JSON-RPC request and returns the response body and session ID
 func (s *mcpScanner) makeMCPRequest(ctx context.Context, url, method, sessionID string, params interface{}) ([]byte, string, error) {
 	reqBody := map[string]interface{}{
@@ -341,6 +364,9 @@ func (s *mcpScanner) checkMCPServer(ctx context.Context, address, port string) *
 	if err != nil {
 		return nil
 	}
+
+	// Terminate the session when we're done, per MCP spec
+	defer s.terminateSession(ctx, url, sessionID)
 
 	var mcpResp mcpResponse
 	if err := json.Unmarshal(jsonData, &mcpResp); err != nil {
