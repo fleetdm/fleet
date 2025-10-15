@@ -392,6 +392,9 @@ type Service interface {
 	// device-authenticated API), or manually by the user (via the
 	// user-authenticated API).
 	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
+	// SetIDPHostDeviceMapping sets the device mapping for a host using SCIM/IDP
+	// user information. This is a premium-only feature.
+	SetIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
 	// The identifier string will be matched against the Hostname, OsqueryHostID, NodeKey, UUID and HardwareSerial fields.
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)

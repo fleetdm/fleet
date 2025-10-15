@@ -4316,6 +4316,18 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 	return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
 }
 
+func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Remove any existing SCIM user mapping for this host
+		_, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing host SCIM user mapping")
+		}
+
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+	})
+}
+
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
 	stmt := `
 	SELECT email

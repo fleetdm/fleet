@@ -1631,8 +1631,9 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 ////////////////////////////////////////////////////////////////////////////////
 
 type putHostDeviceMappingRequest struct {
-	ID    uint   `url:"id"`
-	Email string `json:"email"`
+	ID     uint   `url:"id"`
+	Email  string `json:"email"`
+	Source string `query:"source,optional"`
 }
 
 type putHostDeviceMappingResponse struct {
@@ -1647,7 +1648,32 @@ func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 // Deprecated: Because the corresponding GET endpoint is deprecated.
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
-	dms, err := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
+
+	// Default to "custom" if source is not specified
+	source := req.Source
+	if source == "" {
+		source = "custom"
+	}
+
+	var dms []*fleet.HostDeviceMapping
+	var err error
+
+	switch source {
+	case "custom":
+		dms, err = svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
+	case "idp":
+		dms, err = svc.SetIDPHostDeviceMapping(ctx, req.ID, req.Email)
+	default:
+		// For invalid source, we still need to call a service method to ensure authorization
+		// Call SetCustomHostDeviceMapping first for authorization, then return the parameter error
+		_, authErr := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
+		if authErr != nil {
+			return putHostDeviceMappingResponse{Err: authErr}, nil
+		}
+		// If authorization passed, return the parameter validation error
+		return putHostDeviceMappingResponse{Err: fleet.NewInvalidArgumentError("source", "must be 'custom' or 'idp'")}, nil
+	}
+
 	if err != nil {
 		return putHostDeviceMappingResponse{Err: err}, nil
 	}
@@ -1677,6 +1703,57 @@ func (svc *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint,
 		source = fleet.DeviceMappingCustomInstaller
 	}
 	return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
+}
+
+func (svc *Service) SetIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+	// Check if this is a premium-only feature
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	// Check authorization
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// Check if SCIM is configured by checking if there are any SCIM users
+	_, totalResults, err := svc.ds.ListScimUsers(ctx, fleet.ScimUsersListOptions{
+		ScimListOptions: fleet.ScimListOptions{StartIndex: 1, PerPage: 1},
+	})
+	if err != nil {
+		return nil, fleet.NewInvalidArgumentError("scim", "SCIM is not configured in Fleet")
+	}
+	if totalResults == 0 {
+		return nil, fleet.NewInvalidArgumentError("scim", "no SCIM users found - SCIM must be configured with users")
+	}
+
+	// Find the SCIM user by email
+	scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+	if err != nil {
+		return nil, fleet.NewInvalidArgumentError("email", "user not found in SCIM users table")
+	}
+
+	// Set or update the host-SCIM user mapping
+	if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set host SCIM user mapping")
+	}
+
+	// Return the updated device mappings
+	return svc.ds.ListHostDeviceMapping(ctx, hostID)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

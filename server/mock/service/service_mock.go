@@ -235,6 +235,8 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 
 type SetCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error)
 
+type SetIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error)
+
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
@@ -1158,6 +1160,9 @@ type Service struct {
 
 	SetCustomHostDeviceMappingFunc        SetCustomHostDeviceMappingFunc
 	SetCustomHostDeviceMappingFuncInvoked bool
+
+	SetIDPHostDeviceMappingFunc        SetIDPHostDeviceMappingFunc
+	SetIDPHostDeviceMappingFuncInvoked bool
 
 	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
 	HostLiteByIdentifierFuncInvoked bool
@@ -2817,6 +2822,13 @@ func (s *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, e
 	s.SetCustomHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetCustomHostDeviceMappingFunc(ctx, hostID, email)
+}
+
+func (s *Service) SetIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+	s.mu.Lock()
+	s.SetIDPHostDeviceMappingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetIDPHostDeviceMappingFunc(ctx, hostID, email)
 }
 
 func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
