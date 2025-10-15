@@ -101,6 +101,7 @@ fleet:
       wstepIdentityKeyKey: ""
   carving:
     s3:
+      secretName: ""
       bucketName: ""
       prefix: ""
       accessKeyID: ""
@@ -111,6 +112,7 @@ fleet:
       stsAssumeRoleARN: ""
   softwareInstallers:
     s3:
+      secretName: ""
       bucketName: ""
       prefix: ""
       accessKeyID: ""
