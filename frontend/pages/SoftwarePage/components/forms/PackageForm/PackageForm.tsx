@@ -260,6 +260,7 @@ const PackageForm = ({
   const ext = getExtensionFromFileName(formData?.software?.name || "");
   const isExePackage = ext === "exe";
   const isTarballPackage = ext === "tar.gz";
+  const isScriptPackage = ext === "sh" || ext === "ps1";
   // We currently don't support replacing a tarball package
   const canEditFile = isEditingSoftware && !isTarballPackage;
 
@@ -267,15 +268,22 @@ const PackageForm = ({
   // which automatic install is not supported, the form will default
   // back to manual install
   useEffect(() => {
-    if ((isExePackage || isTarballPackage) && formData.automaticInstall) {
+    if (
+      (isExePackage || isTarballPackage || isScriptPackage) &&
+      formData.automaticInstall
+    ) {
       onToggleAutomaticInstallCheckbox(false);
     }
   }, [
     formData.automaticInstall,
     isExePackage,
     isTarballPackage,
+    isScriptPackage,
     onToggleAutomaticInstallCheckbox,
   ]);
+
+  // Show advanced options when a package is selected that's not a script
+  const showAdvancedOptions = formData.software && !isScriptPackage;
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
   const showOptionsTargetsSelectors = !gitOpsModeEnabled;
@@ -287,7 +295,7 @@ const PackageForm = ({
           canEdit={canEditFile}
           graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
-          message=".pkg, .msi, .exe, .deb, .rpm, or .tar.gz"
+          message=".pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1"
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
           buttonType="brand-inverse-icon"
@@ -322,6 +330,7 @@ const PackageForm = ({
                   isEditingSoftware={isEditingSoftware}
                   isExePackage={isExePackage}
                   isTarballPackage={isTarballPackage}
+                  isScriptPackage={isScriptPackage}
                   onClickPreviewEndUserExperience={
                     onClickPreviewEndUserExperience
                   }
@@ -353,22 +362,24 @@ const PackageForm = ({
             </div>
           )}
         </div>
-        <PackageAdvancedOptions
-          showSchemaButton={showSchemaButton}
-          selectedPackage={formData.software}
-          errors={{
-            preInstallQuery: formValidation.preInstallQuery?.message,
-          }}
-          preInstallQuery={formData.preInstallQuery}
-          installScript={formData.installScript}
-          postInstallScript={formData.postInstallScript}
-          uninstallScript={formData.uninstallScript}
-          onClickShowSchema={onClickShowSchema}
-          onChangePreInstallQuery={onChangePreInstallQuery}
-          onChangeInstallScript={onChangeInstallScript}
-          onChangePostInstallScript={onChangePostInstallScript}
-          onChangeUninstallScript={onChangeUninstallScript}
-        />
+        {showAdvancedOptions && (
+          <PackageAdvancedOptions
+            showSchemaButton={showSchemaButton}
+            selectedPackage={formData.software}
+            errors={{
+              preInstallQuery: formValidation.preInstallQuery?.message,
+            }}
+            preInstallQuery={formData.preInstallQuery}
+            installScript={formData.installScript}
+            postInstallScript={formData.postInstallScript}
+            uninstallScript={formData.uninstallScript}
+            onClickShowSchema={onClickShowSchema}
+            onChangePreInstallQuery={onChangePreInstallQuery}
+            onChangeInstallScript={onChangeInstallScript}
+            onChangePostInstallScript={onChangePostInstallScript}
+            onChangeUninstallScript={onChangeUninstallScript}
+          />
+        )}
         <div className={`${baseClass}__action-buttons`}>
           {submitTooltipContent ? (
             <TooltipWrapper

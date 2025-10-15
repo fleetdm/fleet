@@ -256,10 +256,23 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
-  return (
-    !isMobilePlatform(hostPlatform) && isPremiumTier && doesStoreEncryptionKey
-  );
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    doesStoreEncryptionKey,
+    hostPlatform,
+  } = config;
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  // For Apple devices, the encryption key is only available when connected to Fleet MDM
+  if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
+    return false;
+  }
+  return doesStoreEncryptionKey;
 };
 
 const canRunScript = ({

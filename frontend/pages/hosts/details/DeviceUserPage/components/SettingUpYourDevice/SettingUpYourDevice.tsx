@@ -1,5 +1,5 @@
 import Card from "components/Card";
-import { ISetupStep } from "interfaces/setup";
+import { IEnhancedSetupStep } from "interfaces/setup";
 import React from "react";
 import InfoButton from "../InfoButton";
 import SetupStatusTable from "./SetupStatusTable";
@@ -9,7 +9,7 @@ import { hasRemainingSetupSteps } from "../../helpers";
 const baseClass = "setting-up-your-device";
 
 interface ISettingUpYourDevice {
-  setupSteps: ISetupStep[];
+  setupSteps: IEnhancedSetupStep[];
   toggleInfoModal: () => void;
 }
 
