@@ -272,8 +272,8 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	// Insert a setup experience status result to simulate this install is part of setup experience
 	_, err = ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO setup_experience_status_results 
-		(host_uuid, name, status, software_installer_id, host_software_installs_execution_id) 
+		INSERT INTO setup_experience_status_results
+		(host_uuid, name, status, software_installer_id, host_software_installs_execution_id)
 		VALUES (?, ?, ?, ?, ?)`,
 		host1.UUID, "test_software", fleet.SetupExperienceStatusPending, installerID1, setupExperienceInstallID)
 	require.NoError(t, err)
@@ -329,6 +329,20 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NotNil(t, si)
 			require.Equal(t, "foo.pkg", si.Name)
 
+			inHouseID, inHouseTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				Title:           "inhouse",
+				Source:          "ios_apps",
+				TeamID:          teamID,
+				Filename:        "inhouse.ipa",
+				Extension:       "ipa",
+				Platform:        "ios",
+				UserID:          user1.ID,
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+			require.NotZero(t, inHouseID)
+			require.NotZero(t, inHouseTitleID)
+
 			// non-existent host
 			_, err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.ErrorAs(t, err, &nfe)
@@ -346,6 +360,22 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			_, err = ds.InsertSoftwareInstallRequest(ctx, hostPendingInstall.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
+
+			// Host with in-house app install pending
+			tag = "-in-house-pending_install"
+			hostInHousePendingInstall, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "ios-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-ios" + tag + tc),
+				NodeKey:       ptr.String("node-key-ios" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "ios",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			require.NotNil(t, hostInHousePendingInstall)
+			// TODO(mna): call this once Jahziel's PR merges
+			// err = ds.InsertHostInHouseAppInstall(...)
+			// require.NoError(t, err)
 
 			// Host with software install failed
 			tag = "-failed_install"
@@ -367,6 +397,8 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			// TODO(mna): add host with in-house failed install
+
 			// Host with software install successful
 			tag = "-installed"
 			hostInstalled, err := ds.NewHost(ctx, &fleet.Host{
@@ -386,6 +418,8 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				InstallScriptExitCode: ptr.Int(0),
 			})
 			require.NoError(t, err)
+
+			// TODO(mna): add host with in-house successful install
 
 			// Host with pending uninstall
 			tag = "-pending_uninstall"
@@ -458,6 +492,8 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			if teamFilter == nil {
 				teamFilter = ptr.Uint(0)
 			}
+
+			// TODO(mna): test list hosts in label too, with the same filters...
 
 			// list hosts with software install pending requests
 			expectStatus := fleet.SoftwareInstallPending

@@ -799,14 +799,14 @@ UNION ALL
 
 SELECT
 	NULL AS installer_id,
-  va.adam_id AS vpp_adam_id,
-  va.platform AS vpp_platform,
+  vap.adam_id AS vpp_adam_id,
+  vap.platform AS vpp_platform,
 	NULL as in_house_id
 FROM
 	vpp_apps vap
 	JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform
-WHERE 
-	va.title_id = ? AND vat.global_or_team_id = ? 
+WHERE
+	vap.title_id = ? AND vat.global_or_team_id = ?
 
 UNION ALL
 
@@ -815,7 +815,7 @@ SELECT
 	NULL as vpp_adam_id,
 	NULL as vpp_platform,
 	iha.id as in_house_id
-FROM 
+FROM
 	in_house_apps iha
 WHERE
 	iha.title_id = ? AND iha.global_or_team_id = ?
