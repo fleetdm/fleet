@@ -930,6 +930,7 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 			"OSVersion":               "17.5.1",
 			"ProductName":             productName,
 			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+			"IsMDMLostModeEnabled":    false,
 		},
 	}
 	return c.sendAndDecodeCommandResponse(payload)

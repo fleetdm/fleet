@@ -2444,6 +2444,16 @@ type AndroidDatastore interface {
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+
+	// GetLatestAppleMDMCommandOfType retrieves the latest command of the given type for the host with the given UUID.
+	// If no such command exists, not found error is returned
+	//
+	// Returns a subset of fields in the MDMCommand struct.
+	GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*MDMCommand, error)
+
+	// SetLockCommandForLostModeCheckin sets the lock reference for a lost mode check-in.
+	// This is used when an iphone or ipados checks in after being deleted, with lost mode enabled.
+	SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
