@@ -1927,18 +1927,113 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 var (
 	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
-	softwareSanitizers = []struct {
-		matches func(*fleet.Software) bool
-		mutate  func(*fleet.Software, log.Logger)
+	basicAppSanitizers = []struct {
+		matchBundleIdentifier string
+		matchName             string
+		mutate                func(*fleet.Software, log.Logger)
 	}{
 		{
-			matches: func(s *fleet.Software) bool {
-				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
-			},
+			matchBundleIdentifier: "com.nicesoftware.dcvviewer",
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
 					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
 				}
+			},
+		},
+		// Bundle executable name cleanup #34159
+		{
+			matchBundleIdentifier: "com.synology.DSAssistant",
+			matchName:             "DSAssistant",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "SynologyAssistant"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.now.gg.BlueStacksMIM",
+			matchName:             "HD-MultiInstanceManager",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "BlueStacksMIM"
+			},
+		},
+		{
+			matchBundleIdentifier: "jp.go.jpki.JPKIUninstall",
+			matchName:             "JPKIUninstall.scpt",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "JPKIUninstall"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.OracleDataModeler",
+			matchName:             "datamodeler.sh",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "OracleDataModeler"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.easeus.ntfsformacdaemon",
+			matchName:             "euntfsservice",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "EaseUS NTFS Service"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.poly.lens.legacyhost.app",
+			matchName:             "legacyhost",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Poly Lens Desktop"
+			},
+		},
+		{
+			matchBundleIdentifier: "app.zen-browser.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Zen Browser Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "org.mozilla.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Mozilla Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
+			matchName:             "remoting_host_uninstaller",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Chrome Remote Desktop Host Uninstaller"
+			},
+		},
+		{
+			matchName: "runemu",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if s.BundleIdentifier == "" {
+					s.Name = "Android Emulator"
+				}
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.SQLDeveloper",
+			matchName:             "sqldeveloper.sh/",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Oracle SQLDeveloper"
+			},
+		},
+		// end of #34159 cleanup in basic matchers
+	}
+	customAppSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool { // #34159
+				return strings.HasPrefix(s.Name, "TNMS ") &&
+					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
+					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "TNMS"
+				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
 			},
 		},
 	}
@@ -1948,15 +2043,32 @@ var (
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
 func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
-	for _, softwareSanitizer := range softwareSanitizers {
-		if softwareSanitizer.matches(s) {
-			defer func() {
-				if r := recover(); r != nil {
-					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-				}
-			}()
-			softwareSanitizer.mutate(s, logger)
-			break
+	// all of our current on-ingest mutations use this table,
+	// so might as well let other stuff go faster and save some redundant checks inside the matchers
+	if s != nil && s.Source == "apps" {
+		for _, sanitizer := range basicAppSanitizers {
+			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
+				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
+				(sanitizer.matchName == "" || sanitizer.matchName == s.Name) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
+		}
+		for _, sanitizer := range customAppSanitizers {
+			if sanitizer.matches(s) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
 		}
 	}
 }
