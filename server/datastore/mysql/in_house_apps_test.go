@@ -160,7 +160,7 @@ func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, ap
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	cmdUUID := "comm_" + strconv.Itoa(int(hostID))
+	cmdUUID := "comm_" + strconv.FormatUint(uint64(hostID), 10)
 
 	err := ds.InsertHostInHouseAppInstall(ctx, hostID, appID, titleID, cmdUUID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
