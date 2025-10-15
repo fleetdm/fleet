@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetAfterFailure bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -137,9 +137,9 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 
 	// If we have a failed software install,
 	// AND "require all software" is configured for the host's team,
-	// AND the resetAfterFailure flag is set,
+	// AND the resetFailedSetupSteps flag is set,
 	// then re-enqueue any cancelled setup experience steps.
-	if resetAfterFailure {
+	if resetFailedSetupSteps {
 		hasFailedSoftwareInstall := false
 		for _, r := range res {
 			if r.IsForSoftware() && r.Status == fleet.SetupExperienceStatusFailure {

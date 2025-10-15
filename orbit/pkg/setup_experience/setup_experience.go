@@ -20,7 +20,7 @@ import (
 
 // OrbitClient is the minimal interface needed to communicate with the Fleet server.
 type OrbitClient interface {
-	GetSetupExperienceStatus(resetAfterFailure bool) (*fleet.SetupExperienceStatusPayload, error)
+	GetSetupExperienceStatus(resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error)
 }
 
 // DeviceClient is the minimal interface needed to get the device's browser URL.

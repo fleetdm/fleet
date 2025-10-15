@@ -1508,7 +1508,7 @@ type getOrbitSetupExperienceStatusRequest struct {
 	ForceRelease bool   `json:"force_release"`
 	// Whether to re-enqueue canceled setup experience steps after a previous
 	// software install failure on MacOS.
-	ResetAfterFailure bool `json:"reset_after_failure"`
+	ResetFailedSetupSteps bool `json:"reset_failed_setup_steps"`
 }
 
 func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
@@ -1528,14 +1528,14 @@ func (r getOrbitSetupExperienceStatusResponse) Error() error { return r.Err }
 
 func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOrbitSetupExperienceStatusRequest)
-	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease, req.ResetAfterFailure)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease, req.ResetFailedSetupSteps)
 	if err != nil {
 		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
 	}
 	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetAfterFailure bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

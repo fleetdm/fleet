@@ -21,11 +21,11 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, true)
 }
 
-func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetAfterFailure bool) (bool, error) {
+func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ? AND %s`
-	if resetAfterFailure {
+	if resetFailedSetupSteps {
 		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "status != 'success'")
 	} else {
 		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
@@ -73,7 +73,7 @@ AND (
 )
 AND %s ORDER BY st.name ASC	
 `
-	if resetAfterFailure {
+	if resetFailedSetupSteps {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
 	} else {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "TRUE")
@@ -102,7 +102,7 @@ AND va.platform = ?
 AND %s
 ORDER BY st.name ASC
 `
-	if resetAfterFailure {
+	if resetFailedSetupSteps {
 		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
 	} else {
 		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "TRUE")
@@ -134,7 +134,7 @@ WHERE global_or_team_id = ?`
 		// Software installers
 		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
 		args := []any{hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
-		if resetAfterFailure {
+		if resetFailedSetupSteps {
 			args = append(args, hostUUID)
 		}
 		if fleetPlatform != "ios" && fleetPlatform != "ipados" {
@@ -152,7 +152,7 @@ WHERE global_or_team_id = ?`
 		// VPP apps
 		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
 			args := []any{hostUUID, teamID, fleetPlatform}
-			if resetAfterFailure {
+			if resetFailedSetupSteps {
 				args = append(args, hostUUID)
 			}
 			res, err := tx.ExecContext(ctx, stmtVPPApps, args...)
