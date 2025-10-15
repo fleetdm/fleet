@@ -1790,6 +1790,32 @@ FROM vpp_apps`
 	return apps, nil
 }
 
+func (ds *Datastore) GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
+	stmt := `
+SELECT
+		hvsi.host_id AS host_id,
+		hvsi.command_uuid AS command_uuid,
+		hvsi.host_id AS host_id,
+		ncr.updated_at AS ack_at,
+		ncr.status AS install_command_status,
+		iha.bundle_identifier AS bundle_identifier
+FROM nano_command_results ncr
+JOIN host_in_house_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
+JOIN in_house_apps iha ON iha.id = hvsi.id AND iha.platform = hvsi.platform
+WHERE ncr.id = ?
+AND ncr.status = 'Acknowledged'
+AND hvsi.verification_at IS NULL
+AND hvsi.verification_failed_at IS NULL
+		`
+
+	var result []*fleet.HostVPPSoftwareInstall
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get unverified in-house app installs for host")
+	}
+
+	return result, nil
+}
+
 func (ds *Datastore) GetUnverifiedVPPInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
 	stmt := `
 SELECT
@@ -1816,17 +1842,31 @@ AND hvsi.verification_failed_at IS NULL
 	return result, nil
 }
 
-func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error {
-	stmt := `
-UPDATE host_vpp_software_installs
+func (s softwareType) getInstallMappingTableName() string {
+	tableNames := map[softwareType]string{
+		softwareTypeInHouseApp: "host_in_house_software_installs",
+		softwareTypeVPP:        "host_vpp_software_installs",
+	}
+
+	return tableNames[s]
+
+}
+
+func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error {
+	return ds.associateMDMInstallToVerificationUUID(ctx, installUUID, verifyCommandUUID, softwareTypeVPP, hostUUID)
+}
+
+func (ds *Datastore) associateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string, installableType softwareType, hostUUID string) error {
+	stmt := fmt.Sprintf(`
+UPDATE %s
 SET verification_command_uuid = ?
 WHERE command_uuid = ?
-	`
+	`, installableType.getInstallMappingTableName())
 
 	hostCmdStmt := `
 INSERT INTO host_mdm_commands
 	(host_id, command_type)
-VALUES ((SELECT host_id FROM host_vpp_software_installs WHERE command_uuid = ?), ?)
+VALUES ((SELECT id FROM hosts WHERE uuid = ?), ?)
 	`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -1834,7 +1874,7 @@ VALUES ((SELECT host_id FROM host_vpp_software_installs WHERE command_uuid = ?),
 			return ctxerr.Wrap(ctx, err, "update vpp install verification command")
 		}
 
-		if _, err := tx.ExecContext(ctx, hostCmdStmt, installUUID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+		if _, err := tx.ExecContext(ctx, hostCmdStmt, hostUUID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert verify host mdm command")
 		}
 
