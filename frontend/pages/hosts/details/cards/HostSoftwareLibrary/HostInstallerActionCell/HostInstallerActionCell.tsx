@@ -287,7 +287,12 @@ export const HostInstallerActionCell = ({
       baseClass={baseClass}
       tooltip={installTooltip}
       disabled={installDisabled}
-      onClick={() => onClickInstallAction(id)}
+      onClick={() =>
+        onClickInstallAction(
+          id,
+          SCRIPT_PACKAGE_SOURCES.includes(software.source)
+        )
+      }
       icon={buttonDisplayConfig.install.icon}
       text={buttonDisplayConfig.install.text}
       testId={`${baseClass}__install-button--test`}

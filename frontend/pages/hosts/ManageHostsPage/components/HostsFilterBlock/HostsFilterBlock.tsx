@@ -110,6 +110,7 @@ interface IHostsFilterBlockProps {
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
   isLoading?: boolean;
+  isScriptPackage?: boolean;
 }
 
 /**
@@ -164,6 +165,7 @@ const HostsFilterBlock = ({
   onClickEditLabel,
   onClickDeleteLabel,
   isLoading = false,
+  isScriptPackage,
 }: IHostsFilterBlockProps) => {
   const { currentUser, isOnGlobalTeam } = useContext(AppContext);
 
@@ -522,7 +524,7 @@ const HostsFilterBlock = ({
 
   const renderSoftwareInstallStatusBlock = () => {
     const OPTIONS = [
-      { value: "installed", label: "Installed" },
+      { value: "installed", label: isScriptPackage ? "Ran" : "Installed" },
       { value: "failed", label: "Failed" },
       { value: "pending", label: "Pending" },
     ];
@@ -656,7 +658,7 @@ const HostsFilterBlock = ({
         case !!macSettingsStatus:
           return renderMacSettingsStatusFilterBlock();
         case !!softwareStatus:
-          return renderSoftwareInstallStatusBlock();
+          return renderSoftwareInstallStatusBlock(isScriptPackage);
         case !!softwareId || !!softwareVersionId || !!softwareTitleId:
           // Software version can be combined with os name and os version
           // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
