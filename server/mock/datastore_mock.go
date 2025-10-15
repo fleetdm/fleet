@@ -1455,7 +1455,7 @@ type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID str
 
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
 
-type SetLockRefForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
+type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
 
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
@@ -3702,8 +3702,8 @@ type DataStore struct {
 	GetLatestAppleMDMCommandOfTypeFunc        GetLatestAppleMDMCommandOfTypeFunc
 	GetLatestAppleMDMCommandOfTypeFuncInvoked bool
 
-	SetLockRefForLostModeCheckinFunc        SetLockRefForLostModeCheckinFunc
-	SetLockRefForLostModeCheckinFuncInvoked bool
+	SetLockCommandForLostModeCheckinFunc        SetLockCommandForLostModeCheckinFunc
+	SetLockCommandForLostModeCheckinFuncInvoked bool
 
 	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
 	NewMDMAndroidConfigProfileFuncInvoked bool
@@ -8866,9 +8866,9 @@ func (s *DataStore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID
 
 func (s *DataStore) SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error {
 	s.mu.Lock()
-	s.SetLockRefForLostModeCheckinFuncInvoked = true
+	s.SetLockCommandForLostModeCheckinFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetLockRefForLostModeCheckinFunc(ctx, hostID, commandUUID)
+	return s.SetLockCommandForLostModeCheckinFunc(ctx, hostID, commandUUID)
 }
 
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
