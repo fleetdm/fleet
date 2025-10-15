@@ -36,17 +36,13 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
   },
   ios: {
     description: (
-      <p>
-        When an iOS host enrolls, the selected software is installed.
-      </p>
+      <p>When an iOS host enrolls, the selected software is installed.</p>
     ),
     videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
   },
   ipados: {
     description: (
-      <p>
-        When an iPadOS host enrolls, the selected software is installed.
-      </p>
+      <p>When an iPadOS host enrolls, the selected software is installed.</p>
     ),
     videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
   },
