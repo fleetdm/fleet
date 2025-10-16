@@ -3820,7 +3820,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
 		if deletedDevice == nil {
-			if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			if err := svc.ds.CleanAppleMDMLock(r.Context, cmdResult.UDID); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 			}
 		}
@@ -3860,7 +3860,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-	case "DeviceLock", "EraseDevice":
+	case "DeviceLock", "EraseDevice", "EnableLostMode", "DisableLostMode":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
@@ -3891,7 +3891,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			} else if updated {
 				// TODO: call next step of setup experience?
 				fromSetupExperience = true
-				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
+				level.Debug(svc.logger).Log("msg", "setup experience VPP install result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
 			}
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
@@ -4244,7 +4244,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				fromSetupExperience = true
-				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
+				level.Debug(logger).Log("msg", "setup experience VPP install result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
 			}
 
 			// create an activity for installing only if we're in a terminal state

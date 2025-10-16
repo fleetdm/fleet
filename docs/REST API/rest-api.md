@@ -592,7 +592,8 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Add certificate authority (CA)
 
-Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+
 
 `POST /api/v1/fleet/certificate_authorities`
 
@@ -6623,7 +6624,11 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
+<<<<<<< HEAD
 | platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
+=======
+| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
+>>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
