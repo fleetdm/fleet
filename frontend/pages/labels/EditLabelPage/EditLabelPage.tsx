@@ -51,7 +51,11 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       onSuccess: (data) => {
         // can't edit host_vitals labels yet
         if (data.label_membership_type === "host_vitals") {
-          router.replace(PATHS.MANAGE_HOSTS_LABEL(data.id));
+          renderFlash(
+            "error",
+            "Host vitals labels are not editable. Delete the label and re-add it to make changes."
+          );
+          router.replace(PATHS.MANAGE_LABELS);
         }
       },
     }

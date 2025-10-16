@@ -534,6 +534,7 @@ software:
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
+- `icon` is the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
   
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
@@ -567,6 +568,7 @@ You can view the hash for existing software in the software detail page in the F
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
   + Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
+- `icon` is the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
 
 Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
@@ -744,8 +746,11 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+<<<<<<< HEAD
 
 Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+=======
+>>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
 
 #### Example
 
@@ -889,8 +894,11 @@ Can only be configured for all teams (`org_settings`).
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
 
+<<<<<<< HEAD
 Can only be configured for all teams (`org_settings`).
 
+=======
+>>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
 #### smallstep
 
 - `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
@@ -898,6 +906,11 @@ Can only be configured for all teams (`org_settings`).
 - `challenge_url` is the **Webhook URL** from Smallstep.
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
+<<<<<<< HEAD
+=======
+
+Can only be configured for all teams (`org_settings`).
+>>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
 
 ### webhook_settings
 

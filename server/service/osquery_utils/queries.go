@@ -909,7 +909,7 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -1006,6 +1006,25 @@ SELECT
 FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("vscode_extensions"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+var softwareJetbrainsPlugins = DetailQuery{
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  product_type AS extension_for,
+  'jetbrains_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("jetbrains_plugins"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -2728,6 +2747,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
+		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
