@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -185,9 +187,58 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	t := s.T()
+
+	devices := []godep.Device{
+		{SerialNumber: mdmtest.RandSerialNumber(), Model: "iPhone 16 Pro", OS: "ios", DeviceFamily: "iPhone", OpType: "added"},
+		{SerialNumber: mdmtest.RandSerialNumber(), Model: "iPad", OS: "ipados", OpType: "added"},
+	}
+
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/server/devices":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
 	s.setSkipWorkerJobs(t)
-	iosHost, iosMDMClient := s.createAppleMobileHostThenEnrollMDM("ios")
-	iPadOSHost, iPadOSMDMClient := s.createAppleMobileHostThenEnrollMDM("ipados")
+
+	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", devices[0].SerialNumber)
+	iPadOSHost, iPadOSMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ipados", devices[1].SerialNumber)
+
+	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iPadOSHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
 
 	for _, tc := range []struct {
 		name      string
@@ -351,6 +402,33 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", tc.host.ID), nil, http.StatusOK, &lockResp)
 			require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
 			require.Empty(t, lockResp.UnlockPIN)
+		})
+	}
+
+	iosHost, iosMDMClient = s.createAppleMobileHostThenDEPEnrollMDM("ios", mdmtest.RandSerialNumber())
+	iPadOSHost, iPadOSMDMClient = s.createAppleMobileHostThenDEPEnrollMDM("ipados", mdmtest.RandSerialNumber())
+
+	for _, tc := range []struct {
+		name      string
+		host      *fleet.Host
+		mdmClient *mdmtest.TestAppleMDMClient
+	}{
+		{"iOS can't lock manually enrolled host", iosHost, iosMDMClient},
+		{"iPadOS can't lock manually enrolled host", iPadOSHost, iPadOSMDMClient},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// get the host's information
+			var getHostResp getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+			// lock the host
+			res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", tc.host.ID), nil, http.StatusBadRequest)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts.")
 		})
 	}
 }
