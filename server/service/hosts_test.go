@@ -2801,9 +2801,6 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: 1}, nil
 		}
-		ds.ListScimUsersFunc = func(ctx context.Context, opts fleet.ScimUsersListOptions) ([]fleet.ScimUser, uint, error) {
-			return []fleet.ScimUser{{ID: 1}}, 1, nil
-		}
 		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{ID: 1, UserName: "user@example.com"}, nil
 		}
@@ -2820,12 +2817,46 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		result, err := svc.SetIDPHostDeviceMapping(userCtx, 1, "user@example.com")
 		require.NoError(t, err)
-		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
-		ds.SetOrUpdateHostSCIMUserMappingFuncInvoked = false // reset for next test
+		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
+		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should be called since SCIM user exists
 		require.NotNil(t, result)
 		require.Len(t, result, 1)
 		assert.Equal(t, uint(1), result[0].HostID)
 		assert.Equal(t, "user@example.com", result[0].Email)
+		assert.Equal(t, "idp", result[0].Source)
+	})
+
+	t.Run("success with any IDP username when SCIM user not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		// Mock the necessary datastore methods
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return nil, sql.ErrNoRows // SCIM user not found
+		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
+			return nil
+		}
+		ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: "idp"}}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetIDPHostDeviceMapping(userCtx, 1, "any@username.com")
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should NOT be called since SCIM user doesn't exist
+		require.True(t, ds.DeleteHostSCIMUserMappingFuncInvoked) // Should be called to remove any existing SCIM mapping
+		require.NotNil(t, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, uint(1), result[0].HostID)
+		assert.Equal(t, "any@username.com", result[0].Email)
 		assert.Equal(t, "idp", result[0].Source)
 	})
 
@@ -2838,45 +2869,6 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		_, err := svc.SetIDPHostDeviceMapping(userCtx, 1, "user@example.com")
 		require.Error(t, err)
 		assert.Equal(t, fleet.ErrMissingLicense, err)
-	})
-
-	t.Run("fails when SCIM not configured", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-
-		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return &fleet.Host{ID: 1}, nil
-		}
-		// Mock ListScimUsers to return empty results (SCIM not configured)
-		ds.ListScimUsersFunc = func(ctx context.Context, opts fleet.ScimUsersListOptions) ([]fleet.ScimUser, uint, error) {
-			return []fleet.ScimUser{}, 0, nil
-		}
-
-		userCtx := test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.SetIDPHostDeviceMapping(userCtx, 1, "user@example.com")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "no SCIM users found")
-	})
-
-	t.Run("fails when SCIM user not found", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-
-		// Mock the necessary datastore methods
-		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return &fleet.Host{ID: 1}, nil
-		}
-		ds.ListScimUsersFunc = func(ctx context.Context, opts fleet.ScimUsersListOptions) ([]fleet.ScimUser, uint, error) {
-			return []fleet.ScimUser{{ID: 1}}, 1, nil
-		}
-		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
-			return nil, sql.ErrNoRows
-		}
-
-		userCtx := test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.SetIDPHostDeviceMapping(userCtx, 1, "nonexistent@example.com")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "user not found in SCIM users table")
 	})
 
 	t.Run("fails when host not found", func(t *testing.T) {

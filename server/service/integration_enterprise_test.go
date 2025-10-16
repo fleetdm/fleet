@@ -21258,48 +21258,97 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	}
 	assert.True(t, foundIdpInDetailsById, "Should find IDP user in ID-based host endpoint")
 
-	// Test error cases with IDP
-	// Test with non-existent SCIM user
+	// Test that IDP accepts any username, even if not a SCIM user
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
-		putHostDeviceMappingRequest{Email: "nonexistent@example.com", Source: "idp"},
-		http.StatusUnprocessableEntity, &putResp)
+		putHostDeviceMappingRequest{Email: "any.username@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
 
 	// Test that custom mappings still work alongside IDP
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
 		putHostDeviceMappingRequest{Email: "custom.user@example.com", Source: "custom"},
 		http.StatusOK, &putResp)
 
-	// Verify both custom and IDP mappings are returned in device mappings
+	// Verify all mappings are returned: custom, SCIM IDP, and non-SCIM IDP
 	foundCustom := false
-	foundIdpStillThere := false
+	foundScimIdp := false
+	foundNonScimIdp := false
 	for _, mapping := range putResp.DeviceMapping {
 		if mapping.Email == "custom.user@example.com" && mapping.Source == fleet.DeviceMappingCustomReplacement {
 			foundCustom = true
 		}
 		if mapping.Email == "scim.user@example.com" && mapping.Source == "idp" {
-			foundIdpStillThere = true
+			foundScimIdp = true
+		}
+		if mapping.Email == "any.username@example.com" && mapping.Source == "idp" {
+			foundNonScimIdp = true
 		}
 	}
 	assert.True(t, foundCustom, "Should find custom mapping in device_mapping")
-	assert.True(t, foundIdpStillThere, "Should still find IDP mapping in device_mapping")
+	assert.True(t, foundScimIdp, "Should find SCIM IDP mapping in device_mapping")
+	assert.True(t, foundNonScimIdp, "Should find non-SCIM IDP mapping in device_mapping")
 
-	// Verify both IDP and custom users appear in end_users
+	// Verify IDP appears in idp_username and custom appears in other_emails
 	var finalHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &finalHostResp)
 
-	foundIdpUser := false
-	foundCustomUser := false
-	for _, endUser := range finalHostResp.Host.EndUsers {
-		if endUser.IdpUserName == "test.user" {
-			foundIdpUser = true
+	require.Len(t, finalHostResp.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser := finalHostResp.Host.EndUsers[0]
+
+	// IDP user (with SCIM data) should appear in idp_username field
+	assert.Equal(t, "test.user", endUser.IdpUserName, "SCIM user should be in idp_username")
+	assert.NotEmpty(t, endUser.IdpFullName, "SCIM user should have full name")
+
+	// Verify custom mapping appears in other_emails
+	foundCustomInOtherEmails := false
+	foundIdpInOtherEmails := false
+	for _, otherEmail := range endUser.OtherEmails {
+		if otherEmail.Email == "custom.user@example.com" {
+			foundCustomInOtherEmails = true
 		}
-		// Check OtherEmails for custom mapping
-		for _, otherEmail := range endUser.OtherEmails {
-			if otherEmail.Email == "custom.user@example.com" {
-				foundCustomUser = true
-			}
+		// Verify IDP emails do NOT appear in other_emails
+		if otherEmail.Email == "scim.user@example.com" ||
+		   otherEmail.Email == "any.username@example.com" {
+			foundIdpInOtherEmails = true
 		}
 	}
-	assert.True(t, foundIdpUser, "Should find IDP user in end_users")
-	assert.True(t, foundCustomUser || len(finalHostResp.Host.EndUsers) > 0, "Should have end user data")
+	assert.True(t, foundCustomInOtherEmails, "Custom mapping should appear in other_emails")
+	assert.False(t, foundIdpInOtherEmails, "IDP mappings should NOT appear in other_emails")
+
+	// Test with non-SCIM IDP user only (should replace previous IDP mapping)
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "nonscim@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
+
+	// Verify device mapping API shows only the new IDP mapping (replacement behavior)
+	foundNewIdp := false
+	foundOldIdp := false
+	for _, mapping := range putResp.DeviceMapping {
+		if mapping.Email == "nonscim@example.com" && mapping.Source == "idp" {
+			foundNewIdp = true
+		}
+		if (mapping.Email == "scim.user@example.com" || mapping.Email == "any.username@example.com") && mapping.Source == "idp" {
+			foundOldIdp = true
+		}
+	}
+	assert.True(t, foundNewIdp, "Should find new IDP mapping in device_mapping")
+	assert.False(t, foundOldIdp, "Should NOT find old IDP mappings (replacement behavior)")
+
+	var nonScimHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &nonScimHostResp)
+
+	require.Len(t, nonScimHostResp.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = nonScimHostResp.Host.EndUsers[0]
+
+	// Non-SCIM IDP user should appear in idp_username field (no SCIM data)
+	assert.Equal(t, "nonscim@example.com", endUser.IdpUserName, "Non-SCIM IDP user should be in idp_username")
+	assert.Empty(t, endUser.IdpFullName, "Non-SCIM user should not have full name")
+
+	// Verify IDP email doesn't appear in other_emails
+	foundNonScimInOtherEmails := false
+	for _, otherEmail := range endUser.OtherEmails {
+		if otherEmail.Email == "nonscim@example.com" {
+			foundNonScimInOtherEmails = true
+		}
+	}
+	assert.False(t, foundNonScimInOtherEmails, "Non-SCIM IDP should NOT appear in other_emails")
 }

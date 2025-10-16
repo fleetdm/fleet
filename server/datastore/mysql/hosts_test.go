@@ -138,6 +138,7 @@ func TestHosts(t *testing.T) {
 		{"HostDeviceMapping", testHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"CustomHostDeviceMapping", testHostsCustomHostDeviceMapping},
+		{"IDPHostDeviceMapping", testIDPHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
 		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
@@ -6672,6 +6673,137 @@ func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping)
 		g.ID, g.HostID = 0, 0
 		assert.Equal(t, w, g, "index %d", i)
 	}
+}
+
+func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test hosts
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("idp-host-1"),
+		NodeKey:         ptr.String("idp-host-1"),
+		Platform:        "linux",
+		Hostname:        "idp-host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("idp-host-2"),
+		NodeKey:         ptr.String("idp-host-2"),
+		Platform:        "linux",
+		Hostname:        "idp-host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Test 1: Add first IDP mapping for h1
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user1@idp.com")
+	require.NoError(t, err)
+
+	// Verify the mapping was created
+	mappings, err := ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user1@idp.com", Source: "idp"},
+	})
+
+	// Test 2: Replace IDP mapping with new user (should replace, not add)
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	require.NoError(t, err)
+
+	// Should have only the new mapping (user1 should be replaced by user2)
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user2@idp.com", Source: "idp"},
+	})
+
+	// Test 3: Test idempotent behavior - setting same mapping again should not change anything
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	require.NoError(t, err)
+
+	// Should still have only the same mapping
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user2@idp.com", Source: "idp"},
+	})
+
+	// Test 4: Add IDP mapping for different host
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, "user3@idp.com")
+	require.NoError(t, err)
+
+	// Verify h2 has its own mapping
+	mappings, err = ds.ListHostDeviceMapping(ctx, h2.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user3@idp.com", Source: "idp"},
+	})
+
+	// Verify h1 still has its current mapping unchanged
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user2@idp.com", Source: "idp"},
+	})
+
+	// Test 5: Test coexistence with custom mappings
+	customMappings, err := ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "custom@example.com", fleet.DeviceMappingCustomOverride)
+	require.NoError(t, err)
+
+	// Should have both IDP and custom mappings (only one IDP mapping)
+	require.Len(t, customMappings, 2)
+	assertHostDeviceMapping(t, customMappings, []*fleet.HostDeviceMapping{
+		{Email: "custom@example.com", Source: fleet.DeviceMappingCustomReplacement}, // displayed as "custom"
+		{Email: "user2@idp.com", Source: "idp"},
+	})
+
+	// Test 6: Test replacement with various email formats
+	testEmails := []string{
+		"simple@domain.com",
+		"user.name+tag@long-domain-name.co.uk",
+		"unicode-üser@domain.org",
+		"123numbers@domain123.net",
+	}
+
+	for i, email := range testEmails {
+		err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, email)
+		require.NoError(t, err, "Failed to set email: %s", email)
+
+		// Verify only the current email exists (replacement behavior)
+		mappings, err = ds.ListHostDeviceMapping(ctx, h2.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1, "Should have exactly one IDP mapping after email %d", i)
+		assert.Equal(t, email, mappings[0].Email, "Should have the latest email")
+		assert.Equal(t, "idp", mappings[0].Source, "Should be IDP source")
+	}
+
+	// Test 7: Test error case - nonexistent host
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, 99999, "user@example.com")
+	require.NoError(t, err) // Should not error - foreign key constraint will be enforced by DB
+
+	// Test 8: Test empty email (edge case)
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "")
+	require.NoError(t, err) // Should handle empty email gracefully
+
+	// Verify empty email was added
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	found := false
+	for _, mapping := range mappings {
+		if mapping.Email == "" && mapping.Source == "idp" {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "Should find empty email mapping")
 }
 
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {

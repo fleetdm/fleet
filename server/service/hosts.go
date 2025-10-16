@@ -1436,11 +1436,13 @@ func getEndUsers(ctx context.Context, ds fleet.Datastore, hostID uint) ([]fleet.
 		endUser := fleet.HostEndUser{}
 		for _, email := range deviceMapping {
 			switch {
-			case email.Source == fleet.DeviceMappingMDMIdpAccounts && len(endUsers) == 0:
+			case (email.Source == fleet.DeviceMappingMDMIdpAccounts || email.Source == "idp") && len(endUsers) == 0:
 				// If SCIM data is missing, we still populate IdpUserName if present.
+				// For "idp" source, this is the user-provided IDP username.
 				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
 				endUser.IdpUserName = email.Email
-			case email.Source != fleet.DeviceMappingMDMIdpAccounts:
+			case email.Source != fleet.DeviceMappingMDMIdpAccounts && email.Source != "idp":
+				// Only add to OtherEmails if it's not an IDP source
 				endUser.OtherEmails = append(endUser.OtherEmails, *email)
 			}
 		}
@@ -1633,7 +1635,7 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 type putHostDeviceMappingRequest struct {
 	ID     uint   `url:"id"`
 	Email  string `json:"email"`
-	Source string `query:"source,optional"`
+	Source string `json:"source,omitempty"`
 }
 
 type putHostDeviceMappingResponse struct {
@@ -1730,32 +1732,28 @@ func (svc *Service) SetIDPHostDeviceMapping(ctx context.Context, hostID uint, em
 		return nil, err
 	}
 
-	// Check if SCIM is configured by checking if there are any SCIM users
-	_, totalResults, err := svc.ds.ListScimUsers(ctx, fleet.ScimUsersListOptions{
-		ScimListOptions: fleet.ScimListOptions{StartIndex: 1, PerPage: 1},
-	})
-	if err != nil {
-		return nil, fleet.NewInvalidArgumentError("scim", "SCIM is not configured in Fleet")
-	}
-	if totalResults == 0 {
-		return nil, fleet.NewInvalidArgumentError("scim", "no SCIM users found - SCIM must be configured with users")
-	}
-
-	// Find the SCIM user by email
-	scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
-	if err != nil {
-		return nil, fleet.NewInvalidArgumentError("email", "user not found in SCIM users table")
-	}
-
-	// Set or update the host-SCIM user mapping
-	if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set host SCIM user mapping")
-	}
-
-	// Also store the IDP mapping in host_emails table so it appears in device_mapping API
-	// Use SetOrUpdateIDPHostDeviceMapping to add/update without replacing other mappings
+	// Store the IDP username for display (accept any value)
+	// This will appear in the host details API under the idp_username field
 	if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
+	}
+
+	// Check if the user is a valid SCIM user to manage the join table
+	scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+	if err == nil && scimUser != nil {
+		// User exists in SCIM, create/update the mapping for additional attributes
+		// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
+		if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			// Log the error but don't fail the request since the main IDP mapping succeeded
+			level.Debug(svc.logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+		}
+	} else {
+		// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
+		// This ensures we don't have stale SCIM data if the user was removed from SCIM
+		if err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			// Log the error but don't fail the request
+			level.Debug(svc.logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+		}
 	}
 
 	// Return the updated device mappings including the IDP mapping

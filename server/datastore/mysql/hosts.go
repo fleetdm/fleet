@@ -3801,24 +3801,21 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 
 func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
 	const (
-		updStmt = `UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`
+		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
 		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
 	)
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// First attempt an update, and if it updates nothing proceed with an insert
-		res, err := tx.ExecContext(ctx, updStmt, email, hostID, "idp")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update IDP device mapping")
+		// First, delete any existing IDP mappings for this host
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, "idp"); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
 		}
 
-		rowsAffected, _ := res.RowsAffected() // cannot fail for mysql driver
-		if rowsAffected == 0 {
-			// No existing IDP mapping, insert a new one
-			if _, err := tx.ExecContext(ctx, insStmt, email, hostID, "idp"); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
-			}
+		// Then, insert the new IDP mapping
+		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, "idp"); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
 		}
+
 		return nil
 	})
 	return err
@@ -4351,6 +4348,14 @@ func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID 
 
 		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
 	})
+}
+
+func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+	}
+	return nil
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
