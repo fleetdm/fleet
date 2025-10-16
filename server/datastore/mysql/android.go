@@ -370,7 +370,16 @@ UPDATE host_mdm
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
-	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+	}
+	// Delete all Android custom OS settings for unenrolled hosts.
+	// We do this in one query using a JOIN to avoid doing it one host at a time.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_android_profiles`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled hosts in bulk")
+	}
+	return nil
 }
 
 // SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm and OS settings records
