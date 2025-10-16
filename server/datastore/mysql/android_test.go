@@ -2026,6 +2026,9 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, serverURL)
 	require.Equal(t, 0, mdmIDIsNull)
 
+	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
+	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
@@ -2035,6 +2038,8 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	didUnenroll, err = ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
 	require.False(t, didUnenroll)
+
+	profileCountForHost := 0
 
 	// Validate host_mdm row updated
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2046,7 +2051,12 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
 	})
+	// validate profile records deleted
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &profileCountForHost, `SELECT COUNT(*) FROM host_mdm_android_profiles WHERE host_uuid=?`, res.Host.UUID)
+	})
 	assert.Equal(t, 0, enrolled)
 	assert.Equal(t, "", serverURL)
 	assert.Equal(t, 1, mdmIDIsNull)
+	assert.Equal(t, 0, profileCountForHost)
 }
