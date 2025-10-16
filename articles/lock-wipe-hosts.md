@@ -25,7 +25,7 @@ If the host's owner (employee) is leaving the company and keeping a company-owne
 
 Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), the best practice is to disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined.
 
-> **iOS and iPadOS hosts**: Locking is only available for supervised company-owned devices.
+> **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
 
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
 
