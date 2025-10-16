@@ -447,3 +447,29 @@ WHERE verification_command_uuid = ?
 
 	return nil
 }
+
+func (ds *Datastore) GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
+	stmt := `
+SELECT
+		hvsi.host_id AS host_id,
+		hvsi.command_uuid AS command_uuid,
+		hvsi.host_id AS host_id,
+		ncr.updated_at AS ack_at,
+		ncr.status AS install_command_status,
+		iha.bundle_identifier AS bundle_identifier
+FROM nano_command_results ncr
+JOIN host_in_house_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
+JOIN in_house_apps iha ON iha.id = hvsi.in_house_app_id AND iha.platform = hvsi.platform
+WHERE ncr.id = ?
+AND ncr.status = 'Acknowledged'
+AND hvsi.verification_at IS NULL
+AND hvsi.verification_failed_at IS NULL
+		`
+
+	var result []*fleet.HostVPPSoftwareInstall
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get unverified in-house app installs for host")
+	}
+
+	return result, nil
+}
