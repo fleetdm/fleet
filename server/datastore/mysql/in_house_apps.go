@@ -17,15 +17,17 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	stmt := `
 	INSERT INTO in_house_apps (
 		team_id,
-		title_id,
 		global_or_team_id,
 		name,
 		storage_id,
-		platform,
 		version,
-		bundle_identifier
+		bundle_identifier,
+		title_id,
+		platform
 	)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+
+	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE team_id = ? AND (bundle_identifier = ? OR name = ?)` // use global or team id?
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -37,34 +39,50 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
-		TeamID:           tid,
-		Title:            payload.Name,
-		BundleIdentifier: payload.BundleID,
-		Source:           "ios_apps"}, // TODO: what about iPad apps
-	)
+	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Name, payload.BundleID, "ipados_apps")
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+	}
+	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Name, payload.BundleID, "ios_apps")
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 	}
 
 	var installerID uint
+	var count uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		row := tx.QueryRowxContext(ctx, selectStmt, tid, payload.BundleID, payload.Name)
+		if err := row.Scan(&count); err != nil {
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp: ")
+		}
+		if count > 0 {
+			// ios or ipados version of this installer exists
+			err = alreadyExists("insertInHouseApp", payload.Name)
+		}
+
 		args := []any{
 			tid,
-			titleID,
 			globalOrTeamID,
 			payload.Name,
 			payload.StorageID,
-			payload.Platform,
 			payload.Version,
 			payload.BundleID,
 		}
+		argsIos := append(args, titleIDios, "ios")
+		argsIpad := append(args, titleIDipad, "ipados")
 
-		res, err := tx.ExecContext(ctx, stmt, args...)
+		res, err := tx.ExecContext(ctx, stmt, argsIpad...)
 		if err != nil {
 			if IsDuplicate(err) {
-				// already exists for this team/no team
-				err = alreadyExists("InHouseApp", payload.Name)
+				err = alreadyExists("insertInHouseApp", payload.Name)
+			}
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		}
+
+		res, err = tx.ExecContext(ctx, stmt, argsIos...)
+		if err != nil {
+			if IsDuplicate(err) {
+				err = alreadyExists("insertInHouseApp", payload.Name)
 			}
 			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
@@ -76,13 +94,35 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 
 		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
-			return ctxerr.Wrap(ctx, err, "upsert in house app labels")
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 
 		return nil
 	})
 
-	return installerID, titleID, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+	return installerID, titleIDios, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+}
+
+func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name string, bundleID string, source string) (uint, error) {
+	selectStmt := `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ? OR (name = ? AND source = ?)`
+	selectArgs := []any{bundleID, source, name, source}
+	insertStmt := `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
+	insertArgs := []any{name, source, bundleID}
+
+	titleID, err := ds.optimisticGetOrInsert(ctx,
+		&parameterizedStmt{
+			Statement: selectStmt,
+			Args:      selectArgs,
+		},
+		&parameterizedStmt{
+			Statement: insertStmt,
+			Args:      insertArgs,
+		},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return titleID, nil
 }
 
 func (ds *Datastore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
@@ -144,21 +184,21 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		stmt := `UPDATE in_house_apps SET
                     storage_id = ?,
                     name = ?,
-                    version = ?,
-                    platform = ?
+                    version = ?
                  WHERE id = ?`
 
 		ext := "ipa"
 		if i := strings.LastIndex(ext, "."); i != -1 {
 			ext = ext[i+1:]
 		}
-		platform, _ := fleet.SoftwareInstallerPlatformFromExtension(ext)
+		// Avoid updating platform from .ipa file for now
+		// platform, _ := fleet.SoftwareInstallerPlatformFromExtension(ext)
 
 		args := []any{
 			payload.StorageID,
 			payload.Filename,
 			payload.Version,
-			platform,
+			// platform,
 			payload.InstallerID,
 		}
 

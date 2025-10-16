@@ -24,6 +24,7 @@ func TestInHouseApps(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestInHouseAppsCrud", testInHouseAppsCrud},
+		{"MultipleTeams", testInHouseAppsMultipleTeams},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -71,6 +72,19 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, installerID)
 	require.NotZero(t, titleID)
+
+	// both ios and ipados apps are created, both installer and title
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var countI uint
+		var countS uint
+		errI := sqlx.GetContext(ctx, q, &countI, `SELECT COUNT(*) FROM in_house_apps`)
+		errS := sqlx.GetContext(ctx, q, &countS, `SELECT COUNT(*) FROM software_titles`)
+		require.NoError(t, errI)
+		require.NoError(t, errS)
+		require.Equal(t, uint(2), countI)
+		require.Equal(t, uint(2), countS)
+		return nil
+	})
 
 	installer, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.NoError(t, err)
@@ -149,13 +163,100 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		require.Zero(t, count, "expected %s to be empty", table)
 	}
 
-	checkEmpty("in_house_apps")
 	checkEmpty("in_house_app_labels")
 	checkEmpty("host_in_house_software_installs")
 	checkEmpty("in_house_app_upcoming_activities")
 	checkEmpty("upcoming_activities")
+
+	// ipadOS installer should remain
+	var ipadID uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &ipadID, `SELECT id FROM in_house_apps LIMIT 1`)
+	require.NoError(t, err)
+
+	// Try to upload installer again, expect duplicate error
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.Error(t, err)
+
+	// Delete ipadOS installer
+	err = ds.DeleteInHouseApp(ctx, ipadID)
+	require.NoError(t, err)
+
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM in_house_apps`)
+	require.NoError(t, err)
+	require.Zero(t, count, "expected in_house_apps to be empty")
 }
 
+func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID}))
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host2.ID}))
+	require.NoError(t, err)
+
+	nanoEnroll(t, ds, host1, false)
+
+	payload1 := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team1.ID,
+		UserID:           user1.ID,
+		Title:            "foo",
+		BundleIdentifier: "com.foo",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+
+	payload2 := payload1
+	payload2.TeamID = &team2.ID
+
+	payloadNoTeam := payload1
+	payloadNoTeam.TeamID = nil
+
+	// Add installers for both teams
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload1)
+	require.NoError(t, err)
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payloadNoTeam)
+	require.NoError(t, err)
+
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM software_titles`)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_apps`)
+	require.NoError(t, err)
+	require.Equal(t, 6, count)
+
+	// Team 2: Delete 1 installer from 1 team
+	err = ds.DeleteInHouseApp(ctx, installerID2)
+	require.NoError(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_apps`)
+	require.NoError(t, err)
+	require.Equal(t, 5, count)
+
+	// Team 2: Try to add installer again
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
+	require.Error(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_apps`)
+	require.NoError(t, err)
+	require.Equal(t, 5, count)
+}
 func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, appID uint, titleID uint, user *fleet.User) string {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
