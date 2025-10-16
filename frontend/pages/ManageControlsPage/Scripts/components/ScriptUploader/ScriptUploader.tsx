@@ -32,6 +32,7 @@ const ScriptPackageUploader = ({
       className={baseClass}
       graphicName={["file-sh", "file-ps1"]}
       message="Shell (.sh) for macOS and Linux or PowerShell (.ps1) for Windows"
+      title="Upload script"
       accept=".sh,.ps1"
       onFileUpload={onFileSelect}
       fileDetails={selectedFile ? getFileDetails(selectedFile) : undefined}

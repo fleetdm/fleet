@@ -43,13 +43,12 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
   <div className={`${baseClass}__file-chooser`}>
     <ProfileGraphic
       baseClass={baseClass}
+      title="Update configuration profile"
       message={
         <>
-          <b>Upload configuration profile</b>
+          .mobileconfig and .json for macOS, iOS, and iPadOS.
           <br />
-          .mobileconfig and .json for Apple (macOS/iOS,iPadOS),
-          <br />
-          .xml for Windows, .json for Android.
+          .xml for Windows.
         </>
       }
     />

@@ -30,6 +30,7 @@ export type ISupportedGraphicNames = Extract<
 interface IFileUploaderProps {
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: string;
+  title?: string;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
@@ -80,6 +81,7 @@ interface IFileUploaderProps {
 export const FileUploader = ({
   graphicName: graphicNames,
   message,
+  title,
   additionalInfo,
   isLoading = false,
   disabled = false,
@@ -221,6 +223,7 @@ export const FileUploader = ({
           <div className="outer">
             <div className="inner">
               <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
+              {title && <div className={`${baseClass}__title`}>{title}</div>}
               <p className={`${baseClass}__message`}>{message}</p>
               {additionalInfo && (
                 <p className={`${baseClass}__additional-info`}>
