@@ -1651,38 +1651,17 @@ func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
 
-	// Default to "custom" if source is not specified
-	source := req.Source
-	if source == "" {
-		source = "custom"
-	}
-
 	var dms []*fleet.HostDeviceMapping
 	var err error
 
-	switch source {
-	case "custom":
-		dms, err = svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
-	case fleet.DeviceMappingIDP:
-		dms, err = svc.SetIDPHostDeviceMapping(ctx, req.ID, req.Email)
-	default:
-		// For invalid source, we still need to call a service method to ensure authorization
-		// Call SetCustomHostDeviceMapping first for authorization, then return the parameter error
-		_, authErr := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
-		if authErr != nil {
-			return putHostDeviceMappingResponse{Err: authErr}, nil
-		}
-		// If authorization passed, return the parameter validation error
-		return putHostDeviceMappingResponse{Err: fleet.NewInvalidArgumentError("source", fmt.Sprintf("must be 'custom' or '%s'", fleet.DeviceMappingIDP))}, nil
-	}
-
+	dms, err = svc.SetHostDeviceMapping(ctx, req.ID, req.Email, req.Source)
 	if err != nil {
 		return putHostDeviceMappingResponse{Err: err}, nil
 	}
 	return putHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
 }
 
-func (svc *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
 	isInstallerSource := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnOrbitToken)
 	if !isInstallerSource {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -1700,64 +1679,56 @@ func (svc *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint,
 		}
 	}
 
-	source := fleet.DeviceMappingCustomOverride
+	if source == "" {
+		source = "custom"
+	}
+
 	if isInstallerSource {
 		source = fleet.DeviceMappingCustomInstaller
 	}
-	return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
-}
 
-func (svc *Service) SetIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
-	// Check if this is a premium-only feature
-	lic, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if lic == nil || !lic.IsPremium() {
-		return nil, fleet.ErrMissingLicense
-	}
-
-	// Check authorization
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host")
-	}
-
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	// Store the IDP username for display (accept any value)
-	// This will appear in the host details API under the idp_username field
-	if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
-	}
-
-	// Check if the user is a valid SCIM user to manage the join table
-	scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
-	if err == nil && scimUser != nil {
-		// User exists in SCIM, create/update the mapping for additional attributes
-		// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-		if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
-			// Log the error but don't fail the request since the main IDP mapping succeeded
-			level.Debug(svc.logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+	switch source {
+	case "custom", fleet.DeviceMappingCustomInstaller:
+		return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
+	case fleet.DeviceMappingIDP:
+		// Check if this is a premium-only feature
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, err
 		}
-	} else {
-		// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-		// This ensures we don't have stale SCIM data if the user was removed from SCIM
-		if err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
-			// Log the error but don't fail the request
-			level.Debug(svc.logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+		if lic == nil || !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
 		}
-	}
 
-	// Return the updated device mappings including the IDP mapping
-	return svc.ds.ListHostDeviceMapping(ctx, hostID)
+		// Store the IDP username for display (accept any value)
+		// This will appear in the host details API under the idp_username field
+		if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
+		}
+
+		// Check if the user is a valid SCIM user to manage the join table
+		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+		if err == nil && scimUser != nil {
+			// User exists in SCIM, create/update the mapping for additional attributes
+			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
+			if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+				// Log the error but don't fail the request since the main IDP mapping succeeded
+				level.Debug(svc.logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+			}
+		} else {
+			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
+			// This ensures we don't have stale SCIM data if the user was removed from SCIM
+			if err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+				// Log the error but don't fail the request
+				level.Debug(svc.logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+			}
+		}
+
+		// Return the updated device mappings including the IDP mapping
+		return svc.ds.ListHostDeviceMapping(ctx, hostID)
+	default:
+		return nil, fleet.NewInvalidArgumentError("source", fmt.Sprintf("must be 'custom' or '%s'", fleet.DeviceMappingIDP))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
