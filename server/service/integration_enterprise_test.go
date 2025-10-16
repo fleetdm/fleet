@@ -21193,7 +21193,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	t := s.T()
 	ctx := context.Background()
 
-	hosts := s.createHosts(t, "windows")
+	hosts := s.createHosts(t, "darwin")
 	host := hosts[0]
 
 	// Create a SCIM user for testing
