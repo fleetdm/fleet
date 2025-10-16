@@ -2811,7 +2811,7 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 			return nil
 		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
-			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: "idp"}}, nil
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
@@ -2823,7 +2823,7 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		require.Len(t, result, 1)
 		assert.Equal(t, uint(1), result[0].HostID)
 		assert.Equal(t, "user@example.com", result[0].Email)
-		assert.Equal(t, "idp", result[0].Source)
+		assert.Equal(t, fleet.DeviceMappingIDP, result[0].Source)
 	})
 
 	t.Run("success with any IDP username when SCIM user not found", func(t *testing.T) {
@@ -2844,7 +2844,7 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 			return nil
 		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
-			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: "idp"}}, nil
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
@@ -2857,7 +2857,7 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		require.Len(t, result, 1)
 		assert.Equal(t, uint(1), result[0].HostID)
 		assert.Equal(t, "any@username.com", result[0].Email)
-		assert.Equal(t, "idp", result[0].Source)
+		assert.Equal(t, fleet.DeviceMappingIDP, result[0].Source)
 	})
 
 	t.Run("fails without premium license", func(t *testing.T) {

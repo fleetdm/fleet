@@ -3807,12 +3807,12 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// First, delete any existing IDP mappings for this host
-		if _, err := tx.ExecContext(ctx, delStmt, hostID, "idp"); err != nil {
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
 		}
 
 		// Then, insert the new IDP mapping
-		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, "idp"); err != nil {
+		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
 		}
 

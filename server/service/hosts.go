@@ -1436,12 +1436,12 @@ func getEndUsers(ctx context.Context, ds fleet.Datastore, hostID uint) ([]fleet.
 		endUser := fleet.HostEndUser{}
 		for _, email := range deviceMapping {
 			switch {
-			case (email.Source == fleet.DeviceMappingMDMIdpAccounts || email.Source == "idp") && len(endUsers) == 0:
+			case (email.Source == fleet.DeviceMappingMDMIdpAccounts || email.Source == fleet.DeviceMappingIDP) && len(endUsers) == 0:
 				// If SCIM data is missing, we still populate IdpUserName if present.
-				// For "idp" source, this is the user-provided IDP username.
+				// For DeviceMappingIDP source, this is the user-provided IDP username.
 				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
 				endUser.IdpUserName = email.Email
-			case email.Source != fleet.DeviceMappingMDMIdpAccounts && email.Source != "idp":
+			case email.Source != fleet.DeviceMappingMDMIdpAccounts && email.Source != fleet.DeviceMappingIDP:
 				// Only add to OtherEmails if it's not an IDP source
 				endUser.OtherEmails = append(endUser.OtherEmails, *email)
 			}
@@ -1663,7 +1663,7 @@ func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc 
 	switch source {
 	case "custom":
 		dms, err = svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
-	case "idp":
+	case fleet.DeviceMappingIDP:
 		dms, err = svc.SetIDPHostDeviceMapping(ctx, req.ID, req.Email)
 	default:
 		// For invalid source, we still need to call a service method to ensure authorization
@@ -1673,7 +1673,7 @@ func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc 
 			return putHostDeviceMappingResponse{Err: authErr}, nil
 		}
 		// If authorization passed, return the parameter validation error
-		return putHostDeviceMappingResponse{Err: fleet.NewInvalidArgumentError("source", "must be 'custom' or 'idp'")}, nil
+		return putHostDeviceMappingResponse{Err: fleet.NewInvalidArgumentError("source", fmt.Sprintf("must be 'custom' or '%s'", fleet.DeviceMappingIDP))}, nil
 	}
 
 	if err != nil {
