@@ -6,6 +6,7 @@ import { IconNames } from "components/icons";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
+import { IMdmCommandResult } from "./mdm";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -450,6 +451,11 @@ export type ISoftwareScriptResult = Omit<ISoftwareInstallResult, "status"> & {
 
 export interface ISoftwareInstallResults {
   results: ISoftwareInstallResult;
+}
+
+/** For Software .ipa installs, we use the install results API to return MDM command results */
+export interface ISoftwareIpaInstallResults {
+  results: IMdmCommandResult;
 }
 
 // ISoftwareInstallerType defines the supported installer types for

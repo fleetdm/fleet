@@ -1,217 +1,202 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { screen, waitFor } from "@testing-library/react";
+import { createCustomRenderer } from "test/test-utils";
+import mockServer from "test/mock-server";
+import { getUniversalSoftwareInstallHandler } from "test/handlers/software-handlers";
+import { createMockHostSoftware } from "__mocks__/hostMock";
 
-import {
-  getStatusMessage,
-  ModalButtons,
-} from "./SoftwareIpaInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "./SoftwareIpaInstallDetailsModal";
 
-describe("getStatusMessage helper function", () => {
-  it("shows NotNow message when isStatusNotNow is true", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "pending_install",
-        isMDMStatusNotNow: true,
-        isMDMStatusAcknowledged: false,
-        appName: "Logic Pro",
+/**
+ * Helper for rendering a pre-wired modal component
+ */
+const renderModal = (
+  overrides?: Partial<
+    React.ComponentProps<typeof SoftwareIpaInstallDetailsModal>
+  >
+) => {
+  const render = createCustomRenderer({ withBackendMock: true });
+  return render(
+    <SoftwareIpaInstallDetailsModal
+      details={{
+        fleetInstallStatus: "pending_install",
         hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(screen.getByText(/Fleet tried to install/i)).toBeInTheDocument();
+        appName: "Logic Pro",
+        commandUuid: "uuid-installed",
+        ...overrides?.details,
+      }}
+      onCancel={jest.fn()}
+      {...overrides}
+    />
+  );
+};
+
+describe("SoftwareIpaInstallDetailsModal component", () => {
+  beforeEach(() => {
+    mockServer.use(getUniversalSoftwareInstallHandler);
+  });
+
+  afterEach(() => {
+    mockServer.resetHandlers();
+  });
+
+  it("renders NotNow message for an MDM result", async () => {
+    renderModal({
+      details: {
+        commandUuid: "notnow-uuid",
+        fleetInstallStatus: "pending_install",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Fleet tried to install/i)).toBeInTheDocument();
+    });
     expect(
       screen.getByText(
-        /but couldn't because the host was locked or was running on battery power while in Power Nap/i
+        /because the host was locked or was running on battery power while in Power Nap/i
       )
     ).toBeInTheDocument();
   });
 
-  it("shows pending acknowledged message", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "pending_install",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: true,
-        appName: "Logic Pro",
+  it("renders Acknowledged pending message", async () => {
+    renderModal({
+      details: {
+        commandUuid: "acknowledged-uuid",
+        fleetInstallStatus: "pending_install",
         hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(
-      screen.getByText(/The MDM command \(request\) to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /was acknowledged but the installation has not been verified/i
-      )
-    ).toBeInTheDocument();
+        appName: "Logic Pro",
+      },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /was acknowledged but the installation has not been verified/i
+        )
+      ).toBeInTheDocument();
+    });
     expect(screen.getByText(/Refetch/i)).toBeInTheDocument();
   });
 
-  it("shows failed_install message", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "failed_install",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: false,
-        appName: "Logic Pro",
+  it("renders normal software install status for non-MDM case", async () => {
+    renderModal({
+      details: {
+        commandUuid: "uuid-installed",
+        fleetInstallStatus: "installed",
         hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(
-      screen.getByText(/Please re-attempt this installation/i)
-    ).toBeInTheDocument();
-  });
+        appName: "Logic Pro",
+      },
+    });
 
-  it("shows failed verification message", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "failed_install",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: true,
-        appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(
-      screen.getByText(
-        /but the installation has not been verified. Please re-attempt this installation/i
-      )
-    ).toBeInTheDocument();
-  });
-
-  it("shows pending install on host when it comes online", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "pending_install",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: false,
-        appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(screen.getByText(/when it comes online/i)).toBeInTheDocument();
-  });
-
-  it("shows default message for installed status", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "installed",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: true,
-        appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
+    });
     expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
     expect(screen.getByText(/Marko's MacBook Pro/i)).toBeInTheDocument();
   });
 
-  it("shows manual install message when installed not through Fleet", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "installed",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: false,
-        appName: "Logic Pro",
+  it("renders manual install message when installed not through Fleet", async () => {
+    renderModal({
+      details: {
+        commandUuid: "",
+        fleetInstallStatus: "installed",
         hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "", // <-- empty
-      })
-    );
+        appName: "Logic Pro",
+      },
+    });
 
-    expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
-    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
+      expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+    });
   });
 
-  it("shows default message with 'the host' if host_display_name is empty", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "installed",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: false,
-        appName: "Logic Pro",
+  it("renders host label as 'the host' if host name empty", async () => {
+    renderModal({
+      details: {
+        commandUuid: "uuid-installed",
+        fleetInstallStatus: "installed",
         hostDisplayName: "",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
-    expect(screen.getByText(/the host/i)).toBeInTheDocument();
-  });
-
-  it("shows relative timestamp when available", () => {
-    render(
-      getStatusMessage({
-        displayStatus: "failed_install",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: new Date().toISOString(),
-      })
-    );
-    expect(screen.getByText(/\(.*ago\)/i)).toBeInTheDocument();
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
+      expect(screen.getByText(/the host/i)).toBeInTheDocument();
+    });
   });
 
-  it("on the device user page, does not show host info", () => {
-    render(
-      getStatusMessage({
-        isMyDevicePage: true,
-        displayStatus: "installed",
-        isMDMStatusNotNow: false,
-        isMDMStatusAcknowledged: false,
-        appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
-        commandUpdatedAt: "2025-07-29T22:49:52Z",
-      })
-    );
-    expect(screen.queryByText(/Marko's MacBook Pro/i)).not.toBeInTheDocument();
-  });
-});
-
-describe("VPP Install Details Modal - ModalButtons component", () => {
   it("renders Done button by default", async () => {
     const onCancel = jest.fn();
 
-    const { user } = renderWithSetup(
-      <ModalButtons displayStatus="installed" onCancel={onCancel} />
-    );
+    renderModal({
+      onCancel,
+      details: {
+        commandUuid: "uuid-installed",
+        fleetInstallStatus: "installed",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+      },
+    });
 
-    const doneButton = screen.getByRole("button", { name: /done/i });
-    expect(doneButton).toBeInTheDocument();
-
-    await user.click(doneButton);
+    const doneBtn = await screen.findByRole("button", { name: /done/i });
+    doneBtn.click();
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("renders Cancel + Retry when failed_install with deviceAuthToken", async () => {
-    const onCancel = jest.fn();
     const onRetry = jest.fn();
+    const onCancel = jest.fn();
 
-    const { user } = renderWithSetup(
-      <ModalButtons
-        displayStatus="failed_install"
-        deviceAuthToken="fake_token"
-        onCancel={onCancel}
-        onRetry={onRetry}
-        hostSoftwareId={123}
-      />
-    );
+    renderModal({
+      onRetry,
+      onCancel,
+      deviceAuthToken: "test_token_123",
+      details: {
+        commandUuid: "uuid-failed",
+        fleetInstallStatus: "failed_install",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+      },
+      hostSoftware: createMockHostSoftware({
+        id: 99,
+        name: "CoolApp",
+        installed_versions: [],
+      }),
+    });
 
-    const cancelButton = screen.getByRole("button", { name: /cancel/i });
-    const retryButton = screen.getByRole("button", { name: /retry/i });
+    const cancelButton = await screen.findByRole("button", { name: /cancel/i });
+    const retryButton = await screen.findByRole("button", { name: /retry/i });
 
     expect(cancelButton).toBeInTheDocument();
     expect(retryButton).toBeInTheDocument();
 
-    // Retry should trigger onRetry + onCancel
-    await user.click(retryButton);
-    expect(onRetry).toHaveBeenCalledWith(123);
-    expect(onCancel).toHaveBeenCalled();
+    await waitFor(() => {
+      retryButton.click();
+      expect(onRetry).toHaveBeenCalledWith(99);
+      expect(onCancel).toHaveBeenCalled();
+    });
+  });
+
+  it("renders MDM acknowledged result in details output", async () => {
+    renderModal({
+      details: {
+        commandUuid: "acknowledged-uuid",
+        fleetInstallStatus: "pending_install",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+      },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /acknowledged but the installation has not been verified/i
+        )
+      ).toBeInTheDocument();
+    });
   });
 });

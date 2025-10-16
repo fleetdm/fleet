@@ -65,10 +65,7 @@ export const getStatusMessage = ({
         })})`
       : null;
 
-  // Handles "pending" value prior to 4.57
-  const isPendingInstall = ["pending_install", "pending"].includes(
-    displayStatus
-  );
+  const isPendingInstall = displayStatus === "pending_install";
 
   // Handles the case where software is installed manually by the user and not through Fleet
   // This IPA software_packages modal matches app_store_app modal and software_packages modal
@@ -238,26 +235,6 @@ export const SoftwareIpaInstallDetailsModal = ({
     setShowInstallDetails((prev) => !prev);
   };
 
-  const responseHandler = (
-    response:
-      | IGetVppInstallCommandResultsResponse
-      | IGetMdmCommandResultsResponse
-  ) => {
-    const results = response.results?.[0];
-    if (!results) {
-      // FIXME: It's currently possible that the command results API response is empty for pending
-      // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
-      // display some minimal pending UI. This should be removed once the API response is fixed.
-      // Note: This is copied over from VppInstallDetailsModal as of 4.76
-      return {} as IMdmCommandResult;
-    }
-    return {
-      ...results,
-      payload: atob(results.payload),
-      result: atob(results.result),
-    };
-  };
-
   const { data: swInstallResult, isLoading, isError, error } = useQuery<
     IMdmCommandResult,
     AxiosError
@@ -272,6 +249,7 @@ export const SoftwareIpaInstallDetailsModal = ({
       refetchOnWindowFocus: false,
       staleTime: 3000,
       enabled: !!commandUuid,
+      select: (data) => data.results,
     }
   );
 
@@ -312,6 +290,7 @@ export const SoftwareIpaInstallDetailsModal = ({
     commandUpdatedAt: swInstallResult?.updated_at || "",
   });
 
+  console.log("isMDMStatusNotNow", isMDMStatusNotNow);
   const renderInventoryVersionsSection = () => {
     if (hostSoftware?.installed_versions?.length) {
       return <InventoryVersions hostSoftware={hostSoftware} />;
