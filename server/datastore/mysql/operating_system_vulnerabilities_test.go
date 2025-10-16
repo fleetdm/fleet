@@ -425,7 +425,6 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-
 			var teamID uint
 			if tt.team {
 				team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_" + tt.name})
@@ -478,7 +477,6 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 
 			require.NoError(t, ds.UpdateOSVersions(ctx))
 			require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-			require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 			require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 			require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
 
@@ -523,7 +521,6 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true, nil)
 			require.NoError(t, err)
 			require.Empty(t, cves)
-
 		})
 	}
 }
@@ -595,7 +592,6 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	updateMappings := func() {
 		require.NoError(t, ds.UpdateOSVersions(ctx))
 		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 		require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 		require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
 	}
@@ -675,5 +671,4 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	kernels, err = ds.ListKernelsByOS(ctx, os1.OSVersionID, nil)
 	require.NoError(t, err)
 	require.Empty(t, kernels)
-
 }
