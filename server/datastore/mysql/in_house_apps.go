@@ -13,19 +13,6 @@ import (
 )
 
 func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
-	stmt := `
-	INSERT INTO in_house_apps (
-		team_id,
-		global_or_team_id,
-		name,
-		storage_id,
-		version,
-		bundle_identifier,
-		title_id,
-		platform
-	)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-
 	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND (bundle_identifier = ? OR name = ?)`
 
 	var tid *uint
@@ -59,41 +46,35 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			err = alreadyExists("insertInHouseApp", payload.Name)
 		}
 
-		args := []any{
+		argsIos := []any{
 			tid,
 			globalOrTeamID,
 			payload.Name,
 			payload.StorageID,
 			payload.Version,
 			payload.BundleID,
+			titleIDios,
+			"ios",
 		}
-		argsIos := append(args, titleIDios, "ios")      // nolint: gocritic
-		argsIpad := append(args, titleIDipad, "ipados") // nolint: gocritic
+		argsIpad := []any{
+			tid,
+			globalOrTeamID,
+			payload.Name,
+			payload.StorageID,
+			payload.Version,
+			payload.BundleID,
+			titleIDipad,
+			"ipados",
+		}
 
-		_, err := tx.ExecContext(ctx, stmt, argsIpad...)
+		_, err := ds.insertInHouseInstaller(ctx, tx, payload, argsIpad)
 		if err != nil {
-			if IsDuplicate(err) {
-				err = alreadyExists("insertInHouseApp", payload.Name)
-			}
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp: ")
 		}
 
-		res, err := tx.ExecContext(ctx, stmt, argsIos...)
+		installerID, err = ds.insertInHouseInstaller(ctx, tx, payload, argsIos)
 		if err != nil {
-			if IsDuplicate(err) {
-				err = alreadyExists("insertInHouseApp", payload.Name)
-			}
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
-		}
-
-		id64, err := res.LastInsertId()
-		installerID = uint(id64) //nolint:gosec // dismiss G115
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
-		}
-
-		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp: ")
 		}
 
 		return nil
@@ -122,6 +103,39 @@ func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name st
 		return 0, err
 	}
 	return titleID, nil
+}
+
+func (ds *Datastore) insertInHouseInstaller(ctx context.Context, tx sqlx.ExtContext, payload *fleet.InHouseAppPayload, args []any) (uint, error) {
+	stmt := `
+	INSERT INTO in_house_apps (
+		team_id,
+		global_or_team_id,
+		name,
+		storage_id,
+		version,
+		bundle_identifier,
+		title_id,
+		platform
+	)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		if IsDuplicate(err) {
+			err = alreadyExists("insertInHouseApp", payload.Name)
+		}
+		return 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+	}
+	id64, err := res.LastInsertId()
+	installerID := uint(id64) //nolint:gosec // dismiss G115
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+	}
+
+	if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+	}
+	return installerID, nil
 }
 
 func (ds *Datastore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
