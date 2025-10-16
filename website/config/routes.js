@@ -979,6 +979,7 @@ module.exports.routes = {
   'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
+  'GET /learn-more-about/deleting-android-enterprise': '/guides/android-mdm-setup#deleting-android-enterprise-in-google-admin',
 
   // Sitemap
   // =============================================================================================================

@@ -12,7 +12,7 @@ const AndroidEnterpriseDeletedMessage = () => {
       color="yellow"
       cta={
         <CustomLink
-          url="https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
+          url="https://fleetdm.com/learn-more-about/deleting-android-enterprise"
           text="Learn more"
           className={baseClass}
           newTab
