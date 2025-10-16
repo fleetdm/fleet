@@ -73,11 +73,11 @@ describe("LabelsTable", () => {
       />
     );
 
-    // Custom labels should be visible
-    expect(screen.getByText("Custom label 1")).toBeInTheDocument();
-    expect(screen.getByText("Custom label 2")).toBeInTheDocument();
-    expect(screen.getByText("First custom label")).toBeInTheDocument();
-    expect(screen.getByText("Second custom label")).toBeInTheDocument();
+    // Custom labels should be visible, each with the regular copy and the full name in a tooltip
+    expect(screen.queryAllByText("Custom label 1")).toHaveLength(2);
+    expect(screen.queryAllByText("Custom label 2")).toHaveLength(2);
+    expect(screen.queryAllByText("First custom label")).toHaveLength(2);
+    expect(screen.queryAllByText("Second custom label")).toHaveLength(2);
 
     // Builtin labels should not be visible
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();

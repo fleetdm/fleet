@@ -38,8 +38,8 @@ labels:
   query: SELECT * FROM osquery_info
 - description: Label B description
   hosts:
-  - host1
-  - host2
+  - "1"
+  - "2"
   label_membership_type: manual
   name: Label B
 - criteria:

@@ -597,6 +597,34 @@ SELECT package, MAX(atime) AS last_opened_at
 		GROUP BY package
 ```
 
+## software_jetbrains_plugins
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'jetbrains_plugins'
+```
+
+- Query:
+```sql
+WITH cached_users AS (WITH cached_groups AS (select * from groups)
+ SELECT uid, uuid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  product_type AS extension_for,
+  'jetbrains_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)
+```
+
 ## software_linux
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
@@ -716,7 +744,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,

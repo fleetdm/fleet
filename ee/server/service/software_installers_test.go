@@ -101,7 +101,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}, // global scripts being disabled shouldn't impact (un)installs
+			ServerSettings: fleet.ServerSettings{ScriptsDisabled: true},
 		}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -184,7 +184,6 @@ func TestInstallUninstallAuth(t *testing.T) {
 	}
 }
 
-// TestUninstallSoftwareTitle is mostly tested in enterprise integration test. This test hits a few edge cases.
 func TestUninstallSoftwareTitle(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -200,7 +199,6 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 		return host, nil
 	}
 
-	// Global scripts disabled (doesn't matter)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			ServerSettings: fleet.ServerSettings{
@@ -209,12 +207,10 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 		}, nil
 	}
 
-	// Host scripts disabled
 	host.ScriptsEnabled = ptr.Bool(false)
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
-// TestInstallSoftwareTitle is mostly tested in enterprise integration test. This test hits is placed to hit some edge cases.
 func TestInstallSoftwareTitle(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -317,7 +313,6 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.NotEmpty(t, payload.UninstallScript)
 	assert.True(t, payload.FleetMaintained)
 
-	// when SHA256 is no_check
 	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{
 			ID:               1,
@@ -336,7 +331,6 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.NotEmpty(t, payload.UninstallScript)
 	assert.True(t, payload.FleetMaintained)
 
-	// when a slug empty, we no-op and return the payload as is
 	payload = fleet.SoftwareInstallerPayload{URL: "https://fleetdm.com"}
 	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
 	require.NoError(t, err)
@@ -452,4 +446,156 @@ func newTestServiceWithMock(t *testing.T, ds fleet.Datastore) (*Service, *svcmoc
 		ds:      ds,
 	}
 	return svc, baseSvc
+}
+
+func TestAddScriptPackageMetadata(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svc := newTestService(t, nil)
+
+	t.Run("valid shell script", func(t *testing.T) {
+		scriptContents := "#!/bin/bash\necho 'Installing software'\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, "install-app", payload.Title)
+		require.Equal(t, "", payload.Version)
+		require.Equal(t, scriptContents, payload.InstallScript)
+		require.Equal(t, "linux", payload.Platform)
+		require.Equal(t, "scripts", payload.Source)
+		require.Empty(t, payload.BundleIdentifier)
+		require.Empty(t, payload.PackageIDs)
+		require.NotEmpty(t, payload.StorageID)
+		require.Equal(t, "sh", payload.Extension)
+	})
+
+	t.Run("valid powershell script", func(t *testing.T) {
+		scriptContents := "Write-Host 'Installing software'\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.NoError(t, err)
+		require.Equal(t, "install-app", payload.Title)
+		require.Equal(t, "", payload.Version)
+		require.Equal(t, scriptContents, payload.InstallScript)
+		require.Equal(t, "windows", payload.Platform)
+		require.Equal(t, "scripts", payload.Source)
+		require.Empty(t, payload.BundleIdentifier)
+		require.Empty(t, payload.PackageIDs)
+		require.NotEmpty(t, payload.StorageID)
+	})
+
+	t.Run("invalid shebang", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/python\nprint('hello')\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Script validation failed")
+		require.Contains(t, err.Error(), "Interpreter not supported")
+	})
+
+	t.Run("empty script", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must not be empty")
+	})
+
+	t.Run("custom title preserved", func(t *testing.T) {
+		scriptContents := "#!/bin/bash\necho 'test'\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.sh",
+			Title:         "My Custom Title",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, "My Custom Title", payload.Title)
+	})
+
+	t.Run("file contents preserved verbatim", func(t *testing.T) {
+		scriptContents := "#!/bin/bash\necho \"Test's 'quotes'\"\necho $VAR\n\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
 }
