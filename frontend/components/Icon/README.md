@@ -4,7 +4,7 @@
 
 There is a current migration of icons from pixelated PNG files to SVG components.
 
-For internal developers, the source of truth for icon SVGs is on [Fleet style guide](https://www.figma.com/file/qbjRu8jf01BzEfdcge1dgu/Fleet-style-guide-2022-(WIP)?type=design&node-id=213-30309&t=kZelMf1i2hQ7GAaI-0) on Figma. Current progress on migrating icons is tracked on a [Fleet icons spreadsheet](https://docs.google.com/spreadsheets/d/1dNcppmEmnlDvozNKQZ7fgZlqkf7_delkDMtIJCJ2X20/edit?usp=sharing).
+For internal developers, the source of truth for icon SVGs is on [Fleet style guide](https://www./file/qbjRu8jf01BzEfdcge1dgu/Fleet-style-guide-2022-(WIP)?type=design&node-id=213-30309&t=kZelMf1i2hQ7GAaI-0) on Figma. Current progress on migrating icons is tracked on a [Fleet icons spreadsheet](https://docs.google.com/spreadsheets/d/1dNcppmEmnlDvozNKQZ7fgZlqkf7_delkDMtIJCJ2X20/edit?usp=sharing).
 
 ## Code organization
 
