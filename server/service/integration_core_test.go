@@ -2396,7 +2396,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	assert.Equal(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable)
 	assert.Equal(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable)
 	assert.Equal(t, 500.0, getHostResp.Host.GigsTotalDiskSpace)
-	assert.Equal(t, 600.0, getHostResp.Host.GigsAllDiskSpace)
+	assert.Equal(t, ptr.Float64(600.0), getHostResp.Host.GigsAllDiskSpace)
 
 	var resp getHostSummaryResponse
 
@@ -8173,12 +8173,12 @@ func (s *integrationTestSuite) TestSearchHosts() {
 			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
 			assert.Equal(t, 500.0, h.GigsTotalDiskSpace)
-			assert.Equal(t, 600.0, h.GigsAllDiskSpace)
+			assert.Equal(t, ptr.Float64(600.0), h.GigsAllDiskSpace)
 		case hosts[1].ID:
 			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
 			assert.Equal(t, 1000.0, h.GigsTotalDiskSpace)
-			assert.Equal(t, 1200.0, h.GigsAllDiskSpace)
+			assert.Equal(t, ptr.Float64(1200.0), h.GigsAllDiskSpace)
 		}
 		assert.Equal(t, h.SoftwareUpdatedAt, h.CreatedAt)
 	}
@@ -9098,11 +9098,11 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 54)         // total number of cols
+	assert.Len(t, rows[0], 55)         // total number of cols
 
 	const (
 		idCol        = 3
-		issuesCol    = 45
+		issuesCol    = 46
 		gigsDiskCol  = 42
 		pctDiskCol   = 43
 		gigsTotalCol = 44
