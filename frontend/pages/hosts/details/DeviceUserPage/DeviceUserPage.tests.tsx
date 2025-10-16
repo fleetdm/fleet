@@ -334,7 +334,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it.only("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
+    it("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
