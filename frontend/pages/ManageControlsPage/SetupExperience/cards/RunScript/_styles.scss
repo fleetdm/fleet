@@ -5,7 +5,7 @@
     margin: 0;
   }
 
-  &__learn-how-link {
+  &__learn-how-link, &__learn-how-link:hover {
     margin-bottom: $pad-large;
   }
 
