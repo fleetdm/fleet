@@ -3,12 +3,14 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -471,4 +473,90 @@ AND hihsi.verification_failed_at IS NULL
 	}
 
 	return result, nil
+}
+
+func (ds *Datastore) GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	if commandResults == nil {
+		return nil, nil, nil
+	}
+
+	stmt := `
+SELECT
+	u.name AS user_name,
+	u.id AS user_id,
+	u.email as user_email,
+	hihsi.host_id AS host_id,
+	hdn.display_name AS host_display_name,
+	st.name AS software_title,
+	hihsi.command_uuid AS command_uuid
+FROM
+	host_in_house_software_installs hihsi
+	LEFT OUTER JOIN users u ON hihsi.user_id = u.id
+	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hihsi.host_id
+	LEFT OUTER JOIN in_house_apps vpa ON hihsi.in_house_app_id = vpa.id
+	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+WHERE
+	hihsi.command_uuid = :command_uuid AND
+	hihsi.canceled = 0
+	`
+
+	type result struct {
+		HostID          uint    `db:"host_id"`
+		HostDisplayName string  `db:"host_display_name"`
+		SoftwareTitle   string  `db:"software_title"`
+		CommandUUID     string  `db:"command_uuid"`
+		UserName        *string `db:"user_name"`
+		UserID          *uint   `db:"user_id"`
+		UserEmail       *string `db:"user_email"`
+	}
+
+	listStmt, args, err := sqlx.Named(stmt, map[string]any{
+		"command_uuid":              commandResults.CommandUUID,
+		"software_status_failed":    string(fleet.SoftwareInstallFailed),
+		"software_status_installed": string(fleet.SoftwareInstalled),
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
+	}
+
+	var res result
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, notFound("install_command")
+		}
+
+		return nil, nil, ctxerr.Wrap(ctx, err, "select past activity data for in-house app install")
+	}
+
+	var user *fleet.User
+	if res.UserID != nil {
+		user = &fleet.User{
+			ID:    *res.UserID,
+			Name:  *res.UserName,
+			Email: *res.UserEmail,
+		}
+	}
+
+	var status string
+	switch commandResults.Status {
+	case fleet.MDMAppleStatusAcknowledged:
+		status = string(fleet.SoftwareInstalled)
+	case fleet.MDMAppleStatusCommandFormatError:
+	case fleet.MDMAppleStatusError:
+		status = string(fleet.SoftwareInstallFailed)
+	default:
+		// This case shouldn't happen (we should only be doing this check if the command is in a
+		// "terminal" state, but adding it so we have a default
+		status = string(fleet.SoftwareInstallPending)
+	}
+
+	act := &fleet.ActivityTypeInstalledSoftware{
+		HostID:          res.HostID,
+		HostDisplayName: res.HostDisplayName,
+		SoftwareTitle:   res.SoftwareTitle,
+		// CommandUUID:     res.CommandUUID,
+		Status: status,
+	}
+
+	return user, act, nil
 }
