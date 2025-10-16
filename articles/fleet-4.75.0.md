@@ -28,7 +28,7 @@ Fleet now integrates with [Smallstep](https://smallstep.com/) as a certificate a
 
 ### Labels page
 
-A new **Labels** page makes it easier to view and edit labels. You can find the new labels page in Fleet by heading to TODO
+A new **Labels** page makes it easier to view and edit labels. You can find the new **Labels** page in Fleet by selecting your avatar in the top-right corner and selecting **Labels**.
 
 ### Easy-to-read MDM commands
 
