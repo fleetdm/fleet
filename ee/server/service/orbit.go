@@ -135,24 +135,25 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
 
+	// Check if "require all software" is configured for the host's team.
+	requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if all software is required")
+	}
+
+	hasFailedSoftwareInstall := false
+	for _, r := range res {
+		if r.IsForSoftware() && r.Status == fleet.SetupExperienceStatusFailure {
+			hasFailedSoftwareInstall = true
+			break
+		}
+	}
 	// If we have a failed software install,
 	// AND "require all software" is configured for the host's team,
 	// AND the resetFailedSetupSteps flag is set,
 	// then re-enqueue any cancelled setup experience steps.
-	if resetFailedSetupSteps {
-		hasFailedSoftwareInstall := false
-		for _, r := range res {
-			if r.IsForSoftware() && r.Status == fleet.SetupExperienceStatusFailure {
-				hasFailedSoftwareInstall = true
-				break
-			}
-		}
-		if hasFailedSoftwareInstall {
-			// Check if "require all software" is configured for the host's team.
-			requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "checking if all software is required")
-			}
+	if hasFailedSoftwareInstall {
+		if resetFailedSetupSteps {
 			teamID := uint(0)
 			if host.TeamID != nil {
 				teamID = *host.TeamID
@@ -197,6 +198,12 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		if r.IsForSoftware() {
 			payload.Software = append(payload.Software, r)
 		}
+	}
+
+	// If we have failed software, and all software is required,
+	// we can go ahead and return now.
+	if hasFailedSoftwareInstall && requireAllSoftware {
+		return payload, nil
 	}
 
 	if forceRelease || isDeviceReadyForRelease(payload) {
