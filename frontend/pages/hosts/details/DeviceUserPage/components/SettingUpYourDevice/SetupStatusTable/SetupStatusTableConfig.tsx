@@ -34,10 +34,10 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
       const { status, type } = cellProps.row.original;
-      if (type === "software") {
+      if (type === "software_install" || type === "software_script_run") {
         return <SetupSoftwareStatusCell status={status || "pending"} />;
       }
-      if (type === "script") {
+      if (type === "script_run") {
         return <SetupScriptStatusCell status={status || "pending"} />;
       }
       return null;
