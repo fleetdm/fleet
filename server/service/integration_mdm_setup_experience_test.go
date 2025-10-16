@@ -395,6 +395,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		"self_service": false,
 		"software_title": "%s",
 		"software_package": "%s",
+		"source": "apps",
 		"host_display_name": "%s"
 	}
 	`, enrolledHost.ID, installUUID, getSoftwareTitleResp.SoftwareTitle.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, enrolledHost.DisplayName())
