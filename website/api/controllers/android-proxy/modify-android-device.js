@@ -20,7 +20,7 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The device of an Android enterprise was successfully updated.' }
+    success: { description: 'The device of an Android enterprise was successfully updated.' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
   },
 
