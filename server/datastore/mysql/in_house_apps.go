@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -27,7 +26,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
-	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE team_id = ? AND (bundle_identifier = ? OR name = ?)` // use global or team id?
+	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND (bundle_identifier = ? OR name = ?)`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -51,7 +50,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	var installerID uint
 	var count uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		row := tx.QueryRowxContext(ctx, selectStmt, tid, payload.BundleID, payload.Name)
+		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Name)
 		if err := row.Scan(&count); err != nil {
 			return ctxerr.Wrap(ctx, err, "insertInHouseApp: ")
 		}
@@ -68,10 +67,10 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			payload.Version,
 			payload.BundleID,
 		}
-		argsIos := append(args, titleIDios, "ios")
-		argsIpad := append(args, titleIDipad, "ipados")
+		argsIos := append(args, titleIDios, "ios")      // nolint: gocritic
+		argsIpad := append(args, titleIDipad, "ipados") // nolint: gocritic
 
-		res, err := tx.ExecContext(ctx, stmt, argsIpad...)
+		_, err := tx.ExecContext(ctx, stmt, argsIpad...)
 		if err != nil {
 			if IsDuplicate(err) {
 				err = alreadyExists("insertInHouseApp", payload.Name)
@@ -79,7 +78,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 
-		res, err = tx.ExecContext(ctx, stmt, argsIos...)
+		res, err := tx.ExecContext(ctx, stmt, argsIos...)
 		if err != nil {
 			if IsDuplicate(err) {
 				err = alreadyExists("insertInHouseApp", payload.Name)
@@ -187,11 +186,11 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
                     version = ?
                  WHERE id = ?`
 
-		ext := "ipa"
-		if i := strings.LastIndex(ext, "."); i != -1 {
-			ext = ext[i+1:]
-		}
 		// Avoid updating platform from .ipa file for now
+		// ext := "ipa"
+		// if i := strings.LastIndex(ext, "."); i != -1 {
+		// 	ext = ext[i+1:]
+		// }
 		// platform, _ := fleet.SoftwareInstallerPlatformFromExtension(ext)
 
 		args := []any{
