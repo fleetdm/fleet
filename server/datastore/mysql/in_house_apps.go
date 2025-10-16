@@ -184,8 +184,8 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "remove pending in house app installs")
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
 		}
 		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
 		if err != nil {
@@ -216,8 +216,8 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 	return nil
 }
 
-func (ds *Datastore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
-	var dest fleet.SoftwareInstallerStatusSummary // Using this struct for in house apps for now
+func (ds *Datastore) GetSummaryHostInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.VPPAppStatusSummary, error) {
+	var dest fleet.VPPAppStatusSummary // Using the vpp struct since it is more appropriate for ipa
 	stmt := `
 WITH
 -- select most recent upcoming activities for each host
@@ -277,8 +277,8 @@ past AS (
 
 -- count each status
 SELECT
-	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending_install,
-	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed_install,
+	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 
@@ -305,8 +305,8 @@ FROM upcoming
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-		"software_status_pending":   fleet.SoftwareInstallPending,
-		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwarePending,
+		"software_status_failed":    fleet.SoftwareFailed,
 		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
