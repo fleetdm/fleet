@@ -981,7 +981,7 @@ module.exports.routes = {
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
   'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
   'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
- 
+
   // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
