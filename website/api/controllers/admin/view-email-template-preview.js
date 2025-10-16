@@ -170,10 +170,40 @@ module.exports = {
           message: 'Hi, this is a contact form message!',
         };
         break;
+      case 'email-14-day-fleet-premium-trial-started':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-14-day-fleet-premium-trial-ended':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-30-day-fleet-premium-trial-started':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-30-day-fleet-premium-trial-ended':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {
           emailAddress: 'sage@example.com',
+          firstName: 'Sage',
+          lastName: 'Scorpion',
         };
     }
 
