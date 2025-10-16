@@ -1708,6 +1708,9 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 
 		// Check if the user is a valid SCIM user to manage the join table
 		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
+		}
 		if err == nil && scimUser != nil {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
