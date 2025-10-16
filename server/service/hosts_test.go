@@ -2852,7 +2852,7 @@ func TestSetIDPHostDeviceMapping(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
 		require.False(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should NOT be called since SCIM user doesn't exist
-		require.True(t, ds.DeleteHostSCIMUserMappingFuncInvoked) // Should be called to remove any existing SCIM mapping
+		require.True(t, ds.DeleteHostSCIMUserMappingFuncInvoked)       // Should be called to remove any existing SCIM mapping
 		require.NotNil(t, result)
 		require.Len(t, result, 1)
 		assert.Equal(t, uint(1), result[0].HostID)
