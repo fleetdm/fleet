@@ -209,7 +209,7 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.Vendor == "valvesoftware" && cpeMeta.Product == "dota_2" &&
-					cpeMeta.TargetSW == "macos" && cpeMeta.Version == "1\\.0"
+					cpeMeta.TargetSW == "macos" && (cpeMeta.Version == "1\\.0" || cpeMeta.Version == "1\\.0\\.0")
 			},
 		},
 		// Issue #18733 incorrect CPEs that should be matching
