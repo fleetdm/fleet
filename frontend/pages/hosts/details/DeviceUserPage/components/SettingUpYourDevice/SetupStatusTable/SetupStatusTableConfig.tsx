@@ -19,10 +19,10 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
       const { name, type } = cellProps.row.original;
-      if (type === "software") {
+      if (type === "software_install" || type === "software_script_run") {
         return <SetupSoftwareProcessCell name={name || "Unknown software"} />;
       }
-      if (type === "script") {
+      if (type === "script_run") {
         return <SetupScriptProcessCell name={name || "Unknown script"} />;
       }
       return null;

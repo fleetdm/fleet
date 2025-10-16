@@ -2027,7 +2027,14 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	require.Equal(t, 0, mdmIDIsNull)
 
 	// Perform single-host unenroll
-	require.NoError(t, ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID))
+	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, didUnenroll)
+
+	// Calling unenrolled again returns false
+	didUnenroll, err = ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.False(t, didUnenroll)
 
 	// Validate host_mdm row updated
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

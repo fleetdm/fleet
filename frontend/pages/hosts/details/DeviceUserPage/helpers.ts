@@ -27,7 +27,7 @@ export const getFailedSoftwareInstall = (
   }
 
   const failedSoftware = statuses.filter(
-    (s) => s.type === "software" && s.status === "failure"
+    (s) => s.type === "software_install" && s.status === "failure"
   );
   if (failedSoftware.length === 0) {
     return null;
@@ -35,4 +35,13 @@ export const getFailedSoftwareInstall = (
   // Find the first one with an error message, otherwise return the first one.
   const firstWithError = failedSoftware.find((s) => s.error);
   return firstWithError ?? failedSoftware[0];
+};
+
+/** Checks if name value ends with .sh or .ps1 as
+ * there's no other key to identify payload-free software
+ * Update if/when API adds better identifier */
+export const isSoftwareScriptSetup = (s: ISetupStep) => {
+  if (!s.name) return false;
+
+  return s.name.endsWith(".sh") || s.name.endsWith(".ps1");
 };

@@ -47,6 +47,7 @@ type installAppResponse struct {
 
 type mockVPPInstaller struct {
 	t                   *testing.T
+	ds                  *mysql.Datastore
 	installedApps       []*fleet.VPPApp
 	appInstallResponses map[string]installAppResponse
 	getTokenErr         error
@@ -65,6 +66,22 @@ func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host
 	resp, ok := m.appInstallResponses[vppApp.AdamID]
 	require.True(m.t, ok)
 	m.installedApps = append(m.installedApps, vppApp)
+	if resp.Error == nil {
+		mysql.ExecAdhocSQL(m.t, m.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+          INSERT INTO nano_commands (command_uuid, request_type, command)
+          VALUES (?, 'InstallApplication', '<?xml')
+		`, resp.CommandUUID)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `
+          INSERT INTO nano_enrollment_queue (id, command_uuid, active)
+          VALUES (?, ?, 1)
+		`, host.UUID, resp.CommandUUID)
+			return err
+		})
+	}
 	return resp.CommandUUID, resp.Error
 }
 
@@ -840,7 +857,7 @@ INSERT INTO setup_experience_status_results (
 			appInstallResponses[appWithTeam.AdamID] = installAppResponse{CommandUUID: uuid.NewString(), Error: nil}
 		}
 
-		vppInstaller := &mockVPPInstaller{t: t, appInstallResponses: appInstallResponses}
+		vppInstaller := &mockVPPInstaller{t: t, ds: ds, appInstallResponses: appInstallResponses}
 
 		mdmWorker := &AppleMDM{
 			VPPInstaller: vppInstaller,
@@ -895,6 +912,64 @@ INSERT INTO setup_experience_status_results (
 		for _, result := range results {
 			require.Equal(t, fleet.SetupExperienceStatusRunning, result.Status)
 		}
+
+		// Acknowledge the commands - the release job should still re-enqueue itself and await the installs
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) 
+						SELECT ?, command_uuid, ?, ? FROM nano_commands`,
+				h.UUID, "Acknowledged", `<?xml`)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		releaseJob = nil
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				// THere should only be one release job
+				require.Nil(t, releaseJob)
+				releaseJob = job
+			}
+		}
+		// We should have found a release job
+		require.NotNil(t, releaseJob)
+		// It should be the release task
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+
+		// Now update setup_experience_status as if the installs succeeded
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE host_uuid=?`, fleet.SetupExperienceStatusSuccess, h.UUID)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				require.Fail(t, "there should be no more release jobs queued")
+			}
+		}
+
+		require.Contains(t, getEnqueuedCommandTypes(t), "DeviceConfigured")
 	})
 
 	t.Run("marks failed VPP installs as failed, runs all others", func(t *testing.T) {
@@ -947,7 +1022,7 @@ INSERT INTO setup_experience_status_results (
 			appInstallResponses[appWithTeam.AdamID] = installAppResponse{CommandUUID: uuid.NewString(), Error: nil}
 		}
 
-		vppInstaller := &mockVPPInstaller{t: t, appInstallResponses: appInstallResponses}
+		vppInstaller := &mockVPPInstaller{t: t, ds: ds, appInstallResponses: appInstallResponses}
 
 		mdmWorker := &AppleMDM{
 			VPPInstaller: vppInstaller,
@@ -1014,6 +1089,64 @@ INSERT INTO setup_experience_status_results (
 			}
 			require.Equal(t, fleet.SetupExperienceStatusRunning, result.Status)
 		}
+
+		// Acknowledge the commands - the release job should still re-enqueue itself and await the remaining installs
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) 
+						SELECT ?, command_uuid, ?, ? FROM nano_commands`,
+				h.UUID, "Acknowledged", `<?xml`)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		releaseJob = nil
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				// THere should only be one release job
+				require.Nil(t, releaseJob)
+				releaseJob = job
+			}
+		}
+		// We should have found a release job
+		require.NotNil(t, releaseJob)
+		// It should be the release task
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+
+		// Now update setup_experience_status as if the installs succeeded
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE host_uuid=? AND status <> ?`, fleet.SetupExperienceStatusSuccess, h.UUID, fleet.SetupExperienceStatusFailure)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				assert.Fail(t, "there should be no more release jobs queued")
+			}
+		}
+
+		require.Contains(t, getEnqueuedCommandTypes(t), "DeviceConfigured")
 	})
 }
 

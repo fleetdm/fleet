@@ -145,11 +145,13 @@ const SoftwareTitleDetailsPage = ({
       addedTimestamp,
       status,
       isSelfService,
+      isScriptPackage,
     } = getInstallerCardInfo(title);
 
     return (
       <SoftwareInstallerCard
         softwareTitleName={softwareTitleName}
+        isScriptPackage={isScriptPackage}
         softwareInstaller={softwarePackage}
         name={name}
         version={version}
