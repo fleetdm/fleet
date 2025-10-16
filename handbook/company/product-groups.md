@@ -612,6 +612,9 @@ For community-reported bugs, this may require QA to gather more information from
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
 
+For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. QA should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, QA verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [reproduced state](#reproduced).
 
 #### Reproduced
 

@@ -70,25 +70,28 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     }
   }, [labelToDelete, refetch, renderFlash]);
 
-  const onClickAction = (action: string, label: ILabel): void => {
-    switch (action) {
-      case "view_hosts":
-        router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
-        break;
-      case "edit":
-        router.push(PATHS.EDIT_LABEL(label.id));
-        break;
-      case "delete":
-        setLabelToDelete(label);
-        break;
-      default:
-    }
-  };
+  const onClickAction = useCallback(
+    (action: string, label: ILabel): void => {
+      switch (action) {
+        case "view_hosts":
+          router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
+          break;
+        case "edit":
+          router.push(PATHS.EDIT_LABEL(label.id));
+          break;
+        case "delete":
+          setLabelToDelete(label);
+          break;
+        default:
+      }
+    },
+    [router]
+  );
 
   const canAddLabel =
     isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
 
-  const renderTable = () => {
+  const renderTable = useCallback(() => {
     if (isLoading || !currentUser || !labels) {
       return <Spinner />;
     }
@@ -102,7 +105,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         onClickAction={onClickAction}
       />
     );
-  };
+  }, [currentUser, error, isLoading, labels, onClickAction]);
 
   return (
     <MainContent className={baseClass}>

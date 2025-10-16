@@ -8927,7 +8927,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	var resp listSoftwareTitlesResponse
@@ -9183,7 +9182,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// calculate hosts counts
 	hostsCountTs = time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// request software for the team, this time we get results
@@ -9539,7 +9537,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// calculate hosts counts
 	hostsCountTs = time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// valid title with vulnerabilities
@@ -9934,7 +9931,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// add variations of user roles to different teams
@@ -11020,8 +11016,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
 	}
 	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	// Note: the ID returned by ListHostSoftware is the title ID, not the software ID. We need the
@@ -14655,7 +14649,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -14689,7 +14682,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 	require.Len(t, host.Software, 5)
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// titles are the same
@@ -14818,6 +14810,116 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	}, http.StatusOK, "")
 }
 
+func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	// Create temporary script files for testing
+	shContent := "#!/bin/bash\necho 'Installing...'\nexit 0\n"
+	ps1Content := "Write-Host 'Installing...'\nExit 0\n"
+
+	shFile, err := fleet.NewTempFileReader(strings.NewReader(shContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer shFile.Close()
+
+	ps1File, err := fleet.NewTempFileReader(strings.NewReader(ps1Content), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer ps1File.Close()
+
+	// Test .sh file with automatic_install (should be rejected)
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "install-app.sh",
+		TeamID:           &team.ID,
+		AutomaticInstall: true,
+		InstallerFile:    shFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .sh packages.")
+
+	// Rewind the file reader for reuse
+	err = shFile.Rewind()
+	require.NoError(t, err)
+
+	// Test .ps1 file with automatic_install (should be rejected)
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "install-app.ps1",
+		TeamID:           &team.ID,
+		AutomaticInstall: true,
+		InstallerFile:    ps1File,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .ps1 packages.")
+
+	// Rewind the file reader for reuse
+	err = shFile.Rewind()
+	require.NoError(t, err)
+
+	// Test .sh file with unsupported params (should be ignored/cleared)
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:          "install-app.sh",
+		TeamID:            &team.ID,
+		UninstallScript:   "echo 'uninstall'",
+		PostInstallScript: "echo 'post'",
+		PreInstallQuery:   "SELECT 1;",
+		InstallerFile:     shFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	var titleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, payload.Filename)
+	})
+	require.NotZero(t, titleID)
+
+	// Verify unsupported params were cleared (script contents should be empty)
+	var scriptContents struct {
+		UninstallScript   string `db:"uninstall_script"`
+		PostInstallScript string `db:"post_install_script"`
+		PreInstallQuery   string `db:"pre_install_query"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &scriptContents, `
+			SELECT
+				COALESCE(uninst.contents, '') AS uninstall_script,
+				COALESCE(postinst.contents, '') AS post_install_script,
+				pre_install_query
+			FROM software_installers si
+			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
+			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
+			WHERE si.title_id = ?`, titleID)
+	})
+	require.Empty(t, scriptContents.UninstallScript, "uninstall_script should be empty")
+	require.Empty(t, scriptContents.PostInstallScript, "post_install_script should be empty")
+	require.Empty(t, scriptContents.PreInstallQuery, "pre_install_query should be empty")
+
+	// Test editing script package with unsupported params (should be ignored)
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		Filename:          "install-app.sh",
+		UninstallScript:   ptr.String("should be cleared"),
+		PostInstallScript: ptr.String("should be cleared"),
+		PreInstallQuery:   ptr.String("should be cleared"),
+		TitleID:           titleID,
+		TeamID:            &team.ID,
+	}, http.StatusOK, "")
+
+	// Verify unsupported params are still cleared after update
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &scriptContents, `
+			SELECT
+				COALESCE(uninst.contents, '') AS uninstall_script,
+				COALESCE(postinst.contents, '') AS post_install_script,
+				pre_install_query
+			FROM software_installers si
+			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
+			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
+			WHERE si.title_id = ?`, titleID)
+	})
+	require.Empty(t, scriptContents.UninstallScript, "uninstall_script should still be empty")
+	require.Empty(t, scriptContents.PostInstallScript, "post_install_script should still be empty")
+	require.Empty(t, scriptContents.PreInstallQuery, "pre_install_query should still be empty")
+}
+
 // 1. host reports software
 // 2. reconciler runs, creates title
 // 3. installer is uploaded, matches existing software title
@@ -14858,7 +14960,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp := listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -14966,7 +15067,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -16041,7 +16141,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	_, err = s.ds.UpdateHostSoftware(ctx, host1Team1.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	// Get software title ID of the software.
 	resp = listSoftwareTitlesResponse{}
@@ -17421,7 +17520,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	payload := &fleet.UploadSoftwareInstallerPayload{

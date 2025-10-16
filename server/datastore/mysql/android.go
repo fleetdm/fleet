@@ -372,16 +372,49 @@ UPDATE host_mdm
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
-	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+	}
+	// Delete all Android custom OS settings for unenrolled hosts.
+	// We do this in one query using a JOIN to avoid doing it one host at a time.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_android_profiles`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled hosts in bulk")
+	}
+	return nil
 }
 
-// SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm.
-func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+// SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm and OS settings records
+// associated with it. If the host is not enrolled, it does nothing and returns false.
+func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
+	var rows int64
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
 	SET server_url = '', mdm_id = NULL, enrolled = 0
-	WHERE host_id = ?`, hostID)
-	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
+	WHERE host_id = ? AND enrolled = 1`, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
+		}
+		rows, err = result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for set host_mdm unenrolled for android host")
+		}
+		if rows > 0 {
+			var uuid string
+			err = sqlx.GetContext(ctx, tx, &uuid, `SELECT uuid FROM hosts WHERE id = ?`, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host uuid")
+			}
+			err = ds.deleteMDMOSCustomSettingsForHost(ctx, tx, uuid, "android")
+			return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled host")
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
 }
 
 func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromDEP, enrolled bool, hostIDs ...uint) error {
@@ -916,18 +949,24 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	FROM ds
 		INNER JOIN android_devices ad
 			ON ad.host_id = ds.host_id
+		INNER JOIN host_mdm hmdm
+			ON ad.host_id=hmdm.host_id
 		LEFT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
-	  -- at least one profile is missing from host_mdm_android_profiles
-		hmap.host_uuid IS NULL OR
-		-- profile was never sent or was updated after sent
-		-- TODO(ap): need to make sure we set it to NULL when profile is updated
-		( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
-		hmap.status IS NULL OR
-		-- profile was sent in older policy version than currently applied
-		(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
-			hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+	  -- host is enrolled
+	    hmdm.enrolled = 1 AND
+		(
+		-- at least one profile is missing from host_mdm_android_profiles
+			hmap.host_uuid IS NULL OR
+			-- profile was never sent or was updated after sent
+			-- TODO(ap): need to make sure we set it to NULL when profile is updated
+			( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
+			hmap.status IS NULL OR
+			-- profile was sent in older policy version than currently applied
+			(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
+				hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+		)
 
 	UNION
 
@@ -938,10 +977,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 			ON h.uuid = hmap.host_uuid
 		INNER JOIN android_devices ad
 			ON ad.host_id = h.id
+		INNER JOIN host_mdm hmdm
+			ON hmdm.host_id = h.id
 		LEFT OUTER JOIN ds
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
 	  -- at least one profile was removed from the set of applicable profiles
+	    hmdm.enrolled = 1 AND
 		ds.host_uuid IS NULL AND
 		-- and it is not in pending remove status (in which case it was processed)
 		( hmap.operation_type != ? OR COALESCE(hmap.status, '') <> ? )

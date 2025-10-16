@@ -3617,10 +3617,6 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, software[1:2])
 	require.NoError(t, err)
 
-	// reconcile software, will sync software titles
-	err = ds.ReconcileSoftwareTitles(context.Background())
-	require.NoError(t, err)
-
 	var fooV002ID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &fooV002ID,

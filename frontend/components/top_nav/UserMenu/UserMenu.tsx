@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { keyframes } from "@emotion/react";
+import React, { useContext, useEffect, useState } from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -7,8 +6,10 @@ import Select, {
   OptionProps,
   StylesConfig,
 } from "react-select-5";
+import { NotificationContext } from "context/notification";
+
 import { IUser } from "interfaces/user";
-import { ITeam } from "interfaces/team";
+import { ITeam, ITeamSummary } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 import { getSortedTeamOptions } from "utilities/helpers";
@@ -27,6 +28,7 @@ interface IUserMenuProps {
   isAnyTeamAdmin: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
   currentUser: IUser;
+  currentTeam: ITeamSummary | undefined;
 }
 
 const getOptionBackgroundColor = (
@@ -83,10 +85,13 @@ const UserMenu = ({
   isAnyTeamAdmin,
   isGlobalAdmin,
   currentUser,
+  currentTeam,
 }: IUserMenuProps): JSX.Element => {
   // Work around for react-select-5 not having :focus-visible pseudo class that can style dropdown on keyboard tab only
   // Work around preventing react-select-5 from auto focusing first option unless using keyboard
   const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
+
+  const { renderFlash } = useContext(NotificationContext);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -149,14 +154,28 @@ const UserMenu = ({
       (thisTeam: ITeam) => thisTeam.role === "admin"
     );
     const sortedTeams = getSortedTeamOptions(userAdminTeams);
-    const settingsPath =
-      currentUser.global_role === "admin"
-        ? PATHS.ADMIN_ORGANIZATION
-        : `${PATHS.TEAM_DETAILS_USERS(sortedTeams[0].value)}`;
+
+    let clickHandler = () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION);
+    if (currentUser.global_role !== "admin") {
+      clickHandler = () => {
+        const targetTeam = sortedTeams[0];
+        if (currentTeam && currentTeam.id !== targetTeam.value) {
+          const msg = (
+            <>
+              You&apos;re not authorized to view this page for{" "}
+              <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>.
+            </>
+          );
+          renderFlash("warning-filled", msg);
+        }
+        onUserMenuItemClick(PATHS.TEAM_DETAILS_USERS(targetTeam.value));
+      };
+    }
+
     const adminMenuItem = {
       label: "Settings",
       value: "settings",
-      onClick: () => onUserMenuItemClick(settingsPath),
+      onClick: clickHandler,
     };
 
     dropdownItems.unshift(adminMenuItem);

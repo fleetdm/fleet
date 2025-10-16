@@ -141,9 +141,14 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			return ctxerr.Wrap(ctx, err, "get host for deleted android device")
 		}
 		if host != nil {
-			if err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+			didUnenroll, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
 			}
+			if !didUnenroll {
+				return nil // Skip activity, if we didn't update the enrollment state.
+			}
+
 			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
 			// Use the computed display name from the device payload as lite host may not include it.
 			displayName := svc.getComputerName(&device)
@@ -151,7 +156,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
-				Platform:         host.Platform,
+				Platform:         "android",
 			})
 		}
 		return nil
@@ -190,7 +195,6 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 
 // largely based on refetch apps code from Apple MDM service methods
 func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
-
 	// Do nothing if no app reports returned
 	if len(device.ApplicationReports) == 0 {
 		return nil
@@ -260,7 +264,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			return ctxerr.Wrap(ctx, herr, "get host for deleted android device (ENROLLMENT)")
 		}
 		if host != nil {
-			if err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
 			displayName := svc.getComputerName(&device)
@@ -268,7 +272,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
-				Platform:         host.Platform,
+				Platform:         "android",
 			})
 		}
 		return nil
@@ -377,8 +381,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
-	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable =
-		svc.calculateAndroidStorageMetrics(ctx, device, true)
+	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable = svc.calculateAndroidStorageMetrics(ctx, device, true)
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware
@@ -422,8 +425,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}
 
-	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable :=
-		svc.calculateAndroidStorageMetrics(ctx, device, false)
+	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{

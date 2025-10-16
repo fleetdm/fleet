@@ -14,6 +14,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Mutex to ensure that starting/stopping the rotation goroutine is concurrency safe.
+// Since we don't expect multiple instances of ReadWriter, and the lock will be held
+// for a very short time, a package-level mutex is sufficient.
+var rotationWatchersMu sync.Mutex
+
 type remoteUpdaterFunc func(token string) error
 
 type ReadWriter struct {
@@ -126,9 +131,12 @@ func (rw *ReadWriter) StartRotation() func() {
 	// watching for rotations.
 	stopCh := make(chan struct{})
 	// Append it to the list of watchers.
+	rotationWatchersMu.Lock()
 	rw.rotationWatchers = append(rw.rotationWatchers, stopCh)
+	watchersCount := len(rw.rotationWatchers)
+	rotationWatchersMu.Unlock()
 
-	if len(rw.rotationWatchers) == 1 {
+	if watchersCount == 1 {
 		log.Info().Msg("token rotation is enabled")
 
 		// Create a channel we can use to stop the rotation goroutine.
@@ -203,12 +211,15 @@ func (rw *ReadWriter) StartRotation() func() {
 	go func() {
 		<-stopCh
 		// Remove this caller's stop channel from the list of watchers.
+		rotationWatchersMu.Lock()
 		rw.rotationWatchers = slices.DeleteFunc(rw.rotationWatchers, func(ch chan struct{}) bool {
 			return ch == stopCh
 		})
+		shouldStop := len(rw.rotationWatchers) == 0
+		rotationWatchersMu.Unlock()
 
 		// If all callers have signaled to stop, signal the main rotation goroutine to stop.
-		if len(rw.rotationWatchers) == 0 {
+		if shouldStop {
 			close(rw.rotationStopCh)
 		}
 	}()

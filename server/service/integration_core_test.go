@@ -1578,8 +1578,6 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
 	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(context.Background())
-	require.NoError(t, err)
 	err = s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now())
 	require.NoError(t, err)
 
@@ -9066,9 +9064,6 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	_, err = s.ds.UpdateHostSoftware(ctx, hosts[0].ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, hosts[0], false))
-
-	err = s.ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
 
 	var fooV1ID, fooTitleID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {

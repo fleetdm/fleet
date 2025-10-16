@@ -979,7 +979,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
+				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}

@@ -821,7 +821,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -1006,6 +1006,7 @@ var HostLinuxOSs = []string{
 	"nixos",
 	"endeavouros",
 	"manjaro",
+	"manjaro-arm",
 	"opensuse-leap",
 	"opensuse-tumbleweed",
 	"tuxedo",
@@ -1022,6 +1023,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"nixos":       {},
 	"endeavouros": {},
 	"manjaro":     {},
+	"manjaro-arm": {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
