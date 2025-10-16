@@ -1,7 +1,6 @@
 ---
 services:
-  # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:11.4 (note MariaDB is not
-  # officially supported).
+  # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:11.4
   # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
   mysql:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
