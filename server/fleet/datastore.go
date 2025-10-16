@@ -658,6 +658,11 @@ type Datastore interface {
 	// IsInHouseAppLabelScoped returns whether or not the given inHouseAppID is scoped to the given hostID by labels.
 	IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID, hostID uint) (bool, error)
 
+	GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*HostVPPSoftwareInstall, error)
+	SetInHouseAppInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	SetInHouseAppInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	ReplaceInHouseAppInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
@@ -680,9 +685,10 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
-	// AssociateVPPInstallToVerificationUUID updates the verification command UUID associated with the
-	// given install attempt (InstallApplication command)
-	AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command).
+	// It will attempt to update both VPP and in-house app installs (only one will succeed since the command UUIDs are unique).
+	AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error
 	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
 	// that it's installed on the device).
 	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error

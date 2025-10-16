@@ -3922,7 +3922,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 
 				// update the install record
-				if err := svc.ds.AssociateVPPInstallToVerificationUUID(r.Context, cmdResult.CommandUUID, cmdUUID); err != nil {
+				if err := svc.ds.AssociateMDMInstallToVerificationUUID(r.Context, cmdResult.CommandUUID, cmdUUID, cmdResult.Identifier()); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "update install record")
 				}
 
@@ -4187,13 +4187,18 @@ func NewInstalledApplicationListResultsHandler(
 
 		installedApps := installedAppResult.AvailableApps()
 
-		expectedInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
+		expectedVPPInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 		}
 
-		if len(expectedInstalls) == 0 {
-			level.Warn(logger).Log("msg", "no vpp installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
+		expectedInHouseInstalls, err := ds.GetUnverifiedInHouseAppInstallsForHost(ctx, installedAppResult.HostUUID())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: get unverified in house installs")
+		}
+
+		if len(expectedVPPInstalls) == 0 && len(expectedInHouseInstalls) == 0 {
+			level.Warn(logger).Log("msg", "no apple MDM installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
 			return nil
 		}
 
@@ -4202,27 +4207,32 @@ func NewInstalledApplicationListResultsHandler(
 			installsByBundleID[install.BundleIdentifier] = install
 		}
 
-		// We've handled the "no installs found" case above, and this is scoped to a single host via the host
-		// UUID, so this is OK.
-		hostID := expectedInstalls[0].HostID
+		// We've handled the "no installs found" case above,
+		// and installs are scoped to a single host via the host UUID, so this is OK.
+		var hostID uint
+		switch {
+		case len(expectedInHouseInstalls) > 0:
+			hostID = expectedInHouseInstalls[0].HostID
+		case len(expectedVPPInstalls) > 0:
+			hostID = expectedVPPInstalls[0].HostID
+		}
 
 		var poll, shouldRefetch bool
-		for _, expectedInstall := range expectedInstalls {
+		setStatusForExpectedInstall := func(expectedInstall *fleet.HostVPPSoftwareInstall, verifyFn, failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error) error {
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
-			// These are not pointers, so no need to check `ok` here.
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
 			var terminalStatus string
 			switch {
 			case appFromResult.Installed:
-				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
+				if err := verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
-				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
+				if err := failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
@@ -4231,7 +4241,7 @@ func NewInstalledApplicationListResultsHandler(
 
 			if terminalStatus == "" {
 				poll = true
-				continue
+				return nil
 			}
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
@@ -4262,6 +4272,19 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
 
+			return nil
+		}
+
+		for _, expectedInstall := range expectedVPPInstalls {
+			if err := setStatusForExpectedInstall(expectedInstall, ds.SetVPPInstallAsVerified, ds.SetVPPInstallAsFailed); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting status for vpp installs")
+			}
+		}
+
+		for _, expectedInstall := range expectedInHouseInstalls {
+			if err := setStatusForExpectedInstall(expectedInstall, ds.SetInHouseAppInstallAsVerified, ds.SetInHouseAppInstallAsFailed); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting status for in-house app installs")
+			}
 		}
 
 		if poll {

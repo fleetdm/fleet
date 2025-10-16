@@ -491,6 +491,14 @@ type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID
 
 type IsInHouseAppLabelScopedFunc func(ctx context.Context, inHouseAppID uint, hostID uint) (bool, error)
 
+type GetUnverifiedInHouseAppInstallsForHostFunc func(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
+
+type SetInHouseAppInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
+
+type SetInHouseAppInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
+
+type ReplaceInHouseAppInstallVerificationUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
+
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error)
@@ -503,7 +511,7 @@ type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uin
 
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
-type AssociateVPPInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string) error
+type AssociateMDMInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
 
 type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 
@@ -2266,6 +2274,18 @@ type DataStore struct {
 	IsInHouseAppLabelScopedFunc        IsInHouseAppLabelScopedFunc
 	IsInHouseAppLabelScopedFuncInvoked bool
 
+	GetUnverifiedInHouseAppInstallsForHostFunc        GetUnverifiedInHouseAppInstallsForHostFunc
+	GetUnverifiedInHouseAppInstallsForHostFuncInvoked bool
+
+	SetInHouseAppInstallAsVerifiedFunc        SetInHouseAppInstallAsVerifiedFunc
+	SetInHouseAppInstallAsVerifiedFuncInvoked bool
+
+	SetInHouseAppInstallAsFailedFunc        SetInHouseAppInstallAsFailedFunc
+	SetInHouseAppInstallAsFailedFuncInvoked bool
+
+	ReplaceInHouseAppInstallVerificationUUIDFunc        ReplaceInHouseAppInstallVerificationUUIDFunc
+	ReplaceInHouseAppInstallVerificationUUIDFuncInvoked bool
+
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
 
@@ -2284,8 +2304,8 @@ type DataStore struct {
 	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
 	GetCategoriesForSoftwareTitlesFuncInvoked bool
 
-	AssociateVPPInstallToVerificationUUIDFunc        AssociateVPPInstallToVerificationUUIDFunc
-	AssociateVPPInstallToVerificationUUIDFuncInvoked bool
+	AssociateMDMInstallToVerificationUUIDFunc        AssociateMDMInstallToVerificationUUIDFunc
+	AssociateMDMInstallToVerificationUUIDFuncInvoked bool
 
 	SetVPPInstallAsVerifiedFunc        SetVPPInstallAsVerifiedFunc
 	SetVPPInstallAsVerifiedFuncInvoked bool
@@ -5515,6 +5535,34 @@ func (s *DataStore) IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID ui
 	return s.IsInHouseAppLabelScopedFunc(ctx, inHouseAppID, hostID)
 }
 
+func (s *DataStore) GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.GetUnverifiedInHouseAppInstallsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetUnverifiedInHouseAppInstallsForHostFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetInHouseAppInstallAsVerified(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error {
+	s.mu.Lock()
+	s.SetInHouseAppInstallAsVerifiedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetInHouseAppInstallAsVerifiedFunc(ctx, hostID, installUUID, verificationUUID)
+}
+
+func (s *DataStore) SetInHouseAppInstallAsFailed(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error {
+	s.mu.Lock()
+	s.SetInHouseAppInstallAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetInHouseAppInstallAsFailedFunc(ctx, hostID, installUUID, verificationUUID)
+}
+
+func (s *DataStore) ReplaceInHouseAppInstallVerificationUUID(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error {
+	s.mu.Lock()
+	s.ReplaceInHouseAppInstallVerificationUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceInHouseAppInstallVerificationUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
+}
+
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
@@ -5557,11 +5605,11 @@ func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, software
 	return s.GetCategoriesForSoftwareTitlesFunc(ctx, softwareTitleIDs, team_id)
 }
 
-func (s *DataStore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string) error {
+func (s *DataStore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error {
 	s.mu.Lock()
-	s.AssociateVPPInstallToVerificationUUIDFuncInvoked = true
+	s.AssociateMDMInstallToVerificationUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.AssociateVPPInstallToVerificationUUIDFunc(ctx, installUUID, verifyCommandUUID)
+	return s.AssociateMDMInstallToVerificationUUIDFunc(ctx, installUUID, verifyCommandUUID, hostUUID)
 }
 
 func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error {

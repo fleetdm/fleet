@@ -1339,4 +1339,83 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		}
 	}
 
+	// Install verification command should be sent
+
+	// Simulate a verification command not finding the app (maybe it takes a little while to install)
+	s.runWorker()
+	cmd, err = iosDevice.Idle()
+	var cmd1 string
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd1 = cmd.CommandUUID
+			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	s.runWorker()
+
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	var verificationCmdUUID string
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			assert.NotEqual(t, cmd1, cmd.CommandUUID)
+			verificationCmdUUID = cmd.CommandUUID
+			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					{
+						Name:             "test",
+						BundleIdentifier: "com.ipa-test.ipa-test",
+						Version:          "1.0",
+						Installed:        true,
+					},
+				},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var install struct {
+			CommandUUID         string     `db:"command_uuid"`
+			VerificationCmdUUID string     `db:"verification_command_uuid"`
+			VerificationAt      *time.Time `db:"verification_at"`
+		}
+		err = sqlx.GetContext(
+			context.Background(),
+			q,
+			&install,
+			"SELECT command_uuid, verification_command_uuid, verification_at FROM host_in_house_software_installs WHERE host_id = ?",
+			iosHost.ID,
+		)
+		require.NoError(t, err)
+		assert.Equal(t, installCmdUUID, install.CommandUUID)
+		assert.Equal(t, verificationCmdUUID, install.VerificationCmdUUID)
+		assert.NotNil(t, install.VerificationAt)
+
+		return nil
+	})
+
 }

@@ -1134,6 +1134,7 @@ CREATE TABLE `in_house_apps` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `global_or_team_id` (`global_or_team_id`,`name`,`platform`),
   KEY `fk_in_house_apps_title` (`title_id`),
