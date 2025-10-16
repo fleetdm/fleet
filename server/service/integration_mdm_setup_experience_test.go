@@ -484,6 +484,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "self_service": false,
   "install_uuid": "%s",
   "status": "installed",
+  "source": "apps",
   "policy_id": null,
   "policy_name": null
 }
