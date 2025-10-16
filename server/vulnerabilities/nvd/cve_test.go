@@ -327,6 +327,15 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				"CVE-2020-9005",
 			},
 		},
+		"cpe:2.3:a:valvesoftware:dota_2:1.0.0:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2020-7949",
+				"CVE-2020-7950",
+				"CVE-2020-7951",
+				"CVE-2020-7952",
+				"CVE-2020-9005",
+			},
+		},
 		"cpe:2.3:a:valvesoftware:dota_2:1.337:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-9005" /*resolvedInVersion: "2020-02-17"*/}, // we don't do non-semver resolved-in
