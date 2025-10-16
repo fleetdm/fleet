@@ -163,7 +163,7 @@ To replace the Fleet logo with your organization's logo:
 
 You can install software during first time macOS, iOS, iPadOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
 
-For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet reties, IT admins can error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
+For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
 
 Currently, for macOS, iOS, and iPadOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM).
 
