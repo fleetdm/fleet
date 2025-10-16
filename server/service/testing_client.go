@@ -208,7 +208,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
-	err = ts.ds.ReconcileSoftwareTitles(ctx)
+	err = ts.ds.CleanupSoftwareTitles(ctx)
 	require.NoError(t, err)
 	err = ts.ds.SyncHostsSoftwareTitles(ctx, time.Now())
 	require.NoError(t, err)
@@ -676,19 +676,26 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 ) {
 	t.Helper()
 
-	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-	// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
-	if errors.Is(err, os.ErrNotExist) {
-		var err2 error
-		tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
-		if err2 == nil {
-			err = nil
+	// Determine which file to use: either provided by test or opened from testdata
+	var installerFile io.Reader
+	if payload.InstallerFile == nil {
+		// Open file from testdata and close it when done
+		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+		// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
+		if errors.Is(err, os.ErrNotExist) {
+			var err2 error
+			tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
+			if err2 == nil {
+				err = nil
+			}
 		}
+		require.NoError(t, err)
+		defer tfr.Close()
+		installerFile = tfr
+	} else {
+		// Use the file provided by the test
+		installerFile = payload.InstallerFile
 	}
-	require.NoError(t, err)
-	defer tfr.Close()
-
-	payload.InstallerFile = tfr
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -696,7 +703,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	// add the software field
 	fw, err := w.CreateFormFile("software", payload.Filename)
 	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
+	n, err := io.Copy(fw, installerFile)
 	require.NoError(t, err)
 	require.NotZero(t, n)
 

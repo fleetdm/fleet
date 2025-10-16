@@ -59,7 +59,7 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
           When Fleet&apos;s agent (fleetd) is installed, fleetd will open the{" "}
           <b>Fleet Desktop &gt; My device</b> page in the default browser.
         </p>
-        <p>The end use will see selected software being installed.</p>
+        <p>The end user will see selected software being installed.</p>
       </>
     ),
     videoSrc: LinuxAndWindowsInstallSoftwareEndUserPreview,
@@ -71,7 +71,7 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
           When Fleet&apos;s agent (fleetd) is installed, fleetd will open the{" "}
           <b>Fleet Desktop &gt; My device</b> page in the default browser.
         </p>
-        <p>The end use will see selected software being installed.</p>
+        <p>The end user will see selected software being installed.</p>
       </>
     ),
     videoSrc: LinuxAndWindowsInstallSoftwareEndUserPreview,

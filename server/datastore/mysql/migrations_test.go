@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -152,6 +153,15 @@ func TestMigrations(t *testing.T) {
 	defer ds.Close()
 
 	require.NoError(t, ds.MigrateTables(context.Background()))
+
+	// Make sure labels in _future_ migrations have "platform" unset.
+	// See comments in Up_20251009091733 for more information on why.
+	// If there's a reason for one of these to have a "platform" set,
+	// please add the exception here.
+	var count int
+	err := sqlx.Get(ds.primary, &count, `SELECT COUNT(*) FROM labels WHERE label_type = ? AND platform != ''`, fleet.LabelTypeBuiltIn)
+	require.NoError(t, err)
+	require.Zero(t, count)
 
 	// Dump schema to dumpfile
 	cmd := exec.Command( // nolint:gosec // Waive G204 since this is a test file

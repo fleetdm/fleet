@@ -401,7 +401,7 @@ func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 		Name:                "Label B",
 		Description:         "Label B description",
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		Hosts:               []string{"host1", "host2"},
+		Hosts:               []string{"1", "2"},
 	}, {
 		Name:                "Label C",
 		Description:         "Label C description",

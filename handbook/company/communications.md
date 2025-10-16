@@ -1072,7 +1072,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - Link to existing pages instead of duplicating content.
 - Favor permalinks and headings that make good anchors (people link to sections).
 
-> > **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
+> **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
 
 
 #### Device vs endpoint

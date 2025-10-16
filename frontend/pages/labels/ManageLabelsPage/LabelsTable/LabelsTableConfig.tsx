@@ -13,6 +13,7 @@ import { IUser } from "interfaces/user";
 import { capitalize } from "lodash";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 interface IHeaderProps {
   column: {
@@ -71,18 +72,19 @@ const generateActionDropdownOptions = (
     label.author_id === currentUser.id;
 
   if (hasGlobalWritePermission || hasLabelAuthorWritePermission) {
-    options.push(
-      {
+    if (label.label_membership_type !== "host_vitals") {
+      options.push({
         label: "Edit",
         disabled: false,
         value: "edit",
-      },
-      {
-        label: "Delete",
-        disabled: false,
-        value: "delete",
-      }
-    );
+      });
+    }
+
+    options.push({
+      label: "Delete",
+      disabled: false,
+      value: "delete",
+    });
   }
 
   return options;
@@ -104,7 +106,7 @@ const generateTableHeaders = (
       accessor: "name",
       disableSortBy: false,
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TooltipTruncatedTextCell value={cellProps.cell.value} />
       ),
     },
     {
@@ -117,7 +119,7 @@ const generateTableHeaders = (
       ),
       accessor: "description",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value || ""} />
+        <TooltipTruncatedTextCell value={cellProps.cell.value || ""} />
       ),
     },
     {

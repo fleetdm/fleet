@@ -124,7 +124,8 @@ Use the following steps to schedule an interview between a candidate and the CEO
 3. Once you've secured a time for the interview, create a Google Calendar event with the title "¶¶ CANDIDATE_NAME (OPEN_POSITION_APPLYING_FOR) <> Mike, final interview w/ CEO".
 4. Add the "Why hire" doc to the calendar event description as the agenda (i.e. `Agenda: WHY_HIRE_DOC_FULL_URL`) and save the calendar event.
 5. Schedule a 30-minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
-6. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed. 
+6. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed.
+7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
 
 
 ### Confirm CEO shadow dates

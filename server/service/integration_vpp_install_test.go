@@ -705,7 +705,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ========================================================
 
 	// Re-enroll host in MDM
-	mdmDevice = enrollMacOSHostInMDM(t, mdmHost, s.ds, s.server.URL)
+	mdmDevice = enrollMacOSHostInMDMManually(t, mdmHost, s.ds, s.server.URL)
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 

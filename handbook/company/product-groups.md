@@ -88,7 +88,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 **Areas of expertise**:
 - Software Install / uninstall / patch
 - Fleet-maintained apps (FMAs)
-- Apple Volumne Purchasing Program (VPP) apps
+- Apple Volume Purchasing Program (VPP) apps
 - Google Play apps
 - In-house apps (IPAs) 
 - End user self-service
@@ -612,6 +612,9 @@ For community-reported bugs, this may require QA to gather more information from
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
 
+For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. QA should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, QA verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [reproduced state](#reproduced).
 
 #### Reproduced
 
@@ -907,7 +910,7 @@ If the buyer (aka the "Santa") hasn't reviewed the price in the first order form
 
 On the order form, customer promises are reprented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
 
-**Participants:** AE, SC, CEO, CTO, VP of Customer Success, and Head of Product Design.  (+ temporarily: CRO)
+**Participants:** AE, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM.  (+ temporarily: CRO)
 
 **Agenda:**
 - Discuss new promises from an order form with promises

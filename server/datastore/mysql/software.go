@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,6 +43,9 @@ var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/datastore/mysql")
 // Since DB may have millions of software items, we need to batch the aggregation counts to avoid long SQL query times.
 // This is a variable so it can be adjusted during unit testing.
 var countHostSoftwareBatchSize = uint64(100000)
+
+// trailingNonWordChars matches trailing anything not a letter, digit, or underscore
+var trailingNonWordChars = regexp.MustCompile(`\W+$`)
 
 // Since a host may have a lot of software items, we need to batch the inserts.
 // The maximum number of software items we can insert at one time is governed by max_allowed_packet, which already be set to a high value for MDM bootstrap packages,
@@ -404,7 +408,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, nil
 	}
 
-	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, existingBundleIDsToUpdate, err := ds.getExistingSoftware(ctx, current, incoming)
+	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, err := ds.getExistingSoftware(ctx, current, incoming)
 	if err != nil {
 		return r, err
 	}
@@ -438,54 +442,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Inserted = inserted
 
-			// Also link existing software that matches by bundle ID
-			// This handles the case where software has the same bundle ID but different name.
-			// Since this is a rare case, it is not optimized for performance.
-			if len(existingBundleIDsToUpdate) > 0 {
-				bundleInserted, err := ds.linkExistingBundleIDSoftware(ctx, tx, hostID, existingBundleIDsToUpdate)
-				if err != nil {
-					return err
-				}
-				r.Inserted = append(r.Inserted, bundleInserted...)
-
-				// Build map of software IDs to their new names for renaming.
-				// softwareRenames should match existingBundleIDsToUpdate, but we create this extra map to handle
-				// software entries that share the same bundle ID as well as other potential corner cases.
-				softwareRenames := make(map[uint]string, len(existingBundleIDsToUpdate))
-				// Check inserted software for renames
-				for _, sw := range r.Inserted {
-					if sw.BundleIdentifier != "" {
-						if updSoftwareList, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
-							// Use the first software in the list for the name (they should all have the same name)
-							if len(updSoftwareList) > 0 {
-								softwareRenames[sw.ID] = updSoftwareList[0].Name
-							}
-						}
-					}
-				}
-				// Check existing software for renames
-				for _, s := range existingSoftware {
-					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
-						if updSoftwareList, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
-							// Use the first software in the list for the name (they should all have the same name)
-							if len(updSoftwareList) > 0 {
-								softwareRenames[s.ID] = updSoftwareList[0].Name
-							}
-						}
-					}
-				}
-
-				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
-					return err
-				}
-			}
-
-			// Use r.Inserted which contains all inserted items (including bundle ID matches)
 			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, r.Inserted, hostID); err != nil {
 				return err
 			}
 
-			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, existingBundleIDsToUpdate, ds.minLastOpenedAtDiff, ds.logger); err != nil {
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff, ds.logger); err != nil {
 				return err
 			}
 
@@ -499,108 +460,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, err
 	}
 	return r, err
-}
-
-// updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
-// softwareRenames maps software IDs to their new names.
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
-	if len(softwareRenames) == 0 {
-		return nil
-	}
-
-	// Extract software IDs for batch processing
-	softwareIDs := make([]uint, 0, len(softwareRenames))
-	for id := range softwareRenames {
-		softwareIDs = append(softwareIDs, id)
-	}
-
-	const batchSize = 100
-
-	err := common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
-		placeholders := make([]string, len(batch))
-		args := make([]any, len(batch))
-		for i, id := range batch {
-			placeholders[i] = "?"
-			args[i] = id
-		}
-
-		// During high concurrency situations, we may have multiple transactions attempting to update the same software rows.
-		// For example, this can happen when many hosts are trying to rename the same software items.
-		// To avoid long locks or even deadlocks, use UPDATE SKIP LOCKED to skip rows that are already locked by another transaction.
-		// This means that some software rows may not be updated in this transaction,
-		// however, eventually they should be updated. This is trading off immediate consistency
-		// for less lock contention.
-		lockQuery := fmt.Sprintf(
-			"SELECT id, name FROM software WHERE id IN (%s) ORDER BY id FOR UPDATE SKIP LOCKED",
-			strings.Join(placeholders, ","),
-		)
-
-		rows, err := tx.QueryContext(ctx, lockQuery, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "lock software rows for rename")
-		}
-		defer rows.Close()
-
-		type lockedRow struct {
-			id          uint
-			currentName string
-		}
-		var lockedRows []lockedRow
-		for rows.Next() {
-			var lr lockedRow
-			if err := rows.Scan(&lr.id, &lr.currentName); err != nil {
-				return ctxerr.Wrap(ctx, err, "scan locked row")
-			}
-			lockedRows = append(lockedRows, lr)
-		}
-		if err := rows.Err(); err != nil {
-			return ctxerr.Wrap(ctx, err, "iterate locked rows")
-		}
-
-		if len(lockedRows) == 0 {
-			return nil
-		}
-
-		var rowsToUpdate []lockedRow
-		for _, lr := range lockedRows {
-			newName := softwareRenames[lr.id]
-			if lr.currentName != newName {
-				rowsToUpdate = append(rowsToUpdate, lr)
-			}
-		}
-
-		if len(rowsToUpdate) == 0 {
-			return nil
-		}
-
-		updateCases := make([]string, 0, len(rowsToUpdate))
-		updateCaseArgs := make([]any, 0, len(rowsToUpdate)*2)
-		updateWhereArgs := make([]any, 0, len(rowsToUpdate))
-		updateIDs := make([]string, 0, len(rowsToUpdate))
-
-		for _, lr := range rowsToUpdate {
-			newName := softwareRenames[lr.id]
-			updateCases = append(updateCases, "WHEN ? THEN ?")
-			updateCaseArgs = append(updateCaseArgs, lr.id, newName)
-			updateWhereArgs = append(updateWhereArgs, lr.id)
-			updateIDs = append(updateIDs, "?")
-		}
-
-		updateStmt := fmt.Sprintf(
-			`UPDATE software SET name = CASE id %s END, name_source = 'bundle_4.67' WHERE id IN (%s)`,
-			strings.Join(updateCases, " "),
-			strings.Join(updateIDs, ","),
-		)
-
-		_, err = tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "batch update software names")
-		}
-
-		return nil
-	})
-
-	return err
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -677,27 +536,20 @@ func (ds *Datastore) getExistingSoftware(
 	currentSoftware []softwareIDChecksum,
 	incomingChecksumToSoftware map[string]fleet.Software,
 	incomingChecksumToTitle map[string]fleet.SoftwareTitle,
-	existingBundleIDsToUpdate map[string][]fleet.Software,
 	err error,
 ) {
 	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
 	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
 	newSoftware := make(map[string]struct{})
-	incomingBundleIDsToNewSoftwareNames := make(map[string]string)
-	existingBundleIDsToUpdate = make(map[string][]fleet.Software)
 	for uniqueName, s := range incoming {
 		_, ok := current[uniqueName]
 		if !ok {
 			checksum, err := s.ComputeRawChecksum()
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, err
 			}
 			incomingChecksumToSoftware[string(checksum)] = s
 			newSoftware[string(checksum)] = struct{}{}
-
-			if s.BundleIdentifier != "" {
-				incomingBundleIDsToNewSoftwareNames[s.BundleIdentifier] = s.Name
-			}
 		}
 	}
 
@@ -710,45 +562,32 @@ func (ds *Datastore) getExistingSoftware(
 		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
 		currentSoftware, err = getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		for _, currentSoftwareItem := range currentSoftware {
-			incomingSoftwareItem, ok := incomingChecksumToSoftware[currentSoftwareItem.Checksum]
+			_, ok := incomingChecksumToSoftware[currentSoftwareItem.Checksum]
 			if !ok {
 				// This should never happen. If it does, we have a bug.
-				return nil, nil, nil, nil, ctxerr.New(
+				return nil, nil, nil, ctxerr.New(
 					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(currentSoftwareItem.Checksum))),
 				)
-			}
-			if currentSoftwareItem.BundleIdentifier != nil && currentSoftwareItem.Source == "apps" {
-				if name, ok := incomingBundleIDsToNewSoftwareNames[*currentSoftwareItem.BundleIdentifier]; ok && name != currentSoftwareItem.Name {
-					// Then this is a software whose name has changed, so we should update the name
-					// Copy the incoming software but with the existing software's ID
-					swWithID := incomingSoftwareItem
-					swWithID.ID = currentSoftwareItem.ID
-					existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier] = append(existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier], swWithID)
-
-					// Delete this checksum to prevent it from being treated as new software
-					delete(incomingChecksumToSoftware, currentSoftwareItem.Checksum)
-					continue
-				}
 			}
 			delete(newSoftware, currentSoftwareItem.Checksum)
 		}
 	}
 
 	if len(newSoftware) == 0 {
-		return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, nil
+		return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
 	}
 
 	// There's new software, so we try to get the titles already stored in `software_titles` for them.
 	incomingChecksumToTitle, _, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, newSoftware, incomingChecksumToSoftware)
 	if err != nil {
-		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
 	}
 
-	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, nil
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
 }
 
 // getIncomingSoftwareChecksumsToExistingTitles loads the existing titles for the new incoming software.
@@ -913,6 +752,33 @@ func deleteUninstalledHostSoftwareDB(
 	return deletedSoftware, nil
 }
 
+// longestCommonPrefix finds the longest common prefix among a slice of strings.
+// Returns empty string if there's no common prefix.
+func longestCommonPrefix(strs []string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	if len(strs) == 1 {
+		return strs[0]
+	}
+
+	firstLen := len(strs[0])
+	i := 0
+	for {
+		if i >= firstLen {
+			return strs[0]
+		}
+
+		c := strs[0][i]
+		for _, s := range strs[1:] {
+			if i >= len(s) || s[i] != c {
+				return strs[0][:i]
+			}
+		}
+		i++
+	}
+}
+
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
 // to reduce lock contention. These operations are idempotent due to INSERT IGNORE.
 func (ds *Datastore) preInsertSoftwareInventory(
@@ -921,15 +787,37 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	softwareChecksums map[string]fleet.Software,
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 ) error {
+	type titleKey struct {
+		name         string
+		source       string
+		extensionFor string
+		bundleID     string
+		isKernel     bool
+	}
+
 	// Collect all software that needs to be inserted
 	needsInsert := make(map[string]fleet.Software)
+	bundleGroups := make(map[titleKey][]string)
+	keys := make([]string, 0, len(softwareChecksums))
+
 	existingSet := make(map[string]struct{}, len(existingSoftware))
 	for _, es := range existingSoftware {
 		existingSet[es.Checksum] = struct{}{}
 	}
+
 	for checksum, sw := range softwareChecksums {
 		if _, ok := existingSet[checksum]; !ok {
 			needsInsert[checksum] = sw
+			keys = append(keys, checksum)
+
+			if sw.BundleIdentifier != "" {
+				key := titleKey{
+					bundleID:     sw.BundleIdentifier,
+					source:       sw.Source,
+					extensionFor: sw.ExtensionFor,
+				}
+				bundleGroups[key] = append(bundleGroups[key], sw.Name)
+			}
 		}
 	}
 
@@ -937,12 +825,31 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		return nil
 	}
 
-	// Process in smaller batches to reduce lock time
-	keys := make([]string, 0, len(needsInsert))
-	for checksum := range needsInsert {
-		keys = append(keys, checksum)
+	bestTitleNames := make(map[titleKey]string)
+	for key, names := range bundleGroups {
+		if len(names) > 1 {
+			// Pick the best represenative name for the group of names
+			commonPrefix := longestCommonPrefix(names)
+			commonPrefix = trailingNonWordChars.ReplaceAllString(commonPrefix, "")
+			if len(commonPrefix) > 0 {
+				bestTitleNames[key] = commonPrefix
+			} else {
+				// Fall back to shortest name
+				shortest := names[0]
+				for _, name := range names[1:] {
+					if len(name) < len(shortest) {
+						shortest = name
+					}
+				}
+				bestTitleNames[key] = shortest
+			}
+		} else if len(names) == 1 {
+			// Single title or no bundle_identifier
+			bestTitleNames[key] = names[0]
+		}
 	}
 
+	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
 		batchSoftware := make(map[string]fleet.Software, len(batchKeys))
 		for _, key := range batchKeys {
@@ -955,8 +862,20 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for checksum, sw := range batchSoftware {
 				if _, ok := existingTitlesForNewSoftware[checksum]; !ok {
+					titleName := sw.Name
+					if sw.BundleIdentifier != "" {
+						key := titleKey{
+							bundleID:     sw.BundleIdentifier,
+							source:       sw.Source,
+							extensionFor: sw.ExtensionFor,
+						}
+						if computedName, exists := bestTitleNames[key]; exists {
+							titleName = computedName
+						}
+					}
+
 					st := fleet.SoftwareTitle{
-						Name:         sw.Name,
+						Name:         titleName,
 						Source:       sw.Source,
 						ExtensionFor: sw.ExtensionFor,
 						IsKernel:     sw.IsKernel,
@@ -980,15 +899,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			if len(newTitlesNeeded) > 0 {
-				// Deduplicate titles before insertion to avoid unnecessary duplicate INSERTs
-				type titleKey struct {
-					name         string
-					source       string
-					extensionFor string
-					bundleID     string
-					isKernel     bool
-				}
-				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle, len(newTitlesNeeded))
+				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
 				for _, title := range newTitlesNeeded {
 					bundleID := ""
 					if title.BundleIdentifier != nil {
@@ -1001,11 +912,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID:     bundleID,
 						isKernel:     title.IsKernel,
 					}
-					uniqueTitlesToInsert[key] = title
+
+					if _, exists := uniqueTitlesToInsert[key]; !exists {
+						uniqueTitlesToInsert[key] = title
+					}
 				}
 
 				// Insert software titles
-				const numberOfArgsPerSoftwareTitles = 5
+				const numberOfArgsPerSoftwareTitles = 6
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id) VALUES %s", titlesValues)
 				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
@@ -1027,20 +941,25 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					BundleIdentifier *string `db:"bundle_identifier"`
 				}
 
-				// Build query to retrieve title IDs using the same unique titles we inserted
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
 				for tk := range uniqueTitlesToInsert {
+					title := uniqueTitlesToInsert[tk]
 					bundleID := ""
-					if uniqueTitlesToInsert[tk].BundleIdentifier != nil {
-						bundleID = *uniqueTitlesToInsert[tk].BundleIdentifier
+					if title.BundleIdentifier != nil {
+						bundleID = *title.BundleIdentifier
 					}
-					queryArgs = append(queryArgs, tk.name, tk.source, tk.extensionFor, bundleID)
+
+					firstArg := title.Name
+					if bundleID != "" {
+						firstArg = bundleID
+					}
+					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 				}
 
 				queryTitles := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier
 					FROM software_titles
-					WHERE (name, source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
 
 				if err := sqlx.SelectContext(ctx, tx, &titlesData, queryTitles, queryArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "select software titles")
@@ -1057,7 +976,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						if title.BundleIdentifier != nil {
 							titleBundleID = *title.BundleIdentifier
 						}
-						if td.Name == title.Name && td.Source == title.Source && td.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
+						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
+						// For others, match by name
+						nameMatches := td.Name == title.Name
+						if bundleID != "" && titleBundleID != "" {
+							// Both have bundle_identifier - match by bundle_identifier instead of name
+							nameMatches = true
+						}
+						if nameMatches && td.Source == title.Source && td.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
 							titleIDsByChecksum[checksum] = td.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
@@ -1067,7 +993,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			// Insert software entries
-			const numberOfArgsPerSoftware = 11
+			const numberOfArgsPerSoftware = 12
 			values := strings.TrimSuffix(
 				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
@@ -1131,81 +1057,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	})
 
 	return err
-}
-
-// linkExistingBundleIDSoftware links existing software entries that match by bundle ID to the host.
-// This handles the case where incoming software has the same bundle ID as existing software but a different name.
-func (ds *Datastore) linkExistingBundleIDSoftware(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	hostID uint,
-	existingBundleIDsToUpdate map[string][]fleet.Software,
-) ([]fleet.Software, error) {
-	if len(existingBundleIDsToUpdate) == 0 {
-		return nil, nil
-	}
-
-	// Collect all software IDs to verify they still exist
-	softwareIDs := make([]uint, 0, len(existingBundleIDsToUpdate))
-	for _, softwareList := range existingBundleIDsToUpdate {
-		for _, software := range softwareList {
-			// The software.ID should already be set from getExistingSoftware
-			if software.ID == 0 {
-				return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
-			}
-			softwareIDs = append(softwareIDs, software.ID)
-		}
-	}
-
-	// Verify software still exists (just like we do in linkSoftwareToHost)
-	// This prevents creating orphaned references if software was deleted between pre-insertion and now
-	// This DB call could be removed to squeeze our a little more performance at the risk of orphaned references.
-	stmt, args, err := sqlx.In(`SELECT id FROM software WHERE id IN (?)`, softwareIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build query for existing software verification")
-	}
-
-	var existingIDs []uint
-	if err := sqlx.SelectContext(ctx, tx, &existingIDs, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "verify existing bundle ID software")
-	}
-
-	// Build a set of existing IDs for quick lookup
-	existingIDSet := make(map[uint]struct{}, len(existingIDs))
-	for _, id := range existingIDs {
-		existingIDSet[id] = struct{}{}
-	}
-
-	var insertsHostSoftware []any
-	var insertedSoftware []fleet.Software
-
-	for _, softwareList := range existingBundleIDsToUpdate {
-		for _, software := range softwareList {
-			// Only link if software still exists
-			if _, ok := existingIDSet[software.ID]; ok {
-				insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-				insertedSoftware = append(insertedSoftware, software)
-			} else {
-				// Log missing software but continue
-				level.Warn(ds.logger).Log(
-					"msg", "bundle ID software not found after pre-insertion",
-					"software_id", software.ID,
-					"name", software.Name,
-					"bundle_id", software.BundleIdentifier,
-				)
-			}
-		}
-	}
-
-	if len(insertsHostSoftware) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
-		stmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
-		if _, err := tx.ExecContext(ctx, stmt, insertsHostSoftware...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "link existing bundle ID software")
-		}
-	}
-
-	return insertedSoftware, nil
 }
 
 // linkSoftwareToHost links pre-inserted software to a host.
@@ -1297,7 +1148,6 @@ func updateModifiedHostSoftwareDB(
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-	existingBundleIDsToUpdate map[string][]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 	logger log.Logger,
 ) error {
@@ -1308,21 +1158,16 @@ func updateModifiedHostSoftwareDB(
 		if !ok {
 			continue
 		}
-		// if the new software has no last opened timestamp, we only
-		// update if the current software has no last opened timestamp
-		// and is marked as having a name change.
+		// if the new software has no last opened timestamp, log if the current one did
+		// (but only for non-apps sources, as apps sources are managed by osquery)
 		if newSw.LastOpenedAt == nil {
-			if _, ok := existingBundleIDsToUpdate[newSw.BundleIdentifier]; ok && curSw.LastOpenedAt == nil {
-				keysToUpdate = append(keysToUpdate, key)
-			}
-			// Log cases where the new software has no last opened timestamp, the current software does,
-			// and the software is marked as having a name change.
-			// This is expected on macOS, but not on windows/linux.
-			if ok && curSw.LastOpenedAt != nil && newSw.Source != "apps" {
-				level.Warn(logger).Log(
-					"msg", "updateModifiedHostSoftwareDB: last opened at is nil for new software, but not for current software",
-					"new_software", newSw.Name, "current_software", curSw.Name,
-					"bundle_identifier", newSw.BundleIdentifier,
+			if curSw.LastOpenedAt != nil && newSw.Source != "apps" {
+				level.Info(logger).Log(
+					"msg", "software last_opened_at changed to nil",
+					"host_id", hostID,
+					"software_id", curSw.ID,
+					"software_name", newSw.Name,
+					"source", newSw.Source,
 				)
 			}
 			continue
@@ -1756,6 +1601,7 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
 			InstalledPath:  ip.InstalledPath,
 			TeamIdentifier: ip.TeamIdentifier,
+			HashSha256:     ip.ExecutableSHA256,
 		})
 	}
 
@@ -2275,141 +2121,31 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	return nil
 }
 
-func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
-	// TODO: consider if we should batch writes to software or software_titles table
-
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// ensure all software titles are in the software_titles table
-		upsertTitlesStmt := `
-INSERT INTO software_titles (name, source, extension_for, bundle_identifier)
-SELECT
-    name,
-    source,
-    extension_for,
-    bundle_identifier
-FROM (
-    SELECT DISTINCT
-        name,
-        source,
-        extension_for,
-        bundle_identifier
-    FROM
-        software s
-    WHERE
-        NOT EXISTS (
-            SELECT 1 FROM software_titles st
-            WHERE s.bundle_identifier = st.bundle_identifier AND
-				IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
-        )
-        AND COALESCE(bundle_identifier, '') != ''
-
-    UNION ALL
-
-    SELECT DISTINCT
-        name,
-        source,
-        extension_for,
-        NULL as bundle_identifier
-    FROM
-        software s
-    WHERE
-        NOT EXISTS (
-            SELECT 1 FROM software_titles st
-            WHERE (s.name, s.source, s.extension_for) = (st.name, st.source, st.extension_for)
-        )
-        AND COALESCE(s.bundle_identifier, '') = ''
-) as combined_results
-ON DUPLICATE KEY UPDATE
-    software_titles.name = software_titles.name,
-    software_titles.source = software_titles.source,
-    software_titles.extension_for = software_titles.extension_for,
-    software_titles.bundle_identifier = software_titles.bundle_identifier
-`
-		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "upsert software titles")
-		}
-		n, _ := res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
-
-		// update title ids for software table entries
-		updateSoftwareWithoutIdentifierStmt := `
-UPDATE software s
-JOIN software_titles st
-ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.extension_for = st.extension_for
-SET s.title_id = st.id
-WHERE (s.title_id IS NULL OR s.title_id != st.id)
-AND COALESCE(s.bundle_identifier, '') = '';
-`
-
-		res, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title_id without bundle identifier")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "update software title_id without bundle identifier", "rows_affected", n)
-
-		updateSoftwareWithIdentifierStmt := `
-UPDATE software s
-JOIN software_titles st
-ON s.bundle_identifier = st.bundle_identifier AND
-    IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
-SET s.title_id = st.id
-WHERE s.title_id IS NULL
-OR s.title_id != st.id;
-`
-
-		res, err = tx.ExecContext(ctx, updateSoftwareWithIdentifierStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title_id with bundle identifier")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "update software title_id with bundle identifier", "rows_affected", n)
-
-		// clean up orphaned software titles
-		cleanupStmt := `
-DELETE st FROM software_titles st
-	LEFT JOIN software s ON s.title_id = st.id
-	WHERE s.title_id IS NULL AND
-		NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id) AND
-		NOT EXISTS (SELECT 1 FROM vpp_apps vap WHERE vap.title_id = st.id) AND
-		NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = st.id)`
-
-		res, err = tx.ExecContext(ctx, cleanupStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
-
-		updateNamesStmt := `
-		UPDATE software_titles st
-		JOIN software s on st.id = s.title_id
-		SET st.name = (
-			SELECT
-				software.name
-			FROM
-				software
-			WHERE
-				software.bundle_identifier = st.bundle_identifier
-			ORDER BY
-				id DESC
-			LIMIT 1
+func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
+	var n int64
+	defer func(start time.Time) {
+		level.Debug(ds.logger).Log(
+			"msg", "cleanup orphaned software titles",
+			"rows_affected", n,
+			"took", time.Since(start),
 		)
-		WHERE
-			st.bundle_identifier IS NOT NULL AND
-			st.bundle_identifier != '' AND
-			s.name_source = 'bundle_4.67'
-		`
-		res, err = tx.ExecContext(ctx, updateNamesStmt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title names")
-		}
-		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "update software title names", "rows_affected", n)
+	}(time.Now())
 
-		return nil
-	})
+	const deleteOrphanedSoftwareTitlesStmt = `
+	DELETE st FROM software_titles st
+	LEFT JOIN software s ON st.id = s.title_id
+	LEFT JOIN software_installers si ON st.id = si.title_id
+	LEFT JOIN vpp_apps vap ON st.id = vap.title_id
+	WHERE s.title_id IS NULL AND si.title_id IS NULL AND vap.title_id IS NULL`
+
+	res, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedSoftwareTitlesStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "executing delete of software titles")
+	}
+	ra, _ := res.RowsAffected()
+	n += ra
+
+	return nil
 }
 
 func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
