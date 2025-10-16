@@ -142,6 +142,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building software titles select statement")
 	}
+
 	// build the count statement before adding the pagination constraints to `getTitlesStmt`
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
@@ -161,6 +162,10 @@ func (ds *Datastore) ListSoftwareTitles(
 		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
 		FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
+		InHouseAppName            *string `db:"in_house_app_name"`
+		InHouseAppVersion         *string `db:"in_house_app_version"`
+		InHouseAppPlatform        *string `db:"in_house_app_platform"`
+		InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -208,6 +213,31 @@ func (ds *Datastore) ListSoftwareTitles(
 				InstallDuringSetup:   title.PackageInstallDuringSetup,
 				FleetMaintainedAppID: title.FleetMaintainedAppID,
 			}
+		}
+
+		// promote in-house app properties to their proper destination fields
+		if title.InHouseAppName != nil {
+			var version string
+			if title.InHouseAppVersion != nil {
+				version = *title.InHouseAppVersion
+			}
+			var platform string
+			if title.InHouseAppPlatform != nil {
+				platform = *title.InHouseAppPlatform
+			}
+
+			// as per the spec, in-house apps are returned as software packages
+			// https://github.com/fleetdm/fleet/pull/33950/files
+			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+				Name:        *title.InHouseAppName,
+				Version:     version,
+				Platform:    platform,
+				SelfService: ptr.Bool(false),
+			}
+
+			// this is set directly for software packages, but if this is an in-house
+			// app we need to set it here
+			title.HashSHA256 = title.InHouseAppStorageID
 		}
 
 		// promote the VPP app id and version to the proper destination fields
@@ -323,7 +353,6 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	titles := make([]fleet.SoftwareTitleListResult, 0, len(softwareList))
 	for _, st := range softwareList {
-		st := st
 		titles = append(titles, st.SoftwareTitleListResult)
 	}
 
@@ -388,11 +417,15 @@ SELECT
 		,vap.latest_version as vpp_app_version
 		,vap.platform as vpp_app_platform
 		,vap.icon_url as vpp_app_icon_url
+		,iha.name as in_house_app_name
+		,iha.version as in_house_app_version
+		,iha.platform as in_house_app_platform
+		,iha.storage_id as in_house_app_storage_id
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		{{$installerJoin := printf "%s JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %d" (yesNo .PackagesOnly "INNER" "LEFT") (teamID .)}}
-		{{$installerJoin}}
+		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
+		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
@@ -424,17 +457,20 @@ FROM software_titles st
 {{end}}
 WHERE
 	{{with $additionalWhere := "TRUE"}}
+		{{if and (hasTeamID $) $.PackagesOnly}}
+			{{$additionalWhere = "(si.id IS NOT NULL OR iha.id IS NOT NULL)"}}
+		{{end}}
 		{{if $.ListOptions.MatchQuery}}
 			{{$additionalWhere = "(st.name LIKE ? OR scve.cve LIKE ?)"}}
 		{{end}}
 		{{if and (hasTeamID $) $.Platform}}
-		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s))" (placeholders $.Platform)}}
+		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
 		  {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
 		{{end}}
 		{{$additionalWhere}}
 	{{end}}
-	-- If teamID is set, defaults to "a software installer or VPP app exists", and see next condition.
-	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)" "FALSE"}}
+	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
+	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL OR iha.id IS NOT NULL)" "FALSE"}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
@@ -461,6 +497,10 @@ GROUP BY
 		,vpp_app_platform
 		,vpp_app_icon_url
 		,vpp_install_during_setup
+		,in_house_app_name
+		,in_house_app_version
+		,in_house_app_platform
+		,in_house_app_storage_id
 	{{end}}
 `
 	var args []any
@@ -488,6 +528,10 @@ GROUP BY
 			args = append(args, platform)
 		}
 		// for VPP apps; could micro-optimize later by dropping non-Apple platforms
+		for _, platform := range platforms {
+			args = append(args, platform)
+		}
+		// for in-house apps; could micro-optimize later by dropping non-Apple platforms
 		for _, platform := range platforms {
 			args = append(args, platform)
 		}

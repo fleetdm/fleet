@@ -3582,7 +3582,7 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListBySoftware(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
