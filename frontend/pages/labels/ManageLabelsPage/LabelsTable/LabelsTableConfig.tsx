@@ -1,16 +1,14 @@
 import React from "react";
-import { ILabel } from "interfaces/label";
+import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
-import { capitalize } from "lodash";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
@@ -131,9 +129,10 @@ const generateTableHeaders = (
         />
       ),
       accessor: "label_membership_type",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={capitalize(cellProps.cell.value)} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const type = cellProps.row.original.label_membership_type;
+        return <TextCell value={LabelMembershipTypeToDisplayCopy[type]} />;
+      },
     },
     {
       title: "Actions",
