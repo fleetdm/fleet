@@ -1,5 +1,5 @@
 .main-content {
-  max-width: 1280px;
+  max-width: $break-lg;
   margin: 0 auto;
   padding: $pad-page;
   flex-grow: 1;
@@ -17,6 +17,10 @@
     // TODO: figure out if sticky styling is needed?
     position: sticky; // Needed for settings page scroll
     z-index: 4; // Needed for settings page scroll
+  }
+
+  &.manage-hosts, &.query-details-page {
+    max-width: 100%;
   }
 }
 
