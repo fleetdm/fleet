@@ -35,5 +35,5 @@ Fleet also provides a API endpoints for managing setup experience software progr
 <meta name="authorGitHubUsername" value="dantecatalfamo">
 <meta name="authorFullName" value="Dante Catalfamo">
 <meta name="publishedOn" value="2025-09-24">
-<meta name="articleTitle" value="Installing software during setup">
+<meta name="articleTitle" value="Installing software during new Linux setup">
 <meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">

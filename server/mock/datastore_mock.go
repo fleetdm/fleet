@@ -471,7 +471,7 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type ReconcileSoftwareTitlesFunc func(ctx context.Context) error
+type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
@@ -1437,7 +1437,7 @@ type AndroidHostLiteByHostUUIDFunc func(ctx context.Context, hostUUID string) (*
 
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
-type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) error
+type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) (bool, error)
 
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
 
@@ -1452,6 +1452,10 @@ type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID str
 type ListHostMDMAndroidProfilesPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
 
 type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error)
+
+type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
+
+type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
 
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
@@ -2222,8 +2226,8 @@ type DataStore struct {
 	SyncHostsSoftwareFunc        SyncHostsSoftwareFunc
 	SyncHostsSoftwareFuncInvoked bool
 
-	ReconcileSoftwareTitlesFunc        ReconcileSoftwareTitlesFunc
-	ReconcileSoftwareTitlesFuncInvoked bool
+	CleanupSoftwareTitlesFunc        CleanupSoftwareTitlesFunc
+	CleanupSoftwareTitlesFuncInvoked bool
 
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
@@ -3694,6 +3698,12 @@ type DataStore struct {
 
 	GetAndroidPolicyRequestByUUIDFunc        GetAndroidPolicyRequestByUUIDFunc
 	GetAndroidPolicyRequestByUUIDFuncInvoked bool
+
+	GetLatestAppleMDMCommandOfTypeFunc        GetLatestAppleMDMCommandOfTypeFunc
+	GetLatestAppleMDMCommandOfTypeFuncInvoked bool
+
+	SetLockCommandForLostModeCheckinFunc        SetLockCommandForLostModeCheckinFunc
+	SetLockCommandForLostModeCheckinFuncInvoked bool
 
 	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
 	NewMDMAndroidConfigProfileFuncInvoked bool
@@ -5410,11 +5420,11 @@ func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) 
 	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) ReconcileSoftwareTitles(ctx context.Context) error {
+func (s *DataStore) CleanupSoftwareTitles(ctx context.Context) error {
 	s.mu.Lock()
-	s.ReconcileSoftwareTitlesFuncInvoked = true
+	s.CleanupSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ReconcileSoftwareTitlesFunc(ctx)
+	return s.CleanupSoftwareTitlesFunc(ctx)
 }
 
 func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error {
@@ -8791,7 +8801,7 @@ func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
 }
 
-func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	s.mu.Lock()
 	s.SetAndroidHostUnenrolledFuncInvoked = true
 	s.mu.Unlock()
@@ -8845,6 +8855,20 @@ func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUU
 	s.GetAndroidPolicyRequestByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidPolicyRequestByUUIDFunc(ctx, requestUUID)
+}
+
+func (s *DataStore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error) {
+	s.mu.Lock()
+	s.GetLatestAppleMDMCommandOfTypeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLatestAppleMDMCommandOfTypeFunc(ctx, hostUUID, commandType)
+}
+
+func (s *DataStore) SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error {
+	s.mu.Lock()
+	s.SetLockCommandForLostModeCheckinFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetLockCommandForLostModeCheckinFunc(ctx, hostID, commandUUID)
 }
 
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {

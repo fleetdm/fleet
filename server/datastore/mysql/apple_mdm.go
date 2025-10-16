@@ -7147,3 +7147,30 @@ WHERE
 
 	return &idp, nil
 }
+
+func (ds *Datastore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error) {
+	const stmt = `
+	SELECT id as host_uuid, command_uuid, request_type FROM nano_view_queue WHERE id = ? AND request_type = ? ORDER BY created_at DESC LIMIT 1
+	`
+
+	var cmd fleet.MDMCommand
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &cmd, stmt, hostUUID, commandType); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("MDMCommand")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get latest apple mdm command of type")
+	}
+
+	return &cmd, nil
+}
+
+func (ds *Datastore) SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error {
+	// We know we can insert here, as this is only called when processing a
+	// a new iphone/ipad checkin with lost mode enabled.
+	const stmt = `
+	INSERT INTO host_mdm_actions (host_id, lock_ref)
+	VALUES (?, ?)
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, commandUUID)
+	return ctxerr.Wrap(ctx, err, "set lock ref for lost mode checkin")
+}
