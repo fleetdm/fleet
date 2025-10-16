@@ -7,14 +7,12 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { formatDistanceToNow } from "date-fns";
 
-import { IGetMdmCommandResultsResponse } from "services/entities/mdm";
 import softwareAPI from "services/entities/software";
-import deviceUserAPI, {
-  IGetVppInstallCommandResultsResponse,
-} from "services/entities/device_user";
+import deviceUserAPI from "services/entities/device_user";
 
 import {
   IHostSoftware,
+  ISoftwareIpaInstallResults,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { IMdmCommandResult } from "interfaces/mdm";
@@ -236,8 +234,9 @@ export const SoftwareIpaInstallDetailsModal = ({
   };
 
   const { data: swInstallResult, isLoading, isError, error } = useQuery<
-    IMdmCommandResult,
-    AxiosError
+    ISoftwareIpaInstallResults,
+    AxiosError,
+    IMdmCommandResult
   >(
     ["mdm_command_results", commandUuid],
     async () => {
