@@ -20,7 +20,8 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The device of an Android enterprise was successfully updated.' }
+    success: { description: 'The device of an Android enterprise was successfully updated.' },
+    deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
   },
 
 
@@ -79,6 +80,10 @@ module.exports = {
       });
       return patchDeviceResponse.data;
     }).intercept((err) => {
+      let errorString = err.toString();
+      if (errorString.includes('Device is no longer being managed')) {
+        return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
+      }
       return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 

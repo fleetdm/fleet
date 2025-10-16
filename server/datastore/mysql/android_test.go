@@ -1318,6 +1318,33 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
 		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
 	}, profs)
+
+	// Turn off MDM on host 2 - it should no longer have any operations listed
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled=0 WHERE host_id=?`, hosts[2].ID)
+		return err
+	})
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.Len(t, profs, 4)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+	}, profs)
+
+	// Turn off MDM on host 0 - no more profiles to send
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled=0 WHERE host_id=?`, hosts[0].ID)
+		return err
+	})
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profs)
+	require.Empty(t, toRemoveProfs)
 }
 
 func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
