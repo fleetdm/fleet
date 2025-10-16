@@ -272,7 +272,7 @@ const SoftwareVulnerabilitiesTable = ({
         pageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
-        hideFooter={perPage >= (data?.vulnerabilities?.length || 0)}
+        hideFooter={perPage >= (data?.count || 0)}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
