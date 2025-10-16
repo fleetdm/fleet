@@ -642,6 +642,7 @@
       "source": ["jetbrains_plugins"]
     },
     "filter": {
+      "product": ["snyk_security"],
       "target_sw": ["intellij"],
       "vendor": ["snyk"]
     }
