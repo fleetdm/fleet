@@ -387,7 +387,7 @@ UPDATE host_mdm
 func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	var rows int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		result, err := ds.writer(ctx).ExecContext(ctx, `
+		result, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
 	SET server_url = '', mdm_id = NULL, enrolled = 0
 	WHERE host_id = ? AND enrolled = 1`, hostID)
