@@ -207,12 +207,23 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 		}
 		if r.IsForSoftware() {
 			softwarePackage := ""
+			var source *string
 			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
 			if err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
 			}
 			if installerMeta != nil {
 				softwarePackage = installerMeta.Name
+				// Get the software title to retrieve the source
+				if installerMeta.TitleID != nil {
+					title, err := svc.ds.SoftwareTitleByID(ctx, *installerMeta.TitleID, nil, fleet.TeamFilter{})
+					if err != nil && !fleet.IsNotFound(err) {
+						return ctxerr.Wrap(ctx, err, "getting software title for cancelled setup experience software install")
+					}
+					if title != nil {
+						source = &title.Source
+					}
+				}
 			}
 			activity := fleet.ActivityTypeInstalledSoftware{
 				HostID:              hostID,
@@ -222,6 +233,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
 				Status:              "failed",
 				SelfService:         false,
+				Source:              source,
 				FromSetupExperience: true,
 			}
 			err = svc.NewActivity(ctx, nil, activity)
