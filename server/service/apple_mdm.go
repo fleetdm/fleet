@@ -4239,22 +4239,35 @@ func NewInstalledApplicationListResultsHandler(
 			hostID = expectedVPPInstalls[0].HostID
 		}
 
+		type installStatusSetter struct {
+			// Used to mark the install as verified
+			verifyFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
+			// Used to mark the install as failed
+			failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
+			// Used to get the activity data for an install
+			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool) (*fleet.User, fleet.ActivityDetails, error)
+		}
+
 		var poll, shouldRefetch bool
-		setStatusForExpectedInstall := func(expectedInstall *fleet.HostVPPSoftwareInstall, verifyFn, failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error) error {
+		setStatusForExpectedInstall := func(
+			expectedInstall *fleet.HostVPPSoftwareInstall,
+			setter installStatusSetter,
+
+		) error {
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
 			var terminalStatus string
 			switch {
 			case appFromResult.Installed:
-				if err := verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
+				if err := setter.verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
-				if err := failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
+				if err := setter.failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
@@ -4280,16 +4293,16 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus})
+			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					// Then this isn't a VPP install, so no activity generated
+					// Then this isn't an MDM-based install, so no activity generated
 					return nil
 				}
 
 				return ctxerr.Wrap(ctx, err, "fetching data for installed app store app activity")
 			}
-			act.FromSetupExperience = fromSetupExperience
+
 			if err := newActivity(ctx, user, act, ds, logger); err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
@@ -4298,13 +4311,38 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		for _, expectedInstall := range expectedVPPInstalls {
-			if err := setStatusForExpectedInstall(expectedInstall, ds.SetVPPInstallAsVerified, ds.SetVPPInstallAsFailed); err != nil {
+			setter := installStatusSetter{
+				ds.SetVPPInstallAsVerified,
+				ds.SetVPPInstallAsFailed,
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool) (*fleet.User, fleet.ActivityDetails, error) {
+					user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, results)
+					if err != nil {
+						return nil, nil, err
+					}
+
+					act.FromSetupExperience = fromSetupExp
+
+					return user, act, nil
+				},
+			}
+
+			if err := setStatusForExpectedInstall(expectedInstall, setter); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting status for vpp installs")
 			}
 		}
 
 		for _, expectedInstall := range expectedInHouseInstalls {
-			if err := setStatusForExpectedInstall(expectedInstall, ds.SetInHouseAppInstallAsVerified, ds.SetInHouseAppInstallAsFailed); err != nil {
+			setter := installStatusSetter{
+				ds.SetInHouseAppInstallAsVerified,
+				ds.SetInHouseAppInstallAsFailed,
+				func(ctx context.Context, results *mdm.CommandResults, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
+					return ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
+				},
+			}
+			if err := setStatusForExpectedInstall(
+				expectedInstall,
+				setter,
+			); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting status for in-house app installs")
 			}
 		}
