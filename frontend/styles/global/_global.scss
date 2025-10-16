@@ -40,6 +40,8 @@ h2,
 h3 {
   line-height: 1.2;
   color: $core-fleet-black;
+  font-weight: 600;
+  margin: 0;
 }
 
 p {
@@ -48,14 +50,6 @@ p {
   // multiline paragraphs.
   line-height: 1.5;
   font-size: $x-small;
-}
-
-h1 {
-  font-size: $large;
-  font-weight: $regular;
-  letter-spacing: -0.5px;
-  color: $core-fleet-black;
-  margin: 0;
 }
 
 a {
