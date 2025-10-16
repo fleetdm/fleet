@@ -48,6 +48,7 @@ func TestAndroid(t *testing.T) {
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 		{"AndroidBYODDetection", testAndroidBYODDetection},
 		{"SetAndroidHostUnenrolled", testSetAndroidHostUnenrolled},
+		{"BulkSetAndroidHostsUnenrolled", testBulkSetAndroidHostsUnenrolled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2026,6 +2027,9 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, serverURL)
 	require.Equal(t, 0, mdmIDIsNull)
 
+	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
+	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
@@ -2035,6 +2039,8 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	didUnenroll, err = ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
 	require.False(t, didUnenroll)
+
+	profileCountForHost := 0
 
 	// Validate host_mdm row updated
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2046,7 +2052,70 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
 	})
+	// validate profile records deleted
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &profileCountForHost, `SELECT COUNT(*) FROM host_mdm_android_profiles WHERE host_uuid=?`, res.Host.UUID)
+	})
 	assert.Equal(t, 0, enrolled)
 	assert.Equal(t, "", serverURL)
 	assert.Equal(t, 1, mdmIDIsNull)
+	assert.Equal(t, 0, profileCountForHost)
+}
+
+func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
+	// Set a non-empty server URL so initial enrolled row has data to clear
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
+	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
+
+	// Create 5 android hosts
+	for i := 0; i < 5; i++ {
+		esid := "enterprise-" + uuid.NewString()
+		h := createAndroidHost(esid)
+		res, err := ds.NewAndroidHost(testCtx(), h)
+		require.NoError(t, err)
+
+		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
+		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+	}
+
+	// Create a macOS host (to verify we don't unenroll non-Android hosts)
+	macHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "test-host1-name",
+		OsqueryHostID:  ptr.String("1337"),
+		NodeKey:        ptr.String("1337"),
+		UUID:           "test-uuid-1",
+		Platform:       "darwin",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
+	require.NoError(t, err)
+
+	// Initial sanity check
+	enrolledCount := 0
+	androidHostProfileCount := 0
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
+	})
+	assert.Equal(t, 10, androidHostProfileCount)
+	require.Equal(t, 6, enrolledCount) // 5 android + 1 macOS
+
+	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
+	})
+	require.Equal(t, 1, enrolledCount)
+
+	// validate profile records deleted
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
+	})
+	assert.Equal(t, 0, androidHostProfileCount)
 }

@@ -370,22 +370,47 @@ UPDATE host_mdm
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
-	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+	}
+	// Delete all Android custom OS settings for unenrolled hosts.
+	// We do this in one query using a JOIN to avoid doing it one host at a time.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_android_profiles`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled hosts in bulk")
+	}
+	return nil
 }
 
-// SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm.
-// If the host is not enrolled, it does nothing and returns false.
+// SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm and OS settings records
+// associated with it. If the host is not enrolled, it does nothing and returns false.
 func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
-	result, err := ds.writer(ctx).ExecContext(ctx, `
+	var rows int64
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
 	SET server_url = '', mdm_id = NULL, enrolled = 0
 	WHERE host_id = ? AND enrolled = 1`, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
+		}
+		rows, err = result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for set host_mdm unenrolled for android host")
+		}
+		if rows > 0 {
+			var uuid string
+			err = sqlx.GetContext(ctx, tx, &uuid, `SELECT uuid FROM hosts WHERE id = ?`, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host uuid")
+			}
+			err = ds.deleteMDMOSCustomSettingsForHost(ctx, tx, uuid, "android")
+			return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled host")
+		}
+		return nil
+	})
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get rows affected for set host_mdm unenrolled for android host")
+		return false, err
 	}
 	return rows > 0, nil
 }
