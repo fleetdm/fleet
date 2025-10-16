@@ -106,6 +106,7 @@ export const HOST_LINUX_PLATFORMS = [
   "nixos",
   "endeavouros",
   "manjaro",
+  "manjaro-arm",
   "opensuse-leap",
   "opensuse-tumbleweed",
   "tuxedo",
@@ -156,6 +157,7 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "arch", // Arch Linux
   "archarm", // Arch Linux ARM
   "manjaro",
+  "manjaro-arm",
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (
