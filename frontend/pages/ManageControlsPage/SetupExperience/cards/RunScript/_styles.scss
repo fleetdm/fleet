@@ -7,6 +7,9 @@
 
   &__learn-how-link {
     margin-bottom: $pad-large;
+    &:hover {
+      margin-bottom: $pad-large;
+    }
   }
 
   &__run-message {
