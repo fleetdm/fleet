@@ -174,7 +174,7 @@ Add setup experience software:
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
 3. Press **Save** to save your selection.
 
-To see the end user experience on iOS/iPadOS, check out the [iOS video](TODO) and [iPadOS video](TODO).
+To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
 
 ### Run script
 
