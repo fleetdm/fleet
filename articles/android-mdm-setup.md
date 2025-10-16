@@ -60,7 +60,7 @@ When you turn off Android MDM in Fleet, your Android Enterprise will be deleted,
 
 ### Deleting Android Enterprise in Google Admin
 
-If you ever delete your Android Enterprise in your [Google Admin console](https://admin.google.com) instead of in Fleet, Android MDM will be turned off in Fleet, and the work profile will be deleted from all Android hosts.
+If you ever delete your Android Enterprise in your [Google Admin console](https://admin.google.com) instead of in Fleet, Android MDM will be turned off in Fleet, and the work profile will be deleted from all Android hosts. To re-enroll hosts, refer to the [Turn on](#turn-on) section.
 
 <meta name="articleTitle" value="Android MDM setup">
 <meta name="authorFullName" value="Marko Lisica">
