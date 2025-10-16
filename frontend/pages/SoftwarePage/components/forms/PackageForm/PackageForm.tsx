@@ -57,6 +57,19 @@ export interface IPackageFormValidation {
   customTarget?: { isValid: boolean };
 }
 
+const renderFileTypeMessage = () => {
+  return (
+    <>
+      macOS (.pkg), iOS/iPadOS (.ipa),
+      <br />
+      Windows (.msi, .exe.,{" "}
+      <TooltipWrapper tipContent="Payload-free package">.ps1</TooltipWrapper>),
+      or Linux (.deb, .rpm,{" "}
+      <TooltipWrapper tipContent="Payload-free package">.sh</TooltipWrapper>)
+    </>
+  );
+};
+
 interface IPackageFormProps {
   labels: ILabelSummary[];
   showSchemaButton?: boolean;
@@ -77,7 +90,8 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz";
+const ACCEPTED_EXTENSIONS =
+  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.ipa";
 
 const PackageForm = ({
   labels,
@@ -261,15 +275,16 @@ const PackageForm = ({
   const isExePackage = ext === "exe";
   const isTarballPackage = ext === "tar.gz";
   const isScriptPackage = ext === "sh" || ext === "ps1";
+  const isIpaPackage = ext === "ipa";
   // We currently don't support replacing a tarball package
   const canEditFile = isEditingSoftware && !isTarballPackage;
 
-  // If a user preselects automatic install and then uploads a .exe
-  // which automatic install is not supported, the form will default
-  // back to manual install
+  // If a user preselects automatic install and then uploads a:
+  // exe, tarball, script, or ipa which automatic install is not supported,
+  // the form will default back to manual install
   useEffect(() => {
     if (
-      (isExePackage || isTarballPackage || isScriptPackage) &&
+      (isExePackage || isTarballPackage || isScriptPackage || isIpaPackage) &&
       formData.automaticInstall
     ) {
       onToggleAutomaticInstallCheckbox(false);
@@ -279,11 +294,13 @@ const PackageForm = ({
     isExePackage,
     isTarballPackage,
     isScriptPackage,
+    isIpaPackage,
     onToggleAutomaticInstallCheckbox,
   ]);
 
-  // Show advanced options when a package is selected that's not a script
-  const showAdvancedOptions = formData.software && !isScriptPackage;
+  // Show advanced options when a package is selected that's not a script or ipa
+  const showAdvancedOptions =
+    formData.software && !isScriptPackage && !isIpaPackage;
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
   const showOptionsTargetsSelectors = !gitOpsModeEnabled;
@@ -295,7 +312,7 @@ const PackageForm = ({
           canEdit={canEditFile}
           graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
-          message=".pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1"
+          message={renderFileTypeMessage()}
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
           buttonType="brand-inverse-icon"
@@ -331,6 +348,7 @@ const PackageForm = ({
                   isExePackage={isExePackage}
                   isTarballPackage={isTarballPackage}
                   isScriptPackage={isScriptPackage}
+                  isIpaPackage={isIpaPackage}
                   onClickPreviewEndUserExperience={
                     onClickPreviewEndUserExperience
                   }

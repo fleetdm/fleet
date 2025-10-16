@@ -1,6 +1,8 @@
+import React from "react";
 import { PackageType } from "interfaces/package_type";
+import TooltipWrapper from "components/TooltipWrapper";
 
-type IPlatformDisplayName = "macOS" | "Windows" | "Linux";
+type IPlatformDisplayName = "macOS" | "Windows" | "Linux" | "iOS/iPadOS";
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   string,
@@ -17,6 +19,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   "tar.gz": "Linux",
   sh: "Linux",
   ps1: "Windows",
+  ipa: "iOS/iPadOS",
 };
 
 /** Currently only using tar.gz, but keeping the others for future use
@@ -67,6 +70,13 @@ export const getPlatformDisplayName = (file: File) => {
   if (!fileExt) {
     return undefined;
   }
+  if (fileExt === "ipa") {
+    return (
+      <TooltipWrapper tipContent="Software will be added for both platforms.">
+        {FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt]}
+      </TooltipWrapper>
+    );
+  }
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
@@ -80,5 +90,5 @@ export const getFileDetails = (file: File) => {
 
 export interface IFileDetails {
   name: string;
-  description?: string;
+  description?: React.ReactNode;
 }
