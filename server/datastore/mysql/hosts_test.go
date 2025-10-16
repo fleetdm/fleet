@@ -6804,6 +6804,50 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.True(t, found, "Should find empty email mapping")
+
+	// Test 9: Test replacement of mdm_idp_accounts entries
+	// First, manually insert an mdm_idp_accounts entry to simulate MDM enrollment
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		"mdm.user@example.com", h1.ID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Verify the mdm_idp_accounts entry exists
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	foundMdmIdp := false
+	for _, mapping := range mappings {
+		if mapping.Email == "mdm.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+			foundMdmIdp = true
+			break
+		}
+	}
+	require.True(t, foundMdmIdp, "Should find MDM IDP mapping")
+
+	// Now set a new IDP mapping - this should replace the mdm_idp_accounts entry
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "new.user@example.com")
+	require.NoError(t, err)
+
+	// Verify only the new IDP mapping exists (mdm_idp_accounts should be gone)
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	foundNewIdp := false
+	foundOldMdmIdp := false
+	foundEmptyEmail := false
+	for _, mapping := range mappings {
+		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+			foundNewIdp = true
+		}
+		if mapping.Email == "mdm.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+			foundOldMdmIdp = true
+		}
+		if mapping.Email == "" && mapping.Source == fleet.DeviceMappingIDP {
+			foundEmptyEmail = true
+		}
+	}
+	require.True(t, foundNewIdp, "Should find new IDP mapping")
+	require.False(t, foundOldMdmIdp, "Should NOT find old MDM IDP mapping (replacement behavior)")
+	require.False(t, foundEmptyEmail, "Should NOT find empty email mapping (replaced)")
 }
 
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
