@@ -93,9 +93,9 @@ func NewHostCertificateRecord(
 		Serial:                    cert.SerialNumber.Text(16),
 		SigningAlgorithm:          cert.SignatureAlgorithm.String(),
 		SubjectCommonName:         cert.Subject.CommonName,
-		SubjectCountry:            firstOrEmpty(cert.Subject.Country),            // TODO: confirm methodology
-		SubjectOrganization:       firstOrEmpty(cert.Subject.Organization),       // TODO: confirm methodology
-		SubjectOrganizationalUnit: firstOrEmpty(cert.Subject.OrganizationalUnit), // TODO: confirm methodology
+		SubjectCountry:            firstOrEmpty(cert.Subject.Country),                    // TODO: confirm methodology
+		SubjectOrganization:       firstOrEmpty(cert.Subject.Organization),               // TODO: confirm methodology
+		SubjectOrganizationalUnit: strings.Join(cert.Subject.OrganizationalUnit, "+OU="), // NOTE: concatenation approach matches what we've observed osquery to do when there are multiple OU values
 		IssuerCommonName:          cert.Issuer.CommonName,
 		IssuerCountry:             firstOrEmpty(cert.Issuer.Country),            // TODO: confirm methodology
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
