@@ -188,6 +188,7 @@ type SetupExperienceStatusPayload struct {
 	ConfigurationProfiles []*SetupExperienceConfigurationProfileResult `json:"configuration_profiles,omitempty"`
 	AccountConfiguration  *SetupExperienceAccountConfigurationResult   `json:"account_configuration,omitempty"`
 	OrgLogoURL            string                                       `json:"org_logo_url"`
+	RequireAllSoftware    bool                                         `json:"require_all_software"`
 }
 
 // IsSetupExperienceSupported returns whether "Setup experience" is supported for the host's platform.

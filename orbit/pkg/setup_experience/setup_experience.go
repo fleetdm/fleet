@@ -186,19 +186,20 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	if len(payload.Software) > 0 || payload.Script != nil {
 		log.Info().Msg("setup experience: rendering software and script UI")
 
-		var steps []*fleet.SetupExperienceStatusResult
 		if len(payload.Software) > 0 {
-			steps = payload.Software
-		}
-
-		if payload.Script != nil {
-			steps = append(steps, payload.Script)
-		}
-
-		for _, step := range steps {
-			if step.Status != fleet.SetupExperienceStatusFailure && step.Status != fleet.SetupExperienceStatusSuccess {
-				allStepsDone = false
+			for _, step := range payload.Software {
+				// If any step is not in a terminal state, then we're not done.
+				if (step.Status != fleet.SetupExperienceStatusFailure && step.Status != fleet.SetupExperienceStatusSuccess) ||
+					// If any software failed, and we're requiring all software to succeed, then we'll block completion.
+					(step.Status == fleet.SetupExperienceStatusFailure && payload.RequireAllSoftware) {
+					allStepsDone = false
+				}
 			}
+		}
+
+		// If a script is still running, then we're not done.
+		if payload.Script != nil && payload.Script.Status != fleet.SetupExperienceStatusFailure && payload.Script.Status != fleet.SetupExperienceStatusSuccess {
+			allStepsDone = false
 		}
 	}
 

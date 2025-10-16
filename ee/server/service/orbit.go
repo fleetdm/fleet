@@ -189,6 +189,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		AccountConfiguration:  acctCfgResult,
 		Software:              make([]*fleet.SetupExperienceStatusResult, 0),
 		OrgLogoURL:            appCfg.OrgInfo.OrgLogoURLLightBackground,
+		RequireAllSoftware:    requireAllSoftware,
 	}
 	for _, r := range res {
 		if r.IsForScript() {
