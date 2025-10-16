@@ -127,7 +127,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")
 	}
-	updatedInstaller.Status = &fleet.SoftwareInstallerStatusSummary{Installed: st.Installed, PendingInstall: st.Pending, FailedInstall: st.Pending}
+	updatedInstaller.Status = &fleet.SoftwareInstallerStatusSummary{Installed: st.Installed, PendingInstall: st.Pending, FailedInstall: st.Failed}
 
 	return updatedInstaller, nil
 }
