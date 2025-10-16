@@ -3922,7 +3922,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 
 				// update the install record
-				if err := svc.ds.AssociateVPPInstallToVerificationUUID(r.Context, cmdResult.CommandUUID, cmdUUID, cmdResult.Identifier()); err != nil {
+				if err := svc.ds.AssociateMDMInstallToVerificationUUID(r.Context, cmdResult.CommandUUID, cmdUUID, cmdResult.Identifier()); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "update install record")
 				}
 
@@ -4289,7 +4289,6 @@ func NewInstalledApplicationListResultsHandler(
 
 		if poll {
 			// Queue a job to verify the VPP install.
-			fmt.Printf("poll: %v\ncmdUUID: %s\n", poll, installedAppResult.UUID())
 			return ctxerr.Wrap(
 				ctx,
 				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID()),

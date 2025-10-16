@@ -511,7 +511,7 @@ type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uin
 
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
-type AssociateVPPInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
+type AssociateMDMInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
 
 type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 
@@ -2304,8 +2304,8 @@ type DataStore struct {
 	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
 	GetCategoriesForSoftwareTitlesFuncInvoked bool
 
-	AssociateVPPInstallToVerificationUUIDFunc        AssociateVPPInstallToVerificationUUIDFunc
-	AssociateVPPInstallToVerificationUUIDFuncInvoked bool
+	AssociateMDMInstallToVerificationUUIDFunc        AssociateMDMInstallToVerificationUUIDFunc
+	AssociateMDMInstallToVerificationUUIDFuncInvoked bool
 
 	SetVPPInstallAsVerifiedFunc        SetVPPInstallAsVerifiedFunc
 	SetVPPInstallAsVerifiedFuncInvoked bool
@@ -5605,11 +5605,11 @@ func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, software
 	return s.GetCategoriesForSoftwareTitlesFunc(ctx, softwareTitleIDs, team_id)
 }
 
-func (s *DataStore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error {
+func (s *DataStore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error {
 	s.mu.Lock()
-	s.AssociateVPPInstallToVerificationUUIDFuncInvoked = true
+	s.AssociateMDMInstallToVerificationUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.AssociateVPPInstallToVerificationUUIDFunc(ctx, installUUID, verifyCommandUUID, hostUUID)
+	return s.AssociateMDMInstallToVerificationUUIDFunc(ctx, installUUID, verifyCommandUUID, hostUUID)
 }
 
 func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error {

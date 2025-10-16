@@ -451,19 +451,18 @@ WHERE verification_command_uuid = ?
 func (ds *Datastore) GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
 	stmt := `
 SELECT
-		hvsi.host_id AS host_id,
-		hvsi.command_uuid AS command_uuid,
-		hvsi.host_id AS host_id,
+		hihsi.host_id AS host_id,
+		hihsi.command_uuid AS command_uuid,
 		ncr.updated_at AS ack_at,
 		ncr.status AS install_command_status,
 		iha.bundle_identifier AS bundle_identifier
 FROM nano_command_results ncr
-JOIN host_in_house_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
-JOIN in_house_apps iha ON iha.id = hvsi.in_house_app_id AND iha.platform = hvsi.platform
+JOIN host_in_house_software_installs hihsi ON hihsi.command_uuid = ncr.command_uuid
+JOIN in_house_apps iha ON iha.id = hihsi.in_house_app_id AND iha.platform = hihsi.platform
 WHERE ncr.id = ?
 AND ncr.status = 'Acknowledged'
-AND hvsi.verification_at IS NULL
-AND hvsi.verification_failed_at IS NULL
+AND hihsi.verification_at IS NULL
+AND hihsi.verification_failed_at IS NULL
 		`
 
 	var result []*fleet.HostVPPSoftwareInstall
