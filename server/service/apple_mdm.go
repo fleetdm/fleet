@@ -82,7 +82,7 @@ var (
 	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
 
 	// TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
-	// but that is not the case, digicert is totally supported just in a different way (multiple CA's)
+	// but that is not the case, digicert, custom scep, hydrant and smallstep are totally supported just in a different way (multiple CA's)
 	fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 		fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
@@ -354,8 +354,12 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
+	data, err := io.ReadAll(ff)
+	if err != nil {
+		return &newMDMConfigProfileResponse{Err: err}, nil
+	}
 	// providing an empty set of labels since this endpoint is only maintained for backwards compat
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil, fleet.LabelsIncludeAll)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, nil, fleet.LabelsIncludeAll)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -364,7 +368,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -376,6 +380,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 	}
 
+	err := CheckProfileIsNotSigned(data)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	var teamName string
 	if teamID >= 1 {
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
@@ -385,21 +394,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		teamName = tm.Name
 	}
 
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to read Apple config profile",
-			InternalErr: err,
-		})
-	}
-
 	// Check for secrets in profile name before expansion
-	if err := fleet.ValidateNoSecretsInProfileName(b); err != nil {
+	if err := fleet.ValidateNoSecretsInProfileName(data); err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	// Expand and validate secrets in profile
-	expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(b))
+	expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
@@ -435,7 +436,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	// Save the original unexpanded profile
-	cp.Mobileconfig = b
+	cp.Mobileconfig = data
 	cp.SecretsUpdatedAt = secretsUpdatedAt
 
 	labelMap, err := svc.validateProfileLabels(ctx, labels)
@@ -498,6 +499,19 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
+// CheckProfileIsNotSigned checks if the provided profile data is a signed profile.
+// If it is signed, it returns a BadRequestError indicating that signed profiles
+// are not allowed. If the profile is not signed, it returns nil.
+func CheckProfileIsNotSigned(data []byte) error {
+	mc := mobileconfig.Mobileconfig(data)
+	if mc.IsSignedProfile() {
+		return &fleet.BadRequestError{
+			Message: "Couldn't add. Configuration profiles can't be signed. Fleet wil sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
+		}
+	}
+	return nil
+}
+
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) (map[string]struct{}, error) {
 	fleetVars := variables.FindKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
@@ -513,6 +527,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		digiCertVars   *digiCertVarsFound
 		customSCEPVars *customSCEPVarsFound
 		ndesVars       *ndesVarsFound
+		smallstepVars  *smallstepVarsFound
 	)
 	for _, k := range fleetVars {
 		ok := true
@@ -555,6 +570,24 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 						break
 					}
 				}
+			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
+				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
+				for _, ca := range groupedCAs.Smallstep {
+					if ca.Name == caName {
+						found = true
+						smallstepVars, ok = smallstepVars.SetURL(caName)
+						break
+					}
+				}
+			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix)):
+				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
+				for _, ca := range groupedCAs.Smallstep {
+					if ca.Name == caName {
+						found = true
+						smallstepVars, ok = smallstepVars.SetChallenge(caName)
+						break
+					}
+				}
 			}
 			if !found {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
@@ -566,9 +599,15 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			case string(fleet.FleetVarNDESSCEPChallenge):
 				ndesVars, ok = ndesVars.SetChallenge()
 			case string(fleet.FleetVarSCEPRenewalID):
+				// This is kind of a goofy way of doing things but essentially, since custom SCEP, NDES, and Smallstep
+				// share the renewal ID Fleet variable, we need to set the
+
 				customSCEPVars, ok = customSCEPVars.SetRenewalID()
 				if ok {
 					ndesVars, ok = ndesVars.SetRenewalID()
+					if ok {
+						smallstepVars, ok = smallstepVars.SetRenewalID()
+					}
 				}
 			}
 		}
@@ -586,12 +625,21 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			return nil, err
 		}
 	}
-	// Since both custom SCEP and NDES share the renewal ID Fleet variable, we need to figure out which one to validate.
-	if customSCEPVars.Found() && ndesVars.Found() {
+	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
+	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() {
 		if ndesVars.RenewalOnly() {
 			ndesVars = nil
-		} else if customSCEPVars.RenewalOnly() {
+		}
+		if customSCEPVars.RenewalOnly() {
 			customSCEPVars = nil
+		}
+		if smallstepVars.RenewalOnly() {
+			smallstepVars = nil
+		}
+		// If only the renewal ID variable appeared without any of its associated variables, return an error. It is shared
+		// by the 3 CA types but is only allowed when CA vars are in use
+		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil {
+			return nil, &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
 		}
 	}
 	if customSCEPVars.Found() {
@@ -608,6 +656,15 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
 		}
 		err := additionalNDESValidation(contents, ndesVars)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if smallstepVars.Found() {
+		if !smallstepVars.Ok() {
+			return nil, &fleet.BadRequestError{Message: smallstepVars.ErrorMessage()}
+		}
+		err := additionalSmallstepValidation(contents, smallstepVars)
 		if err != nil {
 			return nil, err
 		}
@@ -744,6 +801,59 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	return nil
 }
 
+func additionalSmallstepValidation(contents string, smallstepVars *smallstepVarsFound) error {
+	scepProf, err := unmarshalSCEPProfile(contents)
+	if err != nil {
+		return err
+	}
+	scepPayloadContent, err := checkThatOnlyOneSCEPPayloadIsPresent(scepProf)
+	if err != nil {
+		return err
+	}
+
+	var foundCAs []string
+	for _, ca := range smallstepVars.CAs() {
+		// Although this is a loop, we know that we can only have 1 set of SCEP vars because Apple only allows 1 SCEP payload in a profile.
+		// Check for the exact match on challenge and URL
+		challengePrefix := "FLEET_VAR_" + string(fleet.FleetVarSmallstepSCEPChallengePrefix)
+		if scepPayloadContent.Challenge != "$"+challengePrefix+ca && scepPayloadContent.Challenge != "${"+challengePrefix+ca+"}" {
+			payloadChallenge := scepPayloadContent.Challenge
+			if len(payloadChallenge) > maxValueCharsInError {
+				payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
+			}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					string(fleet.FleetVarSmallstepSCEPChallengePrefix) + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
+				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+			}
+		}
+		urlPrefix := "FLEET_VAR_" + string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)
+		if scepPayloadContent.URL != "$"+urlPrefix+ca && scepPayloadContent.URL != "${"+urlPrefix+ca+"}" {
+			payloadURL := scepPayloadContent.URL
+			if len(payloadURL) > maxValueCharsInError {
+				payloadURL = payloadURL[:maxValueCharsInError] + "..."
+			}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + ca + "\" must be in the SCEP certificate's \"URL\" field.",
+				InternalErr: fmt.Errorf("URL: %s", payloadURL),
+			}
+		}
+		foundCAs = append(foundCAs, ca)
+	}
+	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's common name (CN)."}
+	}
+	if len(foundCAs) < len(smallstepVars.CAs()) {
+		for _, ca := range smallstepVars.CAs() {
+			if !slices.Contains(foundCAs, ca) {
+				return &fleet.BadRequestError{Message: fleet.SCEPVariablesNotInSCEPPayloadErrMsg}
+			}
+		}
+	}
+	return nil
+}
+
 func checkThatOnlyOneSCEPPayloadIsPresent(scepProf SCEPProfileContent) (SCEPPayloadContent, error) {
 	scepPayloadsFound := 0
 	var scepPayloadContent SCEPPayloadContent
@@ -871,7 +981,7 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 	return nil
 }
 
-func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -896,11 +1006,6 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 		teamName = tm.Name
-	}
-
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
 	}
 
 	var tmID *uint
@@ -2283,11 +2388,12 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 			HostSerial:       h.HardwareSerial,
 			HostDisplayName:  h.DisplayName(),
 			InstalledFromDEP: info.InstalledFromDEP,
+			Platform:         h.Platform,
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
 	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
 		Platform: info.Platform,
@@ -2596,6 +2702,12 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
+
+		err := CheckProfileIsNotSigned(prof)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+
 		// Check for secrets in profile name before expansion
 		if err := fleet.ValidateNoSecretsInProfileName(prof); err != nil {
 			return ctxerr.Wrap(ctx,
@@ -3370,16 +3482,18 @@ type MDMAppleCheckinAndCommandService struct {
 	commander       *apple_mdm.MDMAppleCommander
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
+	keyValueStore   fleet.KeyValueStore
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
-	mdmLifecycle := mdmlifecycle.New(ds, logger)
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger, keyValueStore fleet.KeyValueStore) *MDMAppleCheckinAndCommandService {
+	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
 		commander:       commander,
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:   keyValueStore,
 	}
 }
 
@@ -3455,12 +3569,23 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 			HostDisplayName:  updatedInfo.DisplayName,
 			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
+			Platform:         updatedInfo.Platform,
 		}
 		if r.Type == mdm.UserEnrollmentDevice {
 			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(updatedInfo.HardwareSerial)
 		}
+
+		if svc.keyValueStore != nil {
+			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
+			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
+			if err != nil {
+				// We do not want to fail here, just log the error to notify
+				level.Error(svc.logger).Log("msg", "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
+			}
+		}
+
 		return newActivity(
 			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
 		)
@@ -3495,7 +3620,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
-		if !info.MigrationInProgress {
+		// Always run setup experience on non-macOS hosts(i.e. iOS/iPadOS), only run it on macOS if
+		// this is not an ABM MDM migration
+		if info.Platform != "darwin" || !info.MigrationInProgress {
 			// Enqueue setup experience items and mark the host as being in setup experience
 			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
 			if err != nil {
@@ -3582,6 +3709,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
+			Platform:         info.Platform,
 		}, svc.ds, svc.logger,
 	)
 }
@@ -3692,7 +3820,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
 		if deletedDevice == nil {
-			if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			if err := svc.ds.CleanAppleMDMLock(r.Context, cmdResult.UDID); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 			}
 		}
@@ -3732,7 +3860,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-	case "DeviceLock", "EraseDevice":
+	case "DeviceLock", "EraseDevice", "EnableLostMode", "DisableLostMode":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
@@ -3753,7 +3881,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
-			// TODO: consider limiting this to only macOS hosts
 			var fromSetupExperience bool
 			if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      cmdResult.Identifier(),
@@ -3764,7 +3891,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			} else if updated {
 				// TODO: call next step of setup experience?
 				fromSetupExperience = true
-				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
+				level.Debug(svc.logger).Log("msg", "setup experience VPP install result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
 			}
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
@@ -3952,6 +4079,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		wifiMac = wifiMacVal.(string)
 	}
 	productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
+	isLostModeEnabled := deviceInformationResponse.QueryResponses["IsMDMLostModeEnabled"].(bool)
 	host.ComputerName = deviceName
 	host.Hostname = deviceName
 	host.GigsDiskSpaceAvailable = availableDeviceCapacity
@@ -3977,7 +4105,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
 	if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
-		deviceCapacity); err != nil {
+		deviceCapacity, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
 	}
 	if err := svc.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
@@ -3993,7 +4121,28 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		if err := svc.ds.UpdateMDMData(ctx, host.ID, true); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to update MDM data")
 		}
+
+		// We run this check here as we only want to run it on re-check ins for deleted hosts.
+		if (platform == "ios" || platform == "ipados") && isLostModeEnabled {
+			fmt.Println("===lost mode enabled on iPhone/iPad, checking for lock command record", host.UUID)
+			cmd, err := svc.ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing EnableLostMode command")
+			}
+			if fleet.IsNotFound(err) {
+				// Device is in lost mode, but we do not have a lock command record for it.
+				// Lost mode was enabled outside of Fleet?
+				return nil, ctxerr.NewWithData(ctx, "device is in lost mode but no EnableLostMode command record found", map[string]interface{}{"host_uuid": host.UUID})
+			}
+
+			level.Debug(svc.logger).Log("msg", "device is in lost mode and EnableLostMode command record found, updating host lock/wipe status", "host_uuid", host.UUID)
+			err = svc.ds.SetLockCommandForLostModeCheckin(ctx, host.ID, cmd.CommandUUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host lost mode status on refetch")
+			}
+		}
 	}
+
 	return nil, nil
 }
 
@@ -4117,7 +4266,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				fromSetupExperience = true
-				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
+				level.Debug(logger).Log("msg", "setup experience VPP install result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
 			}
 
 			// create an activity for installing only if we're in a terminal state
@@ -4896,6 +5045,7 @@ func preprocessProfileContents(
 		ndesConfig    *fleet.NDESSCEPProxyCA
 		digiCertCAs   map[string]*fleet.DigiCertCA
 		customSCEPCAs map[string]*fleet.CustomSCEPProxyCA
+		smallstepCAs  map[string]*fleet.SmallstepSCEPProxyCA
 	)
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
@@ -4927,7 +5077,9 @@ func preprocessProfileContents(
 		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
 		// well
 		for fleetVar := range fleetVars {
-			if fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) || fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+			if fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) ||
+				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
 				// Give a few minutes leeway to account for clock skew
@@ -4936,6 +5088,7 @@ func preprocessProfileContents(
 			}
 		}
 
+	initialFleetVarLoop:
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
@@ -4945,7 +5098,7 @@ func preprocessProfileContents(
 				}
 				if !configured {
 					valid = false
-					break
+					break initialFleetVarLoop
 				}
 
 			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) ||
@@ -4970,7 +5123,7 @@ func preprocessProfileContents(
 				}
 				if !configured {
 					valid = false
-					break
+					break initialFleetVarLoop
 				}
 
 			case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
@@ -4990,7 +5143,27 @@ func preprocessProfileContents(
 				}
 				if !configured {
 					valid = false
-					break
+					break initialFleetVarLoop
+				}
+
+			case strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
+				if smallstepCAs == nil {
+					smallstepCAs = make(map[string]*fleet.SmallstepSCEPProxyCA)
+				}
+				var caName string
+				if strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) {
+					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
+				} else {
+					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
+				}
+				configured, err := isSmallstepSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, smallstepCAs, profUUID, target, caName,
+					fleetVar)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking Smallstep SCEP configuration")
+				}
+				if !configured {
+					valid = false
+					break initialFleetVarLoop
 				}
 
 			default:
@@ -5142,6 +5315,56 @@ func preprocessProfileContents(
 						Type:        fleet.CAConfigCustomSCEPProxy,
 						CAName:      caName,
 					})
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)):
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
+					ca, ok := smallstepCAs[caName]
+					if !ok {
+						level.Error(logger).Log("msg", "Smallstep SCEP CA not found. "+
+							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+						continue
+					}
+					challenge, err := scepConfig.GetSmallstepSCEPChallenge(ctx, *ca)
+					if err != nil {
+						detail := fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarSmallstepSCEPChallengePrefix, err.Error())
+						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:        target.cmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for Smallstep SCEP challenge")
+						}
+						failed = true
+						break fleetVarLoop
+					}
+					level.Info(logger).Log("msg", "retrieved SCEP challenge from Smallstep", "host_uuid", hostUUID, "profile_uuid", profUUID)
+
+					payload := &fleet.MDMManagedCertificate{
+						HostUUID:             hostUUID,
+						ProfileUUID:          profUUID,
+						ChallengeRetrievedAt: ptr.Time(time.Now()),
+						Type:                 fleet.CAConfigSmallstep,
+						CAName:               caName,
+					}
+					managedCertificatePayloads = append(managedCertificatePayloads, payload)
+					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPChallengePrefix), ca.Name, hostContents, challenge)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP challenge variable")
+					}
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
+					// Insert the SCEP URL into the profile contents
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
+					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
+						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
+					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPProxyURLPrefix), caName, hostContents, proxyURL)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP URL variable")
+					}
 
 				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
 					email, ok, err := getIDPEmail(ctx, ds, target, hostUUID)
@@ -5827,6 +6050,138 @@ func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertif
 	}
 
 	existingCustomSCEPCAs[caName] = scepCA
+	return true, nil
+}
+
+type smallstepVarsFound struct {
+	urlCA          map[string]struct{}
+	challengeCA    map[string]struct{}
+	renewalIdFound bool
+}
+
+// Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
+// This allows the Admin to override the SCEP challenge in the profile.
+func (cs *smallstepVarsFound) Ok() bool {
+	if cs == nil {
+		return true
+	}
+	// There must be a 1:1 mapping between URL and Challenge CAs
+	if len(cs.challengeCA) != len(cs.urlCA) {
+		return false
+	}
+	if len(cs.challengeCA) == 0 {
+		return false
+	}
+	for ca := range cs.challengeCA {
+		if _, ok := cs.urlCA[ca]; !ok {
+			// Unable to find matching URL CA for Challenge CA
+			return false
+		}
+	}
+	return cs.renewalIdFound
+}
+
+func (cs *smallstepVarsFound) Found() bool {
+	return cs != nil
+}
+
+func (cs *smallstepVarsFound) RenewalOnly() bool {
+	return cs != nil && len(cs.urlCA) == 0 && len(cs.challengeCA) == 0 && cs.renewalIdFound
+}
+
+func (cs *smallstepVarsFound) CAs() []string {
+	if cs == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(cs.urlCA))
+	for key := range cs.urlCA {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (cs *smallstepVarsFound) ErrorMessage() string {
+	if cs.renewalIdFound && len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
+		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
+	}
+	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
+		return fmt.Sprintf("SCEP profile for Smallstep certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarSmallstepSCEPChallengePrefix, fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
+	}
+	for ca := range cs.challengeCA {
+		if _, ok := cs.urlCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarSmallstepSCEPProxyURLPrefix, ca)
+		}
+	}
+	for ca := range cs.urlCA {
+		if _, ok := cs.challengeCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarSmallstepSCEPChallengePrefix, ca)
+		}
+	}
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
+		fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarSmallstepSCEPChallengePrefix)
+}
+
+func (cs *smallstepVarsFound) SetURL(value string) (*smallstepVarsFound, bool) {
+	if cs == nil {
+		cs = &smallstepVarsFound{}
+	}
+	if cs.urlCA == nil {
+		cs.urlCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := cs.urlCA[value]
+	cs.urlCA[value] = struct{}{}
+	return cs, !alreadyPresent
+}
+
+func (cs *smallstepVarsFound) SetChallenge(value string) (*smallstepVarsFound, bool) {
+	if cs == nil {
+		cs = &smallstepVarsFound{}
+	}
+	if cs.challengeCA == nil {
+		cs.challengeCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := cs.challengeCA[value]
+	cs.challengeCA[value] = struct{}{}
+	return cs, !alreadyPresent
+}
+
+func (cs *smallstepVarsFound) SetRenewalID() (*smallstepVarsFound, bool) {
+	if cs == nil {
+		cs = &smallstepVarsFound{}
+	}
+	alreadyPresent := cs.renewalIdFound
+	cs.renewalIdFound = true
+	return cs, !alreadyPresent
+}
+
+func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	existingSmallstepSCEPCAs map[string]*fleet.SmallstepSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
+) (bool, error) {
+	if !license.IsPremium(ctx) {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Smallstep SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+	}
+	if _, ok := existingSmallstepSCEPCAs[caName]; ok {
+		return true, nil
+	}
+	configured := false
+	var scepCA *fleet.SmallstepSCEPProxyCA
+	if len(groupedCAs.Smallstep) > 0 {
+		for _, ca := range groupedCAs.Smallstep {
+			if ca.Name == caName {
+				scepCA = &ca
+				configured = true
+				break
+			}
+		}
+	}
+	if !configured || scepCA == nil {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
+	}
+
+	existingSmallstepSCEPCAs[caName] = scepCA
 	return true, nil
 }
 
@@ -7079,10 +7434,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
 func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger kitlog.Logger, urlPrefix string) error {
-	var depSvc *apple_mdm.DEPService
-	if depSvc == nil {
-		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
-	}
+	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
 
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {

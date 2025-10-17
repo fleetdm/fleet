@@ -230,7 +230,7 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 		}
 	} else {
 		// Create all needed directories
-		if os.MkdirAll(filepath.Dir(finalPath), 0o755) != nil {
+		if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
 			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
 		}
 

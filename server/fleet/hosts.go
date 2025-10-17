@@ -339,7 +339,10 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
-	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	// GigsTotalDiskSpace and GigsAllDiskSpace as defined by `server > service > osquery_utils >
+	// queries.go > hostDetailQueries.disk_space_unix`
+	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -816,7 +819,9 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
+	return h.Platform == "ubuntu" ||
+		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -983,18 +988,42 @@ func PlatformSupportsOsquery(platform string) bool {
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
+// IMPORTANT: When updating this, also make sure to update HOST_LINUX_PLATFORMS in frontend code.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
+	"linux",
+	"ubuntu",
+	"debian",
+	"rhel",
+	"centos",
+	"sles",
+	"kali",
+	"gentoo",
+	"amzn",
+	"pop",
+	"arch",
+	"linuxmint",
+	"void",
+	"nixos",
+	"endeavouros",
+	"manjaro",
+	"manjaro-arm",
+	"opensuse-leap",
+	"opensuse-tumbleweed",
+	"tuxedo",
+	"neon",
+	"archarm",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
 var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"arch":        {},
+	"archarm":     {},
 	"gentoo":      {},
 	"void":        {},
 	"nixos":       {},
 	"endeavouros": {},
 	"manjaro":     {},
+	"manjaro-arm": {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages

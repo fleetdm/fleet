@@ -34,13 +34,15 @@ func TestBatchHostnamesLarge(t *testing.T) {
 		large = append(large, strconv.Itoa(i))
 	}
 	batched := batchHostnames(large)
-	require.Equal(t, 6, len(batched))
-	assert.Equal(t, large[:20_000], batched[0])
-	assert.Equal(t, large[20_000:40_000], batched[1])
-	assert.Equal(t, large[40_000:60_000], batched[2])
-	assert.Equal(t, large[60_000:80_000], batched[3])
-	assert.Equal(t, large[80_000:100_000], batched[4])
-	assert.Equal(t, large[100_000:110_000], batched[5])
+	require.Equal(t, 8, len(batched))
+	assert.Equal(t, large[:15_000], batched[0])
+	assert.Equal(t, large[15_000:30_000], batched[1])
+	assert.Equal(t, large[30_000:45_000], batched[2])
+	assert.Equal(t, large[45_000:60_000], batched[3])
+	assert.Equal(t, large[60_000:75_000], batched[4])
+	assert.Equal(t, large[75_000:90_000], batched[5])
+	assert.Equal(t, large[90_000:105_000], batched[6])
+	assert.Equal(t, large[105_000:110_000], batched[7])
 }
 
 func TestBatchHostIdsSmall(t *testing.T) {
@@ -319,9 +321,9 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Platform:        "darwin",
 	})
 	require.Nil(t, err)
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2, nil))
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
@@ -750,8 +752,8 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 			SeenTime:        time.Now(),
 			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
 			NodeKey:         ptr.String(strconv.Itoa(i)),
-			UUID:            strconv.Itoa(i),
-			Hostname:        strconv.Itoa(i),
+			UUID:            fmt.Sprintf("uuid%s", strconv.Itoa(i)),
+			Hostname:        fmt.Sprintf("host%s", strconv.Itoa(i)),
 		})
 		require.Nil(t, err)
 	}
@@ -788,6 +790,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	err := ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
 	require.Nil(t, err)
 
+	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"}
 	return expectedSpecs
 }
 
@@ -1864,8 +1867,8 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 2)
-	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
-	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
 
 	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
 	require.NoError(t, err)
@@ -1971,9 +1974,9 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 3)
-	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
-	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
-	require.Equal(t, host3.Hostname, labelSpec.Hosts[2])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2]) //nolint:gosec // dismiss G115
 }
 
 func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
@@ -2006,6 +2009,15 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 		Platform:       "windows",
 	})
 	require.NoError(t, err)
+	host4, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("4"),
+		NodeKey:        ptr.String("4"),
+		UUID:           "uuid4",
+		Hostname:       "boop.local",
+		HardwareSerial: "hwd4",
+		Platform:       "linux",
+	})
+	require.NoError(t, err)
 
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 		{
@@ -2015,6 +2027,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 				"foo.local",
 				"hwd2",
 				"uuid3",
+				strconv.Itoa(int(host4.ID)), //nolint:gosec // dismiss G115
 			},
 		},
 	})
@@ -2022,10 +2035,11 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 3)
+	require.Len(t, hosts, 4)
 	require.Equal(t, host1.ID, hosts[0].ID)
 	require.Equal(t, host2.ID, hosts[1].ID)
 	require.Equal(t, host3.ID, hosts[2].ID)
+	require.Equal(t, host4.ID, hosts[3].ID)
 }
 
 func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {

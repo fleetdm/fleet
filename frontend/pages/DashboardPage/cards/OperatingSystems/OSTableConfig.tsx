@@ -28,6 +28,7 @@ import {
   IStringCellProps,
 } from "interfaces/datatable_config";
 import { isLinuxLike } from "interfaces/platform";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
@@ -95,10 +96,23 @@ const generateDefaultTableHeaders = (
   {
     Header: "Version",
     disableSortBy: true,
-    accessor: "version",
-    Cell: (cellProps: IVersionCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IVersionCellProps) => {
+      const { version, name_only } = cellProps.row.original;
+      if (
+        [
+          "Arch Linux",
+          "Arch Linux ARM",
+          "Manjaro Linux",
+          "Manjaro Linux ARM",
+        ].includes(name_only) &&
+        version === "rolling"
+      ) {
+        return (
+          <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
+        );
+      }
+      return <TextCell value={version} />;
+    },
   },
   {
     Header: (): JSX.Element => {

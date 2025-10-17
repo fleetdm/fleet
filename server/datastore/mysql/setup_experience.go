@@ -14,9 +14,22 @@ import (
 )
 
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, false)
+}
+
+func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, true)
+}
+
+func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
-WHERE host_uuid = ?`
+WHERE host_uuid = ? AND %s`
+	if resetFailedSetupSteps {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "status != 'success'")
+	} else {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
+	}
 
 	// stmtSoftwareInstallers query currently supports installers for macOS and Linux.
 	stmtSoftwareInstallers := `
@@ -36,12 +49,12 @@ INNER JOIN software_titles st
 WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND (
-	-- installer platform matches the host's fleet platform (linux or darwin)
+	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
 	AND
 	(
-		-- platform is 'darwin', so nothing else to check.
-		si.platform = 'darwin'
+		-- platform is 'darwin' or 'windows', so nothing else to check.
+		(si.platform = 'darwin' OR si.platform = 'windows')
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
@@ -57,7 +70,14 @@ AND (
 			)
 		)
 	)
-)`
+)
+AND %s ORDER BY st.name ASC	
+`
+	if resetFailedSetupSteps {
+		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+	} else {
+		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "TRUE")
+	}
 
 	stmtVPPApps := `
 INSERT INTO setup_experience_status_results (
@@ -77,7 +97,16 @@ INNER JOIN vpp_apps_teams vat
 INNER JOIN software_titles st
 	ON va.title_id = st.id
 WHERE vat.install_during_setup = true
-AND vat.global_or_team_id = ?`
+AND vat.global_or_team_id = ?
+AND va.platform = ?
+AND %s
+ORDER BY st.name ASC
+`
+	if resetFailedSetupSteps {
+		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
+	} else {
+		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "TRUE")
+	}
 
 	stmtSetupScripts := `
 INSERT INTO setup_experience_status_results (
@@ -95,6 +124,8 @@ WHERE global_or_team_id = ?`
 
 	var totalInsertions uint
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		totalInsertions = 0 // reset for each attempt
+
 		// Clean out old statuses for the host
 		if _, err := tx.ExecContext(ctx, stmtClearSetupStatus, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing stale setup experience entries")
@@ -102,23 +133,33 @@ WHERE global_or_team_id = ?`
 
 		// Software installers
 		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+		args := []any{hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
+		if resetFailedSetupSteps {
+			args = append(args, hostUUID)
 		}
-		inserts, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
+		if fleetPlatform != "ios" && fleetPlatform != "ipados" {
+			res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+			}
+			inserts, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
+			}
+			totalInsertions += uint(inserts) // nolint: gosec
 		}
-		totalInsertions += uint(inserts) // nolint: gosec
 
 		// VPP apps
-		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
+			args := []any{hostUUID, teamID, fleetPlatform}
+			if resetFailedSetupSteps {
+				args = append(args, hostUUID)
+			}
+			res, err := tx.ExecContext(ctx, stmtVPPApps, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
 			}
@@ -127,19 +168,19 @@ WHERE global_or_team_id = ?`
 
 		// Scripts
 		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
+			res, err := tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience scripts")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
 			}
 			totalInsertions += uint(inserts) // nolint: gosec
 		}
 
-		// Set setup experience on darwin hosts only if they have something configured.
-		if fleetPlatform == "darwin" {
+		// Set setup experience on Apple hosts only if they have something configured.
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
 			if totalInsertions > 0 {
 				if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
@@ -156,8 +197,8 @@ WHERE global_or_team_id = ?`
 }
 
 func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
-	if platform != string(fleet.MacOSPlatform) && platform != "linux" {
-		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
+		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
 	}
 
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
@@ -197,7 +238,7 @@ WHERE
 	vat.global_or_team_id = ?
 AND
 	st.id IN (%s)
-AND va.platform = 'darwin'
+AND va.platform IN ('darwin', 'ios', 'ipados')
 `, titleIDQuestionMarks)
 
 	stmtUnsetInstallers := `
@@ -237,34 +278,40 @@ WHERE id IN (%s)`
 		}
 
 		// Select requested software installers
-		if len(titleIDs) > 0 {
-			if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
-				return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
+		if platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
+			if len(titleIDs) > 0 {
+				if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
+					return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
+				}
 			}
-		}
 
-		// Validate software titles match the expected platform.
-		for _, tuple := range softwareIDPlatforms {
-			delete(missingTitleIDs, tuple.TitleID)
-			if tuple.Platform != platform {
-				return ctxerr.Errorf(ctx, "invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform)
+			// Validate software titles match the expected platform.
+			for _, tuple := range softwareIDPlatforms {
+				delete(missingTitleIDs, tuple.TitleID)
+				if tuple.Platform != platform {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform),
+					})
+				}
+				softwareIDs = append(softwareIDs, tuple.ID)
 			}
-			softwareIDs = append(softwareIDs, tuple.ID)
 		}
 
 		// Select requested VPP apps
-		if platform == string(fleet.MacOSPlatform) {
+		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
 				}
 			}
 
-			// Validate only macOS VPPP apps
+			// Validate VPP app platforms
 			for _, tuple := range vppIDPlatforms {
 				delete(missingTitleIDs, tuple.TitleID)
-				if tuple.Platform != string(fleet.MacOSPlatform) {
-					return ctxerr.Errorf(ctx, "only MacOS supported, unsupported AppStoreApp title: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
+				if tuple.Platform != platform {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("invalid platform for requested AppStoreApp title: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform),
+					})
 				}
 				vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
 			}
@@ -285,7 +332,7 @@ WHERE id IN (%s)`
 		}
 
 		// Unset all vpp apps
-		if platform == string(fleet.MacOSPlatform) {
+		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
 			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, platform, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 			}
@@ -298,7 +345,7 @@ WHERE id IN (%s)`
 			}
 		}
 
-		if platform == string(fleet.MacOSPlatform) && len(vppAppTeamIDs) > 0 {
+		if (platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform)) && len(vppAppTeamIDs) > 0 {
 			stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
 			if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting vpp app teams")
@@ -313,9 +360,50 @@ WHERE id IN (%s)`
 	return nil
 }
 
+func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform string, teamID *uint) (*fleet.SetupExperienceCount, error) {
+	stmt := `
+		SELECT
+		(
+			SELECT COUNT(*)
+			FROM software_installers
+			WHERE team_id = ?
+			AND install_during_setup = 1
+			AND platform = ?
+		) AS installers,
+		(
+			SELECT COUNT(*)
+			FROM vpp_apps_teams
+			WHERE team_id = ?
+			AND platform = ?
+			AND install_during_setup = 1
+		) AS vpp,
+		(
+			SELECT COUNT(*)
+			FROM setup_experience_scripts
+			WHERE team_id = ?
+		) AS scripts`
+
+	sec := &fleet.SetupExperienceCount{}
+	if err := sqlx.GetContext(
+		ctx, ds.reader(ctx), sec, stmt,
+		teamID, platform,
+		teamID, platform,
+		teamID,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting setup experience counts")
+	}
+
+	// Only macOS supports scripts during setup experience currently
+	if platform != string(fleet.MacOSPlatform) {
+		sec.Scripts = 0
+	}
+
+	return sec, nil
+}
+
 func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
-	if platform != string(fleet.MacOSPlatform) && platform != "linux" {
-		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
+		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
 	}
 
 	opts.IncludeMetadata = true
@@ -361,16 +449,28 @@ SELECT
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
-	sesr.error,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
-	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id
+	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+    CASE
+        WHEN hsi.execution_status = 'failed_install' THEN
+            CASE
+                WHEN post_install_script_exit_code IS NOT NULL AND post_install_script_exit_code != 0 THEN COALESCE(post_install_script_output, 'Unknown error in post-install script')
+                WHEN install_script_exit_code IS NOT NULL AND install_script_exit_code != 0 THEN COALESCE(install_script_output, 'Unknown error in install script')
+                WHEN pre_install_query_output IS NULL OR pre_install_query_output = '' THEN 'Pre-install query failed'
+                ELSE 'Installation failed'
+            END
+        WHEN hsr.exit_code IS NOT NULL AND hsr.exit_code != 0 THEN COALESCE(hsr.output, 'Unknown error in script')
+        ELSE sesr.error
+    END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
 LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
+LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
+LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
-LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id
+LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
 WHERE host_uuid = ?
 	`
 	var results []*fleet.SetupExperienceStatusResult
@@ -393,7 +493,7 @@ SET
 	nano_command_uuid = ?,
 	setup_experience_script_id = ?,
 	script_execution_id = ?,
-	error = ?
+	error = LEFT(?, 255)
 WHERE id = ?
 `
 	if err := status.IsValid(); err != nil {
@@ -649,4 +749,16 @@ func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context,
 	n, _ := res.RowsAffected()
 
 	return n > 0, nil
+}
+
+func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error {
+	cancelStmt := "UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND status NOT IN (?, ?)"
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, cancelStmt, fleet.SetupExperienceStatusCancelled, hostUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure)
+		return err
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
+	}
+	return nil
 }

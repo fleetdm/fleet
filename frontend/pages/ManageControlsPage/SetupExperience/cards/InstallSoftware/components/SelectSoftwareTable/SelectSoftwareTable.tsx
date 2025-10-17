@@ -26,23 +26,17 @@ const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
 interface ISelectSoftwareTableProps {
   softwareTitles: ISoftwareTitle[];
   onChangeSoftwareSelect: (select: boolean, id: number) => void;
-  onChangeSelectAll: (selectAll: boolean) => void;
   platform: SetupExperiencePlatform;
 }
 
 const SelectSoftwareTable = ({
   softwareTitles,
   onChangeSoftwareSelect,
-  onChangeSelectAll,
   platform,
 }: ISelectSoftwareTableProps) => {
   const tableConfig = useMemo(() => {
-    return generateTableConfig(
-      platform,
-      onChangeSelectAll,
-      onChangeSoftwareSelect
-    );
-  }, [onChangeSelectAll, onChangeSoftwareSelect, platform]);
+    return generateTableConfig(platform, onChangeSoftwareSelect);
+  }, [onChangeSoftwareSelect, platform]);
 
   const initialSelectedSoftwareRows = useMemo(() => {
     return generateSelectedRows(softwareTitles);
@@ -78,7 +72,6 @@ const SelectSoftwareTable = ({
       searchable
       searchQueryColumn="name"
       isClientSideFilter
-      onClearSelection={() => onChangeSelectAll(false)}
       renderTableHelpText={() => (
         <p className={`${baseClass}__help-text`}>
           Software will be installed on{" "}
@@ -87,6 +80,7 @@ const SelectSoftwareTable = ({
           experience.
         </p>
       )}
+      suppressHeaderActions
     />
   );
 };

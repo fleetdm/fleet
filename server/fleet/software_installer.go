@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -142,7 +143,30 @@ type SoftwarePackageResponse struct {
 	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
 	// ID of the Fleet Maintained App this package uses, if any
 	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+
+	//// Custom icon fields (blank if not set)
+
+	// IconHash is the SHA256 hash of the icon server-side
+	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
+	// IconFilename is the filename of the icon server-side
+	IconFilename string `json:"icon_filename" db:"icon_filename"`
+	// LocalIconHash is the SHA256 hash of the icon specified in YAML
+	LocalIconHash string `json:"-" db:"-"`
+	// LocalIconPath is the path to the icon specified in YAML
+	LocalIconPath string `json:"-" db:"-"`
 }
+
+func (p SoftwarePackageResponse) GetTeamID() uint {
+	if p.TeamID == nil {
+		return 0
+	}
+	return *p.TeamID
+}
+func (p SoftwarePackageResponse) GetTitleID() *uint        { return p.TitleID }
+func (p SoftwarePackageResponse) GetIconHash() string      { return p.IconHash }
+func (p SoftwarePackageResponse) GetIconFilename() string  { return p.IconFilename }
+func (p SoftwarePackageResponse) GetLocalIconHash() string { return p.LocalIconHash }
+func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconPath }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
@@ -155,6 +179,123 @@ type VPPAppResponse struct {
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
 	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+
+	//// Custom icon fields (blank if not set)
+
+	// IconHash is the SHA256 hash of the icon server-side
+	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
+	// IconFilename is the filename of the icon server-side
+	IconFilename string `json:"icon_filename" db:"icon_filename"`
+	// LocalIconHash is the SHA256 hash of the icon specified in YAML
+	LocalIconHash string `json:"-" db:"-"`
+	// LocalIconPath is the path to the icon specified in YAML
+	LocalIconPath string `json:"-" db:"-"`
+}
+
+func (v VPPAppResponse) GetTeamID() uint {
+	if v.TeamID == nil {
+		return 0
+	}
+	return *v.TeamID
+}
+func (v VPPAppResponse) GetTitleID() *uint        { return v.TitleID }
+func (v VPPAppResponse) GetIconHash() string      { return v.IconHash }
+func (v VPPAppResponse) GetIconFilename() string  { return v.IconFilename }
+func (v VPPAppResponse) GetLocalIconHash() string { return v.LocalIconHash }
+func (v VPPAppResponse) GetLocalIconPath() string { return v.LocalIconPath }
+
+type CanHaveSoftwareIcon interface {
+	GetTeamID() uint
+	GetTitleID() *uint
+	GetIconHash() string
+	GetIconFilename() string
+	GetLocalIconHash() string
+	GetLocalIconPath() string
+}
+
+type IconFileUpdate struct {
+	TitleID uint
+	Path    string
+}
+type IconMetaUpdate struct {
+	TitleID uint
+	Path    string
+	Hash    string
+}
+
+type IconGitOpsSettings struct {
+	ConcurrentUploads int
+	ConcurrentUpdates int
+	UploadedHashes    []string
+}
+type IconChanges struct {
+	TeamID                    uint
+	UploadedHashes            []string
+	IconsToUpload             []IconFileUpdate
+	IconsToUpdate             []IconMetaUpdate
+	TitleIDsToRemoveIconsFrom []uint
+}
+
+func (c IconChanges) WithUploadedHashes(hashes []string) IconChanges {
+	c.UploadedHashes = append(c.UploadedHashes, hashes...)
+
+	return c
+}
+
+func (c IconChanges) WithSoftware(packages []SoftwarePackageResponse, vppApps []VPPAppResponse) IconChanges {
+	// build a slice of software to avoid copypasta
+	software := make([]CanHaveSoftwareIcon, 0, len(packages)+len(vppApps))
+	for i := range packages {
+		software = append(software, packages[i])
+	}
+	for i := range vppApps {
+		software = append(software, vppApps[i])
+	}
+
+	// don't (duplicate) upload (of) icons that we don't need to
+	for _, sw := range software {
+		teamID := sw.GetTeamID()
+		if teamID != 0 {
+			c.TeamID = teamID
+		}
+
+		if h := sw.GetIconHash(); h != "" && !slices.Contains(c.UploadedHashes, h) {
+			c.UploadedHashes = append(c.UploadedHashes, h)
+		}
+	}
+
+	for _, sw := range software {
+		if sw.GetTitleID() == nil {
+			continue
+		}
+
+		localHash := sw.GetLocalIconHash()
+		if localHash == "" { // desired state: no custom icon
+			if h := sw.GetIconHash(); h != "" {
+				c.TitleIDsToRemoveIconsFrom = append(c.TitleIDsToRemoveIconsFrom, *sw.GetTitleID())
+			}
+			continue
+		} // else local icon hash is set
+
+		localPath := sw.GetLocalIconPath()
+		if localHash == sw.GetIconHash() && filepath.Base(localPath) == sw.GetIconFilename() {
+			continue // no-op; icons match
+		} // else we need to either upload the icon or point the software title to it
+
+		if !slices.Contains(c.UploadedHashes, localHash) { // icon wasn't uploaded so we need to upload it
+			c.IconsToUpload = append(c.IconsToUpload, IconFileUpdate{TitleID: *sw.GetTitleID(), Path: localPath})
+			c.UploadedHashes = append(c.UploadedHashes, localHash) // only upload a given icon once
+			continue
+		} // else we have the icon server-side already and just need to update the name
+
+		c.IconsToUpdate = append(c.IconsToUpdate, IconMetaUpdate{
+			TitleID: *sw.GetTitleID(),
+			Path:    localPath,
+			Hash:    localHash,
+		})
+	}
+
+	return c
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -237,6 +378,8 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
+	// Source is the osquery source for this software (e.g., "sh_packages", "ps1_packages").
+	Source *string `json:"source" db:"source"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
@@ -443,6 +586,10 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "pkg_packages", nil
 	case "tar.gz":
 		return "tgz_packages", nil
+	case "sh":
+		return "sh_packages", nil
+	case "ps1":
+		return "ps1_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -451,15 +598,22 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm", "tar.gz":
+	case "deb", "rpm", "tar.gz", "sh":
 		return "linux", nil
-	case "exe", "msi":
+	case "exe", "msi", "ps1":
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
+}
+
+// IsScriptPackage returns true if the extension represents a script package
+// (.sh or .ps1 files where the file contents become the install script).
+func IsScriptPackage(ext string) bool {
+	ext = strings.TrimPrefix(ext, ".")
+	return ext == "sh" || ext == "ps1"
 }
 
 // HostSoftwareWithInstaller represents the list of software installed on a
@@ -470,6 +624,7 @@ type HostSoftwareWithInstaller struct {
 	Name              string                          `json:"name" db:"name"`
 	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
+	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
@@ -542,6 +697,7 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
 
 	// FMA
 	Slug *string `json:"slug"`
@@ -564,6 +720,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
 
 	return spec
 }
@@ -592,6 +749,7 @@ type MaintainedAppSpec struct {
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	Categories         []string              `json:"categories"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
 }
 
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
@@ -605,6 +763,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		LabelsIncludeAny:   spec.LabelsIncludeAny,
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
 		InstallDuringSetup: spec.InstallDuringSetup,
+		Icon:               spec.Icon,
 	}
 }
 
@@ -613,6 +772,7 @@ func (spec MaintainedAppSpec) ResolveSoftwarePackagePaths(baseDir string) Mainta
 	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
 
 	return spec
 }

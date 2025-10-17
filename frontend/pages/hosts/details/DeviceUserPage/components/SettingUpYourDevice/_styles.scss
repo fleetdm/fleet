@@ -1,7 +1,11 @@
 .setting-up-your-device {
   &__header {
-    display: inline-flex;
+    display: flex;
     justify-content: space-between;
+
+    .info-button {
+      padding-top: 0;
+    }
   }
   &__title {
     font-weight: $bold;
@@ -17,5 +21,21 @@
   }
   p {
     margin: 0;
+  }
+
+  .empty-table__container {
+    max-width: 100%;
+  }
+
+  .textarea-wrapper {
+    font-size: $x-small;
+    line-height: 1.5;
+    width: 100%;
+  }
+  &__failure-state {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
   }
 }

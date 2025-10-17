@@ -11,8 +11,9 @@ import {
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -66,6 +67,7 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     users.length === 4
       ? users
           .slice(-4)
+
           .map((u) => u.email)
           .reverse()
       : users
@@ -176,7 +178,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "hostname",
     id: "hostname",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {
@@ -282,23 +284,25 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
       const {
-        id,
         platform,
         percent_disk_space_available,
+        gigs_disk_space_available,
+        gigs_total_disk_space,
+        gigs_all_disk_space,
       } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
-          baseClass="gigs_disk_space_available__cell"
-          gigsDiskSpaceAvailable={cellProps.cell.value}
+          inTableCell
+          gigsDiskSpaceAvailable={gigs_disk_space_available}
           percentDiskSpaceAvailable={percent_disk_space_available}
-          id={`disk-space__${id}`}
+          gigsTotalDiskSpace={gigs_total_disk_space}
+          gigsAllDiskSpace={gigs_all_disk_space}
           platform={platform}
         />
       );
@@ -314,10 +318,28 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "os_version",
     id: "os_version",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
-      <TextCell value={cellProps.cell.value} />
-    ),
+    // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      const value = cellProps.cell.value;
+      if (
+        value === "Arch Linux rolling" ||
+        value === "Arch Linux ARM rolling" ||
+        value === "Manjaro Linux rolling" ||
+        value === "Manjaro Linux ARM rolling"
+      ) {
+        return (
+          <TooltipTruncatedTextCell
+            value={
+              <span>
+                {value.slice(0, -7 /* removing lowercase rolling suffix */)}
+                <TooltipWrapperArchLinuxRolling />
+              </span>
+            }
+          />
+        );
+      }
+      return <TooltipTruncatedTextCell value={value} />;
+    },
   },
   {
     title: "Osquery",
@@ -630,7 +652,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // TODO(android): is iOS/iPadOS supported?
       if (
         isAndroid(cellProps.row.original.platform) ||
-        isPersonalEnrollmentInMdm(cellProps.row.original.mdm.enrollment_status)
+        isBYODAccountDrivenUserEnrollment(
+          cellProps.row.original.mdm.enrollment_status
+        )
       ) {
         return NotSupported;
       }

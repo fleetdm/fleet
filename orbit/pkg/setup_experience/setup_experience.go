@@ -11,17 +11,21 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog/log"
 )
 
-const doneMessage = `### Setup is complete\n\nPlease contact your IT Administrator if there were any errors.`
+// OrbitClient is the minimal interface needed to communicate with the Fleet server.
+type OrbitClient interface {
+	GetSetupExperienceStatus(resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error)
+}
 
-// Client is the minimal interface needed to communicate with the Fleet server.
-type Client interface {
-	GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error)
+// DeviceClient is the minimal interface needed to get the device's browser URL.
+type DeviceClient interface {
+	BrowserDeviceURL(token string) string
 }
 
 // SetupExperiencer is the type that manages the Fleet setup experience flow during macOS Setup
@@ -30,24 +34,27 @@ type Client interface {
 // If the setup experience is supposed to run, it will launch a single swiftDialog instance and then
 // update that instance based on the results from the /orbit/setup_experience/status endpoint.
 type SetupExperiencer struct {
-	OrbitClient Client
-	closeChan   chan struct{}
-	rootDirPath string
+	OrbitClient  OrbitClient
+	DeviceClient DeviceClient
+	closeChan    chan struct{}
+	rootDirPath  string
 	// Note: this object is not safe for concurrent use. Since the SetupExperiencer is a singleton,
 	// its Run method is called within a WaitGroup,
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
-	sd      *swiftdialog.SwiftDialog
-	uiSteps map[string]swiftdialog.ListItem
-	started bool
+	sd                *swiftdialog.SwiftDialog
+	started           bool
+	trw               *token.ReadWriter
+	stopTokenRotation func()
 }
 
-func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
+func NewSetupExperiencer(orbitClient OrbitClient, deviceClient DeviceClient, rootDirPath string, trw *token.ReadWriter) *SetupExperiencer {
 	return &SetupExperiencer{
-		OrbitClient: client,
-		closeChan:   make(chan struct{}),
-		uiSteps:     make(map[string]swiftdialog.ListItem),
-		rootDirPath: rootDirPath,
+		OrbitClient:  orbitClient,
+		DeviceClient: deviceClient,
+		closeChan:    make(chan struct{}),
+		rootDirPath:  rootDirPath,
+		trw:          trw,
 	}
 }
 
@@ -55,6 +62,12 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	if !oc.Notifications.RunSetupExperience {
 		log.Debug().Msg("skipping setup experience: notification flag is not set")
 		return nil
+	}
+
+	// Ensure that the token rotation checker is started, so that we have a valid token
+	// when we need to show or refresh the My Device URL in the webview.
+	if s.stopTokenRotation == nil {
+		s.stopTokenRotation = s.trw.StartRotation()
 	}
 
 	_, binaryPath, _ := update.LocalTargetPaths(
@@ -71,9 +84,16 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	log.Info().Msg("checking setup experience status")
 
 	// Poll the status endpoint. This also releases the device if we're done.
-	payload, err := s.OrbitClient.GetSetupExperienceStatus()
+	payload, err := s.OrbitClient.GetSetupExperienceStatus(!s.started)
 	if err != nil {
 		return err
+	}
+	// Marshall the payload for logging
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		log.Error().Err(err).Msg("marshalling setup experience payload for logging")
+	} else {
+		log.Debug().Msgf("setup experience payload: %s", string(payloadBytes))
 	}
 
 	// If swiftDialog isn't up yet, then launch it
@@ -125,6 +145,39 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		}
 	}
 
+	// If we got this far, then we can hand the UI over to the webview.
+
+	// Clear the dialog message.
+	if err := s.sd.HideMessage(); err != nil {
+		log.Error().Err(err).Msg("clearing message in setup experience UI")
+	}
+	// Remove the icon.
+	if err := s.sd.HideIcon(); err != nil {
+		log.Error().Err(err).Msg("clearing icon in setup experience UI")
+	}
+	// Hide the title.
+	if err := s.sd.HideTitle(); err != nil {
+		log.Error().Err(err).Msg("hiding title in setup experience UI")
+	}
+	// Hide the progress.
+	if err := s.sd.HideProgress(); err != nil {
+		log.Error().Err(err).Msg("hiding progress in setup experience UI")
+	}
+	// Get the device token.
+	token, err := s.trw.Read()
+	if err != nil {
+		return fmt.Errorf("getting device token: %w", err)
+	}
+	// Get the My Device URL.
+	browserURL := s.DeviceClient.BrowserDeviceURL(token)
+	// log out the url
+	log.Debug().Msgf("setup experience: opening web content URL: %s", browserURL)
+	// Set the web content URL.
+	if err := s.sd.SetWebContent(browserURL + "?setup_only=1"); err != nil {
+		log.Error().Err(err).Msg("setting web content URL in setup experience UI")
+		return nil
+	}
+
 	// Note that we are setting this based on the current payload only just in case something
 	// was removed from the payload that was there earlier(e.g. a deleted software title).
 	allStepsDone := true
@@ -133,104 +186,26 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	if len(payload.Software) > 0 || payload.Script != nil {
 		log.Info().Msg("setup experience: rendering software and script UI")
 
-		var stepsDone int
-		var prog uint
-		var steps []*fleet.SetupExperienceStatusResult
 		if len(payload.Software) > 0 {
-			steps = payload.Software
-		}
-
-		if payload.Script != nil {
-			steps = append(steps, payload.Script)
-		}
-
-		// Check for any items that were in the payload that are no longer there. This can happen
-		// if a software title was deleted, for instance
-		for uiStepName, uiStep := range s.uiSteps {
-			uiStepExistsInPayload := false
-			for _, step := range steps {
-				if uiStep.Title == step.Name {
-					uiStepExistsInPayload = true
-					break
+			for _, step := range payload.Software {
+				// If any step is not in a terminal state, then we're not done.
+				if (step.Status != fleet.SetupExperienceStatusFailure && step.Status != fleet.SetupExperienceStatusSuccess) ||
+					// If any software failed, and we're requiring all software to succeed, then we'll block completion.
+					(step.Status == fleet.SetupExperienceStatusFailure && payload.RequireAllSoftware) {
+					allStepsDone = false
 				}
 			}
-			if !uiStepExistsInPayload {
-				log.Info().Msgf("Setup Experience: list item %s removed from payload", uiStep.Title)
-				err = s.sd.DeleteListItemByTitle(uiStep.Title)
-				if err != nil {
-					log.Info().Err(err).Msg("deleting list item removed from payload from setup experience UI")
-				}
-				delete(s.uiSteps, uiStepName)
-			}
 		}
 
-		for _, step := range steps {
-			currentStepState := resultToListItem(step)
-			if priorStepState, ok := s.uiSteps[step.Name]; ok {
-				if currentStepState != priorStepState {
-					// We only want to resend on change so we're not unnecessarily scrolling the UI
-					err = s.sd.UpdateListItemByTitle(currentStepState.Title, currentStepState.StatusText, currentStepState.Status)
-					if err != nil {
-						log.Info().Err(err).Msg("updating list item in setup experience UI")
-					}
-				} else {
-					log.Info().Msgf("setup experience: no change in status for %s", step.Name)
-				}
-			} else {
-				err = s.sd.AddListItem(currentStepState)
-				if err != nil {
-					log.Info().Err(err).Msg("adding list item in setup experience UI")
-				}
-				s.uiSteps[step.Name] = currentStepState
-			}
-
-			if step.Status == fleet.SetupExperienceStatusFailure || step.Status == fleet.SetupExperienceStatusSuccess {
-				stepsDone++
-				// The swiftDialog progress bar is out of 100
-				for range int(float32(1) / float32(len(steps)) * 100) {
-					prog++
-				}
-			} else {
-				allStepsDone = false
-			}
+		// If a script is still running, then we're not done.
+		if payload.Script != nil && payload.Script.Status != fleet.SetupExperienceStatusFailure && payload.Script.Status != fleet.SetupExperienceStatusSuccess {
+			allStepsDone = false
 		}
-
-		if err = s.sd.UpdateProgress(prog); err != nil {
-			log.Info().Err(err).Msg("updating progress bar in setup experience UI")
-		}
-
-		if err := s.sd.ShowList(); err != nil {
-			log.Info().Err(err).Msg("showing progress bar in setup experience UI")
-		}
-
-		if err := s.sd.UpdateProgressText(fmt.Sprintf("%.0f%%", float32(stepsDone)/float32(len(steps))*100)); err != nil {
-			log.Info().Err(err).Msg("updating progress text in setup experience UI")
-		}
-
 	}
 
-	// If we get here, we can render the "done" UI.
-
+	// If we get here, we can close the webview.
+	// It will likely already be displaying a "done" message.
 	if allStepsDone {
-		if err := s.sd.SetMessage(doneMessage); err != nil {
-			log.Info().Err(err).Msg("setting message in setup experience UI")
-		}
-
-		if err := s.sd.CompleteProgress(); err != nil {
-			log.Info().Err(err).Msg("completing progress bar in setup experience UI")
-		}
-
-		if len(payload.Software) > 0 || payload.Script != nil {
-			// need to call this because SetMessage removes the list from the view for some reason :(
-			if err := s.sd.ShowList(); err != nil {
-				log.Info().Err(err).Msg("showing list in setup experience UI")
-			}
-		}
-
-		if err := s.sd.UpdateProgressText("100%"); err != nil {
-			log.Info().Err(err).Msg("updating progress text in setup experience UI")
-		}
-
 		if err := s.sd.EnableButton1(true); err != nil {
 			log.Info().Err(err).Msg("enabling close button in setup experience UI")
 		}
@@ -242,6 +217,9 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		if err := s.sd.Quit(); err != nil {
 			log.Info().Err(err).Msg("quitting setup experience UI on completion")
 		}
+
+		// Stop the token rotation checker since we're done with the setup experience.
+		s.stopTokenRotation()
 	}
 
 	return nil
@@ -320,37 +298,14 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 	return nil
 }
 
-func resultToListItem(result *fleet.SetupExperienceStatusResult) swiftdialog.ListItem {
-	statusText := "Pending"
-	status := swiftdialog.StatusWait
-
-	switch result.Status {
-	case fleet.SetupExperienceStatusFailure:
-		status = swiftdialog.StatusFail
-		statusText = "Failed"
-	case fleet.SetupExperienceStatusSuccess:
-		status = swiftdialog.StatusSuccess
-		statusText = "Installed"
-		if result.IsForScript() {
-			statusText = "Ran"
-		}
-	}
-
-	return swiftdialog.ListItem{
-		Title:      result.Name,
-		Status:     status,
-		StatusText: statusText,
-	}
-}
-
 // LinuxSetupExperiencer runs the setup experience on Linux hosts.
 type LinuxSetupExperiencer struct {
-	orbitClient Client
+	orbitClient OrbitClient
 	rootDir     string
 }
 
 // NewLinuxSetupExperiencer creates a config receiver to run the setup experience on Linux hosts.
-func NewLinuxSetupExperiencer(client Client, rootDir string) *LinuxSetupExperiencer {
+func NewLinuxSetupExperiencer(client OrbitClient, rootDir string) *LinuxSetupExperiencer {
 	return &LinuxSetupExperiencer{
 		orbitClient: client,
 		rootDir:     rootDir,
@@ -370,7 +325,7 @@ func (s *LinuxSetupExperiencer) Run(_ *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	payload, err := s.orbitClient.GetSetupExperienceStatus()
+	payload, err := s.orbitClient.GetSetupExperienceStatus(false)
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"testing"
 
@@ -29,59 +28,6 @@ func (m *mockSecretsManagerClient) GetSecretValue(ctx context.Context, params *s
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*secretsmanager.GetSecretValueOutput), args.Error(1)
-}
-
-func TestParseRegionFromARN(t *testing.T) {
-	testCases := []struct {
-		name        string
-		arn         string
-		expectedReg string
-		expectError bool
-	}{
-		{
-			name:        "valid ARN",
-			arn:         "arn:aws:secretsmanager:us-west-2:123456789012:secret:fleet-private-key-abc123",
-			expectedReg: "us-west-2",
-			expectError: false,
-		},
-		{
-			name:        "valid ARN different region",
-			arn:         "arn:aws:secretsmanager:eu-central-1:123456789012:secret:my-secret-def456",
-			expectedReg: "eu-central-1",
-			expectError: false,
-		},
-		{
-			name:        "invalid ARN format",
-			arn:         "invalid-arn-format",
-			expectedReg: "",
-			expectError: true,
-		},
-		{
-			name:        "wrong service",
-			arn:         "arn:aws:s3:us-west-2:123456789012:bucket/my-bucket",
-			expectedReg: "",
-			expectError: true,
-		},
-		{
-			name:        "empty region",
-			arn:         "arn:aws:secretsmanager::123456789012:secret:my-secret",
-			expectedReg: "",
-			expectError: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			region, err := parseRegionFromSecretARN(tc.arn)
-			if tc.expectError {
-				assert.Error(t, err)
-				assert.Empty(t, region)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedReg, region)
-			}
-		})
-	}
 }
 
 func TestRetrieveSecretWithRetry_Success(t *testing.T) {
@@ -213,31 +159,25 @@ func TestRetrieveSecretWithRetry_ContextCancellation(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
-func TestRetrieveSecretsManagerSecret_LocalStack(t *testing.T) {
-	if os.Getenv("LOCALSTACK_URL") == "" {
-		t.Skip("LOCALSTACK_URL not set, skipping LocalStack integration test")
+func TestRetrieveSecretsManagerSecret_LocalStackDefaultRegion(t *testing.T) {
+	awsEndpointURL := os.Getenv("AWS_ENDPOINT_URL")
+	if awsEndpointURL == "" {
+		t.Skip("AWS_ENDPOINT_URL not set, skipping LocalStack integration test")
 	}
 
 	ctx := context.Background()
 
-	localStackURL := os.Getenv("LOCALSTACK_URL")
-	if localStackURL == "" {
-		localStackURL = "http://localhost:4566"
-	}
-
 	localStackOpts := []func(*aws_config.LoadOptions) error{
-		aws_config.WithBaseEndpoint(localStackURL),
 		aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
 	}
 
 	// Configure LocalStack client
-	cfg, err := aws_config.LoadDefaultConfig(ctx, append(localStackOpts, aws_config.WithRegion("us-east-1"))...)
+	cfg, err := aws_config.LoadDefaultConfig(ctx, localStackOpts...)
 	require.NoError(t, err)
 	client := secretsmanager.NewFromConfig(cfg)
 
 	secretName := "fleet-test-private-key-localstack"
 	privateKey := "test-key-exactly-32-bytes-long!"
-	secretArn := fmt.Sprintf("arn:aws:secretsmanager:us-east-1:000000000000:secret:%s", secretName)
 
 	// Clean up any existing secret
 	_, _ = client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
@@ -245,12 +185,13 @@ func TestRetrieveSecretsManagerSecret_LocalStack(t *testing.T) {
 		ForceDeleteWithoutRecovery: aws.Bool(true),
 	})
 
-	_, err = client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
+	output, err := client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
 		Name:         &secretName,
 		SecretString: &privateKey,
 		Description:  aws.String("password"),
 	})
 	require.NoError(t, err, "Failed to create secret in LocalStack")
+	secretArn := *output.ARN
 
 	// Clean up after test
 	defer func() {
@@ -259,13 +200,65 @@ func TestRetrieveSecretsManagerSecret_LocalStack(t *testing.T) {
 			ForceDeleteWithoutRecovery: aws.Bool(true),
 		})
 	}()
-	retrievedKey, err := RetrieveSecretsManagerSecretWithOptions(ctx, secretArn, "", "", localStackOpts...)
+	retrievedKey, err := RetrieveSecretsManagerSecretWithOptions(ctx, secretArn, "", "", "", localStackOpts...)
 	require.NoError(t, err)
 	assert.Equal(t, privateKey, retrievedKey)
 
 	// Test with invalid ARN
 	invalidArn := "arn:aws:secretsmanager:us-east-1:000000000000:secret:nonexistent-secret"
-	_, err = RetrieveSecretsManagerSecretWithOptions(ctx, invalidArn, "", "", localStackOpts...)
+	_, err = RetrieveSecretsManagerSecretWithOptions(ctx, invalidArn, "", "", "", localStackOpts...)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "secret not found")
+}
+
+func TestRetrieveSecretsManagerSecret_LocalStackDifferentRegion(t *testing.T) {
+	awsEndpointURL := os.Getenv("AWS_ENDPOINT_URL")
+	if awsEndpointURL == "" {
+		t.Skip("AWS_ENDPOINT_URL not set, skipping LocalStack integration test")
+	}
+
+	ctx := context.Background()
+
+	localStackOpts := []func(*aws_config.LoadOptions) error{
+		aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
+	}
+
+	// Configure LocalStack client
+	cfg, err := aws_config.LoadDefaultConfig(ctx, append(localStackOpts, aws_config.WithRegion("us-east-2"))...)
+	require.NoError(t, err)
+	client := secretsmanager.NewFromConfig(cfg)
+
+	secretName := "fleet-test-private-key-localstack"
+	privateKey := "test-key-exactly-32-bytes-long!"
+
+	// Clean up any existing secret
+	_, _ = client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
+		SecretId:                   &secretName,
+		ForceDeleteWithoutRecovery: aws.Bool(true),
+	})
+
+	output, err := client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
+		Name:         &secretName,
+		SecretString: &privateKey,
+		Description:  aws.String("password"),
+	})
+	require.NoError(t, err, "Failed to create secret in LocalStack")
+	secretArn := *output.ARN
+
+	// Clean up after test
+	defer func() {
+		_, _ = client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
+			SecretId:                   &secretName,
+			ForceDeleteWithoutRecovery: aws.Bool(true),
+		})
+	}()
+	retrievedKey, err := RetrieveSecretsManagerSecretWithOptions(ctx, secretArn, "us-east-2", "", "", localStackOpts...)
+	require.NoError(t, err)
+	assert.Equal(t, privateKey, retrievedKey)
+
+	// Test with invalid ARN
+	invalidArn := "arn:aws:secretsmanager:us-east-1:000000000000:secret:nonexistent-secret"
+	_, err = RetrieveSecretsManagerSecretWithOptions(ctx, invalidArn, "us-east-2", "", "", localStackOpts...)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "secret not found")
 }

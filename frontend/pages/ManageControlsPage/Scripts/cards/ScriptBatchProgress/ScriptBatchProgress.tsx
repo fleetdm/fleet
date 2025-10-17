@@ -16,6 +16,7 @@ import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import ListItem from "components/ListItem";
 import Icon from "components/Icon/Icon";
 
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
@@ -119,8 +120,13 @@ const ScriptBatchProgress = ({
   );
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
-    router.push(PATHS.CONTROLS_SCRIPTS_BATCH_DETAILS(r.batch_execution_id));
-    // return satisfies caller expectations, not used in this case
+    // explicitly including the status param here avoids triggering the script details page's effect
+    // which would add it automatically, muddying browser history and preventing smooth forward/back navigation
+    router.push(
+      PATHS.CONTROLS_SCRIPTS_BATCH_DETAILS(r.batch_execution_id).concat(
+        "?status=ran"
+      )
+    );
     return r;
   };
 
@@ -134,13 +140,10 @@ const ScriptBatchProgress = ({
     const when = getWhen(summary);
     return (
       <>
-        <div className={`${baseClass}__row-left`}>
-          <b>{script_name}</b>
-          <div className={`${baseClass}__row-when`}>{when}</div>
-        </div>
+        <ListItem title={script_name} details={when} />
         {summary.status !== "scheduled" && (
           <div className={`${baseClass}__row-right`}>
-            <div>
+            <div className={`${baseClass}__status-count`}>
               {ran_host_count + errored_host_count} / {targeted_host_count}{" "}
               hosts
             </div>
@@ -224,7 +227,7 @@ const ScriptBatchProgress = ({
     <>
       <div className={baseClass}>
         <SectionHeader title="Batch progress" alignLeftHeaderVertically />
-        <TabNav>
+        <TabNav secondary>
           <Tabs
             selectedIndex={STATUS_BY_INDEX.indexOf(selectedStatus)}
             onSelect={handleTabChange}

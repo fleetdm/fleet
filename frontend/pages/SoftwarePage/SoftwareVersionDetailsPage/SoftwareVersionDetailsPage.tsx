@@ -22,8 +22,10 @@ import {
   ISoftwareVersion,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
+  isAndroidSoftwareSource,
 } from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
+import { DisplayPlatform } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -48,6 +50,15 @@ type ISoftwareTitleDetailsPageProps = RouteComponentProps<
   undefined,
   ISoftwareVersionDetailsRouteParams
 >;
+
+const getVulnUnsupportedSourceText = (
+  source: string
+): DisplayPlatform | undefined => {
+  if (isAndroidSoftwareSource(source)) return "Android";
+  if (isIpadOrIphoneSoftwareSource(source)) {
+    return source === "ios_apps" ? "iOS" : "iPadOS";
+  }
+};
 
 const SoftwareVersionDetailsPage = ({
   routeParams,
@@ -118,10 +129,14 @@ const SoftwareVersionDetailsPage = ({
   );
 
   const renderVulnTable = (swVersion: ISoftwareVersion) => {
-    if (isIpadOrIphoneSoftwareSource(swVersion.source)) {
-      const platformText = swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
-      return <VulnsNotSupported platformText={platformText} />;
+    const vulnUnsupportedSource = getVulnUnsupportedSourceText(
+      swVersion.source
+    );
+
+    if (vulnUnsupportedSource) {
+      return <VulnsNotSupported platformText={vulnUnsupportedSource} />;
     }
+
     return (
       <SoftwareVulnerabilitiesTable
         data={swVersion.vulnerabilities ?? []}
@@ -161,7 +176,6 @@ const SoftwareVersionDetailsPage = ({
           <>
             <Card
               borderRadiusSize="xxlarge"
-              includeShadow
               className={`${baseClass}__summary-section`}
             >
               <SoftwareDetailsSummary
@@ -178,7 +192,6 @@ const SoftwareVersionDetailsPage = ({
             </Card>
             <Card
               borderRadiusSize="xxlarge"
-              includeShadow
               className={`${baseClass}__vulnerabilities-section`}
             >
               <h2 className="section__header">Vulnerabilities</h2>

@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -22,7 +22,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, err
 	}
 
-	if fleet.IsLinux(host.Platform) {
+	if fleet.IsLinux(host.Platform) || host.Platform == "windows" {
+		// Windows and Linux setup experience only have software.
 		status, err := svc.getHostSetupExperienceStatus(ctx, host)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host setup experience status")
@@ -134,6 +135,49 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
 
+	// Check if "require all software" is configured for the host's team.
+	requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if all software is required")
+	}
+
+	hasFailedSoftwareInstall := false
+	for _, r := range res {
+		if r.IsForSoftware() && r.Status == fleet.SetupExperienceStatusFailure {
+			hasFailedSoftwareInstall = true
+			break
+		}
+	}
+	// If we have a failed software install,
+	// AND "require all software" is configured for the host's team,
+	// AND the resetFailedSetupSteps flag is set,
+	// then re-enqueue any cancelled setup experience steps.
+	if hasFailedSoftwareInstall {
+		if resetFailedSetupSteps {
+			teamID := uint(0)
+			if host.TeamID != nil {
+				teamID = *host.TeamID
+			}
+			// If so, call the enqueue function with a flag to retain successful steps.
+			if requireAllSoftware {
+				level.Info(svc.logger).Log("msg", "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
+				platform := host.PlatformLike
+				if platform == "" {
+					platform = host.Platform
+				}
+				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, platform, host.UUID, teamID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
+				}
+				// Re-fetch the setup experience results after re-enqueuing.
+				res, err = svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+				}
+			}
+		}
+	}
+
 	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
@@ -145,6 +189,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		AccountConfiguration:  acctCfgResult,
 		Software:              make([]*fleet.SetupExperienceStatusResult, 0),
 		OrgLogoURL:            appCfg.OrgInfo.OrgLogoURLLightBackground,
+		RequireAllSoftware:    requireAllSoftware,
 	}
 	for _, r := range res {
 		if r.IsForScript() {
@@ -154,6 +199,12 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		if r.IsForSoftware() {
 			payload.Software = append(payload.Software, r)
 		}
+	}
+
+	// If we have failed software, and all software is required,
+	// we can go ahead and return now.
+	if hasFailedSoftwareInstall && requireAllSoftware {
+		return payload, nil
 	}
 
 	if forceRelease || isDeviceReadyForRelease(payload) {
@@ -204,14 +255,27 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
 		}
-		if r.IsForSoftware() {
+		// TODO -- support recording activity for failed VPP apps as well.
+		// https://github.com/fleetdm/fleet/issues/34288
+		if r.IsForSoftwarePackage() {
 			softwarePackage := ""
+			var source *string
 			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
 			if err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
 			}
 			if installerMeta != nil {
 				softwarePackage = installerMeta.Name
+				// Get the software title to retrieve the source
+				if installerMeta.TitleID != nil {
+					title, err := svc.ds.SoftwareTitleByID(ctx, *installerMeta.TitleID, nil, fleet.TeamFilter{})
+					if err != nil && !fleet.IsNotFound(err) {
+						return ctxerr.Wrap(ctx, err, "getting software title for cancelled setup experience software install")
+					}
+					if title != nil {
+						source = &title.Source
+					}
+				}
 			}
 			activity := fleet.ActivityTypeInstalledSoftware{
 				HostID:              hostID,
@@ -221,6 +285,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
 				Status:              "failed",
 				SelfService:         false,
+				Source:              source,
 				FromSetupExperience: true,
 			}
 			err = svc.NewActivity(ctx, nil, activity)

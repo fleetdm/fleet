@@ -72,12 +72,7 @@ const Packs = ({ packsState, isLoading }: IPacksProps): JSX.Element => {
   return !packs || !packs.length ? (
     <></>
   ) : (
-    <Card
-      className={baseClass}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      includeShadow
-    >
+    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
       <CardHeader header="Packs" />
       <Accordion allowMultipleExpanded allowZeroExpanded>
         {packsAccordion}

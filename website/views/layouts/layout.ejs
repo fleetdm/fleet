@@ -65,13 +65,6 @@
     <script>
       window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
     </script>
-    <%/* Segment */%>
-    <script>
-      !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="T79nqv6Ow6Bjov5LZPxXqsuhM0YOHARv";;analytics.SNIPPET_VERSION="5.2.0";
-      analytics.load("T79nqv6Ow6Bjov5LZPxXqsuhM0YOHARv");
-      analytics.page();
-      }}();
-    </script>
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";
@@ -90,6 +83,8 @@
     <noscript>
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
     </noscript>
+    <% /* Clay */ %>
+    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
     <% /* Snitcher */ %>
     <script>
         !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
@@ -368,17 +363,17 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/e/fleet-party-during-jnuc-tickets-1497929500459" target="_blank" no-icon>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
                         <div purpose="dropdown-cta-link">
                           <div purpose="dropdown-cta-image">
                           </div>
                           <div class="d-flex flex-column justify-content-center align-items-center">
                           <div purpose="dropdown-cta-text">
                             <p purpose="dropdown-cta-heading">
-                              Fleet @ Meow Wolf
+                              GitOps for device management
                             </p>
                             <p purpose="dropdown-cta-body">
-                              Kick off JNUC with Fleet at Meow Wolf Denver's Convergence Station.
+                              In-person workshop for beginners.
                             </p>
                             <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
                               <span purpose="button-text">Join us</span>
@@ -556,17 +551,17 @@
                   <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
                   <div purpose="header-dropdown" class="dropdown-menu more-dropdown flex-row">
                     <div purpose="dropdown-cta-column">
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/e/fleet-party-during-jnuc-tickets-1497929500459" target="_blank" no-icon>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
                         <div purpose="dropdown-cta-link">
                           <div purpose="dropdown-cta-image">
                           </div>
                           <div class="d-flex flex-column justify-content-center align-items-center">
                           <div purpose="dropdown-cta-text">
                             <p purpose="dropdown-cta-heading">
-                              Fleet @ Meow Wolf
+                              GitOps for device management
                             </p>
                             <p purpose="dropdown-cta-body">
-                              Kick off JNUC with Fleet at Meow Wolf Denver's Convergence Station.
+                              In-person workshop for beginners.
                             </p>
                             <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
                               <span purpose="button-text">Join us</span>
@@ -889,6 +884,7 @@
     <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/command-details.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
@@ -910,6 +906,7 @@
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/mdm-commands.page.js"></script>
     <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
@@ -923,6 +920,8 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/script-details.page.js"></script>
+    <script src="/js/pages/scripts.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>

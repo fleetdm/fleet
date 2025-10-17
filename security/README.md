@@ -85,7 +85,7 @@ vexctl create --product="fleet,pkg:golang/github.com/open-policy-agent/opa" \
   --status="not_affected" \
   --author="@lucasmrod" \
   --justification="vulnerable_code_cannot_be_controlled_by_adversary" \
-  --status-note="Fleet doesn't run on Windows, so it's not affected by this vulnerability." > security/vex/fleetctl/CVE-2024-8260.vex.json
+  --status-note="Fleet doesn't run on Windows, so it's not affected by this vulnerability." > security/vex/fleet/CVE-2024-8260.vex.json
 ```
 
 Examples of `--product` flag values (which accept "PURLs"):

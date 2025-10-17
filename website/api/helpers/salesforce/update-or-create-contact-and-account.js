@@ -45,6 +45,11 @@ module.exports = {
         'LinkedIn - Reaction',
         'LinkedIn - Share',
         'LinkedIn - Liked the LinkedIn company page',
+        'Event - Marketing-led event',
+        'Event - Sales-led event',
+        'GitHub - Stared fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Contributed to fleetdm/fleet',
       ],
     },
     getStartedResponses: {

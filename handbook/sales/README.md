@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
 | Head of Customers                     | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
+| VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
 | Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
 
 
@@ -22,6 +23,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+
+
+### Add an account to your patch
+
+Use the following steps to add an account to Salesforce if one doesn't exist already:
+1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a dupicate, parent, or child account doesn't already exist. 
+2. If the account already exists, reach out to the [Head of Digital Workspace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
 
 
 ### Respond to a customer feature comparison request
@@ -80,7 +88,7 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
 1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
 2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
-3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote
+3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote.
 4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
 5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
 
@@ -97,7 +105,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 
 > **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
 
-4. In the internal Slack channel for the deal, `@`mention the `@order-form-review` Slack group with a link to the docx version of the order and ask them to approve the order form.
+4. In the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) `@`-mention the VP of Customer Success (for post-sale), or the CRO (pre-sale), and [Deal Desk](https://fleetdm.com/handbook/finance#team) with a link to the docx version of the order and ask them to approve the order form.
 5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
 
 > Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.

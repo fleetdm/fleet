@@ -15,6 +15,7 @@ import packsAPI from "services/entities/packs";
 import NewPackForm from "components/forms/packs/NewPackForm";
 // @ts-ignore
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
+import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 
@@ -73,21 +74,23 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   };
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <NewPackForm
-          className={`${baseClass}__pack-form`}
-          handleSubmit={handleSubmit}
-          onFetchTargets={onFetchTargets}
-          selectedTargetsCount={selectedTargetsCount}
-          isPremiumTier={isPremiumTier}
-          isUpdatingPack={isUpdatingPack}
-        />
-      </MainContent>
-      <SidePanelContent>
-        <PackInfoSidePanel />
-      </SidePanelContent>
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <NewPackForm
+            className={`${baseClass}__pack-form`}
+            handleSubmit={handleSubmit}
+            onFetchTargets={onFetchTargets}
+            selectedTargetsCount={selectedTargetsCount}
+            isPremiumTier={isPremiumTier}
+            isUpdatingPack={isUpdatingPack}
+          />
+        </MainContent>
+        <SidePanelContent>
+          <PackInfoSidePanel />
+        </SidePanelContent>
+      </>
+    </SidePanelPage>
   );
 };
 

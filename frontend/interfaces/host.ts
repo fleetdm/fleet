@@ -65,6 +65,10 @@ export default PropTypes.shape({
   additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   percent_disk_space_available: PropTypes.number,
   gigs_disk_space_available: PropTypes.number,
+  // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
+  gigs_total_disk_space: PropTypes.number,
+  // `gigs_all_disk_space` includes disk space from all partitions
+  gigs_all_disk_space: PropTypes.number,
   labels: PropTypes.arrayOf(labelInterface),
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
@@ -199,6 +203,7 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_logo_url_light_background: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
@@ -279,6 +284,10 @@ export interface IHost {
   additional?: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;
   gigs_disk_space_available: number;
+  // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
+  gigs_total_disk_space?: number;
+  // `gigs_all_disk_space` includes disk space from all partitions
+  gigs_all_disk_space?: number;
   labels: ILabel[];
   packs: IPack[];
   software?: ISoftware[];

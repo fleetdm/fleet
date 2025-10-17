@@ -12,7 +12,7 @@ import { baseUrl } from "test/test-utils";
 import { IDeviceUserResponse } from "interfaces/host";
 import {
   IGetDeviceSoftwareResponse,
-  IGetSetupSoftwareStatusesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
@@ -21,6 +21,7 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
     host: createMockHost(),
     license: createMockLicense(),
     org_logo_url: "",
+    org_logo_url_light_background: "",
     global_config: {
       mdm: { enabled_and_configured: false },
     },
@@ -29,19 +30,19 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
 
 export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
   http.get(baseUrl("/device/:token"), () => {
-    return HttpResponse.json(
-      Object.assign(
-        {
-          host: createMockHost(),
-          license: createMockLicense(),
-          org_logo_url: "",
-          global_config: {
-            mdm: { enabled_and_configured: false },
-          },
+    const response = Object.assign(
+      {
+        host: createMockHost(),
+        license: createMockLicense(),
+        org_logo_url: "",
+        org_logo_url_light_background: "",
+        global_config: {
+          mdm: { enabled_and_configured: false },
         },
-        overrides
-      )
+      },
+      overrides
     );
+    return HttpResponse.json(response);
   });
 
 export const defaultDeviceMappingHandler = http.get(
@@ -85,7 +86,7 @@ export const defaultDeviceCertificatesHandler = http.get(
 );
 
 export const deviceSetupExperienceHandler = (
-  overrides?: Partial<IGetSetupSoftwareStatusesResponse>
+  overrides?: Partial<IGetSetupExperienceStatusesResponse>
 ) =>
   http.post(baseUrl("/device/:token/setup_experience/status"), () => {
     return HttpResponse.json(
@@ -94,5 +95,5 @@ export const deviceSetupExperienceHandler = (
   });
 
 export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
-  setup_experience_results: { software: [] },
+  setup_experience_results: { software: [], scripts: [] },
 });

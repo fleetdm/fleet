@@ -2,8 +2,8 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-mdm,#g-orchestration,#g-software,:release'
-assignees: 'xpkoala,pezhub,jmwatts'
+labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
+assignees: 'xpkoala,pezhub,jmwatts,andreykizimenko'
 
 ---
 
@@ -69,11 +69,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
  
 </td><td>pass/fail</td></tr>
-<tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
 
-1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
-2. Verify host enrolled with Disk encryption enforced successfully encrypts.
-</td><td>pass/fail</td></tr>
 </table>
 
 ### MDM
@@ -114,13 +110,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 9. Verify software installs and script runs.
 </td><td>pass/fail</td></tr>
 
-<tr><td>OS updates</td><td>Verify OS updates flow</td><td>
-
-1. Configure OS updates (macOS & Windows).
-2. Verify on-device that Nudge prompt appears (macOS 13).
-3. Verify enforce minimumOS occurs during enrollment (macOS 14+).
-</td><td>pass/fail</td></tr>
-
 <tr><td>iOS/iPadOS</td><td>Verify enrollment, profiles, & software installs</td><td>
 
 1. Verify ADE enrollment.
@@ -130,17 +119,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 5. Verify `Turn Off MDM` for BYOD & ADE hosts.
  
 </td><td>pass/fail</td></tr>
-
-
-<tr><td>Lock & Wipe</td><td>Verify hosts can be locked & wiped</td><td>
-
-1. Verify locking a host from the Fleet UI (macOS, Windows, & Linux)
-2. Verify unlocking a host from the Fleet UI (macOS, Windows, & Linux)
-3. Verify wiping a host from the Fleet UI (macOS, Windows, & Linux)
-4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux)
- 
-</td><td>pass/fail</td></tr>
-
 
 <tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
 
@@ -206,6 +184,43 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 5. Action should complete successfully.
 </td><td>pass/fail</td></tr>
 </table>
+
+### Security & Compliance
+
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+
+<tr><td>Disk encryption</td><td>Verify disk encryption functionality</td><td>
+
+1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
+2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+</td><td>pass/fail</td></tr>
+
+<tr><td>Vulnerabilities</td><td>Verify that software vulnerabilities are correctly populated</td><td>
+
+1. Verify that known vulnerable software items display expected CVEs and severity information in the Software tab
+2. Verify that individual vulnerabilities can be previewed and open the correct NVD page when selected
+3. Verify that vulnerable software appears under "My device > Software" for affected hosts with expected CVEs
+</td><td>pass/fail</td></tr>
+
+<tr><td>OS updates</td><td>Verify OS updates flow</td><td>
+
+1. Configure OS updates (macOS & Windows).
+2. Verify on-device that Nudge prompt appears (macOS 13).
+3. Verify enforce minimumOS occurs during enrollment (macOS 14+).
+</td><td>pass/fail</td></tr>
+
+<tr><td>Lock & Wipe</td><td>Verify hosts can be locked & wiped</td><td>
+
+1. Verify locking a host from the Fleet UI (macOS, Windows, & Linux)
+2. Verify unlocking a host from the Fleet UI (macOS, Windows, & Linux)
+3. Verify wiping a host from the Fleet UI (macOS, Windows, & Linux)
+4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux)
+ 
+</td><td>pass/fail</td></tr>
+</table>
+
 
 ### All Product Groups
 <table>

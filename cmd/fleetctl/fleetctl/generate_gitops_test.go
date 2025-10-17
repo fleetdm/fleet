@@ -133,10 +133,14 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 				ProfileUUID: "global-windows-profile-uuid",
 				Name:        "Global Windows Profile",
 				Platform:    "windows",
-				Identifier:  "com.example.global-windows-profile",
 				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label D",
 				}},
+			},
+			{
+				ProfileUUID: "global-android-profile-uuid",
+				Name:        "Global Android Profile",
+				Platform:    "android",
 			},
 		}, nil
 	}
@@ -150,7 +154,7 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 			},
 		}, nil
 	}
-	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 {
+	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 || *teamID == 6 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
@@ -174,6 +178,8 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 		return []byte(`{"profile": "global macos json profile"}`), nil
 	case "global-windows-profile-uuid":
 		return []byte("<xml>global windows profile</xml>"), nil
+	case "global-android-profile-uuid":
+		return []byte(`{"name": "Global Android Profile", "cameraDisabled": true}`), nil
 	case "test-mobileconfig-profile-uuid":
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
 	}
@@ -356,6 +362,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				URL:               "https://example.com/download/my-software.pkg",
 				Categories:        []string{"Browsers"},
 			},
+			IconUrl: ptr.String("/api/icon1.png"),
 		}, nil
 	case 2:
 		if *teamID != 1 {
@@ -372,10 +379,15 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Categories:  []string{"Productivity", "Utilities"},
 				SelfService: true,
 			},
+			IconUrl: ptr.String("/api/icon2.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
+}
+
+func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
+	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
 }
 
 func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
@@ -389,7 +401,7 @@ func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 		Name:                "Label B",
 		Description:         "Label B description",
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		Hosts:               []string{"host1", "host2"},
+		Hosts:               []string{"1", "2"},
 	}, {
 		Name:                "Label C",
 		Description:         "Label C description",
@@ -531,6 +543,15 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				URL:          "https://some-hydrant-url.com",
 				ClientID:     "some-hydrant-client-id",
 				ClientSecret: maskSecret("some-hydrant-client-secret", includeSecrets),
+			},
+		},
+		Smallstep: []fleet.SmallstepSCEPProxyCA{
+			{
+				Name:         "some-smallstep-name",
+				URL:          "https://some-smallstep-url.com",
+				ChallengeURL: "https://some-smallstep-challenge-url.com",
+				Username:     "some-smallstep-username",
+				Password:     maskSecret("some-smallstep-password", includeSecrets),
 			},
 		},
 	}
@@ -889,6 +910,12 @@ func TestGenerateControls(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
+	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-android-profile.json"]; ok {
+		require.Equal(t, `{"name": "Global Android Profile", "cameraDisabled": true}`, fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
 	// Generate controls for no-team, sending in an MDM config with "EndUserAuthentication" disabled.
 	// Mocks for no team don't return any scripts, bootstrap, software, or profiles,
 	// so it should _not_ generate a macos_setup config.
@@ -986,7 +1013,7 @@ func TestGenerateSoftware(t *testing.T) {
 		SoftwareList: make(map[uint]Software),
 	}
 
-	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team")
+	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
 	var software map[string]interface{}

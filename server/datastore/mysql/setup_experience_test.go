@@ -376,6 +376,26 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr5, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
+	require.NoError(t, err)
+	installerID5, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "orange",
+		PreInstallQuery:   "SELECT 5",
+		PostInstallScript: "grape",
+		InstallerFile:     tfr5,
+		StorageID:         "storage4",
+		Filename:          "file5",
+		Title:             "file5",
+		Version:           "5.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          "linux",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
 	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 1)
@@ -383,7 +403,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, meta)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?)", installerID1, installerID3, installerID4)
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?, ?)", installerID1, installerID3, installerID4, installerID5)
 		return err
 	})
 
@@ -440,6 +460,37 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, vpp3.AdamID, titles[1].AppStoreApp.AppStoreID)
 	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
+
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		TeamID:         &team1.ID,
+		Name:           "the script.sh",
+		ScriptContents: "hello",
+	})
+	require.NoError(t, err)
+
+	sec, err := ds.GetSetupExperienceCount(ctx, "darwin", &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(1), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "linux", &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
@@ -631,13 +682,35 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].AppStoreApp.InstallDuringSetup)
 
-	// iOS software
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team2.ID, []uint{titleSoftware["file4"]})
-	require.ErrorContains(t, err, "is not supported")
+	// VPP app can be added for iOS
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, []uint{titleVPP["2:ios"]})
+	require.NoError(t, err)
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	require.NotNil(t, meta)
+	installDuringSetupApps := 0
+	for _, title := range titles {
+		// iOS should only have vpp apps
+		require.NotNil(t, title.AppStoreApp)
+		if title.ID == titleVPP["2:ios"] {
+			require.True(t, *title.AppStoreApp.InstallDuringSetup)
+			installDuringSetupApps++
+		} else {
+			require.False(t, *title.AppStoreApp.InstallDuringSetup)
+		}
+	}
+	require.Equal(t, 1, installDuringSetupApps)
 
-	// ios vpp app
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["2:ios"]})
+	// iOS software. iOS only supports VPP apps so should not check installers
+	// even if one somehow exists
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team2.ID, []uint{titleSoftware["file4"]})
 	require.ErrorContains(t, err, "not available")
+
+	// ios vpp app is invalid for darwin platform
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["2:ios"]})
+	require.ErrorContains(t, err, "invalid platform for requested AppStoreApp")
 
 	// wrong team
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["3"]})

@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -171,6 +172,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
+	requireAllSoftware := ac.MDM.MacOSSetup.RequireAllSoftware
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
@@ -179,6 +181,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 		if tm != nil {
 			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
+			requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
 		}
 	}
 
@@ -196,6 +199,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			// regardless of the platform of the device. See
 			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
 			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
+			RequireAllSoftware:   requireAllSoftware,
 		},
 		Features: fleet.DeviceFeatures{
 			EnableSoftwareInventory: softwareInventoryEnabled,
@@ -203,12 +207,13 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	return getDeviceHostResponse{
-		Host:          resp,
-		OrgLogoURL:    ac.OrgInfo.OrgLogoURL,
-		OrgContactURL: ac.OrgInfo.ContactURL,
-		License:       *license,
-		GlobalConfig:  deviceGlobalConfig,
-		SelfService:   hasSelfService,
+		Host:                      resp,
+		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
+		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
+		OrgContactURL:             ac.OrgInfo.ContactURL,
+		License:                   *license,
+		GlobalConfig:              deviceGlobalConfig,
+		SelfService:               hasSelfService,
 	}, nil
 }
 
@@ -725,8 +730,19 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	if len(tmSecrets) == 0 {
 		return nil, &fleet.BadRequestError{Message: "unable to find an enroll secret to generate enrollment profile"}
 	}
-
 	enrollSecret := tmSecrets[0].Secret
+
+	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, cfg.MDM.MacOSSetup.EnableEndUserAuthentication)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
+	}
+
+	// Temporary blocker as decided here https://github.com/fleetdm/fleet/issues/33447#issuecomment-3356951230
+	// until the following user story https://github.com/fleetdm/fleet/issues/33640 is implemented.
+	if requiresIdPUUID {
+		return nil, &fleet.BadRequestError{Message: "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work. Use a manual enrollment profile instead: https://fleetdm.com/learn-more-about/manual-enrollment-profile"}
+	}
+
 	// IB: We skip IDP association here, since it's not part of the spec
 	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, "")
 	if err != nil {

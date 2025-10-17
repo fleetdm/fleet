@@ -3279,12 +3279,56 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return uid
 	}
 
+	assertAndroidProfile := func(filename string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
+		fields := addLabelsFields(labelNames)
+		if teamID > 0 {
+			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+		}
+
+		bytes := []byte(`{
+  "removeUserDisabled": false
+}`)
+
+		body, headers := generateNewProfileMultipartRequest(t, filename, bytes, s.token, fields)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+
+		if wantErrMsg != "" {
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, wantErrMsg)
+			return ""
+		}
+
+		var resp newMDMConfigProfileResponse
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.ProfileUUID)
+		require.Equal(t, fleet.MDMAndroidProfileUUIDPrefix, string(resp.ProfileUUID[0]))
+		return resp.ProfileUUID
+	}
+
+	createAndroidProfile := func(name string, teamID uint, labelNames []string) string {
+		uid := assertAndroidProfile(name+".json", teamID, labelNames, http.StatusOK, "")
+
+		var wantJSON string
+		if teamID == 0 {
+			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "profile_name": %q}`, name)
+		} else {
+			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "profile_name": %q}`, teamID, testTeam.Name, name)
+		}
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedAndroidProfile{}.ActivityName(), wantJSON, 0)
+
+		return uid
+	}
+
 	// create a couple Apple profiles for no-team and team
 	noTeamAppleProfUUID := createAppleProfile("apple-global-profile", "test-global-ident", 0, nil)
 	teamAppleProfUUID := createAppleProfile("apple-team-profile", "test-team-ident", testTeam.ID, nil)
 	// create a couple Windows profiles for no-team and team
 	noTeamWinProfUUID := createWindowsProfile("win-global-profile", 0, nil)
 	teamWinProfUUID := createWindowsProfile("win-team-profile", testTeam.ID, nil)
+	// Create a couple Android profiles for no-team and team
+	noTeamAndroidProfUUID := createAndroidProfile("android-global-profile", 0, nil)
+	teamAndroidProfUUID := createAndroidProfile("android-team-profile", testTeam.ID, nil)
 
 	// Windows profile name conflicts with Apple's for no team
 	assertWindowsProfile("apple-global-profile.xml", "./Test", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
@@ -3302,6 +3346,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// but no conflict for no-team
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, nil, http.StatusOK, "")
+	// Android profile name conflicts with Apple's for no team
+	assertAndroidProfile("apple-global-profile.json", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 
 	// add some macOS declarations
 	createAppleDeclaration("apple-declaration", "test-declaration-ident", 0, nil)
@@ -3315,15 +3361,20 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration("apple-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// name is pulled from filename, it conflicts with existing macOS config profile
 	assertAppleDeclaration("win-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
+	// name is pulled from filename, it conflicts with existing Android config profile
+	assertAppleDeclaration("android-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// windows profile name conflicts with existing declaration
 	assertWindowsProfile("apple-declaration.xml", "./Test", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// macOS profile name conflicts with existing declaration
 	assertAppleProfile("apple-declaration.mobileconfig", "apple-declaration", "test-declaration-ident", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
+	// Android profile name conflicts with existing declaration
+	assertAndroidProfile("apple-declaration.json", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 
 	// not an xml nor mobileconfig file
 	assertWindowsProfile("foo.txt", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 	assertAppleDeclaration("foo.txt", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
+	assertAndroidProfile("foo.txt", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 
 	// Windows-reserved LocURI
 	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest,
@@ -3342,6 +3393,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertAndroidProfile("android-with-labels.json", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 
 	// create a couple of labels
 	labelFoo := &fleet.Label{Name: "foo", Query: "select * from foo;"}
@@ -3355,6 +3407,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertAndroidProfile("android-profile-with-labels.json", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 
 	// profiles with invalid mix of labels
 	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
@@ -3363,6 +3416,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
 	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
 	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
 
 	// profiles with valid labels
 	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"!foo"}, http.StatusOK, "")
@@ -3371,7 +3426,11 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"-foo", "-bar"}, http.StatusOK, "")
 	uuidAppleDDMTeamWithLabel := createAppleDeclaration("apple-team-decl-with-labels", "ident-team-decl-with-labels", testTeam.ID, []string{"-foo"})
 	uuidWindowsTeamWithLabel := assertWindowsProfile("win-team-profile-with-labels.xml", "./Test", testTeam.ID, []string{"foo", "bar"}, http.StatusOK, "")
-	uuidWindowsTeamWithInclAnyLabel := assertWindowsProfile("win-team-profile-with-incl-any-labels.xml", "./Test", testTeam.ID, []string{"foo", "bar"}, http.StatusOK, "")
+	uuidWindowsTeamWithInclAnyLabel := assertWindowsProfile("win-team-profile-with-incl-any-labels.xml", "./Test", testTeam.ID, []string{"~foo", "~bar"}, http.StatusOK, "")
+
+	uuidAndroidWithLabel := assertAndroidProfile("android-profile-with-labels.json", 0, []string{"-foo", "-bar"}, http.StatusOK, "")
+	uuidAndroidTeamWithLabel := assertAndroidProfile("android-team-profile-with-labels.json", testTeam.ID, []string{"foo", "bar"}, http.StatusOK, "")
+	uuidAndroidTeamWithInclAnyLabel := assertAndroidProfile("android-team-profile-with-incl-any-labels.json", testTeam.ID, []string{"~foo", "~bar"}, http.StatusOK, "")
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, "win.xml", []byte("\x00\x01\x02"), s.token, nil)
@@ -3384,14 +3443,30 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "mobileconfig is not XML nor PKCS7 parseable")
+	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet wil sign the profile for you.")
 
-	// Apple invalid json declaration
+	// Apple/Android invalid json declaration
 	body, headers = generateNewProfileMultipartRequest(t,
 		"apple.json", []byte("{"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't add. The file should include valid JSON:")
+
+	// Apple/Android cannot determine which
+	body, headers = generateNewProfileMultipartRequest(t,
+		"apple_or_android.json", []byte(`{"lower_key": true,"UpperKey": false}`), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Keys in declaration (DDM) profile must contain only letters and start with a uppercase letter. Keys in Android profile must contain only letters and start with a lowercase letter.")
+
+	// Android invalid keys
+	for key, expectedErr := range fleet.AndroidForbiddenJSONKeys {
+		body, headers = generateNewProfileMultipartRequest(t,
+			"android.json", []byte(fmt.Sprintf(`{"%s": true}`, key)), s.token, nil)
+		res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, expectedErr)
+	}
 
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
@@ -3399,6 +3474,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID, Scope: string(fleet.PayloadScopeSystem)},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
+		{ProfileUUID: noTeamAndroidProfUUID, Platform: "android", Name: "android-global-profile", TeamID: nil},
+		{ProfileUUID: teamAndroidProfUUID, Platform: "android", Name: "android-team-profile", TeamID: &testTeam.ID},
 		{
 			ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil,
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
@@ -3440,7 +3517,28 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		},
 		{
 			ProfileUUID: uuidWindowsTeamWithInclAnyLabel, Platform: "windows", Name: "win-team-profile-with-incl-any-labels", TeamID: &testTeam.ID,
+			LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelBar.ID, LabelName: labelBar.Name},
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{
+			ProfileUUID: uuidAndroidWithLabel, Platform: "android", Name: "android-profile-with-labels", TeamID: nil,
+			LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelBar.ID, LabelName: labelBar.Name},
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{
+			ProfileUUID: uuidAndroidTeamWithLabel, Platform: "android", Name: "android-team-profile-with-labels", TeamID: &testTeam.ID,
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelBar.ID, LabelName: labelBar.Name},
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{
+			ProfileUUID: uuidAndroidTeamWithInclAnyLabel, Platform: "android", Name: "android-team-profile-with-incl-any-labels", TeamID: &testTeam.ID,
+			LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelBar.ID, LabelName: labelBar.Name},
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
 			},
@@ -3473,9 +3571,11 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", prof.ProfileUUID), nil, http.StatusOK, "alt", "media")
 		require.NotZero(t, resp.ContentLength)
 		require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
-		if strings.HasPrefix(prof.ProfileUUID, "a") { //nolint:gocritic // ignore ifElseChain
+		if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleProfileUUIDPrefix) { //nolint:gocritic // ignore ifElseChain
 			require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
 		} else if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
+			require.Contains(t, resp.Header.Get("Content-Type"), "application/json")
+		} else if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAndroidProfileUUIDPrefix) {
 			require.Contains(t, resp.Header.Get("Content-Type"), "application/json")
 		} else {
 			require.Contains(t, resp.Header.Get("Content-Type"), "application/octet-stream")
@@ -3497,6 +3597,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// get an unknown Windows profile
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, &getResp)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, "alt", "media")
+	// get an unknown Android profile
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAndroidProfileUUIDPrefix)), nil, http.StatusNotFound, &getResp)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAndroidProfileUUIDPrefix)), nil, http.StatusNotFound, "alt", "media")
 
 	var deleteResp deleteMDMConfigProfileResponse
 	// delete existing Apple profiles
@@ -3519,6 +3622,22 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamWinProfUUID), nil, http.StatusOK, &deleteResp)
 	// delete non-existing Windows profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, &deleteResp)
+
+	// delete existing Android profiles
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
+		`{"profile_name": "android-global-profile", "team_id": null, "team_name": null}`,
+		0,
+	)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
+		fmt.Sprintf(`{"profile_name": "android-team-profile", "team_id": %d, "team_name": %q}`, testTeam.ID, testTeam.Name),
+		0,
+	)
+	// delete non-existing Android profiles
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAndroidProfileUUIDPrefix)), nil, http.StatusNotFound, &deleteResp)
 
 	// trying to create/delete profiles managed by Fleet fails
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
@@ -4353,6 +4472,19 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
 
+	// invalid profile (bad mobileconfig)
+	resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{
+			Name: "Bad mobileconfig", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>`),
+		},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: plist: error parsing XML property list: XML syntax error")
+
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
 	// Nothing changed, so no activity items
@@ -4455,9 +4587,9 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 		{Name: "N4", Contents: []byte(`{"foo":}`)},
-	}}, http.StatusBadRequest, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "The file should include valid JSON")
+	require.Contains(t, errMsg, "N4 is not a valid macOS, Windows, or Android configuration profile")
 
 	// profiles with reserved Windows location URIs
 	// bitlocker
@@ -4754,9 +4886,9 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
 		{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
 		{DisplayName: "N4", Profile: []byte(`{"foo":}`)},
-	}}, http.StatusBadRequest, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "The file should include valid JSON")
+	require.Contains(t, errMsg, "N4 is not a valid macOS, Windows, or Android configuration profile.")
 
 	// profiles with reserved Windows location URIs
 	// bitlocker
