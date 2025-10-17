@@ -6,6 +6,7 @@ import { IconNames } from "components/icons";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
+import { IMdmCommandResult } from "./mdm";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -452,6 +453,11 @@ export interface ISoftwareInstallResults {
   results: ISoftwareInstallResult;
 }
 
+/** For Software .ipa installs, we use the install results API to return MDM command results */
+export interface ISoftwareIpaInstallResults {
+  results: IMdmCommandResult;
+}
+
 // ISoftwareInstallerType defines the supported installer types for
 // software uploaded by the IT admin.
 export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "rpm" | "exe";
@@ -494,6 +500,7 @@ export interface IHostSoftwarePackage {
   last_uninstall: ISoftwareLastUninstall | null;
   categories?: SoftwareCategory[];
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  platform?: Platform;
 }
 
 export interface IHostAppStoreApp {
