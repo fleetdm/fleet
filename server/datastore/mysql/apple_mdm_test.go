@@ -104,6 +104,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
 		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
+		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
+		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
 	}
 
 	for _, c := range cases {
@@ -9482,4 +9484,72 @@ func testUpdateNanoMDMUserEnrollmentUsername(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, nanoenroll_username, user1)
 	require.Equal(t, userUUID1, fetchedUserUUID1)
+}
+
+func testGetLatestAppleMDMCommandOfType(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Fails if host does not have a record
+	_, err := ds.GetLatestAppleMDMCommandOfType(ctx, "non-existing-uuid", "DeviceLock")
+	require.Error(t, err)
+	require.True(t, errors.Is(err, sql.ErrNoRows))
+
+	// Nano enroll a single device
+	realHostUUID := uuid.NewString()
+	host := &fleet.Host{
+		UUID:           realHostUUID,
+		HardwareSerial: "serial",
+		Platform:       "darwin",
+		TeamID:         nil,
+	}
+	nanoEnroll(t, ds, host, false)
+
+	// Insert one record
+	deviceLockCommandUUID := uuid.NewString()
+	requestType := "DeviceLock"
+	insertIntoNanoViewQueue(t, ds, host.UUID, deviceLockCommandUUID, requestType)
+
+	// Fails if host does exist but not request type
+	_, err = ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
+	require.Error(t, err)
+	require.True(t, errors.Is(err, sql.ErrNoRows))
+
+	// Succeeds if host and request type exist
+	cmd, err := ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, requestType)
+	require.NoError(t, err)
+	require.Equal(t, deviceLockCommandUUID, cmd.CommandUUID)
+	require.Equal(t, requestType, cmd.RequestType)
+}
+
+// insertIntoNanoViewQueue is a helper function that populates the entries that nano_view_queue is made up of.
+func insertIntoNanoViewQueue(t *testing.T, ds *Datastore, hostUUID, commandUUID, requestType string) {
+	ctx := t.Context()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Insert into nano_commands
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES (?, ?, '<?xml', 'None')`, commandUUID, requestType)
+		require.NoError(t, err)
+
+		// Insert into nano_enrollment_queue
+		_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority) VALUES (?, ?, 1, 0)`, hostUUID, commandUUID)
+		require.NoError(t, err)
+
+		// Insert into nano_command_results
+		_, err = q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result, not_now_tally) VALUES (?, ?, 'Acknowledged', '<?xml', 0)`, hostUUID, commandUUID)
+		return err
+	})
+}
+
+func testSetLockCommandForLostModeCheckin(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostID := uint(1)
+	commandUUID := uuid.NewString()
+
+	// Insert successfully
+	err := ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
+	require.NoError(t, err)
+
+	// Fails if trying to insert on existing row
+	err = ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
+	require.Error(t, err)
 }

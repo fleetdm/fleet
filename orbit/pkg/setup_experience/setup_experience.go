@@ -20,7 +20,7 @@ import (
 
 // OrbitClient is the minimal interface needed to communicate with the Fleet server.
 type OrbitClient interface {
-	GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error)
+	GetSetupExperienceStatus(resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error)
 }
 
 // DeviceClient is the minimal interface needed to get the device's browser URL.
@@ -84,7 +84,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	log.Info().Msg("checking setup experience status")
 
 	// Poll the status endpoint. This also releases the device if we're done.
-	payload, err := s.OrbitClient.GetSetupExperienceStatus()
+	payload, err := s.OrbitClient.GetSetupExperienceStatus(!s.started)
 	if err != nil {
 		return err
 	}
@@ -186,19 +186,20 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	if len(payload.Software) > 0 || payload.Script != nil {
 		log.Info().Msg("setup experience: rendering software and script UI")
 
-		var steps []*fleet.SetupExperienceStatusResult
 		if len(payload.Software) > 0 {
-			steps = payload.Software
-		}
-
-		if payload.Script != nil {
-			steps = append(steps, payload.Script)
-		}
-
-		for _, step := range steps {
-			if step.Status != fleet.SetupExperienceStatusFailure && step.Status != fleet.SetupExperienceStatusSuccess {
-				allStepsDone = false
+			for _, step := range payload.Software {
+				// If any step is not in a terminal state, then we're not done.
+				if (step.Status != fleet.SetupExperienceStatusFailure && step.Status != fleet.SetupExperienceStatusSuccess) ||
+					// If any software failed, and we're requiring all software to succeed, then we'll block completion.
+					(step.Status == fleet.SetupExperienceStatusFailure && payload.RequireAllSoftware) {
+					allStepsDone = false
+				}
 			}
+		}
+
+		// If a script is still running, then we're not done.
+		if payload.Script != nil && payload.Script.Status != fleet.SetupExperienceStatusFailure && payload.Script.Status != fleet.SetupExperienceStatusSuccess {
+			allStepsDone = false
 		}
 	}
 
@@ -324,7 +325,7 @@ func (s *LinuxSetupExperiencer) Run(_ *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	payload, err := s.orbitClient.GetSetupExperienceStatus()
+	payload, err := s.orbitClient.GetSetupExperienceStatus(false)
 	if err != nil {
 		return err
 	}

@@ -66,6 +66,12 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 				Message: fleet.CantLockPersonalHostsMessage,
 			}
 		}
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" &&
+			(host.FleetPlatform() == "ios" || host.FleetPlatform() == "ipados") {
+			return "", &fleet.BadRequestError{
+				Message: fleet.CantLockManualIOSIpadOSHostsMessage,
+			}
+		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)

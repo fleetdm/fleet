@@ -612,6 +612,9 @@ For community-reported bugs, this may require QA to gather more information from
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
 
+For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. QA should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, QA verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [reproduced state](#reproduced).
 
 #### Reproduced
 
@@ -745,7 +748,7 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 ### Design system
 
-The 🧩 ["Design System"](https://www.figma.com/file/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-System-(current)?type=design&mode=design&t=BytcobQwypszkxf5-1) component library in Figma is the source of truth for components. Components in the product (documented in [Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
+The 🧩 ["Design System"](https://www.figma.com/files/project/15701210) component library in Figma is the source of truth for components. Components in the product (documented in [Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
 
 ### Table empty states
 

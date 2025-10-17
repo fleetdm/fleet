@@ -3035,3 +3035,57 @@ spec:
   purpose: Informational
   tags: fleet, osquery, table, schema
   contributors: nonpunctual
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get MCP client configurations
+  platform: darwin, linux, windows
+  description: |
+    Retrieves Model Context Protocol (MCP) client configurations from supported AI applications.
+    Only global (not project-specific) configurations are returned.
+    
+    Supported applications: Cursor (macOS/Linux/Windows), Claude Desktop (macOS/Windows), Claude Code (macOS/Linux), VSCode (macOS/Linux/Windows), Windsurf (macOS), Gemini CLI (macOS/Linux/Windows), LMStudio (macOS/Linux/Windows)
+  query: |
+    -- Step 1: Define config file path suffixes for each supported application
+    WITH path_suffixes(path) AS (
+      VALUES 
+        ('/.cursor/mcp.json'), -- Cursor, macOS/Linux/Windows
+        ('/Library/Application Support/Claude/claude_desktop_config.json'), -- Claude Desktop, macOS
+        ('\AppData\Roaming\Claude\claude_desktop_config.json'), -- Claude Desktop, Windows
+        ('/.claude.json'), -- Claude Code, macOS/Linux
+        ('/Library/Application Support/Code/User/mcp.json'), -- VSCode, macOS
+        ('/.config/Code/User/mcp.json'), -- VSCode, Linux
+        ('\AppData\Roaming\Code\User\mcp.json'), -- VSCode, Windows
+        ('/.codeium/windsurf/mcp_config.json'), -- Windsurf, macOS
+        ('/.gemini/settings.json'), -- Gemini CLI, macOS/Linux/Windows
+        ('/.lmstudio/mcp.json') -- LMStudio, macOS/Linux/Windows
+    ), 
+    -- Step 2: Build full file paths by combining each user's home directory with the path suffixes
+    full_paths AS (
+      SELECT directory || path AS full_path
+      FROM users 
+      JOIN path_suffixes
+    ), 
+    -- Step 3: Read config files that exist and concatenate their lines into complete JSON strings
+    config_files AS (
+      SELECT path, group_concat(line, '') AS contents 
+      FROM file_lines 
+      WHERE path IN full_paths 
+      GROUP BY path
+    ) 
+    -- Step 4: Parse JSON and extract each MCP server configuration
+    SELECT 
+      config_files.path, 
+      key AS name, 
+      value AS mcp_config 
+    FROM config_files 
+    JOIN json_each(
+      COALESCE(
+        config_files.contents->'$.mcpServers',
+        config_files.contents->'$.servers'
+        ) -- Most configs use 'mcpServers' key, but some use 'servers' key
+    )
+  purpose: Informational
+  tags: fleet, osquery, mcp, ai, agents, llm, inventory
+  contributors: zwass

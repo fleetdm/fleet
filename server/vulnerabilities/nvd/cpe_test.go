@@ -522,6 +522,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.apple.finder",
 			}, cpe: "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
 		},
+		{ // Make sure we generate the expected CPE so we can match it downstream and drop the false negative vulns
+			software: fleet.Software{
+				Name:             "Dota 2",
+				Source:           "apps",
+				Version:          "1.0", // default version; on ingestion it's actually blank
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "Firefox.app",

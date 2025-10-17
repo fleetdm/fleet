@@ -67,7 +67,7 @@ Fleet is successful because of our customers and community, and those relationsh
 | Features &amp; product adoption      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Feature prioritization               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Design system for the [Fleet product](https://www.figma.com/files/project/15701210) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
@@ -1072,7 +1072,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - Link to existing pages instead of duplicating content.
 - Favor permalinks and headings that make good anchors (people link to sections).
 
-> > **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
+> **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
 
 
 #### Device vs endpoint

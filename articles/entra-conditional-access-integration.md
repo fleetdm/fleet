@@ -251,7 +251,7 @@ If a device fails a Fleet policy configured for conditional access, the end user
 
 ![User tries to log in again](../website/assets/images/articles/entra-conditional-access-relogin-828x577@2x.png)
 
-- The end user clicks **Check Compliance** and is redirected to [Fleet remediation](https://fleetdm.com/microsoft-compliance-partner/remediate.)
+- The end user clicks **Check Compliance** and is redirected to [Fleet remediation](https://fleetdm.com/microsoft-compliance-partner/remediate).
 
 - After the failing policies are remediated, the end user can log in again.
 
