@@ -12,6 +12,7 @@ import {
   isMobilePlatform,
 } from "interfaces/platform";
 import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -320,25 +321,19 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     id: "os_version",
     // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
     Cell: (cellProps: IHostTableStringCellProps) => {
-      const value = cellProps.cell.value;
-      if (
-        value === "Arch Linux rolling" ||
-        value === "Arch Linux ARM rolling" ||
-        value === "Manjaro Linux rolling" ||
-        value === "Manjaro Linux ARM rolling"
-      ) {
-        return (
-          <TooltipTruncatedTextCell
-            value={
-              <span>
-                {value.slice(0, -7 /* removing lowercase rolling suffix */)}
-                <TooltipWrapperArchLinuxRolling />
-              </span>
-            }
-          />
-        );
-      }
-      return <TooltipTruncatedTextCell value={value} />;
+      const os_version = cellProps.cell.value;
+      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(
+        os_version
+      ) ? (
+        // wrap a tooltip around the "rolling" suffix
+        <>
+          {os_version.slice(0, -8)}
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      ) : (
+        os_version
+      );
+      return <TooltipTruncatedTextCell value={versionForRender} />;
     },
   },
   {
