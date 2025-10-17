@@ -1,0 +1,12 @@
+<Replace>
+  <CmdID>0199f25b-795f-7802-9b16-efae4418f444</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureUPnPDeviceHostServiceStartupMode</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>4</Data>
+  </Item>
+</Replace>
