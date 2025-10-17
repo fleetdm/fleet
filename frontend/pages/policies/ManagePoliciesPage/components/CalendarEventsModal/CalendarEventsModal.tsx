@@ -14,12 +14,12 @@ import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Icon from "components/Icon";
 import { IPaginatedListHandle } from "components/PaginatedList";
+import paths from "router/paths";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 import CalendarPreview from "../../../../../../assets/images/calendar-graphic.png";
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
-import paths from "router/paths";
 
 const baseClass = "calendar-events-modal";
 
