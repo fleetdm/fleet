@@ -325,7 +325,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         value === "Arch Linux rolling" ||
         value === "Arch Linux ARM rolling" ||
         value === "Manjaro Linux rolling" ||
-        value === "Manjaro Linux ARM rolling"
+        value === "Manjaro Linux ARM rolling" ||
+        value === "Manjaro ARM Linux rolling"
       ) {
         return (
           <TooltipTruncatedTextCell
