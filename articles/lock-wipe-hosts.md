@@ -15,13 +15,7 @@ Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads i
 3. Click the **Actions** dropdown, then click  **Lock**.
 4. A confirmation dialog will appear. Confirm that you want to lock the device. The host will now be marked with a "Lock pending" badge. Once the lock command is acknowledged by the host, the badge will update to "Locked".*
 
-The best practice for iOS and iPadOS hosts is to lock the device, given one of these circumstances: 
-- When an employee is offboarded, which will lock them out, and disable any further use.**
-- When an employee is under investigation, reported for suspicious activity or suspected of compromise.**
-- When a host is lost, and you want to find it's location.
-  - This requires sending the [`DeviceLocation`](https://developer.apple.com/documentation/devicemanagement/device-location-command) command using a [custom command](https://fleetdm.com/guides/mdm-commands)
-
-If the host's owner (employee) is leaving the company and keeping a company-owned iOS or iPadOS host, the best practice is to wipe it.
+If you want to obtain the location of a locked iOS or iPadOS host, you can send the [`DeviceLocation`](https://developer.apple.com/documentation/devicemanagement/device-location-command) command using a [custom command](https://fleetdm.com/guides/mdm-commands). This command will only work if the device is locked and in [Lost Mode](https://support.apple.com/en-gb/guide/security/secc46f3562c/web#sec49d5c5c50).
 
 Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), the best practice is to disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined.
 
