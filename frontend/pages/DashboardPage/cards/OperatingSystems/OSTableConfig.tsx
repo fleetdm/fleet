@@ -96,21 +96,22 @@ const generateDefaultTableHeaders = (
   {
     Header: "Version",
     disableSortBy: true,
-    accessor: "version",
     Cell: (cellProps: IVersionCellProps) => {
-      const value = cellProps.cell.value;
+      const { version, name_only } = cellProps.row.original;
       if (
-        (cellProps.row.values.name_only === "Arch Linux" ||
-          cellProps.row.values.name_only === "Arch Linux ARM" ||
-          cellProps.row.values.name_only === "Manjaro Linux" ||
-          cellProps.row.values.name_only === "Manjaro Linux ARM") &&
-        value === "rolling"
+        [
+          "Arch Linux",
+          "Arch Linux ARM",
+          "Manjaro Linux",
+          "Manjaro Linux ARM",
+        ].includes(name_only) &&
+        version === "rolling"
       ) {
         return (
           <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
         );
       }
-      return <TextCell value={value} />;
+      return <TextCell value={version} />;
     },
   },
   {
