@@ -7,7 +7,7 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { formatDistanceToNow } from "date-fns";
 
-import { IGetMdmCommandResultsResponse } from "services/entities/mdm";
+import mdm, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
 import softwareAPI from "services/entities/software";
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
@@ -264,9 +264,7 @@ export const SoftwareIpaInstallDetailsModal = ({
   >(
     ["mdm_command_results", commandUuid],
     async () => {
-      return deviceAuthToken
-        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, commandUuid)
-        : softwareAPI.getSoftwareInstallResult(commandUuid);
+      return mdm.getCommandResults(commandUuid).then(responseHandler); // softwareAPI.getSoftwareInstallResult(commandUuid);
     },
     {
       refetchOnWindowFocus: false,

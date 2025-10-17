@@ -1840,6 +1840,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
+	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {

@@ -554,8 +554,9 @@ WHERE
 		HostID:          res.HostID,
 		HostDisplayName: res.HostDisplayName,
 		SoftwareTitle:   res.SoftwareTitle,
-		// CommandUUID:     res.CommandUUID,
-		Status: status,
+		InstallUUID:     res.CommandUUID,
+		CommandUUID:     res.CommandUUID,
+		Status:          status,
 	}
 
 	return user, act, nil
