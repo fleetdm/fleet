@@ -229,7 +229,7 @@ const canUnlock = ({
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // "unlocking" for a macos devices host means that somebody saw the unlock pin, but
+  // "unlocking" for a macos devices host means that somebody saw the unlock pin, but we
   // shouldn't prevent users from trying to see the pin again so we still want to show
   // the unlock option when macos hosts are unlocking. This is not the same for
   // ios/ipad devices.
