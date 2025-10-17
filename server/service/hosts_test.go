@@ -2824,8 +2824,8 @@ func TestSetHostDeviceMapping(t *testing.T) {
 			return &fleet.Host{ID: 1}, nil
 		}
 		ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
-			require.Equal(t, "custom", source) // Should default to custom
-			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: source}}, nil
+			require.Equal(t, fleet.DeviceMappingCustomOverride, source)                                                          // Should store as custom_override for user-authenticated calls
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: fleet.DeviceMappingCustomReplacement}}, nil // But return as "custom" for display
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)

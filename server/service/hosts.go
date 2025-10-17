@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -1685,10 +1686,12 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 
 	if isInstallerSource {
 		source = fleet.DeviceMappingCustomInstaller
+	} else if source == "custom" {
+		source = fleet.DeviceMappingCustomOverride
 	}
 
 	switch source {
-	case "custom", fleet.DeviceMappingCustomInstaller:
+	case fleet.DeviceMappingCustomOverride, fleet.DeviceMappingCustomInstaller:
 		return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
 	case fleet.DeviceMappingIDP:
 		// Check if this is a premium-only feature
@@ -1708,7 +1711,7 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 
 		// Check if the user is a valid SCIM user to manage the join table
 		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
-		if err != nil && !fleet.IsNotFound(err) {
+		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
 		}
 		if err == nil && scimUser != nil {
