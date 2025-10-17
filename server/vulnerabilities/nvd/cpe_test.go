@@ -536,7 +536,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "BlueStacksMIN",
+				Name:             "BlueStacksMIM",
 				BundleIdentifier: "com.now.gg.BlueStacksMIM",
 				Source:           "apps",
 				Version:          "4.100.1",
