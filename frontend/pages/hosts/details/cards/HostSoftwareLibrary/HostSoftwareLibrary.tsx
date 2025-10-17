@@ -434,20 +434,30 @@ const HostSoftwareLibrary = ({
   }, []);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number) => {
+    async (softwareId: number, isScriptPackage = false) => {
       try {
         await hostAPI.installHostSoftwarePackage(id as number, softwareId);
         if (isMountedRef.current) {
           onInstallOrUninstall();
         }
+
+        const message = () => {
+          switch (true) {
+            case isHostOnline && isScriptPackage:
+              return "Script is running.";
+            case isHostOnline && !isScriptPackage:
+              return "Software is installing.";
+            case !isHostOnline && isScriptPackage:
+              return "Script will run when the host comes online.";
+            default:
+              return "Software will install when the host comes online.";
+          }
+        };
+
         renderFlash(
           "success",
           <>
-            Software{" "}
-            {isHostOnline
-              ? "is installing"
-              : "will install when the host comes online"}
-            . To see details, go to <b>Details &gt; Activity</b>.
+            {message()} To see details, go to <b>Details &gt; Activity</b>.
           </>
         );
       } catch (e) {

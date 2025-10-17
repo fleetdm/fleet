@@ -14201,6 +14201,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUIDs[0],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14225,6 +14226,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload2.Filename,
 		InstallUUID:     installUUIDs[1],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14255,6 +14257,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstalled),
+		Source:          ptr.String("deb_packages"),
 	}
 	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14291,6 +14294,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16578,6 +16582,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "installed",
+		"source": "apps",
 		"policy_id": %d,
 		"policy_name": "%s"
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
@@ -16598,6 +16603,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "%s",
+		"source": "deb_packages",
 		"policy_id": %d,
 		"policy_name": "%s"
 	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID, fleet.SoftwareInstallFailed, policy2Team1.ID, policy2Team1.Name), 0)
@@ -16640,6 +16646,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "%s",
+		"source": "programs",
 		"policy_id": %f,
 		"policy_name": "%s"
 	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID,
@@ -17588,6 +17595,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUID,
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("rpm_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -18512,6 +18520,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     swInstallExecID,
 		Status:          string(fleet.SoftwareInstalled),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -20311,6 +20320,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			"install_uuid": %q,
 			"status": "failed",
 			"self_service": false,
+			"source": "deb_packages",
 			"policy_name": null,
 			"policy_id": null
 		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", "vim.deb", executionIDs["vim"]), 0)
