@@ -118,7 +118,7 @@ WITH encrypted(enabled) AS (
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks_free * blocks_size) * 10e-10, 2) FROM mounts WHERE
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
 -- exclude mounts with no space
 blocks > 0
 AND blocks_size > 0
@@ -137,10 +137,10 @@ AND path NOT LIKE '/sys%'
 AND path NOT LIKE '/run%'
 AND path NOT LIKE '/var/run%'
 
--- boot files
+-- exclude boot files
 AND path NOT LIKE '/boot%' 
 
--- snap packages
+-- exclude snap packages
 AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
 
 -- exclude virtualized mounts, would double-count bare metal storage
