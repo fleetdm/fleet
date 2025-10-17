@@ -162,7 +162,7 @@ spec:
     OR device LIKE '/dev/md%'
     OR device LIKE '/dev/dm-%'
     )) AS gigs_all_disk_space
-		    FROM mounts WHERE path = '/' LIMIT 1;
+	FROM mounts WHERE path = '/' LIMIT 1;
   bash: df -P / | awk 'NR==2 { blocks=$2; blocks_available=$4; blocks_size=$2/$3 } END { printf "percent_disk_space_available=%.2f\n", (blocks_available * 100 / blocks); printf "gigs_disk_space_available=%.2f\n", (blocks_available * blocks_size * 10e-10); printf "gigs_total_disk_space=%.2f\n", (blocks * blocks_size * 10e-10) }'
   purpose: Informational
   tags: built-in
