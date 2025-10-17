@@ -2135,8 +2135,9 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	DELETE st FROM software_titles st
 	LEFT JOIN software s ON st.id = s.title_id
 	LEFT JOIN software_installers si ON st.id = si.title_id
+	LEFT JOIN in_house_apps iha ON st.id = iha.title_id
 	LEFT JOIN vpp_apps vap ON st.id = vap.title_id
-	WHERE s.title_id IS NULL AND si.title_id IS NULL AND vap.title_id IS NULL`
+	WHERE s.title_id IS NULL AND si.title_id IS NULL AND iha.title_id IS NULL AND vap.title_id IS NULL`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedSoftwareTitlesStmt)
 	if err != nil {
