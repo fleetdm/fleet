@@ -48,6 +48,8 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
         <>
           .mobileconfig and .json for macOS, iOS, and iPadOS.
           <br />
+          .json for Android.
+          <br />
           .xml for Windows.
         </>
       }

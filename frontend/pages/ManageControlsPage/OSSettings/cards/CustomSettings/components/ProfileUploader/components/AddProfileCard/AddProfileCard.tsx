@@ -21,6 +21,8 @@ const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
           <>
             .mobileconfig and .json for macOS, iOS, and iPadOS.
             <br />
+            .json for Android.
+            <br />
             .xml for Windows.
           </>
         }
