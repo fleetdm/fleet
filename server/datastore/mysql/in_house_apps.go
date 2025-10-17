@@ -39,7 +39,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Name)
 		if err := row.Scan(&count); err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp: ")
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
@@ -67,14 +67,14 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			"ipados",
 		}
 
-		_, err := ds.insertInHouseInstaller(ctx, tx, payload, argsIpad)
+		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp: ")
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 
-		installerID, err = ds.insertInHouseInstaller(ctx, tx, payload, argsIos)
+		installerID, err = ds.insertInHouseAppDB(ctx, tx, payload, argsIos)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insertInHouseApp: ")
+			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 
 		return nil
@@ -105,7 +105,7 @@ func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name st
 	return titleID, nil
 }
 
-func (ds *Datastore) insertInHouseInstaller(ctx context.Context, tx sqlx.ExtContext, payload *fleet.InHouseAppPayload, args []any) (uint, error) {
+func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext, payload *fleet.InHouseAppPayload, args []any) (uint, error) {
 	stmt := `
 	INSERT INTO in_house_apps (
 		team_id,
@@ -122,18 +122,18 @@ func (ds *Datastore) insertInHouseInstaller(ctx context.Context, tx sqlx.ExtCont
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		if IsDuplicate(err) {
-			err = alreadyExists("insertInHouseApp", payload.Name)
+			err = alreadyExists("insertInHouseAppDB", payload.Name)
 		}
-		return 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
 	id64, err := res.LastInsertId()
 	installerID := uint(id64) //nolint:gosec // dismiss G115
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
 
 	if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
 	return installerID, nil
 }
@@ -200,18 +200,10 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
                     version = ?
                  WHERE id = ?`
 
-		// Avoid updating platform from .ipa file for now
-		// ext := "ipa"
-		// if i := strings.LastIndex(ext, "."); i != -1 {
-		// 	ext = ext[i+1:]
-		// }
-		// platform, _ := fleet.SoftwareInstallerPlatformFromExtension(ext)
-
 		args := []any{
 			payload.StorageID,
 			payload.Filename,
 			payload.Version,
-			// platform,
 			payload.InstallerID,
 		}
 
