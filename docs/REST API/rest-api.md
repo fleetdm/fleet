@@ -1108,8 +1108,12 @@ None.
     "sso_server_url": ""
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_tenant_id": "",
+    "microsoft_entra_connection_configured": false,
+    "okta_idp_id": "<ID>",
+    "okta_assertion_consumer_service_url": "<URL>",
+    "okta_audience_uri": "<URI>",
+    "okta_certificate": "<TODO>"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1412,7 +1416,11 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_connection_configured": true,
+    "okta_idp_id": "<ID>",
+    "okta_assertion_consumer_service_url": "<URL>",
+    "okta_audience_uri": "<URI>",
+    "okta_certificate": "<TODO>"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -11922,7 +11930,7 @@ _Available in Fleet Premium_
 | jira            | array  | See [`integrations.jira`](#integrations-jira2).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
-| conditional_access_enabled | boolean | **Available in Fleet Premium for managed cloud customers.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config. |
+| conditional_access_enabled | boolean | **Available in Fleet Premium.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config. |
 
 <br/>
 
