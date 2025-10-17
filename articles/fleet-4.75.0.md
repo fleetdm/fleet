@@ -8,7 +8,7 @@ Fleet 4.75.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- Omarchy Linux
+- Arch Linux / Omarchy Linux
 - Android configuration profiles
 - Smallstep certificates
 - Labels page
