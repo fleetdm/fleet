@@ -4340,12 +4340,20 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 	return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
 }
 
+// deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
+func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExecerContext, hostID uint) error {
+	_, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+	}
+	return nil
+}
+
 func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Remove any existing SCIM user mapping for this host
-		_, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete existing host SCIM user mapping")
+		if err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			return err
 		}
 
 		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
@@ -4353,11 +4361,7 @@ func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID 
 }
 
 func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
-	}
-	return nil
+	return deleteHostSCIMUserMapping(ctx, ds.writer(ctx), hostID)
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
