@@ -514,12 +514,12 @@
                 </dict>
                 <dict>
                     <key>name</key>
-                    <string>🦢 Product design</string>
+                    <string>🦢 Product Design</string>
                     <key>children</key>
                     <array>
                         <dict>
                             <key>name</key>
-                            <string>🦢 Product design (Handbook)</string>
+                            <string>🦢 Product Design (Handbook)</string>
                             <key>url</key>
                             <string>https://fleetdm.com/handbook/product-design</string>
                         </dict>
@@ -563,7 +563,7 @@
                 </dict>
                 <dict>
                     <key>name</key>
-                    <string>🌦️ Customer success</string>
+                    <string>🌦️ Customer Success</string>
                     <key>children</key>
                     <array>
                         <dict>

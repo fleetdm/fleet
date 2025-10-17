@@ -23,7 +23,8 @@ module.exports = {
     success: { description: 'The device of an Android enterprise was successfully updated.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
-    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
+    deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
   },
 
 
@@ -82,6 +83,10 @@ module.exports = {
       });
       return patchDeviceResponse.data;
     }).intercept((err) => {
+      let errorString = err.toString();
+      if (errorString.includes('Device is no longer being managed')) {
+        return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
+      }
       return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 

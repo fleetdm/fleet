@@ -3,6 +3,7 @@ import {
   ISoftwareTitleDetails,
   isSoftwarePackage,
   aggregateInstallStatusCounts,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 
 /**
@@ -37,5 +38,7 @@ export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
       ? aggregateInstallStatusCounts(installerData.status)
       : installerData.status,
     isSelfService: installerData.self_service,
+    isScriptPackage:
+      SCRIPT_PACKAGE_SOURCES.includes(softwareTitle.source) || false,
   };
 };

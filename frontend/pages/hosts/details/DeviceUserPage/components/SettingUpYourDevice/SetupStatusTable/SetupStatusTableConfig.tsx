@@ -2,15 +2,15 @@ import React from "react";
 
 import { CellProps, Column } from "react-table";
 
-import { ISetupStep } from "interfaces/setup";
+import { IEnhancedSetupStep } from "interfaces/setup";
 
 import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
 import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";
 import SetupScriptProcessCell from "components/TableContainer/DataTable/SetupScriptProcessCell";
 import SetupScriptStatusCell from "components/TableContainer/DataTable/SetupScriptStatusCell";
 
-type ISetupStatusTableConfig = Column<ISetupStep>;
-type ITableCellProps = CellProps<ISetupStep>;
+type ISetupStatusTableConfig = Column<IEnhancedSetupStep>;
+type ITableCellProps = CellProps<IEnhancedSetupStep>;
 
 const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
   {
@@ -19,10 +19,10 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
       const { name, type } = cellProps.row.original;
-      if (type === "software") {
+      if (type === "software_install" || type === "software_script_run") {
         return <SetupSoftwareProcessCell name={name || "Unknown software"} />;
       }
-      if (type === "script") {
+      if (type === "script_run") {
         return <SetupScriptProcessCell name={name || "Unknown script"} />;
       }
       return null;

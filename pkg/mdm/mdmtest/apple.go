@@ -191,6 +191,27 @@ func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...Test
 	return &c
 }
 
+// NewTestMDMClientAppleDEPFromDevice will create a simulated device that will fetch
+// enrollment profile from Fleet as if it were a device running the DEP flow.
+// The deviceSerialNumber is used as the serial number of the device
+// The model is used as the model of the device
+func NewTestMDMClientAppleDEPFromDevice(serverURL string, depURLToken string, deviceSerialNumber string, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	c := TestAppleMDMClient{
+		UUID:         strings.ToUpper(uuid.New().String()),
+		SerialNumber: deviceSerialNumber,
+		Model:        model,
+
+		fetchEnrollmentProfileFromDEPUsingPost: true,
+		depURLToken:                            depURLToken,
+
+		fleetServerURL: serverURL,
+	}
+	for _, fn := range opts {
+		fn(&c)
+	}
+	return &c
+}
+
 // NewTestMDMClientAppleDirect will create a simulated device that will not fetch the enrollment
 // profile from Fleet. The enrollment information is to be provided in the enrollInfo.
 func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
@@ -930,6 +951,7 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 			"OSVersion":               "17.5.1",
 			"ProductName":             productName,
 			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+			"IsMDMLostModeEnabled":    false,
 		},
 	}
 	return c.sendAndDecodeCommandResponse(payload)
