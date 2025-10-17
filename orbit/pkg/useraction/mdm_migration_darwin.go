@@ -320,8 +320,8 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 	// otherwise show a Contact IT button that links to the contact URL
 	return m.render(errorMessage.String(),
 		"--button1text", "Contact IT",
-		"--button1Action", m.props.OrgInfo.ContactURL,
-		"--button2Text", "Close",
+		"--button1action", m.props.OrgInfo.ContactURL,
+		"--button2text", "Close",
 		"--height", "220")
 }
 
@@ -590,6 +590,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 		)
 	}
 
+	// otherwise show a Contact IT button that links to the contact URL
 	if m.props.OrgInfo.ContactURL != "" {
 		flags = append(flags,
 			// info button
