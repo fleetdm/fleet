@@ -11,12 +11,12 @@ const baseClass = "install-software-preview";
 
 interface IPreviewDisplayConfig {
   description: React.ReactNode;
-  videoSrc: string;
+  videoSrc: string | undefined;
 }
 
 const PREVIEW_DISPLAY_OPTIONS: Record<
   SetupExperiencePlatform,
-  IPreviewDisplayConfig
+  IPreviewDisplayConfig | undefined
 > = {
   macos: {
     description: (
@@ -34,24 +34,8 @@ const PREVIEW_DISPLAY_OPTIONS: Record<
     ),
     videoSrc: MacInstallSoftwareEndUserPreview,
   },
-  ios: {
-    description: (
-      <p>
-        When an iOS host in Apple Business Manager (ABM) enrolls, the selected
-        software is installed.
-      </p>
-    ),
-    videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
-  },
-  ipados: {
-    description: (
-      <p>
-        When an iPadOS host in Apple Business Manager (ABM) enrolls, the
-        selected software is installed.
-      </p>
-    ),
-    videoSrc: MacInstallSoftwareEndUserPreview, // TODO: update with new video when it's available
-  },
+  ios: undefined,
+  ipados: undefined,
   linux: {
     description: (
       <>
@@ -83,8 +67,8 @@ interface InstallSoftwarePreviewProps {
 }
 
 const InstallSoftwarePreview = ({ platform }: InstallSoftwarePreviewProps) => {
-  const { description, videoSrc } = PREVIEW_DISPLAY_OPTIONS[platform];
-  return (
+  const { description, videoSrc } = PREVIEW_DISPLAY_OPTIONS[platform] || {};
+  return description && videoSrc ? (
     <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
       {description}
@@ -98,7 +82,7 @@ const InstallSoftwarePreview = ({ platform }: InstallSoftwarePreviewProps) => {
         muted
       />
     </Card>
-  );
+  ) : null;
 };
 
 export default InstallSoftwarePreview;
