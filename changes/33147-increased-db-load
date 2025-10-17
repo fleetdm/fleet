@@ -1,1 +1,0 @@
-Fixed MySQL DB performance regressions introduced in Fleet 4.73.0/4.73.1 affecting OS versions and software titles read queries.
