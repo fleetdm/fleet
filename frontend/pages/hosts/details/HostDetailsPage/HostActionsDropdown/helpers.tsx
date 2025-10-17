@@ -5,6 +5,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   isLinuxLike,
   isAppleDevice,
+  isMacOS,
   isMobilePlatform,
   isAndroid,
   isIPadOrIPhone,
@@ -228,12 +229,12 @@ const canUnlock = ({
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // TODO: check if this is still the behaviour for apple hosts
-  // "unlocking" for a apple devices host means that somebody saw the unlock pin, but
-  // shouldn't prevent users from trying to see the pin again, which is
-  // considered an "unlock"
+  // "unlocking" for a macos devices host means that somebody saw the unlock pin, but we
+  // shouldn't prevent users from trying to see the pin again so we still want to show
+  // the unlock option when macos hosts are unlocking. This is not the same for
+  // ios/ipad devices.
   const isValidState =
-    (hostMdmDeviceStatus === "unlocking" && isAppleDevice(hostPlatform)) ||
+    (hostMdmDeviceStatus === "unlocking" && isMacOS(hostPlatform)) ||
     hostMdmDeviceStatus === "locked";
 
   return (
