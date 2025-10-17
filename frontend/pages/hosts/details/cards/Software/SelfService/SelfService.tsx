@@ -350,7 +350,7 @@ const SoftwareSelfService = ({
   }, []);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number) => {
+    async (softwareId: number, isScriptPackage = false) => {
       try {
         await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
         if (isMountedRef.current) {
@@ -358,7 +358,10 @@ const SoftwareSelfService = ({
         }
       } catch (error) {
         // We only show toast message if API returns an error
-        renderFlash("error", "Couldn't install. Please try again.");
+        renderFlash(
+          "error",
+          `Couldn't ${isScriptPackage ? "run" : "install"}. Please try again.`
+        );
       }
     },
     [deviceToken, onInstallOrUninstall, renderFlash]

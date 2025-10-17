@@ -284,18 +284,25 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      const { platform, percent_disk_space_available } = cellProps.row.original;
+      const {
+        platform,
+        percent_disk_space_available,
+        gigs_disk_space_available,
+        gigs_total_disk_space,
+        gigs_all_disk_space,
+      } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
           inTableCell
-          gigsDiskSpaceAvailable={cellProps.cell.value}
+          gigsDiskSpaceAvailable={gigs_disk_space_available}
           percentDiskSpaceAvailable={percent_disk_space_available}
+          gigsTotalDiskSpace={gigs_total_disk_space}
+          gigsAllDiskSpace={gigs_all_disk_space}
           platform={platform}
         />
       );

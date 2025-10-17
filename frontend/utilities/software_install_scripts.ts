@@ -26,8 +26,9 @@ const getDefaultInstallScript = (fileName: string): string => {
     case "rpm":
       return installRPM;
     case "exe":
-      return "";
     case "tar.gz":
+    case "sh":
+    case "ps1":
       return "";
     default:
       throw new Error(`unsupported file extension: ${extension}`);
