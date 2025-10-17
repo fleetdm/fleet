@@ -252,6 +252,7 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 			// To handle both cases, we collect all OU values and join them with `+OU=` below.
 			// We should probably reconsider our approaches for normalization of cert data
 			// across the board.
+			// FIXME: How should this work with the edge case covered by PR 33152 (see line 224 above)?
 			ouParts = append(ouParts, strings.Trim(value, " "))
 		case "CN":
 			details.CommonName = strings.Trim(value, " ")
