@@ -4105,7 +4105,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
 	if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
-		deviceCapacity); err != nil {
+		deviceCapacity, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
 	}
 	if err := svc.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{

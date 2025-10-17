@@ -199,6 +199,8 @@ const HostSummary = ({
           <DiskSpaceIndicator
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
+            gigsTotalDiskSpace={summaryData.gigs_total_disk_space}
+            gigsAllDiskSpace={summaryData.gigs_all_disk_space}
             platform={platform}
             tooltipPosition="bottom"
           />

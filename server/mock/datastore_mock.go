@@ -719,7 +719,7 @@ type UpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool) err
 
 type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string) ([]string, error)
 
-type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
+type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64, gigsAll *float64) error
 
 type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
@@ -6358,11 +6358,11 @@ func (s *DataStore) GetHostEmails(ctx context.Context, hostUUID string, source s
 	return s.GetHostEmailsFunc(ctx, hostUUID, source)
 }
 
-func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error {
+func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64, gigsAll *float64) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal)
+	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal, gigsAll)
 }
 
 func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
