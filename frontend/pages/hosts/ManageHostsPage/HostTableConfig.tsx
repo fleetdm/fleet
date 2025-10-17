@@ -327,7 +327,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       ) ? (
         // wrap a tooltip around the "rolling" suffix
         <>
-          {os_version.slice(0, -8)}
+          {os_version.slice(0, -8)}&nbsp;
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
