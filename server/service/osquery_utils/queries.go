@@ -516,11 +516,16 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 
 	var gigsAllForFnCall *float64
 	if fleet.IsLinux(host.Platform) {
-		gigsAll, err := strconv.ParseFloat(EmptyToZero((rows[0]["gigs_all_disk_space"])), 64)
-		if err != nil {
-			return err
+		strippedRawRes := strings.TrimSpace(rows[0]["gigs_all_disk_space"])
+		// write `nil`, not 0, if osquery returns `""`, since a host cannot have 0 disk space and
+		// therefore this must represent a problematic query result
+		if strippedRawRes != "" {
+			gigsAll, err := strconv.ParseFloat(strippedRawRes, 64)
+			if err != nil {
+				return err
+			}
+			gigsAllForFnCall = &gigsAll
 		}
-		gigsAllForFnCall = &gigsAll
 	}
 
 	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAllForFnCall)
