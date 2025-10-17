@@ -16,6 +16,7 @@ import {
   isOsSettingsDisplayPlatform,
   platformSupportsDiskEncryption,
 } from "interfaces/platform";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
@@ -255,13 +256,8 @@ const HostSummary = ({
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
       const version = summaryData.os_version;
-      const versionForRender = [
-        "Arch Linux rolling",
-        "Arch Linux ARM rolling",
-        "Manjaro Linux rolling",
-        "Manjaro Linux ARM rolling",
-      ].includes(version) ? (
-        // wrap a tooltip aroun the "rolling" suffix
+      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
+        // wrap a tooltip around the "rolling" suffix
         <>
           {version.slice(0, -8)}
           <TooltipWrapperArchLinuxRolling />
