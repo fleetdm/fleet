@@ -79,7 +79,7 @@ const SoftwareSummaryCard = ({
           title={title.name}
           type={formatSoftwareType(title)}
           versions={title.versions?.length ?? 0}
-          hosts={title.hosts_count}
+          hostCount={title.hosts_count}
           countsUpdatedAt={title.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
