@@ -54,7 +54,9 @@ const SoftwareSummaryCard = ({
   const [iconUploadedAt, setIconUploadedAt] = useState("");
 
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages only
-  const showVersionsTable = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source);
+  const showVersionsTable =
+    !!title.versions?.length &&
+    !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source);
 
   const hasEditPermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
