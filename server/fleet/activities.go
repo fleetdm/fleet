@@ -1840,7 +1840,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
-	CommandUUID         string  `json:"command_uuid"`
+	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1878,7 +1878,6 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "status": "pending",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date",
-  "command_uuid": ""
 }`
 }
 
