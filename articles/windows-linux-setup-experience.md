@@ -10,6 +10,8 @@ Fleet automatically opens the default web browser to show end users software ins
 
 The browser can be closed, and the installation will continue in the background. End Users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
+If software installs fail, Fleet automatically retries. Learn more in the [macOS setup experience guide](https://fleetdm.com/guides/macos-setup-experience#install-software).
+
 To replace the Fleet logo with your organization's logo:
 
 1. Go to **Settings** > **Organization settings** > **Organization info**

@@ -1,8 +1,12 @@
 # Conditional access: Entra
 
-With Fleet, you can integrate with Microsoft Entra ID to enforce conditional access on macOS hosts.
+With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS hosts.
 
-When a device fails a Fleet policy, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
+When a host fails a policy in Fleet, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
+
+Migrating from your current MDM solution to Fleet? Head to the [migration instructions](#migration).
+
+Entra conditional access is supported even if you're not using MDM features in Fleet.
 
 [Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're a Fleet Premium customer using managed cloud. To learn more, [get in touch with sales](https://fleetdm.com/contact). We'd love to chat.
 
@@ -18,7 +22,7 @@ To enforce conditional access, end users must be members of a group called **Fle
 
 1. Log in to [Intune](https://intune.microsoft.com), and follow [this Microsoft guide](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners#add-a-compliance-partner-to-intune) to add Fleet as a compliance partner in Intune.
 
-2. For **Platform**, select **macOS**.
+2. For **Platform**, select **macOS**. If you're migrating from your old MDM solution to Fleet, follow [these steps](#migration). **macOS** won't appear until you delete your old MDM solution in Intune.
 
 3. For **Assignments** add the "Fleet conditional access" group you created to **Included groups**. 
 >**Important:** Do not select **Add all users** or pick a different group. Fleet requires the "Fleet conditional access" group.
@@ -159,7 +163,10 @@ Entra conditional access requires a Platform SSO extension for Company Portal. T
 </plist>
 ```
 
-> **Note:** Starting in Q3 2025, `UserSecureEnclaveKey` is mandatory. See [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage)
+If you're using another MDM solution, add the same configuration profile and target only macOS hosts with Company Portal installed.
+
+> `UserSecureEnclaveKey` will be mandatory starting in Q3 2025. See [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage)
+
 
 ## 5: Add Fleet policies
 
@@ -260,7 +267,16 @@ If a device fails a Fleet policy configured for conditional access, the end user
 
 If an end user unenrolls their device from Fleet MDM, Fleet reports **MDM turned off** state to Intune.
 
-The device is then automatically marked as **non-compliant** in Entra, even if it passes all other Fleet policies.
+
+## Migration
+
+If you're migrating your macOS hosts from your current MDM solution to Fleet and you currently don't deploy a Platform SSO configuration profile, the best practice is to switch to Fleet for Entra conditional access before your MDM migration. In this scenario, when you switch, end users won't have to take any action.
+
+If you do deploy a Platform SSO configuration profile, the best practice is to switch to Fleet for Entra conditional access at the same time as your MDM migration. Why? In addition to taking action to migrate from your old MDM solution to Fleet, end users will have to manually re-register with Platform SSO.
+
+In both scenarios, before you switch to Fleet, let your team know that there will be a gap in conditional access coverage while you're setting this up. Microsoft only allows one compliance partner to be configured for macOS hosts.
+
+Ready to switch? Start at the [top of this guide](#conditional-access-entra) and follow all the steps. If you currently don't deploy a Platform SSO configuration profile, you can skip [Step 4: Deploy Company Portal and the Platform SSO configuration profile](#step-4-deploy-company-portal-and-the-platform-sso-configuration-profile). Come back to this step when you're migrating your from your old MDM solution to Fleet because new hosts will need Company Portal and the configuration profile when they enroll to Fleet.
 
 >**Note:** On macOS, users can do this in **System Settings > Device Management > Unenroll**.
 

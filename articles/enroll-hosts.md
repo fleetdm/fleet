@@ -34,12 +34,15 @@ The `fleetctl package` command is used to generate Fleet's agent (fleetd) instal
 
 The `--type` flag is used to specify the fleetd installer type.
 
-- macOS: .pkg
+- macOS: `pkg`
   - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
-- Windows: .msi
+- Windows: `msi`
   - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
   - Generating a .msi on Apple Silicon Macs requires [Wine](https://fleetdm.com/install-wine) to be installed.
-- Linux: .deb or .rpm
+- Linux: `deb`, `rpm`, or `pkg.tar.zst`
+  - `deb`: Debian-based linux (e.g. Ubuntu, Debian).
+  - `rpm`: RPM-based linux (e.g. OpenSUSE, Red Hat, Fedora).
+  - `pkg.tar.zst`: Arch Linux based distributions (e.g. Manjaro, Omarchy).
 
 > `fleetctl` on Windows can only generate MSI packages.
 
@@ -335,7 +338,7 @@ This provides a level of security similar to [mTLS](#using-mtls), but the certif
 
 The certificate is issued for 365 days. 180 days before expiration, fleetd will automatically try to renew the certificate using a new TPM-based private key. The original enrollment secret is not needed for renewal. The renewal process is based on proof-of-possession of the existing certificate's private key.
 
-Currently, host identity certificates are only supported for Linux hosts (`.deb` and `.rpm` fleetd agents) with TPM 2.0 hardware (or vTPM for VMs) and Linux kernel 4.12 or later.
+Currently, host identity certificates are only supported for Linux hosts (`.deb`, `.rpm`, and `.pkg.tar.zst` fleetd installers) with TPM 2.0 hardware (or vTPM for VMs) and Linux kernel 4.12 or later.
 
 #### Generating fleetd with host identity certificates
 

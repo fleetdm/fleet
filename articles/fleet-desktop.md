@@ -31,13 +31,13 @@ For information on setting the custom transparency link via a YAML configuration
 
 Requests sent by Fleet Desktop and the web page that opens when clicking on the "My Device" tray item use a [Random (Version 4) UUID](https://www.rfc-editor.org/rfc/rfc4122.html#section-4.4) token to uniquely identify each host.
 
-The server uses this token to authenticate requests that give host information. Fleet uses the following methods to secure access to this information.
+The server uses this token to authenticate requests that give host information. Fleet uses rate limiting and token rotation to secure access to this information.
 
 Successfully brute-forcing this UUID is about [as likely as you getting hit by a meteorite this year](https://pkg.go.dev/github.com/google/uuid#NewRandom).
 
 **Rate limiting**
 
-To prevent brute-forcing attempts, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
+To prevent brute-forcing attempts, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 1000 **consecutive** invalid UUIDs in a one-minute interval, Fleet will ban requests from such IP for one minute (fail requests with HTTP error code 429). This rate limit algorithm is used to support deployments of Fleet where all hosts are behind the same NAT (all hosts mapped to the same IP).
 
 **Token rotation**
 
