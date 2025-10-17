@@ -609,3 +609,15 @@ export interface ISetupSoftwareStatus {
   name: string | null;
   status: SetupSoftwareStatus;
 }
+
+export const ROLLING_ARCH_LINUX_NAMES = [
+  "Arch Linux",
+  "Arch Linux ARM",
+  "Manjaro Linux",
+  "Manjaro Linux ARM",
+  "Manjaro ARM Linux",
+];
+
+export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(
+  (name) => `${name} rolling`
+);
