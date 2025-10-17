@@ -45,6 +45,7 @@ func TestSoftware(t *testing.T) {
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
 		{"SyncHostsSoftware", testSoftwareSyncHostsSoftware},
+		{"LoadHostsPopulateSoftware", testLoadHostSoftwarePopulateSoftwareInstalledPath},
 		{"DeleteSoftwareVulnerabilities", testDeleteSoftwareVulnerabilities},
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
@@ -87,7 +88,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
-		{"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
+		{"TestListHostSoftwareVulnerableAndVPP", testListHostSoftwareVulnerableAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
@@ -98,6 +99,7 @@ func TestSoftware(t *testing.T) {
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
 		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
+		{"LongestCommonPrefix", testLongestCommonPrefix},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1262,6 +1264,41 @@ func softwareChecksumComputedColumn(tableAlias string, source string) string {
 	)
 }
 
+func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithComputerName("computer1"))
+
+	software := []fleet.Software{
+		{
+			Name:    "banana",
+			Version: "0.0.1",
+			Source:  "apps",
+		},
+	}
+
+	mutation, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	installpaths := []fleet.HostSoftwareInstalledPath{
+		{
+			HostID:           host.ID,
+			SoftwareID:       mutation.Inserted[0].ID,
+			InstalledPath:    "/the/path",
+			ExecutableSHA256: ptr.String("frog"),
+		},
+	}
+
+	err = insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), installpaths)
+	require.NoError(t, err)
+
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+
+	require.Equal(t, "/the/path", host.Software[0].PathSignatureInformation[0].InstalledPath)
+	require.Equal(t, "frog", *host.Software[0].PathSignatureInformation[0].HashSha256)
+}
+
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithComputerName("computer1"))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -1848,10 +1885,6 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 // When software with the same bundle ID but different name is added, the system
 // reuses the existing software entry (matched by bundle ID) and links it to the host
 func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastore) {
-	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
-	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
-	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
-
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "bundle-host", "", "bundlekey", "bundleuuid", time.Now())
 
@@ -1867,47 +1900,98 @@ func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 	require.Len(t, host.Software, 1)
 	require.Equal(t, "GoLand.app", host.Software[0].Name)
-	originalSoftwareID := host.Software[0].ID
 
 	// Now update with the same bundle ID but different name
-	// The behavior depends on how the system handles bundle ID matching
+	// Despite having the same bundle id, the software is added with the new name
 	sw = []fleet.Software{
 		{Name: "GoLand 2.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 
-	// The getExistingSoftware function matches by bundle ID when present,
-	// so it links to the existing software entry and updates the name
 	err = ds.LoadHostSoftware(ctx, host, false)
 	require.NoError(t, err)
 	require.Len(t, host.Software, 1)
-	// The existing software entry is reused (matched by bundle ID) and name is updated
 	require.Equal(t, "GoLand 2.app", host.Software[0].Name, "Name should be updated to reflect what's on the host")
-	require.Equal(t, originalSoftwareID, host.Software[0].ID, "Should reuse the same software row")
 
-	// Verify the name_source was updated
-	var nameSource string
-	err = ds.writer(ctx).GetContext(ctx, &nameSource,
-		`SELECT name_source FROM software WHERE id = ?`, originalSoftwareID)
-	require.NoError(t, err)
-	require.Equal(t, "bundle_4.67", nameSource, "Name source should indicate bundle ID match")
-
-	// Verify only one software title exists
+	// Verify only one software title exists (both software entries map to same title by bundle_identifier)
 	var titleCount int
 	err = ds.writer(ctx).GetContext(ctx, &titleCount,
 		`SELECT COUNT(DISTINCT id) FROM software_titles WHERE bundle_identifier = ?`,
 		"com.jetbrains.goland")
 	require.NoError(t, err)
-	require.Equal(t, 1, titleCount, "Should have only one software title for the bundle ID")
+	require.Equal(t, 1, titleCount)
 
-	// Verify only one software entry exists with this bundle ID
-	var softwareCount int
-	err = ds.writer(ctx).GetContext(ctx, &softwareCount,
-		`SELECT COUNT(DISTINCT id) FROM software WHERE bundle_identifier = ?`,
+	// Verify two software entries exist with this bundle ID (different names, same bundle_identifier)
+	var softwareNames []string
+	err = ds.writer(ctx).SelectContext(ctx, &softwareNames,
+		`SELECT name FROM software WHERE bundle_identifier = ? ORDER BY name`,
 		"com.jetbrains.goland")
 	require.NoError(t, err)
-	require.Equal(t, 1, softwareCount, "Should have only one software entry for the bundle ID")
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, []string{"GoLand 2.app", "GoLand.app"}, softwareNames)
+
+	// Helper app edge case:
+	// We have a main app with a name and bundle id
+	// We have two helper apps with the same bundle id but different name
+	sw = []fleet.Software{
+		{Name: "Postman", Version: "11.60.2", Source: "apps", BundleIdentifier: "com.postmanlabs.mac"},
+		{Name: "Postman Helper (GPU)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+		{Name: "Postman Helper (Renderer)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 3)
+
+	var softwareRecords []struct {
+		Name             string `db:"name"`
+		BundleIdentifier string `db:"bundle_identifier"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &softwareRecords,
+		`SELECT name, bundle_identifier FROM software WHERE bundle_identifier = ? OR bundle_identifier = ?`,
+		"com.postmanlabs.mac", "com.postmanlabs.mac.helper")
+	require.NoError(t, err)
+	require.Len(t, softwareRecords, 3)
+
+	for _, softwareRecord := range softwareRecords {
+		switch softwareRecord.Name {
+		case "Postman":
+			require.Equal(t, "com.postmanlabs.mac", softwareRecord.BundleIdentifier)
+		case "Postman Helper (GPU)", "Postman Helper (Renderer)":
+			require.Equal(t, "com.postmanlabs.mac.helper", softwareRecord.BundleIdentifier)
+		default:
+			t.Fatalf("Unexpected software name: %s", softwareRecord.Name)
+		}
+	}
+
+	// Re-ingest helper apps with new names
+	sw = []fleet.Software{
+		{Name: "Postman 2", Version: "11.60.2", Source: "apps", BundleIdentifier: "com.postmanlabs.mac"},
+		{Name: "Postman Helper 2 (GPU)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+		{Name: "Postman Helper 2 (Renderer)", Version: "", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	err = ds.writer(ctx).SelectContext(ctx, &softwareRecords,
+		`SELECT name, bundle_identifier FROM software WHERE bundle_identifier = ? OR bundle_identifier = ?`,
+		"com.postmanlabs.mac", "com.postmanlabs.mac.helper")
+	require.NoError(t, err)
+	require.Len(t, softwareRecords, 6)
+
+	for _, softwareRecord := range softwareRecords {
+		switch softwareRecord.Name {
+		case "Postman", "Postman 2":
+			require.Equal(t, "com.postmanlabs.mac", softwareRecord.BundleIdentifier)
+		case "Postman Helper (GPU)", "Postman Helper (Renderer)", "Postman Helper 2 (GPU)", "Postman Helper 2 (Renderer)":
+			require.Equal(t, "com.postmanlabs.mac.helper", softwareRecord.BundleIdentifier)
+		default:
+			t.Fatalf("Unexpected software name: %s", softwareRecord.Name)
+		}
+	}
 }
 
 // Test edge case: Software with same name but different bundle identifiers
@@ -1946,12 +2030,9 @@ func testUpdateHostSoftwareSameNameDifferentBundleIDs(t *testing.T, ds *Datastor
 }
 
 // Test edge case: Multiple software entries with the same bundle ID
-// This validates that bundle ID renaming affects all software with that bundle ID
+// This validates that when software with the same bundle ID but different names
+// are added from different hosts, we add software entries for each name
 func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
-	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
-	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
-	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
-
 	ctx := t.Context()
 	host1 := test.NewHost(t, ds, "multi-bundle-host1", "", "multikey1", "multiuuid1", time.Now())
 	host2 := test.NewHost(t, ds, "multi-bundle-host2", "", "multikey2", "multiuuid2", time.Now())
@@ -1979,7 +2060,7 @@ func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Step 3: Host3 reports the SAME software but with a different name
-	// This should trigger renaming of ALL software with that bundle ID
+	// This should not rename all software, it should create a new software entry
 	sw3 := []fleet.Software{
 		{Name: "GoLand 2024.app", Version: "2024.2", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
 		{Name: "GoLand 2024.app", Version: "2024.3-beta", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
@@ -1987,7 +2068,7 @@ func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host3.ID, sw3)
 	require.NoError(t, err)
 
-	// Step 4: Verify the renaming behavior
+	// Step 4: Verify insertion into software behavior
 	var updatedSoftware []struct {
 		ID         uint   `db:"id"`
 		Name       string `db:"name"`
@@ -1999,39 +2080,62 @@ func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
 		"com.jetbrains.goland")
 	require.NoError(t, err)
 
-	// Should have exactly 2 software entries (one per version)
-	require.Len(t, updatedSoftware, 2, "Should have exactly 2 software entries (one per version)")
+	// Should have exactly 4 software entries
+	require.Len(t, updatedSoftware, 4, "Should have exactly 4 software entries")
 
-	// Both entries should be renamed to "GoLand 2024.app"
+	// Verify we have both versions for each name
+	golandAppVersions := make(map[string]bool)
+	goland2024AppVersions := make(map[string]bool)
+
 	for _, sw := range updatedSoftware {
-		t.Logf("Software: ID=%d, Name=%s, Version=%s, NameSource=%s", sw.ID, sw.Name, sw.Version, sw.NameSource)
-		require.Equal(t, "GoLand 2024.app", sw.Name, "All software with same bundle ID should be renamed")
-		require.Equal(t, "bundle_4.67", sw.NameSource, "Renamed software should have bundle_4.67 source")
+		switch sw.Name {
+		case "GoLand.app":
+			golandAppVersions[sw.Version] = true
+		case "GoLand 2024.app":
+			goland2024AppVersions[sw.Version] = true
+		default:
+			t.Fatalf("Unexpected software name: %s", sw.Name)
+		}
 	}
 
-	// Verify that host1 and host2 now see the renamed software
+	require.Len(t, golandAppVersions, 2, "Should have 2 versions of GoLand.app")
+	require.True(t, golandAppVersions["2024.2"], "Should have GoLand.app v2024.2")
+	require.True(t, golandAppVersions["2024.3-beta"], "Should have GoLand.app v2024.3-beta")
+
+	require.Len(t, goland2024AppVersions, 2, "Should have 2 versions of GoLand 2024.app")
+	require.True(t, goland2024AppVersions["2024.2"], "Should have GoLand 2024.app v2024.2")
+	require.True(t, goland2024AppVersions["2024.3-beta"], "Should have GoLand 2024.app v2024.3-beta")
+
+	// Verify that each host sees only their software (no renaming happens)
 	err = ds.LoadHostSoftware(ctx, host1, false)
 	require.NoError(t, err)
-	require.Len(t, host1.Software, 2, "Host1 should still have 2 software entries")
+	require.Len(t, host1.Software, 2, "Host1 should have 2 software entries")
 	for _, s := range host1.Software {
-		require.Equal(t, "GoLand 2024.app", s.Name, "Host1 should see renamed software")
+		require.Equal(t, "GoLand.app", s.Name, "Host1 software should be GoLand.app")
 	}
 
 	err = ds.LoadHostSoftware(ctx, host2, false)
 	require.NoError(t, err)
 	require.Len(t, host2.Software, 1, "Host2 should have 1 software entry")
-	require.Equal(t, "GoLand 2024.app", host2.Software[0].Name, "Host2 should see renamed software")
+	require.Equal(t, "GoLand.app", host2.Software[0].Name, "Host2 software should be GoLand.app")
+
+	err = ds.LoadHostSoftware(ctx, host3, false)
+	require.NoError(t, err)
+	require.Len(t, host3.Software, 2, "Host3 should have 2 software entries")
+	for _, s := range host3.Software {
+		require.Equal(t, "GoLand 2024.app", s.Name, "Host3 software should be GoLand 2024.app")
+	}
 }
 
 // Test for the bug where multiple software with the same bundle ID causes
-// "software not found for checksum" errors during bundle ID rename operations.
+// "software not found for checksum" errors
 // This test specifically validates that ALL software entries with the same
-// bundle ID are properly linked to hosts when renaming occurs.
+// bundle ID are properly linked to hosts
 func testUpdateHostSoftwareMultipleChecksumsPerBundleID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// Note: Basic multiple versions scenario is already covered in testUpdateHostSoftwareMultipleSameBundleID
-	// This test focuses on the specific bug fix for renamed apps with many versions
+	// This test focuses on the specific bug fix for apps with many versions
 
 	// First, establish the software with host1 - using 10 versions to stress test
 	host1 := test.NewHost(t, ds, "rename-test-host1", "", "rename-key1", "rename-uuid1", time.Now())
@@ -2055,8 +2159,7 @@ func testUpdateHostSoftwareMultipleChecksumsPerBundleID(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	require.Len(t, host1.Software, 10, "Host1 should have all 10 versions")
 
-	// Host2 reports the same software but renamed (user renamed the apps)
-	// This triggers the bundle ID rename logic and tests the bug fix
+	// Host2 reports the same software but different names
 	host2 := test.NewHost(t, ds, "rename-test-host2", "", "rename-key2", "rename-uuid2", time.Now())
 
 	var renamedSoftware []fleet.Software
@@ -2074,7 +2177,7 @@ func testUpdateHostSoftwareMultipleChecksumsPerBundleID(t *testing.T, ds *Datast
 	require.NoError(t, err, "Should handle renamed apps with 10 versions without 'software not found for checksum' error")
 	assert.NotNil(t, result)
 
-	// Verify the rename was processed in the database
+	// Verify both names exist in the database (no renaming occurs)
 	var dbSoftware []struct {
 		Name       string `db:"name"`
 		Version    string `db:"version"`
@@ -2082,31 +2185,47 @@ func testUpdateHostSoftwareMultipleChecksumsPerBundleID(t *testing.T, ds *Datast
 	}
 	err = ds.writer(ctx).SelectContext(ctx, &dbSoftware,
 		`SELECT name, version, name_source FROM software
-		WHERE bundle_identifier = ? ORDER BY version`,
+		WHERE bundle_identifier = ? ORDER BY name, version`,
 		"com.stresstest.app")
 	require.NoError(t, err)
-	require.Len(t, dbSoftware, 10, "Should have 10 software entries in database")
+	require.Len(t, dbSoftware, 20, "Should have 20 software entries: 10 for each name")
 
-	// All should be renamed
+	// Verify we have 10 of each name
+	testAppCount := 0
+	testAppRenamedCount := 0
 	for _, sw := range dbSoftware {
-		assert.Equal(t, "TestApp Renamed.app", sw.Name, "All software should use the new name")
-		assert.Equal(t, "bundle_4.67", sw.NameSource, "Renamed software should have bundle_4.67 source")
+		switch sw.Name {
+		case "TestApp.app":
+			testAppCount++
+		case "TestApp Renamed.app":
+			testAppRenamedCount++
+		}
+	}
+	assert.Equal(t, 10, testAppCount, "Should have 10 'TestApp.app' entries")
+	assert.Equal(t, 10, testAppRenamedCount, "Should have 10 'TestApp Renamed.app' entries")
+
+	// Verify that host1 still has its original software
+	err = ds.LoadHostSoftware(ctx, host1, false)
+	require.NoError(t, err)
+	assert.Len(t, host1.Software, 10, "Host1 should still have all 10 versions")
+	for _, sw := range host1.Software {
+		assert.Equal(t, "TestApp.app", sw.Name, "Host1 should see original name")
 	}
 
-	// Most importantly, verify that host2 has ALL 10 versions linked (this was the bug)
+	// Verify that host2 has ALL 10 versions linked
 	err = ds.LoadHostSoftware(ctx, host2, false)
 	require.NoError(t, err)
-	assert.Len(t, host2.Software, 10, "Host2 should have all 10 versions linked (bug fix verification)")
+	assert.Len(t, host2.Software, 10, "Host2 should have all 10 versions linked")
 
-	// Verify all versions are present
+	// Verify all versions are present for host2
 	versions := make(map[string]bool)
 	for _, sw := range host2.Software {
 		versions[sw.Version] = true
-		assert.Equal(t, "TestApp Renamed.app", sw.Name, "Should see renamed app")
+		assert.Equal(t, "TestApp Renamed.app", sw.Name, "Host2 should see its own name")
 	}
 	for i := 0; i < 10; i++ {
 		version := fmt.Sprintf("1.%d.0", i)
-		assert.True(t, versions[version], "Should have version %s", version)
+		assert.True(t, versions[version], "Host2 should have version %s", version)
 	}
 }
 
@@ -3306,7 +3425,7 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, actual, toInsert)
 }
 
-func TestReconcileSoftwareTitles(t *testing.T) {
+func TestCleanupSoftwareTitles(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := context.Background()
 
@@ -3409,8 +3528,6 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	assertSoftware(t, expectedSoftware)
 
-	// reconcile software titles
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	swt, err := getTitles()
 	require.NoError(t, err)
 	require.Len(t, swt, 4)
@@ -3446,7 +3563,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]})
 
 	// bar is no longer associated with any host so the title should be deleted
-	require.NoError(t, ds.ReconcileSoftwareTitles(context.Background()))
+	require.NoError(t, ds.CleanupSoftwareTitles(context.Background()))
 	gotTitles, err := getTitles()
 	require.NoError(t, err)
 	require.Len(t, gotTitles, 3)
@@ -3493,19 +3610,6 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].ExtensionFor] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
 	assertSoftware(t, expectedSoftware)
-
-	// Test duplicate key handling in `ReconcileSoftwareTitles`.
-	// Since the existing software_titles and software entries have different `source` values,
-	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
-	// key (com.example.app1-0) will conflict.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, extension_for, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, extension_for, bundle_identifier, checksum, version) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1', UNHEX(MD5(CONCAT_WS(CHAR(0), 'App1', '', 'some_other_source', 'com.example.app1', '', '', '', 'Chrome', ''))), '')`)
-		require.NoError(t, err)
-		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
-		return nil
-	})
 }
 
 func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
@@ -3567,6 +3671,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionFor: "firefox"},
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
 		{Name: "foo", Version: "0.0.2", Source: "test"},
+		{Name: "foo", Version: "0.0.2", Source: "test", ApplicationID: ptr.String("foo.bar.baz")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
@@ -3582,7 +3687,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		var got fleet.Software
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &got,
-				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id FROM software WHERE checksum = UNHEX(?)`, cs)
 		})
 		require.Equal(t, software[i], got)
 	}
@@ -3744,9 +3849,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults)
 	require.NoError(t, err)
 
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-
 	expected := map[string]fleet.HostSoftwareWithInstaller{
 		byNSV[a1].Name + byNSV[a1].Source: {Name: byNSV[a1].Name, Source: byNSV[a1].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[a1].Version, Vulnerabilities: []string{vulns[0].CVE, vulns[1].CVE, vulns[2].CVE}, InstalledPaths: []string{installPaths[0]}},
@@ -3800,7 +3902,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 			e, ok := expected[g.Name+g.Source]
 			require.True(t, ok, "unexpected software %s%s", g.Name, g.Source)
-			t.Log("Validating ", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
 			if e.SoftwarePackage != nil {
@@ -5081,9 +5182,6 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-
 	expected := map[string]fleet.HostSoftwareWithInstaller{
 		byNSV[a1].Name + byNSV[a1].Source: {
 			Name: byNSV[a1].Name, Source: byNSV[a1].Source,
@@ -5641,7 +5739,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	originalCreatedAt := time.Now().Add(-1 * time.Hour).UTC().Truncate(time.Microsecond) // Set to 1 hour ago
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at) 
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			"original-uuid", host.ID, installerID, user.ID, nil, false, originalCreatedAt)
 		return err
@@ -6236,7 +6334,6 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	type swVersion struct {
@@ -6989,7 +7086,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.False(t, scoped)
 }
 
-func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
+func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// filter by only vulnerable software
@@ -7063,12 +7160,24 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, mutationResults.Inserted, len(software))
 
-	bTitleId := mutationResults.Inserted[0].TitleID
-	// insert vulnerable software with the same software title as c, but this version is not added to host
+	var cSoftwareID uint
+	for _, inserted := range mutationResults.Inserted {
+		if inserted.Name == "c" {
+			cSoftwareID = inserted.ID
+		}
+	}
+	require.NotZero(t, cSoftwareID)
+
+	var cTitleID uint
+	err = sqlx.GetContext(ctx, ds.primary, &cTitleID, `SELECT title_id FROM software WHERE id = ?`, cSoftwareID)
+	require.NoError(t, err)
+
+	// Insert vulnerable software with the same software title as c,
+	// but this version is not added to host.
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
 		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
-		"c", "0.0.1", "apps", &bTitleId, []byte("c.0.0.1apps"),
+		"c", "0.0.1", "apps", &cTitleID, []byte("c.0.0.1apps"),
 	)
 	require.NoError(t, err)
 	insertedID, err := result.LastInsertId()
@@ -7116,8 +7225,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	swPaths := map[string]struct{}{}
 	err = ds.UpdateHostSoftwareInstalledPaths(ctx, tmHost.ID, swPaths, mutationResults)
-	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	var ensureVulnerableState []struct {
@@ -7181,8 +7288,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		TitleID: &installerTitleID,
 	})
 	mutationResults, err = ds.UpdateHostSoftware(ctx, tmHost.ID, software)
-	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	// set up vpp
@@ -7293,7 +7398,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// pending install request for foo1.0 (non-vulnerable version)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
 	require.NoError(t, err)
@@ -7322,7 +7426,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// pending install request
 	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID, true)
 	require.NoError(t, err)
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
 	require.NoError(t, err)
@@ -7512,8 +7615,6 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.Len(t, mutationResults.Inserted, len(software))
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
 
 	for _, m := range mutationResults.Inserted {
 		s := byName[m.Name]
@@ -8117,8 +8218,6 @@ func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
 		mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 		require.NoError(t, err)
 		require.Len(t, mutationResults.Inserted, len(software))
-		err = ds.ReconcileSoftwareTitles(ctx)
-		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
 		query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
@@ -9157,10 +9256,6 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 // testUpdateHostBundleIDRenameOnlyNoNewSoftware tests if a host reports ONLY renamed software
 // (same bundle ID, different name) with NO new software
 func testUpdateHostBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) {
-	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
-	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
-	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
-
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "rename-test-host", "", "renamekey", "renameuuid", time.Now())
 
@@ -9182,7 +9277,6 @@ func testUpdateHostBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) 
 	}
 
 	// Report ONLY renamed software (same bundle IDs, different names)
-	// This is the edge case: NO new software, ONLY renames
 	renamedSoftware := []fleet.Software{
 		{Name: "Renamed.app", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.app"},
 		{Name: "AlsoRenamed.app", Version: "2.0", Source: "apps", BundleIdentifier: "com.example.another"},
@@ -9192,37 +9286,33 @@ func testUpdateHostBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, renamedSoftware)
 	require.NoError(t, err)
 
-	// Verify the software entries were reused (not duplicated)
+	// Verify the host only has 2 pieces of sofware
 	err = ds.LoadHostSoftware(ctx, host, false)
 	require.NoError(t, err)
 	require.Len(t, host.Software, 2, "Should still have exactly 2 software entries")
 
-	// Verify the IDs are the same (software was reused, not recreated)
+	// Verify the IDs are are not the same
 	for _, s := range host.Software {
 		originalID, ok := originalIDs[s.BundleIdentifier]
 		require.True(t, ok, "Bundle ID %s should exist", s.BundleIdentifier)
-		require.Equal(t, originalID, s.ID,
-			"Software ID should be reused for bundle ID %s", s.BundleIdentifier)
+		require.NotEqual(t, originalID, s.ID,
+			"Software ID should not be reused for bundle ID %s", s.BundleIdentifier)
 	}
 
-	// Verify no duplicate software entries were created
+	// Verify new software entries were created
 	var softwareCount int
 	err = ds.writer(ctx).GetContext(ctx, &softwareCount,
 		`SELECT COUNT(DISTINCT id) FROM software
 		WHERE bundle_identifier IN ('com.example.app', 'com.example.another')`)
 	require.NoError(t, err)
-	require.Equal(t, 2, softwareCount, "Should have exactly 2 software entries, not duplicates")
+	require.Equal(t, 4, softwareCount, "Should have exactly 4 software entries")
 }
 
 // testUpdateHostBundleIDRenameWithNewSoftware tests the edge case where a host reports BOTH:
 // 1. New software that needs to be inserted
-// 2. Existing software with renamed bundle IDs that needs updating
+// 2. Existing software with renamed bundle IDs
 // This tests that both operations work correctly in the same update.
 func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
-	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
-	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
-	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
-
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "mixed-test-host", "", "mixedkey", "mixeduuid", time.Now())
 
@@ -9239,9 +9329,8 @@ func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
 	require.Len(t, host.Software, 1)
 	slackOriginalID := host.Software[0].ID
 
-	// Step 2: Report BOTH renamed software AND new software in the same update
 	mixedUpdate := []fleet.Software{
-		// Renamed existing software (same bundle ID, different name)
+		// same bundle ID, different name
 		{Name: "Slack 2.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.tinyspeck.slackmacgap"},
 		// Brand new software
 		{Name: "Chrome.app", Version: "110.0", Source: "apps", BundleIdentifier: "com.google.Chrome"},
@@ -9266,17 +9355,8 @@ func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
 		switch s.BundleIdentifier {
 		case "com.tinyspeck.slackmacgap":
 			foundSlack = true
-			// Verify Slack was renamed and ID was reused
 			require.Equal(t, "Slack 2.app", s.Name, "Slack should be renamed")
-			require.Equal(t, slackOriginalID, s.ID, "Slack should reuse the same ID")
-
-			// Verify name_source was updated
-			var nameSource string
-			err = ds.writer(ctx).GetContext(ctx, &nameSource,
-				`SELECT name_source FROM software WHERE id = ?`, s.ID)
-			require.NoError(t, err)
-			require.Equal(t, "bundle_4.67", nameSource, "Name source should indicate bundle ID match")
-
+			require.NotEqual(t, slackOriginalID, s.ID)
 		case "com.google.Chrome":
 			foundChrome = true
 			require.Equal(t, "Chrome.app", s.Name)
@@ -9291,18 +9371,19 @@ func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	require.True(t, foundSlack, "Should find renamed Slack")
+	require.True(t, foundSlack, "Should find new Slack")
 	require.True(t, foundChrome, "Should find new Chrome")
 	require.True(t, foundCustomTool, "Should find new CustomTool")
 
-	// Verify no duplicate software entries were created
+	// Verify two slack entries exist in the software table
 	var softwareCount int
 	err = ds.writer(ctx).GetContext(ctx, &softwareCount,
 		`SELECT COUNT(DISTINCT id) FROM software WHERE bundle_identifier = 'com.tinyspeck.slackmacgap'`)
 	require.NoError(t, err)
-	require.Equal(t, 1, softwareCount, "Should have exactly 1 Slack software entry")
+	require.Equal(t, 2, softwareCount, "Should have exactly 2 Slack software entries")
 
 	// Verify titles were created correctly
+	// A new one should not have been created for Slack 2.app
 	var titleCount int
 	err = ds.writer(ctx).GetContext(ctx, &titleCount,
 		`SELECT COUNT(DISTINCT id) FROM software_titles`)
@@ -9454,10 +9535,6 @@ func testListHostSoftwareWithExtensionFor(t *testing.T, ds *Datastore) {
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 
-	// Reconcile software titles
-	err = ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-
 	// List host software
 	opts := fleet.HostSoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
@@ -9503,6 +9580,30 @@ func testListHostSoftwareWithExtensionFor(t *testing.T, ds *Datastore) {
 	require.NotNil(t, regularApp, "Should find Regular App")
 	require.Equal(t, "apps", regularApp.Source)
 	require.Equal(t, "", regularApp.ExtensionFor)
+}
+
+func testLongestCommonPrefix(t *testing.T, ds *Datastore) {
+	tests := []struct {
+		input    []string
+		expected string
+	}{
+		{input: []string{}, expected: ""},
+		{input: []string{"no_common1", "another_one3"}, expected: ""},
+		{input: []string{"single"}, expected: "single"},
+		{input: []string{"prefix_common", "prefix_common_suffix1", "prefix_common_suffix2"}, expected: "prefix_common"},
+		{input: []string{"common_prefix_suffix1", "common_prefix_suffix2", "common_prefix"}, expected: "common_prefix"},
+		{input: []string{"same", "same", "same"}, expected: "same"},
+		{input: []string{"partial_common1", "partial_common2", "none"}, expected: ""},
+		{input: []string{"", "softwarename"}, expected: ""},
+		{input: []string{"softwarename", "prefix_common", "prefix_common"}, expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.input), func(t *testing.T) {
+			result := longestCommonPrefix(tt.input)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 // Helper function to find software by name and extension_for

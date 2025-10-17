@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -48,6 +49,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -266,6 +268,13 @@ func TestAppleMDMAuthorization(t *testing.T) {
 				Secret: "efgh",
 				TeamID: nil,
 			},
+		}, nil
+	}
+
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{
+			Secret: "abcd",
+			TeamID: nil,
 		}, nil
 	}
 
@@ -1175,8 +1184,10 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
+		ds:            ds,
+		mdmLifecycle:  mdmLifecycle,
+		keyValueStore: redis_key_value.New(redistest.NopRedis()),
+		logger:        kitlog.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1244,8 +1255,10 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
+		ds:            ds,
+		mdmLifecycle:  mdmLifecycle,
+		keyValueStore: redis_key_value.New(redistest.NopRedis()),
+		logger:        kitlog.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -4466,14 +4479,18 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	hostID := uint(42)
 	hostUUID := "ABC-DEF-GHI"
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "UUID"
+	lostModeCommandUUID := uuid.NewString()
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
 			ID:   hostID,
 			UUID: hostUUID,
+			MDM: fleet.MDMHostData{
+				EnrollmentStatus: ptr.String("Pending"), // We check it in as a new device, to trigger lost mode flow
+			},
 		}, nil
 	}
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -4485,15 +4502,15 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.WithinDuration(t, time.Now(), host.DetailUpdatedAt, 1*time.Minute)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
-		require.Equal(t, hostID, hostID)
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, incomingHostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+		require.Equal(t, hostID, incomingHostID)
 		require.NotZero(t, 51, int64(gigsAvailable))
 		require.NotZero(t, 79, int64(percentAvailable))
 		require.NotZero(t, 64, int64(gigsTotal))
 		return nil
 	}
-	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
-		require.Equal(t, hostID, hostID)
+	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, incomingHostID uint, hostOS fleet.OperatingSystem) error {
+		require.Equal(t, hostID, incomingHostID)
 		require.Equal(t, "iPadOS", hostOS.Name)
 		require.Equal(t, "17.5.1", hostOS.Version)
 		require.Equal(t, "ipados", hostOS.Platform)
@@ -4502,6 +4519,22 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 		assert.Equal(t, hostID, command.HostID)
 		assert.Equal(t, fleet.RefetchDeviceCommandUUIDPrefix, command.CommandType)
+		return nil
+	}
+	ds.UpdateMDMDataFunc = func(ctx context.Context, incomingHostID uint, enrolled bool) error {
+		require.Equal(t, hostID, incomingHostID)
+		return nil
+	}
+	ds.GetLatestAppleMDMCommandOfTypeFunc = func(ctx context.Context, incomingHostUUID, commandType string) (*fleet.MDMCommand, error) {
+		require.Equal(t, hostUUID, incomingHostUUID)
+		require.Equal(t, "EnableLostMode", commandType)
+		return &fleet.MDMCommand{
+			CommandUUID: lostModeCommandUUID,
+		}, nil
+	}
+	ds.SetLockCommandForLostModeCheckinFunc = func(ctx context.Context, incomingHostUUID uint, commandUUID string) error {
+		require.Equal(t, hostID, incomingHostUUID)
+		require.Equal(t, lostModeCommandUUID, commandUUID)
 		return nil
 	}
 
@@ -4530,6 +4563,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
                 <string>iPad13,18</string>
                 <key>WiFiMAC</key>
                 <string>ff:ff:ff:ff:ff:ff</string>
+				<key>IsMDMLostModeEnabled</key>
+				<true />
         </dict>
         <key>Status</key>
         <string>Acknowledged</string>
@@ -4546,6 +4581,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	require.True(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
 	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
 	assert.True(t, ds.RemoveHostMDMCommandFuncInvoked)
+	require.True(t, ds.UpdateMDMDataFuncInvoked)
+	require.True(t, ds.GetLatestAppleMDMCommandOfTypeFuncInvoked)
+	require.True(t, ds.SetLockCommandForLostModeCheckinFuncInvoked)
 }
 
 func TestUnmarshalAppList(t *testing.T) {

@@ -18,13 +18,13 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-type pubSubPushRequest struct {
+type PubSubPushRequest struct {
 	Token                 string `query:"token"`
 	android.PubSubMessage `json:"message"`
 }
 
 func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	req := request.(*pubSubPushRequest)
+	req := request.(*PubSubPushRequest)
 	err := svc.ProcessPubSubPush(ctx, req.Token, &req.PubSubMessage)
 	return android.DefaultResponse{Err: err}
 }
@@ -141,9 +141,14 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			return ctxerr.Wrap(ctx, err, "get host for deleted android device")
 		}
 		if host != nil {
-			if err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+			didUnenroll, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
 			}
+			if !didUnenroll {
+				return nil // Skip activity, if we didn't update the enrollment state.
+			}
+
 			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
 			// Use the computed display name from the device payload as lite host may not include it.
 			displayName := svc.getComputerName(&device)
@@ -151,7 +156,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
-				Platform:         host.Platform,
+				Platform:         "android",
 			})
 		}
 		return nil
@@ -180,6 +185,49 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	if err != nil {
 		level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
+	}
+	err = svc.updateHostSoftware(ctx, &device, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
+	}
+	return nil
+}
+
+// largely based on refetch apps code from Apple MDM service methods
+func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
+	// Do nothing if no app reports returned
+	if len(device.ApplicationReports) == 0 {
+		return nil
+	}
+	truncateString := func(item any, length int) string {
+		str, ok := item.(string)
+		if !ok {
+			return ""
+		}
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return str
+	}
+	software := []fleet.Software{}
+	for _, app := range device.ApplicationReports {
+		if app.State != "INSTALLED" {
+			continue
+		}
+		sw := fleet.Software{
+			Name:          truncateString(app.DisplayName, fleet.SoftwareNameMaxLength),
+			Version:       truncateString(app.VersionName, fleet.SoftwareVersionMaxLength),
+			ApplicationID: ptr.String(truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength)),
+			Source:        "android_apps",
+			Installed:     true,
+		}
+		software = append(software, sw)
+	}
+
+	_, err := svc.fleetDS.UpdateHostSoftware(ctx, host.Host.ID, software)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
 	}
 	return nil
 }
@@ -216,7 +264,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			return ctxerr.Wrap(ctx, herr, "get host for deleted android device (ENROLLMENT)")
 		}
 		if host != nil {
-			if err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
 			displayName := svc.getComputerName(&device)
@@ -224,7 +272,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
-				Platform:         host.Platform,
+				Platform:         "android",
 			})
 		}
 		return nil
@@ -333,8 +381,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
-	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable =
-		svc.calculateAndroidStorageMetrics(ctx, device, true)
+	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable = svc.calculateAndroidStorageMetrics(ctx, device, true)
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware
@@ -378,8 +425,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}
 
-	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable :=
-		svc.calculateAndroidStorageMetrics(ctx, device, false)
+	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
@@ -601,14 +647,28 @@ func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonCompli
 	failedSettings := []string{}
 	failedReasons := []string{}
 
+	if len(nonCompliance) == 0 {
+		// Should not happen but here as a fallback
+		return "Settings couldn't apply to a host for unknown reasons."
+	}
+
 	for _, detail := range nonCompliance {
 		failedSettings = append(failedSettings, fmt.Sprintf("%q", detail.SettingName))
 		failedReasons = append(failedReasons, detail.NonComplianceReason)
 	}
-	failedSettingsString := strings.Join(failedSettings[:len(failedSettings)-1], ", ") + ", and " + failedSettings[len(failedSettings)-1]
-	failedReasonsString := strings.Join(failedReasons[:len(failedReasons)-1], ", ") + ", and " + failedReasons[len(failedReasons)-1]
 
-	return fmt.Sprintf("%s settings couldn't apply to a host.\nReasons: %s. Other settings are applied.", failedSettingsString, failedReasonsString)
+	// make the error gramatically correct depending on the number of errors
+	pluralModifier := ""
+	var failedSettingsString, failedReasonsString string
+	if len(failedSettings) > 1 {
+		pluralModifier = "s"
+		failedSettingsString = strings.Join(failedSettings[:len(failedSettings)-1], ", ") + ", and "
+		failedReasonsString = strings.Join(failedReasons[:len(failedReasons)-1], ", ") + ", and "
+	}
+	failedSettingsString += failedSettings[len(failedSettings)-1]
+	failedReasonsString += failedReasons[len(failedReasons)-1]
+
+	return fmt.Sprintf("%s setting%s couldn't apply to a host.\nReason%s: %s. Other settings are applied.", failedSettingsString, pluralModifier, pluralModifier, failedReasonsString)
 }
 
 // calculateAndroidStorageMetrics processes Android device memory events and calculates storage metrics.

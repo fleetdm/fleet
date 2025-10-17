@@ -3,9 +3,6 @@
 
   &__header {
     margin-bottom: 0;
-    h2 {
-      font-weight: $bold;
-    }
     .section-header__sub-title {
       display: flex;
       align-items: center;
@@ -46,8 +43,5 @@
   }
   .back-link {
     align-self: flex-start;
-  }
-  .react-tabs__tab-list {
-    margin-bottom: $pad-large;
   }
 }

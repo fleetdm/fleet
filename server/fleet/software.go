@@ -96,7 +96,10 @@ type Software struct {
 	// TODO: should we create a separate type? Feels like this field shouldn't be here since it's
 	// just used for VPP install verification.
 	Installed bool `json:"-"`
-	IsKernel  bool `json:"-"`
+	// IsKernel indicates if this software is a Linux kernel.
+	IsKernel bool `json:"-"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 func (Software) AuthzType() string {
@@ -136,6 +139,9 @@ func (s Software) ToUniqueStr() string {
 	if s.ExtensionID != "" || s.ExtensionFor != "" {
 		ss = append(ss, s.ExtensionID, s.ExtensionFor)
 	}
+	if s.ApplicationID != nil && *s.ApplicationID != "" {
+		ss = append(ss, *s.ApplicationID)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
@@ -143,12 +149,12 @@ func (s Software) ToUniqueStr() string {
 // The calculation must match the one in softwareChecksumComputedColumn
 func (s Software) ComputeRawChecksum() ([]byte, error) {
 	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
-	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID}
-	// Only incorporate name if the Software is not a macOS app, because names on macOS are easily
-	// mutable and can lead to unintentional duplicates of Software in Fleet.
-	if s.Source != "apps" {
-		cols = append([]string{s.Name}, cols...)
+	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID, s.Name}
+
+	if s.ApplicationID != nil && *s.ApplicationID != "" {
+		cols = append(cols, *s.ApplicationID)
 	}
+
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {
 		return nil, err
@@ -238,6 +244,8 @@ type SoftwareTitle struct {
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// IsKernel indicates if the software title is a Linux kernel.
 	IsKernel bool `json:"-" db:"is_kernel"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -317,6 +325,8 @@ type SoftwareTitleListResult struct {
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 type SoftwareTitleListOptions struct {

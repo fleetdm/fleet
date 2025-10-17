@@ -1,34 +1,44 @@
 .apple-business-manager-table {
-
   .data-table-block .data-table {
     td.apple_id__cell {
       max-width: 180px;
     }
 
-    td.macos_team__cell, td.ios_team__cell, td.ipados_team__cell {
+    td.macos_team__cell,
+    td.ios_team__cell,
+    td.ipados_team__cell {
       max-width: 150px;
     }
-  }
 
+    td.actions__cell {
+      .abm-actions-wrapper {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
 
   // The desired behavior is to hide the header and team cell one by one
   // as the viewport gets smaller. This is achieved by using the max-width
   // media query with the breakpoint values taken from when the table content
   // starts to overflow.
   @media (max-width: $break-lg) {
-    .ipados_team__header, .ipados_team__cell {
+    .ipados_team__header,
+    .ipados_team__cell {
       display: none;
     }
   }
 
   @media (max-width: 1230px) {
-    .ios_team__header, .ios_team__cell {
+    .ios_team__header,
+    .ios_team__cell {
       display: none;
     }
   }
 
   @media (max-width: $break-md) {
-    .macos_team__header, .macos_team__cell {
+    .macos_team__header,
+    .macos_team__cell {
       display: none;
     }
   }
