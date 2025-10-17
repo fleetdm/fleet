@@ -15,15 +15,28 @@ Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads i
 3. Click the **Actions** dropdown, then click  **Lock**.
 4. A confirmation dialog will appear. Confirm that you want to lock the device. The host will now be marked with a "Lock pending" badge. Once the lock command is acknowledged by the host, the badge will update to "Locked".*
 
-If you want to obtain the location of a locked iOS or iPadOS host, you can send the [`DeviceLocation`](https://developer.apple.com/documentation/devicemanagement/device-location-command) command using a [custom command](https://fleetdm.com/guides/mdm-commands). This command will only work if the device is locked and in [Lost Mode](https://support.apple.com/en-gb/guide/security/secc46f3562c/web#sec49d5c5c50).
-
-To view the location on Google Maps, use the latitude and longitude values from the command response in the following URL: `https://google.com/maps?q={latitude},{longitude}`
-
 Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), the best practice is to disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined.
 
 > **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
 
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
+
+### Get location of locked iOS/iPadOS host
+
+To obtain the location of a locked iOS or iPadOS host, send the [`DeviceLocation`](https://developer.apple.com/documentation/devicemanagement/device-location-command) command using a [custom command](https://fleetdm.com/guides/mdm-commands). This command will only work if the device is locked and in [Lost Mode](https://support.apple.com/en-gb/guide/security/secc46f3562c/web#sec49d5c5c50).
+
+To view the location on Google Maps, use the latitude and longitude values from the command response in the following URL: `https://google.com/maps?q={latitude},{longitude}`
+
+Example response:
+```xml
+  <key>Latitude</key>
+  <real>37.33385013244351</real>
+  <key>Longitude</key>
+  <real>-122.01079213269968</real>
+```
+
+Example URL:
+`https://google.com/maps?q=37.33385013244351,-122.01079213269968`
 
 ## Wipe a host
 
