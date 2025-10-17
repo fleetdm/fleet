@@ -1844,14 +1844,6 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
 		},
-		{
-			software: fleet.Software{
-				Name:    "Snyk Security - Code, Open Source, Container, IaC Configurations",
-				Source:  "jetbrains_plugins",
-				Version: "2.4.9",
-			},
-			cpe: "cpe:2.3:a:snyk:snyk_security:2.4.9:*:*:*:*:intellij:*:*",
-		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).

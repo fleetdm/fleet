@@ -635,24 +635,5 @@
       "vendor": ["mozilla"],
       "sw_edition": ["esr"]
     }
-  },
-  {
-    "software": {
-      "name": ["/Snyk/"],
-      "source": ["jetbrains_plugins"]
-    },
-    "filter": {
-      "product": ["snyk_security"],
-      "target_sw": ["intellij"],
-      "vendor": ["snyk"]
-    }
-  },
-  {
-    "software": {
-      "source": ["jetbrains_plugins"]
-    },
-    "filter": {
-      "target_sw": ["intellij"]
-    }
   }
 ]
