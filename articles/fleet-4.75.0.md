@@ -16,7 +16,7 @@ Fleet 4.75.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Arch Linux / Omarchy Linux
 
-Fleet now supports [Omarchy](https://omarchy.org/) Linux. You can view host vitals like software inventory, run scripts, and install software.
+Fleet now supports [Arch Linux](https://archlinux.org/) and [Omarchy](https://omarchy.org/) Linux. You can view host vitals like software inventory, run scripts, and install software.
 
 ### Android configuration profiles
 
