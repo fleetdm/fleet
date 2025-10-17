@@ -11,7 +11,7 @@ import {
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -67,6 +67,7 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     users.length === 4
       ? users
           .slice(-4)
+
           .map((u) => u.email)
           .reverse()
       : users
@@ -283,18 +284,25 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      const { platform, percent_disk_space_available } = cellProps.row.original;
+      const {
+        platform,
+        percent_disk_space_available,
+        gigs_disk_space_available,
+        gigs_total_disk_space,
+        gigs_all_disk_space,
+      } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
           inTableCell
-          gigsDiskSpaceAvailable={cellProps.cell.value}
+          gigsDiskSpaceAvailable={gigs_disk_space_available}
           percentDiskSpaceAvailable={percent_disk_space_available}
+          gigsTotalDiskSpace={gigs_total_disk_space}
+          gigsAllDiskSpace={gigs_all_disk_space}
           platform={platform}
         />
       );
@@ -644,7 +652,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // TODO(android): is iOS/iPadOS supported?
       if (
         isAndroid(cellProps.row.original.platform) ||
-        isBYODAccountDrivenEnrollment(
+        isBYODAccountDrivenUserEnrollment(
           cellProps.row.original.mdm.enrollment_status
         )
       ) {

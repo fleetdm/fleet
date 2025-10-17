@@ -35,11 +35,14 @@ module.exports = {
         'Website - Newsletter',
         'Event - Sales-led event',
         'Event - Marketing-led event',
+        'Event - Engaged with Fleetie at event',
+        'GitHub - Stared fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Contributed to fleetdm/fleet',
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
         'LinkedIn - Liked the LinkedIn company page',
-        'Event - Engaged with Fleetie at event',
       ],
     },
     jobTitle: {
@@ -63,6 +66,7 @@ module.exports = {
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
         'Forked the fleetdm/fleet repo on GitHub',
+        'Contributed to the fleetdm/fleet repo on GitHub',
         'Subscribed to the Fleet newsletter',
         'Attended a Fleet training course'
       ]

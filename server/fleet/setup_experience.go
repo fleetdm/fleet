@@ -50,7 +50,7 @@ type SetupExperienceStatusResult struct {
 	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `
 	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
-	Error                           *string                           `db:"error" json:"-" `
+	Error                           *string                           `db:"error" json:"error" `
 	// SoftwareTitleID must be filled through a JOIN
 	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
 }
@@ -105,6 +105,11 @@ func (s *SetupExperienceStatusResult) IsForScript() bool {
 // installer or a VPP app.
 func (s *SetupExperienceStatusResult) IsForSoftware() bool {
 	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil
+}
+
+// IsForSoftwarePackage indicates if this result is for a setup experience software installer step.
+func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
+	return s.SoftwareInstallerID != nil
 }
 
 type SetupExperienceBootstrapPackageResult struct {
@@ -183,6 +188,7 @@ type SetupExperienceStatusPayload struct {
 	ConfigurationProfiles []*SetupExperienceConfigurationProfileResult `json:"configuration_profiles,omitempty"`
 	AccountConfiguration  *SetupExperienceAccountConfigurationResult   `json:"account_configuration,omitempty"`
 	OrgLogoURL            string                                       `json:"org_logo_url"`
+	RequireAllSoftware    bool                                         `json:"require_all_software"`
 }
 
 // IsSetupExperienceSupported returns whether "Setup experience" is supported for the host's platform.

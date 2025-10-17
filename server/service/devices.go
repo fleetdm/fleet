@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -729,8 +730,19 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	if len(tmSecrets) == 0 {
 		return nil, &fleet.BadRequestError{Message: "unable to find an enroll secret to generate enrollment profile"}
 	}
-
 	enrollSecret := tmSecrets[0].Secret
+
+	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, cfg.MDM.MacOSSetup.EnableEndUserAuthentication)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
+	}
+
+	// Temporary blocker as decided here https://github.com/fleetdm/fleet/issues/33447#issuecomment-3356951230
+	// until the following user story https://github.com/fleetdm/fleet/issues/33640 is implemented.
+	if requiresIdPUUID {
+		return nil, &fleet.BadRequestError{Message: "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work. Use a manual enrollment profile instead: https://fleetdm.com/learn-more-about/manual-enrollment-profile"}
+	}
+
 	// IB: We skip IDP association here, since it's not part of the spec
 	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, "")
 	if err != nil {

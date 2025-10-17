@@ -4,7 +4,7 @@
   gap: $pad-small;
   white-space: nowrap;
 
-  .react-tooltip {
+  .react-tooltip :not(.copy-tooltip-content) {
     max-width: px-to-rem(160);
     text-align: center;
     font-size: px-to-rem(13);

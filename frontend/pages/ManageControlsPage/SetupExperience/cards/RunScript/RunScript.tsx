@@ -115,7 +115,7 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
           <CustomLink
             className={`${baseClass}__learn-how-link`}
             newTab
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/run-script`}
             text="Learn how"
           />
           {!script ? (

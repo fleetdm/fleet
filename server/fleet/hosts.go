@@ -339,7 +339,10 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
-	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	// GigsTotalDiskSpace and GigsAllDiskSpace as defined by `server > service > osquery_utils >
+	// queries.go > hostDetailQueries.disk_space_unix`
+	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -818,7 +821,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -1003,6 +1006,7 @@ var HostLinuxOSs = []string{
 	"nixos",
 	"endeavouros",
 	"manjaro",
+	"manjaro-arm",
 	"opensuse-leap",
 	"opensuse-tumbleweed",
 	"tuxedo",
@@ -1019,6 +1023,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"nixos":       {},
 	"endeavouros": {},
 	"manjaro":     {},
+	"manjaro-arm": {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages

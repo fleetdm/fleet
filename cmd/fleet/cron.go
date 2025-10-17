@@ -65,7 +65,7 @@ func newVulnerabilitiesSchedule(
 
 	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
 
-	vulnFuncs := getVulnFuncs(ctx, ds, vulnerabilitiesLogger, config)
+	vulnFuncs := getVulnFuncs(ds, vulnerabilitiesLogger, config)
 	for _, fn := range vulnFuncs {
 		options = append(options, schedule.WithJob(fn.Name, fn.VulnFunc))
 	}
@@ -862,7 +862,6 @@ func newCleanupsAndAggregationSchedule(
 				targetsStart := time.Now()
 				cleanupTimeWindow := time.Now().Add(-config.Server.CleanupDistTargetsAge).UTC()
 				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, cleanupTimeWindow)
-
 				if err != nil {
 					return err
 				}
@@ -1144,7 +1143,7 @@ func verifyDiskEncryptionKeys(
 	return nil
 }
 
-func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
+func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger kitlog.Logger) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUsageStatistics)
 		defaultInterval = 1 * time.Hour

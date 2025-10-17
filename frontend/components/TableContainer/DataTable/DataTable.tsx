@@ -563,6 +563,18 @@ const DataTable = ({
     </thead>
   );
 
+  const shouldShowFooter =
+    // footer is not explicitly hidden
+    !hideFooter &&
+    // and any of:
+
+    // table is client-side paginated with more than 1 page of rows
+    ((isClientSidePagination && (canNextPage || canPreviousPage)) ||
+      // table's pagination is externally controlled
+      renderPagination ||
+      // there is help text and at least 1 row of data
+      (renderTableHelpText && !!rows?.length));
+
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -671,7 +683,7 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {!hideFooter && (
+      {shouldShowFooter && (
         <div className={`${baseClass}__footer`}>
           {renderTableHelpText && !!rows?.length && (
             <div className={`${baseClass}__table-help-text`}>

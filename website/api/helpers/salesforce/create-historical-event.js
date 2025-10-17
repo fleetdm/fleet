@@ -57,6 +57,7 @@ module.exports = {
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
         'Forked the fleetdm/fleet repo on GitHub',
+        'Contributed to the fleetdm/fleet repo on GitHub',
         'Subscribed to the Fleet newsletter',
         'Attended a Fleet training course',
         'Submitted the "Send a message" form',

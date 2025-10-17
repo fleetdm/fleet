@@ -29,7 +29,6 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 ## Context
 - Product Designer: _________________________ <!-- Who is the Product Designer to contact if folks have questions about the UI, CLI, or API changes? -->
-- Engineer: _________________________ <!-- Who is the Engineer to contact if folks have technical questions? -->
   
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
