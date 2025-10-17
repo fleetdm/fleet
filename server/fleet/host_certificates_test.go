@@ -149,6 +149,16 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 				CommonName:         "FleetDM+valid",
 			},
 		},
+		{
+			name:  "multiple organizational unit values",
+			input: "/OU=Engineering/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67/CN=Test Multiple OU Values",
+			expected: &HostCertificateNameDetails{
+				Country:            "US",
+				Organization:       "Fleet Device Management Inc.",
+				OrganizationalUnit: "Engineering+OU=Fleet Device Management Inc.+OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67",
+				CommonName:         "Test Multiple OU Values",
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

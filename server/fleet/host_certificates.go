@@ -225,6 +225,7 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 		parts = strings.Split(str, "+")
 	}
 
+	ouParts := []string{}
 	var details HostCertificateNameDetails
 	for _, part := range parts {
 		key, value, found := strings.Cut(part, "=")
@@ -241,11 +242,22 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 		case "O":
 			details.Organization = strings.Trim(value, " ")
 		case "OU":
-			details.OrganizationalUnit = strings.Trim(value, " ")
+			// osquery is inconsistent in how it reports certs with multiple OUs; sometimes it
+			// concatenates them all joined by `+OU=` separator within the same `/` delimited
+			// string, other times it provides multiple `/` delimited strings that each contain
+			// distinct OU values. For example, compare the following two lines:
+			//   /OU=SomeValue/OU=fleet-a3d5d6f4c-819e-4159-9a42-0d6243a80ff8/CN=SomeName
+			//   /OU=SomeValue+OU=fleet-a0c039413-d0c7-4b1f-9488-b93c865351ac/CN=SomeName
+			//
+			// To handle both cases, we collect all OU values and join them with `+OU=` below.
+			// We should probably reconsider our approaches for normalization of cert data
+			// across the board.
+			ouParts = append(ouParts, strings.Trim(value, " "))
 		case "CN":
 			details.CommonName = strings.Trim(value, " ")
 		}
 	}
+	details.OrganizationalUnit = strings.Join(ouParts, "+OU=")
 
 	return &details, nil
 }
