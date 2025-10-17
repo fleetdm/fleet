@@ -979,6 +979,7 @@ module.exports.routes = {
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#partial-failure-android-profiles',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
+  'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   
   // Sitemap
   // =============================================================================================================
