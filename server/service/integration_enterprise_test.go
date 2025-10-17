@@ -4373,8 +4373,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NotNil(t, host3)
 
 	// set disk space information for some hosts (none provided for host3)
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0, nil))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)

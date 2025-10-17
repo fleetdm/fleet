@@ -116,9 +116,58 @@ WITH encrypted(enabled) AS (
 - Query:
 ```sql
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-FROM mounts WHERE path = '/' LIMIT 1;
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- exclude boot files
+AND path NOT LIKE '/boot%' 
+
+-- exclude snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;
 ```
 
 ## disk_space_windows

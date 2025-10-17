@@ -18,6 +18,7 @@ spec:
   fleet_desktop_version: null
   gigs_disk_space_available: 0
   gigs_total_disk_space: 0
+  gigs_all_disk_space: null
   hardware_model: ""
   hardware_serial: ""
   hardware_vendor: ""

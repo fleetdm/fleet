@@ -987,7 +987,9 @@ type Datastore interface {
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
-	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
+	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
+	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
+	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
