@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5" //nolint:gosec // MD5 is used for checksums, not security
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"database/sql"
 	"fmt"
 	"strings"
@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251010153829(t *testing.T) {
+func TestUp_20251015103505(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	computeOldChecksum := func(name, version, source, bundleID, release, arch, vendor, extensionFor, extensionID string) []byte {
+	computeOldChecksum := func(name, version, source, bundleID, release, arch, vendor, browser, extensionID string) []byte {
 		h := md5.New() //nolint:gosec
-		cols := []string{version, source, bundleID, release, arch, vendor, extensionFor, extensionID}
+		cols := []string{version, source, bundleID, release, arch, vendor, browser, extensionID}
 		if source != "apps" {
 			cols = append([]string{name}, cols...)
 		}
@@ -23,21 +23,21 @@ func TestUp_20251010153829(t *testing.T) {
 		return h.Sum(nil)
 	}
 
-	computeNewChecksum := func(name, version, source, bundleID, release, arch, vendor, extensionFor, extensionID string) []byte {
+	computeNewChecksum := func(name, version, source, bundleID, release, arch, vendor, browser, extensionID string) []byte {
 		h := md5.New() //nolint:gosec
-		cols := []string{version, source, bundleID, release, arch, vendor, extensionFor, extensionID, name}
+		cols := []string{version, source, bundleID, release, arch, vendor, browser, extensionID, name}
 		_, _ = fmt.Fprint(h, strings.Join(cols, "\x00"))
 		return h.Sum(nil)
 	}
 
-	insertTitle := `INSERT INTO software_titles (name, source, extension_for, bundle_identifier) VALUES (?, ?, ?, ?)`
+	insertTitle := `INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES (?, ?, ?, ?)`
 	result, err := db.Exec(insertTitle, "Test App", "apps", "", "com.test.app")
 	require.NoError(t, err)
 	titleID, err := result.LastInsertId()
 	require.NoError(t, err)
 
 	insertSoftware := `INSERT INTO software
-		(name, version, source, bundle_identifier, ` + "`release`" + `, arch, vendor, extension_for, extension_id, checksum, title_id)
+		(name, version, source, bundle_identifier, ` + "`release`" + `, arch, vendor, browser, extension_id, checksum, title_id)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	// software with bundle_identifier should be updated

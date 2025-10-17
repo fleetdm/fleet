@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251013172310(t *testing.T) {
+func TestUp_20251015103900(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertStmt := `INSERT INTO host_disks (host_id) VALUES (1)`
