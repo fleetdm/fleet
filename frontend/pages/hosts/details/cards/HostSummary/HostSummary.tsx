@@ -261,13 +261,19 @@ const HostSummary = ({
       ].includes(version) ? (
         // wrap a tooltip aroun the "rolling" suffix
         <>
-          {version.slice(0, -8)}&nbsp;
+          {version.slice(0, -8)}
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
         version
       );
-      return <DataSet title="Operating system" value={versionForRender} />;
+      return (
+        <DataSet
+          title="Operating system"
+          value={versionForRender}
+          className={`${baseClass}__os-data-set`}
+        />
+      );
     }
 
     const osVersionWithoutPrefix = removeOSPrefix(summaryData.os_version);
