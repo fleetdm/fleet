@@ -49,6 +49,7 @@ module.exports = {
         'Event - Sales-led event',
         'GitHub - Stared fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
+        'GitHub - Contributed to fleetdm/fleet',
       ],
     },
     getStartedResponses: {
