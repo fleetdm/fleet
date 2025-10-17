@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -19,10 +20,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1645,11 +1648,816 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
 	res := s.DoRawWithHeaders("PUT", "/api/v1/fleet/setup_experience/software", []byte(`{"platform": "foobar", "team_id": 0}`), http.StatusBadRequest, nil)
 	errMsg := extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
-	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"windows\", or \"linux\"")
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"")
 	res = s.DoRawWithHeaders("GET", "/api/v1/fleet/setup_experience/software?platform=foobar&team_id=0", nil, http.StatusBadRequest, nil)
 	errMsg = extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
-	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"windows\", or \"linux\"")
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"ios\", \"ipados\", \"windows\", or \"linux\"")
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Just for testing isolation
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	var getVPPTokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+
+	// Associate team to the VPP token.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, otherTeam.ID}}, http.StatusOK, &resPatchVPP)
+
+	// app 1 macOS only
+	macOSApp1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 1",
+		BundleIdentifier: "a-1",
+		IconURL:          "https://example.com/images/1",
+		LatestVersion:    "1.0.0",
+	}
+	// App 2 supports macOS, iOS, iPadOS
+	macOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	iOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	iPadOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+
+	// App 3 is iPadOS only
+	iPadOSApp3 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "3",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 3",
+		BundleIdentifier: "c-3",
+		IconURL:          "https://example.com/images/3",
+		LatestVersion:    "3.0.0",
+	}
+
+	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, iOSApp2, iPadOSApp2, iPadOSApp3}
+
+	var addAppResp addAppStoreAppResponse
+	// Add apps
+	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
+		var titleID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, app.AdamID, app.Platform)
+		})
+		require.NoError(t, err)
+
+		return titleID
+	}
+
+	titleIDsByApp := make(map[*fleet.VPPApp]uint)
+	for _, app := range expectedApps {
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			http.StatusOK, &addAppResp)
+		titleIDsByApp[app] = getSoftwareTitleIDFromApp(app)
+
+		// Add apps to the other team as well so that they are available but should not show up in setup experience
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &otherTeam.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			http.StatusOK, &addAppResp)
+	}
+
+	// Helper function for inspecting returned list of software marked for setup experience
+	getReturnedSetupExperienceTitleIDs := func(titles []fleet.SoftwareTitleListResult) []uint {
+		var titleIDs []uint
+		for _, title := range titles {
+			if (title.AppStoreApp != nil && title.AppStoreApp.InstallDuringSetup != nil && *title.AppStoreApp.InstallDuringSetup == true) ||
+				(title.SoftwarePackage != nil && title.SoftwarePackage.InstallDuringSetup != nil && *title.SoftwarePackage.InstallDuringSetup == true) {
+				titleIDs = append(titleIDs, title.ID)
+			}
+		}
+		return titleIDs
+	}
+
+	checkSetupExperienceSoftware := func(t *testing.T, platform string, teamID uint, expectedTitleIDs []uint) {
+		var respGetSetupExperience getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+			http.StatusOK,
+			&respGetSetupExperience,
+			"platform", platform,
+			"team_id", fmt.Sprint(teamID),
+		)
+		assert.ElementsMatch(t, getReturnedSetupExperienceTitleIDs(respGetSetupExperience.SoftwareTitles), expectedTitleIDs)
+	}
+
+	putSetupExperienceSoftwareForPlatform := func(t *testing.T, platform string, teamID uint, titleIDs []uint) {
+		var swInstallResp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: platform,
+			TeamID:   teamID,
+			TitleIDs: titleIDs,
+		}, http.StatusOK, &swInstallResp)
+	}
+
+	// Set the 2 apps for macOS
+	putSetupExperienceSoftwareForPlatform(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+
+	// Should return both of the items we set for macOS
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+
+	// Should return nothing for iOS/iPadOS
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{})
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{})
+
+	// Should return nothing for macOS on other team
+	checkSetupExperienceSoftware(t, "macos", otherTeam.ID, []uint{})
+
+	// Add an app for iOS
+	putSetupExperienceSoftwareForPlatform(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+
+	// Fetch iOS apps for the team and now it should be listed
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+
+	// Should still return nothing for iPadOS
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{})
+
+	// Should still return both of the items we set for macOS
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+
+	// Add apps for iPadOS
+	putSetupExperienceSoftwareForPlatform(t, "ipados", team.ID, []uint{titleIDsByApp[iPadOSApp2], titleIDsByApp[iPadOSApp3]})
+
+	// Fetch iPadOS apps for the team and now they should be listed
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{titleIDsByApp[iPadOSApp2], titleIDsByApp[iPadOSApp3]})
+
+	// Should return nothing for iOS/iPadOS/macOS on the other team
+	checkSetupExperienceSoftware(t, "ios", otherTeam.ID, []uint{})
+	checkSetupExperienceSoftware(t, "ipados", otherTeam.ID, []uint{})
+	checkSetupExperienceSoftware(t, "macos", otherTeam.ID, []uint{})
+
+	// try to add an ipadOS app to macOS and iOS, both should fail
+	res := s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "macos", "team_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	assert.Contains(t, errMsg, "invalid platform for requested AppStoreApp")
+
+	res = s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "ios", "team_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	assert.Contains(t, errMsg, "invalid platform for requested AppStoreApp")
+
+	// Lists should be unchanged after the failed attempts
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+
+	// Clear iPadOS and verify macOS and iPadOS are unaffected
+	putSetupExperienceSoftwareForPlatform(t, "ipados", team.ID, []uint{})
+
+	// iPadOS should be empty now
+	checkSetupExperienceSoftware(t, "ipados", team.ID, []uint{})
+
+	// macOS/iPadOS lists should be unchanged
+	checkSetupExperienceSoftware(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+	checkSetupExperienceSoftware(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+	abmOrgName := "fleet_ade_ios_ipados_team_test"
+
+	s.enableABM(abmOrgName)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+			       "apple_business_manager": [{
+			         "organization_name": %q,
+			         "macos_team": %q,
+			         "ios_team": %q,
+			         "ipados_team": %q
+			       }]
+			}
+		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
+
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	var getVPPTokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+
+	// Associate team to the VPP token.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	// app 1 macOS only
+	macOSApp1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 1",
+		BundleIdentifier: "a-1",
+		IconURL:          "https://example.com/images/1",
+		LatestVersion:    "1.0.0",
+	}
+	// App 2 supports macOS, iOS, iPadOS
+	macOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	iOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	iPadOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+
+	// App 3 is iPadOS only
+	iPadOSApp3 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "3",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 3",
+		BundleIdentifier: "c-3",
+		IconURL:          "https://example.com/images/3",
+		LatestVersion:    "3.0.0",
+	}
+
+	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, iOSApp2, iPadOSApp2, iPadOSApp3}
+
+	var addAppResp addAppStoreAppResponse
+	// Add apps
+	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
+		var titleID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, app.AdamID, app.Platform)
+		})
+		require.NoError(t, err)
+
+		return titleID
+	}
+
+	titleIDsByApp := make(map[*fleet.VPPApp]uint)
+	for _, app := range expectedApps {
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			http.StatusOK, &addAppResp)
+		titleIDsByApp[app] = getSoftwareTitleIDFromApp(app)
+	}
+
+	putSetupExperienceSoftwareForPlatform := func(t *testing.T, platform string, teamID uint, titleIDs []uint) {
+		var swInstallResp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: platform,
+			TeamID:   teamID,
+			TitleIDs: titleIDs,
+		}, http.StatusOK, &swInstallResp)
+	}
+
+	// Set the 2 apps for macOS
+	putSetupExperienceSoftwareForPlatform(t, "macos", team.ID, []uint{titleIDsByApp[macOSApp1], titleIDsByApp[macOSApp2]})
+
+	// Add an app for iOS
+	putSetupExperienceSoftwareForPlatform(t, "ios", team.ID, []uint{titleIDsByApp[iOSApp2]})
+
+	// Add apps for iPadOS
+	putSetupExperienceSoftwareForPlatform(t, "ipados", team.ID, []uint{titleIDsByApp[iPadOSApp2], titleIDsByApp[iPadOSApp3]})
+
+	// Add a profile
+	teamProfile := mobileconfigForTest("N1", "I1")
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+	devices := []godep.Device{
+		{
+			Model:        "iPad Pro 12.9\" (Wi-Fi Only - 3rd Gen)",
+			OS:           "iPadOS",
+			DeviceFamily: "iPad",
+			OpType:       "added",
+			SerialNumber: "ipad-123456",
+		},
+		{
+			Model:        "iPhone 16 Pro",
+			OS:           "iOS",
+			DeviceFamily: "iPhone",
+			OpType:       "added",
+			SerialNumber: "iphone-123456",
+		},
+	}
+
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, devices[0].SerialNumber, devices[1].SerialNumber)
+
+	vppAppIDsByDeviceFamily := map[string][]*fleet.VPPApp{
+		"iPhone": {iOSApp2},
+		"iPad":   {iPadOSApp2, iPadOSApp3},
+	}
+
+	for _, enableReleaseManually := range []bool{false, true} {
+		for _, enrollmentProfileFromDEPUsingPost := range []bool{false, true} {
+			for _, device := range devices {
+				t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost), func(t *testing.T) {
+					s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
+						ABMOrg:                            abmOrgName,
+						EnableReleaseManually:             enableReleaseManually,
+						TeamID:                            &team.ID,
+						CustomProfileIdent:                "N1",
+						EnrollmentProfileFromDEPUsingPost: enrollmentProfileFromDEPUsingPost,
+						VppAppsToInstall:                  vppAppIDsByDeviceFamily[device.DeviceFamily],
+					})
+				})
+			}
+		}
+	}
+}
+
+type DEPEnrollMobileTestOpts struct {
+	ABMOrg                            string
+	EnableReleaseManually             bool
+	TeamID                            *uint
+	CustomProfileIdent                string
+	EnrollmentProfileFromDEPUsingPost bool
+	VppAppsToInstall                  []*fleet.VPPApp
+}
+
+func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *testing.T, device godep.Device, opts DEPEnrollMobileTestOpts) {
+	ctx := context.Background()
+
+	// set the enable release device manually option
+	payload := map[string]any{
+		"enable_release_device_manually": opts.EnableReleaseManually,
+		"manual_agent_install":           false,
+	}
+	if opts.TeamID != nil {
+		payload["team_id"] = *opts.TeamID
+	}
+
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+	t.Cleanup(func() {
+		// Get back to the default state.
+		payload["enable_release_device_manually"] = false
+		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+	})
+
+	// query all hosts - none yet
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Empty(t, listHostsRes.Hosts)
+
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{}, nil
+	}
+
+	s.mockDEPResponse(opts.ABMOrg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/server/devices":
+			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{device}})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{device}, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	// trigger a profile sync
+	s.runDEPSchedule()
+
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, device.SerialNumber)
+	enrolledHost := listHostsRes.Hosts[0].Host
+
+	t.Cleanup(func() {
+		// delete the enrolled host
+		err := s.ds.DeleteHost(ctx, enrolledHost.ID)
+		require.NoError(t, err)
+		// clear out any left behind jobs
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM jobs`)
+			return err
+		})
+	})
+
+	// enroll the host
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	clientOpts := make([]mdmtest.TestMDMAppleClientOption, 0)
+	if opts.EnrollmentProfileFromDEPUsingPost {
+		clientOpts = append(clientOpts, mdmtest.WithEnrollmentProfileFromDEPUsingPost())
+	}
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, clientOpts...)
+	switch device.DeviceFamily {
+	case "iPhone":
+		mdmDevice.Model = "iPhone14,6"
+	case "iPad":
+		mdmDevice.Model = "iPad8,7"
+	default:
+		// Only expecting mobile devices for this test
+		t.Fatalf("unexpected device family: %s", device.DeviceFamily)
+	}
+	mdmDevice.SerialNumber = device.SerialNumber
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// The host should be awaiting configuration
+	awaitingConfiguration, err := s.ds.GetHostAwaitingConfiguration(ctx, mdmDevice.UUID)
+	require.NoError(t, err)
+	require.True(t, awaitingConfiguration)
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+
+	// run the cron to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmds []*micromdm.CommandPayload
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+
+	// For reporting back via InstalledApplicationList
+	installedVPPApps := make([]fleet.Software, 0, len(opts.VppAppsToInstall))
+	// For verifying number of installs
+	installedApps := make(map[string]int, len(opts.VppAppsToInstall))
+
+	var installProfileCount, installAppCount, refetchVerifyCount, otherCount int
+	var profileCustomSeen, profileFleetCASeen, unexpectedProfileSeen bool
+
+	// Can be useful for debugging
+	logCommands := false
+	for cmd != nil {
+
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUID()) {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			if logCommands {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+			}
+			installProfileCount++
+			if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), //nolint:gocritic // ignore ifElseChain
+				fmt.Sprintf("<string>%s</string>", opts.CustomProfileIdent)) {
+				profileCustomSeen = true
+			} else if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+				unexpectedProfileSeen = true
+			} else if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
+				profileFleetCASeen = true
+			} else if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(fullCmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant") {
+				unexpectedProfileSeen = true
+			}
+		case "InstallApplication":
+			if logCommands {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID))
+			}
+			for _, app := range opts.VppAppsToInstall {
+				if app.AdamID == fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID) {
+					installedVPPApps = append(installedVPPApps, fleet.Software{BundleIdentifier: app.BundleIdentifier, Name: app.Name, Version: app.LatestVersion, Installed: true})
+					installedApps[app.AdamID]++
+				}
+			}
+			installAppCount++
+
+		case "InstallEnterpriseApplication":
+			if logCommands {
+				if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+					fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+				} else {
+					fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+				}
+			}
+		case "InstalledApplicationList":
+			if logCommands {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+			}
+			// If we are polling to verify the install, we should get an
+			// InstalledApplicationList command instead of an InstallApplication command.
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			// Hold off on verifying the last install until later so we can ensure it waits for verification
+			if len(installedVPPApps) == len(opts.VppAppsToInstall) {
+				installedVPPApps[len(installedVPPApps)-1].Installed = false
+			}
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
+				mdmDevice.UUID,
+				cmd.CommandUUID,
+				installedVPPApps,
+			)
+			// flip the status back for later
+			installedVPPApps[len(installedVPPApps)-1].Installed = true
+			require.NoError(t, err)
+			// TODO: We don't actually normally get a command back from the acknowledgement of the InstalledAppList
+			// but we'll get additional install commands if we follow it up with an idle. Is this a bug? I think it
+			// may be because of how we handle activating the next upcoming activity?
+			if cmd == nil {
+				cmd, err = mdmDevice.Idle()
+				require.NoError(t, err)
+			}
+			continue
+		default:
+			if logCommands {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+			}
+			otherCount++
+		}
+
+		cmds = append(cmds, &fullCmd)
+
+		if cmd.Command.RequestType == "InstallApplication" {
+			pending, err := s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
+			require.NoError(t, err)
+			for _, job := range pending {
+				if job.Name == "apple_software" {
+					mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), job.ID)
+						return err
+					})
+				}
+			}
+			// Run the worker to process the VPP verification job before acking so that the Verify command is waiting for us
+			s.runWorker()
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// expected commands: install CA, install profile (only the custom one),
+	// not expected: account configuration, since enrollment_reference not set
+	require.Len(t, cmds, 2+len(opts.VppAppsToInstall))
+
+	require.Equal(t, 2, installProfileCount)
+	require.True(t, profileCustomSeen)
+	require.True(t, profileFleetCASeen)
+	require.Equal(t, false, unexpectedProfileSeen)
+
+	require.Equal(t, len(opts.VppAppsToInstall), installAppCount)
+	require.Equal(t, len(opts.VppAppsToInstall), len(installedApps))
+
+	// Each expected app should be installed exactly once
+	for _, app := range opts.VppAppsToInstall {
+		require.Equal(t, 1, installedApps[app.AdamID])
+	}
+
+	require.Equal(t, 0, otherCount)
+
+	pendingReleaseJobs := []*fleet.Job{}
+	if opts.EnableReleaseManually {
+		// get the worker's pending job from the future, there should not be any
+		// because it needs to be released manually
+		pending, err := s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		for _, job := range pending {
+			if job.Name == "apple_mdm" && strings.Contains(string(*job.Args), string(worker.AppleMDMPostDEPReleaseDeviceTask)) {
+				pendingReleaseJobs = append(pendingReleaseJobs, job)
+			} else if job.Name == "apple_software" {
+				// Just delete the job for now to keep things clean
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `DELETE FROM jobs WHERE id = ?`, job.ID)
+					return err
+				})
+			}
+		}
+		require.Len(t, pendingReleaseJobs, 0)
+		return
+	}
+
+	// Automatic release - device release job should be enqueued
+	pending, err := s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
+	pendingVerifyJobs := []*fleet.Job{}
+	require.NoError(t, err)
+	for _, job := range pending {
+		if job.Name == "apple_mdm" && strings.Contains(string(*job.Args), string(worker.AppleMDMPostDEPReleaseDeviceTask)) {
+			pendingReleaseJobs = append(pendingReleaseJobs, job)
+		}
+		if job.Name == "apple_software" {
+			pendingVerifyJobs = append(pendingVerifyJobs, job)
+		}
+	}
+	require.Len(t, pendingReleaseJobs, 1)
+	require.Equal(t, "apple_mdm", pendingReleaseJobs[0].Name)
+	require.Contains(t, string(*pendingReleaseJobs[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+	require.Len(t, pendingVerifyJobs, 1)
+
+	// make the pending jobs ready to run immediately and run the job
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id IN (?, ?)`, time.Now().Add(-1*time.Minute).UTC(), pendingReleaseJobs[0].ID, pendingVerifyJobs[0].ID)
+		return err
+	})
+
+	s.runWorker()
+
+	// make the device process the commands, it should receive the VPP Verify.
+	// It should not receive a DeviceConfigured command!
+	cmds = cmds[:0]
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUID()) {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		if cmd.Command.RequestType == "InstalledApplicationList" {
+			if logCommands {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+			}
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
+				mdmDevice.UUID,
+				cmd.CommandUUID,
+				installedVPPApps,
+			)
+			require.NoError(t, err)
+			// See above comment about cmd==nil, just want to make sure we don't get any additional
+			// commands on the acknowledgement
+			if cmd == nil {
+				cmd, err = mdmDevice.Idle()
+				require.NoError(t, err)
+			}
+			continue
+		}
+		require.FailNowf(t, "unexpected command", "got command %s of type %s", cmd.CommandUUID, cmd.Command.RequestType)
+	}
+
+	pending, err = s.ds.GetQueuedJobs(ctx, 5, time.Now().UTC().Add(time.Minute))
+	pendingReleaseJobs = pendingReleaseJobs[:0]
+	pendingVerifyJobs = pendingVerifyJobs[:0]
+	require.NoError(t, err)
+	for _, job := range pending {
+		if job.Name == "apple_mdm" && strings.Contains(string(*job.Args), string(worker.AppleMDMPostDEPReleaseDeviceTask)) {
+			pendingReleaseJobs = append(pendingReleaseJobs, job)
+		}
+		if job.Name == "apple_software" {
+			pendingVerifyJobs = append(pendingVerifyJobs, job)
+		}
+	}
+	require.Len(t, pendingReleaseJobs, 1)
+	require.Equal(t, "apple_mdm", pendingReleaseJobs[0].Name)
+	require.Contains(t, string(*pendingReleaseJobs[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+	require.Len(t, pendingVerifyJobs, 0)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pendingReleaseJobs[0].ID)
+		return err
+	})
+
+	s.runWorker()
+
+	// make the device process the commands, it should receive the
+	// DeviceConfigured one.
+	cmds = cmds[:0]
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	var deviceConfiguredCount int
+	for _, cmd := range cmds {
+		if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) || strings.HasPrefix(cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
+			refetchVerifyCount++
+			continue
+		}
+		switch cmd.Command.RequestType {
+		case "DeviceConfigured":
+			deviceConfiguredCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 1, deviceConfiguredCount)
+	require.Equal(t, 0, otherCount)
 }
 
 // TestSetupExperienceEndpointsPlatformIsolation tests that setting the setup experience software items

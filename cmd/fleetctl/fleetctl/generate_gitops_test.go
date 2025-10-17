@@ -362,6 +362,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				URL:               "https://example.com/download/my-software.pkg",
 				Categories:        []string{"Browsers"},
 			},
+			IconUrl: ptr.String("/api/icon1.png"),
 		}, nil
 	case 2:
 		if *teamID != 1 {
@@ -378,10 +379,15 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Categories:  []string{"Productivity", "Utilities"},
 				SelfService: true,
 			},
+			IconUrl: ptr.String("/api/icon2.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
+}
+
+func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
+	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
 }
 
 func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
@@ -395,7 +401,7 @@ func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 		Name:                "Label B",
 		Description:         "Label B description",
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		Hosts:               []string{"host1", "host2"},
+		Hosts:               []string{"1", "2"},
 	}, {
 		Name:                "Label C",
 		Description:         "Label C description",
@@ -1007,7 +1013,7 @@ func TestGenerateSoftware(t *testing.T) {
 		SoftwareList: make(map[uint]Software),
 	}
 
-	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team")
+	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
 	var software map[string]interface{}

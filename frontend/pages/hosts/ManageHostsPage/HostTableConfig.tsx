@@ -11,7 +11,7 @@ import {
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -67,6 +67,7 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     users.length === 4
       ? users
           .slice(-4)
+
           .map((u) => u.email)
           .reverse()
       : users
@@ -177,7 +178,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "hostname",
     id: "hostname",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {
@@ -320,7 +321,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         value === "Manjaro Linux ARM rolling"
       ) {
         return (
-          <TextCell
+          <TooltipTruncatedTextCell
             value={
               <span>
                 {value.slice(0, -7 /* removing lowercase rolling suffix */)}
@@ -330,7 +331,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
           />
         );
       }
-      return <TextCell value={value} />;
+      return <TooltipTruncatedTextCell value={value} />;
     },
   },
   {
@@ -644,7 +645,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // TODO(android): is iOS/iPadOS supported?
       if (
         isAndroid(cellProps.row.original.platform) ||
-        isPersonalEnrollmentInMdm(cellProps.row.original.mdm.enrollment_status)
+        isBYODAccountDrivenUserEnrollment(
+          cellProps.row.original.mdm.enrollment_status
+        )
       ) {
         return NotSupported;
       }

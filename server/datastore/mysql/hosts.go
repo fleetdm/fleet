@@ -900,6 +900,8 @@ const hostMDMSelect = `,
 				ELSE CAST(FALSE AS JSON)
 				END
 			)
+			WHEN h.platform = 'android' THEN
+				CASE WHEN hmdm.enrolled = 1 THEN CAST(TRUE AS JSON) ELSE CAST(FALSE AS JSON) END
 			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
 	// NOTE: if you change any of the conditions in this
 	// query, please update the AreHostsConnectedToFleetMDM
@@ -1087,9 +1089,13 @@ WHERE
 	sqlStmt := `
 SELECT
     h.id,
-    h.hostname as display_name,
+    h.computer_name,
+	h.hostname,
+	h.hardware_model,
+	h.hardware_serial,
+	-- if the status filter is "pending", we want to return "pending" for all hosts
     ? as status,
-	-- pending hosts will have "updated_at" set in the db, but since 
+	-- pending hosts will have "updated_at" set in the db, but since
 	-- we're using it to mean "executed at" we'll return it as empty.
 	CASE
 		WHEN ? != 'pending' THEN hsr.updated_at
@@ -1099,6 +1105,7 @@ SELECT
 	COALESCE(hsr.execution_id, '') as execution_id
 FROM
     hosts h
+	JOIN host_display_names hdn ON h.id = hdn.host_id
 	%s
 WHERE
     %s
@@ -1145,6 +1152,10 @@ WHERE
 			meta.HasNextResults = true
 			hosts = hosts[:len(hosts)-1]
 		}
+	}
+
+	for i := range hosts {
+		hosts[i].DisplayName = fleet.HostDisplayName(hosts[i].ComputerName, hosts[i].HostName, hosts[i].HardwareModel, hosts[i].HardwareSerial)
 	}
 
 	return hosts, meta, count, nil
@@ -2246,19 +2257,31 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
         computer_name = COALESCE(NULLIF(computer_name, ''), ?),
         hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
-        team_id = ?,
-        refetch_requested = ?
+        refetch_requested = ?%s
       WHERE id = ?`
-			_, err := tx.ExecContext(ctx, sqlUpdate,
+			args := []any{
 				orbitNodeKey,
 				hostInfo.HardwareUUID,
 				osqueryIdentifier,
 				hostInfo.HardwareSerial,
 				hostInfo.ComputerName,
 				hostInfo.HardwareModel,
-				teamID,
 				refetchRequested,
-				enrolledHostInfo.ID,
+			}
+
+			if !enrollConfig.IgnoreTeamUpdate {
+				args = append(args, teamID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
+			} else {
+				level.Info(ds.logger).Log("msg", "skipping team update on orbit enroll", "host_uuid", hostInfo.HardwareUUID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
+			}
+
+			// WHERE attributes
+			args = append(args, enrolledHostInfo.ID)
+
+			_, err := tx.ExecContext(ctx, sqlUpdate,
+				args...,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
@@ -2470,15 +2493,33 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			sqlUpdate := `
 				UPDATE hosts
 				SET node_key = ?,
-				team_id = ?,
 				last_enrolled_at = NOW(),
 				osquery_host_id = ?,
 				uuid = COALESCE(NULLIF(uuid, ''), ?),
 				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-				refetch_requested = ?
+				refetch_requested = ?%s
 				WHERE id = ?
 			`
-			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID, hardwareUUID, hardwareSerial, refetchRequested, enrolledHostInfo.ID)
+			args := []any{
+				nodeKey,
+				osqueryHostID,
+				hardwareUUID,
+				hardwareSerial,
+				refetchRequested,
+			}
+
+			if !enrollConfig.IgnoreTeamUpdate {
+				args = append(args, teamID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
+			} else {
+				level.Info(ds.logger).Log("msg", "skipping team update on osquery enroll", "host_uuid", hardwareUUID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
+			}
+
+			// WHERE attributes
+			args = append(args, enrolledHostInfo.ID)
+
+			_, err := tx.ExecContext(ctx, sqlUpdate, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host")
 			}

@@ -96,18 +96,18 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}}...)
 	}
 
-	if dryRun {
-		// On dry runs return early because the VPP token might not exist yet
-		// and we don't want to apply the VPP apps.
-		return nil, nil
-	}
-
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
 		token, err := svc.getVPPToken(ctx, teamID)
 		if err != nil {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
+		}
+
+		if dryRun {
+			// If we're doing a dry run, we stop here and return no error to avoid making any changes.
+			// That way we validate if a VPP token is available even on dry runs keeping it consistent.
+			return nil, nil
 		}
 
 		for _, payload := range payloadsWithPlatform {
@@ -172,6 +172,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
+	if dryRun {
+		// If we're doing a dry run, we stop here and return no error to avoid making any changes.
+		// Another dry run check is inside the payload size > 0 statement.
+		return nil, nil
+	}
+
 	if len(vppAppTeams) > 0 {
 		apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
 		if err != nil {
@@ -199,6 +205,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
+	}
+
+	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
+		return nil, err // returned error already includes context that we could include here
 	}
 
 	if len(vppAppTeams) == 0 {
@@ -401,9 +416,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if exists {
-			return 0, ctxerr.New(ctx,
-				fmt.Sprintf("Error: Couldn't add software. %s already has software available for install on the %s team.",
-					assetMD.TrackName, teamName))
+			return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+					assetMD.TrackName, teamName)}, "vpp app conflicts with existing software installer")
 		}
 	}
 

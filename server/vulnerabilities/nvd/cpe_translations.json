@@ -607,12 +607,22 @@
   },
   {
     "software": {
-      "bundle_identifier": ["/^com\\.googlecode\\.iterm2/"],
+      "bundle_identifier": ["com.googlecode.iterm2"],
       "source": ["apps"]
     },
     "filter": {
       "product": ["iterm2"],
-      "vendor": ["iterm2"]
+      "vendor": ["iterm2"],
+      "skip": false
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.googlecode\\.iterm2\\./"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
     }
   },
   {

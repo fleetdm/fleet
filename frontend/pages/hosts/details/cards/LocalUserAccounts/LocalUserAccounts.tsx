@@ -3,7 +3,10 @@ import classnames from "classnames";
 
 import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
+import {
+  DEFAULT_PAGE_SIZE,
+  ITableQueryData,
+} from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
@@ -43,7 +46,6 @@ const LocalUserAccounts = ({
         className={baseClass}
         borderRadiusSize="xxlarge"
         paddingSize="xlarge"
-        includeShadow
       >
         <CardHeader header="Local user accounts" />
         <EmptyTable
@@ -70,7 +72,6 @@ const LocalUserAccounts = ({
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <>
         <CardHeader header="Local user accounts" />
@@ -95,6 +96,7 @@ const LocalUserAccounts = ({
             wideSearch
             renderCount={renderUsersCount}
             isClientSidePagination
+            hideFooter={usersState.length < DEFAULT_PAGE_SIZE}
           />
         ) : (
           <EmptyTable

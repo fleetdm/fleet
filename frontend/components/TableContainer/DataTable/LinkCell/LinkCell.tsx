@@ -35,7 +35,10 @@ const LinkCell = ({
   prefix,
   suffix,
 }: ILinkCellProps): JSX.Element => {
-  const cellClasses = classnames(baseClass, className);
+  const cellClasses = classnames(baseClass, className, {
+    [`${baseClass}--tooltip`]: !!tooltipContent,
+    [`${baseClass}--tooltip-truncate`]: tooltipTruncate,
+  });
 
   const onClick = (e: React.MouseEvent): void => {
     customOnClick && customOnClick(e);

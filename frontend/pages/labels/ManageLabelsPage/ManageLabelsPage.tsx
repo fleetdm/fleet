@@ -70,25 +70,28 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     }
   }, [labelToDelete, refetch, renderFlash]);
 
-  const onClickAction = (action: string, label: ILabel): void => {
-    switch (action) {
-      case "view_hosts":
-        router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
-        break;
-      case "edit":
-        router.push(PATHS.EDIT_LABEL(label.id));
-        break;
-      case "delete":
-        setLabelToDelete(label);
-        break;
-      default:
-    }
-  };
+  const onClickAction = useCallback(
+    (action: string, label: ILabel): void => {
+      switch (action) {
+        case "view_hosts":
+          router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
+          break;
+        case "edit":
+          router.push(PATHS.EDIT_LABEL(label.id));
+          break;
+        case "delete":
+          setLabelToDelete(label);
+          break;
+        default:
+      }
+    },
+    [router]
+  );
 
   const canAddLabel =
     isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
 
-  const renderTable = () => {
+  const renderTable = useCallback(() => {
     if (isLoading || !currentUser || !labels) {
       return <Spinner />;
     }
@@ -102,7 +105,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         onClickAction={onClickAction}
       />
     );
-  };
+  }, [currentUser, error, isLoading, labels, onClickAction]);
 
   return (
     <MainContent className={baseClass}>
@@ -113,19 +116,19 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
               <h1>Labels</h1>
             </div>
           </div>
+          {canAddLabel && (
+            <div className={`${baseClass}__action-button-container`}>
+              <Button
+                className={`${baseClass}__create-button`}
+                onClick={onCreateLabelClick}
+              >
+                Add label
+              </Button>
+            </div>
+          )}
         </div>
-        {canAddLabel && (
-          <div className={`${baseClass}__action-button-container`}>
-            <Button
-              className={`${baseClass}__create-button`}
-              onClick={onCreateLabelClick}
-            >
-              Add label
-            </Button>
-          </div>
-        )}
+        <PageDescription content="Group hosts for targeting and filtering." />
       </div>
-      <PageDescription content="Group hosts for targeting and filtering" />
       {renderTable()}
       {labelToDelete && (
         <DeleteLabelModal

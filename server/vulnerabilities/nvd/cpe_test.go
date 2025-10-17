@@ -522,6 +522,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.apple.finder",
 			}, cpe: "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
 		},
+		{ // Make sure we generate the expected CPE so we can match it downstream and drop the false negative vulns
+			software: fleet.Software{
+				Name:             "Dota 2",
+				Source:           "apps",
+				Version:          "1.0", // default version; on ingestion it's actually blank
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "Firefox.app",
@@ -1841,6 +1851,24 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "9.12.2",
 			},
 			cpe: "cpe:2.3:a:monospace:directus:9.12.2:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "iTerm2",
+				Source:           "apps",
+				Version:          "3.5.14",
+				BundleIdentifier: "com.googlecode.iterm2",
+			},
+			cpe: "cpe:2.3:a:iterm2:iterm2:3.5.14:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "iTerm2ImportStatus",
+				Source:           "apps",
+				Version:          "1.0",
+				BundleIdentifier: "com.googlecode.iterm2.iTerm2ImportStatus",
+			},
+			cpe: "", // Skip iTerm2ImportStatus since it is part of iTerm2 and doesn't have its own cpe
 		},
 		{
 			software: fleet.Software{

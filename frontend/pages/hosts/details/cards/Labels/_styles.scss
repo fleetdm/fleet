@@ -1,4 +1,5 @@
-.labels-card {
+.host-labels-card {
+  @include vertical-card-layout;
   .button,
   .children-wrapper {
     max-width: 100%;

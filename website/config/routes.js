@@ -880,6 +880,7 @@ module.exports.routes = {
   'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
   'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
 
+  'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
@@ -977,6 +978,9 @@ module.exports.routes = {
   'GET /learn-more-about/install-google-play-apps': 'https://github.com/fleetdm/fleet/issues/25595',
   'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
+  'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
+  'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
+  'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
 
   // Sitemap
   // =============================================================================================================
@@ -1033,6 +1037,9 @@ module.exports.routes = {
   'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device', csrf: false},
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false},
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

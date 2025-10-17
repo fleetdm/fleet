@@ -1,16 +1,8 @@
 .windows-automatic-enrollment-page {
-  &__back-to-automatic-enrollment {
-    margin-bottom: $pad-xlarge;
-  }
+  @include vertical-page-layout;
 
-  h1 {
-    margin-bottom: $pad-xxlarge;
-    font-size: $x-large;
-  }
-
-  &__description {
-    margin: 0 0 $pad-large;
-    max-width: 800px;
+  p {
+    margin: 0;
   }
 
   &__setup-list {

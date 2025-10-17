@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -42,6 +43,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
 		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
 		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
+		{"SoftwareTitleByIDHostCount", testSoftwareTitleHostCount},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -90,7 +92,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalOpts := fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
@@ -111,7 +113,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
@@ -177,7 +179,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 2, 2, globalOpts)
@@ -215,7 +217,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
@@ -243,7 +245,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts)
 
@@ -252,7 +254,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// this call will remove team2 from the software host counts table
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
@@ -285,22 +287,22 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
 		{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", Browser: "chrome"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
 		{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 	software3 := []fleet.Software{
 		{Name: "foo", Version: "v0.0.2", Source: "rpm_packages"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
-		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", Browser: "edge"},
-		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "edge"},
+		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
@@ -349,10 +351,10 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
-	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, browser ASC"
+	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, extension_for ASC"
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "hosts_count",
@@ -385,13 +387,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.Nil(t, titles[i].AppStoreApp)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.Nil(t, titles[i].AppStoreApp)
 	i++
@@ -415,7 +417,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.NotNil(t, titles[i].AppStoreApp)
 
-	// primary sort is "hosts_count ASC", followed by "name ASC, source ASC, browser ASC"
+	// primary sort is "hosts_count ASC", followed by "name ASC, source ASC, extension_for ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "hosts_count",
@@ -440,11 +442,11 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "rpm_packages", titles[i].Source)
@@ -458,7 +460,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "deb_packages", titles[i].Source)
 
-	// primary sort is "name ASC", followed by "host_count DESC, source ASC, browser ASC"
+	// primary sort is "name ASC", followed by "host_count DESC, source ASC, extension_for ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "name",
@@ -477,11 +479,11 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
@@ -501,7 +503,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "vpp1", titles[i].Name)
 	assert.Equal(t, "ipados_apps", titles[i].Source)
 
-	// primary sort is "name DESC", followed by "host_count DESC, source ASC, browser ASC"
+	// primary sort is "name DESC", followed by "host_count DESC, source ASC, extension_for ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "name",
@@ -532,11 +534,11 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "deb_packages", titles[i].Source)
@@ -557,10 +559,10 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 4)
 	require.Equal(t, "baz", titles[0].Name)
 	require.Equal(t, "chrome_extensions", titles[0].Source)
-	require.Equal(t, "chrome", titles[0].Browser)
+	require.Equal(t, "chrome", titles[0].ExtensionFor)
 	require.Equal(t, "baz", titles[1].Name)
 	require.Equal(t, "chrome_extensions", titles[1].Source)
-	require.Equal(t, "edge", titles[1].Browser)
+	require.Equal(t, "edge", titles[1].ExtensionFor)
 	require.Equal(t, "bar", titles[2].Name)
 	require.Equal(t, "deb_packages", titles[2].Source)
 	require.Equal(t, "bar", titles[3].Name)
@@ -689,7 +691,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// Testing the global user (for "All teams")
@@ -756,7 +758,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 			ID:              title.ID,
 			Name:            title.Name,
 			Source:          title.Source,
-			Browser:         title.Browser,
+			ExtensionFor:    title.ExtensionFor,
 			HostsCount:      title.HostsCount,
 			VersionsCount:   title.VersionsCount,
 			Versions:        title.Versions,
@@ -813,7 +815,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, Browser: title.Browser, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
+	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
 
 	// Testing the team 2 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{
@@ -938,7 +940,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.True(t, titles[2].CountsUpdatedAt.IsZero())
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// match installer1 name
@@ -1063,7 +1065,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// without filter returns all software
@@ -1296,7 +1298,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 
 	// Simulate vulnerabilities cron
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// List software titles for "All teams", should only return the host software titles
@@ -1596,7 +1598,7 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -1813,7 +1815,7 @@ func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore)
 
 	var sw []fleet.Software
 	err = ds.writer(ctx).SelectContext(ctx, &sw,
-		`SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+		`SELECT id, name, version, bundle_identifier, source, extension_for, title_id FROM software ORDER BY name, source, extension_for, version`)
 	require.NoError(t, err)
 	require.Len(t, sw, 1)
 	require.NotNil(t, sw[0].TitleID)
@@ -1860,12 +1862,12 @@ func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore)
 	// We should only have a single title on the DB ...
 	var swt []fleet.SoftwareTitle
 	err = ds.writer(ctx).SelectContext(ctx, &swt,
-		`SELECT id, name, bundle_identifier, source, browser FROM software_titles ORDER BY name, source, browser`)
+		`SELECT id, name, bundle_identifier, source, extension_for FROM software_titles ORDER BY name, source, extension_for`)
 	require.NoError(t, err)
 	require.Len(t, swt, 1)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
@@ -1881,6 +1883,10 @@ func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore)
 }
 
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
+	// Uncomment the next line to regenerate the fixture
+	// generateSelectSoftwareTitlesSQLFixture(t)
+	// return
+
 	fixturePath := filepath.Join("testdata", "select_software_titles_sql_fixture.gz")
 
 	testData := []struct {
@@ -2129,7 +2135,7 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 
 	// Sync and reconcile
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	t.Run("packages_only=false no team_id", func(t *testing.T) {
@@ -2180,4 +2186,71 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 			require.NotNil(t, title.SoftwarePackage)
 		}
 	})
+}
+
+func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Make software installers
+	var installers [5]uint
+	for i := range 5 {
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team " + strconv.Itoa(i)})
+		require.NoError(t, err)
+
+		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "foo",
+			Source:           "apps",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			StorageID:        "storage",
+			Filename:         "installer.pkg",
+			BundleIdentifier: "com.foo.installer",
+			UserID:           user1.ID,
+			TeamID:           &tm.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		require.NotZero(t, installers[i])
+	}
+
+	// install software on host
+	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
+	require.NoError(t, err)
+
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host1.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// test GetSoftwareTitleID
+	globalTeamFilter := fleet.TeamFilter{User: user1, IncludeObserver: true}
+	titles, count, _, err := ds.ListSoftwareTitles(
+		context.Background(),
+		fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: nil},
+		globalTeamFilter,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	title, err := ds.SoftwareTitleByID(context.Background(), titles[0].ID, nil, globalTeamFilter)
+	require.NoError(t, err)
+	require.Len(t, title.Versions, 1)
+	require.Equal(t, 5, title.SoftwareInstallersCount)
+	require.Equal(t, uint(1), title.HostsCount)
+	require.Equal(t, uint(1), title.VersionsCount)
+	require.Equal(t, ptr.Uint(1), title.Versions[0].HostsCount)
 }

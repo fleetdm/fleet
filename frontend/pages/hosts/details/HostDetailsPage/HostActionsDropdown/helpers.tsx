@@ -10,7 +10,11 @@ import {
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
-import { isPersonalEnrollmentInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isAutomaticDeviceEnrollment,
+  isBYODAccountDrivenUserEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -135,10 +139,20 @@ const canLockHost = ({
   isTeamAdmin,
   isTeamMaintainer,
   hostMdmDeviceStatus,
+  hostMdmEnrollmentStatus,
 }: IHostActionConfigOptions) => {
-  // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
-  const canLockDarwin =
+  // apple device hosts can be locked if they are enrolled in MDM and the MDM is enabled
+  const isLockableMacOSDevice =
     hostPlatform === "darwin" &&
+    isConnectedToFleetMdm &&
+    isMacMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  // ios and ipad devices can be locked if they are company owned enrollment in MDM,
+  // meaning they have to be enrolled via automated device enrollment (ADE)
+  const isLockableIosOrIpadDevice =
+    isIPadOrIPhone(hostPlatform) &&
+    isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
@@ -149,7 +163,8 @@ const canLockHost = ({
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
-      canLockDarwin) &&
+      isLockableMacOSDevice ||
+      isLockableIosOrIpadDevice) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -177,16 +192,16 @@ const canWipeHost = ({
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
-  // there is a special case for iOS and iPadOS devices that are personally enrolled
+  // there is a special case for iOS and iPadOS devices that are account driven enrolled
   // in MDM. These hosts cannot be wiped.
-  const isPersonallyEnrolledIosOrIpadDevice =
+  const isAccountDrivenEnrolledIosOrIpadosDevice =
     isIPadOrIPhone(hostPlatform) &&
-    isPersonalEnrollmentInMdm(hostMdmEnrollmentStatus);
+    isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
   return (
     isPremiumTier &&
     !isAndroid(hostPlatform) &&
-    !isPersonallyEnrolledIosOrIpadDevice &&
+    !isAccountDrivenEnrolledIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -205,19 +220,20 @@ const canUnlock = ({
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  // macOS hosts can be unlocked if they are enrolled in the Fleet MDM and the
+  // apple device hosts can be unlocked if they are enrolled in the Fleet MDM and the
   // MDM is enabled and configured.
-  const canUnlockDarwin =
-    hostPlatform === "darwin" &&
+  const canUnlockApple =
+    isAppleDevice(hostPlatform) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // "unlocking" for a macOS host means that somebody saw the unlock pin, but
+  // TODO: check if this is still the behaviour for apple hosts
+  // "unlocking" for a apple devices host means that somebody saw the unlock pin, but
   // shouldn't prevent users from trying to see the pin again, which is
   // considered an "unlock"
   const isValidState =
-    (hostMdmDeviceStatus === "unlocking" && hostPlatform === "darwin") ||
+    (hostMdmDeviceStatus === "unlocking" && isAppleDevice(hostPlatform)) ||
     hostMdmDeviceStatus === "locked";
 
   return (
@@ -225,7 +241,7 @@ const canUnlock = ({
     !isAndroid(hostPlatform) &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
-    (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
+    (canUnlockApple || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 
@@ -240,10 +256,23 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
-  return (
-    !isMobilePlatform(hostPlatform) && isPremiumTier && doesStoreEncryptionKey
-  );
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    doesStoreEncryptionKey,
+    hostPlatform,
+  } = config;
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  // For Apple devices, the encryption key is only available when connected to Fleet MDM
+  if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
+    return false;
+  }
+  return doesStoreEncryptionKey;
 };
 
 const canRunScript = ({
@@ -367,8 +396,22 @@ const modifyOptions = (
   };
 
   let optionsToDisable: IDropdownOption[] = [];
+  // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.
+  if (!isHostOnline) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "query")
+    );
+
+    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
+    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter((option) => option.value === "mdmOff")
+      );
+    }
+  }
+
+  // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM
   if (
-    (!isIPadOrIPhone(hostPlatform) && !isHostOnline) ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"

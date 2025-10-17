@@ -81,9 +81,10 @@
       <div purpose="category-selector" >
         <div purpose="category-options" v-if="selectedPlatform === 'windows'">
           <div v-for="category in windowsCategoriesAndPayloads">
-            <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]" >{{category.categoryName}}</a>
+            <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]"  v-if="category.subcategories">{{category.categoryName}}</a>
+            <a @click="clickSelectPayloadCategory(category)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]"  v-else>{{category.categoryName}}</a>
 
-            <div purpose="subcategories" v-if="expandedCategory === category.categorySlug">
+            <div purpose="subcategories" v-if="expandedCategory === category.categorySlug && category.subcategories">
               <a @click="clickSelectPayloadCategory(subcategory)" v-for="subcategory in category.subcategories">{{subcategory.subcategoryName}}</a>
             </div>
           </div>
@@ -182,14 +183,19 @@
 
                 <div purpose="payload-option" v-for="option in selectedPayloadsGroupedByCategory[category]">
                   <div purpose="name-and-access-type" class="d-flex flex-row align-items-center justify-content-between w-100">
-                    <p class="mb-0"><strong>{{option.name}}</strong></p>
+                    <div purpose="name-and-description">
+                      <p class="mb-3"><strong>{{option.name}}</strong></p>
+                      <p>{{option.tooltip}}</p>
+                    </div>
                     <div class="d-flex flex-row align-items-center" v-if="selectedPlatform === 'windows'">
                       <a href="https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider" target="_blank" no-icon><img style="margin-right: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-html="true"  data-toggle="tooltip" tabindex="0" data-placement="top" title="<%= '<p class="text-white">A Windows CSP profile may require the ADD action to work on initial delivery. To modify a previously delivered setting, the REPLACE action may be needed.</p> <p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>'%>"></a>
-                      <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
-                        <option selected value="undefined" >Access type</option>
-                        <option :value="accessType" style="text-transform: uppercase;" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
-                      </select>
-                      <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an<br> access type</div>
+                      <div class="d-flex flex-column">
+                        <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
+                          <option selected value="undefined" >Access type</option>
+                          <option :value="accessType" style="text-transform: uppercase;" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an<br> access type</div>
+                      </div>
                     </div>
                   </div>
                   <% // Number input %>
@@ -198,13 +204,15 @@
                     <input :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :type="option.formInput.type" placeholder="0" :min="option.formInput.minValue" :max="option.formInput.maxValue">
                     <span purpose="unit-label" v-if="option.formInput.unitLabel">{{option.formInput.unitLabel}}</span>
                     </div>
+                    <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] === 'custom' && option.formInput.customFormRuleErrorMessage">{{option.formInput.customFormRuleErrorMessage}}</div>
                     <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] && option.formInput.unitLabel">Please enter a number of {{option.formInput.unitLabel}}</div>
                     <div class="invalid-feedback d-block" v-else-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
                   </div>
                   <% // Text input %>
                   <div purpose="option-value" v-if="['text'].includes(option.formInput.type)">
                     <input :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :type="option.formInput.type" placeholder="Please enter a value" >
-                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
+                    <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] === 'custom' && option.formInput.customFormRuleErrorMessage">{{option.formInput.customFormRuleErrorMessage}}</div>
+                    <div class="invalid-feedback" v-else-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
                   </div>
                   <% // Radio input %>
                   <div purpose="option-value" v-else-if="['radio'].includes(option.formInput.type)" :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']">
@@ -213,7 +221,8 @@
                       <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                       {{formInput.name}}
                     </label>
-                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
+                    <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] === 'custom' && option.formInput.customFormRuleErrorMessage">{{option.formInput.customFormRuleErrorMessage}}</div>
+                    <div class="invalid-feedback" v-else-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
                   </div>
                   <%// Checkbox input %>
                   <div purpose="option-value" v-else-if="['boolean'].includes(option.formInput.type)">
@@ -229,7 +238,8 @@
                       <option selected value="undefined" >Select an option</option>
                       <option :value="formInput.value" style="text-transform: uppercase;" v-for="formInput in option.formInput.options">{{formInput.name}}</option>
                     </select>
-                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
+                    <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] === 'custom' && option.formInput.customFormRuleErrorMessage">{{option.formInput.customFormRuleErrorMessage}}</div>
+                    <div class="invalid-feedback" v-else-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
                   </div>
                   <%// Multiple inputs %>
                   <div purpose="option-value" class="w-100" v-else-if="['multifield'].includes(option.formInput.type)">
@@ -240,7 +250,8 @@
                         <input :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" :type="input.type" placeholder="0" :min="input.minValue" :max="input.maxValue">
                         <span purpose="unit-label" v-if="input.unitLabel">{{input.unitLabel}}</span>
                         </div>
-                        <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-'+input.slug] && input.unitLabel">Please enter a number of {{input.unitLabel}}</div>
+                        <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] === 'custom' && option.formInput.customFormRuleErrorMessage">{{option.formInput.customFormRuleErrorMessage}}</div>
+                        <div class="invalid-feedback d-block" v-else-if="formErrors[option.uniqueSlug+'-'+input.slug] && input.unitLabel">Please enter a number of {{input.unitLabel}}</div>
                         <div class="invalid-feedback d-block" v-else-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please enter a value</div>
                       </div>
                       <% // Text input %>
@@ -248,7 +259,8 @@
                         <label>
                           <span purpose="nested-label">{{input.name}}</span>
                           <input :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" :type="input.type" placeholder="Please enter a value" >
-                          <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please enter a value</div>
+                          <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] === 'custom' && option.formInput.customFormRuleErrorMessage">{{option.formInput.customFormRuleErrorMessage}}</div>
+                          <div class="invalid-feedback" v-else-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please enter a value</div>
                         </label>
                       </div>
                       <% // Radio input %>
@@ -258,7 +270,8 @@
                           <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                           {{formInput.name}}
                         </label>
-                        <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please select an option</div>
+                        <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] === 'custom' && option.formInput.customFormRuleErrorMessage">{{option.formInput.customFormRuleErrorMessage}}</div>
+                        <div class="invalid-feedback" v-else-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please select an option</div>
                       </div>
                       <%// Checkbox input %>
                       <div purpose="option-value" v-else-if="['boolean'].includes(input.type)">

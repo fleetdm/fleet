@@ -72,6 +72,7 @@ type generateGitopsClient interface {
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
+	GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
@@ -395,7 +396,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 		// Generate software.
 		if team != nil {
-			software, err := cmd.generateSoftware(fileName, team.ID, teamFileName)
+			software, err := cmd.generateSoftware(
+				fileName,
+				team.ID,
+				teamFileName,
+				!cmd.CLI.Bool("print") && (cmd.CLI.String("key") == "" || cmd.CLI.String("key") == "software"),
+			)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for %s: %s\n", teamFileName, err)
 				return ErrGeneric
@@ -493,7 +499,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
 		} else {
-			b = []byte(fileToWrite.(string))
+			switch fileToWrite := fileToWrite.(type) {
+			case []byte:
+				b = fileToWrite
+			case string:
+				b = []byte(fileToWrite)
+			}
 		}
 
 		// If --print is set, print the file to stdout.
@@ -1337,7 +1348,11 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
+	if !cmd.AppConfig.License.IsPremium() {
+		return nil, nil // software is premium-only
+	}
+
 	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
@@ -1465,9 +1480,27 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if softwareTitle.SoftwarePackage.Categories != nil {
 				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
 			}
+
+			// each package is listed once in software, so we can pull icon directly here
+			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["icon"] = map[string]interface{}{
+					"path": path,
+				}
+				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				// TODO write files immediately rather than queueing them up
+				cmd.FilesToWrite[fileName] = icon
+			}
 		}
 
 		if softwareTitle.AppStoreApp != nil {
+			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
 			if softwareTitle.AppStoreApp.SelfService {
 				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
 			}
@@ -1475,43 +1508,57 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if softwareTitle.AppStoreApp.Categories != nil {
 				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
 			}
+
+			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["icon"] = map[string]interface{}{
+					"path": path,
+				}
+				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				// TODO write files immediately rather than queueing them up
+				cmd.FilesToWrite[fileName] = icon
+			}
 		}
 
-		if cmd.AppConfig.License.IsPremium() {
-			var labels []fleet.SoftwareScopeLabel
-			var labelKey string
-			if softwareTitle.SoftwarePackage != nil {
-				if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
-					labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
-					labelKey = "labels_include_any"
-				}
-				if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
-					labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
-					labelKey = "labels_exclude_any"
-				}
-				if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
-					softwareSpec["setup_experience"] = true
-				}
-			} else {
-				if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
-					labels = softwareTitle.AppStoreApp.LabelsIncludeAny
-					labelKey = "labels_include_any"
-				}
-				if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
-					labels = softwareTitle.AppStoreApp.LabelsExcludeAny
-					labelKey = "labels_exclude_any"
-				}
-				if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
-					softwareSpec["setup_experience"] = true
-				}
+		var labels []fleet.SoftwareScopeLabel
+		var labelKey string
+		if softwareTitle.SoftwarePackage != nil {
+			if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
+				labelKey = "labels_include_any"
 			}
-			if len(labels) > 0 {
-				labelsList := make([]string, len(labels))
-				for i, label := range labels {
-					labelsList[i] = label.LabelName
-				}
-				softwareSpec[labelKey] = labelsList
+			if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
+				labelKey = "labels_exclude_any"
 			}
+			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
+				softwareSpec["setup_experience"] = true
+			}
+		} else {
+			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
+				labelKey = "labels_include_any"
+			}
+			if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
+				labelKey = "labels_exclude_any"
+			}
+			if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
+				softwareSpec["setup_experience"] = true
+			}
+		}
+		if len(labels) > 0 {
+			labelsList := make([]string, len(labels))
+			for i, label := range labels {
+				labelsList[i] = label.LabelName
+			}
+			softwareSpec[labelKey] = labelsList
 		}
 
 		if sw.SoftwarePackage != nil {

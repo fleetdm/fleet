@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
-  isPersonalEnrollmentInMdm,
+  isBYODAccountDrivenUserEnrollment,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import {
@@ -55,7 +55,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
     // for all host types, we show the Enrollment ID dataset if the host
     // is enrolled in MDM personally. Personal (BYOD) devices do not report
     // their serial numbers, so we show the Enrollment ID instead.
-    if (mdm && isPersonalEnrollmentInMdm(mdm.enrollment_status)) {
+    if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
       deviceIdDataSet = (
         <DataSet
           title={
@@ -201,7 +201,6 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <CardHeader header="About" />
       <div className={`${baseClass}__info-grid`}>

@@ -108,7 +108,8 @@ const getHostDiskEncryptionTooltipMessage = (
     platform === "ubuntu" ||
     platform === "arch" ||
     platform === "archarm" ||
-    platform === "manjaro"
+    platform === "manjaro" ||
+    platform === "manjaro-arm"
   ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"
@@ -417,7 +418,6 @@ const HostSummary = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       {!isIosOrIpadosHost && !isAndroidHost && (

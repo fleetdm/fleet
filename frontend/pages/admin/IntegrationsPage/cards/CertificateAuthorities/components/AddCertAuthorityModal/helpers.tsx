@@ -185,12 +185,14 @@ const NDES_PASSWORD_CACHE_FULL_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.";
 const INVALID_CHALLENGE_ERROR =
   "Invalid challenge. Please correct and try again.";
+const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
+  "Invalid challenge URL or credentials. Please correct and try again.";
 
 /**
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
-export const getDisplayErrMessage = (err: unknown) => {
+export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   let message: string | JSX.Element = DEFAULT_ERROR;
   const reason = getErrorReason(err).toLowerCase();
 
@@ -211,6 +213,8 @@ export const getDisplayErrMessage = (err: unknown) => {
     message = INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("password cache is full")) {
     message = NDES_PASSWORD_CACHE_FULL_ERROR;
+  } else if (reason.includes("invalid challenge url")) {
+    message = INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("invalid challenge")) {
     message = INVALID_CHALLENGE_ERROR;
   } else {
@@ -220,7 +224,7 @@ export const getDisplayErrMessage = (err: unknown) => {
   return message;
 };
 
-export const getErrorMessage = (err: unknown) => {
+export const getErrorMessage = (err: unknown): JSX.Element => {
   return (
     <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
   );

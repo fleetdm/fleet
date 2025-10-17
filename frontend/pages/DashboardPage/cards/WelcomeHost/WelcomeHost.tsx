@@ -241,7 +241,7 @@ const WelcomeHost = ({
                     <span className="info">{p.name}</span>
                     <Icon
                       name="chevron-right"
-                      color="core-fleet-blue"
+                      color="ui-fleet-black-75"
                       className="policy-arrow"
                     />
                   </div>
@@ -263,7 +263,6 @@ const WelcomeHost = ({
         </div>
         <div className={`${baseClass}__refetch`}>
           <Button
-            variant="success"
             className={`refetch-spinner ${
               showRefetchLoadingSpinner ? "spin" : ""
             }`}

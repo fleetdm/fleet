@@ -758,8 +758,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NotNil(t, host)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "abc", Browser: "edge"},
-		{Name: "bar", Version: "0.0.3", Source: "apps", ExtensionID: "xyz", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "abc", ExtensionFor: "edge"},
+		{Name: "bar", Version: "0.0.3", Source: "apps", ExtensionID: "xyz", ExtensionFor: "chrome"},
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
@@ -810,7 +810,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 				assert.Equal(t, s.Version, contains.Version)
 				assert.Equal(t, s.Source, contains.Source)
 				assert.Equal(t, s.ExtensionID, contains.ExtensionID)
-				assert.Equal(t, s.Browser, contains.Browser)
+				assert.Equal(t, s.ExtensionFor, contains.ExtensionFor)
 				assert.Equal(t, s.GenerateCPE, contains.GenerateCPE)
 				assert.Len(t, contains.Vulnerabilities, len(s.Vulnerabilities))
 				for i, vuln := range s.Vulnerabilities {
@@ -825,12 +825,12 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	expectedSoft2 := &fleet.Software{
-		Name:        "bar",
-		Version:     "0.0.3",
-		Source:      "apps",
-		ExtensionID: "xyz",
-		Browser:     "chrome",
-		GenerateCPE: "somecpe",
+		Name:         "bar",
+		Version:      "0.0.3",
+		Source:       "apps",
+		ExtensionID:  "xyz",
+		ExtensionFor: "chrome",
+		GenerateCPE:  "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:         "cve-123-123-132",
@@ -844,7 +844,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		Version:         "0.0.1",
 		Source:          "chrome_extensions",
 		ExtensionID:     "abc",
-		Browser:         "edge",
+		ExtensionFor:    "edge",
 		GenerateCPE:     "",
 		Vulnerabilities: nil,
 	}
@@ -892,7 +892,13 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Equal(t, soft1.ExtensionID, lsResp.Software[0].ExtensionID)
-	assert.Equal(t, soft1.Browser, lsResp.Software[0].Browser)
+	assert.Equal(t, soft1.ExtensionFor, lsResp.Software[0].ExtensionFor)
+	// Browser field should be populated for browser extensions
+	if soft1.Source == "chrome_extensions" || soft1.Source == "firefox_addons" || soft1.Source == "ie_extensions" || soft1.Source == "safari_extensions" {
+		assert.Equal(t, soft1.ExtensionFor, lsResp.Software[0].Browser)
+	} else {
+		assert.Equal(t, "", lsResp.Software[0].Browser)
+	}
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
@@ -903,7 +909,13 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Equal(t, 1, versionsResp.Count)
 	assert.Equal(t, soft1.ID, versionsResp.Software[0].ID)
 	assert.Equal(t, soft1.ExtensionID, versionsResp.Software[0].ExtensionID)
-	assert.Equal(t, soft1.Browser, versionsResp.Software[0].Browser)
+	assert.Equal(t, soft1.ExtensionFor, versionsResp.Software[0].ExtensionFor)
+	// Browser field should be populated for browser extensions
+	if soft1.Source == "chrome_extensions" || soft1.Source == "firefox_addons" || soft1.Source == "ie_extensions" || soft1.Source == "safari_extensions" {
+		assert.Equal(t, soft1.ExtensionFor, versionsResp.Software[0].Browser)
+	} else {
+		assert.Equal(t, "", versionsResp.Software[0].Browser)
+	}
 	assert.Len(t, versionsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, versionsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *versionsResp.CountsUpdatedAt, time.Second)
@@ -1565,8 +1577,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host0, false))
 
 	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
 	err = s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now())
 	require.NoError(t, err)
@@ -6966,6 +6976,20 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// Turn on MDM.
+	ctx := t.Context()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origEnabledAndConfigured := appCfg.MDM.EnabledAndConfigured
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.EnabledAndConfigured = origEnabledAndConfigured
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
@@ -7042,12 +7066,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
 
-	// try to update the enable_release_device_manually setting, requires premium
-	// (but /setup_experience catches the error of the MDM middleware check, so not
-	// StatusPaymentRequired)
-	res = s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusBadRequest)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	// try to update the enable_release_device_manually setting, requires premium.
+	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
@@ -7644,7 +7664,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		sw := fleet.Software{Name: fmt.Sprintf("sw%02d", i), Version: fmt.Sprintf("0.0.%02d", i), Source: "apps"}
 		if i%2 == 0 {
 			sw.Source = "chrome_extensions"
-			sw.Browser = "chrome"
+			sw.ExtensionFor = "chrome"
 		}
 		sws[i] = sw
 	}
@@ -7732,7 +7752,13 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
 			assert.Equal(t, sw.Source, detailsResp.Software.Source)
-			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
+			assert.Equal(t, sw.ExtensionFor, detailsResp.Software.ExtensionFor)
+			// Browser field should be populated for browser extensions
+			if sw.Source == "chrome_extensions" || sw.Source == "firefox_addons" || sw.Source == "ie_extensions" || sw.Source == "safari_extensions" {
+				assert.Equal(t, sw.ExtensionFor, detailsResp.Software.Browser)
+			} else {
+				assert.Equal(t, "", detailsResp.Software.Browser)
+			}
 
 			detailsResp = getSoftwareResponse{}
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
@@ -7740,7 +7766,13 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
 			assert.Equal(t, sw.Source, detailsResp.Software.Source)
-			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
+			assert.Equal(t, sw.ExtensionFor, detailsResp.Software.ExtensionFor)
+			// Browser field should be populated for browser extensions
+			if sw.Source == "chrome_extensions" || sw.Source == "firefox_addons" || sw.Source == "ie_extensions" || sw.Source == "safari_extensions" {
+				assert.Equal(t, sw.ExtensionFor, detailsResp.Software.Browser)
+			} else {
+				assert.Equal(t, "", detailsResp.Software.Browser)
+			}
 			if len(sw.Vulnerabilities) > 0 {
 				assert.Len(t, detailsResp.Software.Vulnerabilities, len(sw.Vulnerabilities))
 				assert.Greater(t, detailsResp.Software.Vulnerabilities[0].CreatedAt, time.Now().Add(-time.Hour)) // asserting a non-zero time
@@ -7760,8 +7792,14 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, wantVersion, gotVersion)
 			wantSource, gotSource := want[i].Source, resp.Software[i].Source
 			assert.Equal(t, wantSource, gotSource)
-			wantBrowser, gotBrowser := want[i].Browser, resp.Software[i].Browser
-			assert.Equal(t, wantBrowser, gotBrowser)
+			wantExtensionFor, gotExtensionFor := want[i].ExtensionFor, resp.Software[i].ExtensionFor
+			assert.Equal(t, wantExtensionFor, gotExtensionFor)
+			// Browser field should be populated for browser extensions
+			if want[i].Source == "chrome_extensions" || want[i].Source == "firefox_addons" || want[i].Source == "ie_extensions" || want[i].Source == "safari_extensions" {
+				assert.Equal(t, want[i].ExtensionFor, resp.Software[i].Browser)
+			} else {
+				assert.Equal(t, "", resp.Software[i].Browser)
+			}
 			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
 			assert.Equal(t, wantCount, gotCount)
 		}
@@ -7790,8 +7828,14 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, wantVersion, gotVersion)
 			wantSource, gotSource := want[i].Source, resp.Software[i].Source
 			assert.Equal(t, wantSource, gotSource)
-			wantBrowser, gotBrowser := want[i].Browser, resp.Software[i].Browser
-			assert.Equal(t, wantBrowser, gotBrowser)
+			wantExtensionFor, gotExtensionFor := want[i].ExtensionFor, resp.Software[i].ExtensionFor
+			assert.Equal(t, wantExtensionFor, gotExtensionFor)
+			// Browser field should be populated for browser extensions
+			if want[i].Source == "chrome_extensions" || want[i].Source == "firefox_addons" || want[i].Source == "ie_extensions" || want[i].Source == "safari_extensions" {
+				assert.Equal(t, want[i].ExtensionFor, resp.Software[i].Browser)
+			} else {
+				assert.Equal(t, "", resp.Software[i].Browser)
+			}
 		}
 		if ts.IsZero() {
 			assert.Nil(t, resp.CountsUpdatedAt)
@@ -8655,6 +8699,15 @@ func (s *integrationTestSuite) TestChangePassword() {
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	clearKeys := func() {
+		clearRedisKey(t, s.redisPool, "ratelimit::forgot_password")
+	}
+	clearKeys()
+	s.T().Cleanup(func() {
+		clearKeys()
+	})
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -9005,9 +9058,6 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	_, err = s.ds.UpdateHostSoftware(ctx, hosts[0].ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, hosts[0], false))
-
-	err = s.ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
 
 	var fooV1ID, fooTitleID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -10042,11 +10092,6 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
-		if route.premiumOnly && route.deviceAuthenticated {
-			// user-authenticated premium-only routes will never see the ErrMissingLicense error
-			// if mdm is not configured, as the MDM middleware will intercept and fail the call.
-			expectedErr = fleet.ErrMissingLicense
-		}
 		if slices.Contains(windowsOnly, path) {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
 		}
@@ -10316,6 +10361,7 @@ func createOrbitEnrolledHost(t *testing.T, platform, suffix string, ds fleet.Dat
 		NodeKey:         ptr.String(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
+		ComputerName:    name,
 		HardwareSerial:  uuid.New().String(),
 		Platform:        platform,
 	})

@@ -15,7 +15,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   IHostSoftwarePackage,
   IHostAppStoreApp,
-  SoftwareInstallStatus,
+  EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
@@ -35,7 +35,7 @@ interface IActionButtonState {
 export interface IGetActionButtonStateProps {
   hostScriptsEnabled: boolean;
   softwareId: number;
-  status: SoftwareInstallStatus | null;
+  status: EnhancedSoftwareInstallUninstallStatus | null;
   softwarePackage: IHostSoftwarePackage | null;
   appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
@@ -172,13 +172,14 @@ export const HostInstallerActionButton = ({
       position="top"
     >
       <Button
-        variant="text-icon"
+        variant="inverse"
         type="button"
         className={`${baseClass}__item-action-button`}
         onClick={onClick}
         disabled={disabled}
+        size="small"
       >
-        <Icon name={icon} color="core-fleet-blue" size="small" />
+        <Icon name={icon} color="ui-fleet-black-75" size="small" />
         <span data-testid={testId}>{text}</span>
       </Button>
     </TooltipWrapper>
@@ -327,7 +328,7 @@ export const HostInstallerActionCell = ({
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}
-            variant="button"
+            variant="small-button"
             disabled={moreDisabled}
           />
         </div>

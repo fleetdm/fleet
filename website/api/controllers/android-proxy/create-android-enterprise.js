@@ -34,6 +34,7 @@ module.exports = {
   exits: {
     success: { description: 'An android enterprise was successfully created' },
     enterpriseAlreadyExists: { description: 'An android enterprise already exists for this Fleet instance.', statusCode: 409 },
+    missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     invalidEnterpriseToken: {
       description: 'The provided enterprise token is invalid or expired.',
       responseType: 'badRequest'
@@ -46,7 +47,7 @@ module.exports = {
     // Parse the Fleet server url from the origin header.
     let fleetServerUrl = this.req.get('Origin');
     if(!fleetServerUrl){
-      return this.res.badRequest();
+      throw 'missingOriginHeader';
     }
     // Check the database for a record of this enterprise.
     let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});

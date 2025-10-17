@@ -7,32 +7,33 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Interim Head of People | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
+| Head of People | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
+| Executive Assistant | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-people](https://fleetdm.slack.com/archives/C02QG7P5571) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-people](https://fleetdm.slack.com/archives/C02QG7P5571) Slack channel).
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/91) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
 ## Responsibilities
 
-The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding.
+The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. 
 
 > Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
 
 ### Approve a new position
 
-When review is requested on a proposal to open a new position, the Interim Head of People will complete the following steps when reviewing the pull request:
-1. Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
+When review is requested on a proposal to open a new position, the Head of People will complete the following steps when reviewing the pull request:
+1. In “Fleeties,” confirm the new row has manager, job title, department, COGS/OPEX, and CAC-inclusion filled in, that there are no broken formulas or formatting, and the start date is the first Monday of next month.
 2. Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. Ballpark and document compensation research for the role based on 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
 4. Decide whether to approve this role or to consider it a different time.  If approving, then:
-   - _Update financial model:_ Update ["¶ Financial model"](https://docs.google.com/spreadsheets/d/1tIcuwhmOKolnwNJqQ0zH5rWCqjawYzySDsKTb98RvxI/edit?gid=1184088923#gid=1184088923)
+   - _Update financial model:_ Send the CFO a link to the position in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and request approval for the spend. Once approved, the CFO will add the new position to the financial model. 
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
@@ -113,7 +114,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 
 ### Change a Fleetie's role
 
-When People receives [notification of a Fleetie's role changing](https://fleetdm.com/handbook/company/leadership#request-a-role-change-for-a-fleetie), The Interim Head of People will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Interim Head of People will inform the requesting manager as to why. If approved, use the following steps to change a Fleetie's role:  
+When People receives [notification of a Fleetie's role changing](https://fleetdm.com/handbook/company/leadership#request-a-role-change-for-a-fleetie), The Head of People will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Head of People will inform the requesting manager as to why. If approved, use the following steps to change a Fleetie's role:  
 1. Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search the spreadsheet for the Fleetie in need of a job title change.
     - Input the new job title in the Fleetie's row in the "Job title" cell.
@@ -242,9 +243,9 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
 
 To [change a teammate's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
 1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the teammate's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-2. Share the values assessment document with the manager via Slack DM (include the Interim Head of People) and ask the manager to fill out the values assessment.
-3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and at-mention the Interim Head of People in the workiversary issue. Add a "DISCUSS" item to the roundup doc so the compensation change can be reviewed with the CEO.
-4. Once compensation decisions have been finalized, the Interim Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
+2. Share the values assessment document with the manager via Slack DM (include the Head of People) and ask the manager to fill out the values assessment.
+3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and at-mention the Head of People in the workiversary issue. Add a "DISCUSS" item to the roundup doc so the compensation change can be reviewed with the CEO.
+4. Once compensation decisions have been finalized, the Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
 5. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
 6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.

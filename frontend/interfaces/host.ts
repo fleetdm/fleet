@@ -199,6 +199,7 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_logo_url_light_background: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;

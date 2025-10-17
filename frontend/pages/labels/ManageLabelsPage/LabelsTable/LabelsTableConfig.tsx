@@ -1,18 +1,17 @@
 import React from "react";
-import { ILabel } from "interfaces/label";
+import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
-import { capitalize } from "lodash";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 interface IHeaderProps {
   column: {
@@ -71,18 +70,19 @@ const generateActionDropdownOptions = (
     label.author_id === currentUser.id;
 
   if (hasGlobalWritePermission || hasLabelAuthorWritePermission) {
-    options.push(
-      {
+    if (label.label_membership_type !== "host_vitals") {
+      options.push({
         label: "Edit",
         disabled: false,
         value: "edit",
-      },
-      {
-        label: "Delete",
-        disabled: false,
-        value: "delete",
-      }
-    );
+      });
+    }
+
+    options.push({
+      label: "Delete",
+      disabled: false,
+      value: "delete",
+    });
   }
 
   return options;
@@ -104,7 +104,7 @@ const generateTableHeaders = (
       accessor: "name",
       disableSortBy: false,
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TooltipTruncatedTextCell value={cellProps.cell.value} />
       ),
     },
     {
@@ -117,7 +117,7 @@ const generateTableHeaders = (
       ),
       accessor: "description",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value || ""} />
+        <TooltipTruncatedTextCell value={cellProps.cell.value || ""} />
       ),
     },
     {
@@ -129,9 +129,10 @@ const generateTableHeaders = (
         />
       ),
       accessor: "label_membership_type",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={capitalize(cellProps.cell.value)} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const type = cellProps.row.original.label_membership_type;
+        return <TextCell value={LabelMembershipTypeToDisplayCopy[type]} />;
+      },
     },
     {
       title: "Actions",
@@ -149,13 +150,10 @@ const generateTableHeaders = (
             rowHover
             noLink
             excludeChevron
-            customContent={
-              <ActionsDropdown
-                options={dropdownOptions}
-                onChange={(value: string) => onClickAction(value, label)}
-                placeholder="Actions"
-              />
-            }
+            dropdown={{
+              options: dropdownOptions,
+              onChange: (value: string) => onClickAction(value, label),
+            }}
           />
         );
       },

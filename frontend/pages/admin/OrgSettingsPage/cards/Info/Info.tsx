@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import isDataURI from "validator/lib/isDataURI";
 
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 // @ts-ignore
@@ -10,7 +12,6 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
-import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -89,7 +90,7 @@ const Info = ({
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
     } else if (
-      !validUrl({ url: orgSupportURL, protocols: ["http", "https"] })
+      !validUrl({ url: orgSupportURL, protocols: ["http", "https", "file"] })
     ) {
       errors.org_support_url = `${orgSupportURL} is not a valid URL`;
     }
@@ -113,123 +114,124 @@ const Info = ({
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__section ${cardClass}`}>
-        <SectionHeader title="Organization info" />
-        <form onSubmit={onFormSubmit} autoComplete="off">
-          {/* "form" class applies global form styling to fields for free */}
-          <div
-            className={`form ${
-              gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-            }`}
-          >
-            <p className={`${baseClass}__section-description`}>
-              This logo is displayed in the top navigation, setup experience
-              window, and MDM migration dialog. Please use{" "}
-              <CustomLink
-                url="https://fleetdm.com/learn-more-about/organization-logo-size"
-                text="recommended sizes"
-                newTab
-                multiline
+    <SettingsSection className={cardClass} title="Organization info">
+      <PageDescription
+        variant="right-panel"
+        content={
+          <p className={`${baseClass}__section-description`}>
+            This logo is displayed in the top navigation, setup experience
+            window, and MDM migration dialog. Please use{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/organization-logo-size"
+              text="recommended sizes"
+              newTab
+            />
+          </p>
+        }
+      />
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        {/* "form" class applies global form styling to fields for free */}
+        <div
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
+        >
+          <div className={`${cardClass}__logo-field-set`}>
+            <InputField
+              label="Logo URL for dark background"
+              onChange={onInputChange}
+              name="orgLogoURL"
+              value={orgLogoURL}
+              parseTarget
+              onBlur={validateForm}
+              error={formErrors.org_logo_url}
+              inputWrapperClass={`${cardClass}__logo-field`}
+              tooltip={
+                <>
+                  Logo is displayed in the top bar and other
+                  <br />
+                  areas of Fleet that have dark backgrounds.
+                </>
+              }
+            />
+            <div
+              className={`${cardClass}__icon-preview ${cardClass}__dark-background`}
+            >
+              <OrgLogoIcon
+                className={`${cardClass}__icon-img`}
+                src={orgLogoURL}
               />
-            </p>
-            <div className={`${cardClass}__logo-field-set`}>
-              <InputField
-                label="Logo URL for dark background"
-                onChange={onInputChange}
-                name="orgLogoURL"
-                value={orgLogoURL}
-                parseTarget
-                onBlur={validateForm}
-                error={formErrors.org_logo_url}
-                inputWrapperClass={`${cardClass}__logo-field`}
-                tooltip={
+            </div>
+          </div>
+          <div className={`${cardClass}__logo-field-set`}>
+            <InputField
+              label="Logo URL for light background"
+              onChange={onInputChange}
+              name="orgLogoURLLightBackground"
+              value={orgLogoURLLightBackground}
+              parseTarget
+              onBlur={validateForm}
+              error={formErrors.org_logo_url_light_background}
+              inputWrapperClass={`${cardClass}__logo-field`}
+              tooltip="Logo is displayed in Fleet on top of light backgrounds.
+"
+            />
+            <div
+              className={`${cardClass}__icon-preview ${cardClass}__light-background`}
+            >
+              <OrgLogoIcon
+                className={`${cardClass}__icon-img`}
+                src={orgLogoURLLightBackground}
+              />
+            </div>
+          </div>
+          <InputField
+            label="Organization name"
+            onChange={onInputChange}
+            name="orgName"
+            value={orgName}
+            parseTarget
+            onBlur={validateForm}
+            error={formErrors.org_name}
+          />
+          <InputField
+            label={
+              <TooltipWrapper
+                tipContent={
                   <>
-                    Logo is displayed in the top bar and other
+                    URL is used in &quot;Reach out to IT&quot; links shown to
+                    the end
                     <br />
-                    areas of Fleet that have dark backgrounds.
+                    user (e.g. self-service and during MDM migration).
                   </>
                 }
-              />
-              <div
-                className={`${cardClass}__icon-preview ${cardClass}__dark-background`}
               >
-                <OrgLogoIcon
-                  className={`${cardClass}__icon-img`}
-                  src={orgLogoURL}
-                />
-              </div>
-            </div>
-            <div className={`${cardClass}__logo-field-set`}>
-              <InputField
-                label="Logo URL for light background"
-                onChange={onInputChange}
-                name="orgLogoURLLightBackground"
-                value={orgLogoURLLightBackground}
-                parseTarget
-                onBlur={validateForm}
-                error={formErrors.org_logo_url_light_background}
-                inputWrapperClass={`${cardClass}__logo-field`}
-                tooltip="Logo is displayed in Fleet on top of light backgrounds.
-"
-              />
-              <div
-                className={`${cardClass}__icon-preview ${cardClass}__light-background`}
-              >
-                <OrgLogoIcon
-                  className={`${cardClass}__icon-img`}
-                  src={orgLogoURLLightBackground}
-                />
-              </div>
-            </div>
-            <InputField
-              label="Organization name"
-              onChange={onInputChange}
-              name="orgName"
-              value={orgName}
-              parseTarget
-              onBlur={validateForm}
-              error={formErrors.org_name}
-            />
-            <InputField
-              label={
-                <TooltipWrapper
-                  tipContent={
-                    <>
-                      URL is used in &quot;Reach out to IT&quot; links shown to
-                      the end
-                      <br />
-                      user (e.g. self-service and during MDM migration).
-                    </>
-                  }
-                >
-                  Organization support URL
-                </TooltipWrapper>
-              }
-              onChange={onInputChange}
-              name="orgSupportURL"
-              value={orgSupportURL}
-              parseTarget
-              onBlur={validateForm}
-              error={formErrors.org_support_url}
-            />
-          </div>
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
-                className="button-wrap"
-                isLoading={isUpdatingSettings}
-              >
-                Save
-              </Button>
-            )}
+                Organization support URL
+              </TooltipWrapper>
+            }
+            onChange={onInputChange}
+            name="orgSupportURL"
+            value={orgSupportURL}
+            parseTarget
+            onBlur={validateForm}
+            error={formErrors.org_support_url}
           />
-        </form>
-      </div>
-    </div>
+        </div>
+        <GitOpsModeTooltipWrapper
+          tipOffset={-8}
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              disabled={Object.keys(formErrors).length > 0 || disableChildren}
+              className="button-wrap"
+              isLoading={isUpdatingSettings}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </form>
+    </SettingsSection>
   );
 };
 

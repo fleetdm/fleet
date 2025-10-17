@@ -49,7 +49,7 @@ const CategoriesSelector = ({
         })}
       </div>
       <Button
-        variant="text-link"
+        variant="inverse"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >
@@ -76,6 +76,8 @@ interface ISoftwareOptionsSelector {
   isExePackage?: boolean;
   /** Tarball packages do not have ability to select automatic install */
   isTarballPackage?: boolean;
+  /** Script only packages do not have ability to select automatic install */
+  isScriptPackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
   disableOptions?: boolean;
@@ -92,6 +94,7 @@ const SoftwareOptionsSelector = ({
   isCustomPackage,
   isExePackage,
   isTarballPackage,
+  isScriptPackage,
   isEditingSoftware,
   disableOptions = false,
 }: ISoftwareOptionsSelector) => {
@@ -102,9 +105,12 @@ const SoftwareOptionsSelector = ({
   const isAutomaticInstallDisabled =
     disableOptions || isPlatformIosOrIpados || isExePackage || isTarballPackage;
 
-  /** Tooltip only shows when enabled or for exe/tar.gz packages */
+  /** Tooltip only shows when enabled or for exe/tar.gz/sh/ps1 packages */
   const showAutomaticInstallTooltip =
-    !isAutomaticInstallDisabled || isExePackage || isTarballPackage;
+    !isAutomaticInstallDisabled ||
+    isExePackage ||
+    isTarballPackage ||
+    isScriptPackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
     if (isExePackage || isTarballPackage) {
       return (
@@ -114,6 +120,17 @@ const SoftwareOptionsSelector = ({
           automatically install{" "}
           {isExePackage ? ".exe packages" : ".tar.gz archives"}, add a custom
           policy and enable the install software automation on the{" "}
+          <b>Policies</b> page.
+        </>
+      );
+    }
+
+    if (isScriptPackage) {
+      return (
+        <>
+          Fleet can&apos;t create a policy to detect existing installations of
+          payload-free packages. To automatically install these packages, add a
+          custom policy and enable the install software automation on the{" "}
           <b>Policies</b> page.
         </>
       );

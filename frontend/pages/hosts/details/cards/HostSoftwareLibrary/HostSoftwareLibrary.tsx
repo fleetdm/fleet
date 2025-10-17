@@ -34,6 +34,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
@@ -149,6 +150,10 @@ const HostSoftwareLibrary = ({
   const [
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWScriptDetails,
+    setSelectedHostSWScriptDetails,
   ] = useState<IHostSoftware | null>(null);
   const [
     selectedHostSWUninstallDetails,
@@ -377,6 +382,15 @@ const HostSoftwareLibrary = ({
     [setSelectedHostSWInstallDetails]
   );
 
+  const onSetSelectedHostSWScriptDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWScriptDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWScriptDetails]
+  );
+
   const onSetSelectedHostSWUninstallDetails = useCallback(
     (uninstallDetails?: ISWUninstallDetailsParentState) => {
       if (uninstallDetails) {
@@ -479,6 +493,7 @@ const HostSoftwareLibrary = ({
       onShowInventoryVersions,
       onShowUpdateDetails,
       onSetSelectedHostSWInstallDetails,
+      onSetSelectedHostSWScriptDetails,
       onSetSelectedHostSWUninstallDetails,
       onSetSelectedVPPInstallDetails,
       onClickInstallAction,
@@ -495,6 +510,7 @@ const HostSoftwareLibrary = ({
     onShowInventoryVersions,
     onShowUpdateDetails,
     onSetSelectedHostSWInstallDetails,
+    onSetSelectedHostSWScriptDetails,
     onSetSelectedHostSWUninstallDetails,
     onSetSelectedVPPInstallDetails,
     onClickInstallAction,
@@ -539,7 +555,7 @@ const HostSoftwareLibrary = ({
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
         {userHasSWWritePermission && (
-          <Button variant="text-icon" onClick={onAddSoftware}>
+          <Button variant="inverse" onClick={onAddSoftware}>
             <Icon name="plus" />
             <span>Add software</span>
           </Button>
@@ -564,6 +580,18 @@ const HostSoftwareLibrary = ({
           }}
           hostSoftware={selectedHostSWInstallDetails}
           onCancel={() => setSelectedHostSWInstallDetails(null)}
+        />
+      )}
+      {selectedHostSWScriptDetails && (
+        <SoftwareScriptDetailsModal
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWScriptDetails.software_package?.last_install
+                ?.install_uuid,
+          }}
+          hostSoftware={selectedHostSWScriptDetails}
+          onCancel={() => setSelectedHostSWScriptDetails(null)}
         />
       )}
       {selectedHostSWUninstallDetails && (
