@@ -108,7 +108,7 @@ kind: built-in
 spec:
   name: Disk space
   platform: linux, darwin
-  description: Retrieves total amount of free disk space on a host.
+  description: Retrieves total amount of free disk space, percentage of free disk space, and total available disk space on a host.
   query: |
     SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 	  round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
