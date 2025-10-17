@@ -161,14 +161,16 @@ To replace the Fleet logo with your organization's logo:
 
 ### Install software
 
-To configure software to be installed during setup experience:
+You can install software during first time macOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience#basic-article).
+
+Software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet reties, IT admins can error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
+
+Add setup experience software:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
 
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
 3. Press **Save** to save your selection.
-
-> Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users. 
 
 ### Run script
 
