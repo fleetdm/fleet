@@ -1,6 +1,6 @@
 # Roadmap preview, October 2025
 
-<div purpose="embedded-content">
+<div purpose="https://www.youtube.com/embed/iPPLQkrFj_4?si=7RY4MOKYBSIuJhZ8">
    <iframe src="TODO" allowfullscreen></iframe>
 </div>
 
