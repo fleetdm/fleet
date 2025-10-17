@@ -30,20 +30,19 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
 
 export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
   http.get(baseUrl("/device/:token"), () => {
-    return HttpResponse.json(
-      Object.assign(
-        {
-          host: createMockHost(),
-          license: createMockLicense(),
-          org_logo_url: "",
-          org_logo_url_light_background: "",
-          global_config: {
-            mdm: { enabled_and_configured: false },
-          },
+    const response = Object.assign(
+      {
+        host: createMockHost(),
+        license: createMockLicense(),
+        org_logo_url: "",
+        org_logo_url_light_background: "",
+        global_config: {
+          mdm: { enabled_and_configured: false },
         },
-        overrides
-      )
+      },
+      overrides
     );
+    return HttpResponse.json(response);
   });
 
 export const defaultDeviceMappingHandler = http.get(

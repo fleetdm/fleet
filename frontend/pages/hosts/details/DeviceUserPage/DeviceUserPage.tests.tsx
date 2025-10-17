@@ -139,6 +139,7 @@ describe("Device User Page", () => {
     const REGULAR_DUP_MATCHER = /Last fetched/i;
     const SETTING_UP_YOUR_DEVICE_MATCHER = /Setting up your device/i;
     const CONFIG_COMPLETE_MATCHER = /Configuration complete/i;
+    const SETUP_FAILED_MATCHER = /Device setup failed/i;
 
     const setupTest = async (
       deviceUserResponseOverrides?: Partial<IDeviceUserResponse>,
@@ -232,14 +233,153 @@ describe("Device User Page", () => {
         { host },
         {
           setup_experience_results: {
-            software: [{ name: "step 1.sh", status: "success" }],
-            scripts: [{ name: "step 2.sh", status: "failure" }],
+            software: [
+              { name: "step 1.sh", status: "success", type: "script_run" },
+            ],
+            scripts: [
+              { name: "step 2.sh", status: "failure", type: "script_run" },
+            ],
           },
         },
         { query: { setup_only: "1" } }
       );
       await waitFor(() => {
         expect(screen.getByText(CONFIG_COMPLETE_MATCHER)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
+    });
+    it("renders the regular setup experience page if some software failed and require_all_software_macos is not true", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "darwin";
+
+      await setupTest(
+        { host },
+        {
+          setup_experience_results: {
+            software: [
+              {
+                type: "software_installer",
+                name: "step 1",
+                status: "success",
+              },
+              {
+                type: "software_installer",
+                name: "step 2",
+                status: "failure",
+                error: "error message",
+              },
+              {
+                type: "software_installer",
+                name: "step 3",
+                status: "pending",
+              },
+            ],
+            scripts: [],
+          },
+        }
+      );
+      await waitFor(() => {
+        expect(
+          screen.getByText(SETTING_UP_YOUR_DEVICE_MATCHER)
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
+    });
+    it("renders the regular setup experience page if some software failed and require_all_software_macos is true but the device is not on macos", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "linux";
+
+      await setupTest(
+        {
+          host,
+          global_config: {
+            features: { enable_software_inventory: true },
+            mdm: {
+              enabled_and_configured: true,
+              require_all_software_macos: true,
+            },
+          },
+        },
+        {
+          setup_experience_results: {
+            software: [
+              {
+                type: "software_installer",
+                name: "step 1",
+                status: "success",
+              },
+              {
+                type: "software_installer",
+                name: "step 2",
+                status: "failure",
+                error: "error message",
+              },
+              {
+                type: "software_installer",
+                name: "step 3",
+                status: "pending",
+              },
+            ],
+            scripts: [],
+          },
+        }
+      );
+      await waitFor(() => {
+        expect(
+          screen.getByText(SETTING_UP_YOUR_DEVICE_MATCHER)
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
+    });
+    it("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "darwin";
+
+      await setupTest(
+        {
+          host,
+          global_config: {
+            features: { enable_software_inventory: true },
+            mdm: {
+              enabled_and_configured: true,
+              require_all_software_macos: true,
+            },
+          },
+        },
+        {
+          setup_experience_results: {
+            software: [
+              {
+                type: "software_installer",
+                name: "step 1",
+                status: "success",
+              },
+              {
+                type: "software_installer",
+                name: "step 2",
+                status: "failure",
+                error: "error message",
+              },
+              {
+                type: "software_installer",
+                name: "step 3",
+                status: "pending",
+              },
+            ],
+            scripts: [],
+          },
+        }
+      );
+      await waitFor(() => {
+        expect(screen.getByText(SETUP_FAILED_MATCHER)).toBeInTheDocument();
+        const detailsButton = screen.getByRole("button", { name: /details/i });
+        expect(detailsButton).toBeInTheDocument();
+        // CLick the details button to show the error message
+        detailsButton.click();
+        expect(screen.getByText(/error message/i)).toBeInTheDocument();
       });
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();

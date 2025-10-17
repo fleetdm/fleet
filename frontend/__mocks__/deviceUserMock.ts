@@ -57,6 +57,7 @@ export const createMockDeviceSoftwareResponse = (
 const DEFAULT_SETUP_STEP_STATUS_MOCK: ISetupStep = {
   name: "Slack",
   status: "pending",
+  type: "software_install",
 };
 
 export const createMockSetupStepStatus = (
