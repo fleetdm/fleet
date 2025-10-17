@@ -85,7 +85,7 @@ const User = ({
         {showUsername && (
           <DataSet
             title={
-              <TooltipWrapper tipContent="Username collected from your IdP during automatic enrollment (ADE).">
+              <TooltipWrapper tipContent="Username collected from your IdP during automatic enrollment (ADE) or added via the Fleet API.">
                 Username (IdP)
               </TooltipWrapper>
             }
