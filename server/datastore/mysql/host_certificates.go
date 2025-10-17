@@ -120,7 +120,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 				continue
 			}
 			for _, certToInsert := range toInsert {
-				if strings.Contains(certToInsert.SubjectCommonName, "fleet-"+hostMDMManagedCert.ProfileUUID) {
+				renewalIDString := "fleet-" + hostMDMManagedCert.ProfileUUID
+				if strings.Contains(certToInsert.SubjectCommonName, renewalIDString) || strings.Contains(certToInsert.SubjectOrganizationalUnit, renewalIDString) {
 					managedCertToUpdate := &fleet.MDMManagedCertificate{
 						ProfileUUID:          hostMDMManagedCert.ProfileUUID,
 						HostUUID:             hostMDMManagedCert.HostUUID,
