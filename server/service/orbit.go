@@ -1018,7 +1018,7 @@ func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 		return orbitPutDeviceMappingResponse{Err: err}, nil
 	}
 
-	_, err := svc.SetHostDeviceMapping(ctx, host.ID, req.Email, "custom")
+	_, err := svc.SetHostDeviceMapping(ctx, host.ID, req.Email, fleet.DeviceMappingCustomReplacement)
 	return orbitPutDeviceMappingResponse{Err: err}, nil
 }
 

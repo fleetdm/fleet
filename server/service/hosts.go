@@ -1723,7 +1723,6 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			// This ensures we don't have stale SCIM data if the user was removed from SCIM
 			if err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				level.Debug(svc.logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
