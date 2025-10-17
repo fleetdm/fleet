@@ -254,10 +254,12 @@ const HostSummary = ({
     if (!osVersionRequirement?.minimum_version) {
       let value = summaryData.os_version;
       if (
-        value === "Arch Linux rolling" ||
-        value === "Arch Linux ARM rolling" ||
-        value === "Manjaro Linux rolling" ||
-        value === "Manjaro Linux ARM rolling"
+        [
+          "Arch Linux rolling",
+          "Arch Linux ARM rolling",
+          "Manjaro Linux rolling",
+          "Manjaro Linux ARM rolling",
+        ].includes(value)
       ) {
         const archLinuxPrefix = value.slice(0, -8); // removing lowercase "rolling" suffix
         value = (
