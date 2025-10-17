@@ -2168,6 +2168,13 @@ type Datastore interface {
 	// Fedora hosts have hosts.platform_like = 'rhel'.
 	EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
 
+	// ResetSetupExperienceItemsAfterFailure resets any setup experience items that were canceled after
+	// a software item failed to install on a host whose team was configured to stop setup experience on failure.
+	ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
+
+	// CancelPendingSetupExperienceSteps cancels any setup experience items for the given host that aren't already completed.
+	CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error
+
 	// GetSetupExperienceScript gets the setup experience script for a team. There can only be 1
 	// setup experience script per team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)

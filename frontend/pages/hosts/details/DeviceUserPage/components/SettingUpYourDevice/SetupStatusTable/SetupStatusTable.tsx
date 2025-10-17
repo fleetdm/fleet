@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IEnhancedSetupStep } from "interfaces/setup";
+import { ISetupStep } from "interfaces/setup";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -10,7 +10,7 @@ import generateColumnConfigs from "./SetupStatusTableConfig";
 const baseClass = "setup-status-table";
 
 interface ISetupStatusTableProps {
-  statuses: IEnhancedSetupStep[];
+  statuses: ISetupStep[];
 }
 
 const SetupStatusTable = ({ statuses }: ISetupStatusTableProps) => {
@@ -19,7 +19,7 @@ const SetupStatusTable = ({ statuses }: ISetupStatusTableProps) => {
   // Sort the statuses so that it's status of software, then software scripts, then scripts
   const order = ["software_install", "software_script_run", "script_run"];
 
-  statuses.sort((a: IEnhancedSetupStep, b: IEnhancedSetupStep) => {
+  statuses.sort((a: ISetupStep, b: ISetupStep) => {
     return order.indexOf(a.type) - order.indexOf(b.type);
   });
 

@@ -1383,6 +1383,10 @@ type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fle
 
 type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
 
+type ResetSetupExperienceItemsAfterFailureFunc func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
+
+type CancelPendingSetupExperienceStepsFunc func(ctx context.Context, hostUUID string) error
+
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
 
 type GetSetupExperienceScriptByIDFunc func(ctx context.Context, scriptID uint) (*fleet.Script, error)
@@ -3617,6 +3621,12 @@ type DataStore struct {
 
 	EnqueueSetupExperienceItemsFunc        EnqueueSetupExperienceItemsFunc
 	EnqueueSetupExperienceItemsFuncInvoked bool
+
+	ResetSetupExperienceItemsAfterFailureFunc        ResetSetupExperienceItemsAfterFailureFunc
+	ResetSetupExperienceItemsAfterFailureFuncInvoked bool
+
+	CancelPendingSetupExperienceStepsFunc        CancelPendingSetupExperienceStepsFunc
+	CancelPendingSetupExperienceStepsFuncInvoked bool
 
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
@@ -8670,6 +8680,20 @@ func (s *DataStore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatfor
 	s.EnqueueSetupExperienceItemsFuncInvoked = true
 	s.mu.Unlock()
 	return s.EnqueueSetupExperienceItemsFunc(ctx, hostPlatformLike, hostUUID, teamID)
+}
+
+func (s *DataStore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.ResetSetupExperienceItemsAfterFailureFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetSetupExperienceItemsAfterFailureFunc(ctx, hostPlatformLike, hostUUID, teamID)
+}
+
+func (s *DataStore) CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.CancelPendingSetupExperienceStepsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelPendingSetupExperienceStepsFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
