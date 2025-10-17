@@ -27,7 +27,7 @@ import {
 } from "interfaces/certificates";
 import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
-import { IEnhancedSetupStep } from "interfaces/setup";
+import { ISetupStep } from "interfaces/setup";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -339,7 +339,7 @@ const DeviceUserPage = ({
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     Error,
-    IEnhancedSetupStep[] | null | undefined
+    ISetupStep[] | null | undefined
   >(
     ["software-setup-statuses", deviceAuthToken],
     () => deviceUserAPI.getSetupExperienceStatuses({ token: deviceAuthToken }),
@@ -521,6 +521,10 @@ const DeviceUserPage = ({
       return (
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
+          requireAllSoftware={
+            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            false
+          }
           toggleInfoModal={toggleInfoModal}
         />
       );
