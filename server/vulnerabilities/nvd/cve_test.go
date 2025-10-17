@@ -172,6 +172,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs: []cve{
 				{ID: "CVE-2019-20916", resolvedInVersion: "19.2"},
 				{ID: "CVE-2021-3572", resolvedInVersion: "21.1"},
+				{ID: "CVE-2025-8869", resolvedInVersion: "25.3"},
 				{ID: "CVE-2023-5752", resolvedInVersion: "23.3"},
 			},
 			continuesToUpdate: false,

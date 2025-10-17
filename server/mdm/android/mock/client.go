@@ -21,6 +21,10 @@ type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, p
 
 type EnterprisesDevicesPatchFunc func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
 
+type EnterprisesDevicesGetFunc func(ctx context.Context, deviceName string) (*androidmanagement.Device, error)
+
+type EnterprisesDevicesDeleteFunc func(ctx context.Context, deviceName string) error
+
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
 type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
@@ -28,6 +32,12 @@ type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
 type EnterprisesListFunc func(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error)
 
 type SetAuthenticationSecretFunc func(secret string) error
+
+type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
+
+type EnterprisesPoliciesRemovePolicyApplicationsFunc func(ctx context.Context, policyName string, appIDs []string) (*androidmanagement.Policy, error)
+
+type EnterprisesApplicationsFunc func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error)
 
 type Client struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
@@ -42,6 +52,12 @@ type Client struct {
 	EnterprisesDevicesPatchFunc        EnterprisesDevicesPatchFunc
 	EnterprisesDevicesPatchFuncInvoked bool
 
+	EnterprisesDevicesGetFunc        EnterprisesDevicesGetFunc
+	EnterprisesDevicesGetFuncInvoked bool
+
+	EnterprisesDevicesDeleteFunc        EnterprisesDevicesDeleteFunc
+	EnterprisesDevicesDeleteFuncInvoked bool
+
 	EnterprisesEnrollmentTokensCreateFunc        EnterprisesEnrollmentTokensCreateFunc
 	EnterprisesEnrollmentTokensCreateFuncInvoked bool
 
@@ -53,6 +69,15 @@ type Client struct {
 
 	SetAuthenticationSecretFunc        SetAuthenticationSecretFunc
 	SetAuthenticationSecretFuncInvoked bool
+
+	EnterprisesPoliciesModifyPolicyApplicationsFunc        EnterprisesPoliciesModifyPolicyApplicationsFunc
+	EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked bool
+
+	EnterprisesPoliciesRemovePolicyApplicationsFunc        EnterprisesPoliciesRemovePolicyApplicationsFunc
+	EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked bool
+
+	EnterprisesApplicationsFunc        EnterprisesApplicationsFunc
+	EnterprisesApplicationsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -85,6 +110,20 @@ func (p *Client) EnterprisesDevicesPatch(ctx context.Context, deviceName string,
 	return p.EnterprisesDevicesPatchFunc(ctx, deviceName, device)
 }
 
+func (p *Client) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesGetFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesGetFunc(ctx, deviceName)
+}
+
+func (p *Client) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
+	p.mu.Lock()
+	p.EnterprisesDevicesDeleteFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesDeleteFunc(ctx, deviceName)
+}
+
 func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 	p.mu.Lock()
 	p.EnterprisesEnrollmentTokensCreateFuncInvoked = true
@@ -111,4 +150,25 @@ func (p *Client) SetAuthenticationSecret(secret string) error {
 	p.SetAuthenticationSecretFuncInvoked = true
 	p.mu.Unlock()
 	return p.SetAuthenticationSecretFunc(secret)
+}
+
+func (p *Client) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesModifyPolicyApplicationsFunc(ctx, policyName, policy)
+}
+
+func (p *Client) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, appIDs []string) (*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesRemovePolicyApplicationsFunc(ctx, policyName, appIDs)
+}
+
+func (p *Client) EnterprisesApplications(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+	p.mu.Lock()
+	p.EnterprisesApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesApplicationsFunc(ctx, enterpriseName, packageName)
 }

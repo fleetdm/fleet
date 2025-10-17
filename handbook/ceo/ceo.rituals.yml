@@ -47,6 +47,13 @@
   moreInfoUrl: "https://fleetdm.com/handbook/ceo#communicate-fleets-potential-energy-to-stakeholders"
   dri: "SFriendLee"
 -
+  task: "Make sure Mike's direct reports 1:1's are cleaned out"
+  startedOn: "2025-09-16"
+  frequency: "Weekly"
+  description: "Check all of the CEO's direct reports' 1:1 docs 12hrs after their 1:1 and make sure they’re cleaned out. If they are not cleaned out, the EA will then clean it out and DM the direct report that the history was checked and saw it wasn’t cleaned out, and that they cleaned it out for them."  
+  moreInfoUrl:
+  dri: "SFriendLee"
+-
   task: "Process and backup Sid agenda"
   startedOn: "2023-09-25"
   frequency: "Monthly"

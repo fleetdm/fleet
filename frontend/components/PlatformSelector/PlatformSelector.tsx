@@ -55,22 +55,24 @@ export const PlatformSelector = ({
     );
 
     return (
-      <span className={`${baseClass}__install-software`}>
-        <CustomLink text={softwareName} url={softwareLink} /> will only install
-        on{" "}
-        <TooltipWrapper
-          tipContent={
-            <>
-              To see targets, select{" "}
-              <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
-              that aren&apos;t targeted show an empty (---) policy status.
-            </>
-          }
-        >
-          targeted hosts
-        </TooltipWrapper>
-        .
-      </span>
+      <div className="form-field__help-text">
+        <span className={`${baseClass}__install-software`}>
+          <CustomLink text={softwareName} url={softwareLink} /> will only
+          install on{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                To see targets, select{" "}
+                <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
+                that aren&apos;t targeted show an empty (---) policy status.
+              </>
+            }
+          >
+            targeted hosts
+          </TooltipWrapper>
+          .
+        </span>
+      </div>
     );
   };
 
@@ -111,9 +113,7 @@ export const PlatformSelector = ({
           ChromeOS
         </Checkbox>
       </span>
-      <div className="form-field__help-text">
-        {renderInstallSoftwareHelpText()}
-      </div>
+      {renderInstallSoftwareHelpText()}
     </div>
   );
 };

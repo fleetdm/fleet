@@ -77,14 +77,15 @@ type PermissivePacks map[string]PermissivePackContent
 
 // DatastoreEnrollOsqueryConfig holds the configuration for datastore Host enrollment
 type DatastoreEnrollOsqueryConfig struct {
-	IsMDMEnabled   bool
-	OsqueryHostID  string
-	HardwareUUID   string
-	HardwareSerial string
-	NodeKey        string
-	TeamID         *uint
-	Cooldown       time.Duration
-	IdentityCert   *types.HostIdentityCertificate
+	IsMDMEnabled     bool
+	OsqueryHostID    string
+	HardwareUUID     string
+	HardwareSerial   string
+	NodeKey          string
+	TeamID           *uint
+	Cooldown         time.Duration
+	IdentityCert     *types.HostIdentityCertificate
+	IgnoreTeamUpdate bool // when true the host's team won't be updated on enrollment where an entry already exists.
 }
 
 // DatastoreEnrollOsqueryOption is a functional option for configuring datastore Host enrollment
@@ -142,5 +143,13 @@ func WithEnrollOsqueryCooldown(cooldown time.Duration) DatastoreEnrollOsqueryOpt
 func WithEnrollOsqueryIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOsqueryOption {
 	return func(c *DatastoreEnrollOsqueryConfig) {
 		c.IdentityCert = identityCert
+	}
+}
+
+// WithEnrollOsqueryIgnoreTeamUpdate sets whether to ignore team updates for datastore Host enrollment
+// it only acts on existing hosts (i.e. it won't ignore the team id on new hosts)
+func WithEnrollOsqueryIgnoreTeamUpdate(ignore bool) DatastoreEnrollOsqueryOption {
+	return func(c *DatastoreEnrollOsqueryConfig) {
+		c.IgnoreTeamUpdate = ignore
 	}
 }

@@ -224,6 +224,13 @@ func TestParseRealDistributionFiles(t *testing.T) {
 				"com.getcoldturkey.blocker-firefox-ext", "com.getcoldturkey.coldturkeyblocker",
 			},
 		},
+		{
+			file:               "distribution-privileges.xml",
+			expectedName:       "Privileges",
+			expectedVersion:    "2.4.0",
+			expectedBundleID:   "corp.sap.privileges",
+			expectedPackageIDs: []string{"corp.sap.privileges.pkg"},
+		},
 	}
 
 	for _, tt := range tests {

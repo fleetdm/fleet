@@ -1,0 +1,10 @@
+.host-labels-card {
+  @include vertical-card-layout;
+  .button,
+  .children-wrapper {
+    max-width: 100%;
+    .__react_component_tooltip {
+      font-weight: $regular;
+    }
+  }
+}

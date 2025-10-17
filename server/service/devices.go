@@ -171,6 +171,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
+	requireAllSoftware := ac.MDM.MacOSSetup.RequireAllSoftware
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
@@ -179,6 +180,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 		if tm != nil {
 			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
+			requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
 		}
 	}
 
@@ -196,6 +198,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			// regardless of the platform of the device. See
 			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
 			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
+			RequireAllSoftware:   requireAllSoftware,
 		},
 		Features: fleet.DeviceFeatures{
 			EnableSoftwareInventory: softwareInventoryEnabled,
@@ -203,12 +206,13 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	return getDeviceHostResponse{
-		Host:          resp,
-		OrgLogoURL:    ac.OrgInfo.OrgLogoURL,
-		OrgContactURL: ac.OrgInfo.ContactURL,
-		License:       *license,
-		GlobalConfig:  deviceGlobalConfig,
-		SelfService:   hasSelfService,
+		Host:                      resp,
+		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
+		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
+		OrgContactURL:             ac.OrgInfo.ContactURL,
+		License:                   *license,
+		GlobalConfig:              deviceGlobalConfig,
+		SelfService:               hasSelfService,
 	}, nil
 }
 

@@ -199,13 +199,11 @@ const ManageControlsPage = ({
   );
 
   return (
-    <MainContent>
-      <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-wrap`}>
-          <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
-        </div>
-        {renderBody()}
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__header-wrap`}>
+        <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
       </div>
+      {renderBody()}
     </MainContent>
   );
 };

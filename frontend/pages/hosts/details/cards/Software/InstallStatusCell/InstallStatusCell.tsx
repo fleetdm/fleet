@@ -74,21 +74,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ isSelfService, isAppStoreApp, lastInstalledAt }) => {
-      if (!lastInstalledAt) {
-        return undefined;
-      }
-
-      return (
-        <>
-          Software was installed{" "}
-          {!isSelfService &&
-            !isAppStoreApp &&
-            "(install script finished with exit code 0) "}
-          {dateAgo(lastInstalledAt)}.
-        </>
-      );
-    },
+    tooltip: () => undefined, // No tooltip for installed state
   },
   recently_updated: {
     iconName: "success",
@@ -225,7 +211,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   update_available: {
     iconName: "error-outline",
-    iconColor: "ui-fleet-black-50",
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (

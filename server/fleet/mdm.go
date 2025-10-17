@@ -25,6 +25,9 @@ const (
 	// RefetchCriticalQueriesUntil field when migrating a device from a
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
+	StickyMDMEnrollmentTTL       = 30 * time.Minute
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -52,13 +55,15 @@ const (
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID" // Windows only
 
 	// Certificate authority variables
-	FleetVarNDESSCEPChallenge         FleetVarName = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL          FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID             FleetVarName = "SCEP_RENEWAL_ID"
-	FleetVarDigiCertDataPrefix        FleetVarName = "DIGICERT_DATA_"
-	FleetVarDigiCertPasswordPrefix    FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
-	FleetVarCustomSCEPChallengePrefix FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
-	FleetVarCustomSCEPProxyURLPrefix  FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
+	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
+	FleetVarCustomSCEPProxyURLPrefix     FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
+	FleetVarSmallstepSCEPChallengePrefix FleetVarName = "SMALLSTEP_SCEP_CHALLENGE_"
+	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour

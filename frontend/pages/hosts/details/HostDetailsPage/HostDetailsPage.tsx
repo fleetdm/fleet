@@ -42,6 +42,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
+import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -59,13 +60,12 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
@@ -138,6 +138,10 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const doubleHeightCardClass = `${baseClass}__card--double-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
+const BYOD_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
+const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -824,7 +828,7 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const renderActionDropdown = () => {
+  const renderActionsDropdown = () => {
     if (!host) {
       return null;
     }
@@ -967,7 +971,7 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+  const showSoftwareLibraryTab = isPremiumTier;
 
   const showUsersCard =
     isAppleDevice(host.platform) ||
@@ -983,17 +987,16 @@ const HostDetailsPage = ({
 
   const renderSoftwareCard = () => {
     return (
-      <Card
-        className={`${baseClass}__software-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
-        {isSoftwareLibrarySupported ? (
+      <div className={`${baseClass}__software-card`}>
+        {showSoftwareLibraryTab ? (
           <>
             <TabList>
-              <Tab>Inventory</Tab>
-              <Tab>Library</Tab>
+              <Tab>
+                <TabText>Inventory</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Library</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               <SoftwareInventoryCard
@@ -1022,10 +1025,12 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for personally enrolled mdm hosts where we are not
+              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
-               when we add that feature. */}
-              {isPersonalEnrollmentInMdm(host.mdm.enrollment_status) ? (
+               when we add that feature.
+               We also are not currently supporting Android software installs */}
+              {isBYODAccountDrivenEnrollment(host.mdm.enrollment_status) ||
+              isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
@@ -1034,7 +1039,13 @@ const HostDetailsPage = ({
                       <CustomLink
                         newTab
                         text="Learn more"
-                        url="https://fleetdm.com/learn-more-about/byod-hosts-vpp-install"
+                        url={
+                          isBYODAccountDrivenEnrollment(
+                            host.mdm.enrollment_status
+                          )
+                            ? BYOD_SW_INSTALL_LEARN_MORE_LINK
+                            : ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                        }
                       />
                     </>
                   }
@@ -1091,7 +1102,7 @@ const HostDetailsPage = ({
             )}
           </>
         )}
-      </Card>
+      </div>
     );
   };
 
@@ -1113,7 +1124,7 @@ const HostDetailsPage = ({
             />
           )}
           <div className={`${baseClass}__header-links`}>
-            <BackLink
+            <BackButton
               text="Back to all hosts"
               path={filteredHostsPath || PATHS.MANAGE_HOSTS}
             />
@@ -1123,7 +1134,7 @@ const HostDetailsPage = ({
               summaryData={summaryData}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionDropdown={renderActionDropdown}
+              renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
             />
           </div>
@@ -1263,7 +1274,7 @@ const HostDetailsPage = ({
                 )}
               </TabPanel>
               <TabPanel>
-                <TabNav className={`${baseClass}__software-tab-nav`}>
+                <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
                     selectedIndex={getSoftwareTabIndex(location.pathname)}
                     onSelect={(i) => navigateToSoftwareTab(i)}
@@ -1352,14 +1363,12 @@ const HostDetailsPage = ({
               onProfileResent={refetchHostDetails}
             />
           )}
-          {showUnenrollMdmModal && !!host && (
+          {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (
             <UnenrollMdmModal
               hostId={host.id}
               hostPlatform={host.platform}
               hostName={host.display_name}
-              isBYODEnrollment={isPersonalEnrollmentInMdm(
-                host.mdm.enrollment_status
-              )}
+              enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
             />
           )}

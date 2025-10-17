@@ -81,6 +81,11 @@ func (ds *AndroidDSWithMock) DeleteOtherEnterprises(ctx context.Context, id uint
 	return ds.Datastore.DeleteOtherEnterprises(ctx, id)
 }
 
+// Disambiguate method promoted from both mysql.Datastore and mock.Store
+func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
+}
+
 type WithServer struct {
 	suite.Suite
 	Svc      android.Service
@@ -104,7 +109,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key")
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key", ts.DS.Datastore)
 	require.NoError(t, err)
 	ts.Svc = svc
 

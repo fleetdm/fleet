@@ -1,0 +1,1 @@
+* Corrected bundle identifier for privileges macos software pkg and fixed existing software installers to use corrected software title. The privileges application should show the correct status in software inventory.

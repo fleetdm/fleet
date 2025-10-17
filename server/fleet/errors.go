@@ -36,6 +36,7 @@ var (
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantResendWindowsProfilesMessage             = "Can't resend Windows configuration profiles."
+	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has a package or app available for install on the %s team."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -676,7 +677,7 @@ const (
 
 	// NDES/SCEP validation
 	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
-	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."
+	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\", \"$FLEET_VAR_NDES_SCEP\" and \"$FLEET_VAR_SMALLSTEP_\" must only be in the SCEP payload."
 )
 
 // Error message variables

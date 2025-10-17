@@ -55,7 +55,7 @@ fi
 
 CrowdStrike Falcon requires multiple `.mobileconfig` payloads on macOS.
 
->The payloads can be combined and delivered as a single Configuration Profile, or, delivered in separate Configuration Profiles for modularity and easier reading.
+The payloads can be combined and delivered as a single Configuration Profile, or, delivered in separate Configuration Profiles for modularity and easier reading.
 
 Below is an explanation of what each of the macOS CrowdStrike Falcon payloads does:
 
@@ -65,9 +65,9 @@ Below is an explanation of what each of the macOS CrowdStrike Falcon payloads do
 - `crowdstrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
 - `crowdstrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
 
-[Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
+[Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/docs/solutions/configuration-profiles)
 
->To upload Configuration Profiles to Fleet: go to **Controls > OS Settings > Custom settings** then click **Add Profile**. See the screen shot below for details.
+>To upload Configuration Profiles to your Fleet instance: go to **Controls > OS Settings > Custom settings** then click **Add Profile**. See the screen shot below for details.
 
 ![Add software advanced options](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
 

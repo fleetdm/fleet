@@ -1,7 +1,5 @@
 .script-batch-details-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  @include vertical-page-layout;
 
   &__header {
     margin-bottom: 0;
@@ -22,6 +20,8 @@
   }
 
   &__tab-content {
+    @include flex-column-16px-gap;
+
     &__header {
       display: flex;
       align-items: center;
@@ -46,8 +46,5 @@
   }
   .back-link {
     align-self: flex-start;
-  }
-  .react-tabs__tab-list {
-    margin-bottom: $pad-large;
   }
 }

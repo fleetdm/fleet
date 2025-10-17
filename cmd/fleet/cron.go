@@ -661,6 +661,7 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -713,6 +714,7 @@ func newWorkerIntegrationsSchedule(
 		Log:                   logger,
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
 	}
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
@@ -858,7 +860,9 @@ func newCleanupsAndAggregationSchedule(
 				}
 
 				targetsStart := time.Now()
-				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, time.Now().Add(-24*time.Hour).UTC())
+				cleanupTimeWindow := time.Now().Add(-config.Server.CleanupDistTargetsAge).UTC()
+				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, cleanupTimeWindow)
+
 				if err != nil {
 					return err
 				}
@@ -1613,6 +1617,7 @@ func newIPhoneIPadRefetcher(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
+	newActivityFn apple_mdm.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-refetcher")
@@ -1620,7 +1625,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 
@@ -1807,6 +1812,32 @@ func newBatchActivitiesSchedule(
 			}
 
 			return nil
+		}),
+	)
+
+	return s, nil
+}
+
+// newAndroidMDMDeviceReconcilerSchedule periodically reconciles Android device existence
+// with Google AMAPI and flips hosts to unenrolled if missing.
+func newAndroidMDMDeviceReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	licenseKey string,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMDMAndroidDeviceReconciler)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey)
 		}),
 	)
 
