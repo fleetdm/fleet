@@ -26,7 +26,6 @@ const PolicyFailingCount = ({
         message={
           <span>
             <strong>
-              {" "}
               This device is failing
               {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
             </strong>
