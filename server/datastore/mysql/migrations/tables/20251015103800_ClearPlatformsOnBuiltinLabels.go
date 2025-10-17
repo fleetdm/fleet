@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251009091733, Down_20251009091733)
+	MigrationClient.AddMigration(Up_20251015103800, Down_20251015103800)
 }
 
-func Up_20251009091733(tx *sql.Tx) error {
+func Up_20251015103800(tx *sql.Tx) error {
 	//
 	// NOTE: This migration was copied from server/datastore/mysql/migrations/data/20210330130314_UpdateBuiltinLabels.go.
 	// We are now running this on the "tables" migration, because the "data" migrations (deprecated) run after
@@ -56,6 +56,6 @@ func Up_20251009091733(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251009091733(tx *sql.Tx) error {
+func Down_20251015103800(tx *sql.Tx) error {
 	return nil
 }

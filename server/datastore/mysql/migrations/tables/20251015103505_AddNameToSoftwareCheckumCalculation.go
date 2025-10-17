@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251010153829, Down_20251010153829)
+	MigrationClient.AddMigration(Up_20251015103505, Down_20251015103505)
 }
 
-func Up_20251010153829(tx *sql.Tx) error {
+func Up_20251015103505(tx *sql.Tx) error {
 	var minID, maxID sql.NullInt64
 	err := tx.QueryRow(`
 		SELECT MIN(id), MAX(id)
@@ -45,7 +45,7 @@ func Up_20251010153829(tx *sql.Tx) error {
 					` + "`release`" + `,
 					arch,
 					vendor,
-					extension_for,
+					browser,
 					extension_id,
 					name
 				)
@@ -65,6 +65,6 @@ func Up_20251010153829(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251010153829(tx *sql.Tx) error {
+func Down_20251015103505(tx *sql.Tx) error {
 	return nil
 }

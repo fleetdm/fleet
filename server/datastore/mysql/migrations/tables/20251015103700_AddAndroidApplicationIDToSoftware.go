@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251003094629, Down_20251003094629)
+	MigrationClient.AddMigration(Up_20251015103700, Down_20251015103700)
 }
 
-func Up_20251003094629(tx *sql.Tx) error {
+func Up_20251015103700(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE software_titles ADD COLUMN application_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to add software_titles.application_id column: %w", err)
@@ -51,6 +51,6 @@ func Up_20251003094629(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251003094629(tx *sql.Tx) error {
+func Down_20251015103700(tx *sql.Tx) error {
 	return nil
 }
