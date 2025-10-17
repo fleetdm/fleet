@@ -11,7 +11,7 @@ const baseClass = "install-software-preview";
 
 interface IPreviewDisplayConfig {
   description: React.ReactNode;
-  videoSrc: string | undefined;
+  videoSrc: string;
 }
 
 const PREVIEW_DISPLAY_OPTIONS: Record<
