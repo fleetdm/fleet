@@ -366,6 +366,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
 				'self_service', ua.payload->'$.self_service' IS TRUE,
+				'source', COALESCE(st.source, ua.payload->>'$.source'),
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
@@ -407,6 +408,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
 				'self_service', COALESCE(ua.payload->'$.self_service', FALSE) IS TRUE,
+				'source', COALESCE(st.source, ua.payload->>'$.source'),
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,

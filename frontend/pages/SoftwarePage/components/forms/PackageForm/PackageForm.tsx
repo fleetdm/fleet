@@ -77,7 +77,8 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz";
+const ACCEPTED_EXTENSIONS =
+  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1";
 
 const PackageForm = ({
   labels,

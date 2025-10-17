@@ -1847,6 +1847,7 @@ type ActivityTypeInstalledSoftware struct {
 	SelfService         bool    `json:"self_service"`
 	InstallUUID         string  `json:"install_uuid"`
 	Status              string  `json:"status"`
+	Source              *string `json:"source,omitempty"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
@@ -1887,6 +1888,7 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
 - "command_uuid": ID of the in-house app installation.
@@ -1898,18 +1900,20 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }`
 }
 
 type ActivityTypeUninstalledSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	ExecutionID     string `json:"script_execution_id"`
-	SelfService     bool   `json:"self_service"`
-	Status          string `json:"status"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	SoftwareTitle   string  `json:"software_title"`
+	ExecutionID     string  `json:"script_execution_id"`
+	SelfService     bool    `json:"self_service"`
+	Status          string  `json:"status"`
+	Source          *string `json:"source,omitempty"`
 }
 
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
@@ -1928,13 +1932,15 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 - "software_title": Name of the software.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
-- "status": Status of the software uninstallation.`, `{
+- "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
-  "status": "uninstalled"
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }`
 }
 

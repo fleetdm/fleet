@@ -110,6 +110,7 @@ interface IHostsFilterBlockProps {
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
   isLoading?: boolean;
+  isScriptPackage?: boolean;
 }
 
 /**
@@ -164,6 +165,7 @@ const HostsFilterBlock = ({
   onClickEditLabel,
   onClickDeleteLabel,
   isLoading = false,
+  isScriptPackage,
 }: IHostsFilterBlockProps) => {
   const { currentUser, isOnGlobalTeam } = useContext(AppContext);
 
@@ -522,7 +524,7 @@ const HostsFilterBlock = ({
 
   const renderSoftwareInstallStatusBlock = () => {
     const OPTIONS = [
-      { value: "installed", label: "Installed" },
+      { value: "installed", label: isScriptPackage ? "Ran" : "Installed" },
       { value: "failed", label: "Failed" },
       { value: "pending", label: "Pending" },
     ];

@@ -1762,7 +1762,12 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	payload.BundleIdentifier = ""
 	payload.PackageIDs = nil
 	payload.Extension = extension
-	payload.Source = "scripts"
+	switch extension {
+	case "sh":
+		payload.Source = "sh_packages"
+	case "ps1":
+		payload.Source = "ps1_packages"
+	}
 
 	platform, err := fleet.SoftwareInstallerPlatformFromExtension(extension)
 	if err != nil {
@@ -2468,11 +2473,11 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
-	case ".msi", ".exe":
+	case ".msi", ".exe", ".ps1":
 		requiredPlatform = "windows"
 	case ".pkg", ".dmg", ".zip":
 		requiredPlatform = "darwin"
-	case ".deb", ".rpm", ".gz", ".tgz":
+	case ".deb", ".rpm", ".gz", ".tgz", ".sh":
 		requiredPlatform = "linux"
 	default:
 		return ""
