@@ -4079,6 +4079,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		wifiMac = wifiMacVal.(string)
 	}
 	productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
+	isLostModeEnabled := deviceInformationResponse.QueryResponses["IsMDMLostModeEnabled"].(bool)
 	host.ComputerName = deviceName
 	host.Hostname = deviceName
 	host.GigsDiskSpaceAvailable = availableDeviceCapacity
@@ -4104,7 +4105,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
 	if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
-		deviceCapacity); err != nil {
+		deviceCapacity, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
 	}
 	if err := svc.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
@@ -4120,7 +4121,28 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		if err := svc.ds.UpdateMDMData(ctx, host.ID, true); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to update MDM data")
 		}
+
+		// We run this check here as we only want to run it on re-check ins for deleted hosts.
+		if (platform == "ios" || platform == "ipados") && isLostModeEnabled {
+			fmt.Println("===lost mode enabled on iPhone/iPad, checking for lock command record", host.UUID)
+			cmd, err := svc.ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing EnableLostMode command")
+			}
+			if fleet.IsNotFound(err) {
+				// Device is in lost mode, but we do not have a lock command record for it.
+				// Lost mode was enabled outside of Fleet?
+				return nil, ctxerr.NewWithData(ctx, "device is in lost mode but no EnableLostMode command record found", map[string]interface{}{"host_uuid": host.UUID})
+			}
+
+			level.Debug(svc.logger).Log("msg", "device is in lost mode and EnableLostMode command record found, updating host lock/wipe status", "host_uuid", host.UUID)
+			err = svc.ds.SetLockCommandForLostModeCheckin(ctx, host.ID, cmd.CommandUUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host lost mode status on refetch")
+			}
+		}
 	}
+
 	return nil, nil
 }
 

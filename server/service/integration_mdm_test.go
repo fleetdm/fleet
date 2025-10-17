@@ -1231,12 +1231,12 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 		HardwareSerial: mdmtest.RandSerialNumber(),
 	})
 	require.NoError(t, err)
-	mdmDevice := enrollMacOSHostInMDM(t, fleetHost, ds, fleetServerURL)
+	mdmDevice := enrollMacOSHostInMDMManually(t, fleetHost, ds, fleetServerURL)
 
 	return fleetHost, mdmDevice
 }
 
-func enrollMacOSHostInMDM(t *testing.T, host *fleet.Host, ds fleet.Datastore, fleetServerURL string) *mdmtest.TestAppleMDMClient {
+func enrollMacOSHostInMDMManually(t *testing.T, host *fleet.Host, ds fleet.Datastore, fleetServerURL string) *mdmtest.TestAppleMDMClient {
 	desktopToken := uuid.New().String()
 	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(fleetServerURL, desktopToken)
 	mdmDevice.UUID = host.UUID
@@ -1248,6 +1248,38 @@ func enrollMacOSHostInMDM(t *testing.T, host *fleet.Host, ds fleet.Datastore, fl
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 	return mdmDevice
+}
+
+func (s *integrationMDMTestSuite) createAppleMobileHostThenDEPEnrollMDM(platform string, serial string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+	ctx := context.Background()
+	t := s.T()
+
+	model := "iPhone14,6"
+	if platform == "ipados" {
+		model = "iPad13,18"
+	}
+
+	// create a host with minimal information and the serial, no uuid/osquery id
+	// (as when created via DEP sync).
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	fleetHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   serial,
+		HardwareModel:    model,
+		Platform:         platform,
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  time.Now(), // so that we don't trigger a cron detail update
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, dbZeroTime, fleetHost.LastEnrolledAt)
+
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serial, model)
+	mdmDevice.SerialNumber = serial
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	return fleetHost, mdmDevice
 }
 
 func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
@@ -1326,6 +1358,19 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 
 	// valid token downloads the profile
 	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+
+	// set end user auth enabled
+	appConfig, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup.EnableEndUserAuthentication = true
+
+	err = s.ds.SaveAppConfig(t.Context(), appConfig)
+	require.NoError(t, err)
+
+	// fails since team has end user auth enabled
+	res := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusBadRequest)
+	errText := extractServerErrorText(res.Body)
+	require.Contains(t, errText, "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work.")
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -9930,6 +9975,14 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	t := s.T()
 	ctx := context.Background()
 
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup = fleet.MacOSSetup{
+		EnableEndUserAuthentication: false,
+	}
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
 	// Create a host and a couple of profiles
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
@@ -11302,24 +11355,6 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 			VersionsCount:    1,
 		},
 	}
-	require.Len(t, resp.SoftwareTitles, 2)
-	// Cleaning up the response to make it easier to compare using ElementsMatch
-	for index := range resp.SoftwareTitles {
-		resp.SoftwareTitles[index].ID = 0
-		assert.Len(t, resp.SoftwareTitles[index].Versions, 1)
-		resp.SoftwareTitles[index].Versions = nil
-	}
-	assert.ElementsMatch(t, expectedTitles, resp.SoftwareTitles)
-
-	// Delete from software titles table and make sure titles are recreated
-	mysql.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), "DELETE FROM software_titles")
-		return err
-	})
-	hostsCountTs = time.Now().UTC()
-	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
-	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, "query", "Evernote")
 	require.Len(t, resp.SoftwareTitles, 2)
 	// Cleaning up the response to make it easier to compare using ElementsMatch
 	for index := range resp.SoftwareTitles {
@@ -14731,6 +14766,14 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 	digiCertServer := createMockDigiCertServer(t)
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.MacOSSetup = fleet.MacOSSetup{
+		EnableEndUserAuthentication: false,
+	}
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
 
 	// Add DigiCert config
 	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")

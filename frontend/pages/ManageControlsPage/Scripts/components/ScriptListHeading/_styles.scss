@@ -5,6 +5,18 @@
 
   &__heading-group {
     flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .button--brand-inverse-icon {
+      height: 16px;
+      padding: 0px;
+    }
+  }
+
+  &__button-container {
+    height: 16px;
   }
 
   &__script-statuses {

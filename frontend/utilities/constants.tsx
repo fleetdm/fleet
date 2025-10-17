@@ -5,6 +5,7 @@ import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ICampaign } from "interfaces/campaign";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { IHost } from "interfaces/host";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -405,7 +406,7 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
-export const HOST_SUMMARY_DATA = [
+export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
   "issues",
@@ -416,10 +417,11 @@ export const HOST_SUMMARY_DATA = [
   "osquery_version",
   "orbit_version",
   "fleet_desktop_version",
-  "enroll_secret_name",
   "detail_updated_at",
   "percent_disk_space_available",
   "gigs_disk_space_available",
+  "gigs_total_disk_space",
+  "gigs_all_disk_space",
   "team_name",
   "disk_encryption_enabled",
   "display_name", // Not rendered on my device page

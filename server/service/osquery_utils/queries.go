@@ -125,6 +125,56 @@ ORDER BY
 	inet_aton(ia.address) IS NOT NULL DESC
 LIMIT 1;`
 
+const linuxGigsAllDiskSpaceSubQueryConditions = `WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- exclude boot files
+AND path NOT LIKE '/boot%' 
+
+-- exclude snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)`
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -378,11 +428,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
-		Query: `
-SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-FROM mounts WHERE path = '/' LIMIT 1;`,
+		Query: fmt.Sprintf(`
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
@@ -463,7 +514,21 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 		return err
 	}
 
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal)
+	var gigsAllForFnCall *float64
+	if fleet.IsLinux(host.Platform) {
+		strippedRawRes := strings.TrimSpace(rows[0]["gigs_all_disk_space"])
+		// write `nil`, not 0, if osquery returns `""`, since a host cannot have 0 disk space and
+		// therefore this must represent a problematic query result
+		if strippedRawRes != "" {
+			gigsAll, err := strconv.ParseFloat(strippedRawRes, 64)
+			if err != nil {
+				return err
+			}
+			gigsAllForFnCall = &gigsAll
+		}
+	}
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAllForFnCall)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -1946,18 +2011,113 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 var (
 	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
-	softwareSanitizers = []struct {
-		matches func(*fleet.Software) bool
-		mutate  func(*fleet.Software, log.Logger)
+	basicAppSanitizers = []struct {
+		matchBundleIdentifier string
+		matchName             string
+		mutate                func(*fleet.Software, log.Logger)
 	}{
 		{
-			matches: func(s *fleet.Software) bool {
-				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
-			},
+			matchBundleIdentifier: "com.nicesoftware.dcvviewer",
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
 					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
 				}
+			},
+		},
+		// Bundle executable name cleanup #34159
+		{
+			matchBundleIdentifier: "com.synology.DSAssistant",
+			matchName:             "DSAssistant",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "SynologyAssistant"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.now.gg.BlueStacksMIM",
+			matchName:             "HD-MultiInstanceManager",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "BlueStacksMIM"
+			},
+		},
+		{
+			matchBundleIdentifier: "jp.go.jpki.JPKIUninstall",
+			matchName:             "JPKIUninstall.scpt",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "JPKIUninstall"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.OracleDataModeler",
+			matchName:             "datamodeler.sh",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "OracleDataModeler"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.easeus.ntfsformacdaemon",
+			matchName:             "euntfsservice",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "EaseUS NTFS Service"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.poly.lens.legacyhost.app",
+			matchName:             "legacyhost",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Poly Lens Desktop (Legacy)"
+			},
+		},
+		{
+			matchBundleIdentifier: "app.zen-browser.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Zen Browser Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "org.mozilla.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Mozilla Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
+			matchName:             "remoting_host_uninstaller",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Chrome Remote Desktop Host Uninstaller"
+			},
+		},
+		{
+			matchName: "runemu",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if s.BundleIdentifier == "" {
+					s.Name = "Android Emulator"
+				}
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.SQLDeveloper",
+			matchName:             "sqldeveloper.sh/",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Oracle SQLDeveloper"
+			},
+		},
+		// end of #34159 cleanup in basic matchers
+	}
+	customAppSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool { // #34159
+				return strings.HasPrefix(s.Name, "TNMS ") &&
+					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
+					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "TNMS"
+				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
 			},
 		},
 	}
@@ -1967,15 +2127,32 @@ var (
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
 func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
-	for _, softwareSanitizer := range softwareSanitizers {
-		if softwareSanitizer.matches(s) {
-			defer func() {
-				if r := recover(); r != nil {
-					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-				}
-			}()
-			softwareSanitizer.mutate(s, logger)
-			break
+	// all of our current on-ingest mutations use this table,
+	// so might as well let other stuff go faster and save some redundant checks inside the matchers
+	if s != nil && s.Source == "apps" {
+		for _, sanitizer := range basicAppSanitizers {
+			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
+				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
+				(sanitizer.matchName == "" || sanitizer.matchName == s.Name) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
+		}
+		for _, sanitizer := range customAppSanitizers {
+			if sanitizer.matches(s) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
 		}
 	}
 }
