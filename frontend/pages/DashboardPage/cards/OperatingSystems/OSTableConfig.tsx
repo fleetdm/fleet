@@ -104,6 +104,7 @@ const generateDefaultTableHeaders = (
           "Arch Linux ARM",
           "Manjaro Linux",
           "Manjaro Linux ARM",
+          "Manjaro ARM Linux",
         ].includes(name_only) &&
         version === "rolling"
       ) {

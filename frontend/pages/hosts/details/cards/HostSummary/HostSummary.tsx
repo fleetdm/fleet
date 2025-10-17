@@ -258,6 +258,7 @@ const HostSummary = ({
         "Arch Linux ARM rolling",
         "Manjaro Linux rolling",
         "Manjaro Linux ARM rolling",
+        "Manjaro ARM Linux rolling",
       ].includes(version) ? (
         // wrap a tooltip aroun the "rolling" suffix
         <>
