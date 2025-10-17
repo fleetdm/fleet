@@ -24,6 +24,7 @@ import Pagination from "components/Pagination";
 
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -57,6 +58,10 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
     packageUninstallDetails,
@@ -135,7 +140,9 @@ const ActivityFeed = ({
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
-        setPackageInstallDetails({ ...details });
+        details?.command_uuid
+          ? setIpaPackageInstallDetails({ ...details })
+          : setPackageInstallDetails({ ...details });
         break;
       case ActivityType.UninstalledSoftware:
         setPackageUninstallDetails({
@@ -254,6 +261,18 @@ const ActivityFeed = ({
         <SoftwareInstallDetailsModal
           details={packageInstallDetails}
           onCancel={() => setPackageInstallDetails(null)}
+        />
+      )}
+      {ipaPackageInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          details={{
+            appName: ipaPackageInstallDetails.software_title || "",
+            fleetInstallStatus: (ipaPackageInstallDetails.status ||
+              "pending_install") as SoftwareInstallUninstallStatus,
+            hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
+            commandUuid: ipaPackageInstallDetails.command_uuid || "",
+          }}
+          onCancel={() => setIpaPackageInstallDetails(null)}
         />
       )}
       {packageUninstallDetails && (

@@ -494,6 +494,7 @@ export interface IHostSoftwarePackage {
   last_uninstall: ISoftwareLastUninstall | null;
   categories?: SoftwareCategory[];
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  platform?: Platform;
 }
 
 export interface IHostAppStoreApp {
