@@ -252,24 +252,22 @@ const HostSummary = ({
   const renderOperatingSystemSummary = () => {
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
-      let value = summaryData.os_version;
-      if (
-        [
-          "Arch Linux rolling",
-          "Arch Linux ARM rolling",
-          "Manjaro Linux rolling",
-          "Manjaro Linux ARM rolling",
-        ].includes(value)
-      ) {
-        const archLinuxPrefix = value.slice(0, -8); // removing lowercase "rolling" suffix
-        value = (
-          <>
-            {archLinuxPrefix}&nbsp;
-            <TooltipWrapperArchLinuxRolling />
-          </>
-        );
-      }
-      return <DataSet title="Operating system" value={value} />;
+      const version = summaryData.os_version;
+      const versionForRender = [
+        "Arch Linux rolling",
+        "Arch Linux ARM rolling",
+        "Manjaro Linux rolling",
+        "Manjaro Linux ARM rolling",
+      ].includes(version) ? (
+        // wrap a tooltip aroun the "rolling" suffix
+        <>
+          {version.slice(0, -8)}&nbsp;
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      ) : (
+        version
+      );
+      return <DataSet title="Operating system" value={versionForRender} />;
     }
 
     const osVersionWithoutPrefix = removeOSPrefix(summaryData.os_version);
