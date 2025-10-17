@@ -20,7 +20,7 @@ Fleet now supports [Omarchy](https://omarchy.org/) Linux. You can view host vita
 
 ### Android configuration profiles
 
-You can now apply custom settings to work profiles on employee-owned (BYOD) Android hosts using configuration profiles. This lets you keep Android hosts compliant and secure. Learn how to create in [this video](TODO).
+You can now apply custom settings to work profiles on employee-owned (BYOD) Android hosts using configuration profiles. This lets you keep Android hosts compliant and secure. Learn how to create in [this video](https://www.youtube.com/watch?v=Jk4Zcb2sR1w).
 
 ### Smallstep certificates
 
