@@ -256,7 +256,18 @@ func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_apps`)
 	require.NoError(t, err)
 	require.Equal(t, 5, count)
+
+	// Test that software titles for IHA don't get cleaned up
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM software_titles`)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
 }
+
 func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, appID uint, titleID uint, user *fleet.User) string {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
