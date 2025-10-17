@@ -9,7 +9,7 @@ import (
 	"github.com/tj/assert"
 )
 
-func TestUp_20251003094629(t *testing.T) {
+func TestUp_20251015103700(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Add some non-Android software. The unique_identifier should be the bundle_identifier for the macOS software and the name for the Windows software.
