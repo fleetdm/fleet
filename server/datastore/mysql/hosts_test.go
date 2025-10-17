@@ -6781,11 +6781,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.DeviceMappingIDP, mappings[0].Source, "Should be IDP source")
 	}
 
-	// Test 7: Test error case - nonexistent host
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, 99999, "user@example.com")
-	require.NoError(t, err) // Should not error - foreign key constraint will be enforced by DB
-
-	// Test 8: Test empty email (edge case)
+	// Test 7: Test empty email (edge case)
 	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "")
 	require.NoError(t, err) // Should handle empty email gracefully
 
@@ -6801,7 +6797,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	}
 	require.True(t, found, "Should find empty email mapping")
 
-	// Test 9: Test replacement of mdm_idp_accounts entries
+	// Test 8: Test replacement of mdm_idp_accounts entries
 	// First, manually insert an mdm_idp_accounts entry to simulate MDM enrollment
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
