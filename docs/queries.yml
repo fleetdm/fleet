@@ -111,16 +111,15 @@ spec:
   description: Retrieves total amount of free disk space, percentage of free disk space, and total available disk space on a host.
   query: |
     SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-	  round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-	  round((blocks * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-	  (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+      round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+      round((blocks * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+      (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
     -- exclude mounts with no space
     blocks > 0
     AND blocks_size > 0
 
     -- exclude external storage
     AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
-  
     -- exclude device drivers
     AND path NOT LIKE '/dev%' 
 
@@ -162,7 +161,7 @@ spec:
     OR device LIKE '/dev/md%'
     OR device LIKE '/dev/dm-%'
     )) AS gigs_all_disk_space
-	FROM mounts WHERE path = '/' LIMIT 1;
+    FROM mounts WHERE path = '/' LIMIT 1;
   bash: df -P / | awk 'NR==2 { blocks=$2; blocks_available=$4; blocks_size=$2/$3 } END { printf "percent_disk_space_available=%.2f\n", (blocks_available * 100 / blocks); printf "gigs_disk_space_available=%.2f\n", (blocks_available * blocks_size * 10e-10); printf "gigs_total_disk_space=%.2f\n", (blocks * blocks_size * 10e-10) }'
   purpose: Informational
   tags: built-in
