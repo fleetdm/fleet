@@ -352,15 +352,50 @@ fleetctl package \
   --fleet-managed-host-identity-certificate
 ```
 
+#### Migration
+
+If you already have Linux hosts enrolled to Fleet, here's how to migrate these hosts to use host identity certificates for authentication to the Fleet server:
+
+1. [Generate fleetd](#generating-fleetd-with-host-identity-certificates) with the `--fleet-managed-host-identity-certificate` flag.
+
+2. Install the new fleetd on your hosts that are already enrolled.
+
+3. Monitor the rollout by adding the following policy to Fleet:
+
+```sql
+SELECT 1
+WHERE (
+    SELECT COUNT(*)
+    FROM file 
+    WHERE path IN (
+        '/opt/orbit/host_identity.crt',
+        '/opt/orbit/host_identity_tpm.pem'
+    )
+) = 2;
+```
+
+This policy passes if a host has a host identity certificate.
+
+4. Last, you can enforce that all hosts need a host identity certificate to communicate with Fleet by enabling the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option. When this is enforced, hosts that don't have a certificate will stop communicating with Fleet.
+
 #### Important considerations
 
-- Hosts without TPM 2.0 will fail to enroll when this option is enabled
+- Hosts without TPM 2.0 will fail to enroll when this option is enabled. You can run this osuery query to check if hosts have TPM 2.0:
+
+```sql
+SELECT
+  COUNT(*) AS compliant
+FROM
+  file 
+WHERE 
+  path = '/dev/tpmrm0';
+```
+
 - This feature cannot be combined with other client certificate options (`--fleet-tls-client-certificate`)
 - SCEP certificate requests can be throttled by the [osquery_enroll_cooldown](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-enroll-cooldown) server option, similar to how fleetd enrollments are throttled
 - When a host requests a host identity certificate, the server will expect all future traffic from that host to be signed with HTTP message signatures. This allows mixed environments where some hosts use managed client certificates and others do not
 - Fleet administrators can enforce HTTP message signature requirements server-wide using the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option
-- HTTP message signatures use P384 elliptic curve cryptography by default, which requires additional CPU resources to verify on the Fleet server. This can impact performance and should be considered when planning your Fleet deployment.
-
+- HTTP message signatures use P384 elliptic curve cryptography by default, which requires 50% more CPU resources for the Fleet server. This can impact performance and should be considered when planning your Fleet deployment.
 
 ### Specifying update channels
 
