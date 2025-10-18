@@ -105,25 +105,25 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		case xml.StartElement:
 			// Top-level comments should be followed by <Replace> or <Add> elements
 			if inComment {
-				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" {
-					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements after comments")
+				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" && t.Name.Local != "Exec" {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> or <Exec> top level elements after comments")
 				}
 				inValidNode = true
 				inComment = false
 			}
 
 			switch t.Name.Local {
-			case "Replace", "Add":
+			case "Replace", "Add", "Exec":
 				inValidNode = true
 			case "LocURI":
 				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> or <Exec> top level elements.")
 				}
 				inLocURI = true
 
 			default:
 				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> or <Exec> top level elements.")
 				}
 			}
 
