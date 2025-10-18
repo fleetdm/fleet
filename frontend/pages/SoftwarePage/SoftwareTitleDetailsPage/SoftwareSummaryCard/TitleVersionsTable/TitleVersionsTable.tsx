@@ -39,6 +39,8 @@ export const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
   );
 };
 
+// This empty state is no longer ever used since this table is hidden when there is no software.
+// Keeping here for convenience in case that decision is ever changed.
 const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
     <Card borderRadiusSize="medium">

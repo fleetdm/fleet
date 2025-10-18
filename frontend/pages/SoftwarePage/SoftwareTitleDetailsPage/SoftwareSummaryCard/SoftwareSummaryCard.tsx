@@ -53,8 +53,10 @@ const SoftwareSummaryCard = ({
 
   const [iconUploadedAt, setIconUploadedAt] = useState("");
 
-  // Hide versions table for tgz_packages, sh_packages, & ps1_packages only
-  const showVersionsTable = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source);
+  // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
+  // software installed
+  const showVersionsTable =
+    !!title.hosts_count && !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source);
 
   const hasEditPermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
@@ -77,7 +79,7 @@ const SoftwareSummaryCard = ({
           title={title.name}
           type={formatSoftwareType(title)}
           versions={title.versions?.length ?? 0}
-          hosts={title.hosts_count}
+          hostCount={title.hosts_count}
           countsUpdatedAt={title.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,

@@ -30,7 +30,7 @@ const baseClass = "software-details-summary";
 interface ISoftwareDetailsSummaryProps {
   title: string;
   type?: string;
-  hosts: number;
+  hostCount?: number;
   countsUpdatedAt?: string;
   /** The query param that will be added when user clicks on the host count
    * Optional as isPreview mode doesn't have host count/link
@@ -54,7 +54,7 @@ interface ISoftwareDetailsSummaryProps {
 const SoftwareDetailsSummary = ({
   title,
   type,
-  hosts,
+  hostCount,
   countsUpdatedAt,
   queryParams,
   name,
@@ -71,8 +71,7 @@ const SoftwareDetailsSummary = ({
   // Remove host count for tgz_packages, sh_packages, and ps1_packages only
   // or if viewing details summary from edit icon preview modal
   const showHostCount =
-    !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source || "") &&
-    iconPreviewUrl === undefined;
+    !!hostCount && !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source || "");
 
   const renderSoftwareIcon = () => {
     if (
@@ -143,7 +142,7 @@ const SoftwareDetailsSummary = ({
                       <TooltipWrapper tipContent="View all hosts">
                         <CustomLink
                           url={hostCountPath}
-                          text={hosts.toString()}
+                          text={hostCount.toString()}
                         />
                       </TooltipWrapper>
                     }
