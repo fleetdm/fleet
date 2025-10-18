@@ -101,6 +101,7 @@ module.exports = {
         DeviceId: deviceId,
         DeviceName: deviceName,
         UserId: informationAboutThisUser.id,
+        PartnerId: sails.config.custom.compliancePartnerClientId,
         // LastCheckInTime is a global timestamp indicating the time of device sync with partner service.
         LastCheckInTime: new Date(lastCheckInTime * 1000).toISOString(),
         // LastUpdateTime is a global timestamp indicating the order of messages.
