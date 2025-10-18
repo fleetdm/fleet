@@ -858,6 +858,18 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
+  '' AS browser,
+  'npm_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM npm_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
   '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
