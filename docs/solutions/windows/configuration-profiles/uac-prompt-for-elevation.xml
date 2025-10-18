@@ -1,0 +1,12 @@
+<Replace>
+    <!-- User Account Control key, 1 = enabled -->
+    <Item>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/UserAccountControl_DetectApplicationInstallationsAndPromptForElevation</LocURI>
+        </Target>
+        <Data>1</Data>
+    </Item>
+</Replace>
