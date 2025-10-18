@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -14,7 +15,9 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -971,10 +974,10 @@ func TestHostAuth(t *testing.T) {
 			err = svc.RefetchHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.SetCustomHostDeviceMapping(ctx, 1, "a@b.c")
+			_, err = svc.SetHostDeviceMapping(ctx, 1, "a@b.c", "custom")
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.SetCustomHostDeviceMapping(ctx, 2, "a@b.c")
+			_, err = svc.SetHostDeviceMapping(ctx, 2, "a@b.c", "custom")
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			_, _, err = svc.ListHostSoftware(ctx, 1, fleet.HostSoftwareTitleListOptions{})
@@ -2788,5 +2791,200 @@ func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
 		require.NotNil(t, hostDetail.Software)
 		assert.Equal(t, expectedSoftware, hostDetail.Software)
 		assert.True(t, ds.LoadHostSoftwareFuncInvoked, "LoadHostSoftwareFunc should have been called")
+	})
+}
+
+func TestSetHostDeviceMapping(t *testing.T) {
+	t.Run("custom source success", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: source}}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "custom")
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateCustomHostDeviceMappingFuncInvoked)
+		require.NotNil(t, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, uint(1), result[0].HostID)
+		assert.Equal(t, "user@example.com", result[0].Email)
+	})
+
+	t.Run("empty source defaults to custom", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+			require.Equal(t, fleet.DeviceMappingCustomOverride, source)                                                          // Should store as custom_override for user-authenticated calls
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: fleet.DeviceMappingCustomReplacement}}, nil // But return as "custom" for display
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "")
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateCustomHostDeviceMappingFuncInvoked)
+		require.NotNil(t, result)
+	})
+
+	t.Run("IDP source success with valid SCIM user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{ID: 1, UserName: "user@example.com"}, nil
+		}
+		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
+			return nil
+		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
+			return nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
+		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should be called since SCIM user exists
+		require.NotNil(t, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, uint(1), result[0].HostID)
+		assert.Equal(t, "user@example.com", result[0].Email)
+		assert.Equal(t, fleet.DeviceMappingIDP, result[0].Source)
+	})
+
+	t.Run("IDP source success with any username when SCIM user not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return nil, sql.ErrNoRows // SCIM user not found
+		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
+			return nil
+		}
+		ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "any@username.com", fleet.DeviceMappingIDP)
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should NOT be called since SCIM user doesn't exist
+		require.True(t, ds.DeleteHostSCIMUserMappingFuncInvoked)       // Should be called to remove any existing SCIM mapping
+		require.NotNil(t, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, uint(1), result[0].HostID)
+		assert.Equal(t, "any@username.com", result[0].Email)
+		assert.Equal(t, fleet.DeviceMappingIDP, result[0].Source)
+	})
+
+	t.Run("IDP source fails without premium license", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
+		require.Error(t, err)
+		assert.Equal(t, fleet.ErrMissingLicense, err)
+	})
+
+	t.Run("invalid source returns validation error", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "invalid")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must be 'custom' or 'idp'")
+		require.True(t, ds.HostLiteFuncInvoked) // Authorization was checked
+	})
+
+	t.Run("authorization failure for observer user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+
+		// Use observer user who shouldn't have write permission
+		user := &fleet.User{
+			ID:         42,
+			Email:      "observer@example.com",
+			GlobalRole: ptr.String(fleet.RoleObserver),
+		}
+		userCtx := viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "custom")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "forbidden")
+	})
+
+	t.Run("host not found returns error", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, sql.ErrNoRows
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 999, "user@example.com", "custom")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "get host")
+	})
+
+	t.Run("orbit installer source override", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		// Create orbit context that simulates installer authentication
+		authzCtx := &authzctx.AuthorizationContext{}
+		orbitCtx := authzctx.NewContext(ctx, authzCtx)
+		orbitCtx = hostctx.NewContext(orbitCtx, &fleet.Host{ID: 1})
+		if ac, ok := authzctx.FromContext(orbitCtx); ok {
+			ac.SetAuthnMethod(authzctx.AuthnOrbitToken)
+		}
+
+		ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+			// Should use installer source for orbit token
+			require.Equal(t, fleet.DeviceMappingCustomInstaller, source)
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: source}}, nil
+		}
+
+		result, err := svc.SetHostDeviceMapping(orbitCtx, 1, "user@example.com", "custom")
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateCustomHostDeviceMappingFuncInvoked)
+		require.NotNil(t, result)
 	})
 }
