@@ -2,7 +2,7 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 data "git_repository" "tf" {
-  path = "${path.module}/../../../../"
+  directory = "${path.module}/../../../../"
 }
 
 data "aws_acm_certificate" "certificate" {
