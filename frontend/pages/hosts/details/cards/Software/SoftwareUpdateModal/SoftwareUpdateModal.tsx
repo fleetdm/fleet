@@ -6,7 +6,7 @@ import {
 } from "interfaces/software";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import ModalFooter from "components/ModalFooter";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
@@ -56,17 +56,16 @@ const StatusMessage = ({
   };
 
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon
-        name={
-          softwareStatus === "pending_install"
-            ? "pending-outline"
-            : "error-outline"
-        }
-        color="ui-fleet-black-50"
-      />
-      <span>{renderMessage()}</span>
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={
+        softwareStatus === "pending_install"
+          ? "pending-outline"
+          : "error-outline"
+      }
+      iconColor="ui-fleet-black-50"
+      message={<span>{renderMessage()}</span>}
+    />
   );
 };
 

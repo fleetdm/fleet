@@ -9,15 +9,6 @@
     gap: $pad-medium;
   }
 
-  &__status-message {
-    display: flex;
-    align-items: center;
-    gap: $pad-small;
-    margin: 0;
-    .icon {
-      align-self: flex-start;
-    }
-  }
   .data-set__horizontal {
     flex-direction: row;
   }
