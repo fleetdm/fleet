@@ -215,7 +215,7 @@ software:
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
       self_service: true
       icon:
-        - path: ../all/icons/zoom-logo.png
+        path: ../all/icons/zoom-logo.png
       categories:
         - Productivity
         - Communication
