@@ -221,10 +221,6 @@ software:
       self_service: true
       labels_include_any:
         - "Keynote installed"
-    - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
-      self_service: true
-      labels_include_any:
-        - "Conditional access test group"
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
       self_service: false
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
@@ -302,6 +298,10 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+    - slug: intune-company-portal/darwin # Company Portal for macOS
+      self_service: true
+      labels_include_any:
+        - "Conditional access test group"
     - slug: docker/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
