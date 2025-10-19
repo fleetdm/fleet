@@ -1,0 +1,13 @@
+ <Replace>
+  <CmdID>1</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/AboveLock/AllowToasts</LocURI>
+    </Target>
+    <Meta>
+      <Format>int</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Data>0</Data>
+  </Item>
+</Replace>
