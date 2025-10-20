@@ -7497,6 +7497,18 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
 
+	// try to set Okta conditional access settings, which is premium only
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"conditional_access": {
+			"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
+			"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
+			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
+			"okta_certificate": "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+		}
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
+
 	// try to set the windows updates, which is premium only
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 0} }

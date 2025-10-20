@@ -85,12 +85,20 @@ type SSOSettings struct {
 }
 
 // ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
+// This struct is used in API responses, combining Microsoft Entra (from database) and Okta (from AppConfig).
 type ConditionalAccessSettings struct {
 	// MicrosoftEntraTenantID is the Entra's tenant ID.
 	MicrosoftEntraTenantID string `json:"microsoft_entra_tenant_id"`
 	// MicrosoftEntraConnectionConfigured is true when the tenant has been configured
 	// for "Conditional access" on Entra and Fleet.
 	MicrosoftEntraConnectionConfigured bool `json:"microsoft_entra_connection_configured"`
+
+	// Okta conditional access settings - using optjson for partial updates
+	// All four fields must be set together or all must be empty.
+	OktaIDPID                       optjson.String `json:"okta_idp_id"`
+	OktaAssertionConsumerServiceURL optjson.String `json:"okta_assertion_consumer_service_url"`
+	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
+	OktaCertificate                 optjson.String `json:"okta_certificate"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -595,6 +603,10 @@ type AppConfig struct {
 	Scripts optjson.Slice[string] `json:"scripts"`
 
 	YaraRules []YaraRule `json:"yara_rules,omitempty"`
+
+	// ConditionalAccess holds the Okta conditional access settings that are stored in AppConfig.
+	// Note: In API responses, this is combined with Microsoft Entra settings from the database.
+	ConditionalAccess ConditionalAccessSettings `json:"conditional_access"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
