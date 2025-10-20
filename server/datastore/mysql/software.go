@@ -2490,6 +2490,10 @@ type hostSoftware struct {
 	VPPAppVersionList        *string `db:"vpp_app_version_list"`
 	VPPAppPlatformList       *string `db:"vpp_app_platform_list"`
 	VPPAppIconUrlList        *string `db:"vpp_app_icon_url_list"`
+	InHouseAppIDList         *string `db:"in_house_app_id_list"`
+	InHouseAppNameList       *string `db:"in_house_app_name_list"`
+	InHouseAppPlatformList   *string `db:"in_house_app_platform_list"`
+	InHouseAppVersionList    *string `db:"in_house_app_version_list"`
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
@@ -3012,82 +3016,79 @@ func filterInHouseAppsByLabel(
 	labelSQLFilter := `
 			WITH no_labels AS (
 				SELECT
-					vpp_apps_teams.id AS team_id,
+					iha.id AS in_house_app_id,
 					0 AS count_installer_labels,
 					0 AS count_host_labels,
 					0 as count_host_updated_after_labels
 				FROM
-					vpp_apps_teams
+					in_house_apps iha
 				WHERE NOT EXISTS (
 					SELECT 1
-					FROM vpp_app_team_labels
-					WHERE vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+					FROM in_house_app_labels ihl
+					WHERE ihl.in_house_app_id = iha.id
 				)
 			),
 			include_any AS (
 				SELECT
-					vpp_apps_teams.id AS team_id,
-					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
-					COUNT(label_membership.label_id) AS count_host_labels,
+					iha.id AS in_house_app_id,
+					COUNT(ihl.label_id) AS count_installer_labels,
+					COUNT(lm.label_id) AS count_host_labels,
 					0 as count_host_updated_after_labels
 				FROM
-					vpp_apps_teams
-				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 0
-				LEFT JOIN label_membership
-					ON label_membership.label_id = vpp_app_team_labels.label_id
-					AND label_membership.host_id = :host_id
+					in_house_apps iha
+				INNER JOIN in_house_app_labels ihl ON 
+					ihl.in_house_app_id = iha.id AND ihl.exclude = 0
+				LEFT JOIN label_membership lm ON 
+					lm.label_id = ihl.label_id AND lm.host_id = :host_id
 				GROUP BY
-					vpp_apps_teams.id
+					iha.id
 				HAVING
 					count_installer_labels > 0 AND count_host_labels > 0
 			),
 			exclude_any AS (
 				SELECT
-					vpp_apps_teams.id AS team_id,
-					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
-					COUNT(label_membership.label_id) AS count_host_labels,
+					iha.id AS in_house_app_id,
+					COUNT(ihl.label_id) AS count_installer_labels,
+					COUNT(lm.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at THEN 1
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 1 THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
 				FROM
-					vpp_apps_teams
-				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 1
-				INNER JOIN labels
-					ON labels.id = vpp_app_team_labels.label_id
-				LEFT OUTER JOIN label_membership
-					ON label_membership.label_id = vpp_app_team_labels.label_id AND label_membership.host_id = :host_id
+					in_house_apps iha
+				INNER JOIN in_house_app_labels ihl ON 
+					ihl.in_house_app_id = iha.id AND ihl.exclude = 1
+				INNER JOIN labels lbl ON 
+					lbl.id = ihl.label_id
+				LEFT OUTER JOIN label_membership lm ON 
+					lm.label_id = ihl.label_id AND lm.host_id = :host_id
 				GROUP BY
 					vpp_apps_teams.id
 				HAVING
-					count_installer_labels > 0
-					AND count_installer_labels = count_host_updated_after_labels
-					AND count_host_labels = 0
+					count_installer_labels > 0 AND 
+					count_installer_labels = count_host_updated_after_labels AND 
+					count_host_labels = 0
 			)
 			SELECT
-				vpp_apps.adam_id AS adam_id,
-				vpp_apps.title_id AS title_id
+				iha.id AS in_house_id,
+				iha.title_id AS title_id
 			FROM
-				vpp_apps
-			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+				in_house_apps iha
 			LEFT JOIN no_labels
-				ON no_labels.team_id = vpp_apps_teams.id
+				ON no_labels.in_house_app_id = iha.id
 			LEFT JOIN include_any
-				ON include_any.team_id = vpp_apps_teams.id
+				ON include_any.in_house_app_id = iha.id
 			LEFT JOIN exclude_any
-				ON exclude_any.team_id = vpp_apps_teams.id
+				ON exclude_any.in_house_app_id = iha.id
 			WHERE
-				vpp_apps.adam_id IN (:vpp_app_adam_ids)
-				AND (
-					no_labels.team_id IS NOT NULL
-					OR include_any.team_id IS NOT NULL
-					OR exclude_any.team_id IS NOT NULL
+				iha.global_or_team_id = :global_or_team_id AND
+				iha.id IN (:in_house_ids) AND (
+					no_labels.in_house_app_id IS NOT NULL OR 
+					include_any.in_house_app_id IS NOT NULL OR 
+					exclude_any.in_house_app_id IS NOT NULL
 				)
 		`
 
@@ -3119,11 +3120,11 @@ func filterInHouseAppsByLabel(
 	// ability to reinstall in self-service) vs. in-house apps that Fleet knows about but either
 	// weren't installed by Fleet or were installed by Fleet but are no longer in scope
 	// (treat as in inventory and not re-installable in self-service)
-	for _, validAppApp := range validInHouseApps {
-		if _, ok := byVppAppID[validAppApp.AdamId]; ok {
-			filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
-		} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleID]; ok {
-			otherVppAppsInInventory[validAppApp.AdamId] = svpp
+	for _, validApp := range validInHouseApps {
+		if _, ok := byInHouseID[validApp.InHouseID]; ok {
+			filteredByInHouseID[validApp.InHouseID] = byInHouseID[validApp.InHouseID]
+		} else if installed, ok := hostInHouseInstalledTitles[validApp.TitleID]; ok {
+			otherInHouseAppsInInventory[validApp.InHouseID] = installed
 		}
 	}
 
@@ -3926,10 +3927,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 							-- no labels
 							SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
-							WHERE 
-								NOT EXISTS (SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id) AND 
+							WHERE
+								NOT EXISTS (SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id) AND
 								NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id) AND
-								NOT EXISTS (SELECT 1 FROM in_house_app_labels ihl WHERE ihl.in_house_app_id = iha.id) 
+								NOT EXISTS (SELECT 1 FROM in_house_app_labels ihl WHERE ihl.in_house_app_id = iha.id)
 
 							UNION
 
@@ -4460,13 +4461,23 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		vppTitleIDs = append(vppTitleIDs, v.ID)
 	}
 
+	var inHouseIDs []uint
+	var inHouseTitleIDs []uint
+	for key, v := range byInHouseID {
+		inHouseIDs = append(inHouseIDs, key)
+		inHouseTitleIDs = append(inHouseTitleIDs, v.ID)
+	}
+
 	var titleCount uint
 	var hostSoftwareList []*hostSoftware
-	if len(softwareTitleIDs) > 0 || len(vppAdamIDs) > 0 {
-		var args []interface{}
-		var stmt string
-		var softwareTitleStatement string
-		var vppAdamStatment string
+	if len(softwareTitleIDs) > 0 || len(vppAdamIDs) > 0 || len(inHouseIDs) > 0 {
+		var (
+			args                   []interface{}
+			stmt                   string
+			softwareTitleStatement string
+			vppAdamStatment        string
+			inHouseStatment        string
+		)
 
 		matchClause := ""
 		matchArgs := []interface{}{}
@@ -4474,6 +4485,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name")
 		}
 
+		// NOTE: no self-service support for in-house apps yet
 		var softwareOnlySelfServiceClause string
 		var vppOnlySelfServiceClause string
 		if opts.SelfServiceOnly {
@@ -4644,19 +4656,61 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			stmt += vppAdamStatement
 		}
 
+		if !opts.VulnerableOnly && len(inHouseIDs) > 0 {
+			if len(softwareTitleIDs) > 0 || len(vppAdamIDs) > 0 {
+				inHouseStatment = ` UNION `
+			}
+
+			inHouseStatment += `
+			-- SELECT for in-house apps
+			%s
+			FROM
+				software_titles
+			INNER JOIN in_house_apps ON 
+				software_titles.id = in_house_apps.title_id AND in_house_apps.platform = :host_platform AND in_house_apps.global_or_team_id = :global_or_team_id
+			WHERE
+				in_house_apps.id IN (?)
+				AND true
+			-- GROUP BY for in-house apps
+			%s
+			`
+
+			inHouseStatement, inHouseArgs, err := sqlx.In(inHouseStatment, inHouseIDs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for in-house titles")
+			}
+			inHouseStatement, inHouseArgsNamedArgs, err := sqlx.Named(inHouseStatement, namedArgs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for in-house titles")
+			}
+			inHouseStatement = strings.ReplaceAll(inHouseStatement, "AND true", matchClause)
+			args = append(args, inHouseArgsNamedArgs...)
+			args = append(args, inHouseArgs...)
+			if len(matchArgs) > 0 {
+				args = append(args, matchArgs...)
+			}
+			stmt += inHouseStatment
+		}
+
 		var countStmt string
-		// we do not scan vulnerabilities on vpp software available for install
+		var sprintfArgs []any
+		// we do not scan vulnerabilities on vpp/in-house software available for install
+		includeSoftwareTitles := len(softwareTitleIDs) > 0
 		includeVPP := !opts.VulnerableOnly && len(vppAdamIDs) > 0
-		switch {
-		case len(softwareTitleIDs) > 0 && includeVPP:
-			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
-		case len(softwareTitleIDs) > 0:
-			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`)
-		case includeVPP:
-			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
-		default:
+		includeInHouse := !opts.VulnerableOnly && len(inHouseIDs) > 0
+		if includeSoftwareTitles {
+			sprintfArgs = append(sprintfArgs, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`)
+		}
+		if includeVPP {
+			sprintfArgs = append(sprintfArgs, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
+		}
+		if includeInHouse {
+			sprintfArgs = append(sprintfArgs, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
+		}
+		if len(sprintfArgs) == 0 {
 			return []*fleet.HostSoftwareWithInstaller{}, &fleet.PaginationMetadata{}, nil
 		}
+		countStmt = fmt.Sprintf(stmt, sprintfArgs...)
 
 		if err := sqlx.GetContext(
 			ctx,
@@ -4692,7 +4746,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS vpp_app_version_list,
 					NULL AS vpp_app_platform_list,
 					NULL AS vpp_app_icon_url_list,
-					NULL AS vpp_app_self_service_list
+					NULL AS vpp_app_self_service_list,
+					NULL AS in_house_app_id_list,
+					NULL AS in_house_app_name_list,
+					NULL AS in_house_app_version_list,
+					NULL as in_house_app_platform_list
 			`, softwareVulnerableJoin, `
 				GROUP BY
 					software_titles.id,
@@ -4729,7 +4787,48 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					GROUP_CONCAT(vpp_apps.latest_version) AS vpp_app_version_list,
 					GROUP_CONCAT(vpp_apps.platform) as vpp_app_platform_list,
 					GROUP_CONCAT(vpp_apps.icon_url) AS vpp_app_icon_url_list,
-					GROUP_CONCAT(vpp_apps_teams.self_service) AS vpp_app_self_service_list
+					GROUP_CONCAT(vpp_apps_teams.self_service) AS vpp_app_self_service_list,
+					NULL AS in_house_app_id_list,
+					NULL AS in_house_app_name_list,
+					NULL AS in_house_app_version_list,
+					NULL as in_house_app_platform_list
+			`, `
+				GROUP BY
+					software_titles.id,
+					software_titles.name,
+					software_titles.source,
+					software_titles.extension_for
+			`)
+		}
+
+		if includeInHouse {
+			replacements = append(replacements,
+				// For in-house apps
+				`
+				SELECT
+					software_titles.id,
+					software_titles.name,
+					software_titles.source AS source,
+					software_titles.extension_for AS extension_for,
+					NULL AS installer_id,
+					NULL AS package_self_service,
+					NULL AS package_name,
+					NULL AS package_version,
+					NULL as package_platform,
+					NULL AS software_id_list,
+					NULL AS software_source_list,
+					NULL AS software_extension_for_list,
+					NULL AS version_list,
+					NULL AS bundle_identifier_list,
+					NULL AS vpp_app_adam_id_list,
+					NULL AS vpp_app_version_list,
+					NULL as vpp_app_platform_list,
+					NULL AS vpp_app_icon_url_list,
+					NULL AS vpp_app_self_service_list,
+					GROUP_CONCAT(in_house_apps.id) AS in_house_app_id_list,
+					GROUP_CONCAT(in_house_apps.name) AS in_house_app_name_list,
+					GROUP_CONCAT(in_house_apps.version) AS in_house_app_version_list,
+					GROUP_CONCAT(in_house_apps.platform) as in_house_app_platform_list
 			`, `
 				GROUP BY
 					software_titles.id,
@@ -4801,6 +4900,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if host.TeamID != nil {
 			teamID = *host.TeamID // Team host
 		}
+		// NOTE: in-house apps do not support automatic install policies at the moment
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, append(vppTitleIDs, softwareTitleIDs...), teamID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
@@ -4811,7 +4911,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
 		}
 
-		iconsBySoftwareTitleID, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, append(vppTitleIDs, softwareTitleIDs...))
+		iconsBySoftwareTitleID, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, append(append(vppTitleIDs, inHouseTitleIDs...), softwareTitleIDs...))
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
@@ -4821,6 +4921,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		for _, softwareTitleRecord := range hostSoftwareList {
 			softwareTitle := bySoftwareTitleID[softwareTitleRecord.ID]
 			inventoriedVPPApp := hostVPPInstalledTitles[softwareTitleRecord.ID]
+			inventoriedInHouseApp := hostInHouseInstalledTitles[softwareTitleRecord.ID]
 
 			if softwareTitle != nil && softwareTitle.SoftwareID != nil {
 				// if we have a software id, that means that this record has been installed on the host,
@@ -4835,6 +4936,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				// Vpp app installed on the host, we need to push this into the installed versions list as well
 				if s, ok := hostInstalledSoftwareSet[*inventoriedVPPApp.SoftwareID]; ok {
 					softwareIDStr := strconv.FormatUint(uint64(*inventoriedVPPApp.SoftwareID), 10)
+					pushVersion(softwareIDStr, softwareTitleRecord, *s)
+				}
+			}
+			if inventoriedInHouseApp != nil && inventoriedInHouseApp.SoftwareID != nil {
+				// in-house app installed on the host, we need to push this into the installed versions list as well
+				if s, ok := hostInstalledSoftwareSet[*inventoriedInHouseApp.SoftwareID]; ok {
+					softwareIDStr := strconv.FormatUint(uint64(*inventoriedInHouseApp.SoftwareID), 10)
 					pushVersion(softwareIDStr, softwareTitleRecord, *s)
 				}
 			}
@@ -4918,6 +5026,43 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 			}
 
+			if softwareTitleRecord.InHouseAppIDList != nil {
+				inHouseAppIDList := strings.Split(*softwareTitleRecord.InHouseAppIDList, ",")
+				inHouseAppVersionList := strings.Split(*softwareTitleRecord.InHouseAppVersionList, ",")
+				inHouseAppPlatformList := strings.Split(*softwareTitleRecord.InHouseAppPlatformList, ",")
+				inHouseAppNameList := strings.Split(*softwareTitleRecord.InHouseAppNameList, ",")
+
+				if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+					softwareTitleRecord = deduplicatedList[storedIndex]
+				}
+
+				for index, inHouseAppIDStr := range inHouseAppIDList {
+					inHouseID64, err := strconv.ParseUint(inHouseAppIDStr, 10, 32)
+					if err != nil {
+						continue
+					}
+
+					inHouseID := uint(inHouseID64)
+
+					softwareTitle = byInHouseID[inHouseID]
+					softwareTitleRecord.InHouseAppID = &inHouseID
+
+					inHouseAppVersion := inHouseAppVersionList[index]
+					if inHouseAppVersion != "" {
+						softwareTitleRecord.InHouseAppVersion = &inHouseAppVersion
+					}
+
+					inHouseAppPlatform := inHouseAppPlatformList[index]
+					if inHouseAppPlatform != "" {
+						softwareTitleRecord.InHouseAppPlatform = &inHouseAppPlatform
+					}
+					inHouseAppName := inHouseAppNameList[index]
+					if inHouseAppName != "" {
+						softwareTitleRecord.InHouseAppName = &inHouseAppName
+					}
+				}
+			}
+
 			if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
 				softwareTitleRecord = deduplicatedList[storedIndex]
 			}
@@ -4934,6 +5079,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
 				}
 			}
+
+			// TODO(mna): I'm done up to here...
 
 			// promote the package name and version to the proper destination fields
 			if softwareTitleRecord.PackageName != nil {
@@ -4958,6 +5105,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 			}
 
+			// NOTE: in-house apps do not support automatic install policies at the moment
 			if policies, ok := policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
 				switch {
 				case softwareTitleRecord.AppStoreApp != nil:
