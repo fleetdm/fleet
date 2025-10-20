@@ -19,6 +19,7 @@ import (
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	kitlog "github.com/go-kit/log"
@@ -109,10 +110,22 @@ func run(cfg *Config) error {
 		}
 
 		err = ac.extractAppVersion(installerTFR)
-		installerTFR.Close()
 		if err != nil {
 			level.Error(appLogger).Log("msg", fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
 			appWithError = append(appWithError, ac.Name)
+		}
+
+		hash, err := file.SHA256FromTempFileReader(installerTFR)
+		installerTFR.Close()
+		if err != nil {
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error checking if sha256 hash matches: %v", err))
+			appWithError = append(appWithError, ac.Name)
+			continue
+		}
+		if hash != maintainedApp.SHA256 {
+			level.Error(appLogger).Log("msg", "SHA256 hash in manifest does not match installer file hash")
+			frozenApps = append(appWithError, ac.Name)
+			continue
 		}
 
 		// If application is already installed, attempt to uninstall it
