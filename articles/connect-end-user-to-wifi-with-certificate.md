@@ -6,6 +6,12 @@ Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates 
 
 Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
+> Currently, for NDES and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's CN (Common Name) for automatic renewal to work. Since the CN has a maximum length of 64 characters, any characters beyond this limit get truncated, causing the renewal to fail.
+>
+> The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
+>
+> If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
+
 ## DigiCert
 
 The following steps show how to connect end users to Wi-Fi or VPN with DigiCert certificates.
@@ -467,6 +473,7 @@ CLIENT_ID="<OAuth-IdP-client-ID>"
 Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e. if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com")
 
 ### Step 4: Create a custom policy
+
 
 1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect the certificate's existence and if it expires in the next 30 days:
 

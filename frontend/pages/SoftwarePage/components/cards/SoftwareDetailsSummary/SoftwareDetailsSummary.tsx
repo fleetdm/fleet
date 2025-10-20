@@ -8,7 +8,10 @@ import React from "react";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import paths from "router/paths";
-import { NO_VERSION_OR_HOST_DATA_SOURCES } from "interfaces/software";
+import {
+  NO_VERSION_OR_HOST_DATA_SOURCES,
+  ROLLING_ARCH_LINUX_VERSIONS,
+} from "interfaces/software";
 
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
@@ -106,14 +109,12 @@ const SoftwareDetailsSummary = ({
         )}
         <dl className={`${baseClass}__info`}>
           <h1>
-            {title === "Arch Linux rolling" ||
-            title === "Arch Linux ARM rolling" ||
-            title === "Manjaro Linux rolling" ||
-            title === "Manjaro Linux ARM rolling" ? (
-              <span>
-                {title.slice(0, -7 /* removing lowercase rolling suffix */)}
+            {ROLLING_ARCH_LINUX_VERSIONS.includes(title) ? (
+              // wrap a tooltip around the "rolling" suffix
+              <>
+                {title.slice(0, -8)}
                 <TooltipWrapperArchLinuxRolling />
-              </span>
+              </>
             ) : (
               title
             )}

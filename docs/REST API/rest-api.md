@@ -655,6 +655,10 @@ Object with the following structure:
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 ##### smallstep
 
 Object with the following structure:
@@ -681,7 +685,7 @@ Object with the following structure:
     "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
     "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
     "certificate_user_principal_names": [
-      "$FLEET_VAR_HOST_HARDWARE_SERIAL"
+      "$FLEET_VAR_HOST_HARDWARE_SERIAL",
     ],
     "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
   }
@@ -701,6 +705,8 @@ Object with the following structure:
 ```
 
 ### Edit certificate authority (CA)
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/certificate_authorities/:id`
 
@@ -738,6 +744,8 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
 `Status: 200`
 
 ### List certificate authorities (CAs)
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `GET /api/v1/fleet/certificate_authorities`
 
@@ -788,6 +796,8 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
 
 ### Get certificate authority (CA)
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 Get details of the certificate authority.
 
 `GET /api/v1/fleet/certificate_authorities/:id`
@@ -796,7 +806,7 @@ Get details of the certificate authority.
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| id   | integer | body | **Required**. The ID of the certificate authority. |
+| id   | integer | body | **Required**. The ID of certificate authority. |
 
 #### Example
 
@@ -816,13 +826,15 @@ Get details of the certificate authority.
   "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
   "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   "certificate_user_principal_names": [
-    "$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
 ```
 
 ### Delete certificate authority (CA)
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 When the CA is deleted, the issued certificates will remain on existing hosts.
 
@@ -852,7 +864,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
-| id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
+| id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
@@ -879,7 +891,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 ```json
 {
-  "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
+  "certificate": "c3Viamdlkjfid098)d8f2k34jl;Yy4iLCBPVSA9IE1hbmFnZWQgTGludXgsIENOID0gQ2lzY29Vc2VyTmV0d29ya0FjY2Vzcwppc3N1ZXI9TyA9IENpc2NvLCBPVSA9IEVyaWRhbnVzLCBDTiA9IENpc2NvTmV0d29ya0FjY2VzcwotLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0KTUlJRkpUQ0NCQTJnQXdJQkFnSVVlSjdhYlBKd29QL0tXRlhvOXE4RmVrQlVqN293RFFZSktvWklodmNOQVFFTApCUUF3UURFT01Bd0dBMVVFQ2hNRlEybHpZMjh4RVRBUEJnTlZCQXNUQ0VWeWFXUmhiblZ6TVJzd0dRWURWUVFECkV4SkRhWE5qYjA1bGRIalskdjf098)DFj23lk4jRVMldoY05NalV3TnpJME1UYzAKTlRVMldqQlhNUnd3R2dZRFZRUUtEQk5EYVhOamJ5QlRlWE4wWlcxekxDQkpibU11TVJZd0ZBWURWUVFMREExTgpZVzVoWjJWa0lFeHBiblY0TVI4d0hRWURWUVFEREJaRGFYTmpiMVZ6WlhKT1pYUjNiM0pyUVdOalpYTnpNSUlCCklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF4dFZmWE1xaVMyelRPTEI4WE1ESFBEZmEKMjZIY2ZBdHpmOUVmMk1rQkdrL1VHNVJaTGFrZU0rTDltc0NXaWV0Wllkdf098DSlk23n34,nxo0dfQVdkRHpDbjM0MG1iaUFhS1lIb3JIczVYWW1uSmlrRkYyQgpsQThWWWpTZFZPNGVEN2QvVytwaGo2a2FZQ212dDcwL2tUaDFYL0QzZmM1U0Z4T09OSnZHeVY2MzlvVm9Qd0lECkFRQUJvNElCL2pDQ0Fmb3dEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCUmpwK2lwUENWTHJXWnkKTlIxdnBDc0owd2Y5WURDQmdnWUlLd1lCQlFVSEFRRUVkakIwTUVNR0NDc0dBUVVGQnpBQ2hqZG9kSFJ3T2k4dgpZM0pzTG1sdWRHVnlibUZzYUc5emRHNWhiV1Z6TG1OdmJTOURhWE5qYjA1bGRIZHZjbXRCWTJObGMzTXVZM0owCk1DMEdDQ3NHQVFVRkJ6QUJoaUZvZEhSd09pOHZiMk56Y0M1cGJuUmxjbTVoYkdodmMzUnVZVzFsY3k1amIyMHcKZ1p3R0ExVWRFUVNCbERDQmtZSVdRMmx6WTI5VmMyVnlUbVYwZDI5eWEwRmpZMlZ6YzRJSlkybHpZMjh1WTI5dApnUkp5WVdocGJXWjBaRUJqYVhOamJ5NWpiMjJnSWdZS0t3WUJCQUdDTnhRQ0E2QVVEQkp5WVdocGJXWjBaRUJqCmFYTmpieTVqYjIyR05FbEVPa1pzWldWMFJFMDZSMVZKUkRwa05XVmtOamMwWXkweU5XTXpMVEV4WWpJdFlUZzEKWXkxalpXTm1NVGc1WVRneFpUSXdGd1lEVlIwZ0JCQXdEakFNQmdvckJnRUVBUWtWQVNvQk1CTUdBMVVkSlFRTQpNQW9HQ0NzR0FRVUZCd01DTUVnR0ExVWRId1JCTUQ4d1BhQTdvRG1HTjJoMGRIQTZMeTlqY213dWFXNTBaWEp1CllXeG9iM04wYm1GdFpYTXVZMjl0TDBOcGMyTnZUbVYwZDI5eWEwRmpZMlZ6Y3k1amNtd3dIUVlEVlIwT0JCWUUKRkF0NjBHd0FwbVoyUkUrNFZsbkxEYkZhZGErTE1BNEdBMVVkRHdFQi93UUVBd0lGb0RBTkJna3Foa2lHOXcwQgpBUXNGQUFPQ0FRRUFsdnRseFJUaVlOVEQvWGpldkswT1BsaVhOdUtjVWlRcW5VSDlIZXowa0d6aWpHUkxrZ1VvCnRLbEJDRTB5QjNyOGhJd3dKbDRPS1cvUzdITXFnY2FNanJTaHIwamlsNDQwNXdOaHBGbzZHRkQwSTFzWjE5eFoKL21BMndsUkY0QkZoZ2QraUE5ZnpRNmNxdVFuV3JlemQxcUxNV0hpOGR5QUJ1c1VBQVZ1OUZORFU4N3BZa0Y4MgpsTjJVSTRLSUZlRDJnTDBXeFpzOVlWTGJlZG1MY0FhZk9HcmtuUDZvVlZMNGxzV1VYQlYxR2tydlkxNWUySnVkCkhVSVEvOTVKTWlkbm1EQVZCbjg1MjA2eDkxbXM3S1lYSmI0aW0yOFBtc1BrN1JJVnJNb2w5dkFlU2ppbHQ1eS8KVitacFBwSmtwWWRyNVpEeWI3WDcwMjR0ZU42QUxmZWRjZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KCg=="
 }
 ```
 
@@ -6625,10 +6637,14 @@ List software that can be automatically installed during setup. If `install_duri
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 <<<<<<< HEAD
+<<<<<<< HEAD
 | platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
 =======
 | platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
 >>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
+=======
+| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6701,7 +6717,11 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
+<<<<<<< HEAD
 | platform | string  | query |   Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
+=======
+| platform | string  | query |  Platform to update software for. Either `"macos"`, `"windows"`, or `"linux"`.  Defaults to `"macos"`. |
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
@@ -9994,6 +10014,7 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
+<<<<<<< HEAD
     },
     {
       "id": 12,
@@ -10018,6 +10039,8 @@ Get a list of all software.
           "vulnerabilities": null
         }
       ],
+=======
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
     }
   ],
   "meta": {
