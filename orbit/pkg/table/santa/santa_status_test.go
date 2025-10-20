@@ -25,16 +25,22 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	row := rows[0]
 
 	// spot check a few fields and types
-	require.Equal(t, "2025-09-01T12:34:56Z", row["last_successful_rule"])
-	require.Equal(t, "apns", row["push_notifications"])
-	require.Equal(t, "1", row["bundle_scanning"]) // bool → "1"
+	require.Equal(t, "", row["last_successful_rule"])
+	require.Equal(t, "", row["push_notifications"])
+	require.Equal(t, "0", row["bundle_scanning"]) // bool → "0"
 	require.Equal(t, "0", row["clean_required"])
-	require.Equal(t, "monitor", row["mode"])
-	require.Equal(t, "3", row["watchdog_cpu_events"])
-	require.Equal(t, "42", row["root_cache_count"])
-	require.Equal(t, "1", row["watch_items_enabled"])
+	require.Equal(t, "Monitor", row["mode"])
+	require.Equal(t, "0", row["watchdog_cpu_events"])
+	require.Equal(t, "3", row["watchdog_ram_events"])
+	require.Equal(t, "175", row["root_cache_count"])
+	require.Equal(t, "0", row["watch_items_enabled"])
+	require.Equal(t, "1", row["file_logging"])
+	require.Equal(t, "file", row["log_type"])
+	require.Equal(t, "6", row["static_rule_count"])
+	require.Equal(t, "rdonly", row["remount_usb_mode"])
 	// float formatting should be plain (no trailing zeros or scientific unless big)
-	require.True(t, strings.Contains(row["watchdog_ram_peak"], "1024"))
+	require.True(t, strings.Contains(row["watchdog_ram_peak"], "252.453125"))
+	require.True(t, strings.Contains(row["watchdog_cpu_peak"], "4.759"))
 }
 
 func TestGenerateStatus_CommandErrorReturnsEmptyNoError(t *testing.T) {
@@ -167,7 +173,7 @@ func sampleStatusJSON() string {
 		"watchdog_ram_peak" : 252.453125,
 		"watchdog_cpu_peak" : 4.7590483333333333,
 		"file_logging" : true,
-		"remount_usb_mode" : "",
+		"remount_usb_mode" : "rdonly",
 		"on_start_usb_options" : "None"
 	},
 	"sync" : {

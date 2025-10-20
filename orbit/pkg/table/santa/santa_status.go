@@ -34,7 +34,7 @@ type santaStatus struct {
 		Mode              string  `json:"mode"`
 		WatchdogCpuPeak   float64 `json:"watchdog_cpu_peak"`
 		WatchdogRamPeak   float64 `json:"watchdog_ram_peak"`
-		TransitiveRules   bool    `json:"transitive_rules"`
+		StaticRules       int     `json:"static_rules"`
 		RemountUsbMode    string  `json:"remount_usb_mode"`
 		BlockUsb          bool    `json:"block_usb"`
 		OnStartUsbOptions string  `json:"on_start_usb_options"`
@@ -43,20 +43,20 @@ type santaStatus struct {
 		RootCacheCount    int `json:"root_cache_count"`
 		NonRootCacheCount int `json:"non_root_cache_count"`
 	} `json:"cache"`
-	StaticRules struct {
-		RuleCount int `json:"rule_count"`
-	} `json:"static_rules"`
-	Database struct {
-		CertificateRules    int `json:"certificate_rules"`
-		CdhashRules         int `json:"cdhash_rules"`
-		TransitiveRules     int `json:"transitive_rules"`
-		TeamidRules         int `json:"teamid_rules"`
-		SigningidRules      int `json:"signingid_rules"`
-		CompilerRules       int `json:"compiler_rules"`
-		BinaryRules         int `json:"binary_rules"`
-		EventsPendingUpload int `json:"events_pending_upload"`
-	} `json:"database"`
+	RuleTypes struct {
+		CertificateRules int `json:"certificate_rules"`
+		CdhashRules      int `json:"cdhash_rules"`
+		TeamidRules      int `json:"teamid_rules"`
+		SigningidRules   int `json:"signingid_rules"`
+		BinaryRules      int `json:"binary_rules"`
+	} `json:"rule_types"`
+	TransitiveAllowlisting struct {
+		Enabled         bool `json:"enabled"`
+		CompilerRules   int  `json:"compiler_rules"`
+		TransitiveRules int  `json:"transitive_rules"`
+	} `json:"transitive_allowlisting"`
 	Sync struct {
+		Enabled            bool   `json:"enabled"`
 		LastSuccessfulRule string `json:"last_successful_rule"`
 		PushNotifications  string `json:"push_notifications"`
 		BundleScanning     bool   `json:"bundle_scanning"`
@@ -64,6 +64,9 @@ type santaStatus struct {
 		Server             string `json:"server"`
 		LastSuccessfulFull string `json:"last_successful_full"`
 	} `json:"sync"`
+	Metrics struct {
+		Enabled bool `json:"enabled"`
+	} `json:"metrics"`
 }
 
 func StatusColumns() []table.ColumnDefinition {
@@ -130,21 +133,21 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 		"mode":                     status.Daemon.Mode,
 		"watchdog_cpu_peak":        floatToString(status.Daemon.WatchdogCpuPeak),
 		"watchdog_ram_peak":        floatToString(status.Daemon.WatchdogRamPeak),
-		"transitive_rules_enabled": boolToIntString(status.Daemon.TransitiveRules),
+		"transitive_rules_enabled": boolToIntString(status.TransitiveAllowlisting.Enabled),
 		"remount_usb_mode":         status.Daemon.RemountUsbMode,
 		"block_usb":                boolToIntString(status.Daemon.BlockUsb),
 		"on_start_usb_options":     status.Daemon.OnStartUsbOptions,
 		"root_cache_count":         strconv.Itoa(status.Cache.RootCacheCount),
 		"non_root_cache_count":     strconv.Itoa(status.Cache.NonRootCacheCount),
-		"static_rule_count":        strconv.Itoa(status.StaticRules.RuleCount),
-		"certificate_rules":        strconv.Itoa(status.Database.CertificateRules),
-		"cdhash_rules":             strconv.Itoa(status.Database.CdhashRules),
-		"transitive_rules_count":   strconv.Itoa(status.Database.TransitiveRules),
-		"teamid_rules":             strconv.Itoa(status.Database.TeamidRules),
-		"signingid_rules":          strconv.Itoa(status.Database.SigningidRules),
-		"compiler_rules":           strconv.Itoa(status.Database.CompilerRules),
-		"binary_rules":             strconv.Itoa(status.Database.BinaryRules),
-		"events_pending_upload":    strconv.Itoa(status.Database.EventsPendingUpload),
+		"static_rule_count":        strconv.Itoa(status.Daemon.StaticRules),
+		"certificate_rules":        strconv.Itoa(status.RuleTypes.CertificateRules),
+		"cdhash_rules":             strconv.Itoa(status.RuleTypes.CdhashRules),
+		"transitive_rules_count":   strconv.Itoa(status.TransitiveAllowlisting.TransitiveRules),
+		"teamid_rules":             strconv.Itoa(status.RuleTypes.TeamidRules),
+		"signingid_rules":          strconv.Itoa(status.RuleTypes.SigningidRules),
+		"compiler_rules":           strconv.Itoa(status.TransitiveAllowlisting.CompilerRules),
+		"binary_rules":             strconv.Itoa(status.RuleTypes.BinaryRules),
+		"events_pending_upload":    "0",
 		"watch_items_enabled":      boolToIntString(status.WatchItems.Enabled),
 	}
 
