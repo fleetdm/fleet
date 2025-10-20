@@ -1007,7 +1007,10 @@ const (
 	IPadOSPlatform AppleDevicePlatform = "ipados"
 )
 
-var VPPAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+var (
+	VPPAppsPlatforms     = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+	InHouseAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform}
+)
 
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`
