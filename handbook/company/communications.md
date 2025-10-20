@@ -890,12 +890,12 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 ## Writing
 
 Learn how to write as Fleet: 
-- [Writing style](https://fleetdm.com/handbook/company/communication#writing-style)
-- [Writing types](https://fleetdm.com/handbook/company/communication#writing-types)
-- [Editing and publishing](https://fleetdm.com/handbook/company/communication#editing-and-publishing)
-- [Writing assistance](https://fleetdm.com/handbook/company/communication#writing-assistance).
-- [Writing mechanics](https://fleetdm.com/handbook/company/communication#writing-mechanics)
-- [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communication#writing-in-fleet-flavored-markdown)
+- [Writing style](https://fleetdm.com/handbook/company/communications#writing-style)
+- [Writing types](https://fleetdm.com/handbook/company/communications#writing-types)
+- [Editing and publishing](https://fleetdm.com/handbook/company/communications#editing-and-publishing)
+- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance).
+- [Writing mechanics](https://fleetdm.com/handbook/company/communications#writing-mechanics)
+- [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown)
 
 
 ### Writing style
