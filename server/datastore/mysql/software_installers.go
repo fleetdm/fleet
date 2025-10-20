@@ -199,6 +199,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 
 	// Insert in house app instead of software installer
 	if payload.Extension == "ipa" {
+		// Insert both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
 			Name:            payload.Title,
@@ -209,7 +210,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			Version:         payload.Version,
 		})
 		if err != nil {
-			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
+			return 0, 0, ctxerr.Wrap(ctx, err, "MatchOrCreateSoftwareInstaller: ")
 		}
 		return installerID, titleID, err
 	}
@@ -493,7 +494,6 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if err != nil {
 		return 0, err
 	}
-
 	return titleID, nil
 }
 
