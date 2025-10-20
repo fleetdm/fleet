@@ -1,0 +1,13 @@
+<Replace>
+  <CmdID>019a01a3-602f-7c7a-b8b5-0eed67562fbd</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WirelessDisplay/RequirePinForPairing</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>2</Data>
+  </Item>
+</Replace>
+
