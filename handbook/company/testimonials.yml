@@ -298,3 +298,11 @@
   quoteAuthorJobTitle: IT Systems Engineer
   quoteAuthorProfileImageFilename: testimonial-author-david-bodmer-48x48@2x.png
   productCategories: [Device management]
+  -
+  quote: We love GitOps. We use the Fleet API to pull host data, update fields, and ship it to other systems, then use the Fleet UI to visualize it all.
+  quoteLinkUrl: https://www.linkedin.com/in/phillipboushy/
+  quoteAuthorName: Phillip Boushy
+  quoteAuthorJobTitle: Lead Mac Engineer
+  quoteAuthorProfileImageFilename: testimonial-author-phillip-boushy-48x48@2x.png
+  productCategories: [Observability]
+
