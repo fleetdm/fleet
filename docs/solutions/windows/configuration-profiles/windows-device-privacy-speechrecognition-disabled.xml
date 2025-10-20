@@ -1,0 +1,13 @@
+<Replace>
+  <CmdID>019a014d-d026-785e-a469-7bc4a02491bb</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Privacy/AllowInputPersonalization</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>0</Data>
+  </Item>
+</Replace>
+
