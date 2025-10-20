@@ -41,12 +41,12 @@ const Secrets = () => {
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
-  const queryKey = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
+  const apiParams = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
   const { data, isFetching: isLoading, refetch } = useQuery<
     IListSecretsResponse,
     Error,
     IListSecretsResponse
-  >([queryKey], () => secretsAPI.getSecrets(queryKey));
+  >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
 
   const onClickAddSecret = () => {
     setShowAddModal(true);
@@ -113,12 +113,11 @@ const Secrets = () => {
               {getTokenFromSecretName(secret.name)}
             </span>
             <Button
-              variant="icon"
+              variant="unstyled"
               className={`${baseClass}__copy-secret-icon`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
                 onCopySecretName(e, secret.name)
               }
-              iconStroke
             >
               <Icon name="copy" />
             </Button>
@@ -132,14 +131,14 @@ const Secrets = () => {
       />
       {canEdit && (
         <Button
-          variant="icon"
+          variant="text-icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteSecret(secret);
           }}
         >
           <>
-            <Icon name="trash" />
+            <Icon name="trash" color="ui-fleet-black-75" />
           </>
         </Button>
       )}
@@ -176,33 +175,14 @@ const Secrets = () => {
   }
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__page-header`}>
-        <p className={`${baseClass}__description`}>
-          Manage custom variables that will be available in scripts and
-          profiles.{" "}
-          <CustomLink
-            text="Learn more"
-            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
-            newTab
-          />
-        </p>
-        {canEdit && (
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <span>
-                <Button
-                  variant="brand-inverse-icon"
-                  onClick={onClickAddSecret}
-                  disabled={disableChildren}
-                >
-                  <Icon name="plus" color="core-fleet-green" />
-                  <span>Add custom variable</span>
-                </Button>
-              </span>
-            )}
-          />
-        )}
-      </div>
+      <p className={`${baseClass}__description`}>
+        Manage custom variables that will be available in scripts and profiles.{" "}
+        <CustomLink
+          text="Learn more"
+          url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+          newTab
+        />
+      </p>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
         pageSize={SECRETS_PAGE_SIZE}
@@ -212,7 +192,27 @@ const Secrets = () => {
         currentPage={pageNumber}
         onChangePage={setPageNumber}
         onClickRow={(secret) => secret}
-        heading={<div className={`${baseClass}__header`}>Custom variables</div>}
+        heading={
+          <div className={`${baseClass}__header`}>
+            <span>Custom variables</span>
+            {canEdit && (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <span>
+                    <Button
+                      variant="text-icon"
+                      onClick={onClickAddSecret}
+                      disabled={disableChildren}
+                    >
+                      <Icon name="plus" />
+                      <span>Add custom variable</span>
+                    </Button>
+                  </span>
+                )}
+              />
+            )}
+          </div>
+        }
         helpText={
           <span>
             Profiles can also use any of Fleet&rsquo;s{" "}
