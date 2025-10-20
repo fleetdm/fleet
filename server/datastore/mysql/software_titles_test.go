@@ -2322,7 +2322,6 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 
 	// Sync and reconcile
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	pluckNames := func(titles []fleet.SoftwareTitleListResult) []string {

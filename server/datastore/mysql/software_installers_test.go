@@ -764,15 +764,13 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				FailedUninstall:  1,
 			}, *summary)
 
-			summary, err = ds.GetSummaryInHouseAppInstalls(ctx, teamFilter, inHouseID)
+			vppSummary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, teamID, inHouseID)
 			require.NoError(t, err)
-			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-				Installed:        1,
-				PendingInstall:   1,
-				FailedInstall:    1,
-				PendingUninstall: 0,
-				FailedUninstall:  0,
-			}, *summary)
+			require.Equal(t, fleet.VPPAppStatusSummary{
+				Installed: 1,
+				Pending:   1,
+				Failed:    1,
+			}, *vppSummary)
 		})
 	}
 }
