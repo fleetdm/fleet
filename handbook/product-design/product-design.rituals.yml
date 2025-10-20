@@ -2,7 +2,7 @@
   task: "🦢📊 Product design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. For all stories that are not estimated, update their target engineering sprint on the roadmap board and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. Prepare the '🎁 Feature fest' board. 2. Retro: What went well? What could go better? What to remember for next time?" 
+  description: "1. For all stories that are not estimated, update their target engineering sprint on the roadmap board and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. Prepare the '🎁 Feature fest' board." 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -30,7 +30,7 @@
   task: "🦢🗣 Design review"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "On Mondays, contributors present wireframes in 'Feedback' mode and anyone can give feedback. 'Final review' mode during all other days and only Head of Product Design + CTO + Product Designers give feedback." 
+  description: "Contributors present wireframes (UI changes) that are 'Ready for review'. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Decide if changes are ready for user story review." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
@@ -105,3 +105,10 @@
   description: "Check all brand fronts for consistancy and update as needed with the current product pitch and graphics."
   moreInfoUrl: "https://fleetdm.com/handbook/product-design#update-a-company-brand-front"
   dri: "mike-j-thomas"
+-
+  task: "🦢⏮️ Product design sprint retro"
+  startedOn: "2025-10-17" 
+  frequency: "Triweekly" 
+  description: "Retro: What went well? What could go better? What to remember for next time?" 
+  moreInfoUrl:  
+  dri: "noahtalerman" 

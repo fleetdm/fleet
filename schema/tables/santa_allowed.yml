@@ -1,5 +1,9 @@
 name: santa_allowed
+<<<<<<< HEAD
 description: "Logs events for when Santa allowed applications to run on the host. Fleet's agent (fleetd) only stores the most recent 10,000 allowed events."
+=======
+description: List of applications Santa has allowed to run on the host.
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 platforms: 
   - darwin
 evented: false
@@ -9,9 +13,12 @@ examples: |-
   ```
   SELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app';
   ```
+<<<<<<< HEAD
 notes: |-
   - Fleetd only stores the most recent 10,000 allowed events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).
   - "If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits"
+=======
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 columns:
   - name: timestamp
     description: Timestamp of the decision

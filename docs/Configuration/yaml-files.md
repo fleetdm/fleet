@@ -41,8 +41,13 @@ Labels can be specified in your `default.yml` file using inline configuration or
 - `description` specifies the label's description.
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
+<<<<<<< HEAD
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`. 
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. 
+=======
+- `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
+- `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`.
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 - `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `critera` can be specified. If none are specified, a manual label with no hosts will be created.
@@ -81,7 +86,7 @@ labels:
 ```
 
 #### Separate file
- 
+
 `lib/labels-name.labels.yml`
 
 ```yaml
@@ -129,7 +134,7 @@ In Fleet Premium you can trigger software installs or script runs on policy fail
 ### Example
 
 #### Inline
-  
+
 `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
@@ -148,7 +153,7 @@ policies:
 ```
 
 #### Separate file
- 
+
 `lib/policies-name.policies.yml`
 
 ```yaml
@@ -208,7 +213,7 @@ For possible options, see the parameters for the [Create query API endpoint](htt
 ### Example
 
 #### Inline
-  
+
 `default.yml` or `teams/team-name.yml`
 
 ```yaml
@@ -226,7 +231,7 @@ queries:
 ```
 
 #### Separate file
- 
+
 `lib/queries-name.queries.yml`
 
 ```yaml
@@ -265,7 +270,7 @@ See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configur
 ### Example
 
 #### Inline
-  
+
 `default.yml` or `teams/team-name.yml`
 
 ```yaml
@@ -286,7 +291,7 @@ agent_options:
 ```
 
 #### Separate file
- 
+
 `lib/agent-options.yml`
 
 ```yaml
@@ -328,8 +333,8 @@ The `controls` section allows you to configure scripts and device management (MD
 
 ```yaml
 controls:
-  scripts: 
-    - path: ../lib/macos-script.sh 
+  scripts:
+    - path: ../lib/macos-script.sh
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
   windows_enabled_and_configured: true
@@ -410,7 +415,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 For macOS configuration profiles, you can use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
-Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
+Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format.
 
 In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. Fleet will populate these variables when profiles are sent to hosts. Supported variables are:
 
@@ -427,7 +432,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS | Host's hardware serial number. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`           | macOS, iOS, iPadOS | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). | 
+| `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`           | macOS, iOS, iPadOS | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 | `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`               | macOS, iOS, iPadOS | Fleet-managed base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 | `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed one-time Smallstep challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy). |
 | `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed Smallstep SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
@@ -517,8 +522,12 @@ software:
   - `Communication`: shown as **👬 Communication**
   - `Developer tools`: shown as **🧰 Developer tools**
   - `Productivity`: shown as **🖥️ Productivity**
+<<<<<<< HEAD
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience).
 
+=======
+- `setup_experience` installs the software when macOS, Windows, and Linux hosts enroll. Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#software-and-script). This setting is ignored on software that applies to other platforms (default: `false`).
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 ### packages
 
@@ -534,10 +543,14 @@ software:
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
+<<<<<<< HEAD
 - `icon` is the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
   
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
+=======
+- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 #### Example
 
@@ -568,7 +581,11 @@ You can view the hash for existing software in the software detail page in the F
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
   + Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
+<<<<<<< HEAD
 - `icon` is the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+=======
+- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
@@ -583,6 +600,7 @@ The below fields are all optional.
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
+- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
 
 The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
@@ -680,7 +698,7 @@ Can only be configured for all teams (`org_settings`) and custom teams (`team_se
 
 ```yaml
 org_settings:
-  secrets: 
+  secrets:
   - secret: $ENROLL_SECRET
 ```
 
@@ -747,10 +765,13 @@ org_settings:
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 =======
 >>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
+=======
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 #### Example
 
@@ -817,8 +838,11 @@ Can only be configured for all teams (`org_settings`). Use API to configure Zend
 ### certificate_authorities
 
 _Available in Fleet Premium._
+<<<<<<< HEAD
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+=======
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
 
@@ -895,6 +919,17 @@ Can only be configured for all teams (`org_settings`).
 - `client_secret` is the client secret provided by Hydrant.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+#### smallstep
+
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the **SCEP URL** from Smallstep.
+- `challenge_url` is the **Webhook URL** from Smallstep.
+- `username` is the **Challenge Basic Authentication Username** from Smallstep.
+- `password` is the **Challenge Basic Authentication Password** from Smallstep.
+
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 Can only be configured for all teams (`org_settings`).
 
 =======
@@ -935,7 +970,7 @@ org_settings:
 
 #### failing_policies_webhook
 
-> These settings can also be configured per-team when nested under `team_settings`. 
+> These settings can also be configured per-team when nested under `team_settings`.
 
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
@@ -1038,7 +1073,7 @@ org_settings:
   mdm:
     volume_purchasing_program: # Available in Fleet Premium
     - location: Fleet Device Management Inc.
-      teams: 
+      teams:
       - 💻 Workstations
       - 💻🐣 Workstations (canary)
       - 📱🏢 Company-owned iPhones

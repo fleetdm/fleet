@@ -1,1 +1,0 @@
-* Fixed invalid GET and DELETE requests that incorrectly included request bodies in client code, ensuring HTTP compliance.
