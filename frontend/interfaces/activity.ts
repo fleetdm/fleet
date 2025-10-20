@@ -3,6 +3,7 @@ import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ISchedulableQueryStats } from "./schedulable_query";
+import { SoftwareSource } from "./software";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -60,6 +61,9 @@ export enum ActivityType {
   AddedHydrant = "added_hydrant",
   DeletedHydrant = "deleted_hydrant",
   EditedHydrant = "edited_hydrant",
+  AddedSmallstep = "added_smallstep",
+  DeletedSmallstep = "deleted_smallstep",
+  EditedSmallstep = "edited_smallstep",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -155,7 +159,9 @@ export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.LockedHost
+  | ActivityType.UnlockedHost;
 
 export interface IActivity {
   created_at: string;
@@ -232,6 +238,7 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;
   status?: string;

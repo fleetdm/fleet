@@ -1,15 +1,18 @@
 .manage-labels-page {
+  @include vertical-page-layout;
+
   &__header-wrap {
-    @include normalize-team-header;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
 
   &__header {
-    display: flex;
-    align-items: center;
+    @include normalize-team-header;
   }
 
   &__text {
-    margin-right: 16px;
+    margin-right: $pad-large;
   }
 
   &__title {

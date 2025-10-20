@@ -8,6 +8,10 @@ import React from "react";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import paths from "router/paths";
+import {
+  NO_VERSION_OR_HOST_DATA_SOURCES,
+  ROLLING_ARCH_LINUX_VERSIONS,
+} from "interfaces/software";
 
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
@@ -64,9 +68,11 @@ const SoftwareDetailsSummary = ({
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
-  // Remove host count for tgz_packages only and if viewing details summary from edit icon preview modal
+  // Remove host count for tgz_packages, sh_packages, and ps1_packages only
+  // or if viewing details summary from edit icon preview modal
   const showHostCount =
-    source !== "tgz_packages" && iconPreviewUrl === undefined;
+    !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source || "") &&
+    iconPreviewUrl === undefined;
 
   const renderSoftwareIcon = () => {
     if (
@@ -103,12 +109,12 @@ const SoftwareDetailsSummary = ({
         )}
         <dl className={`${baseClass}__info`}>
           <h1>
-            {title === "Arch Linux rolling" ||
-            title === "Arch Linux ARM rolling" ? (
-              <span>
-                {title.slice(0, -7 /* removing lowercase rolling suffix */)}
+            {ROLLING_ARCH_LINUX_VERSIONS.includes(title) ? (
+              // wrap a tooltip around the "rolling" suffix
+              <>
+                {title.slice(0, -8)}
                 <TooltipWrapperArchLinuxRolling />
-              </span>
+              </>
             ) : (
               title
             )}
@@ -117,7 +123,7 @@ const SoftwareDetailsSummary = ({
                 <Button
                   onClick={onClickEditIcon}
                   className={`${baseClass}__edit-icon-btn`}
-                  variant="text-icon"
+                  variant="icon"
                 >
                   <Icon name="pencil" />
                 </Button>

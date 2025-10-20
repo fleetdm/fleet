@@ -50,7 +50,7 @@
     margin-left: 8px;
   }
 
-  [purpose='query-name'] {
+  [purpose='script-name'] {
     color: #192147;
     font-size: 32px;
     font-style: normal;
@@ -58,16 +58,16 @@
     line-height: 150%;
     margin-bottom: 0px;
   }
-  [purpose='query-description'] {
+  [purpose='script-description'] {
     color: #515774;
     font-size: 16px;
     font-style: normal;
     font-weight: 400;
     line-height: 150%;
     margin-bottom: 0px;
-    padding: 48px 0px 32px 0px;
+    padding: 16px 0px 0px 0px;
   }
-  [purpose='query-attribution'] {
+  [purpose='script-attribution'] {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -82,7 +82,7 @@
       font-size: 14px;
       line-height: 150%;
     }
-    [purpose='query-link'] {
+    [purpose='script-link'] {
       color: unset;
       text-decoration: none;
 
@@ -93,17 +93,16 @@
 
 
   }
-  [purpose='query-details'] {
+  [purpose='script-details'] {
     padding-right: 64px;
-    max-width: 800px;
     width: 100%;
   }
-  [purpose='query-check'] {
+  [purpose='script-check'] {
     padding-bottom: 24px;
   }
 
   [purpose='right-sidebar'] {
-    width: 256px;
+    min-width: 220px;
     margin-left: 16px;
     font-size: 14px;
     transition-property: transform;
@@ -164,7 +163,7 @@
       width: 20px;
     }
   }
-  [purpose='query-platform'] {
+  [purpose='script-platform'] {
     border-bottom: 1px solid #E2E4EA;
     padding-bottom: 24px;
     padding-top: 16px;
@@ -254,9 +253,9 @@
       text-underline-offset: 3px;
     }
   }
-  [purpose='query-check'] {
+  [purpose='script-check'] {
     [purpose='codeblock'] {
-      margin-top: 40px;
+      margin-top: 48px;
       [purpose='codeblock-tabs'] {
         background: var(--UI-Fleet-Black-5, #F4F4F6);
         border-top: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
@@ -437,7 +436,7 @@
     [purpose='page-container'] {
       padding: 32px;
     }
-    [purpose='query-details'] {
+    [purpose='script-details'] {
       padding-right: 0px;
       max-width: 100%;
     }
@@ -467,7 +466,7 @@
     [purpose='page-container'] {
       padding: 32px 24px;
     }
-    [purpose='query-check'] {
+    [purpose='script-check'] {
       [purpose='codeblock'] {
         [purpose='copy-button'] {
           top: 2px;

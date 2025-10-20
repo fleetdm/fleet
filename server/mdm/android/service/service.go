@@ -41,6 +41,7 @@ type Service struct {
 	logger           kitlog.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
+	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
 	fleetSvc         fleet.Service
 	serverPrivateKey string
@@ -58,9 +59,10 @@ func NewService(
 	fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
+	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, fleetDS)
 }
 
 func NewServiceWithClient(
@@ -69,6 +71,7 @@ func NewServiceWithClient(
 	client androidmgmt.Client,
 	fleetSvc fleet.Service,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -83,6 +86,7 @@ func NewServiceWithClient(
 		fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
+		fleetDS:           fleetDS,
 	}, nil
 }
 
@@ -786,4 +790,68 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
 		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
 	}
+}
+
+// Admin-initiated Android unenroll
+// Request decoder for POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
+type androidHostUnenrollRequest struct {
+	HostID uint `url:"id"`
+}
+
+func unenrollAndroidHostEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+	req := request.(*androidHostUnenrollRequest)
+	err := svc.UnenrollAndroidHost(ctx, req.HostID)
+	return android.DefaultResponse{Err: err}
+}
+
+// UnenrollAndroidHost calls AMAPI to delete the device (work profile) and emits an activity.
+// The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
+func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
+	// Load host and authorize based on team
+	h, err := svc.fleetSvc.GetHostLite(ctx, hostID)
+	if err != nil {
+		return err
+	}
+	if err := svc.authz.Authorize(ctx, h, fleet.ActionWrite); err != nil {
+		return err
+	}
+	if strings.ToLower(h.Platform) != "android" {
+		return &fleet.BadRequestError{Message: "host is not an android device"}
+	}
+
+	// Resolve Android device and enterprise
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, h.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android host by uuid")
+	}
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+	if ah.Device == nil || ah.Device.DeviceID == "" || enterprise.EnterpriseID == "" {
+		return &fleet.BadRequestError{Message: "missing android device or enterprise id"}
+	}
+
+	// Authenticate client and call AMAPI delete
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Android authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
+	if err := svc.androidAPIClient.EnterprisesDevicesDelete(ctx, deviceName); err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi delete device")
+	}
+
+	// Emit activity: admin told Fleet to unenroll
+	displayName := fleet.HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+	if err := svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       h.HardwareSerial,
+		HostDisplayName:  displayName,
+		InstalledFromDEP: false,
+		Platform:         "android",
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
+	}
+	return nil
 }

@@ -422,3 +422,143 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 		})
 	}
 }
+
+func TestIconChanges(t *testing.T) {
+	// Test adding new icon for software.
+	t.Run("Add new icon for software", func(t *testing.T) {
+		// Create a new empty IconChanges struct.
+		c := &fleet.IconChanges{
+			TeamID:         1,
+			UploadedHashes: []string{"local-new-to-me-sw-icon-hash", "sw-noop-icon-hash"},
+		}
+
+		// Create SoftwarePackageResponse and VPPAppResponse with local icon data only.
+		sp := []fleet.SoftwarePackageResponse{
+			{
+				TitleID:       ptr.Uint(1),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-sw-icon-hash",
+				LocalIconPath: "new-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(2),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-to-me-sw-icon-hash",
+				LocalIconPath: "new-to-me-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(3),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-updated-filename-sw-icon-hash",
+				IconFilename:  "path/to/local/outdated-filename-sw-icon.png",
+				LocalIconHash: "local-updated-filename-sw-icon-hash",
+				LocalIconPath: "updated-filename-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(4),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-outdated-sw-icon-hash",
+				IconFilename:  "path/to/local/updated-hash-sw-icon.png",
+				LocalIconHash: "local-updated-hash-sw-icon-hash",
+				LocalIconPath: "updated-hash-sw-icon.png",
+			},
+			{
+				TitleID:      ptr.Uint(5),
+				TeamID:       ptr.Uint(1),
+				IconHash:     "sw-icon-to-delete-hash",
+				IconFilename: "sw-icon-to-delete.png",
+			},
+			{
+				TitleID:       ptr.Uint(6),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "sw-noop-icon-hash",
+				LocalIconPath: "path/to/local/sw-noop-icon.png",
+				IconHash:      "sw-noop-icon-hash",
+				IconFilename:  "sw-noop-icon.png",
+			},
+		}
+
+		vpp := []fleet.VPPAppResponse{
+			{
+				TitleID:       ptr.Uint(7),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-sw-icon-hash",
+				LocalIconPath: "new-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(8),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-to-me-sw-icon-hash",
+				LocalIconPath: "new-to-me-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(9),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-updated-filename-sw-icon-hash",
+				IconFilename:  "path/to/local/outdated-filename-sw-icon.png",
+				LocalIconHash: "local-updated-filename-sw-icon-hash",
+				LocalIconPath: "updated-filename-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(10),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-outdated-sw-icon-hash",
+				IconFilename:  "path/to/local/updated-hash-sw-icon.png",
+				LocalIconHash: "local-updated-hash-sw-icon-hash",
+				LocalIconPath: "updated-hash-sw-icon.png",
+			},
+			{
+				TitleID:      ptr.Uint(11),
+				TeamID:       ptr.Uint(1),
+				IconHash:     "sw-icon-to-delete-hash",
+				IconFilename: "sw-icon-to-delete.png",
+			},
+			{
+				TitleID:       ptr.Uint(12),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "sw-noop-icon-hash",
+				LocalIconPath: "path/to/local/sw-noop-icon.png",
+				IconHash:      "sw-noop-icon-hash",
+				IconFilename:  "sw-noop-icon.png",
+			},
+		}
+		// Call the method to process the responses.
+		updatedC := c.WithSoftware(sp, vpp)
+
+		// Every hash that was already present on a software item, or would be after uploading,
+		// should be represented in the UploadedHashes slice.
+		require.Equal(t, 7, len(updatedC.UploadedHashes))
+		require.Contains(t, updatedC.UploadedHashes, "local-new-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-new-to-me-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-updated-filename-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-outdated-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-updated-hash-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "sw-icon-to-delete-hash")
+		require.Contains(t, updatedC.UploadedHashes, "sw-noop-icon-hash")
+
+		// IconsToUpload should contain info about any net-new software title icons.
+		// Note that the icon for title #2 (local-new-to-me-sw-icon-hash) is new to the title,
+		// but is already present in our list of uploaded hashes, so it should not be included here.
+		require.Equal(t, 2, len(updatedC.IconsToUpload))
+		require.Contains(t, updatedC.IconsToUpload, fleet.IconFileUpdate{TitleID: 1, Path: "new-sw-icon.png"})
+		require.Contains(t, updatedC.IconsToUpload, fleet.IconFileUpdate{TitleID: 4, Path: "updated-hash-sw-icon.png"})
+
+		// IconsToUpdate should contain info about any software title icons that need updates to their filename,
+		// or titles where we're adding an icon for them, but the icon already exists in our uploaded hashes.
+		// Note that for the VPP apps, we will already have marked "new-sw-icon" and "updated-hash-sw-icon" for upload,
+		// so they will show up in IconsToUpdate rather than IconsToUpload.
+		require.Equal(t, 6, len(updatedC.IconsToUpdate))
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 2, Path: "new-to-me-sw-icon.png", Hash: "local-new-to-me-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 3, Path: "updated-filename-sw-icon.png", Hash: "local-updated-filename-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 7, Path: "new-sw-icon.png", Hash: "local-new-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 8, Path: "new-to-me-sw-icon.png", Hash: "local-new-to-me-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 9, Path: "updated-filename-sw-icon.png", Hash: "local-updated-filename-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 10, Path: "updated-hash-sw-icon.png", Hash: "local-updated-hash-sw-icon-hash"})
+
+		// IconsToDelete should contain info about any software title icons that exist on the server,
+		// but were not included in the uploaded hashes, meaning they should be deleted.
+		require.Equal(t, 2, len(updatedC.TitleIDsToRemoveIconsFrom))
+		require.Contains(t, updatedC.TitleIDsToRemoveIconsFrom, uint(5))
+		require.Contains(t, updatedC.TitleIDsToRemoveIconsFrom, uint(11))
+	})
+}

@@ -15,8 +15,9 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   IHostSoftwarePackage,
   IHostAppStoreApp,
-  SoftwareInstallStatus,
+  EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -35,7 +36,7 @@ interface IActionButtonState {
 export interface IGetActionButtonStateProps {
   hostScriptsEnabled: boolean;
   softwareId: number;
-  status: SoftwareInstallStatus | null;
+  status: EnhancedSoftwareInstallUninstallStatus | null;
   softwarePackage: IHostSoftwarePackage | null;
   appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
@@ -55,7 +56,10 @@ interface IHostInstallerActionButtonProps {
 
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
-  onClickInstallAction: (softwareId: number) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isSoftwarePackage?: boolean
+  ) => void;
   onClickUninstallAction: () => void;
   onClickOpenInstructionsAction?: () => void;
   baseClass: string;
@@ -172,13 +176,14 @@ export const HostInstallerActionButton = ({
       position="top"
     >
       <Button
-        variant="text-icon"
+        variant="inverse"
         type="button"
         className={`${baseClass}__item-action-button`}
         onClick={onClick}
         disabled={disabled}
+        size="small"
       >
-        <Icon name={icon} color="core-fleet-blue" size="small" />
+        <Icon name={icon} color="ui-fleet-black-75" size="small" />
         <span data-testid={testId}>{text}</span>
       </Button>
     </TooltipWrapper>
@@ -286,7 +291,12 @@ export const HostInstallerActionCell = ({
       baseClass={baseClass}
       tooltip={installTooltip}
       disabled={installDisabled}
-      onClick={() => onClickInstallAction(id)}
+      onClick={() =>
+        onClickInstallAction(
+          id,
+          SCRIPT_PACKAGE_SOURCES.includes(software.source)
+        )
+      }
       icon={buttonDisplayConfig.install.icon}
       text={buttonDisplayConfig.install.text}
       testId={`${baseClass}__install-button--test`}
@@ -327,7 +337,7 @@ export const HostInstallerActionCell = ({
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}
-            variant="button"
+            variant="small-button"
             disabled={moreDisabled}
           />
         </div>

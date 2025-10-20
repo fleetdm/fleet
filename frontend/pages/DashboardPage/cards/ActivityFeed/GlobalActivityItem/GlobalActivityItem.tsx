@@ -8,7 +8,10 @@ import {
   isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -1061,11 +1064,13 @@ const TAGGED_TEMPLATES = {
   },
 
   resentConfigProfile: (activity: IActivity) => {
+    const actor = activity.actor_full_name
+      ? activity.actor_full_name
+      : "An end user";
     return (
       <>
-        {" "}
-        resent {activity.details?.profile_name} configuration profile to{" "}
-        {activity.details?.host_display_name}.
+        <b>{actor}</b> resent {activity.details?.profile_name} configuration
+        profile to {activity.details?.host_display_name}.
       </>
     );
   },
@@ -1134,16 +1139,18 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
+      source,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
-
+    const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
+        <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.
       </>
@@ -1166,7 +1173,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
         <b>{hostName}</b>.
       </>
@@ -1535,12 +1542,26 @@ const TAGGED_TEMPLATES = {
   },
   editedSetupExperienceSoftware: (activity: IActivity) => {
     const { platform, team_name, team_id } = activity.details || {};
+
+    let platformText = "";
+    switch (platform) {
+      case "darwin":
+        platformText = "macOS";
+        break;
+      case "ios":
+        platformText = "iOS";
+        break;
+      case "ipados":
+        platformText = "iPadOS";
+        break;
+      default:
+        platformText = capitalize(platform);
+    }
+
     return (
       <>
         {" "}
-        edited setup experience software for{" "}
-        {platform === "darwin" ? "macOS" : capitalize(platform)} hosts that
-        enroll to{" "}
+        edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
           "no team"
         ) : (
@@ -1654,19 +1675,22 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
-    case ActivityType.AddedHydrant: {
+    case ActivityType.AddedHydrant:
+    case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
-    case ActivityType.DeletedHydrant: {
+    case ActivityType.DeletedHydrant:
+    case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
-    case ActivityType.EditedHydrant: {
+    case ActivityType.EditedHydrant:
+    case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );
@@ -1941,11 +1965,12 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
-      // MdmEnrolled and MdmUnenroll activities have more complicated logic to
+      // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function
       case ActivityType.MdmUnenrolled:
       case ActivityType.MdmEnrolled:
+      case ActivityType.ResentConfigurationProfile:
         return null;
       default:
         return DEFAULT_ACTOR_DISPLAY;

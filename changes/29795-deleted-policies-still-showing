@@ -1,1 +1,0 @@
-* Refactored the way failing policies are computed on Host end-point to avoid discrepancies due to read replica delays and async computation.

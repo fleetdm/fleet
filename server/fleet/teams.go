@@ -218,7 +218,14 @@ type TeamSpecAppStoreApp struct {
 	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
 	// if not supplied (Valid field is false) then the server-side value for setup experience membership
 	// is not changed, for compatibility with the old fleetctl apply format
-	InstallDuringSetup optjson.Bool `json:"setup_experience"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
+}
+
+func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+
+	return spec
 }
 
 type TeamMDM struct {

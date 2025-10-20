@@ -103,6 +103,9 @@ func TestMDMApple(t *testing.T) {
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
+		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
+		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
+		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
 	}
 
 	for _, c := range cases {
@@ -1134,7 +1137,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = ds.MDMTurnOff(ctx, testUUID)
+	_, _, err = ds.MDMTurnOff(ctx, testUUID)
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
@@ -4888,7 +4891,8 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.False(t, checkinInfo.MigrationInProgress)
 
 		// simulate MDM unenroll
-		require.NoError(t, ds.MDMTurnOff(ctx, depUUID))
+		_, _, err = ds.MDMTurnOff(ctx, depUUID)
+		require.NoError(t, err)
 
 		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
@@ -5062,7 +5066,8 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.False(t, checkinInfo.MigrationInProgress)
 
 		// simulate MDM unenroll
-		require.NoError(t, ds.MDMTurnOff(ctx, depUUID))
+		_, _, err = ds.MDMTurnOff(ctx, depUUID)
+		require.NoError(t, err)
 
 		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
@@ -5477,8 +5482,8 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
-	// execute CleanMacOSMDMLock to simulate successful unlock
-	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
+	// execute CleanAppleMDMLock to simulate successful unlock
+	err = ds.CleanAppleMDMLock(ctx, host.UUID)
 	require.NoError(t, err)
 
 	// it is back to unlocked state
@@ -5486,6 +5491,162 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, true, false, false, false, false, false)
 	require.Empty(t, status.UnlockPIN)
+
+	// record a request to wipe the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EraseDevice"
+	err = appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is now pending wipe
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, true)
+
+	// record a command result failure to simulate failed wipe (back to unlocked)
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Error",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, cmd.Command.RequestType, false)
+	require.NoError(t, err)
+
+	// it is back to unlocked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
+
+	// record a new request to wipe the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EraseDevice"
+	err = appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is back to pending wipe
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, true)
+
+	// record a command result success to simulate wipe
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, cmd.Command.RequestType, true)
+	require.NoError(t, err)
+
+	// it is wiped
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, false, true, false, false, false)
+}
+
+func testLockUnlockWipeIphone(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "ios",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	status, err := ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+
+	// default state
+	checkLockWipeState(t, status, true, false, false, false, false, false)
+
+	appleStore, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	// record a request to enable lost mode on the host
+	cmd := &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EnableLostMode"
+	err = appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "")
+	require.NoError(t, err)
+
+	// it is now pending lock
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, true, false)
+
+	// record a command result to simulate locked state
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "EnableLostMode", true)
+	require.NoError(t, err)
+
+	// it is now locked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	// record a request to disable lost mode on the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "DisableLostMode"
+	err = appleStore.EnqueueDeviceUnlockCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is now pending unlock
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, true, false, false)
+
+	// record a command result to simulate unlocked state
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "DisableLostMode", true)
+	require.NoError(t, err)
+
+	// it is now unlocked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
 
 	// record a request to wipe the host
 	cmd = &mdm.Command{
@@ -9323,4 +9484,72 @@ func testUpdateNanoMDMUserEnrollmentUsername(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, nanoenroll_username, user1)
 	require.Equal(t, userUUID1, fetchedUserUUID1)
+}
+
+func testGetLatestAppleMDMCommandOfType(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Fails if host does not have a record
+	_, err := ds.GetLatestAppleMDMCommandOfType(ctx, "non-existing-uuid", "DeviceLock")
+	require.Error(t, err)
+	require.True(t, errors.Is(err, sql.ErrNoRows))
+
+	// Nano enroll a single device
+	realHostUUID := uuid.NewString()
+	host := &fleet.Host{
+		UUID:           realHostUUID,
+		HardwareSerial: "serial",
+		Platform:       "darwin",
+		TeamID:         nil,
+	}
+	nanoEnroll(t, ds, host, false)
+
+	// Insert one record
+	deviceLockCommandUUID := uuid.NewString()
+	requestType := "DeviceLock"
+	insertIntoNanoViewQueue(t, ds, host.UUID, deviceLockCommandUUID, requestType)
+
+	// Fails if host does exist but not request type
+	_, err = ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
+	require.Error(t, err)
+	require.True(t, errors.Is(err, sql.ErrNoRows))
+
+	// Succeeds if host and request type exist
+	cmd, err := ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, requestType)
+	require.NoError(t, err)
+	require.Equal(t, deviceLockCommandUUID, cmd.CommandUUID)
+	require.Equal(t, requestType, cmd.RequestType)
+}
+
+// insertIntoNanoViewQueue is a helper function that populates the entries that nano_view_queue is made up of.
+func insertIntoNanoViewQueue(t *testing.T, ds *Datastore, hostUUID, commandUUID, requestType string) {
+	ctx := t.Context()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Insert into nano_commands
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES (?, ?, '<?xml', 'None')`, commandUUID, requestType)
+		require.NoError(t, err)
+
+		// Insert into nano_enrollment_queue
+		_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority) VALUES (?, ?, 1, 0)`, hostUUID, commandUUID)
+		require.NoError(t, err)
+
+		// Insert into nano_command_results
+		_, err = q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result, not_now_tally) VALUES (?, ?, 'Acknowledged', '<?xml', 0)`, hostUUID, commandUUID)
+		return err
+	})
+}
+
+func testSetLockCommandForLostModeCheckin(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostID := uint(1)
+	commandUUID := uuid.NewString()
+
+	// Insert successfully
+	err := ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
+	require.NoError(t, err)
+
+	// Fails if trying to insert on existing row
+	err = ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
+	require.Error(t, err)
 }

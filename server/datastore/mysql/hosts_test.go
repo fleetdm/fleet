@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -86,6 +87,7 @@ func TestHosts(t *testing.T) {
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
 		{"ListMDM", testHostsListMDM},
+		{"ListMDMAndroid", testHostsListMDMAndroid},
 		{"SelectHostMDM", testHostMDMSelect},
 		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
@@ -1152,9 +1154,9 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	}, "src1"))
 
 	// add some disks space info for some hosts
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0, 30.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0, 50.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0, 70.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0, 30.0, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0, 50.0, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0, 70.0, nil))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -1523,6 +1525,125 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 		gotIDs = append(gotIDs, h.ID)
 	}
 	assert.ElementsMatch(t, []uint{hostIDs[0], hostIDs[1], hostIDs[2], hostIDs[10], hostIDs[11]}, gotIDs)
+}
+
+func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.AddBuiltinLabels(t, ds)
+
+	// Helper to create Android hosts with specific UUID configurations
+	createAndroidHostForTest := func(t *testing.T, name string, withUUID bool) *fleet.Host {
+		uuid := ""
+		if withUUID {
+			uuid = fmt.Sprintf("enterprise-id-%s", name)
+		}
+
+		androidHost := &fleet.AndroidHost{
+			Host: &fleet.Host{
+				Hostname:       fmt.Sprintf("%s.android.local", name),
+				ComputerName:   name,
+				Platform:       "android",
+				OSVersion:      "Android 14",
+				Build:          "test-build",
+				Memory:         8192,
+				HardwareSerial: fmt.Sprintf("serial-%s", name),
+				CPUType:        "arm64",
+				HardwareModel:  "Pixel",
+				HardwareVendor: "Google",
+				UUID:           uuid,
+			},
+			Device: &android.Device{
+				DeviceID:             fmt.Sprintf("device-%s", name),
+				EnterpriseSpecificID: ptr.String(name),
+				AppliedPolicyID:      ptr.String("1"),
+				AppliedPolicyVersion: ptr.Int64(1),
+				LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
+			},
+		}
+		androidHost.SetNodeKey(name)
+
+		result, err := ds.NewAndroidHost(ctx, androidHost)
+		require.NoError(t, err)
+		return result.Host
+	}
+
+	// Create Android hosts with personal enrollment (BYOD - non-empty UUID)
+	_ = createAndroidHostForTest(t, "android-personal-1", true)
+	_ = createAndroidHostForTest(t, "android-personal-2", true)
+
+	// Create Android hosts without personal enrollment (company-owned - empty UUID)
+	_ = createAndroidHostForTest(t, "android-company-1", false)
+	_ = createAndroidHostForTest(t, "android-company-2", false)
+
+	// Android hosts are automatically enrolled in MDM when created with NewAndroidHost
+	// Personal hosts get is_personal_enrollment = 1 based on UUID
+	// Company hosts get is_personal_enrollment = 0 based on empty UUID
+
+	// Create a non-Android host to ensure Android platform filtering works
+	darwinHost, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("darwin-1"),
+		NodeKey:         ptr.String("darwin-1"),
+		UUID:            "darwin-uuid",
+		Hostname:        "darwin.local",
+		Platform:        "darwin",
+		OSVersion:       "13.0",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, darwinHost.ID, false, true, "https://fleet.mdm.com", false, fleet.WellKnownMDMFleet, "", true)
+	require.NoError(t, err)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Test filtering by personal enrollment status - should return Android personal hosts
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPersonal}, 3)
+	require.Len(t, hosts, 3, "Should have 2 Android personal hosts + 1 darwin personal host")
+
+	// Count Android personal hosts
+	androidPersonalCount := 0
+	for _, h := range hosts {
+		if h.Platform == "android" {
+			androidPersonalCount++
+			// Verify these are the personal enrollment hosts
+			assert.Contains(t, []string{"android-personal-1.android.local", "android-personal-2.android.local"}, h.Hostname)
+		}
+	}
+	assert.Equal(t, 2, androidPersonalCount, "Should have exactly 2 Android personal hosts")
+
+	// Test filtering by manual enrollment - should return Android company hosts
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManual}, 2)
+	require.Len(t, hosts, 2, "Should have 2 Android company hosts (manual enrollment)")
+	for _, h := range hosts {
+		assert.Equal(t, "android", h.Platform, "All manual enrollment hosts should be Android")
+		assert.Contains(t, []string{"android-company-1.android.local", "android-company-2.android.local"}, h.Hostname)
+	}
+
+	// Test that Android hosts appear in general enrolled filter
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 5)
+	require.Len(t, hosts, 5, "Should have all 5 enrolled hosts (4 Android + 1 darwin)")
+
+	// Count platforms
+	androidCount := 0
+	for _, h := range hosts {
+		if h.Platform == "android" {
+			androidCount++
+		}
+	}
+	assert.Equal(t, 4, androidCount, "Should have all 4 Android hosts in enrolled filter")
+
+	// Test with MDM name filter for Fleet
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMFleet)}, 5)
+	require.Len(t, hosts, 5, "All hosts are enrolled with Fleet MDM")
+
+	// Test combination of personal enrollment and Fleet MDM
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPersonal,
+		MDMNameFilter:             ptr.String(fleet.WellKnownMDMFleet),
+	}, 3)
+	require.Len(t, hosts, 3, "Should have 2 Android + 1 darwin personal hosts with Fleet MDM")
 }
 
 func testHostMDMSelect(t *testing.T, ds *Datastore) {
@@ -2186,7 +2307,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 30
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5, 100.0, ptr.Float64(120.0)))
 
 	// Online
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -2204,7 +2325,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 3600
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50, 100.0, ptr.Float64(120.0)))
 
 	// Offline
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -2249,7 +2370,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// Set -1 sentinel values to indicate storage measurement not supported
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, -1, -1, 128.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, -1, -1, 128.0, nil))
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -2347,7 +2468,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "android-unmeasurable",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h1.ID, -1, -1, 128.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h1.ID, -1, -1, 128.0, nil))
 
 	// Host 2: Regular host with 0 GB (should be counted - legitimate disk full)
 	h2, err := ds.NewHost(ctx, &fleet.Host{
@@ -2362,7 +2483,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "mac-disk-full",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h2.ID, 0, 0, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h2.ID, 0, 0, 100.0, nil))
 
 	// Host 3: Regular host with 5 GB (should be counted)
 	h3, err := ds.NewHost(ctx, &fleet.Host{
@@ -2377,7 +2498,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "windows-low-space",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h3.ID, 5, 5, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h3.ID, 5, 5, 100.0, nil))
 
 	// Host 4: Regular host with 50 GB (should NOT be counted - above threshold)
 	h4, err := ds.NewHost(ctx, &fleet.Host{
@@ -2392,7 +2513,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "linux-good-space",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h4.ID, 50, 50, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h4.ID, 50, 50, 100.0, ptr.Float64(120.0)))
 
 	// Test with low disk space filter set to 32 GB (typical threshold)
 	opts := fleet.HostListOptions{
@@ -2915,12 +3036,13 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 		NodeKey:         ptr.String("nodekey"),
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0, 3.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0, 3.0, ptr.Float64(4.0))
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
@@ -3495,10 +3617,6 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, software[1:2])
 	require.NoError(t, err)
 
-	// reconcile software, will sync software titles
-	err = ds.ReconcileSoftwareTitles(context.Background())
-	require.NoError(t, err)
-
 	var fooV002ID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &fooV002ID,
@@ -3856,11 +3974,13 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 
 	user := test.NewUser(t, ds, "user1", "user@example.com", true)
 
+	// Don't set a computer name for this one, so we can test that the hostname is used as a fallback for display name.
 	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
-	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
-	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
-	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
-	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	// Set a computer name for the rest of the hosts.
+	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"), test.WithComputerName("hostWinComputerName"))
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now(), test.WithComputerName("host1ComputerName"))
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now(), test.WithComputerName("host2ComputerName"))
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now(), test.WithComputerName("host3ComputerName"))
 	// Create another host that should not show up in any counts.
 	test.NewHost(t, ds, "host4", "10.0.0.4", "host4key", "host4uuid", time.Now())
 
@@ -3916,7 +4036,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(3), hostCount)
 	require.Equal(t, host3.ID, batchHosts[0].ID)
-	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host3.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
 	require.True(t, meta.HasNextResults)
 	require.False(t, meta.HasPreviousResults)
@@ -3927,13 +4047,13 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 3)
 	require.Equal(t, uint(3), hostCount)
 	require.Equal(t, host1.ID, batchHosts[0].ID)
-	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host1.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
 	require.Equal(t, host2.ID, batchHosts[1].ID)
-	require.Equal(t, host2.Hostname, batchHosts[1].DisplayName)
+	require.Equal(t, host2.ComputerName, batchHosts[1].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[1].Status)
 	require.Equal(t, host3.ID, batchHosts[2].ID)
-	require.Equal(t, host3.Hostname, batchHosts[2].DisplayName)
+	require.Equal(t, host3.ComputerName, batchHosts[2].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[2].Status)
 	require.False(t, meta.HasNextResults)
 	require.False(t, meta.HasPreviousResults)
@@ -4023,7 +4143,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(1), hostCount)
 	require.Equal(t, host2.ID, batchHosts[0].ID)
-	require.Equal(t, host2.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host2.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionErrored, batchHosts[0].Status)
 	require.Equal(t, host2Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
 
@@ -4033,7 +4153,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(1), hostCount)
 	require.Equal(t, host1.ID, batchHosts[0].ID)
-	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host1.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionRan, batchHosts[0].Status)
 	require.Equal(t, host1Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
 	require.Equal(t, "foo", batchHosts[0].ScriptOutput)
@@ -4044,7 +4164,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(1), hostCount)
 	require.Equal(t, host3.ID, batchHosts[0].ID)
-	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host3.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionCanceled, batchHosts[0].Status)
 
 	// List incompatible hosts for this batch. There should be two.
@@ -4056,7 +4176,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostNoScripts.Hostname, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[0].Status)
 	require.Equal(t, hostWindows.ID, batchHosts[1].ID)
-	require.Equal(t, hostWindows.Hostname, batchHosts[1].DisplayName)
+	require.Equal(t, hostWindows.ComputerName, batchHosts[1].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[1].Status)
 
 	// Schedule script that we will subsequently cancel.
@@ -7878,7 +7998,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(stmt, host.ID, 1, 123)
 	require.NoError(t, err)
 	// set host' disk space
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0, nil)
 	require.NoError(t, err)
 	// set host orbit info
 	err = ds.SetOrUpdateHostOrbitInfo(
@@ -8617,10 +8737,10 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2, 50.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2, 50.0, nil)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4, 90.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4, 90.0, nil)
 	require.NoError(t, err)
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -8633,7 +8753,7 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0, nil)
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)

@@ -728,6 +728,7 @@ SELECT
   COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
   COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
   COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+  hd.gigs_all_disk_space,
   hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
@@ -900,6 +901,8 @@ const hostMDMSelect = `,
 				ELSE CAST(FALSE AS JSON)
 				END
 			)
+			WHEN h.platform = 'android' THEN
+				CASE WHEN hmdm.enrolled = 1 THEN CAST(TRUE AS JSON) ELSE CAST(FALSE AS JSON) END
 			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
 	// NOTE: if you change any of the conditions in this
 	// query, please update the AreHostsConnectedToFleetMDM
@@ -1017,6 +1020,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+    hd.gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
@@ -1087,9 +1091,13 @@ WHERE
 	sqlStmt := `
 SELECT
     h.id,
-    h.hostname as display_name,
+    h.computer_name,
+	h.hostname,
+	h.hardware_model,
+	h.hardware_serial,
+	-- if the status filter is "pending", we want to return "pending" for all hosts
     ? as status,
-	-- pending hosts will have "updated_at" set in the db, but since 
+	-- pending hosts will have "updated_at" set in the db, but since
 	-- we're using it to mean "executed at" we'll return it as empty.
 	CASE
 		WHEN ? != 'pending' THEN hsr.updated_at
@@ -1099,6 +1107,7 @@ SELECT
 	COALESCE(hsr.execution_id, '') as execution_id
 FROM
     hosts h
+	JOIN host_display_names hdn ON h.id = hdn.host_id
 	%s
 WHERE
     %s
@@ -1145,6 +1154,10 @@ WHERE
 			meta.HasNextResults = true
 			hosts = hosts[:len(hosts)-1]
 		}
+	}
+
+	for i := range hosts {
+		hosts[i].DisplayName = fleet.HostDisplayName(hosts[i].ComputerName, hosts[i].HostName, hosts[i].HardwareModel, hosts[i].HardwareSerial)
 	}
 
 	return hosts, meta, count, nil
@@ -1462,7 +1475,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados')`
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados', 'android')`
 	}
 	return sql, params
 }
@@ -2246,19 +2259,31 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
         computer_name = COALESCE(NULLIF(computer_name, ''), ?),
         hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
-        team_id = ?,
-        refetch_requested = ?
+        refetch_requested = ?%s
       WHERE id = ?`
-			_, err := tx.ExecContext(ctx, sqlUpdate,
+			args := []any{
 				orbitNodeKey,
 				hostInfo.HardwareUUID,
 				osqueryIdentifier,
 				hostInfo.HardwareSerial,
 				hostInfo.ComputerName,
 				hostInfo.HardwareModel,
-				teamID,
 				refetchRequested,
-				enrolledHostInfo.ID,
+			}
+
+			if !enrollConfig.IgnoreTeamUpdate {
+				args = append(args, teamID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
+			} else {
+				level.Info(ds.logger).Log("msg", "skipping team update on orbit enroll", "host_uuid", hostInfo.HardwareUUID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
+			}
+
+			// WHERE attributes
+			args = append(args, enrolledHostInfo.ID)
+
+			_, err := tx.ExecContext(ctx, sqlUpdate,
+				args...,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
@@ -2470,15 +2495,33 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			sqlUpdate := `
 				UPDATE hosts
 				SET node_key = ?,
-				team_id = ?,
 				last_enrolled_at = NOW(),
 				osquery_host_id = ?,
 				uuid = COALESCE(NULLIF(uuid, ''), ?),
 				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-				refetch_requested = ?
+				refetch_requested = ?%s
 				WHERE id = ?
 			`
-			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID, hardwareUUID, hardwareSerial, refetchRequested, enrolledHostInfo.ID)
+			args := []any{
+				nodeKey,
+				osqueryHostID,
+				hardwareUUID,
+				hardwareSerial,
+				refetchRequested,
+			}
+
+			if !enrollConfig.IgnoreTeamUpdate {
+				args = append(args, teamID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
+			} else {
+				level.Info(ds.logger).Log("msg", "skipping team update on osquery enroll", "host_uuid", hardwareUUID)
+				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
+			}
+
+			// WHERE attributes
+			args = append(args, enrolledHostInfo.ID)
+
+			_, err := tx.ExecContext(ctx, sqlUpdate, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host")
 			}
@@ -2940,6 +2983,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+    hd.gigs_all_disk_space as gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
 	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	` + hostMDMSelect + `
@@ -4291,12 +4335,12 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
-func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ? WHERE host_id = ?`,
-		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, host_id) VALUES (?, ?, ?, ?)`,
-		gigsAvailable, percentAvailable, gigsTotal, hostID,
+		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ?, gigs_all_disk_space = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space, host_id) VALUES (?, ?, ?, ?, ?)`,
+		gigsAvailable, percentAvailable, gigsTotal, gigsAll, hostID,
 	)
 }
 

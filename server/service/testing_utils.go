@@ -26,6 +26,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -214,6 +216,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		keyValueStore,
 	)
 	if err != nil {
 		panic(err)
@@ -418,15 +421,27 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].MDMPusher != nil {
 		mdmPusher = opts[0].MDMPusher
 	}
-	limitStore, _ := memstore.New(0)
 	rootMux := http.NewServeMux()
+
+	memLimitStore, _ := memstore.New(0)
+	var limitStore throttled.GCRAStore = memLimitStore
+	var redisPool fleet.RedisPool
+	if len(opts) > 0 && opts[0].Pool != nil {
+		redisPool = opts[0].Pool
+		limitStore = &redis.ThrottledStore{
+			Pool:      opts[0].Pool,
+			KeyPrefix: "ratelimit::",
+		}
+	} else {
+		redisPool = redistest.SetupRedis(t, t.Name(), false, false, false) // We are good to initalize a redis pool here as it is only called by integration tests
+	}
 
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -487,7 +502,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, extra...)
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)

@@ -26,7 +26,7 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	mockDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key", &mockDS.DataStore)
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -355,6 +355,397 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 }
 
+func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+	const enterpriseSpecificID = "SHOULD-BE-THIS-UUID"
+	const deviceName = "test-empty-uuid-bug"
+
+	// Mock AppConfig
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	// Create existing host with blank UUID
+	existingHostWithEmptyUUID := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			ID:       200,
+			UUID:     "",
+			Hostname: "buggy-hostname",
+			TeamID:   nil,
+		},
+		Device: &android.Device{
+			HostID:               200,
+			DeviceID:             "buggy-device",
+			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+		},
+	}
+	existingHostWithEmptyUUID.SetNodeKey(enterpriseSpecificID)
+
+	// Mock AndroidHostLite returns host with blank UUID
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+		if esID == enterpriseSpecificID {
+			// Return host with empty UUID
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:       existingHostWithEmptyUUID.Host.ID,
+					UUID:     "",
+					Hostname: existingHostWithEmptyUUID.Host.Hostname,
+					TeamID:   existingHostWithEmptyUUID.Host.TeamID,
+				},
+				Device: existingHostWithEmptyUUID.Device,
+			}, nil
+		}
+		return nil, common_mysql.NotFound("android host")
+	}
+
+	// Capture what gets sent to UpdateAndroidHost (and thus to the API)
+	var capturedHost *fleet.AndroidHost
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+		capturedHost = host
+		return nil
+	}
+
+	// status report with valid EnterpriseSpecificId
+	device := androidmanagement.Device{
+		Name: createAndroidDeviceId(deviceName),
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: enterpriseSpecificID,
+			Brand:                "TestBrand",
+			Model:                "TestModel",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{
+			AndroidVersion: "14",
+		},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam: int64(8 * 1024 * 1024 * 1024),
+		},
+		LastStatusReportTime: "2024-01-01T12:00:00Z",
+	}
+
+	deviceBytes, err := json.Marshal(device)
+	require.NoError(t, err)
+	encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
+	message := &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubStatusReport),
+		},
+		Data: encodedData,
+	}
+
+	// Process the status report
+	err = svc.ProcessPubSubPush(context.Background(), "value", message)
+	require.NoError(t, err)
+
+	require.True(t, mockDS.UpdateAndroidHostFuncInvoked)
+	require.NotNil(t, capturedHost)
+
+	require.Equal(t, enterpriseSpecificID, capturedHost.Host.UUID,
+		"Host UUID is properly populated from device.EnterpriseSpecificId")
+}
+
+func TestHostPayloadUUIDForFrontend(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+	const enterpriseSpecificID = "ANDROID-DEVICE-UUID-123"
+	const deviceName = "test-frontend-payload"
+
+	// Mock AppConfig
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	testCases := []struct {
+		name         string
+		existingUUID string
+		expectedUUID string
+		description  string
+	}{
+		{
+			name:         "empty_uuid_gets_populated",
+			existingUUID: "",
+			expectedUUID: enterpriseSpecificID,
+			description:  "Empty UUID is properly populated from EnterpriseSpecificId",
+		},
+		{
+			name:         "existing_uuid_gets_updated",
+			existingUUID: "OLD-UUID-456",
+			expectedUUID: enterpriseSpecificID,
+			description:  "Existing UUID is updated to match current EnterpriseSpecificId",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Mock AndroidHostLite returns host with specified UUID
+			mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+				if esID == enterpriseSpecificID {
+					return &fleet.AndroidHost{
+						Host: &fleet.Host{
+							ID:       100,
+							UUID:     tc.existingUUID,
+							Hostname: "test-host",
+							TeamID:   nil,
+						},
+						Device: &android.Device{
+							HostID:               100,
+							DeviceID:             "test-device",
+							EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+						},
+					}, nil
+				}
+				return nil, common_mysql.NotFound("android host")
+			}
+
+			// Capture the host payload that would be sent to frontend
+			var hostPayload *fleet.AndroidHost
+			mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+				hostPayload = host
+				return nil
+			}
+
+			// Create status report from Google
+			device := androidmanagement.Device{
+				Name: createAndroidDeviceId(deviceName),
+				HardwareInfo: &androidmanagement.HardwareInfo{
+					EnterpriseSpecificId: enterpriseSpecificID,
+					Brand:                "Google",
+					Model:                "Pixel",
+				},
+				SoftwareInfo: &androidmanagement.SoftwareInfo{
+					AndroidVersion: "14",
+				},
+				MemoryInfo: &androidmanagement.MemoryInfo{
+					TotalRam: int64(8 * 1024 * 1024 * 1024),
+				},
+				LastStatusReportTime: "2024-01-01T12:00:00Z",
+			}
+
+			deviceBytes, err := json.Marshal(device)
+			require.NoError(t, err)
+			encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
+			message := &android.PubSubMessage{
+				Attributes: map[string]string{
+					"notificationType": string(android.PubSubStatusReport),
+				},
+				Data: encodedData,
+			}
+
+			// Process the status report
+			err = svc.ProcessPubSubPush(context.Background(), "value", message)
+			require.NoError(t, err)
+
+			require.NotNil(t, hostPayload)
+			require.Equal(t, tc.expectedUUID, hostPayload.Host.UUID, tc.description)
+		})
+	}
+}
+
+func TestUpdateHost(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	const enterpriseSpecificID = "TEST-UUID-12345"
+	const deviceName = "test-update-host"
+
+	// Mock AppConfig
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	// Create an existing Android host with empty UUID
+	existingHost := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			ID:       1,
+			UUID:     "",
+			Hostname: "old-hostname",
+			TeamID:   nil,
+		},
+		Device: &android.Device{
+			HostID:               1,
+			DeviceID:             "old-device-id",
+			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+		},
+	}
+	existingHost.SetNodeKey(enterpriseSpecificID)
+
+	// Mock AndroidHostLite returns the existing host
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+		if esID == enterpriseSpecificID {
+			return existingHost, nil
+		}
+		return nil, common_mysql.NotFound("android host")
+	}
+
+	// verify UUID is set correctly
+	var capturedHost *fleet.AndroidHost
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+		capturedHost = host
+		return nil
+	}
+
+	t.Run("UUID gets populated from EnterpriseSpecificId", func(t *testing.T) {
+		// Create status report message that triggers updateHost
+		device := androidmanagement.Device{
+			Name: createAndroidDeviceId(deviceName),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: enterpriseSpecificID,
+				Brand:                "UpdatedBrand",
+				Model:                "UpdatedModel",
+				SerialNumber:         "updated-serial",
+				Hardware:             "updated-hardware",
+			},
+			SoftwareInfo: &androidmanagement.SoftwareInfo{
+				AndroidBuildNumber: "updated-build",
+				AndroidVersion:     "15",
+			},
+			MemoryInfo: &androidmanagement.MemoryInfo{
+				TotalRam:             int64(16 * 1024 * 1024 * 1024),  // 16GB RAM
+				TotalInternalStorage: int64(128 * 1024 * 1024 * 1024), // 128GB storage
+			},
+			LastStatusReportTime: "2024-01-01T12:00:00Z",
+		}
+
+		// Create message
+		deviceBytes, err := json.Marshal(device)
+		require.NoError(t, err)
+		encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
+		message := &android.PubSubMessage{
+			Attributes: map[string]string{
+				"notificationType": string(android.PubSubStatusReport),
+			},
+			Data: encodedData,
+		}
+
+		// Process the message
+		err = svc.ProcessPubSubPush(context.Background(), "value", message)
+		require.NoError(t, err)
+
+		// Verify UpdateAndroidHost was called
+		require.True(t, mockDS.UpdateAndroidHostFuncInvoked)
+		require.NotNil(t, capturedHost)
+
+		// UUID is properly set from device data
+		require.Equal(t, enterpriseSpecificID, capturedHost.Host.UUID, "UUID is properly set from EnterpriseSpecificId")
+
+		// Other fields were updated
+		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.ComputerName)
+		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.Hostname)
+		require.Equal(t, "Android 15", capturedHost.Host.OSVersion)
+	})
+
+	t.Run("UUID is set from EnterpriseSpecificId", func(t *testing.T) {
+		mockDS.UpdateAndroidHostFuncInvoked = false
+		capturedHost = nil
+
+		// Create a status report message
+		device := androidmanagement.Device{
+			Name: createAndroidDeviceId(deviceName),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: enterpriseSpecificID,
+				Brand:                "UpdatedBrand",
+				Model:                "UpdatedModel",
+			},
+			SoftwareInfo: &androidmanagement.SoftwareInfo{
+				AndroidVersion: "15",
+			},
+			MemoryInfo: &androidmanagement.MemoryInfo{
+				TotalRam: int64(16 * 1024 * 1024 * 1024),
+			},
+			LastStatusReportTime: "2024-01-01T12:00:00Z",
+		}
+
+		deviceBytes, err := json.Marshal(device)
+		require.NoError(t, err)
+		encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
+		message := &android.PubSubMessage{
+			Attributes: map[string]string{
+				"notificationType": string(android.PubSubStatusReport),
+			},
+			Data: encodedData,
+		}
+
+		err = svc.ProcessPubSubPush(context.Background(), "value", message)
+		require.NoError(t, err)
+
+		// WITH THE FIX: UUID should be set to EnterpriseSpecificId
+		require.Equal(t, enterpriseSpecificID, capturedHost.Host.UUID, "UUID should be set from device data")
+	})
+
+	t.Run("Empty UUID from device should not overwrite existing", func(t *testing.T) {
+		// Reset the mock invocation flag
+		mockDS.UpdateAndroidHostFuncInvoked = false
+		capturedHost = nil
+
+		// Create a device with empty EnterpriseSpecificId (edge case)
+		device := androidmanagement.Device{
+			Name: createAndroidDeviceId(deviceName + "-empty"),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: "", // Empty UUID
+				Brand:                "TestBrand",
+				Model:                "TestModel",
+			},
+			SoftwareInfo: &androidmanagement.SoftwareInfo{
+				AndroidBuildNumber: "test-build",
+				AndroidVersion:     "14",
+			},
+			MemoryInfo: &androidmanagement.MemoryInfo{
+				TotalRam: int64(8 * 1024 * 1024 * 1024),
+			},
+			LastStatusReportTime: "2024-01-01T12:00:00Z",
+		}
+
+		// Mock to return host with empty enterprise ID
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			if esID == "" {
+				// Return host that has UUID but empty enterprise ID
+				return &fleet.AndroidHost{
+					Host: &fleet.Host{
+						ID:   2,
+						UUID: "existing-uuid-should-remain",
+					},
+					Device: &android.Device{
+						HostID:               2,
+						DeviceID:             "device-2",
+						EnterpriseSpecificID: ptr.String(""),
+					},
+				}, nil
+			}
+			return nil, common_mysql.NotFound("android host")
+		}
+
+		// Create and process message
+		deviceBytes, err := json.Marshal(device)
+		require.NoError(t, err)
+		encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
+		message := &android.PubSubMessage{
+			Attributes: map[string]string{
+				"notificationType": string(android.PubSubStatusReport),
+			},
+			Data: encodedData,
+		}
+
+		err = svc.ProcessPubSubPush(context.Background(), "value", message)
+		require.NoError(t, err)
+
+		// Verify UpdateAndroidHost was called
+		require.True(t, mockDS.UpdateAndroidHostFuncInvoked)
+		require.NotNil(t, capturedHost)
+
+		// With the guard in place, existing UUID is preserved when device reports empty EnterpriseSpecificId
+		require.Equal(t, "existing-uuid-should-remain", capturedHost.Host.UUID, "Existing UUID preserved when device reports empty EnterpriseSpecificId")
+	})
+}
+
 func TestAndroidStorageExtraction(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
@@ -420,6 +811,31 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		// Available storage and percentage should be -1 (not supported) when only DETECTED events are present
 		require.Equal(t, float64(-1), createdHost.Host.GigsDiskSpaceAvailable, "should set available storage to -1 when MEASURED events are missing")
 		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
+	})
+
+	t.Run("uses only latest EXTERNAL_STORAGE_DETECTED event", func(t *testing.T) {
+		createdHost = nil // Reset
+
+		enrollmentMessage := createEnrollmentMessageWithMultipleExternalDetectedEvents(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("multiple-external-test"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, createdHost)
+		require.NotNil(t, createdHost.Host)
+
+		// Should use only the latest EXTERNAL_STORAGE_DETECTED event (120GB)
+		// Total: 1GB (internal) + 120GB (latest external) = 121GB
+		require.Equal(t, 121.0, createdHost.Host.GigsTotalDiskSpace, "should use only latest EXTERNAL_STORAGE_DETECTED event")
+
+		// Available: 96GB (from EXTERNAL_STORAGE_MEASURED)
+		require.InDelta(t, 96.0, createdHost.Host.GigsDiskSpaceAvailable, 0.1, "should calculate available storage")
+
+		// Percentage: 96/121 * 100 = 79.34%
+		require.InDelta(t, 79.34, createdHost.Host.PercentDiskSpaceAvailable, 0.1, "should calculate percentage correctly")
 	})
 }
 
@@ -496,7 +912,76 @@ func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo andro
 			CreateTime: "2024-01-15T09:00:00Z",
 		},
 		// No INTERNAL_STORAGE_MEASURED or EXTERNAL_STORAGE_MEASURED events
-		// This simulates Work Profile/BYOD device behavior
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: encodedData,
+	}
+}
+
+func createEnrollmentMessageWithMultipleExternalDetectedEvents(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
+		Brand:                "Google",
+		Model:                "Pixel 8a",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "16",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024), // 8GB RAM in bytes
+		TotalInternalStorage: int64(1 * 1024 * 1024 * 1024), // 1GB work profile partition (simulates PROFILE_OWNER)
+	}
+
+	// Simulate with multiple work profile EXTERNAL_STORAGE_DETECTED events
+	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
+		{
+			EventType:  "INTERNAL_STORAGE_MEASURED",
+			CreateTime: "2024-01-15T09:00:00Z",
+			// No byteCount for work profiles
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(96 * 1024 * 1024 * 1024), // 96GB available
+			CreateTime: "2024-01-15T09:00:01Z",
+		},
+		// Multiple EXTERNAL_STORAGE_DETECTED events (simulating the bug scenario)
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB (older event)
+			CreateTime: "2024-01-15T09:00:02Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB
+			CreateTime: "2024-01-15T09:05:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB
+			CreateTime: "2024-01-15T09:10:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(120 * 1024 * 1024 * 1024), // 120GB (latest, different value)
+			CreateTime: "2024-01-15T09:15:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB (older timestamp than above)
+			CreateTime: "2024-01-15T09:14:00Z",
+		},
 	}
 
 	data, err := json.Marshal(deviceInfo)
@@ -551,4 +1036,72 @@ func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, 
 
 func createAndroidDeviceId(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
+}
+
+func TestBuildNonComplianceErrorMessage(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		nonCompliance        []*androidmanagement.NonComplianceDetail
+		expectedErrorMessage string
+	}{
+		{
+			name:                 "nil non-compliance detail",
+			nonCompliance:        nil,
+			expectedErrorMessage: "Settings couldn't apply to a host for unknown reasons.",
+		},
+		{
+			name:                 "no non-compliance detail",
+			nonCompliance:        []*androidmanagement.NonComplianceDetail{},
+			expectedErrorMessage: "Settings couldn't apply to a host for unknown reasons.",
+		},
+		{
+			name: "single non-compliance detail",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\" setting couldn't apply to a host.\nReason: MANAGEMENT_MODE. Other settings are applied.",
+		},
+		{
+			name: "two non-compliance details",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+				{
+					SettingName:         "cameraDisabled",
+					NonComplianceReason: "API_LEVEL",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\", and \"cameraDisabled\" settings couldn't apply to a host.\nReasons: MANAGEMENT_MODE, and API_LEVEL. Other settings are applied.",
+		},
+		{
+			name: "three non-compliance details",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+				{
+					SettingName:         "cameraDisabled",
+					NonComplianceReason: "API_LEVEL",
+				},
+				{
+					SettingName:         "someCoolNewSetting",
+					NonComplianceReason: "UNSUPPORTED",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\", \"cameraDisabled\", and \"someCoolNewSetting\" settings couldn't apply to a host.\nReasons: MANAGEMENT_MODE, API_LEVEL, and UNSUPPORTED. Other settings are applied.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualMessage := buildNonComplianceErrorMessage(tc.nonCompliance)
+			require.Equal(t, tc.expectedErrorMessage, actualMessage)
+		})
+	}
 }

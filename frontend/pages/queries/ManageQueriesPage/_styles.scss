@@ -1,15 +1,14 @@
 .manage-queries-page {
+  @include vertical-page-layout;
+
   &__header-wrap {
-    @include normalize-team-header;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
 
   &__header {
-    display: flex;
-    align-items: center;
-
-    .form-field {
-      margin-bottom: 0;
-    }
+    @include normalize-team-header;
   }
 
   &__manage-automations {
@@ -55,8 +54,6 @@
         }
         &__table {
           thead {
-            // maintain height when select header is removed
-            height: 52.3833px;
             .name__header {
               width: auto;
             }

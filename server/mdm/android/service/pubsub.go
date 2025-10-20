@@ -18,21 +18,26 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-type pubSubPushRequest struct {
+type PubSubPushRequest struct {
 	Token                 string `query:"token"`
 	android.PubSubMessage `json:"message"`
 }
 
 func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	req := request.(*pubSubPushRequest)
+	req := request.(*PubSubPushRequest)
 	err := svc.ProcessPubSubPush(ctx, req.Token, &req.PubSubMessage)
 	return android.DefaultResponse{Err: err}
 }
 
 func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message *android.PubSubMessage) error {
 	notificationType, ok := message.Attributes["notificationType"]
+	if !ok || len(notificationType) == 0 {
+		// Nothing to process
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
 	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
-	if !ok || len(notificationType) == 0 || android.NotificationType(notificationType) == android.PubSubTest {
+	if android.NotificationType(notificationType) == android.PubSubTest {
 		// Nothing to process
 		svc.authz.SkipAuthorization(ctx)
 		return nil
@@ -111,11 +116,49 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
 
-	if device.AppliedState == string(android.DeviceStateDeleted) {
+	// Consider both appliedState and state fields for deletion, to handle variations in payloads.
+	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
+	if !isDeleted {
+		var alt struct {
+			AppliedState string `json:"appliedState"`
+			State        string `json:"state"`
+		}
+		// Best-effort parse; ignore error if shape doesn't match.
+		_ = json.Unmarshal(rawData, &alt)
+		if strings.ToUpper(alt.AppliedState) == string(android.DeviceStateDeleted) || strings.ToUpper(alt.State) == string(android.DeviceStateDeleted) {
+			isDeleted = true
+		}
+	}
+
+	if isDeleted {
 		level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 
-		// TODO(mna): should that delete the host from Fleet? Or at least set host_mdm to unenrolled?
+		// User-initiated unenroll (work profile removed) or device deleted via AMAPI.
+		// Flip host_mdm to unenrolled and emit an activity.
+		host, err := svc.getExistingHost(ctx, &device)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host for deleted android device")
+		}
+		if host != nil {
+			didUnenroll, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
+			}
+			if !didUnenroll {
+				return nil // Skip activity, if we didn't update the enrollment state.
+			}
+
+			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
+			// Use the computed display name from the device payload as lite host may not include it.
+			displayName := svc.getComputerName(&device)
+			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostSerial:       "",
+				HostDisplayName:  displayName,
+				InstalledFromDEP: false,
+				Platform:         "android",
+			})
+		}
 		return nil
 	}
 
@@ -143,6 +186,49 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+	err = svc.updateHostSoftware(ctx, &device, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
+	}
+	return nil
+}
+
+// largely based on refetch apps code from Apple MDM service methods
+func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
+	// Do nothing if no app reports returned
+	if len(device.ApplicationReports) == 0 {
+		return nil
+	}
+	truncateString := func(item any, length int) string {
+		str, ok := item.(string)
+		if !ok {
+			return ""
+		}
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return str
+	}
+	software := []fleet.Software{}
+	for _, app := range device.ApplicationReports {
+		if app.State != "INSTALLED" {
+			continue
+		}
+		sw := fleet.Software{
+			Name:          truncateString(app.DisplayName, fleet.SoftwareNameMaxLength),
+			Version:       truncateString(app.VersionName, fleet.SoftwareVersionMaxLength),
+			ApplicationID: ptr.String(truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength)),
+			Source:        "android_apps",
+			Installed:     true,
+		}
+		software = append(software, sw)
+	}
+
+	_, err := svc.fleetDS.UpdateHostSoftware(ctx, host.Host.ID, software)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
+	}
 	return nil
 }
 
@@ -157,6 +243,41 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android enrollment message")
 	}
+
+	// Some deployments may report work profile removal under ENROLLMENT notifications.
+	// Detect DELETED here too and treat as unenrollment confirmation.
+	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
+	if !isDeleted {
+		var alt struct {
+			AppliedState string `json:"appliedState"`
+			State        string `json:"state"`
+		}
+		_ = json.Unmarshal(rawData, &alt)
+		if strings.ToUpper(alt.AppliedState) == string(android.DeviceStateDeleted) || strings.ToUpper(alt.State) == string(android.DeviceStateDeleted) {
+			isDeleted = true
+		}
+	}
+	if isDeleted {
+		// Bypass re-enrollment and flip host to unenrolled.
+		host, herr := svc.getExistingHost(ctx, &device)
+		if herr != nil {
+			return ctxerr.Wrap(ctx, herr, "get host for deleted android device (ENROLLMENT)")
+		}
+		if host != nil {
+			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
+			}
+			displayName := svc.getComputerName(&device)
+			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostSerial:       "",
+				HostDisplayName:  displayName,
+				InstalledFromDEP: false,
+				Platform:         "android",
+			})
+		}
+		return nil
+	}
+
 	err = svc.enrollHost(ctx, &device)
 	if err != nil {
 		level.Debug(svc.logger).Log("msg", "Error enrolling Android host", "data", rawData)
@@ -260,8 +381,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
-	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable =
-		svc.calculateAndroidStorageMetrics(ctx, device, true)
+	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable = svc.calculateAndroidStorageMetrics(ctx, device, true)
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware
@@ -276,11 +396,15 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		host.DetailUpdatedAt = lastStatusReportTime
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
+	if device.HardwareInfo.EnterpriseSpecificId != "" {
+		host.Host.UUID = device.HardwareInfo.EnterpriseSpecificId
+	}
 
 	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
 }
 
@@ -301,8 +425,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}
 
-	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable :=
-		svc.calculateAndroidStorageMetrics(ctx, device, false)
+	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
@@ -524,14 +647,28 @@ func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonCompli
 	failedSettings := []string{}
 	failedReasons := []string{}
 
+	if len(nonCompliance) == 0 {
+		// Should not happen but here as a fallback
+		return "Settings couldn't apply to a host for unknown reasons."
+	}
+
 	for _, detail := range nonCompliance {
 		failedSettings = append(failedSettings, fmt.Sprintf("%q", detail.SettingName))
 		failedReasons = append(failedReasons, detail.NonComplianceReason)
 	}
-	failedSettingsString := strings.Join(failedSettings[:len(failedSettings)-1], ", ") + ", and " + failedSettings[len(failedSettings)-1]
-	failedReasonsString := strings.Join(failedReasons[:len(failedReasons)-1], ", ") + ", and " + failedReasons[len(failedReasons)-1]
 
-	return fmt.Sprintf("%s settings couldn't apply to a host.\nReasons: %s. Other settings are applied.", failedSettingsString, failedReasonsString)
+	// make the error gramatically correct depending on the number of errors
+	pluralModifier := ""
+	var failedSettingsString, failedReasonsString string
+	if len(failedSettings) > 1 {
+		pluralModifier = "s"
+		failedSettingsString = strings.Join(failedSettings[:len(failedSettings)-1], ", ") + ", and "
+		failedReasonsString = strings.Join(failedReasons[:len(failedReasons)-1], ", ") + ", and "
+	}
+	failedSettingsString += failedSettings[len(failedSettings)-1]
+	failedReasonsString += failedReasons[len(failedReasons)-1]
+
+	return fmt.Sprintf("%s setting%s couldn't apply to a host.\nReason%s: %s. Other settings are applied.", failedSettingsString, pluralModifier, pluralModifier, failedReasonsString)
 }
 
 // calculateAndroidStorageMetrics processes Android device memory events and calculates storage metrics.
@@ -565,6 +702,16 @@ func (svc *Service) calculateAndroidStorageMetrics(
 	var totalAvailableBytes int64
 	var hasMeasuredEvents bool
 
+	// Track the latest external storage detection event to avoid accumulation
+	var latestExternalStorageBytes int64
+	var latestExternalStorageTime time.Time
+
+	// Track the latest measured events to avoid accumulation
+	var latestInternalMeasuredBytes int64
+	var latestInternalMeasuredTime time.Time
+	var latestExternalMeasuredBytes int64
+	var latestExternalMeasuredTime time.Time
+
 	for _, event := range device.MemoryEvents {
 		level.Debug(svc.logger).Log(
 			"msg", "Android memory event"+logSuffix,
@@ -572,19 +719,56 @@ func (svc *Service) calculateAndroidStorageMetrics(
 			"byte_count", event.ByteCount,
 			"create_time", event.CreateTime,
 		)
+
+		eventTime, err := time.Parse(time.RFC3339, event.CreateTime)
+		if err != nil {
+			// Log parse error but continue processing
+			level.Debug(svc.logger).Log(
+				"msg", "Failed to parse event time"+logSuffix,
+				"event_type", event.EventType,
+				"create_time", event.CreateTime,
+				"error", err,
+			)
+			continue
+		}
+
 		switch event.EventType {
 		case "EXTERNAL_STORAGE_DETECTED":
-			totalStorageBytes += event.ByteCount
-		case "INTERNAL_STORAGE_MEASURED", "EXTERNAL_STORAGE_MEASURED":
-			totalAvailableBytes += event.ByteCount
-			hasMeasuredEvents = true
+			// Only use the most recent EXTERNAL_STORAGE_DETECTED event
+			if eventTime.After(latestExternalStorageTime) {
+				latestExternalStorageBytes = event.ByteCount
+				latestExternalStorageTime = eventTime
+			}
+		case "INTERNAL_STORAGE_MEASURED":
+			// Only use the most recent INTERNAL_STORAGE_MEASURED event
+			if eventTime.After(latestInternalMeasuredTime) {
+				latestInternalMeasuredBytes = event.ByteCount
+				latestInternalMeasuredTime = eventTime
+				hasMeasuredEvents = true
+			}
+		case "EXTERNAL_STORAGE_MEASURED":
+			// Only use the most recent EXTERNAL_STORAGE_MEASURED event
+			if eventTime.After(latestExternalMeasuredTime) {
+				latestExternalMeasuredBytes = event.ByteCount
+				latestExternalMeasuredTime = eventTime
+				hasMeasuredEvents = true
+			}
 		}
 	}
+
+	// Add the latest external storage value (if any) to the total
+	if latestExternalStorageBytes > 0 {
+		totalStorageBytes += latestExternalStorageBytes
+	}
+
+	// Calculate total available from the latest measured events
+	totalAvailableBytes = latestInternalMeasuredBytes + latestExternalMeasuredBytes
 
 	if totalStorageBytes > 0 {
 		gigsTotalDiskSpace = float64(totalStorageBytes) / (1024 * 1024 * 1024)
 
-		// If we only have DETECTED events (no MEASURED events), storage measurement isn't supported
+		// If we only have DETECTED events (no MEASURED events), available space measurement isn't supported
+		// We can still report total storage capacity but not how much is free/used
 		// We use -1 as sentinel value to indicate "not supported"
 		if !hasMeasuredEvents {
 			gigsDiskSpaceAvailable = -1

@@ -34,29 +34,31 @@ const Breadcrumbs = ({
 
   return (
     <div className={baseClass}>
-      <Button
-        className={page1ClassName}
-        onClick={() => onSetPage(1)}
-        variant="unstyled"
-      >
-        Set up user
-      </Button>
-      <Button
-        className={page2ClassName}
-        onClick={() => onSetPage(2)}
-        tabIndex={page2TabIndex}
-        variant="unstyled"
-      >
-        Organization details
-      </Button>
-      <Button
-        className={page3ClassName}
-        onClick={() => onSetPage(3)}
-        tabIndex={page3TabIndex}
-        variant="unstyled"
-      >
-        Set Fleet URL
-      </Button>
+      <div className={`${baseClass}__wrapper`}>
+        <Button
+          className={page1ClassName}
+          onClick={() => onSetPage(1)}
+          variant="unstyled"
+        >
+          Set up user
+        </Button>
+        <Button
+          className={page2ClassName}
+          onClick={() => onSetPage(2)}
+          tabIndex={page2TabIndex}
+          variant="unstyled"
+        >
+          Organization details
+        </Button>
+        <Button
+          className={page3ClassName}
+          onClick={() => onSetPage(3)}
+          tabIndex={page3TabIndex}
+          variant="unstyled"
+        >
+          Set Fleet URL
+        </Button>
+      </div>
     </div>
   );
 };

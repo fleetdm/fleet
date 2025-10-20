@@ -775,7 +775,7 @@ type SetSetupExperienceSoftwareFunc func(ctx context.Context, platform string, t
 
 type ListSetupExperienceSoftwareFunc func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
-type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error)
+type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error)
 
@@ -788,6 +788,10 @@ type SetupExperienceNextStepFunc func(ctx context.Context, host *fleet.Host) (bo
 type SetupExperienceInitFunc func(ctx context.Context) (*fleet.SetupExperienceInitResult, error)
 
 type GetDeviceSetupExperienceStatusFunc func(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error)
+
+type MaybeCancelPendingSetupExperienceStepsFunc func(ctx context.Context, host *fleet.Host) error
+
+type IsAllSetupExperienceSoftwareRequiredFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
 type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error)
 
@@ -811,7 +815,7 @@ type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, t
 
 type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
 
-type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, err error)
+type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
@@ -1989,6 +1993,12 @@ type Service struct {
 
 	GetDeviceSetupExperienceStatusFunc        GetDeviceSetupExperienceStatusFunc
 	GetDeviceSetupExperienceStatusFuncInvoked bool
+
+	MaybeCancelPendingSetupExperienceStepsFunc        MaybeCancelPendingSetupExperienceStepsFunc
+	MaybeCancelPendingSetupExperienceStepsFuncInvoked bool
+
+	IsAllSetupExperienceSoftwareRequiredFunc        IsAllSetupExperienceSoftwareRequiredFunc
+	IsAllSetupExperienceSoftwareRequiredFuncInvoked bool
 
 	AddFleetMaintainedAppFunc        AddFleetMaintainedAppFunc
 	AddFleetMaintainedAppFuncInvoked bool
@@ -4709,11 +4719,11 @@ func (s *Service) ListSetupExperienceSoftware(ctx context.Context, platform stri
 	return s.ListSetupExperienceSoftwareFunc(ctx, platform, teamID, opts)
 }
 
-func (s *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (s *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	s.mu.Lock()
 	s.GetOrbitSetupExperienceStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetOrbitSetupExperienceStatusFunc(ctx, orbitNodeKey, forceRelease)
+	return s.GetOrbitSetupExperienceStatusFunc(ctx, orbitNodeKey, forceRelease, resetFailedSetupSteps)
 }
 
 func (s *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error) {
@@ -4756,6 +4766,20 @@ func (s *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.De
 	s.GetDeviceSetupExperienceStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceSetupExperienceStatusFunc(ctx)
+}
+
+func (s *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.MaybeCancelPendingSetupExperienceStepsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeCancelPendingSetupExperienceStepsFunc(ctx, host)
+}
+
+func (s *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, host *fleet.Host) (bool, error) {
+	s.mu.Lock()
+	s.IsAllSetupExperienceSoftwareRequiredFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsAllSetupExperienceSoftwareRequiredFunc(ctx, host)
 }
 
 func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error) {
@@ -4835,7 +4859,7 @@ func (s *Service) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.Con
 	return s.ConditionalAccessMicrosoftGetFunc(ctx)
 }
 
-func (s *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error) {
+func (s *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error) {
 	s.mu.Lock()
 	s.ConditionalAccessMicrosoftConfirmFuncInvoked = true
 	s.mu.Unlock()

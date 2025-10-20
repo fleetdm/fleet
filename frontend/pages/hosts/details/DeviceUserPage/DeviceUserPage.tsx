@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
-  IGetSetupSoftwareStatusesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
@@ -27,6 +27,7 @@ import {
 } from "interfaces/certificates";
 import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -53,9 +54,12 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import { getErrorMessage, getIsSettingUpSoftware } from "./helpers";
+import {
+  getErrorMessage,
+  hasRemainingSetupSteps,
+  isSoftwareScriptSetup,
+} from "./helpers";
 
-import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
@@ -110,6 +114,7 @@ interface IDeviceUserPageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      setup_only?: string;
     };
     search?: string;
   };
@@ -308,7 +313,7 @@ const DeviceUserPage = ({
   const {
     host,
     license,
-    org_logo_url: orgLogoURL = "",
+    org_logo_url_light_background: orgLogoURL = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
@@ -316,7 +321,9 @@ const DeviceUserPage = ({
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
   const isSetupExperienceSoftwareEnabledPlatform =
-    isLinuxLike(host?.platform || "") || host?.platform === "windows";
+    isLinuxLike(host?.platform || "") ||
+    host?.platform === "windows" ||
+    host?.platform === "darwin";
 
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
@@ -326,22 +333,37 @@ const DeviceUserPage = ({
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
   const {
-    data: softwareSetupStatuses,
-    isLoading: isLoadingSetupSoftware,
-    isError: isErrorSetupSoftware,
+    data: setupStepStatuses,
+    isLoading: isLoadingSetupSteps,
+    isError: isErrorSetupSteps,
   } = useQuery<
-    IGetSetupSoftwareStatusesResponse,
+    IGetSetupExperienceStatusesResponse,
     Error,
-    IGetSetupSoftwareStatusesResponse["setup_experience_results"]["software"]
+    ISetupStep[] | null | undefined
   >(
     ["software-setup-statuses", deviceAuthToken],
-    () => deviceUserAPI.getSetupSoftwareStatuses({ token: deviceAuthToken }),
+    () => deviceUserAPI.getSetupExperienceStatuses({ token: deviceAuthToken }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (res) => res.setup_experience_results.software,
       enabled: checkForSetupExperienceSoftware, // this can only become true once the above `dupResponse` is defined by its associated API call response, ensuring this call only fires once the frontend knows if this is a Fleet Premium instance
-      refetchInterval: (data) => (getIsSettingUpSoftware(data) ? 5000 : false), // refetch every 5s until finished
+      refetchInterval: (data) => (hasRemainingSetupSteps(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
+      select: (response) => {
+        // Marshal the response to include a `type` property so we can differentiate
+        // between software, payload-free software, and script setup steps in the UI.
+        return [
+          ...(response.setup_experience_results.software ?? []).map((s) => ({
+            ...s,
+            type: isSoftwareScriptSetup(s)
+              ? "software_script_run" // used for payload-free software
+              : "software_install",
+          })),
+          ...(response.setup_experience_results.scripts ?? []).map((s) => ({
+            ...s,
+            type: "script_run" as const,
+          })),
+        ];
+      },
     }
   );
 
@@ -484,21 +506,25 @@ const DeviceUserPage = ({
       !host ||
       isLoadingHost ||
       isLoadingDeviceCertificates ||
-      isLoadingSetupSoftware
+      isLoadingSetupSteps
     ) {
       return <Spinner />;
     }
-    if (isErrorSetupSoftware) {
+    if (isErrorSetupSteps) {
       return <DataError description="Could not get software setup status." />;
     }
     if (
       checkForSetupExperienceSoftware &&
-      getIsSettingUpSoftware(softwareSetupStatuses)
+      (hasRemainingSetupSteps(setupStepStatuses) || location.query.setup_only)
     ) {
       // at this point, softwareSetupStatuses will be non-empty
       return (
         <SettingUpYourDevice
-          softwareStatuses={softwareSetupStatuses || []}
+          setupSteps={setupStepStatuses || []}
+          requireAllSoftware={
+            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            false
+          }
           toggleInfoModal={toggleInfoModal}
         />
       );
@@ -529,7 +555,7 @@ const DeviceUserPage = ({
             summaryData={summaryData}
             showRefetchSpinner={showRefetchSpinner}
             onRefetchHost={onRefetchHost}
-            renderActionDropdown={renderActionButtons}
+            renderActionsDropdown={renderActionButtons}
             deviceUser
           />
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -732,7 +758,11 @@ const DeviceUserPage = ({
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
-                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                  {isLoadingHost ? (
+                    <Spinner />
+                  ) : (
+                    <OrgLogoIcon className="logo" src={orgLogoURL} />
+                  )}
                 </div>
               </div>
             </li>

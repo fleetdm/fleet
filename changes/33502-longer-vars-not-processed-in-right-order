@@ -1,0 +1,1 @@
+* Fixed an issue where longer variable names ($FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART) with the same base ($FLEET_VAR_HOST_END_USER_IDP_USERNAME) was not processed in the right order.

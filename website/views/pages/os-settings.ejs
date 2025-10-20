@@ -1,4 +1,4 @@
-<div id="os-settings" v-cloak>
+<div id="os-settings-page" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content">
       <docs-nav-and-search  current-section="controls" :algolia-public-key="algoliaPublicKey" ></docs-nav-and-search>
@@ -37,7 +37,7 @@
         <div purpose="content">
           <div purpose="page-headline">
             <h1>OS settings</h1>
-            <p>In Fleet, you can restrict or preset any OS setting that's supported by popular MDMs, like Jamf and Intune. Choose your platform for more information.</p>
+            <p>In Fleet, you can restrict or preset any OS setting that's supported by popular MDMs, like Jamf and Intune.</p>
           </div>
           <div purpose="platform-content" v-if="selectedPlatform === 'apple'">
             <ul>

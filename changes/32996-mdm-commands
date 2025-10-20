@@ -1,1 +1,0 @@
-* Fixed 422 error when hitting `/api/v1/fleet/commands` endpoint with team filter.

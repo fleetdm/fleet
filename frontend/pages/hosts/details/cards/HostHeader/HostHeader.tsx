@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import { isAndroid } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -68,11 +68,11 @@ const RefetchButton = ({
       <div className={`${baseClass}__refetch`} {...conditionalProps}>
         <Button
           className={classNames}
-          disabled={isDisabled}
+          disabled={isDisabled || isFetching}
           onClick={onRefetchHost}
-          variant="text-icon"
+          variant="inverse"
         >
-          <Icon name="refresh" color="core-fleet-blue" size="small" />
+          <Icon name="refresh" color="ui-fleet-black-75" size="small" />
           {buttonText}
         </Button>
         {tooltip && renderTooltip()}
@@ -87,7 +87,7 @@ interface IHostSummaryProps {
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
   ) => void;
-  renderActionDropdown: () => JSX.Element | null;
+  renderActionsDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
@@ -96,19 +96,17 @@ const HostHeader = ({
   summaryData,
   showRefetchSpinner,
   onRefetchHost,
-  renderActionDropdown,
+  renderActionsDropdown,
   deviceUser,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
   const { platform } = summaryData;
 
-  const isAndroidHost = isAndroid(platform);
-  const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
   const hostDisplayName = useRef<HTMLHeadingElement>(null);
   const isTruncated = useCheckTruncatedElement(hostDisplayName);
 
   const renderRefetch = () => {
-    if (isAndroidHost) {
+    if (isAndroid(platform)) {
       return null;
     }
 
@@ -116,8 +114,8 @@ const HostHeader = ({
     let isDisabled = false;
     let tooltip;
 
-    // we don't have a concept of "online" for iPads and iPhones, so always enable refetch
-    if (!isIosOrIpadosHost) {
+    // we don't have a concept of "online" for iPads and iPhones
+    if (!isIPadOrIPhone(platform)) {
       // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
       // this prop. When this is the case or when it is `unlocked`, we only take
       // into account the host being online or offline for correctly render the
@@ -134,6 +132,20 @@ const HostHeader = ({
         tooltip = !isOnline
           ? REFETCH_TOOLTIP_MESSAGES.offline
           : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+      }
+    } else {
+      // ios and ipad devices refresh buttons disable state is determined only by the
+      // host mdm device status.
+      // eslint-disable-next-line
+      if (
+        hostMdmDeviceStatus === undefined ||
+        hostMdmDeviceStatus === "unlocked"
+      ) {
+        isDisabled = false;
+        tooltip = null;
+      } else {
+        isDisabled = true;
+        tooltip = REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
       }
     }
 
@@ -185,7 +197,7 @@ const HostHeader = ({
   };
 
   return (
-    <div className="header title">
+    <div className={`${baseClass} header title`}>
       <div className="title__inner">
         <div className="display-name-container">
           <TooltipWrapper
@@ -212,10 +224,12 @@ const HostHeader = ({
             {"Last fetched"} {lastFetched}
             &nbsp;
           </div>
-          {renderRefetch()}
         </div>
       </div>
-      {renderActionDropdown()}
+      <div className="title__actions">
+        {renderRefetch()}
+        {renderActionsDropdown()}
+      </div>
     </div>
   );
 };

@@ -13,7 +13,10 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { ISoftwareVulnerability } from "interfaces/software";
+import {
+  ISoftwareVulnerability,
+  ROLLING_ARCH_LINUX_NAMES,
+} from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -96,17 +99,17 @@ const generateDefaultTableHeaders = (
   {
     Header: "Version",
     disableSortBy: true,
-    accessor: "version",
     Cell: (cellProps: IVersionCellProps) => {
-      const value = cellProps.cell.value;
+      const { version, name_only } = cellProps.row.original;
       if (
-        (cellProps.row.values.name_only === "Arch Linux" ||
-          cellProps.row.values.name_only === "Arch Linux ARM") &&
-        value === "rolling"
+        ROLLING_ARCH_LINUX_NAMES.includes(name_only) &&
+        version === "rolling"
       ) {
-        return <TextCell value={<TooltipWrapperArchLinuxRolling />} />;
+        return (
+          <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
+        );
       }
-      return <TextCell value={value} />;
+      return <TextCell value={version} />;
     },
   },
   {

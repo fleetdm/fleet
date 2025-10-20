@@ -1,2 +1,5 @@
 .external_modules
 .terraform.lock.hcl
+
+infra/.terraform
+osquery_perf/.terraform

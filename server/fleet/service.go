@@ -1259,7 +1259,7 @@ type Service interface {
 	SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 	ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
-	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*SetupExperienceStatusPayload, error)
+	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
 	// SetSetupExperienceScript sets the setup experience script for the given team.
@@ -1276,6 +1276,10 @@ type Service interface {
 	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)
 	// GetDeviceSetupExperienceStatus returns the "Setup experience" status for a "Fleet Desktop" device.
 	GetDeviceSetupExperienceStatus(ctx context.Context) (*DeviceSetupExperienceStatusPayload, error)
+
+	MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *Host) error
+
+	IsAllSetupExperienceSoftwareRequired(ctx context.Context, host *Host) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
@@ -1325,7 +1329,7 @@ type Service interface {
 	// ConditionalAccessMicrosoftGet returns the current (currently unique) integration.
 	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
 	// ConditionalAccessMicrosoftConfirm finalizes the integration (marks integration as done).
-	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
+	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 

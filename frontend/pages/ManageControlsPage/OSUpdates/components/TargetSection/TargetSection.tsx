@@ -4,7 +4,6 @@ import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
 import { ApplePlatform } from "interfaces/platform";
 
-import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
 import WindowsTargetForm from "../WindowsTargetForm";
@@ -195,15 +194,7 @@ const TargetSection = ({
     );
   };
 
-  return (
-    <div className={baseClass}>
-      <SectionHeader
-        title="Target"
-        wrapperCustomClass={`${baseClass}__header`}
-      />
-      {renderTargetForms()}
-    </div>
-  );
+  return <div className={baseClass}>{renderTargetForms()}</div>;
 };
 
 export default TargetSection;

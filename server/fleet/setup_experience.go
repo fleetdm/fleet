@@ -50,7 +50,7 @@ type SetupExperienceStatusResult struct {
 	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `
 	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
-	Error                           *string                           `db:"error" json:"-" `
+	Error                           *string                           `db:"error" json:"error" `
 	// SoftwareTitleID must be filled through a JOIN
 	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
 }
@@ -105,6 +105,11 @@ func (s *SetupExperienceStatusResult) IsForScript() bool {
 // installer or a VPP app.
 func (s *SetupExperienceStatusResult) IsForSoftware() bool {
 	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil
+}
+
+// IsForSoftwarePackage indicates if this result is for a setup experience software installer step.
+func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
+	return s.SoftwareInstallerID != nil
 }
 
 type SetupExperienceBootstrapPackageResult struct {
@@ -183,21 +188,26 @@ type SetupExperienceStatusPayload struct {
 	ConfigurationProfiles []*SetupExperienceConfigurationProfileResult `json:"configuration_profiles,omitempty"`
 	AccountConfiguration  *SetupExperienceAccountConfigurationResult   `json:"account_configuration,omitempty"`
 	OrgLogoURL            string                                       `json:"org_logo_url"`
+	RequireAllSoftware    bool                                         `json:"require_all_software"`
 }
 
 // IsSetupExperienceSupported returns whether "Setup experience" is supported for the host's platform.
+// TODO: Setup Experience supports a wide range of platforms now but has a feature matrix where not all
+// platforms support all features. May be worth refactoring to check for supported features instead
 func IsSetupExperienceSupported(hostPlatform string) bool {
-	return hostPlatform == "darwin" || hostPlatform == "windows" || IsLinux(hostPlatform)
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados" || hostPlatform == "windows" || IsLinux(hostPlatform)
 }
 
 // DeviceSetupExperienceStatusPayload holds the status of the "Setup experience" for a device.
 type DeviceSetupExperienceStatusPayload struct {
 	// Software holds the status of the software to install on the device.
 	Software []*SetupExperienceStatusResult `json:"software,omitempty"`
+	// Scripts holds the status of the scripts to run on the device.
+	Scripts []*SetupExperienceStatusResult `json:"scripts,omitempty"`
 }
 
 // HostUUIDForSetupExperience returns the host "UUID" to use during the "Setup experience"
-// for a non-darwin host.
+// for a non-Apple host.
 //
 // The setup_experience_status_results uses the host's "UUID" as the host identifier because the table
 // was created to implement "Setup experience" for macOS devices.
@@ -206,7 +216,7 @@ type DeviceSetupExperienceStatusPayload struct {
 // use the host.OsqueryHostID as UUID. For Windows/Linux devices, the "Setup experience" will be triggered after orbit
 // and osquery enrollment, thus host.OsqueryHostID will always be set and unique.
 func HostUUIDForSetupExperience(host *Host) (string, error) {
-	if host.Platform == string(MacOSPlatform) {
+	if host.Platform == string(MacOSPlatform) || host.Platform == string(IOSPlatform) || host.Platform == string(IPadOSPlatform) {
 		return host.UUID, nil
 	}
 	// Currently it seems this field is always set when orbit or osquery enroll,

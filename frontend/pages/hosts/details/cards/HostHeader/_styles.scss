@@ -12,7 +12,7 @@
     }
 
     &.error {
-      color: $core-white;
+      color: $core-fleet-white;
       background-color: $core-vibrant-red;
     }
   }
@@ -26,31 +26,19 @@
 
   &__refetch {
     display: flex;
-    margin-left: $pad-medium;
-    margin-right: $pad-small;
 
     .refetch-btn {
-      font-size: $x-small;
-      height: 38px;
-
       &:hover {
         svg {
           path {
-            fill: $core-vibrant-blue-over;
+            fill: $ui-fleet-black-75-over;
           }
         }
       }
     }
 
+    // Inherits disabled button styles
     .refetch-spinner {
-      color: $core-vibrant-blue;
-      cursor: default;
-      font-size: $x-small;
-      height: 38px;
-      opacity: 50%;
-      filter: saturate(100%);
-      margin-left: $pad-small;
-
       .icon {
         animation: spin 2s linear infinite;
       }
@@ -67,5 +55,12 @@
         }
       }
     }
+  }
+
+  .title__actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: $pad-medium;
   }
 }

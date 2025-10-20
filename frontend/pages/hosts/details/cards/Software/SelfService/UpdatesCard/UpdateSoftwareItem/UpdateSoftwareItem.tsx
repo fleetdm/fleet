@@ -29,13 +29,7 @@ import {
 
 const baseClass = "update-software-item";
 
-const STATUS_CONFIG: Record<
-  Exclude<
-    SoftwareInstallStatus,
-    "pending_uninstall" | "failed_uninstall" | "uninstalled"
-  >,
-  IStatusDisplayConfig
-> = {
+const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
@@ -122,7 +116,7 @@ const InstallerStatus = ({
           <span data-testid={`${baseClass}__status--test`}>
             <Button
               className={`${baseClass}__item-status-button`}
-              variant="text-icon"
+              variant="inverse"
               onClick={() => {
                 onShowInstallerDetails();
               }}

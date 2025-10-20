@@ -31,7 +31,7 @@ import paths from "router/paths";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -106,7 +106,12 @@ const ScriptBatchDetailsPage = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const { data: batchDetails, isLoading, isError } = useQuery<
+  const {
+    data: batchDetails,
+    isLoading,
+    isError,
+    refetch: refetchBatchDetails,
+  } = useQuery<
     IScriptBatchSummaryV2,
     AxiosError,
     IScriptBatchSummaryV2,
@@ -155,8 +160,10 @@ const ScriptBatchDetailsPage = ({
           .CONTROLS_SCRIPTS_BATCH_DETAILS(batchExecutionId)
           .concat(newQuery ? `?${newQuery}` : "")
       );
+      // update page's summary data (e.g. pct hosts responded) whenever changing tabs
+      refetchBatchDetails();
     },
-    [batchExecutionId, location?.search, router]
+    [batchExecutionId, location?.search, refetchBatchDetails, router]
   );
 
   useEffect(() => {
@@ -239,7 +246,9 @@ const ScriptBatchDetailsPage = ({
 
     return (
       <>
-        <BackLink text="Back to script activity" path={pathToProgress} />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton text="Back to script activity" path={pathToProgress} />
+        </div>
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
           title={script_name}
@@ -251,7 +260,7 @@ const ScriptBatchDetailsPage = ({
                 {
                   type: "secondary",
                   label: "Show script",
-                  buttonVariant: "text-icon",
+                  buttonVariant: "inverse",
                   iconName: "eye",
                   onClick: () => {
                     setShowBatchScriptDetails(true);
@@ -279,27 +288,19 @@ const ScriptBatchDetailsPage = ({
           >
             <TabList>
               <Tab>
-                <TabText count={ran}>Ran</TabText>
+                <TabText>Ran</TabText>
               </Tab>
               <Tab>
-                <TabText count={errored} countVariant="alert">
-                  Errored
-                </TabText>
+                <TabText>Errored</TabText>
               </Tab>
               <Tab>
-                <TabText count={pending} countVariant="pending">
-                  Pending
-                </TabText>
+                <TabText>Pending</TabText>
               </Tab>
               <Tab>
-                <TabText count={incompatible} countVariant="pending">
-                  Incompatible
-                </TabText>
+                <TabText>Incompatible</TabText>
               </Tab>
               <Tab>
-                <TabText count={canceled} countVariant="pending">
-                  Canceled
-                </TabText>
+                <TabText>Canceled</TabText>
               </Tab>
             </TabList>
             <TabPanel>

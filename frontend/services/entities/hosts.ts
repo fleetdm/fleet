@@ -13,6 +13,7 @@ import {
   IHostSoftware,
   ISoftware,
   SoftwareAggregateStatus,
+  SoftwareSource,
 } from "interfaces/software";
 import {
   DiskEncryptionStatus,
@@ -35,8 +36,12 @@ export interface ISortOption {
 
 export interface ILoadHostsResponse {
   hosts: IHost[];
-  software: ISoftware | undefined;
-  software_title: { name: string; version?: string } | null | undefined; // TODO: confirm type
+  software?: ISoftware;
+  software_title?: {
+    name: string;
+    version?: string;
+    source?: SoftwareSource;
+  } | null;
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }

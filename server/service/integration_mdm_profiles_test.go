@@ -3443,7 +3443,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "mobileconfig is not XML nor PKCS7 parseable")
+	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet wil sign the profile for you.")
 
 	// Apple/Android invalid json declaration
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -4471,6 +4471,19 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Contents: []byte(bigString)}}},
 		http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
+
+	// invalid profile (bad mobileconfig)
+	resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{
+			Name: "Bad mobileconfig", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>`),
+		},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: plist: error parsing XML property list: XML syntax error")
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)

@@ -139,7 +139,8 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
-				host.Host.GigsTotalDiskSpace)
+				host.Host.GigsTotalDiskSpace,
+				nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "setting Android host disk space")
 			}
@@ -189,7 +190,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			hardware_serial = :hardware_serial,
 			cpu_type = :cpu_type,
 			hardware_model = :hardware_model,
-			hardware_vendor = :hardware_vendor
+			hardware_vendor = :hardware_vendor,
+			uuid = :uuid
 		WHERE id = :id
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
@@ -207,6 +209,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			"cpu_type":          host.CPUType,
 			"hardware_model":    host.HardwareModel,
 			"hardware_vendor":   host.HardwareVendor,
+			"uuid":              host.UUID,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
@@ -230,7 +233,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
-				host.Host.GigsTotalDiskSpace)
+				host.Host.GigsTotalDiskSpace,
+				nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating Android host disk space")
 			}
@@ -368,7 +372,49 @@ UPDATE host_mdm
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
-	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+	}
+	// Delete all Android custom OS settings for unenrolled hosts.
+	// We do this in one query using a JOIN to avoid doing it one host at a time.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_android_profiles`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled hosts in bulk")
+	}
+	return nil
+}
+
+// SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm and OS settings records
+// associated with it. If the host is not enrolled, it does nothing and returns false.
+func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
+	var rows int64
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, `
+UPDATE host_mdm
+	SET server_url = '', mdm_id = NULL, enrolled = 0
+	WHERE host_id = ? AND enrolled = 1`, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
+		}
+		rows, err = result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for set host_mdm unenrolled for android host")
+		}
+		if rows > 0 {
+			var uuid string
+			err = sqlx.GetContext(ctx, tx, &uuid, `SELECT uuid FROM hosts WHERE id = ?`, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host uuid")
+			}
+			err = ds.deleteMDMOSCustomSettingsForHost(ctx, tx, uuid, "android")
+			return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled host")
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
 }
 
 func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromDEP, enrolled bool, hostIDs ...uint) error {
@@ -394,16 +440,39 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 		}
 	}
 
-	args := []interface{}{}
+	// Query host UUIDs to determine personal enrollment status
+	// For Android, a non-empty UUID (enterprise_specific_id) indicates a BYOD/personal device
+	type hostInfo struct {
+		ID   uint   `db:"id"`
+		UUID string `db:"uuid"`
+	}
+	var hosts []hostInfo
+	query, args, err := sqlx.In(`SELECT id, uuid FROM hosts WHERE id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build host query")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &hosts, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "query host UUIDs")
+	}
+
+	// Build map of host ID to personal enrollment status
+	hostPersonalEnrollment := make(map[uint]bool)
+	for _, h := range hosts {
+		// Android BYOD devices have a non-empty UUID (enterprise_specific_id)
+		hostPersonalEnrollment[h.ID] = h.UUID != ""
+	}
+
+	args = []interface{}{}
 	parts := []string{}
 	for _, id := range hostIDs {
-		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, id)
-		parts = append(parts, "(?, ?, ?, ?, ?, ?)")
+		isPersonalEnrollment := hostPersonalEnrollment[id]
+		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, isPersonalEnrollment, id)
+		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
 	}
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id)`, strings.Join(parts, ",")), args...)
+		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
@@ -880,18 +949,24 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	FROM ds
 		INNER JOIN android_devices ad
 			ON ad.host_id = ds.host_id
+		INNER JOIN host_mdm hmdm
+			ON ad.host_id=hmdm.host_id
 		LEFT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
-	  -- at least one profile is missing from host_mdm_android_profiles
-		hmap.host_uuid IS NULL OR
-		-- profile was never sent or was updated after sent
-		-- TODO(ap): need to make sure we set it to NULL when profile is updated
-		( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
-		hmap.status IS NULL OR
-		-- profile was sent in older policy version than currently applied
-		(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
-			hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+	  -- host is enrolled
+	    hmdm.enrolled = 1 AND
+		(
+		-- at least one profile is missing from host_mdm_android_profiles
+			hmap.host_uuid IS NULL OR
+			-- profile was never sent or was updated after sent
+			-- TODO(ap): need to make sure we set it to NULL when profile is updated
+			( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
+			hmap.status IS NULL OR
+			-- profile was sent in older policy version than currently applied
+			(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
+				hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+		)
 
 	UNION
 
@@ -902,10 +977,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 			ON h.uuid = hmap.host_uuid
 		INNER JOIN android_devices ad
 			ON ad.host_id = h.id
+		INNER JOIN host_mdm hmdm
+			ON hmdm.host_id = h.id
 		LEFT OUTER JOIN ds
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
 	  -- at least one profile was removed from the set of applicable profiles
+	    hmdm.enrolled = 1 AND
 		ds.host_uuid IS NULL AND
 		-- and it is not in pending remove status (in which case it was processed)
 		( hmap.operation_type != ? OR COALESCE(hmap.status, '') <> ? )
@@ -1413,4 +1491,24 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 	}
 
 	return true, nil
+}
+
+// ListAndroidEnrolledDevicesForReconcile returns Android devices currently marked as enrolled in Fleet.
+func (ds *Datastore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) {
+	var devices []*android.Device
+	stmt := `SELECT
+		ad.id,
+		ad.host_id,
+		ad.device_id,
+		ad.enterprise_specific_id,
+		ad.last_policy_sync_time,
+		ad.applied_policy_id,
+		ad.applied_policy_version
+	FROM android_devices ad
+	JOIN host_mdm hm ON hm.host_id = ad.host_id AND hm.enrolled = 1
+	JOIN hosts h ON h.id = ad.host_id AND h.platform = 'android'`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list enrolled android devices for reconcile")
+	}
+	return devices, nil
 }
