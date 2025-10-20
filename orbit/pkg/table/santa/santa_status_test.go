@@ -34,6 +34,9 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	require.Equal(t, "file", row["log_type"])
 	require.Equal(t, "6", row["static_rule_count"])
 	require.Equal(t, "rdonly", row["remount_usb_mode"])
+	require.Equal(t, "0", row["sync_enabled"])
+	require.Equal(t, "0", row["metrics_enabled"])
+	require.Equal(t, "0", row["events_pending_upload"])
 	// float formatting should be plain (no trailing zeros or scientific unless big)
 	require.True(t, strings.Contains(row["watchdog_ram_peak"], "252.453125"))
 	require.True(t, strings.Contains(row["watchdog_cpu_peak"], "4.759"))
@@ -80,6 +83,7 @@ func TestStatusColumns_Contract(t *testing.T) {
 	// a few key columns to lock contract
 	for _, name := range []string{
 		"file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
+		"sync_enabled", "metrics_enabled", "events_pending_upload",
 	} {
 		if _, ok := names[name]; !ok {
 			t.Fatalf("missing column %q", name)
