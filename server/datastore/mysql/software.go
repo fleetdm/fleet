@@ -3242,6 +3242,32 @@ func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*host
 	return vppInstalled, nil
 }
 
+func hostInstalledInHouses(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	installedStmt := `
+		SELECT
+			iha.title_id AS id,
+			hihsi.command_uuid AS last_install_install_uuid,
+			hihsi.created_at AS last_install_installed_at,
+			iha.id AS in_house_app_id,
+			iha.version AS in_house_app_version,
+			iha.platform as in_house_app_platform,
+			'installed' AS status
+		FROM
+			host_in_house_software_installs hihsi
+		INNER JOIN
+			in_house_apps iha ON hihsi.in_house_app_id = iha.id
+		WHERE
+			hihsi.host_id = ?
+	`
+	var installed []*hostSoftware
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &installed, installedStmt, hostID)
+	if err != nil {
+		return nil, err
+	}
+
+	return installed, nil
+}
+
 // hydrated is the base record from the db
 // it contains most of the information we need to return back, however,
 // we need to copy over the install/uninstall data from the softwareTitle we fetched
@@ -3458,7 +3484,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			// Until then if the host_software record is not a software installer, we delete it and keep the vpp app
 			if _, exists := hostInstalledSoftwareTitleSet[s.ID]; exists {
 				installedTitle := bySoftwareTitleID[s.ID]
-				if installedTitle.InstallerID == nil {
+				if installedTitle != nil && installedTitle.InstallerID == nil {
 					// not a software installer, so copy over
 					// the installed title information
 					s.LastOpenedAt = installedTitle.LastOpenedAt
@@ -3496,7 +3522,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if _, exists := hostInstalledSoftwareTitleSet[s.ID]; exists {
 			installedTitle := bySoftwareTitleID[s.ID]
 
-			if installedTitle.InstallerID == nil {
+			if installedTitle != nil && installedTitle.InstallerID == nil {
 				// not a software installer, so copy over
 				// the installed title information
 				s.LastOpenedAt = installedTitle.LastOpenedAt
@@ -3507,15 +3533,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				s.BundleIdentifier = installedTitle.BundleIdentifier
 				if !opts.VulnerableOnly && !hasCVEMetaFilters {
 					// When we are filtering by vulnerable only
-					// we want to treat the installed vpp app as a regular software title
+					// we want to treat the installed in-house app as a regular software title
 					delete(bySoftwareTitleID, s.ID)
 				}
-				byVPPAdamID[*s.VPPAppAdamID] = s
+				byInHouseID[*s.InHouseAppID] = s
 			} else {
 				continue
 			}
 		} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
-			byVPPAdamID[*s.VPPAppAdamID] = s
+			byInHouseID[*s.InHouseAppID] = s
 		}
 	}
 
@@ -3562,6 +3588,51 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 		}
 		hostVPPInstalledTitles[s.ID] = s
+	}
+
+	hostInstalledInHouseApps, err := hostInstalledInHouses(ds, ctx, host.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	installedInHouseByID := make(map[uint]*hostSoftware)
+	for _, s := range hostInstalledInHouseApps {
+		if s.InHouseAppID != nil {
+			installedInHouseByID[*s.InHouseAppID] = s
+		}
+	}
+
+	hostInHouseInstalledTitles := make(map[uint]*hostSoftware)
+	for _, s := range installedInHouseByID {
+		if _, ok := hostInstalledSoftwareTitleSet[s.ID]; ok {
+			// we copied over all the installed title information
+			// from bySoftwareTitleID, but deleted the record from the map
+			// when going through hostInHouseInstalls. Copy over the
+			// data from the byInHouseID to hostInHouseInstalledTitles
+			// so we can later push to InstalledVersions
+			installedTitle := byInHouseID[*s.InHouseAppID]
+			if installedTitle == nil {
+				// This can happen when mdm_enrolled is false
+				// because in hostInHouseInstalls we filter those out
+				installedTitle = bySoftwareTitleID[s.ID]
+			}
+			if installedTitle == nil {
+				// We somehow have an in-house app in host_in_house_software_installs,
+				// however osquery didn't pick it up in inventory
+				continue
+			}
+			s.SoftwareID = installedTitle.SoftwareID
+			s.SoftwareSource = installedTitle.SoftwareSource
+			s.SoftwareExtensionFor = installedTitle.SoftwareExtensionFor
+			s.Version = installedTitle.Version
+			s.BundleIdentifier = installedTitle.BundleIdentifier
+		}
+		if s.InHouseAppID != nil {
+			// Override the status; if there's a pending re-install, we should show that status.
+			if hs, ok := byInHouseID[*s.InHouseAppID]; ok {
+				s.Status = hs.Status
+			}
+		}
+		hostInHouseInstalledTitles[s.ID] = s
 	}
 
 	var stmtAvailable string

@@ -9701,7 +9701,8 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	require.NoError(t, err)
 
 	pluckSoftwareNames := func(sw []*fleet.HostSoftwareWithInstaller) []string {
@@ -9724,4 +9725,6 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, sw, 5)
 	require.Equal(t, []string{"a", "b", "inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
+
+	// TODO: add a pending install, success, and failed in-house installs
 }
