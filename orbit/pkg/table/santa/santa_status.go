@@ -28,7 +28,6 @@ type santaStatus struct {
 	Daemon struct {
 		FileLogging       bool    `json:"file_logging"`
 		WatchdogRamEvents int     `json:"watchdog_ram_events"`
-		DriverConnected   bool    `json:"driver_connected"`
 		LogType           string  `json:"log_type"`
 		WatchdogCpuEvents int     `json:"watchdog_cpu_events"`
 		Mode              string  `json:"mode"`
@@ -56,13 +55,7 @@ type santaStatus struct {
 		TransitiveRules int  `json:"transitive_rules"`
 	} `json:"transitive_allowlisting"`
 	Sync struct {
-		Enabled            bool   `json:"enabled"`
-		LastSuccessfulRule string `json:"last_successful_rule"`
-		PushNotifications  string `json:"push_notifications"`
-		BundleScanning     bool   `json:"bundle_scanning"`
-		CleanRequired      bool   `json:"clean_required"`
-		Server             string `json:"server"`
-		LastSuccessfulFull string `json:"last_successful_full"`
+		Enabled bool `json:"enabled"`
 	} `json:"sync"`
 	Metrics struct {
 		Enabled bool `json:"enabled"`
@@ -71,15 +64,8 @@ type santaStatus struct {
 
 func StatusColumns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.TextColumn("last_successful_rule"),
-		table.TextColumn("push_notifications"),
-		table.IntegerColumn("bundle_scanning"),
-		table.IntegerColumn("clean_required"),
-		table.TextColumn("server"),
-		table.TextColumn("last_successful_full"),
 		table.IntegerColumn("file_logging"),
 		table.IntegerColumn("watchdog_ram_events"),
-		table.IntegerColumn("driver_connected"),
 		table.TextColumn("log_type"),
 		table.IntegerColumn("watchdog_cpu_events"),
 		table.TextColumn("mode"),
@@ -119,15 +105,8 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 	}
 
 	row := map[string]string{
-		"last_successful_rule":     status.Sync.LastSuccessfulRule,
-		"push_notifications":       status.Sync.PushNotifications,
-		"bundle_scanning":          boolToIntString(status.Sync.BundleScanning),
-		"clean_required":           boolToIntString(status.Sync.CleanRequired),
-		"server":                   status.Sync.Server,
-		"last_successful_full":     status.Sync.LastSuccessfulFull,
 		"file_logging":             boolToIntString(status.Daemon.FileLogging),
 		"watchdog_ram_events":      strconv.Itoa(status.Daemon.WatchdogRamEvents),
-		"driver_connected":         boolToIntString(status.Daemon.DriverConnected),
 		"log_type":                 status.Daemon.LogType,
 		"watchdog_cpu_events":      strconv.Itoa(status.Daemon.WatchdogCpuEvents),
 		"mode":                     status.Daemon.Mode,

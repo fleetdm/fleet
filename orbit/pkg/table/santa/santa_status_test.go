@@ -25,10 +25,6 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	row := rows[0]
 
 	// spot check a few fields and types
-	require.Equal(t, "", row["last_successful_rule"])
-	require.Equal(t, "", row["push_notifications"])
-	require.Equal(t, "0", row["bundle_scanning"]) // bool → "0"
-	require.Equal(t, "0", row["clean_required"])
 	require.Equal(t, "Monitor", row["mode"])
 	require.Equal(t, "0", row["watchdog_cpu_events"])
 	require.Equal(t, "3", row["watchdog_ram_events"])
@@ -83,7 +79,6 @@ func TestStatusColumns_Contract(t *testing.T) {
 	}
 	// a few key columns to lock contract
 	for _, name := range []string{
-		"last_successful_rule", "push_notifications", "bundle_scanning",
 		"file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
 	} {
 		if _, ok := names[name]; !ok {
