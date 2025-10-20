@@ -104,7 +104,7 @@ fleet:
       secretName: ""
       bucketName: ""
       prefix: ""
-      accessKeyID: ""
+      access_key_id: ""
       secretKey: s3-bucket
       region: ""
       endpointURL: ""
@@ -115,7 +115,7 @@ fleet:
       secretName: ""
       bucketName: ""
       prefix: ""
-      accessKeyID: ""
+      access_key_id: ""
       secretKey: software-installers
       region: ""
       endpointURL: ""
