@@ -45,6 +45,7 @@ type AndroidDSWithMock struct {
 func (ds *AndroidDSWithMock) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	return ds.Store.AppConfig(ctx) // use mock datastore
 }
+
 func (ds *AndroidDSWithMock) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
 	return ds.Datastore.CreateDeviceTx(ctx, tx, device)
 }
@@ -82,7 +83,7 @@ func (ds *AndroidDSWithMock) DeleteOtherEnterprises(ctx context.Context, id uint
 }
 
 // Disambiguate method promoted from both mysql.Datastore and mock.Store
-func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
 }
 

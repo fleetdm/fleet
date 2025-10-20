@@ -123,11 +123,11 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
 	}
 
-	statuses, err := svc.ds.GetSummaryInHouseAppInstalls(ctx, payload.TeamID, updatedInstaller.InstallerID)
+	st, err := svc.ds.GetSummaryHostInHouseAppInstalls(ctx, payload.TeamID, updatedInstaller.InstallerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")
 	}
-	updatedInstaller.Status = statuses
+	updatedInstaller.Status = &fleet.SoftwareInstallerStatusSummary{Installed: st.Installed, PendingInstall: st.Pending, FailedInstall: st.Failed}
 
 	return updatedInstaller, nil
 }

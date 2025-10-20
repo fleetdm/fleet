@@ -22,9 +22,10 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		name,
 		storage_id,
 		platform,
-		version
+		version,
+		bundle_identifier
 	)
-	VALUES (?, ?, ?, ?, ?, ?, ?)`
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -56,6 +57,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			payload.StorageID,
 			payload.Platform,
 			payload.Version,
+			payload.BundleID,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -213,8 +215,8 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "remove pending in house app installs")
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
 		}
 		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
 		if err != nil {
@@ -245,8 +247,8 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 	return nil
 }
 
-func (ds *Datastore) GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
-	var dest fleet.SoftwareInstallerStatusSummary // Using this struct for in house apps for now
+func (ds *Datastore) GetSummaryHostInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*fleet.VPPAppStatusSummary, error) {
+	var dest fleet.VPPAppStatusSummary // Using the vpp struct since it is more appropriate for ipa
 	stmt := `
 WITH
 -- select most recent upcoming activities for each host
@@ -306,8 +308,8 @@ past AS (
 
 -- count each status
 SELECT
-	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending_install,
-	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed_install,
+	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 
@@ -334,8 +336,8 @@ FROM upcoming
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-		"software_status_pending":   fleet.SoftwareInstallPending,
-		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwarePending,
+		"software_status_failed":    fleet.SoftwareFailed,
 		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
@@ -419,4 +421,85 @@ VALUES
 		return nil
 	})
 	return err
+}
+
+func (ds *Datastore) SetInHouseAppInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error {
+	stmt := `
+UPDATE host_in_house_software_installs
+SET verification_at = CURRENT_TIMESTAMP(6),
+verification_command_uuid = ?
+WHERE command_uuid = ?
+	`
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, verificationUUID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "set in house app install as verified")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity from in house app install verify")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) SetInHouseAppInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error {
+	stmt := `
+UPDATE host_in_house_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6),
+verification_command_uuid = ?
+WHERE command_uuid = ?
+	`
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, verificationUUID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "set in house app install as failed")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity from in house app install failed")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) ReplaceInHouseAppInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
+	stmt := `
+UPDATE host_in_house_software_installs
+SET verification_command_uuid = ?
+WHERE verification_command_uuid = ?
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verifyCommandUUID, oldVerifyUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update in-house app install verification command")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
+	stmt := `
+SELECT
+		hihsi.host_id AS host_id,
+		hihsi.command_uuid AS command_uuid,
+		ncr.updated_at AS ack_at,
+		ncr.status AS install_command_status,
+		iha.bundle_identifier AS bundle_identifier
+FROM nano_command_results ncr
+JOIN host_in_house_software_installs hihsi ON hihsi.command_uuid = ncr.command_uuid
+JOIN in_house_apps iha ON iha.id = hihsi.in_house_app_id AND iha.platform = hihsi.platform
+WHERE ncr.id = ?
+AND ncr.status = 'Acknowledged'
+AND hihsi.verification_at IS NULL
+AND hihsi.verification_failed_at IS NULL
+		`
+
+	var result []*fleet.HostVPPSoftwareInstall
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get unverified in-house app installs for host")
+	}
+
+	return result, nil
 }

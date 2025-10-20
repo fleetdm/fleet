@@ -1816,9 +1816,20 @@ AND hvsi.verification_failed_at IS NULL
 	return result, nil
 }
 
-func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error {
+func (s softwareType) getInstallMappingTableName() string {
+	tableNames := map[softwareType]string{
+		softwareTypeInHouseApp: "host_in_house_software_installs",
+		softwareTypeVPP:        "host_vpp_software_installs",
+	}
+
+	return tableNames[s]
+
+}
+
+func (ds *Datastore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error {
+
 	stmt := `
-UPDATE host_vpp_software_installs
+UPDATE %s
 SET verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
@@ -1826,15 +1837,33 @@ WHERE command_uuid = ?
 	hostCmdStmt := `
 INSERT INTO host_mdm_commands
 	(host_id, command_type)
-VALUES ((SELECT host_id FROM host_vpp_software_installs WHERE command_uuid = ?), ?)
+VALUES ((SELECT id FROM hosts WHERE uuid = ?), ?)
 	`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmt, verifyCommandUUID, installUUID); err != nil {
+		var rowsAffected int64
+		r, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, softwareTypeVPP.getInstallMappingTableName()), verifyCommandUUID, installUUID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update vpp install verification command")
 		}
 
-		if _, err := tx.ExecContext(ctx, hostCmdStmt, installUUID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+		count, _ := r.RowsAffected()
+		rowsAffected += count
+
+		r, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, softwareTypeInHouseApp.getInstallMappingTableName()), verifyCommandUUID, installUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update in-house app install verification command")
+		}
+
+		count, _ = r.RowsAffected()
+		rowsAffected += count
+
+		if rowsAffected == 0 {
+			// There's a bug somewhere
+			return ctxerr.WrapWithData(ctx, err, "no MDM install attempts found with given uuid", map[string]any{"install_command_uuid": installUUID, "verify_command_uuid": verifyCommandUUID, "host_uuid": hostUUID})
+		}
+
+		if _, err := tx.ExecContext(ctx, hostCmdStmt, hostUUID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert verify host mdm command")
 		}
 

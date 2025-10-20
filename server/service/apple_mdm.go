@@ -3820,7 +3820,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
 		if deletedDevice == nil {
-			if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			if err := svc.ds.CleanAppleMDMLock(r.Context, cmdResult.UDID); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 			}
 		}
@@ -3860,7 +3860,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-	case "DeviceLock", "EraseDevice":
+	case "DeviceLock", "EraseDevice", "EnableLostMode", "DisableLostMode":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
@@ -3891,7 +3891,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			} else if updated {
 				// TODO: call next step of setup experience?
 				fromSetupExperience = true
-				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
+				level.Debug(svc.logger).Log("msg", "setup experience VPP install result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
 			}
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
@@ -3922,7 +3922,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 
 				// update the install record
-				if err := svc.ds.AssociateVPPInstallToVerificationUUID(r.Context, cmdResult.CommandUUID, cmdUUID); err != nil {
+				if err := svc.ds.AssociateMDMInstallToVerificationUUID(r.Context, cmdResult.CommandUUID, cmdUUID, cmdResult.Identifier()); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "update install record")
 				}
 
@@ -4079,6 +4079,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		wifiMac = wifiMacVal.(string)
 	}
 	productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
+	isLostModeEnabled := deviceInformationResponse.QueryResponses["IsMDMLostModeEnabled"].(bool)
 	host.ComputerName = deviceName
 	host.Hostname = deviceName
 	host.GigsDiskSpaceAvailable = availableDeviceCapacity
@@ -4120,7 +4121,28 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		if err := svc.ds.UpdateMDMData(ctx, host.ID, true); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to update MDM data")
 		}
+
+		// We run this check here as we only want to run it on re-check ins for deleted hosts.
+		if (platform == "ios" || platform == "ipados") && isLostModeEnabled {
+			fmt.Println("===lost mode enabled on iPhone/iPad, checking for lock command record", host.UUID)
+			cmd, err := svc.ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing EnableLostMode command")
+			}
+			if fleet.IsNotFound(err) {
+				// Device is in lost mode, but we do not have a lock command record for it.
+				// Lost mode was enabled outside of Fleet?
+				return nil, ctxerr.NewWithData(ctx, "device is in lost mode but no EnableLostMode command record found", map[string]interface{}{"host_uuid": host.UUID})
+			}
+
+			level.Debug(svc.logger).Log("msg", "device is in lost mode and EnableLostMode command record found, updating host lock/wipe status", "host_uuid", host.UUID)
+			err = svc.ds.SetLockCommandForLostModeCheckin(ctx, host.ID, cmd.CommandUUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host lost mode status on refetch")
+			}
+		}
 	}
+
 	return nil, nil
 }
 
@@ -4187,13 +4209,18 @@ func NewInstalledApplicationListResultsHandler(
 
 		installedApps := installedAppResult.AvailableApps()
 
-		expectedInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
+		expectedVPPInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 		}
 
-		if len(expectedInstalls) == 0 {
-			level.Warn(logger).Log("msg", "no vpp installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
+		expectedInHouseInstalls, err := ds.GetUnverifiedInHouseAppInstallsForHost(ctx, installedAppResult.HostUUID())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: get unverified in house installs")
+		}
+
+		if len(expectedVPPInstalls) == 0 && len(expectedInHouseInstalls) == 0 {
+			level.Warn(logger).Log("msg", "no apple MDM installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
 			return nil
 		}
 
@@ -4202,27 +4229,32 @@ func NewInstalledApplicationListResultsHandler(
 			installsByBundleID[install.BundleIdentifier] = install
 		}
 
-		// We've handled the "no installs found" case above, and this is scoped to a single host via the host
-		// UUID, so this is OK.
-		hostID := expectedInstalls[0].HostID
+		// We've handled the "no installs found" case above,
+		// and installs are scoped to a single host via the host UUID, so this is OK.
+		var hostID uint
+		switch {
+		case len(expectedInHouseInstalls) > 0:
+			hostID = expectedInHouseInstalls[0].HostID
+		case len(expectedVPPInstalls) > 0:
+			hostID = expectedVPPInstalls[0].HostID
+		}
 
 		var poll, shouldRefetch bool
-		for _, expectedInstall := range expectedInstalls {
+		setStatusForExpectedInstall := func(expectedInstall *fleet.HostVPPSoftwareInstall, verifyFn, failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error) error {
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
-			// These are not pointers, so no need to check `ok` here.
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
 			var terminalStatus string
 			switch {
 			case appFromResult.Installed:
-				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
+				if err := verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
-				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
+				if err := failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
@@ -4231,7 +4263,7 @@ func NewInstalledApplicationListResultsHandler(
 
 			if terminalStatus == "" {
 				poll = true
-				continue
+				return nil
 			}
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
@@ -4244,7 +4276,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				fromSetupExperience = true
-				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
+				level.Debug(logger).Log("msg", "setup experience VPP install result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
 			}
 
 			// create an activity for installing only if we're in a terminal state
@@ -4262,6 +4294,19 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
 
+			return nil
+		}
+
+		for _, expectedInstall := range expectedVPPInstalls {
+			if err := setStatusForExpectedInstall(expectedInstall, ds.SetVPPInstallAsVerified, ds.SetVPPInstallAsFailed); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting status for vpp installs")
+			}
+		}
+
+		for _, expectedInstall := range expectedInHouseInstalls {
+			if err := setStatusForExpectedInstall(expectedInstall, ds.SetInHouseAppInstallAsVerified, ds.SetInHouseAppInstallAsFailed); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting status for in-house app installs")
+			}
 		}
 
 		if poll {

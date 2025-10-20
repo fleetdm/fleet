@@ -248,6 +248,7 @@ const SiteTopNav = ({
             onLogout={onLogoutUser}
             onUserMenuItemClick={onUserMenuItemClick}
             currentUser={currentUser}
+            currentTeam={currentTeam}
             isAnyTeamAdmin={isAnyTeamAdmin}
             isGlobalAdmin={isGlobalAdmin}
           />

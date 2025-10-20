@@ -5,7 +5,7 @@ import isURL from "validator/lib/isURL";
 interface IValidUrl {
   url: string;
   /**  Validate protocols specified */
-  protocols?: ("http" | "https")[];
+  protocols?: ("http" | "https" | "file")[];
   allowLocalHost?: boolean;
 }
 

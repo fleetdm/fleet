@@ -134,7 +134,7 @@ const AddInstallSoftware = ({
         </p>
         <CustomLink
           newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/install-software`}
           text="Learn how"
         />
       </div>

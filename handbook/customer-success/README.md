@@ -229,6 +229,11 @@ After the user story is released, the PD will ask the appropriate Customer Succe
 
 If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
 
+### Manage DNS records
+
+Fleet-managed DNS records are maintained in Cloudflare using Terraform.  
+See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
+
 
 ## Rituals
 

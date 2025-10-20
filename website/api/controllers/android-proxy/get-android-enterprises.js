@@ -13,7 +13,11 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'Android enterprises list was successfully retrieved.' }
+    success: { description: 'Android enterprises list was successfully retrieved.' },
+    missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
+    missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
+    unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
   },
 
 
@@ -26,12 +30,12 @@ module.exports = {
     if (authHeader && authHeader.startsWith('Bearer')) {
       fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
-      return this.res.unauthorized('Authorization header with Bearer token is required');
+      throw 'missingAuthHeader';
     }
 
     let fleetServerUrl = this.req.get('Origin');
     if (!fleetServerUrl) {
-      return this.res.badRequest('Origin header is required');
+      throw 'missingOriginHeader';
     }
 
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
@@ -39,11 +43,11 @@ module.exports = {
     });
 
     if (!thisAndroidEnterprise) {
-      return this.res.notFound('No Android enterprise found for this Fleet server');
+      throw 'notFound';
     }
 
     if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
-      return this.res.unauthorized('Invalid authentication token');
+      throw 'unauthorized';
     }
 
     // Get the Android enterprises list from Google

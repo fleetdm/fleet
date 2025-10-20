@@ -625,11 +625,11 @@ type Datastore interface {
 	// on removed hosts, software uninstalled on hosts, etc.)
 	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
 
-	// ReconcileSoftwareTitles ensures the software_titles and software tables are in sync.
-	// It inserts new software titles and updates the software table with the title_id.
-	// It also cleans up any software titles that are no longer associated with any software.
+	// CleanupSoftwareTitles cleans up any software titles (software_titles table)
+	// that are no longer associated with any software version (software table).
+	//
 	// It is intended to be run after SyncHostsSoftware.
-	ReconcileSoftwareTitles(ctx context.Context) error
+	CleanupSoftwareTitles(ctx context.Context) error
 
 	// SyncHostsSoftwareTitles calculates the number of hosts having each
 	// software_title installed and stores that information in the
@@ -658,6 +658,11 @@ type Datastore interface {
 	// IsInHouseAppLabelScoped returns whether or not the given inHouseAppID is scoped to the given hostID by labels.
 	IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID, hostID uint) (bool, error)
 
+	GetUnverifiedInHouseAppInstallsForHost(ctx context.Context, hostUUID string) ([]*HostVPPSoftwareInstall, error)
+	SetInHouseAppInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	SetInHouseAppInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	ReplaceInHouseAppInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
@@ -680,9 +685,10 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
-	// AssociateVPPInstallToVerificationUUID updates the verification command UUID associated with the
-	// given install attempt (InstallApplication command)
-	AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command).
+	// It will attempt to update both VPP and in-house app installs (only one will succeed since the command UUIDs are unique).
+	AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error
 	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
 	// that it's installed on the device).
 	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
@@ -1914,9 +1920,9 @@ type Datastore interface {
 	// pending.
 	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
-	// CleanMacOSMDMLock cleans the lock status and pin for a macOS device
+	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
-	CleanMacOSMDMLock(ctx context.Context, hostUUID string) error
+	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
@@ -2066,7 +2072,7 @@ type Datastore interface {
 	RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error
 
 	// GetSummaryHostSoftwareInstalls returns the software install summary for the in house app ID
-	GetSummaryInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*SoftwareInstallerStatusSummary, error)
+	GetSummaryHostInHouseAppInstalls(ctx context.Context, teamID *uint, inHouseAppID uint) (*VPPAppStatusSummary, error)
 
 	// DeleteInHouseApp deletes an in house app and removes pending installs for it
 	DeleteInHouseApp(ctx context.Context, id uint) error
@@ -2438,7 +2444,7 @@ type AndroidDatastore interface {
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
-	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error
+	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
@@ -2466,6 +2472,16 @@ type AndroidDatastore interface {
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+
+	// GetLatestAppleMDMCommandOfType retrieves the latest command of the given type for the host with the given UUID.
+	// If no such command exists, not found error is returned
+	//
+	// Returns a subset of fields in the MDMCommand struct.
+	GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*MDMCommand, error)
+
+	// SetLockCommandForLostModeCheckin sets the lock reference for a lost mode check-in.
+	// This is used when an iphone or ipados checks in after being deleted, with lost mode enabled.
+	SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
@@ -2475,6 +2491,7 @@ type MDMAppleStore interface {
 	MDMAssetRetriever
 	GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error)
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
+	EnqueueDeviceUnlockCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }
 

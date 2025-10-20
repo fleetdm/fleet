@@ -1,3 +1,6 @@
+/** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
+ * we use SoftwareScriptDetailsModal */
+
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -165,7 +168,7 @@ export const ModalButtons = ({
 }: IModalButtonsProps) => {
   if (deviceAuthToken && status === "failed_install") {
     const onClickRetry = () => {
-      // on DUP, where this is relevant, both will be defined
+      // on My Device Page, where this is relevant, both will be defined
       if (onRetry && hostSoftwareId) {
         onRetry(hostSoftwareId);
       }
@@ -199,10 +202,10 @@ interface ISoftwareInstallDetailsProps {
   necessary in the details prop */
   details: IPackageInstallDetails;
   hostSoftware?: IHostSoftware; // for inventory versions, and software name when not Fleet installed (not present on activity feeds)
-  deviceAuthToken?: string; // DUP only
+  deviceAuthToken?: string; // My Device Page only
   onCancel: () => void;
-  onRetry?: (id: number) => void; // DUP only
-  contactUrl?: string; // DUP only
+  onRetry?: (id: number) => void; // My Device Page only
+  contactUrl?: string; // My Device Page only
 }
 
 export const SoftwareInstallDetailsModal = ({
