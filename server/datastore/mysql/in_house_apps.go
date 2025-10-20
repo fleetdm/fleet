@@ -85,6 +85,37 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	return installerID, titleID, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 }
 
+// hihsiAlias is the table alias to use as prefix for the
+// host_in_house_software_installs column names, no prefix used if empty.
+// ncrAlias is the table alias to use as prefix for the nano_command_results
+// column names, no prefix used if empty.
+// colAlias is the name to be assigned to the computed status column, pass
+// empty to have the value only, no column alias set.
+func inHouseAppHostStatusNamedQuery(hihsiAlias, ncrAlias, colAlias string) string {
+	if hihsiAlias != "" {
+		hihsiAlias += "."
+	}
+	if ncrAlias != "" {
+		ncrAlias += "."
+	}
+	if colAlias != "" {
+		colAlias = " AS " + colAlias
+	}
+
+	return fmt.Sprintf(`
+	CASE
+		WHEN %sverification_at IS NOT NULL THEN
+			:software_status_installed
+		WHEN %sverification_failed_at IS NOT NULL THEN
+			:software_status_failed
+		WHEN %sstatus = :mdm_status_error OR %sstatus = :mdm_status_format_error THEN
+			:software_status_failed
+		ELSE
+			:software_status_pending
+	END %s
+	`, hihsiAlias, hihsiAlias, ncrAlias, ncrAlias, colAlias)
+}
+
 func (ds *Datastore) GetInHouseAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
