@@ -282,7 +282,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		// Only update conditional_access_enabled if it's not nil.
 		if payload.Integrations.ConditionalAccessEnabled.Set {
 			if err := fleet.ValidateConditionalAccessIntegration(ctx,
-				svc.ds,
+				svc,
+				appCfg.ConditionalAccess,
 				team.Config.Integrations.ConditionalAccessEnabled.Value,
 				payload.Integrations.ConditionalAccessEnabled.Value,
 			); err != nil {
@@ -1159,7 +1160,8 @@ func (svc *Service) createTeamFromSpec(
 	var conditionalAccessEnabled optjson.Bool
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
-			svc.ds,
+			svc,
+			appCfg.ConditionalAccess,
 			false,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {
@@ -1475,7 +1477,8 @@ func (svc *Service) editTeamFromSpec(
 	oldConditionalAccessEnabled := team.Config.Integrations.ConditionalAccessEnabled.Value
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
-			svc.ds,
+			svc,
+			appCfg.ConditionalAccess,
 			team.Config.Integrations.ConditionalAccessEnabled.Value,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {

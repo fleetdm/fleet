@@ -408,8 +408,8 @@ func ValidateConditionalAccessIntegration(
 	ctx context.Context,
 	g interface {
 		ConditionalAccessMicrosoftGet(context.Context) (*ConditionalAccessMicrosoftIntegration, error)
-		AppConfig(context.Context) (*AppConfig, error)
 	},
+	conditionalAccessSettings ConditionalAccessSettings,
 	currentConditionalAccessEnabled bool,
 	newConditionalAccessEnabled bool,
 ) error {
@@ -427,13 +427,9 @@ func ValidateConditionalAccessIntegration(
 		}
 		entraConfigured := conditionalAccessIntegration != nil && conditionalAccessIntegration.SetupDone
 
-		// Check Okta configuration from AppConfig
-		appConfig, err := g.AppConfig(ctx)
-		if err != nil {
-			return fmt.Errorf("load app config: %w", err)
-		}
-		oktaConfigured := appConfig.ConditionalAccess.OktaIDPID.Valid &&
-			appConfig.ConditionalAccess.OktaIDPID.Value != ""
+		// Check Okta configuration from ConditionalAccessSettings
+		oktaConfigured := conditionalAccessSettings.OktaIDPID.Valid &&
+			conditionalAccessSettings.OktaIDPID.Value != ""
 
 		if !entraConfigured && !oktaConfigured {
 			return NewInvalidArgumentError(

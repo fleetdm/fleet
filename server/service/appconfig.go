@@ -485,7 +485,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	var conditionalAccessNoTeamUpdated bool
 	if newAppConfig.Integrations.ConditionalAccessEnabled.Set {
-		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc.ds, oldConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, appConfig.ConditionalAccess, oldConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
 			return nil, err
 		}
 		conditionalAccessNoTeamUpdated = oldConditionalAccessEnabled.Value != newAppConfig.Integrations.ConditionalAccessEnabled.Value
