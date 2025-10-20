@@ -1021,30 +1021,35 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
 
-	profiles, err := cmd.generateProfiles(teamId, teamName)
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
-		return nil, err
-	}
+	if cmd.AppConfig.MDM.EnabledAndConfigured ||
+		cmd.AppConfig.MDM.WindowsEnabledAndConfigured ||
+		cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
 
-	if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
-		if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-				"custom_settings": profiles["apple_profiles"],
+		profiles, err := cmd.generateProfiles(teamId, teamName)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
+			return nil, err
+		}
+
+		if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
+			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
+					"custom_settings": profiles["apple_profiles"],
+				}
 			}
 		}
-	}
-	if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
-		if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-				"custom_settings": profiles["windows_profiles"],
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
+			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
+					"custom_settings": profiles["windows_profiles"],
+				}
 			}
 		}
-	}
-	if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
-		if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
-				"custom_settings": profiles["android_profiles"],
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
+			if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
+					"custom_settings": profiles["android_profiles"],
+				}
 			}
 		}
 	}
