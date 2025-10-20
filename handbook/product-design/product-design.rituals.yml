@@ -110,7 +110,7 @@
   task: "Review reference docs for upcoming release"
   startedOn: "2025-10-20"
   frequency: "Triweekly"
-  description: "After sprint kickoff, check for unmerged API design PRs on the release docs branch (filter: is:pr is:open base:docs-vX.X.X). For stories that made it into the sprint, merge the PR. For stories that did not make it in, close the PR and @-mention the author."
+  description: "After sprint kickoff: 1. Check for API design PRs on estimated stories that were not brought into the sprint, then @-mention product designer to request documentation changes be reverted. 2. Check for unmerged API design PRs on the release docs branch (filter: is:pr is:open base:docs-vX.X.X). For stories that made it into the sprint, merge the PR. For stories that did not make it in, close the PR and @-mention the author."
   moreInfoUrl: ""
   dri: "rachaelshaw"
 -
