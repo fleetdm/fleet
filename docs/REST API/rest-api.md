@@ -9859,8 +9859,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software icon](#get-sowftware-icon)
 - [Delete software icon](#delete-sowftware-icon)
 - [List App Store apps](#list-app-store-apps)
-- [Add App Store app](#add-app-store-app)
-- [Modify App Store app](#modify-app-store-app)
+- [Add store app (Apple and Android)](#add-store-app-apple-and-android)
+- [Modify store app (Apple and Android)](#modify-store-app-apple-and-android)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -10288,13 +10288,61 @@ Returns information about the specified software. By default, `versions` are sor
         "failed": 2,
       }
     },
-    "source": "apps",
+    "source": "ios_apps",
     "hosts_count": 48,
     "versions": [
       {
         "id": 123,
         "version": "2.04",
         "vulnerabilities": [],
+        "hosts_count": 24
+      }
+    ]
+  }
+}
+```
+
+#### Example (Play Store app)
+
+`GET /api/v1/fleet/software/titles/16`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 16,
+    "name": "Zoom Workplace",
+    "application_id": "us.zoom.videomeetings",
+    "counts_updated_at": "2025-08-29T10:23:48Z",
+    "software_package": null,
+    "app_store_app": {
+      "app_store_id": "us.zoom.videomeetings",
+      "platform": "android",
+      "name": "Zoom Workplace",
+      "icon_url": "https://lh3.googleusercontent.com/yZsmiNjmji3ZoOuLthoVvptLB9cZ0vCmitcky4OUXNcEFV3IEQkrBD2uu5kuWRF5_ERA",
+      "status": {
+        "installed": 1,
+        "pending": 0,
+        "failed": 0
+      },
+      "self_service": false,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "created_at": "2025-08-15T00:55:03.96954Z",
+      "categories": null
+    },
+    "source": "android_apps",
+    "hosts_count": 72,
+    "versions_count": 1,
+    "versions": [
+      {
+        "id": 333,
+        "version": "6.5.10.32613",
+        "vulnerabilities": null,
         "hosts_count": 24
       }
     ]
@@ -10823,13 +10871,13 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 }
 ```
 
-### Add App Store app
+### Add store app (Apple and Android)
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Add App Store (VPP) app purchased in Apple Business Manager.
+Add Apple App Store (VPP) app purchased in Apple Business Manager or the Google Play app (Android).
 
 `POST /api/v1/fleet/software/app_store_apps`
 
@@ -10837,10 +10885,10 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| app_store_id   | string | body | **Required.** The ID of App Store app. |
-| team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
-| platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
-| self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
+| app_store_id   | string | body | **Required.** The ID of the Apple App Store or Google Play app. |
+| team_id       | integer | body | **Required**. The team ID. Adds app from the store to the specified team.  |
+| platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
@@ -10874,12 +10922,12 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Modify App Store app
+### Modify store app (Apple and Android)
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
-Modify App Store (VPP) app's options.
+Modify Apple App Store (VPP) or Google Play app's options.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
@@ -10887,9 +10935,9 @@ Modify App Store (VPP) app's options.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
-| categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page (currently only macOS). Software with no categories will still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 
