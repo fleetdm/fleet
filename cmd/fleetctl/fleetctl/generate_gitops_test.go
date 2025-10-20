@@ -575,7 +575,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 
 		relPath, err := filepath.Rel(sourceDir, srcPath)
 		require.NoError(t, err, "Error getting relative path: %v", err)
-		// Patch this file because Go can't zip the module with emojis in the filename.
+		// Patch these files because Go can't zip the module with emojis in the filename.
 		// The actual outputted file will have the emoji, but the testdata file can't.
 		relPath = strings.Replace(relPath, "team-a-thumbsup", "team-a-👍", 1)
 
