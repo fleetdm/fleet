@@ -11,6 +11,7 @@ Fleet 4.75.0 is now available. See the complete [changelog](https://github.com/f
 - Arch Linux / Omarchy Linux
 - Android configuration profiles
 - Smallstep certificates
+- Fleet UI refresh
 - Labels page
 - Easy-to-read MDM commands
 
@@ -29,6 +30,10 @@ Fleet now integrates with [Smallstep](https://smallstep.com/) as a certificate a
 ### Labels page
 
 A new **Labels** page makes it easier to view and edit labels. You can find the new **Labels** page in Fleet by selecting your avatar in the top-right corner and selecting **Labels**.
+
+### Fleet UI refresh
+
+Fleet’s UI just got a refresh. Consistent spacing, colors, and layouts now span every page, from fleetdm.com to the Fleet product. Expect a more polished, accessible experience whether you're managing hosts or running live queries.
 
 ### Easy-to-read MDM commands
 

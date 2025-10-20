@@ -367,7 +367,6 @@ const EditIconModal = ({
               !currentIconUrl && software.icon_url ? software.icon_url : null
             }
             versions={versions}
-            hosts={0} // required field but not shown in isPreview
             iconPreviewUrl={iconState.previewUrl}
             iconUploadedAt={iconUploadedAt}
           />
