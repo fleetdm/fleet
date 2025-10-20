@@ -23,6 +23,7 @@ import (
 type MockClient struct {
 	IsFree           bool
 	TeamNameOverride string
+	WithoutMDM       bool
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -37,6 +38,13 @@ func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 	if c.IsFree == true {
 		appConfig.License.Tier = fleet.TierFree
 	}
+
+	if c.WithoutMDM {
+		appConfig.MDM.EnabledAndConfigured = false
+		appConfig.MDM.AndroidEnabledAndConfigured = false
+		appConfig.MDM.WindowsEnabledAndConfigured = false
+	}
+
 	return &appConfig, nil
 }
 
@@ -106,7 +114,11 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 	}
 }
 
-func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error) {
+func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error) {
+	if c.WithoutMDM {
+		return nil, errors.New("should not have pulled configuration profiles endpoint")
+	}
+
 	if teamID == nil {
 		return []*fleet.MDMConfigProfilePayload{
 			{
@@ -614,6 +626,30 @@ func TestGenerateGitops(t *testing.T) {
 	require.NoError(t, err, buf.String())
 
 	compareDirs(t, "./testdata/generateGitops/test_dir_premium", tempDir)
+
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
+}
+
+func TestGenerateGitopsWithoutMDM(t *testing.T) {
+	fleetClient := &MockClient{WithoutMDM: true}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	err := action(cliContext)
+	require.NoError(t, err, buf.String()) // just checking for success to verify #33667
 
 	t.Cleanup(func() {
 		if err := os.RemoveAll(tempDir); err != nil {
