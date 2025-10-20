@@ -4373,8 +4373,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NotNil(t, host3)
 
 	// set disk space information for some hosts (none provided for host3)
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0, nil))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -14201,6 +14201,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUIDs[0],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14225,6 +14226,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload2.Filename,
 		InstallUUID:     installUUIDs[1],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14255,6 +14257,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstalled),
+		Source:          ptr.String("deb_packages"),
 	}
 	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14291,6 +14294,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16578,6 +16582,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "installed",
+		"source": "apps",
 		"policy_id": %d,
 		"policy_name": "%s"
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
@@ -16598,6 +16603,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "%s",
+		"source": "deb_packages",
 		"policy_id": %d,
 		"policy_name": "%s"
 	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID, fleet.SoftwareInstallFailed, policy2Team1.ID, policy2Team1.Name), 0)
@@ -16640,6 +16646,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "%s",
+		"source": "programs",
 		"policy_id": %f,
 		"policy_name": "%s"
 	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID,
@@ -17588,6 +17595,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUID,
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("rpm_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -18512,6 +18520,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     swInstallExecID,
 		Status:          string(fleet.SoftwareInstalled),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -19956,7 +19965,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["vim"],
+				executionIDs["test.tar.gz"],
 			),
 		), http.StatusNoContent)
 
@@ -19972,11 +19981,11 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Record a result for test.tar.gz.
+		// Record a result for vim
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -19985,7 +19994,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["test.tar.gz"],
+				executionIDs["vim"],
 			),
 		), http.StatusNoContent)
 
@@ -20181,8 +20190,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.NotEmpty(t, executionIDs["vim"])
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-		// Cancel the software install for vim.
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", ubuntuHost.ID, executionIDs["vim"]),
+		// Cancel the software install for test.tar.gz.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", ubuntuHost.ID, executionIDs["test.tar.gz"]),
 			nil, http.StatusNoContent)
 
 		// Get status of the "Setup experience" for the Ubuntu host.
@@ -20197,11 +20206,11 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Record a result for test.tar.gz.
+		// Record a result for vim.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -20210,7 +20219,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["test.tar.gz"],
+				executionIDs["vim"],
 			),
 		), http.StatusNoContent)
 
@@ -20226,9 +20235,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	t.Run("ubuntu-software-edited-during-se", func(t *testing.T) {
@@ -20311,6 +20320,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			"install_uuid": %q,
 			"status": "failed",
 			"self_service": false,
+			"source": "deb_packages",
 			"policy_name": null,
 			"policy_id": null
 		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", "vim.deb", executionIDs["vim"]), 0)
@@ -20571,7 +20581,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 					"install_script_output": "ok"
 				}`,
 			*ubuntuHost.OrbitNodeKey,
-			executionIDs["vim"],
+			executionIDs["test.tar.gz"],
 		),
 	), http.StatusNoContent)
 
@@ -20587,11 +20597,11 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
 	})
 	require.Equal(t, "test.tar.gz", orbitRes.Results.Software[0].Name)
-	require.EqualValues(t, "running", orbitRes.Results.Software[0].Status)
+	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
 	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
-	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+	require.EqualValues(t, "running", orbitRes.Results.Software[1].Status)
 
-	// Record a result for test.tar.gz.
+	// Record a result for vim.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 		fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -20600,7 +20610,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 					"install_script_output": "ok"
 				}`,
 			*ubuntuHost.OrbitNodeKey,
-			executionIDs["test.tar.gz"],
+			executionIDs["vim"],
 		),
 	), http.StatusNoContent)
 

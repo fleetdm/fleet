@@ -612,6 +612,10 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			}
 		}
 		if !ok {
+			if k == string(fleet.FleetVarSCEPRenewalID) {
+				// Special message for renewal ID
+				return nil, &fleet.BadRequestError{Message: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU)."}
+			}
 			// We limit CA variables to once per profile
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
 		}
@@ -788,8 +792,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 		}
 		foundCAs = append(foundCAs, ca)
 	}
-	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's common name (CN)."}
+	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
 		for _, ca := range customSCEPVars.CAs() {
@@ -841,8 +845,8 @@ func additionalSmallstepValidation(contents string, smallstepVars *smallstepVars
 		}
 		foundCAs = append(foundCAs, ca)
 	}
-	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's common name (CN)."}
+	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 	if len(foundCAs) < len(smallstepVars.CAs()) {
 		for _, ca := range smallstepVars.CAs() {
@@ -892,9 +896,10 @@ type SCEPPayload struct {
 	PayloadType    string             `plist:"PayloadType"`
 }
 type SCEPPayloadContent struct {
-	Challenge  string
-	URL        string
-	CommonName string
+	Challenge          string
+	URL                string
+	CommonName         string
+	OrganizationalUnit string
 }
 
 func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
@@ -902,7 +907,8 @@ func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 		Challenge string `plist:"Challenge"`
 		URL       string `plist:"URL"`
 		// Subject is an RDN Sequence which is ultimately a nested key-value pair structure with a
-		// shape like the one shown below. We just need to extract the CN value from it.
+		// shape like the one shown below. We just need to extract the CN and OU values from it. While
+		// uncommon it is possible for multiple CNs or OUs to be present so we should account for that.
 		// Subject: [
 		//   [
 		//     [ "CN", "Fleet" ]
@@ -920,18 +926,30 @@ func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 		return nil
 	}
 	commonName := ""
-	for i := 0; i < len(val.Subject) && commonName == ""; i++ {
+	organizationalUnit := ""
+	for i := 0; i < len(val.Subject); i++ {
 		for j := 0; j < len(val.Subject[i]); j++ {
 			if len(val.Subject[i][j]) == 2 && val.Subject[i][j][0] == "CN" {
-				commonName = val.Subject[i][j][1]
-				break
+				// adding a separator here in the case of multiple CNs so someting silly like the required var split over
+				// multiple CNs gets caught
+				if commonName != "" {
+					commonName += ","
+				}
+				commonName += val.Subject[i][j][1]
+			}
+			if len(val.Subject[i][j]) == 2 && val.Subject[i][j][0] == "OU" {
+				if organizationalUnit != "" {
+					organizationalUnit += ","
+				}
+				organizationalUnit += val.Subject[i][j][1]
 			}
 		}
 	}
 	*p = SCEPPayloadContent{
-		Challenge:  val.Challenge,
-		URL:        val.URL,
-		CommonName: commonName,
+		Challenge:          val.Challenge,
+		URL:                val.URL,
+		CommonName:         commonName,
+		OrganizationalUnit: organizationalUnit,
 	}
 	return nil
 }
@@ -949,8 +967,8 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		return err
 	}
 
-	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's common name (CN)."}
+	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 
 	// Check for the exact match on challenge and URL
@@ -4105,7 +4123,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
 	if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
-		deviceCapacity); err != nil {
+		deviceCapacity, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
 	}
 	if err := svc.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
@@ -5272,7 +5290,7 @@ func preprocessProfileContents(
 					hostContents = replaceFleetVariableInXML(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 
 				case fleetVar == string(fleet.FleetVarSCEPRenewalID):
-					// Insert the SCEP renewal ID into the SCEP Payload CN
+					// Insert the SCEP renewal ID into the SCEP Payload CN or OU
 					fleetRenewalID := "fleet-" + profUUID
 					hostContents = replaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
 

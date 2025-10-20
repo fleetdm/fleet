@@ -713,3 +713,15 @@ export interface IFleetMaintainedAppDetails {
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
   categories: SoftwareCategory[];
 }
+
+export const ROLLING_ARCH_LINUX_NAMES = [
+  "Arch Linux",
+  "Arch Linux ARM",
+  "Manjaro Linux",
+  "Manjaro Linux ARM",
+  "Manjaro ARM Linux",
+];
+
+export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(
+  (name) => `${name} rolling`
+);

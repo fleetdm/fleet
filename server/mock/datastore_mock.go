@@ -707,7 +707,7 @@ type UpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool) err
 
 type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string) ([]string, error)
 
-type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
+type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64, gigsAll *float64) error
 
 type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
@@ -1358,6 +1358,10 @@ type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID
 type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error
 
 type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
+
+type ResetSetupExperienceItemsAfterFailureFunc func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
+
+type CancelPendingSetupExperienceStepsFunc func(ctx context.Context, hostUUID string) error
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
 
@@ -3557,6 +3561,12 @@ type DataStore struct {
 
 	EnqueueSetupExperienceItemsFunc        EnqueueSetupExperienceItemsFunc
 	EnqueueSetupExperienceItemsFuncInvoked bool
+
+	ResetSetupExperienceItemsAfterFailureFunc        ResetSetupExperienceItemsAfterFailureFunc
+	ResetSetupExperienceItemsAfterFailureFuncInvoked bool
+
+	CancelPendingSetupExperienceStepsFunc        CancelPendingSetupExperienceStepsFunc
+	CancelPendingSetupExperienceStepsFuncInvoked bool
 
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
@@ -6246,11 +6256,11 @@ func (s *DataStore) GetHostEmails(ctx context.Context, hostUUID string, source s
 	return s.GetHostEmailsFunc(ctx, hostUUID, source)
 }
 
-func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error {
+func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64, gigsAll *float64) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal)
+	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal, gigsAll)
 }
 
 func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
@@ -8526,6 +8536,20 @@ func (s *DataStore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatfor
 	s.EnqueueSetupExperienceItemsFuncInvoked = true
 	s.mu.Unlock()
 	return s.EnqueueSetupExperienceItemsFunc(ctx, hostPlatformLike, hostUUID, teamID)
+}
+
+func (s *DataStore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.ResetSetupExperienceItemsAfterFailureFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetSetupExperienceItemsAfterFailureFunc(ctx, hostPlatformLike, hostUUID, teamID)
+}
+
+func (s *DataStore) CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.CancelPendingSetupExperienceStepsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelPendingSetupExperienceStepsFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {

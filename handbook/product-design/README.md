@@ -59,7 +59,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 4. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
    - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
    - Add a link to the issue in the PR description.
-   - Attach the `~api-or-yaml-design` label and add a milestone. (This helps us spot unmerged PRs.)
+   - Attach the `~api-or-yaml-design` label. (This helps the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) prioritize API/YAML PR review.)
    - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
    - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
@@ -85,6 +85,10 @@ Additionally:
   - Go through the Fleet UI and look for bad/inconsistent text
   - Go through the reference docs and look for issues (inconsistent naming/formatting, broken links, etc.)
   - File stories and draft changes for making form fields in the Fleet UI consistent (fixing conventions, moving out the tooltips, etc.)
+ 
+- Sometimes user stories don't require changes to the Fleet product. When this happens, it's up to the Product Designer to prepare a story for the Customer Success team. After the story is approved at design review, the Product designer adds the `:help-customers` label, assigns the issue to the [Manager of Customer Support and Solutions Architecture](https://fleetdm.com/handbook/customer-success), and @ mentions the Manager of Customer Support with context:
+  - How the story addresses the original request.
+  - If the original request is a customer promise, specify what the due date is and who it's for.
 
 >**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
 >

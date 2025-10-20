@@ -148,4 +148,25 @@ describe("Disk space Indicator", () => {
       expect(tooltip).toBeInTheDocument();
     });
   });
+  it("renders tooltip over anchor for Linux hosts with gigs all disk space and gigs total disk space", async () => {
+    const { user } = renderWithSetup(
+      <DiskSpaceIndicator
+        gigsDiskSpaceAvailable={20}
+        percentDiskSpaceAvailable={20}
+        gigsTotalDiskSpace={100}
+        gigsAllDiskSpace={120}
+        platform="linux"
+      />
+    );
+
+    await user.hover(screen.getByText(/GB/));
+
+    await waitFor(() => {
+      const totalTip = screen.getByText(/System disk space/);
+      expect(totalTip).toBeInTheDocument();
+    });
+
+    const allTip = screen.getByText(/All partitions/);
+    expect(allTip).toBeInTheDocument();
+  });
 });

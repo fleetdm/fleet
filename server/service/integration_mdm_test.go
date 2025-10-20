@@ -11152,6 +11152,87 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
 	require.Len(t, assoc, 0)
+
+	// Test InstallDuringSetup
+	// Helper functions for verifying what's enabled for setup experience
+	getReturnedSetupExperienceAdamIDs := func(titles []fleet.SoftwareTitleListResult) []string {
+		var adamIDs []string
+		for _, title := range titles {
+			if (title.AppStoreApp != nil && title.AppStoreApp.InstallDuringSetup != nil && *title.AppStoreApp.InstallDuringSetup == true) ||
+				(title.SoftwarePackage != nil && title.SoftwarePackage.InstallDuringSetup != nil && *title.SoftwarePackage.InstallDuringSetup == true) {
+				adamIDs = append(adamIDs, title.AppStoreApp.AppStoreID)
+			}
+		}
+		return adamIDs
+	}
+
+	checkSetupExperienceVPP := func(t *testing.T, platform string, teamID uint, expectedAdamIDs []string) {
+		var respGetSetupExperience getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+			http.StatusOK,
+			&respGetSetupExperience,
+			"platform", platform,
+			"team_id", fmt.Sprint(teamID),
+		)
+		assert.ElementsMatch(t, getReturnedSetupExperienceAdamIDs(respGetSetupExperience.SoftwareTitles), expectedAdamIDs)
+	}
+
+	// Associate with the SetupExperience flag set to true
+	s.DoJSON("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{
+				// macOS only
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, InstallDuringSetup: ptr.Bool(true)},
+				// macOS, iOS, iPadOS
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(true)},
+				// iPadOS only
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[2].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(true)},
+			},
+		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
+	)
+
+	checkSetupExperienceVPP(t, "macos", tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[0].AdamID, s.appleVPPConfigSrvConfig.Assets[1].AdamID})
+	checkSetupExperienceVPP(t, string(fleet.IPadOSPlatform), tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[1].AdamID, s.appleVPPConfigSrvConfig.Assets[2].AdamID})
+	checkSetupExperienceVPP(t, string(fleet.IOSPlatform), tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[1].AdamID})
+
+	// Associate with the SetupExperience flag set to nil = no change
+	s.DoJSON("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{
+				// macOS only
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, InstallDuringSetup: nil},
+				// macOS, iOS, iPadOS
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, InstallDuringSetup: nil},
+				// iPadOS only
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[2].AdamID, SelfService: true, InstallDuringSetup: nil},
+			},
+		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
+	)
+
+	checkSetupExperienceVPP(t, "macos", tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[0].AdamID, s.appleVPPConfigSrvConfig.Assets[1].AdamID})
+	checkSetupExperienceVPP(t, string(fleet.IPadOSPlatform), tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[1].AdamID, s.appleVPPConfigSrvConfig.Assets[2].AdamID})
+	checkSetupExperienceVPP(t, string(fleet.IOSPlatform), tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[1].AdamID})
+
+	// Associate with the SetupExperience flag set to false
+	s.DoJSON("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{
+				// macOS only
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, InstallDuringSetup: ptr.Bool(false)},
+				// macOS, iOS, iPadOS
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(false)},
+				// iPadOS only
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[2].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(false)},
+			},
+		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
+	)
+
+	checkSetupExperienceVPP(t, "macos", tmGood.ID, []string{})
+	checkSetupExperienceVPP(t, string(fleet.IPadOSPlatform), tmGood.ID, []string{})
+	checkSetupExperienceVPP(t, string(fleet.IOSPlatform), tmGood.ID, []string{})
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {

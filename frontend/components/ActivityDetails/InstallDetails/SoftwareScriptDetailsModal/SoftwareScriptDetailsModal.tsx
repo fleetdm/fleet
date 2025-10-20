@@ -144,7 +144,7 @@ interface IModalButtonsProps {
   deviceAuthToken?: string;
   installResultStatus?: string;
   hostSoftwareId?: number;
-  onRerun?: (id: number) => void;
+  onRerun?: (id: number, isScriptPackage: boolean) => void;
   onCancel: () => void;
 }
 
@@ -159,7 +159,7 @@ export const ModalButtons = ({
     const onClickRerun = () => {
       // on My Device Page, where this is relevant, both will be defined
       if (onRerun && hostSoftwareId) {
-        onRerun(hostSoftwareId);
+        onRerun(hostSoftwareId, true); // isScriptPackage defined for copy changes
       }
       onCancel();
     };
@@ -190,7 +190,7 @@ interface ISoftwareInstallDetailsProps {
   hostSoftware?: IHostSoftware; // for software name when not Fleet installed (not present on activity feeds)
   deviceAuthToken?: string; // My Device Page only
   onCancel: () => void;
-  onRerun?: (id: number) => void; // My Device Page only
+  onRerun?: (id: number, isScriptPackage?: boolean) => void; // My Device Page only
   contactUrl?: string; // My Device Page only
 }
 

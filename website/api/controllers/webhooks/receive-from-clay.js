@@ -38,6 +38,7 @@ module.exports = {
         'Event - Engaged with Fleetie at event',
         'GitHub - Stared fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
+        'GitHub - Contributed to fleetdm/fleet',
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
@@ -65,6 +66,7 @@ module.exports = {
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
         'Forked the fleetdm/fleet repo on GitHub',
+        'Contributed to the fleetdm/fleet repo on GitHub',
         'Subscribed to the Fleet newsletter',
         'Attended a Fleet training course'
       ]

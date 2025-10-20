@@ -44,6 +44,16 @@ h3 {
   margin: 0;
 }
 
+h1 {
+  font-size: $large;
+  &.page-header {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    position: relative;
+  }
+}
+
 p {
   // Desired default line-height for text is 1.5x the font size for paragrah text.
   // This allows for a comfortable reading experience by adding space between
