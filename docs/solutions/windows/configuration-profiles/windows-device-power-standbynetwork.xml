@@ -1,0 +1,25 @@
+<Replace>
+  <CmdID>019a015f-6740-74cc-8b05-40ff29ee5251</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_Power/DCConnectivityInStandby_2</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>019a015f-8778-778f-95b0-8ad5f8fe2d87</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_Power/ACConnectivityInStandby_2</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
