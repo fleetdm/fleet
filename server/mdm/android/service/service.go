@@ -61,7 +61,7 @@ func NewService(
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
 ) (android.Service, error) {
-	client := newAMAPIClient(ctx, logger, licenseKey)
+	client := NewAMAPIClient(ctx, logger, licenseKey)
 	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, fleetDS)
 }
 
@@ -90,7 +90,7 @@ func NewServiceWithClient(
 	}, nil
 }
 
-func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+func NewAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
 		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)

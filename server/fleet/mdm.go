@@ -999,12 +999,14 @@ const (
 	IPadOS
 )
 
+// TODO(JVE): rename this since it's not just Apple platforms anymore
 type AppleDevicePlatform string
 
 const (
-	MacOSPlatform  AppleDevicePlatform = "darwin"
-	IOSPlatform    AppleDevicePlatform = "ios"
-	IPadOSPlatform AppleDevicePlatform = "ipados"
+	MacOSPlatform   AppleDevicePlatform = "darwin"
+	IOSPlatform     AppleDevicePlatform = "ios"
+	IPadOSPlatform  AppleDevicePlatform = "ipados"
+	AndroidPlatform AppleDevicePlatform = "android"
 )
 
 var VPPAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}

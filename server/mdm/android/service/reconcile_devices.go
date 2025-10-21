@@ -32,7 +32,7 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	client := newAMAPIClient(ctx, logger, licenseKey)
+	client := NewAMAPIClient(ctx, logger, licenseKey)
 
 	// Best-effort set authentication secret for proxy client usage (no-op for Google client).
 	if assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidFleetServerSecret}, nil); err == nil {
