@@ -59,7 +59,7 @@ type MDMWindowsConfigProfile struct {
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates bool) error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
@@ -137,7 +137,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 
 		case xml.CharData:
 			if inLocURI {
-				if err := validateFleetProvidedLocURI(string(t)); err != nil {
+				if err := validateFleetProvidedLocURI(string(t), enableCustomOSUpdates); err != nil {
 					return err
 				}
 			}
@@ -152,10 +152,13 @@ var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
-func validateFleetProvidedLocURI(locURI string) error {
+func validateFleetProvidedLocURI(locURI string, enableCustomOSUpdates bool) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
+			if fleetLocURI == syncml.FleetOSUpdateTargetLocURI && enableCustomOSUpdates {
+				continue
+			}
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
