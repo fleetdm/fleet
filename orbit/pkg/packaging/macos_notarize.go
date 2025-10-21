@@ -113,6 +113,11 @@ func (s *statusHuman) InfoStatus(info notarize.Info) {
 	if info.Status != s.lastInfoStatus {
 		s.lastInfoStatus = info.Status
 		color.New().Fprintf(os.Stdout, "    %sInfoStatus: %s\n", s.Prefix, info.Status)
+
+		// Print status message if available (especially for failures)
+		if info.StatusMessage != "" {
+			color.New().Fprintf(os.Stdout, "    %s  Message: %s\n", s.Prefix, info.StatusMessage)
+		}
 	}
 }
 
@@ -123,5 +128,19 @@ func (s *statusHuman) LogStatus(log notarize.Log) {
 	if log.Status != s.lastLogStatus {
 		s.lastLogStatus = log.Status
 		color.New().Fprintf(os.Stdout, "    %sLogStatus: %s\n", s.Prefix, log.Status)
+
+		// Print status summary if available
+		if log.StatusSummary != "" {
+			color.New().Fprintf(os.Stdout, "    %s  Summary: %s\n", s.Prefix, log.StatusSummary)
+		}
+
+		// Print detailed issues if this is a failure
+		if len(log.Issues) > 0 {
+			color.New().Fprintf(os.Stdout, "    %s  Issues:\n", s.Prefix)
+			for _, issue := range log.Issues {
+				color.New().Fprintf(os.Stdout, "    %s    [%s] %s: %s\n",
+					s.Prefix, issue.Severity, issue.Path, issue.Message)
+			}
+		}
 	}
 }

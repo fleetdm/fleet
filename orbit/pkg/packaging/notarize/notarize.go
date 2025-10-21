@@ -202,7 +202,19 @@ func Notarize(ctx context.Context, opts *Options) (*Info, *Log, error) {
 	err = nil
 	if logResult.Status == "Invalid" || logResult.Status == "Rejected" {
 		if infoResult.Status == "Invalid" || infoResult.Status == "Rejected" {
-			err = errors.New("package notarization failed: " + logResult.Status)
+			errMsg := "package notarization failed: " + logResult.Status
+
+			// Add summary if available
+			if logResult.StatusSummary != "" {
+				errMsg += " - " + logResult.StatusSummary
+			}
+
+			// Add first issue if available
+			if len(logResult.Issues) > 0 {
+				errMsg += " (first issue: " + logResult.Issues[0].Message + ")"
+			}
+
+			err = errors.New(errMsg)
 		}
 	}
 
