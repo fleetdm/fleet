@@ -56,7 +56,7 @@ export const SummaryCard = ({
   <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
     <SoftwareDetailsSummary
       title={osVersion.name}
-      hosts={osVersion.hosts_count}
+      hostCount={osVersion.hosts_count}
       countsUpdatedAt={countsUpdatedAt}
       queryParams={{
         os_name: osVersion.name_only,
