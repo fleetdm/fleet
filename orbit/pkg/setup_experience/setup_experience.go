@@ -635,9 +635,9 @@ func (s *SetupExperiencer) startSwiftDialogLegacy(binaryPath, orgLogo string) er
 			ProgressText:     "Configuring your device...",
 			Button1Text:      "Close",
 			Button1Disabled:  true,
-			// BlurScreen:       true,
-			// OnTop:            true,
-			QuitKey: "X", // Capital X to require command+shift+x
+			BlurScreen:       true,
+			OnTop:            true,
+			QuitKey:          "X", // Capital X to require command+shift+x
 		}
 
 		if err := s.sd.Start(context.Background(), initOpts, true); err != nil {
