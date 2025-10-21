@@ -124,7 +124,7 @@ func run(cfg *Config) error {
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
-		if hash != maintainedApp.SHA256 {
+		if hash != maintainedApp.SHA256 && maintainedApp.SHA256 != "no_check" {
 			level.Error(appLogger).Log("msg", "SHA256 hash in manifest does not match installer file hash")
 			appWithError = append(appWithError, ac.Name)
 			continue
