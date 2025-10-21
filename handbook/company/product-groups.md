@@ -915,7 +915,7 @@ On the order form, customer promises are represented as [customer request](https
 **Agenda:**
 - Review each proposed customer promise on the order form.
 - Attempt to [t-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) each customer request issue.
-  - If necessary, the EM takes up to 1 business day to gather information necessary to t-shirt size.
+  - If necessary, the EM takes up to 1 business day to gather information necessary to T-shirt size.
 - Review the [release planning roadmap](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
 - Decide which Fleet release can be targeted for each customer promise.
 - Update the order form to reflect targeted date of each release.
