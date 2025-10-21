@@ -148,14 +148,16 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 // clearOktaConditionalAccess clears all Okta conditional access configuration fields.
 // This is useful for test cleanup to ensure tests don't interfere with each other.
 func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
-		"conditional_access": {
-			"okta_idp_id": null,
-			"okta_assertion_consumer_service_url": null,
-			"okta_audience_uri": null,
-			"okta_certificate": null
-		}
-	}`), http.StatusOK)
+	body := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         nil,
+			"okta_assertion_consumer_service_url": nil,
+			"okta_audience_uri":                   nil,
+			"okta_certificate":                    nil,
+		},
+	}
+	b, _ := json.Marshal(body)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", b, http.StatusOK)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
@@ -21325,6 +21327,21 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 		s.clearOktaConditionalAccess()
 	})
 
+	// Helper function to build Okta conditional access payloads
+	// Passing nil for a field will emit null in the JSON
+	oktaPayload := func(idp, acs, aud, cert *string) []byte {
+		body := map[string]any{
+			"conditional_access": map[string]any{
+				"okta_idp_id":                         idp,
+				"okta_assertion_consumer_service_url": acs,
+				"okta_audience_uri":                   aud,
+				"okta_certificate":                    cert,
+			},
+		}
+		b, _ := json.Marshal(body)
+		return b
+	}
+
 	// Valid PEM certificate for testing (real Okta certificate)
 	validCert := `-----BEGIN CERTIFICATE-----
 MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
@@ -21346,77 +21363,49 @@ umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
 FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 -----END CERTIFICATE-----`
 
+	// Test values
+	idp := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
+	acs := "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7"
+	aud := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
+	invalidURL := "not-a-valid-url"
+	invalidCert := "not-a-valid-pem-certificate"
+
 	// GET config should return empty Okta fields initially
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	// ConditionalAccess should always be present; initially Okta fields should be empty/not valid
 	require.NotNil(t, acResp.ConditionalAccess)
 	require.False(t, acResp.ConditionalAccess.OktaIDPID.Valid)
+	require.False(t, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid)
+	require.False(t, acResp.ConditionalAccess.OktaAudienceURI.Valid)
+	require.False(t, acResp.ConditionalAccess.OktaCertificate.Valid)
 
 	// Test 1: Try to set only some Okta fields (should fail validation)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
-		"conditional_access": {
-			"okta_idp_id": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
-		}
-	}`), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, nil, nil, nil), http.StatusUnprocessableEntity)
 
 	// Test 2: Try to set 3 out of 4 fields (should fail validation)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
-		"conditional_access": {
-			"okta_idp_id": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
-			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
-		}
-	}`), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, nil), http.StatusUnprocessableEntity)
 
 	// Test 3: Set all 4 Okta fields with valid values (should succeed)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(fmt.Sprintf(`{
-		"conditional_access": {
-			"okta_idp_id": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
-			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_certificate": %q
-		}
-	}`, validCert)), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert), http.StatusOK)
 
 	// GET config should now return the Okta fields
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.ConditionalAccess.OktaIDPID.Valid)
-	assert.Equal(t, "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl", acResp.ConditionalAccess.OktaIDPID.Value)
-	assert.Equal(t, "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7", acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
-	assert.Equal(t, "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl", acResp.ConditionalAccess.OktaAudienceURI.Value)
+	assert.Equal(t, idp, acResp.ConditionalAccess.OktaIDPID.Value)
+	assert.Equal(t, acs, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+	assert.Equal(t, aud, acResp.ConditionalAccess.OktaAudienceURI.Value)
 	assert.Equal(t, validCert, acResp.ConditionalAccess.OktaCertificate.Value)
 
 	// Test 4: Try to set invalid URL for assertion_consumer_service_url (should fail)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(fmt.Sprintf(`{
-		"conditional_access": {
-			"okta_idp_id": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_assertion_consumer_service_url": "not-a-valid-url",
-			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_certificate": %q
-		}
-	}`, validCert)), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &invalidURL, &aud, &validCert), http.StatusUnprocessableEntity)
 
 	// Test 5: Try to set invalid PEM certificate (should fail)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
-		"conditional_access": {
-			"okta_idp_id": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
-			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_certificate": "not-a-valid-pem-certificate"
-		}
-	}`), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &invalidCert), http.StatusUnprocessableEntity)
 
 	// Test 6: Clear all Okta configuration by setting all fields to null
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
-		"conditional_access": {
-			"okta_idp_id": null,
-			"okta_assertion_consumer_service_url": null,
-			"okta_audience_uri": null,
-			"okta_certificate": null
-		}
-	}`), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(nil, nil, nil, nil), http.StatusOK)
 
 	// Verify all fields are now null/empty
 	acResp = appConfigResponse{}
@@ -21430,14 +21419,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 
 	// Test 7: Verify an unrelated config change doesn't affect Okta settings when Okta is configured
 	// First, set up Okta config again
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(fmt.Sprintf(`{
-		"conditional_access": {
-			"okta_idp_id": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
-			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
-			"okta_certificate": %q
-		}
-	}`, validCert)), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert), http.StatusOK)
 
 	// Make an unrelated change (e.g., org_name)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -21450,8 +21432,8 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	// Verify Okta settings are still there
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl", acResp.ConditionalAccess.OktaIDPID.Value)
-	assert.Equal(t, "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7", acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
-	assert.Equal(t, "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl", acResp.ConditionalAccess.OktaAudienceURI.Value)
+	assert.Equal(t, idp, acResp.ConditionalAccess.OktaIDPID.Value)
+	assert.Equal(t, acs, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+	assert.Equal(t, aud, acResp.ConditionalAccess.OktaAudienceURI.Value)
 	assert.Equal(t, validCert, acResp.ConditionalAccess.OktaCertificate.Value)
 }

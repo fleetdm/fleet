@@ -502,27 +502,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		newAppConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
 	}
 
-	var conditionalAccessNoTeamUpdated bool
-	if newAppConfig.Integrations.ConditionalAccessEnabled.Set {
-		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, appConfig.ConditionalAccess, oldConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
-			return nil, err
-		}
-		conditionalAccessNoTeamUpdated = oldConditionalAccessEnabled.Value != newAppConfig.Integrations.ConditionalAccessEnabled.Value
-		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
-	}
-
-	// Handle Okta conditional access fields - only update if Set=true (partial update support)
-	// Check if any Okta fields are being set with valid (non-null) values
-	oktaFieldsBeingSet := (newAppConfig.ConditionalAccess.OktaIDPID.Set && newAppConfig.ConditionalAccess.OktaIDPID.Valid) ||
-		(newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Set && newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid) ||
-		(newAppConfig.ConditionalAccess.OktaAudienceURI.Set && newAppConfig.ConditionalAccess.OktaAudienceURI.Valid) ||
-		(newAppConfig.ConditionalAccess.OktaCertificate.Set && newAppConfig.ConditionalAccess.OktaCertificate.Valid)
-
-	if oktaFieldsBeingSet && !license.IsPremium() {
-		invalid.Append("conditional_access", ErrMissingLicense.Error())
-		return nil, ctxerr.Wrap(ctx, invalid)
-	}
-
 	// Trim whitespace from all Okta fields before setting them
 	applyOptString := func(dest *optjson.String, src optjson.String) {
 		if src.Set {
@@ -536,6 +515,21 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
 	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, newAppConfig.ConditionalAccess.OktaAudienceURI)
 	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, newAppConfig.ConditionalAccess.OktaCertificate)
+
+	// Handle Okta conditional access fields - only update if Set=true (partial update support)
+	// Check if any Okta fields are being set with valid (non-null) non-empty values
+	isNonEmpty := func(s optjson.String) bool {
+		return s.Set && s.Valid && s.Value != ""
+	}
+	oktaFieldsBeingSet := isNonEmpty(newAppConfig.ConditionalAccess.OktaIDPID) ||
+		isNonEmpty(newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL) ||
+		isNonEmpty(newAppConfig.ConditionalAccess.OktaAudienceURI) ||
+		isNonEmpty(newAppConfig.ConditionalAccess.OktaCertificate)
+
+	if oktaFieldsBeingSet && !license.IsPremium() {
+		invalid.Append("conditional_access", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
 
 	// Validate Okta configuration - all fields must be set together or all must be empty
 	oktaFieldsSet := 0
@@ -586,19 +580,44 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				fmt.Sprintf("must be %d characters or less", maxCertLength))
 		}
 
-		// Validate URL format for ACS URL - must have http or https scheme
-		acsURL, err := url.Parse(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
-		if err != nil || (acsURL.Scheme != "http" && acsURL.Scheme != "https") {
+		// Validate URL format for ACS URL - must have http or https scheme and a host
+		acsURL, err := url.ParseRequestURI(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+		if err != nil || ((acsURL.Scheme != "http" && acsURL.Scheme != "https") || acsURL.Host == "") {
 			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
-				"must be a valid URL with http or https scheme")
+				"must be a valid URL with http or https scheme and a host")
 		}
 
-		// Validate certificate is valid PEM
-		block, _ := pem.Decode([]byte(appConfig.ConditionalAccess.OktaCertificate.Value))
-		if block == nil {
-			invalid.Append("conditional_access.okta_certificate",
-				"must be valid PEM format")
+		// Validate one or more PEM-encoded CERTIFICATE blocks and parse each
+		rest := []byte(appConfig.ConditionalAccess.OktaCertificate.Value)
+		certCount := 0
+		for {
+			block, r := pem.Decode(rest)
+			if block == nil {
+				break
+			}
+			rest = r
+			if block.Type != "CERTIFICATE" {
+				invalid.Append("conditional_access.okta_certificate", "PEM block must be a CERTIFICATE")
+				break
+			}
+			if _, err := x509.ParseCertificate(block.Bytes); err != nil {
+				invalid.Append("conditional_access.okta_certificate", "must be a valid x509 certificate")
+				break
+			}
+			certCount++
 		}
+		if certCount == 0 {
+			invalid.Append("conditional_access.okta_certificate", "must contain at least one PEM-encoded certificate")
+		}
+	}
+
+	var conditionalAccessNoTeamUpdated bool
+	if newAppConfig.Integrations.ConditionalAccessEnabled.Set {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, appConfig.ConditionalAccess, oldConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
+			return nil, err
+		}
+		conditionalAccessNoTeamUpdated = oldConditionalAccessEnabled.Value != newAppConfig.Integrations.ConditionalAccessEnabled.Value
+		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 	}
 
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {

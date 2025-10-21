@@ -428,9 +428,7 @@ func ValidateConditionalAccessIntegration(
 		entraConfigured := conditionalAccessIntegration != nil && conditionalAccessIntegration.SetupDone
 
 		// Check Okta configuration from ConditionalAccessSettings
-		oktaConfigured := conditionalAccessSettings != nil &&
-			conditionalAccessSettings.OktaIDPID.Valid &&
-			conditionalAccessSettings.OktaIDPID.Value != ""
+		oktaConfigured := conditionalAccessSettings.OktaConfigured()
 
 		if !entraConfigured && !oktaConfigured {
 			return NewInvalidArgumentError(

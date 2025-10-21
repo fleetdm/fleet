@@ -101,6 +101,18 @@ type ConditionalAccessSettings struct {
 	OktaCertificate                 optjson.String `json:"okta_certificate"`
 }
 
+// OktaConfigured returns true if all Okta conditional access fields are configured.
+// All four fields must be set together for Okta conditional access to be considered configured.
+func (c *ConditionalAccessSettings) OktaConfigured() bool {
+	if c == nil {
+		return false
+	}
+	return c.OktaIDPID.Valid && c.OktaIDPID.Value != "" &&
+		c.OktaAssertionConsumerServiceURL.Valid && c.OktaAssertionConsumerServiceURL.Value != "" &&
+		c.OktaAudienceURI.Valid && c.OktaAudienceURI.Value != "" &&
+		c.OktaCertificate.Valid && c.OktaCertificate.Value != ""
+}
+
 // SMTPSettings is part of the AppConfig which defines the wire representation
 // of the app config endpoints
 type SMTPSettings struct {
