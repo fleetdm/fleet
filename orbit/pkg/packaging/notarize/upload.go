@@ -3,6 +3,7 @@ package notarize
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -83,7 +84,7 @@ func upload(ctx context.Context, opts *Options) (string, error) {
 
 	// We should have a request UUID set at this point since we checked for errors
 	if result.RequestUUID == "" {
-		return "", fmt.Errorf(
+		return "", errors.New(
 			"notarization appeared to succeed, but we failed at parsing " +
 				"the request UUID. Please enable logging, try again, and report " +
 				"this as a bug.")

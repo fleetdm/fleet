@@ -3,7 +3,7 @@ package notarize
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os/exec"
 	"sync"
 	"time"
@@ -175,7 +175,7 @@ func Notarize(ctx context.Context, opts *Options) (*Info, *Log, error) {
 	// If we're in an invalid status then return an error
 	err = nil
 	if logResult.Status == "Invalid" && infoResult.Status == "Invalid" {
-		err = fmt.Errorf("package is invalid.")
+		err = errors.New("package is invalid.")
 	}
 
 	return infoResult, logResult, err
