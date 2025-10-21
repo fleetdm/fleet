@@ -9782,6 +9782,10 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 2)
 	require.Equal(t, []string{"a", "b"}, pluckSoftwareNames(sw))
 
+	// TODO(mna): thinking of leaving this on here for a bit as I've seen it fail
+	// with some flakiness before but couldn't repro locally nor on CI. Error was
+	// in createInHouseAppInstallResultVerified, the nano command for the result
+	// was not found.
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		fmt.Println(">>> command uuid: ", inhouse1InstallCmd)
 		DumpTable(t, tx, "hosts", "id", "uuid", "platform", "hostname", "team_id")
