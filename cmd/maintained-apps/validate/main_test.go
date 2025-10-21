@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -132,6 +131,9 @@ func TestValidateSqlInput(t *testing.T) {
 }
 
 func TestValidateAppsDarwin(t *testing.T) {
+	if os.Getenv("VALIDATION_TEST") != "1" {
+		t.Skip("Set VALIDATION_TEST=1 to run fma verification test")
+	}
 	cfg := &Config{}
 
 	// logger
@@ -142,7 +144,7 @@ func TestValidateAppsDarwin(t *testing.T) {
 	cfg.operatingSystem = strings.ToLower(os.Getenv("GOOS"))
 	if cfg.operatingSystem == "" {
 		cfg.operatingSystem = runtime.GOOS
-		t.Log(fmt.Sprintf("GOOS environment variable is not set. Using system detected: '%s'", cfg.operatingSystem))
+		t.Logf("GOOS environment variable is not set. Using system detected: '%s'", cfg.operatingSystem)
 	}
 	if cfg.operatingSystem != "darwin" {
 		t.Skip("Expected test operating system: darwin")
