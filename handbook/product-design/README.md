@@ -113,8 +113,7 @@ Before assigning an EM, double-check that the "Product" section of the user stor
 
 If the story is tied to a customer feature request, the Head of Product Design (HPD) is responsible for adding the feature request issue to the [🏹 #g-customer-success board](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board). This way the Customer Success Manager (CSM) can review the wireframes and provide feedback on whether the proposed changes solve the customer's problem. If the changes don't, it's up to the HPD to decide whether to bring the user story back for more drafting or file a follow up user story (iteration).
 
-Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, it's up to the original Product Designer to update the "Product Designer" mentioned in the user story or bug and ramp up the new Product Designer so they are prepared to answers questions.
-
+If a story is brought into the engineering sprint [during the sprint kickoff](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies), but it was **drafted by a Product Designer from a different product group** due to capacity constraints, then the Product Designer from the group working on that story should familiarize themselves with it and take on the role of Directly Responsible Individual (DRI). The new DRI can decide whether to schedule a call with the designer who drafted the story to get familiar.
 
 ### Revise a draft currently in development
 
