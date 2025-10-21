@@ -1291,9 +1291,7 @@ const TAGGED_TEMPLATES = {
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
   ),
-  addedConditionalAccessOkta: () => (
-    <> configured Okta conditional access.</>
-  ),
+  addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
