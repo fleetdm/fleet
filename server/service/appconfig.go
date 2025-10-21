@@ -140,8 +140,25 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 	if conditionalAccessIntegration != nil {
+		if appConfig.ConditionalAccess == nil {
+			appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+		}
 		appConfig.ConditionalAccess.MicrosoftEntraTenantID = conditionalAccessIntegration.TenantID
 		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = conditionalAccessIntegration.SetupDone
+	}
+
+	// If ConditionalAccess exists but has no meaningful data, set it to nil so it serializes as null
+	if appConfig.ConditionalAccess != nil {
+		// Check if all fields are empty/default values
+		noEntraConfig := appConfig.ConditionalAccess.MicrosoftEntraTenantID == "" && !appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured
+		noOktaConfig := (!appConfig.ConditionalAccess.OktaIDPID.Valid || appConfig.ConditionalAccess.OktaIDPID.Value == "") &&
+			(!appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid || appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value == "") &&
+			(!appConfig.ConditionalAccess.OktaAudienceURI.Valid || appConfig.ConditionalAccess.OktaAudienceURI.Value == "") &&
+			(!appConfig.ConditionalAccess.OktaCertificate.Valid || appConfig.ConditionalAccess.OktaCertificate.Value == "")
+
+		if noEntraConfig && noOktaConfig {
+			appConfig.ConditionalAccess = nil
+		}
 	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
@@ -482,6 +499,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+
+	// Initialize ConditionalAccess if nil (it's a pointer type)
+	if appConfig.ConditionalAccess == nil {
+		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
+	if newAppConfig.ConditionalAccess == nil {
+		newAppConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
 
 	var conditionalAccessNoTeamUpdated bool
 	if newAppConfig.Integrations.ConditionalAccessEnabled.Set {

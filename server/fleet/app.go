@@ -606,7 +606,7 @@ type AppConfig struct {
 
 	// ConditionalAccess holds the Okta conditional access settings that are stored in AppConfig.
 	// Note: In API responses, this is combined with Microsoft Entra settings from the database.
-	ConditionalAccess ConditionalAccessSettings `json:"conditional_access"`
+	ConditionalAccess *ConditionalAccessSettings `json:"conditional_access,omitempty"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.

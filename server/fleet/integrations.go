@@ -409,7 +409,7 @@ func ValidateConditionalAccessIntegration(
 	g interface {
 		ConditionalAccessMicrosoftGet(context.Context) (*ConditionalAccessMicrosoftIntegration, error)
 	},
-	conditionalAccessSettings ConditionalAccessSettings,
+	conditionalAccessSettings *ConditionalAccessSettings,
 	currentConditionalAccessEnabled bool,
 	newConditionalAccessEnabled bool,
 ) error {
@@ -428,7 +428,8 @@ func ValidateConditionalAccessIntegration(
 		entraConfigured := conditionalAccessIntegration != nil && conditionalAccessIntegration.SetupDone
 
 		// Check Okta configuration from ConditionalAccessSettings
-		oktaConfigured := conditionalAccessSettings.OktaIDPID.Valid &&
+		oktaConfigured := conditionalAccessSettings != nil &&
+			conditionalAccessSettings.OktaIDPID.Valid &&
 			conditionalAccessSettings.OktaIDPID.Value != ""
 
 		if !entraConfigured && !oktaConfigured {
