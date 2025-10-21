@@ -405,6 +405,7 @@ spec:
                 key: {{ .valueFrom.secretKeyRef.key }}
           {{- end }}
           {{- end }}
+        {{- if .Values.fleet.securityContext.enabled }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -420,6 +421,7 @@ spec:
           {{- if .Values.fleet.securityContext.runAsNonRoot }}
           runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
           {{- end }}
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz

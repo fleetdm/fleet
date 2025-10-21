@@ -120,6 +120,7 @@ spec:
             value: "{{ .Values.database.tls.serverName }}"
           {{- end }}
           ## END MYSQL SECTION
+        {{- if .Values.fleet.securityContext.enabled }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -140,6 +141,7 @@ spec:
           {{- if .Values.fleet.securityContext.runAsNonRoot }}
           runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
           {{- end }}
+        {{- end }}
         volumeMounts:
           {{- if .Values.database.tls.enabled }}
           - name: mysql-tls
