@@ -139,26 +139,20 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
-	if conditionalAccessIntegration != nil {
-		if appConfig.ConditionalAccess == nil {
-			appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
-		}
-		appConfig.ConditionalAccess.MicrosoftEntraTenantID = conditionalAccessIntegration.TenantID
-		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = conditionalAccessIntegration.SetupDone
+
+	// Always initialize ConditionalAccess so it's never nil (even when empty)
+	if appConfig.ConditionalAccess == nil {
+		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
 	}
 
-	// If ConditionalAccess exists but has no meaningful data, set it to nil so it serializes as null
-	if appConfig.ConditionalAccess != nil {
-		// Check if all fields are empty/default values
-		noEntraConfig := appConfig.ConditionalAccess.MicrosoftEntraTenantID == "" && !appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured
-		noOktaConfig := (!appConfig.ConditionalAccess.OktaIDPID.Valid || appConfig.ConditionalAccess.OktaIDPID.Value == "") &&
-			(!appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid || appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value == "") &&
-			(!appConfig.ConditionalAccess.OktaAudienceURI.Valid || appConfig.ConditionalAccess.OktaAudienceURI.Value == "") &&
-			(!appConfig.ConditionalAccess.OktaCertificate.Valid || appConfig.ConditionalAccess.OktaCertificate.Value == "")
-
-		if noEntraConfig && noOktaConfig {
-			appConfig.ConditionalAccess = nil
-		}
+	// Set or clear Microsoft Entra fields based on integration status
+	if conditionalAccessIntegration != nil {
+		appConfig.ConditionalAccess.MicrosoftEntraTenantID = conditionalAccessIntegration.TenantID
+		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = conditionalAccessIntegration.SetupDone
+	} else {
+		// Clear Entra fields when integration is deleted
+		appConfig.ConditionalAccess.MicrosoftEntraTenantID = ""
+		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = false
 	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin

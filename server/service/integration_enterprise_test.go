@@ -145,6 +145,19 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	s.withServer.commonTearDownTest(s.T())
 }
 
+// clearOktaConditionalAccess clears all Okta conditional access configuration fields.
+// This is useful for test cleanup to ensure tests don't interfere with each other.
+func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"conditional_access": {
+			"okta_idp_id": null,
+			"okta_assertion_consumer_service_url": null,
+			"okta_audience_uri": null,
+			"okta_certificate": null
+		}
+	}`), http.StatusOK)
+}
+
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	t := s.T()
 
@@ -19092,6 +19105,9 @@ var mockedConditionalAccessMicrosoftProxyInstance = &mockedConditionalAccessMicr
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	t := s.T()
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+	})
 
 	// Test license.managed_cloud is set on Cloud environments.
 	var acResp appConfigResponse
@@ -19191,7 +19207,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Nil(t, acResp.ConditionalAccess)
+	// ConditionalAccess is always initialized, but Entra fields should be empty
+	require.NotNil(t, acResp.ConditionalAccess)
+	require.Equal(t, "", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Create again with a different tenant.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
@@ -19225,7 +19244,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Nil(t, acResp.ConditionalAccess)
+	// ConditionalAccess is always initialized, but Entra fields should be empty
+	require.NotNil(t, acResp.ConditionalAccess)
+	require.Equal(t, "", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
@@ -21299,6 +21321,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 	t := s.T()
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+	})
 
 	// Valid PEM certificate for testing (real Okta certificate)
 	validCert := `-----BEGIN CERTIFICATE-----
@@ -21324,7 +21349,8 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	// GET config should return empty Okta fields initially
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	// Initially Okta fields should be empty/not valid
+	// ConditionalAccess should always be present; initially Okta fields should be empty/not valid
+	require.NotNil(t, acResp.ConditionalAccess)
 	require.False(t, acResp.ConditionalAccess.OktaIDPID.Valid)
 
 	// Test 1: Try to set only some Okta fields (should fail validation)
@@ -21395,7 +21421,8 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	// Verify all fields are now null/empty
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	// After clearing, Okta fields should not be valid
+	// ConditionalAccess should always be present; after clearing, Okta fields should not be valid
+	require.NotNil(t, acResp.ConditionalAccess)
 	assert.False(t, acResp.ConditionalAccess.OktaIDPID.Valid)
 	assert.False(t, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid)
 	assert.False(t, acResp.ConditionalAccess.OktaAudienceURI.Valid)
