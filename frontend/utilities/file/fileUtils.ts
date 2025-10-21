@@ -1,6 +1,6 @@
 import { PackageType } from "interfaces/package_type";
 
-type IPlatformDisplayName = "macOS" | "Windows" | "Linux";
+type IPlatformDisplayName = "macOS" | "Windows" | "Linux" | "macOS & Linux";
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   string,
@@ -15,7 +15,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   deb: "Linux",
   rpm: "Linux",
   "tar.gz": "Linux",
-  sh: "Linux",
+  sh: "macOS & Linux",
   ps1: "Windows",
 };
 
