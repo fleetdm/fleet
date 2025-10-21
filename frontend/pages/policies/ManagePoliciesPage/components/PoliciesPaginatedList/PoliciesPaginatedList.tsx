@@ -126,13 +126,7 @@ function PoliciesPaginatedList(
 
   // API CALLS
   let policiesQueryKey: IPoliciesApiParams;
-  let policiesQueryAPI: (
-    params: IPoliciesApiParams
-  ) => Promise<ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse>;
   let countQueryKey: IPoliciesCountApiParams;
-  let countQueryAPI: (
-    params: IPoliciesCountApiParams
-  ) => Promise<IPoliciesCountResponse>;
   if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
     policiesQueryKey = {
       page: pageNumber,
@@ -142,12 +136,10 @@ function PoliciesPaginatedList(
       orderKey: DEFAULT_SORT_COLUMN,
       teamId,
     };
-    policiesQueryAPI = globalPoliciesAPI.loadAllNew;
     countQueryKey = {
       query: "",
       teamId,
     };
-    countQueryAPI = globalPoliciesAPI.getCount;
   } else {
     policiesQueryKey = {
       page: pageNumber,
@@ -158,45 +150,79 @@ function PoliciesPaginatedList(
       teamId,
       mergeInherited: false,
     };
-    policiesQueryAPI = teamPoliciesAPI.loadAllNew;
     countQueryKey = {
       query: "",
       teamId,
       mergeInherited: false,
     };
-    countQueryAPI = teamPoliciesAPI.getCount;
   }
 
-  const { data, isFetching: isLoading } = useQuery<
-    ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse,
+  const marshallApiResponse = (
+    policiesResponse: ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse
+  ): IFormPolicy[] => {
+    return (policiesResponse.policies || []).map((policy) => {
+      return {
+        ...policy,
+        installSoftwareEnabled: !!policy.install_software,
+        swIdToInstall: policy.install_software?.software_title_id,
+        runScriptEnabled: !!policy.run_script,
+        scriptIdToRun: policy.run_script?.id,
+        scriptNameToRun: policy.run_script?.name,
+      };
+    }) as IFormPolicy[];
+  };
+
+  // Global policies query
+  const { data: globalData, isFetching: globalIsLoading } = useQuery<
+    ILoadAllPoliciesResponse,
     Error,
     IFormPolicy[]
-  >([policiesQueryKey], () => policiesQueryAPI(policiesQueryKey), {
+  >([policiesQueryKey], () => globalPoliciesAPI.loadAllNew(policiesQueryKey), {
+    enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
     keepPreviousData: true,
-    select: (
-      policiesResponse: ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse
-    ) => {
-      // Marshall the response into IFormPolicy objects.
-      return (policiesResponse.policies || []).map((policy) => {
-        return {
-          ...policy,
-          installSoftwareEnabled: !!policy.install_software,
-          swIdToInstall: policy.install_software?.software_title_id,
-          runScriptEnabled: !!policy.run_script,
-          scriptIdToRun: policy.run_script?.id,
-          scriptNameToRun: policy.run_script?.name,
-        };
-      }) as IFormPolicy[];
-    },
+    select: marshallApiResponse,
   });
 
-  const { data: count, isFetching: isFetchingCount } = useQuery<
+  // Team policies query
+  const { data: teamData, isFetching: teamIsLoading } = useQuery<
+    ILoadAllPoliciesResponse,
+    Error,
+    IFormPolicy[]
+  >([policiesQueryKey], () => teamPoliciesAPI.loadAllNew(policiesQueryKey), {
+    enabled: teamId !== APP_CONTEXT_ALL_TEAMS_ID,
+    keepPreviousData: true,
+    select: marshallApiResponse,
+  });
+
+  const data = teamId === APP_CONTEXT_ALL_TEAMS_ID ? globalData : teamData;
+  const isLoading =
+    teamId === APP_CONTEXT_ALL_TEAMS_ID ? globalIsLoading : teamIsLoading;
+
+  // Global count query
+  const { data: globalCount, isFetching: globalIsFetchingCount } = useQuery<
     IPoliciesCountResponse,
     Error,
     number
-  >([countQueryKey], () => countQueryAPI(countQueryKey), {
+  >([countQueryKey], () => globalPoliciesAPI.getCount(countQueryKey), {
+    enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
     select: (countResponse: IPoliciesCountResponse) => countResponse.count,
   });
+
+  // Team count query
+  const { data: teamCount, isFetching: teamIsFetchingCount } = useQuery<
+    IPoliciesCountResponse,
+    Error,
+    number
+  >([countQueryKey], () => teamPoliciesAPI.getCount(countQueryKey), {
+    enabled: teamId !== APP_CONTEXT_ALL_TEAMS_ID,
+    select: (countResponse: IPoliciesCountResponse) => countResponse.count,
+  });
+
+  const count = teamId === APP_CONTEXT_ALL_TEAMS_ID ? globalCount : teamCount;
+  const isFetchingCount =
+    teamId === APP_CONTEXT_ALL_TEAMS_ID
+      ? globalIsFetchingCount
+      : teamIsFetchingCount;
 
   return (
     <div className={`${baseClass} form`}>
