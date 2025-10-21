@@ -9625,7 +9625,10 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host, false)
 	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("ubuntu"))
 	require.NotNil(t, otherHost)
-	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 11, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
+	opts := fleet.HostSoftwareTitleListOptions{
+		IsMDMEnrolled: true, // required for vpp/in-house apps, and the host is MDM-enrolled
+		ListOptions:   fleet.ListOptions{PerPage: 11, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+	}
 
 	// create a distinct team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -9717,6 +9720,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 		DumpTable(t, tx, "hosts", "id", "uuid", "platform", "hostname", "team_id")
 		DumpTable(t, tx, "host_software")
 		DumpTable(t, tx, "in_house_apps", "id", "title_id", "global_or_team_id", "name", "version", "platform")
+		DumpTable(t, tx, "in_house_app_labels")
 		DumpTable(t, tx, "software_titles", "id", "name", "source", "bundle_identifier", "additional_identifier", "application_id", "unique_identifier")
 		return nil
 	})
@@ -9735,4 +9739,10 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"a", "b", "inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
 
 	// TODO: add a pending install, success, and failed in-house installs
+
+	// the other host is unaffected
+	opts.IsMDMEnrolled = false
+	sw, _, err = ds.ListHostSoftware(ctx, otherHost, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 0)
 }

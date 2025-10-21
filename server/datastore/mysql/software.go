@@ -3036,9 +3036,9 @@ func filterInHouseAppsByLabel(
 					0 as count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON 
+				INNER JOIN in_house_app_labels ihl ON
 					ihl.in_house_app_id = iha.id AND ihl.exclude = 0
-				LEFT JOIN label_membership lm ON 
+				LEFT JOIN label_membership lm ON
 					lm.label_id = ihl.label_id AND lm.host_id = :host_id
 				GROUP BY
 					iha.id
@@ -3059,17 +3059,17 @@ func filterInHouseAppsByLabel(
 					) AS count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON 
+				INNER JOIN in_house_app_labels ihl ON
 					ihl.in_house_app_id = iha.id AND ihl.exclude = 1
-				INNER JOIN labels lbl ON 
+				INNER JOIN labels lbl ON
 					lbl.id = ihl.label_id
-				LEFT OUTER JOIN label_membership lm ON 
+				LEFT OUTER JOIN label_membership lm ON
 					lm.label_id = ihl.label_id AND lm.host_id = :host_id
 				GROUP BY
-					vpp_apps_teams.id
+					iha.id
 				HAVING
-					count_installer_labels > 0 AND 
-					count_installer_labels = count_host_updated_after_labels AND 
+					count_installer_labels > 0 AND
+					count_installer_labels = count_host_updated_after_labels AND
 					count_host_labels = 0
 			)
 			SELECT
@@ -3086,8 +3086,8 @@ func filterInHouseAppsByLabel(
 			WHERE
 				iha.global_or_team_id = :global_or_team_id AND
 				iha.id IN (:in_house_ids) AND (
-					no_labels.in_house_app_id IS NOT NULL OR 
-					include_any.in_house_app_id IS NOT NULL OR 
+					no_labels.in_house_app_id IS NOT NULL OR
+					include_any.in_house_app_id IS NOT NULL OR
 					exclude_any.in_house_app_id IS NOT NULL
 				)
 		`
@@ -3480,10 +3480,34 @@ func promoteSoftwareTitleVPPApp(softwareTitleRecord *hostSoftware) {
 		Platform:    platform,
 		SelfService: softwareTitleRecord.VPPAppSelfService,
 	}
-	if softwareTitleRecord.VPPAppPlatform != nil {
-		softwareTitleRecord.AppStoreApp.Platform = *softwareTitleRecord.VPPAppPlatform
-	}
 	softwareTitleRecord.IconUrl = softwareTitleRecord.VPPAppIconURL
+
+	// promote the last install info to the proper destination fields
+	if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
+		softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+			CommandUUID: *softwareTitleRecord.LastInstallInstallUUID,
+		}
+		if softwareTitleRecord.LastInstallInstalledAt != nil {
+			softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
+		}
+	}
+}
+
+// softwareTitleRecord is the base record, we will be modifying it
+func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
+	var version, platform string
+	if softwareTitleRecord.InHouseAppVersion != nil {
+		version = *softwareTitleRecord.InHouseAppVersion
+	}
+	if softwareTitleRecord.InHouseAppPlatform != nil {
+		platform = *softwareTitleRecord.InHouseAppPlatform
+	}
+	softwareTitleRecord.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+		Name:        *softwareTitleRecord.InHouseAppName,
+		Version:     version,
+		Platform:    platform,
+		SelfService: ptr.Bool(false), // unsupported for in-house apps currently
+	}
 
 	// promote the last install info to the proper destination fields
 	if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
@@ -4019,8 +4043,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								0 as count_host_updated_after_labels
 							FROM
 								in_house_app_labels ihl
-								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id
-								AND lm.host_id = :host_id
+								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id AND lm.host_id = :host_id
 							WHERE
 								ihl.in_house_app_id = iha.id
 								AND ihl.exclude = 0
@@ -4042,8 +4065,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								LEFT OUTER JOIN labels lbl ON lbl.id = ihl.label_id
 								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id AND lm.host_id = :host_id
 							WHERE
-								ihl.in_house_app_id = iha.id
-								AND ihl.exclude = 1
+								ihl.in_house_app_id = iha.id AND 
+								ihl.exclude = 1
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 							) t
@@ -4099,7 +4122,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 			}
 		}
-		// TODO(mna): this seems wrong as it does not consider the labels conditions?
+		// NOTE: label conditions are applied in a subsequent step
 		// software installed on the host not by fleet and there exists a software installer that matches this software
 		// so that makes it available for install
 		installedInstallersSql := `
@@ -4135,7 +4158,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 		}
 		if !opts.SelfServiceOnly || (opts.SelfServiceOnly && opts.IsMDMEnrolled) {
-			// TODO(mna): this seems wrong as it does not consider the labels conditions?
+			// NOTE: label conditions are applied in a subsequent step
 			// software installed on the host not by fleet and there exists a vpp app that matches this software
 			// so that makes it available for install
 			installedVPPAppsSql := `
@@ -4208,10 +4231,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 			}
 
-			// TODO(mna): this seems wrong but copying the same as we do for software
-			// installers and VPP apps since we're already past RC cutoff time for
-			// that feature and maybe I'm missing something, but it should consider
-			// the labels conditions?
+			// NOTE: label conditions are applied in a subsequent step
 			// software installed on the host not by fleet and there exists an
 			// in-house app that matches this software so that makes it available for
 			// install
@@ -4476,7 +4496,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			stmt                   string
 			softwareTitleStatement string
 			vppAdamStatment        string
-			inHouseStatment        string
 		)
 
 		matchClause := ""
@@ -4657,16 +4676,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		if !opts.VulnerableOnly && len(inHouseIDs) > 0 {
+			var inHouseStmt string
 			if len(softwareTitleIDs) > 0 || len(vppAdamIDs) > 0 {
-				inHouseStatment = ` UNION `
+				inHouseStmt = ` UNION `
 			}
 
-			inHouseStatment += `
+			inHouseStmt += `
 			-- SELECT for in-house apps
 			%s
 			FROM
 				software_titles
-			INNER JOIN in_house_apps ON 
+			INNER JOIN in_house_apps ON
 				software_titles.id = in_house_apps.title_id AND in_house_apps.platform = :host_platform AND in_house_apps.global_or_team_id = :global_or_team_id
 			WHERE
 				in_house_apps.id IN (?)
@@ -4675,21 +4695,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			%s
 			`
 
-			inHouseStatement, inHouseArgs, err := sqlx.In(inHouseStatment, inHouseIDs)
+			inHouseStmt, inHouseArgs, err := sqlx.In(inHouseStmt, inHouseIDs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for in-house titles")
 			}
-			inHouseStatement, inHouseArgsNamedArgs, err := sqlx.Named(inHouseStatement, namedArgs)
+			inHouseStmt, inHouseArgsNamedArgs, err := sqlx.Named(inHouseStmt, namedArgs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for in-house titles")
 			}
-			inHouseStatement = strings.ReplaceAll(inHouseStatement, "AND true", matchClause)
+			inHouseStmt = strings.ReplaceAll(inHouseStmt, "AND true", matchClause)
 			args = append(args, inHouseArgsNamedArgs...)
 			args = append(args, inHouseArgs...)
 			if len(matchArgs) > 0 {
 				args = append(args, matchArgs...)
 			}
-			stmt += inHouseStatment
+			stmt += inHouseStmt
 		}
 
 		var countStmt string
@@ -5080,8 +5100,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 			}
 
-			// TODO(mna): I'm done up to here...
-
 			// promote the package name and version to the proper destination fields
 			if softwareTitleRecord.PackageName != nil {
 				if _, ok := filteredBySoftwareTitleID[softwareTitleRecord.ID]; ok {
@@ -5102,6 +5120,22 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if softwareTitleRecord.VPPAppAdamID != nil {
 				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
 					promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				}
+			}
+
+			// This happens when there is a software installed on the host but it is
+			// also an in-house record, so we want to grab the in-house data from the
+			// installed record and merge it onto the software record
+			if installedInHouseRecord, ok := hostInHouseInstalledTitles[softwareTitleRecord.ID]; ok {
+				softwareTitleRecord.InHouseAppID = installedInHouseRecord.InHouseAppID
+				softwareTitleRecord.InHouseAppName = installedInHouseRecord.InHouseAppName
+				softwareTitleRecord.InHouseAppVersion = installedInHouseRecord.InHouseAppVersion
+				softwareTitleRecord.InHouseAppPlatform = installedInHouseRecord.InHouseAppPlatform
+			}
+			// promote the in-house app id and version to the proper destination fields
+			if softwareTitleRecord.InHouseAppID != nil {
+				if _, ok := filteredByInHouseID[*softwareTitleRecord.InHouseAppID]; ok {
+					promoteSoftwareTitleInHouseApp(softwareTitleRecord)
 				}
 			}
 
