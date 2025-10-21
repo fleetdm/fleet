@@ -21398,6 +21398,13 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	assert.Equal(t, aud, acResp.ConditionalAccess.OktaAudienceURI.Value)
 	assert.Equal(t, validCert, acResp.ConditionalAccess.OktaCertificate.Value)
 
+	// Verify activity was created for adding Okta config
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeAddedConditionalAccessOkta{}.ActivityName(),
+		"",
+		0,
+	)
+
 	// Test 4: Try to set invalid URL for assertion_consumer_service_url (should fail)
 	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &invalidURL, &aud, &validCert), http.StatusUnprocessableEntity)
 
@@ -21405,6 +21412,12 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &invalidCert), http.StatusUnprocessableEntity)
 
 	// Test 6: Clear all Okta configuration by setting all fields to null
+	// First verify Okta is currently configured (from Test 3)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.OktaIDPID.Valid, "Okta should be configured before Test 6")
+
+	// Now clear it
 	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(nil, nil, nil, nil), http.StatusOK)
 
 	// Verify all fields are now null/empty
@@ -21416,6 +21429,14 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	assert.False(t, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid)
 	assert.False(t, acResp.ConditionalAccess.OktaAudienceURI.Valid)
 	assert.False(t, acResp.ConditionalAccess.OktaCertificate.Valid)
+
+	// Verify activity was created for deleting Okta config
+	// Note: Using lastActivityOfTypeMatches which searches the last 10 activities
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDeletedConditionalAccessOkta{}.ActivityName(),
+		"", // no details for this activity type
+		0,  // don't check specific ID
+	)
 
 	// Test 7: Verify an unrelated config change doesn't affect Okta settings when Okta is configured
 	// First, set up Okta config again
@@ -21436,4 +21457,21 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	assert.Equal(t, acs, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
 	assert.Equal(t, aud, acResp.ConditionalAccess.OktaAudienceURI.Value)
 	assert.Equal(t, validCert, acResp.ConditionalAccess.OktaCertificate.Value)
+
+	// Test 8: Verify activity is created when editing Okta config
+	// Change one of the fields (e.g., the IDP ID)
+	newIdp := "https://www.okta.com/saml2/service-provider/newvalue123"
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&newIdp, &acs, &aud, &validCert), http.StatusOK)
+
+	// Verify the field was changed
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, newIdp, acResp.ConditionalAccess.OktaIDPID.Value)
+
+	// Verify activity was created for editing Okta config
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeAddedConditionalAccessOkta{}.ActivityName(),
+		"",
+		0,
+	)
 }

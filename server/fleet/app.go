@@ -813,6 +813,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.YaraRules = rules
 	}
 
+	// ConditionalAccess: deep copy the pointer to avoid shared state
+	if c.ConditionalAccess != nil {
+		conditionalAccess := *c.ConditionalAccess
+		clone.ConditionalAccess = &conditionalAccess
+	}
+
 	return &clone
 }
 

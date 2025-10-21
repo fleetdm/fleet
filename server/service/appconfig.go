@@ -1054,6 +1054,40 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Create activity if Okta conditional access configuration was added, edited, or deleted
+	oldOktaConfigured := oldAppConfig.ConditionalAccess != nil && oldAppConfig.ConditionalAccess.OktaConfigured()
+	newOktaConfigured := appConfig.ConditionalAccess != nil && appConfig.ConditionalAccess.OktaConfigured()
+
+	// Check if Okta configuration values changed (for edited case)
+	oktaConfigChanged := false
+	if oldOktaConfigured && newOktaConfigured {
+		// Both old and new are configured - check if any values changed
+		oktaConfigChanged = oldAppConfig.ConditionalAccess.OktaIDPID.Value != appConfig.ConditionalAccess.OktaIDPID.Value ||
+			oldAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value != appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value ||
+			oldAppConfig.ConditionalAccess.OktaAudienceURI.Value != appConfig.ConditionalAccess.OktaAudienceURI.Value ||
+			oldAppConfig.ConditionalAccess.OktaCertificate.Value != appConfig.ConditionalAccess.OktaCertificate.Value
+	}
+
+	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {
+		// Okta configuration was added or edited
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeAddedConditionalAccessOkta{},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for adding/editing Okta conditional access")
+		}
+	} else if oldOktaConfigured && !newOktaConfigured {
+		// Okta configuration was deleted
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedConditionalAccessOkta{},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
+		}
+	}
+
 	return obfuscatedAppConfig, nil
 }
 
