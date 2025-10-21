@@ -1,4 +1,4 @@
-## Fleet 4.76.0 (Oct 17, 2025)
+## Fleet 4.76.0 (Nov 7, 2025)
 
 ### Security Engineers
 - Added support for software inventory on Android hosts.
@@ -64,6 +64,13 @@
 - Fixed the software title counts by status to be consistent with the status reported in the host's software list and filter by status.
 - Fixed outdated tooltip on dark background logo URL field in Organization info settings.
 - Fixed `fleetctl generate-gitops` when MDM is not turned on.
+
+## Fleet 4.75.1 (Oct 21, 2025)
+
+### Bug fixes
+
+- Fixed `fleetctl generate-gitops` when MDM is not turned on.
+- Reduced load on migration from 4.74.0 and below.
 
 ## Fleet 4.75.0 (Oct 17, 2025)
 
