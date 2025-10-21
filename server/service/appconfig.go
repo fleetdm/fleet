@@ -569,6 +569,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// If all fields are set, validate them
 	if oktaFieldsSet == 4 {
+		// Validate max lengths for Okta fields
+		const (
+			maxURLLength  = 2048 // Standard max URL length supported by browsers
+			maxCertLength = 8192 // 8KB for PEM certificate (without private key)
+		)
+
+		if len(appConfig.ConditionalAccess.OktaIDPID.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_idp_id",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaAudienceURI.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_audience_uri",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaCertificate.Value) > maxCertLength {
+			invalid.Append("conditional_access.okta_certificate",
+				fmt.Sprintf("must be %d characters or less", maxCertLength))
+		}
+
 		// Validate URL format for ACS URL - must have http or https scheme
 		acsURL, err := url.Parse(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
 		if err != nil || (acsURL.Scheme != "http" && acsURL.Scheme != "https") {
