@@ -423,7 +423,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 
 The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
-GitHub/GitLab environment variables, and Fleet's reserved variables will be escaped when used in `.mobileconfig` configuration profile. Variables that include XML will be rejected.
+In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`. Variables that include XML will be rejected.
 
 ### macos_setup
 
