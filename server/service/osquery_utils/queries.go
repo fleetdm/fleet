@@ -1222,7 +1222,8 @@ SELECT
   '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
-  install_location AS installed_path
+  install_location AS installed_path,
+	upgrade_code AS upgrade_code
 FROM programs
 UNION
 SELECT
@@ -1961,6 +1962,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["extension_id"],
 			row["extension_for"],
 			row["last_opened_at"],
+			row["upgrade_code"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(
