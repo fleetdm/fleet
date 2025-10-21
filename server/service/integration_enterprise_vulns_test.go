@@ -74,7 +74,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-
 			require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, tt.host.ID, tt.os))
 			var osinfo struct {
 				ID          uint `db:"id"`
@@ -129,7 +128,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			// Aggregate OS versions
 			require.NoError(t, s.ds.UpdateOSVersions(ctx))
 			require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-			require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 			require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 			require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
 
@@ -166,8 +164,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 				assert.Equal(t, uint(1), k.HostsCount)
 				assert.ElementsMatch(t, tt.vulnsByKernelVersion[k.Version], k.Vulnerabilities)
 			}
-
 		})
 	}
-
 }

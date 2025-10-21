@@ -26,7 +26,7 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	mockDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key", &mockDS.DataStore)
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -1036,4 +1036,72 @@ func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, 
 
 func createAndroidDeviceId(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
+}
+
+func TestBuildNonComplianceErrorMessage(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		nonCompliance        []*androidmanagement.NonComplianceDetail
+		expectedErrorMessage string
+	}{
+		{
+			name:                 "nil non-compliance detail",
+			nonCompliance:        nil,
+			expectedErrorMessage: "Settings couldn't apply to a host for unknown reasons.",
+		},
+		{
+			name:                 "no non-compliance detail",
+			nonCompliance:        []*androidmanagement.NonComplianceDetail{},
+			expectedErrorMessage: "Settings couldn't apply to a host for unknown reasons.",
+		},
+		{
+			name: "single non-compliance detail",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\" setting couldn't apply to a host.\nReason: MANAGEMENT_MODE. Other settings are applied.",
+		},
+		{
+			name: "two non-compliance details",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+				{
+					SettingName:         "cameraDisabled",
+					NonComplianceReason: "API_LEVEL",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\", and \"cameraDisabled\" settings couldn't apply to a host.\nReasons: MANAGEMENT_MODE, and API_LEVEL. Other settings are applied.",
+		},
+		{
+			name: "three non-compliance details",
+			nonCompliance: []*androidmanagement.NonComplianceDetail{
+				{
+					SettingName:         "bluetoothDisabled",
+					NonComplianceReason: "MANAGEMENT_MODE",
+				},
+				{
+					SettingName:         "cameraDisabled",
+					NonComplianceReason: "API_LEVEL",
+				},
+				{
+					SettingName:         "someCoolNewSetting",
+					NonComplianceReason: "UNSUPPORTED",
+				},
+			},
+			expectedErrorMessage: "\"bluetoothDisabled\", \"cameraDisabled\", and \"someCoolNewSetting\" settings couldn't apply to a host.\nReasons: MANAGEMENT_MODE, API_LEVEL, and UNSUPPORTED. Other settings are applied.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualMessage := buildNonComplianceErrorMessage(tc.nonCompliance)
+			require.Equal(t, tc.expectedErrorMessage, actualMessage)
+		})
+	}
 }

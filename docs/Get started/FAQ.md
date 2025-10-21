@@ -78,7 +78,7 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10+, Server 2012+    |
-| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+ |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux (experimental) |
 | ChromeOS   | 112.0.5615.134+                         |
 | Android    | 13+                                     |
 
@@ -87,13 +87,14 @@ While Fleet may still function partially or fully with OS versions older than th
 ## Some notes on compatibility
 
 ### Tables
+
 Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
 
 If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
 
 ### Linux
 
-Fleet Desktop is supported on Ubuntu, Fedora, and Debian.
+Fleet Desktop is supported on Ubuntu, Fedora, Debian, and Arch Linux (experimental, tested on Omarchy).
 
 Fedora and Debian hosts require a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) for Fleet Desktop.
 

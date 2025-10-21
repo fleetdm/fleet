@@ -468,6 +468,7 @@ type MacOSSetup struct {
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
+	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
@@ -1504,6 +1505,7 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+	RequireAllSoftware   bool `json:"require_all_software_macos"`
 }
 
 // DeviceFeatures is a subset of AppConfig.Features with information used by

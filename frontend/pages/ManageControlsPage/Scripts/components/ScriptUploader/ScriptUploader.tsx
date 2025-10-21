@@ -1,55 +1,45 @@
 import React, { useContext, useState } from "react";
 
-import { NotificationContext } from "context/notification";
-import scriptAPI from "services/entities/scripts";
-
 import FileUploader from "components/FileUploader";
-
-import { getErrorMessage } from "./helpers";
+import { getFileDetails } from "utilities/file/fileUtils";
 
 const baseClass = "script-uploader";
 
 interface IScriptPackageUploaderProps {
-  currentTeamId: number;
-  onUpload: () => void;
+  onFileSelected?: (file: File) => void;
+  selectedFile?: File | null;
+  forModal?: boolean;
+  onButtonClick?: () => void;
 }
 
 const ScriptPackageUploader = ({
-  currentTeamId,
-  onUpload,
+  forModal,
+  onFileSelected,
+  selectedFile,
+  onButtonClick,
 }: IScriptPackageUploaderProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const [showLoading, setShowLoading] = useState(false);
-
-  const onUploadFile = async (files: FileList | null) => {
-    if (!files || files.length === 0) {
-      return;
-    }
-
-    const file = files[0];
-
-    setShowLoading(true);
-    try {
-      await scriptAPI.uploadScript(file, currentTeamId);
-      renderFlash("success", "Successfully uploaded!");
-      onUpload();
-    } catch (e) {
-      renderFlash("error", getErrorMessage(e));
-    } finally {
-      setShowLoading(false);
+  const onFileSelect = (files: FileList | null) => {
+    if (files && files.length > 0) {
+      onFileSelected?.(files[0]);
     }
   };
+
+  const buttonType = forModal ? "brand-inverse-icon" : undefined;
+  const buttonMessage = forModal ? "Choose file" : "Add script";
 
   return (
     <FileUploader
       className={baseClass}
       graphicName={["file-sh", "file-ps1"]}
       message="Shell (.sh) for macOS and Linux or PowerShell (.ps1) for Windows"
-      additionalInfo="Script will run with “#!/bin/sh”, “#!/bin/zsh”, or “#!/bin/bash” on macOS and Linux."
+      title="Upload script"
       accept=".sh,.ps1"
-      onFileUpload={onUploadFile}
-      isLoading={showLoading}
+      onFileUpload={onFileSelect}
+      fileDetails={selectedFile ? getFileDetails(selectedFile) : undefined}
+      buttonType={buttonType}
+      buttonMessage={buttonMessage}
       gitopsCompatible
+      onButtonClick={onButtonClick}
     />
   );
 };

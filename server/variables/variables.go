@@ -5,6 +5,7 @@ package variables
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -59,7 +60,14 @@ func FindKeepDuplicates(contents string) []string {
 			}
 		}
 	}
-	return result
+
+	// sort result array by length descending, to ensure longer variables are processed first
+	sortedResults := make([]string, len(result))
+	copy(sortedResults, result)
+	sort.Slice(sortedResults, func(i, j int) bool {
+		return len(sortedResults[i]) > len(sortedResults[j])
+	})
+	return sortedResults
 }
 
 // dedupe removes duplicates from the slice and returns a map for O(1) lookups.

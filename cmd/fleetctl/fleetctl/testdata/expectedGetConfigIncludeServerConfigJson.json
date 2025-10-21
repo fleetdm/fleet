@@ -88,7 +88,8 @@
         "enable_release_device_manually": false,
         "script": null,
         "software": null,
-        "manual_agent_install": null
+        "manual_agent_install": null,
+        "require_all_software_macos": false
       },
       "windows_settings": {
         "custom_settings": null

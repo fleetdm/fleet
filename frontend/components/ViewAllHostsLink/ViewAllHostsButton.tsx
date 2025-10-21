@@ -43,7 +43,6 @@ const ViewAllHostsButton = ({
   noLink = false,
   dropdown,
 }: IHostLinkProps): JSX.Element => {
-  console.log("rowHover", rowHover);
   const viewAllHostsButtonClass = classnames(baseClass, className, {
     [`${baseClass}__condensed`]: condensed,
     "row-hover-button": rowHover,

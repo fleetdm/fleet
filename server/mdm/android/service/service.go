@@ -41,6 +41,7 @@ type Service struct {
 	logger           kitlog.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
+	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
 	fleetSvc         fleet.Service
 	serverPrivateKey string
@@ -58,9 +59,10 @@ func NewService(
 	fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
+	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, fleetDS)
 }
 
 func NewServiceWithClient(
@@ -69,6 +71,7 @@ func NewServiceWithClient(
 	client androidmgmt.Client,
 	fleetSvc fleet.Service,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -83,6 +86,7 @@ func NewServiceWithClient(
 		fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
+		fleetDS:           fleetDS,
 	}, nil
 }
 
@@ -845,6 +849,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		HostSerial:       h.HardwareSerial,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
+		Platform:         "android",
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
 	}

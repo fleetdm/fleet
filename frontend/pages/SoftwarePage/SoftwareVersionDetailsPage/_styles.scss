@@ -8,4 +8,8 @@
   h2 {
     font-size: $small;
   }
+
+  &__vulnerabilities-section {
+    @include vertical-card-layout;
+  }
 }

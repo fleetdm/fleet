@@ -125,6 +125,56 @@ ORDER BY
 	inet_aton(ia.address) IS NOT NULL DESC
 LIMIT 1;`
 
+const linuxGigsAllDiskSpaceSubQueryConditions = `WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- exclude boot files
+AND path NOT LIKE '/boot%' 
+
+-- exclude snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)`
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -378,11 +428,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
-		Query: `
-SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-FROM mounts WHERE path = '/' LIMIT 1;`,
+		Query: fmt.Sprintf(`
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
@@ -463,7 +514,21 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 		return err
 	}
 
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal)
+	var gigsAllForFnCall *float64
+	if fleet.IsLinux(host.Platform) {
+		strippedRawRes := strings.TrimSpace(rows[0]["gigs_all_disk_space"])
+		// write `nil`, not 0, if osquery returns `""`, since a host cannot have 0 disk space and
+		// therefore this must represent a problematic query result
+		if strippedRawRes != "" {
+			gigsAll, err := strconv.ParseFloat(strippedRawRes, 64)
+			if err != nil {
+				return err
+			}
+			gigsAllForFnCall = &gigsAll
+		}
+	}
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAllForFnCall)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -872,8 +937,26 @@ var windowsUpdateHistory = DetailQuery{
 // entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
 var entraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
-	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
+	// that logged in to the device (using Company Portal.app with the SSO extension).
+	//
+	// We cannot use LIMIT 1 on the outer SELECT because it breaks fleetd's app_sso_platform table.
+	// For that reason this query can return 0, 1 or 2 results and Fleet will always process the first one.
+	//
+	// This query aims to support the following scenarios:
+	// 1. Hosts enrolled to Company Portal using the legacy SSO extension (aka "Microsoft Entra registered").
+	//    The extension stores the credentials in the keychain.
+	// 2. Hosts enrolled to Company Portal using the new Platform SSO extension (aka "Microsoft Entra joined").
+	//	  The extension stores the credentials in the secure enclave.
+	// 3. Hosts that migrated from (1) to (2). The keychain items in (1) are not removed after the migration,
+	//    so for that reason we query the app_sso_platform first (priority 1).
+	//
+	Query: `SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
+	UNION ALL
+	SELECT device_id, user_principal_name, 2 AS priority FROM (
+		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
+		CROSS JOIN
+		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
+	ORDER BY priority ASC;`,
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
@@ -891,11 +974,11 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'apps' AS source,
   '' AS vendor,
   last_opened_time AS last_opened_at,
@@ -907,7 +990,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -919,7 +1002,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -931,7 +1014,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'safari_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -943,7 +1026,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -956,7 +1039,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -980,7 +1063,7 @@ SELECT
   version,
   '' AS bundle_identifier,
   vscode_extensions.uuid AS extension_id,
-  '' AS browser,
+  vscode_edition AS extension_for,
   'vscode_extensions' AS source,
   publisher AS vendor,
   '' AS last_opened_at,
@@ -988,6 +1071,25 @@ SELECT
 FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("vscode_extensions"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+var softwareJetbrainsPlugins = DetailQuery{
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  product_type AS extension_for,
+  'jetbrains_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("jetbrains_plugins"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -1007,7 +1109,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'pacman_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1026,7 +1128,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1039,7 +1141,7 @@ SELECT
   package AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1051,7 +1153,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -1063,7 +1165,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -1075,7 +1177,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -1087,7 +1189,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -1105,7 +1207,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path
@@ -1115,7 +1217,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1125,7 +1227,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1135,7 +1237,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1145,7 +1247,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -1166,7 +1268,7 @@ var softwarePythonPackages = DetailQuery{
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -1189,7 +1291,7 @@ var softwarePythonPackagesWithUsersDir = DetailQuery{
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -1208,7 +1310,7 @@ var softwareChrome = DetailQuery{
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -1250,7 +1352,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
-				'' AS browser,
+				'' AS extension_for,
 				'apps' AS source,
 				'' AS vendor,
 				apps.last_opened_time AS last_opened_at,
@@ -1702,6 +1804,7 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
+	// We are interested in the first row (see the corresponding query for details).
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -1844,7 +1947,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["arch"],
 			row["bundle_identifier"],
 			row["extension_id"],
-			row["browser"],
+			row["extension_for"],
 			row["last_opened_at"],
 		)
 		if err != nil {
@@ -1908,18 +2011,113 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 var (
 	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
-	softwareSanitizers = []struct {
-		matches func(*fleet.Software) bool
-		mutate  func(*fleet.Software, log.Logger)
+	basicAppSanitizers = []struct {
+		matchBundleIdentifier string
+		matchName             string
+		mutate                func(*fleet.Software, log.Logger)
 	}{
 		{
-			matches: func(s *fleet.Software) bool {
-				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
-			},
+			matchBundleIdentifier: "com.nicesoftware.dcvviewer",
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
 					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
 				}
+			},
+		},
+		// Bundle executable name cleanup #34159
+		{
+			matchBundleIdentifier: "com.synology.DSAssistant",
+			matchName:             "DSAssistant",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "SynologyAssistant"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.now.gg.BlueStacksMIM",
+			matchName:             "HD-MultiInstanceManager",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "BlueStacksMIM"
+			},
+		},
+		{
+			matchBundleIdentifier: "jp.go.jpki.JPKIUninstall",
+			matchName:             "JPKIUninstall.scpt",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "JPKIUninstall"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.OracleDataModeler",
+			matchName:             "datamodeler.sh",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "OracleDataModeler"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.easeus.ntfsformacdaemon",
+			matchName:             "euntfsservice",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "EaseUS NTFS Service"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.poly.lens.legacyhost.app",
+			matchName:             "legacyhost",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Poly Lens Desktop (Legacy)"
+			},
+		},
+		{
+			matchBundleIdentifier: "app.zen-browser.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Zen Browser Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "org.mozilla.plugincontainer",
+			matchName:             "plugin-container",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Mozilla Plugin Container"
+			},
+		},
+		{
+			matchBundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
+			matchName:             "remoting_host_uninstaller",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Chrome Remote Desktop Host Uninstaller"
+			},
+		},
+		{
+			matchName: "runemu",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if s.BundleIdentifier == "" {
+					s.Name = "Android Emulator"
+				}
+			},
+		},
+		{
+			matchBundleIdentifier: "com.oracle.SQLDeveloper",
+			matchName:             "sqldeveloper.sh/",
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "Oracle SQLDeveloper"
+			},
+		},
+		// end of #34159 cleanup in basic matchers
+	}
+	customAppSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool { // #34159
+				return strings.HasPrefix(s.Name, "TNMS ") &&
+					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
+					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "TNMS"
+				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
 			},
 		},
 	}
@@ -1929,15 +2127,32 @@ var (
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
 func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
-	for _, softwareSanitizer := range softwareSanitizers {
-		if softwareSanitizer.matches(s) {
-			defer func() {
-				if r := recover(); r != nil {
-					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-				}
-			}()
-			softwareSanitizer.mutate(s, logger)
-			break
+	// all of our current on-ingest mutations use this table,
+	// so might as well let other stuff go faster and save some redundant checks inside the matchers
+	if s != nil && s.Source == "apps" {
+		for _, sanitizer := range basicAppSanitizers {
+			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
+				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
+				(sanitizer.matchName == "" || sanitizer.matchName == s.Name) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
+		}
+		for _, sanitizer := range customAppSanitizers {
+			if sanitizer.matches(s) {
+				defer func() {
+					if r := recover(); r != nil {
+						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+					}
+				}()
+				sanitizer.mutate(s, logger)
+				break
+			}
 		}
 	}
 }
@@ -2709,6 +2924,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
+		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query

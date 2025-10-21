@@ -6,18 +6,13 @@ import (
 	"crypto/x509"
 )
 
-// NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and
+// NewCACertKey creates a self-signed CA certificate for use with SCEP and
 // returns the certificate and its private key.
-func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
+func NewCACertKey(caCert *CACert) (*x509.Certificate, *rsa.PrivateKey, error) {
 	key, err := newPrivateKey()
 	if err != nil {
 		return nil, nil, err
 	}
-
-	caCert := NewCACert(
-		WithYears(10),
-		WithCommonName("Fleet"),
-	)
 
 	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)
 	if err != nil {
@@ -30,6 +25,16 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 	}
 
 	return cert, key, nil
+}
+
+// NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and
+// returns the certificate and its private key.
+func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
+	caCert := NewCACert(
+		WithYears(10),
+		WithCommonName("Fleet"),
+	)
+	return NewCACertKey(caCert)
 }
 
 // Note Apple rejects CSRs if the key size is not 2048.

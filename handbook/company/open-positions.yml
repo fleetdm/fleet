@@ -221,29 +221,53 @@
       - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 
-- jobTitle: 🫧 Demand Generation
-  department: Marketing
-  hiringManagerName: Isabell Reedy
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/isabellreedy/
-  hiringManagerGithubUsername: ireedy
-  onTargetEarnings: '$150,000 - $200,000'
+- jobTitle: 🚀 Quality Assurance Engineer
+  department: Engineering
+  hiringManagerName: Sharon Katz
+  hiringManagerGithubUsername: sharon-fdm
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/sharon-katz-45b1b3a/
   responsibilities: |
-      - 📈 Own demand generation across all channels to drive qualified pipeline.
-      - 🛠️ Build repeatable programs and playbooks that bring in and convert the right audience.
-      - 📣 Run campaigns and experiments that generate lift and improve performance.
-      - 🤝 Collaborate with Sales, Partner, and Channel teams to align strategy with pipeline goals and deal velocity.
-      - 📊 Track and report on what’s working so we can invest where it counts.
-      - 🌱 Grow the Fleet community and bring prospects closer to the product.
-      - 📚 Turn community insights into content, campaigns, and conversion opportunities.
-      - 📍 Support campaigns around events, webinars, and launches to drive intent and awareness.
-      - 🧠 Work directly with the CMO to evolve our approach to growth.
-
+      - ⏫ Work closely with engineering to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
+      - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+      - 🌟 Contribute to the overall success of all [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features that work as intended.
+      - 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
+      - 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
+      - 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
+      - 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
   experience: |
-      - 🧱 You have built and scaled demand gen programs at a growing company. 
-      - 📈 You care about pipeline and connect your work to revenue.
-      - 📣 You’ve shipped campaigns across email, paid, content, and events.
-      - 🔍 You use data to focus your time and improve what you build.
-      - 🤝 You work closely with Sales to drive the right leads and conversations. 
-      - ✏️ You move quickly, test often, and write clearly.
-      - ⏩ Thrive in a complex, fast-paced, results-driven environment and pivot easily to organizational changes.
-      - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+      - 💭 3-5 years' of experience in a product quality, QA, or testing role.
+      - 💖 Proficient in creating comprehensive testing plans.
+      - ✍️ Experience working with engineering and product teams in an agile environment.
+      - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams.
+      - 🌐 Experience in manual testing across various devices, platforms, and browsers.
+      - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+      - 🤝 Collaboration: You work best in a participatory, team-based environment.
+      - 🛠️ Technical: You understand the software development processes.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - ➕ Bonus: Cybersecurity or IT background.
+
+
+- jobTitle: 🧩 Software Specialist
+  department: Engineering
+  hiringManagerName: George Karr
+  hiringManagerGithubUsername: georgekarrv
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/george-karr-4977b441/
+  responsibilities: |
+      - 🧰 Package, install, and validate Fleet-maintained applications across supported platforms (macOS, Windows, Linux) to ensure correct functionality and compatibility.
+      - 🔍 Smoke test Fleet releases before and after deployment to confirm key workflows, software installations, and device management features work as intended.
+      - 🤝 Collaborate closely with QA Engineers and developers to reproduce, verify, and document issues discovered during packaging and testing.
+      - 🧪 Create, maintain, and improve app testing scripts or procedures to streamline verification of Fleet-maintained software.
+      - 📦 Maintain a library of packaged apps, keeping metadata, versioning, and test results up to date.
+      - 🧭 Assist with end-to-end validation of new MDM and software management features, ensuring a seamless experience for end users and IT admins.
+      - 🚀 Support QA Engineers during release testing cycles, providing deep expertise in app packaging, configuration, and validation.
+  experience: |
+      - 💼 1-3 years’ experience packaging, testing, and deploying applications in an enterprise or managed-device environment.
+      - 🧩 Hands-on experience creating, modifying, and troubleshooting app packages (PKG, MSI, DMG, etc.).
+      - 🧠 Familiarity with device management tools and workflows (e.g., MDM, Munki, Jamf, Intune, or Fleet).
+      - 🧪 Skilled at smoke testing, regression testing, and identifying root causes of packaging or installation failures.
+      - 🧾 Comfortable documenting detailed test results, bug reports, and packaging notes.
+      - 💬 Excellent collaboration and communication skills for working with engineers and QA teammates.
+      - 🔄 Strong attention to detail and commitment to consistent, reliable testing processes.
+      - ➕ Bonus: Experience with automation or scripting tools (e.g., Bash, Python, PowerShell) for testing or packaging.

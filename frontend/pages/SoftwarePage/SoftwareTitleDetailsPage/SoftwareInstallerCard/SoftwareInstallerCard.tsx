@@ -149,6 +149,7 @@ export const SoftwareActionButtons = ({
 
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
+  isScriptPackage?: boolean;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -175,6 +176,7 @@ interface ISoftwareInstallerCardProps {
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
   softwareTitleName,
+  isScriptPackage = false,
   name,
   version,
   addedTimestamp,
@@ -298,7 +300,7 @@ const SoftwareInstallerCard = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
-    <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
+    <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
         <div className={`${baseClass}__row-1`}>
           <div className={`${baseClass}__row-1--responsive-wrap`}>
@@ -352,16 +354,17 @@ const SoftwareInstallerCard = ({
             )}
           </div>
         </div>
-        <div className={`${baseClass}__row-2`}>
-          {gitOpsModeEnabled && isCustomPackage && (
+        {gitOpsModeEnabled && isCustomPackage && (
+          <div className={`${baseClass}__row-2`}>
             <div className={`${baseClass}__yaml-button-wrapper`}>
               <Button onClick={onToggleViewYaml}>View YAML</Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
+          isScriptPackage={isScriptPackage}
           softwareId={softwareId}
           teamId={teamId}
           status={status}

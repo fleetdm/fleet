@@ -54,7 +54,6 @@
 
     .display-name {
       font-size: $large;
-      font-weight: $bold;
       @include ellipse-text(300px);
 
       @media (min-width: $break-md) {

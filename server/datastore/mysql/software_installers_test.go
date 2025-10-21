@@ -12,8 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -49,6 +51,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
 		{"SaveInstallerUpdatesClearsFleetMaintainedAppID", testSaveInstallerUpdatesClearsFleetMaintainedAppID},
+		{"SoftwareInstallerReplicaLag", testSoftwareInstallerReplicaLag},
 	}
 
 	for _, c := range cases {
@@ -873,7 +876,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
 	require.Equal(t, maintainedApp.ID, *softwareInstallers[0].FleetMaintainedAppID)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: ""},
+		{Name: ins0, Source: "apps", ExtensionFor: ""},
 	})
 
 	// add a new installer + ins0 installer
@@ -927,8 +930,8 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
 	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: ""},
-		{Name: ins1, Source: "apps", Browser: ""},
+		{Name: ins0, Source: "apps", ExtensionFor: ""},
+		{Name: ins1, Source: "apps", ExtensionFor: ""},
 	})
 
 	// remove ins0 fails due to install_during_setup
@@ -1045,7 +1048,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NotNil(t, softwareInstallers[0].TeamID)
 	require.Empty(t, softwareInstallers[0].URL)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins1, Source: "apps", Browser: ""},
+		{Name: ins1, Source: "apps", ExtensionFor: ""},
 	})
 
 	instDetails1, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *softwareInstallers[0].TitleID, false)
@@ -1165,7 +1168,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.different.ins0")},
+		{Name: ins0, Source: "apps", ExtensionFor: "", BundleIdentifier: ptr.String("com.example.different.ins0")},
 	})
 
 	// Add software installer with the same bundle id but different name
@@ -1189,7 +1192,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: "ins0-different", Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.ins0")},
+		{Name: "ins0-different", Source: "apps", ExtensionFor: "", BundleIdentifier: ptr.String("com.example.ins0")},
 	})
 
 	// remove everything
@@ -1298,8 +1301,8 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
 	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
 	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: ""},
-		{Name: ins1, Source: "apps", Browser: ""},
+		{Name: ins0, Source: "apps", ExtensionFor: ""},
+		{Name: ins1, Source: "apps", ExtensionFor: ""},
 	})
 
 	// Add setup_experience_status_results for both installers
@@ -2018,7 +2021,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	tests := []struct {
@@ -2255,7 +2257,7 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 					var swID uint
 					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 						err := sqlx.GetContext(ctx, q, &swID, `SELECT id FROM software_installers WHERE global_or_team_id = ?
-						AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')`,
+						AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = '')`,
 							globalOrTeamID, payload.Installer.Title, payload.Installer.Source)
 						return err
 					})
@@ -3185,4 +3187,41 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &fmaID, `SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`, installerID)
 	require.NoError(t, err)
 	assert.Nil(t, fmaID, "fleet_maintained_app_id should be NULL after update")
+}
+
+func testSoftwareInstallerReplicaLag(t *testing.T, _ *Datastore) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := CreateMySQLDSWithOptions(t, opts)
+	defer ds.Close()
+
+	ctx := context.Background()
+	test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+	opts.RunReplication()
+
+	// upload software installer
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "foo",
+		Source:           "apps",
+		Version:          "1.0",
+		InstallScript:    "echo",
+		StorageID:        "storage",
+		Filename:         "installer.pkg",
+		BundleIdentifier: "com.foo.installer",
+		UserID:           user.ID,
+		TeamID:           &team.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installerID)
+	require.NotZero(t, titleID)
+	// opts.RunReplication() // - replication should not be needed after fix
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
+	// then validate it GetSoftwareInstallerMetadataByTeamAndTitleID()
+	gotInstaller, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
+	require.NoError(t, err)
+	require.NotNil(t, gotInstaller)
 }

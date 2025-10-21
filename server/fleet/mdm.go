@@ -25,6 +25,9 @@ const (
 	// RefetchCriticalQueriesUntil field when migrating a device from a
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
+	StickyMDMEnrollmentTTL       = 30 * time.Minute
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).

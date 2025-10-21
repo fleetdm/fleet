@@ -1154,9 +1154,9 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	}, "src1"))
 
 	// add some disks space info for some hosts
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0, 30.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0, 50.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0, 70.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0, 30.0, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0, 50.0, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0, 70.0, nil))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -2307,7 +2307,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 30
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5, 100.0, ptr.Float64(120.0)))
 
 	// Online
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -2325,7 +2325,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 3600
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50, 100.0, ptr.Float64(120.0)))
 
 	// Offline
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -2370,7 +2370,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// Set -1 sentinel values to indicate storage measurement not supported
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, -1, -1, 128.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, -1, -1, 128.0, nil))
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -2468,7 +2468,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "android-unmeasurable",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h1.ID, -1, -1, 128.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h1.ID, -1, -1, 128.0, nil))
 
 	// Host 2: Regular host with 0 GB (should be counted - legitimate disk full)
 	h2, err := ds.NewHost(ctx, &fleet.Host{
@@ -2483,7 +2483,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "mac-disk-full",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h2.ID, 0, 0, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h2.ID, 0, 0, 100.0, nil))
 
 	// Host 3: Regular host with 5 GB (should be counted)
 	h3, err := ds.NewHost(ctx, &fleet.Host{
@@ -2498,7 +2498,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "windows-low-space",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h3.ID, 5, 5, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h3.ID, 5, 5, 100.0, nil))
 
 	// Host 4: Regular host with 50 GB (should NOT be counted - above threshold)
 	h4, err := ds.NewHost(ctx, &fleet.Host{
@@ -2513,7 +2513,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "linux-good-space",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h4.ID, 50, 50, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h4.ID, 50, 50, 100.0, ptr.Float64(120.0)))
 
 	// Test with low disk space filter set to 32 GB (typical threshold)
 	opts := fleet.HostListOptions{
@@ -3036,12 +3036,13 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 		NodeKey:         ptr.String("nodekey"),
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0, 3.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0, 3.0, ptr.Float64(4.0))
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
@@ -3614,10 +3615,6 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// host 3 only has foo v0.0.3
 	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, software[1:2])
-	require.NoError(t, err)
-
-	// reconcile software, will sync software titles
-	err = ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
 
 	var fooV002ID uint
@@ -8001,7 +7998,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(stmt, host.ID, 1, 123)
 	require.NoError(t, err)
 	// set host' disk space
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0, nil)
 	require.NoError(t, err)
 	// set host orbit info
 	err = ds.SetOrUpdateHostOrbitInfo(
@@ -8740,10 +8737,10 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2, 50.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2, 50.0, nil)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4, 90.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4, 90.0, nil)
 	require.NoError(t, err)
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -8756,7 +8753,7 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0, nil)
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
