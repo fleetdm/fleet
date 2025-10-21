@@ -9621,7 +9621,8 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
 
-	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	// use time -1s to ensure host label-updated-at is before the labels creation timestamp
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now().Add(-1*time.Second), test.WithPlatform("ios"))
 	nanoEnroll(t, ds, host, false)
 	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("ubuntu"))
 	require.NotNil(t, otherHost)
@@ -9879,6 +9880,8 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	lbl2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic})
 	require.NoError(t, err)
+	lbl3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
 
 	// create an in-house app with include any labels
 	inHouseIDIncl, inHouseTitleIDIncl, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -9911,8 +9914,8 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 		ValidatedLabels: &fleet.LabelIdentsWithScope{
 			LabelScope: fleet.LabelScopeExcludeAny,
 			ByName: map[string]fleet.LabelIdent{
-				lbl1.Name: {LabelID: lbl1.ID, LabelName: lbl1.Name},
 				lbl2.Name: {LabelID: lbl2.ID, LabelName: lbl2.Name},
+				lbl3.Name: {LabelID: lbl3.ID, LabelName: lbl3.Name},
 			},
 		},
 	})
@@ -9926,6 +9929,41 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, sw, 3)
 	require.Equal(t, []string{"inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
+
+	// make host a member of lbl1
+	err = ds.AddLabelsToHost(ctx, host.ID, []uint{lbl1.ID})
+	require.NoError(t, err)
+
+	// software inventory now shows the include in-house app
+	opts.OnlyAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.Equal(t, []string{"inhouse1", "inhouse2", "inhouse3", "inhouseincl"}, pluckSoftwareNames(sw))
+
+	// update the host's labels updated at timestamp so the exclude any condition kicks in
+	host.LabelUpdatedAt = time.Now()
+	host.PolicyUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// software inventory now shows the exclude in-house app
+	opts.OnlyAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 5)
+	require.Equal(t, []string{"inhouse1", "inhouse2", "inhouse3", "inhouseexcl", "inhouseincl"}, pluckSoftwareNames(sw))
+
+	// make host a member of lbl3
+	err = ds.AddLabelsToHost(ctx, host.ID, []uint{lbl3.ID})
+	require.NoError(t, err)
+
+	// exclude in-house app is now removed
+	opts.OnlyAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.Equal(t, []string{"inhouse1", "inhouse2", "inhouse3", "inhouseincl"}, pluckSoftwareNames(sw))
 
 	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 	// 	DumpTable(t, tx, "hosts", "id", "uuid", "platform", "hostname", "team_id")
