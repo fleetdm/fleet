@@ -1,3 +1,10 @@
+## Fleet 4.75.1 (Oct 21, 2025)
+
+### Bug fixes
+
+- Fixed `fleetctl generate-gitops` when MDM is not turned on.
+- Reduced load on migration from 4.74.0 and below.
+
 ## Fleet 4.75.0 (Oct 17, 2025)
 
 ### Security Engineers
