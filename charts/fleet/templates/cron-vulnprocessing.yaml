@@ -238,7 +238,6 @@ spec:
               {{- if .Values.fleet.securityContext.runAsNonRoot }}
               runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
               {{- end }}
-            {{- end }}
             volumeMounts:
               - name: tmp
                 mountPath: /tmp
