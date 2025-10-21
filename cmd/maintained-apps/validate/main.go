@@ -126,7 +126,7 @@ func run(cfg *Config) error {
 		}
 		if hash != maintainedApp.SHA256 {
 			level.Error(appLogger).Log("msg", "SHA256 hash in manifest does not match installer file hash")
-			frozenApps = append(appWithError, ac.Name)
+			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 
