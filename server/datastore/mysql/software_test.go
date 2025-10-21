@@ -9643,41 +9643,42 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// create some in-house apps for no-team
+	// create some in-house apps for no-team (this creates both iOS and iPadOS,
+	// but returns the iOS ids)
 	inHouseID1, inHouseTitleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "inhouse1",
-		Source:          "ios_apps",
-		Filename:        "inhouse1.ipa",
-		Extension:       "ipa",
-		Platform:        "ios",
-		UserID:          user.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Title:            "inhouse1",
+		Source:           "ios_apps",
+		Filename:         "inhouse1.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouse1",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, inHouseID1)
 	require.NotZero(t, inHouseTitleID1)
 
 	inHouseID2, inHouseTitleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "inhouse2",
-		Source:          "ios_apps",
-		Filename:        "inhouse2.ipa",
-		Extension:       "ipa",
-		Platform:        "ios",
-		UserID:          user.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Title:            "inhouse2",
+		Source:           "ios_apps",
+		Filename:         "inhouse2.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouse2",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, inHouseID2)
 	require.NotZero(t, inHouseTitleID2)
 
 	inHouseID3, inHouseTitleID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "inhouse3",
-		Source:          "ios_apps",
-		Filename:        "inhouse3.ipa",
-		Extension:       "ipa",
-		Platform:        "ios",
-		UserID:          user.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Title:            "inhouse3",
+		Source:           "ios_apps",
+		Filename:         "inhouse3.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouse3",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, inHouseID3)
@@ -9685,14 +9686,14 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 
 	// add an in-house app on the team, should not affect the host's results
 	inHouseIDTm, inHouseTitleIDTm, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "inhouse-tm",
-		Source:          "ios_apps",
-		Filename:        "inhouse-tm.ipa",
-		Extension:       "ipa",
-		Platform:        "ios",
-		TeamID:          &team.ID,
-		UserID:          user.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Title:            "inhouse-tm",
+		Source:           "ios_apps",
+		Filename:         "inhouse-tm.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouse-tm",
+		TeamID:           &team.ID,
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, inHouseIDTm)
@@ -9885,12 +9886,12 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 
 	// create an in-house app with include any labels
 	inHouseIDIncl, inHouseTitleIDIncl, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:     "inhouseincl",
-		Source:    "ios_apps",
-		Filename:  "inhouseincl.ipa",
-		Extension: "ipa",
-		Platform:  "ios",
-		UserID:    user.ID,
+		Title:            "inhouseincl",
+		Source:           "ios_apps",
+		Filename:         "inhouseincl.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouseincl",
+		UserID:           user.ID,
 		ValidatedLabels: &fleet.LabelIdentsWithScope{
 			LabelScope: fleet.LabelScopeIncludeAny,
 			ByName: map[string]fleet.LabelIdent{
@@ -9905,12 +9906,12 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 
 	// create an in-house app with exclude any labels
 	inHouseIDExcl, inHouseTitleIDExcl, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:     "inhouseexcl",
-		Source:    "ios_apps",
-		Filename:  "inhouseexcl.ipa",
-		Extension: "ipa",
-		Platform:  "ios",
-		UserID:    user.ID,
+		Title:            "inhouseexcl",
+		Source:           "ios_apps",
+		Filename:         "inhouseexcl.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouseexcl",
+		UserID:           user.ID,
 		ValidatedLabels: &fleet.LabelIdentsWithScope{
 			LabelScope: fleet.LabelScopeExcludeAny,
 			ByName: map[string]fleet.LabelIdent{
