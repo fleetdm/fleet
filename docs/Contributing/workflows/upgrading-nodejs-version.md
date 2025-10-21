@@ -61,7 +61,8 @@ When `check-latest: true` is set on `actions/setup-node`:
 - If a runner already has an older patch/minor of that major cached, `check-latest` tells the action to ignore that stale cache and fetch the newer matching version instead.
 - This helps ensure CI picks up new Node.js patch releases (including security fixes) automatically, without changing your `package.json`.
 
-Important notes:
+#### Important notes:
+
 - If you specify an exact version (e.g., `24.10.0`), `check-latest` has no effect; the exact version will be used.
 - With a semver range (e.g., `^24.10.0`), `check-latest` may increase setup time on the first run after a new patch is released because it downloads that newer version. Subsequent runs benefit from cache.
 - This option is supported in `actions/setup-node` v3 and later.
@@ -71,8 +72,6 @@ In this repository, `check-latest: true` is set where the main Fleet app is buil
 - `.github/workflows/goreleaser-snapshot-fleet.yaml`
 
 For more details, see the `actions/setup-node` documentation: https://github.com/actions/setup-node
-
-
 
 ## Testing the upgrade
 
@@ -93,4 +92,4 @@ For more details, see the `actions/setup-node` documentation: https://github.com
 
 ## Updating this guide
 
-As the Fleet project evolves, new areas may need to be touched when upgrading Go versions. Please update this guide with any new files you find that need changing (and remove any files that are no longer relevant).
+As the Fleet project evolves, new areas may need to be touched when upgrading Node.js versions. Please update this guide with any new files you find that need changing (and remove any files that are no longer relevant).
