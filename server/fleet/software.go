@@ -29,7 +29,9 @@ const (
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
 	SoftwareArchMaxLength    = 16
-	UpgradeCodeMaxLength     = 16 // a GUID: 128-bits -> 16 bytes, max no. Runes
+	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
+	// == 1rune –> 38chars
+	UpgradeCodeMaxLength = 38
 
 	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
 	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
@@ -102,7 +104,7 @@ type Software struct {
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
-	UpgradeCode string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 func (Software) AuthzType() string {
@@ -147,8 +149,8 @@ func (s Software) ToUniqueStr() string {
 	}
 	// UpgradeCode added in a migration, include only if it exists // TODO - understanding this
 	// reasoning better
-	if s.UpgradeCode != "" {
-		ss = append(ss, s.UpgradeCode)
+	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
+		ss = append(ss, *s.UpgradeCode)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -259,8 +261,7 @@ type SoftwareTitle struct {
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
-	// TODO - pointer?
-	UpgradeCode string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -552,6 +553,12 @@ func SoftwareFromOsqueryRow(
 		return str
 	}
 
+	var upgradeCodeForFleetSW *string
+	if upgradeCode != "" {
+		truncated := truncateString(upgradeCode, UpgradeCodeMaxLength) // TODO - truncation necessary? should always be exactly 38 runes or empty
+		upgradeCodeForFleetSW = &truncated
+	}
+
 	software := Software{
 		Name:             truncateString(name, SoftwareNameMaxLength),
 		Version:          truncateString(version, SoftwareVersionMaxLength),
@@ -563,7 +570,7 @@ func SoftwareFromOsqueryRow(
 		Release:     truncateString(release, SoftwareReleaseMaxLength),
 		Vendor:      vendor,
 		Arch:        truncateString(arch, SoftwareArchMaxLength),
-		UpgradeCode: truncateString(upgradeCode, UpgradeCodeMaxLength), // TODO - truncation necessary? should always be exactly 16bytes or empty
+		UpgradeCode: upgradeCodeForFleetSW,
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
