@@ -1,3 +1,4 @@
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import React from "react";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -11,20 +12,26 @@ interface IScriptListHeading {
 const ScriptListHeading = ({ onClickAddScript }: IScriptListHeading) => {
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__heading-group`}>
-        <span>Script</span>
-        <span className={`${baseClass}__button-container`}>
-          <Button
-            variant="brand-inverse-icon"
-            onClick={() => {
-              return onClickAddScript();
-            }}
-          >
-            <Icon name="plus" color="core-fleet-green" />
-            <span>Add script</span>
-          </Button>
-        </span>
-      </div>
+      <span className={`${baseClass}__heading-title`}>Scripts</span>
+      <span className={`${baseClass}__heading-actions`}>
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren}
+              variant="brand-inverse-icon"
+              className={`${baseClass}__add-button`}
+              onClick={onClickAddScript}
+              iconStroke
+            >
+              <>
+                <Icon name="plus" color="core-fleet-green" />
+                Add script
+              </>
+            </Button>
+          )}
+        />
+      </span>
     </div>
   );
 };
