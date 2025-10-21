@@ -21,6 +21,8 @@ Ritual DRI: EM or assigned team member.
 
 > Encourage open discussion and that all voices are heard. When a team member is sharing their retro, they have the full floor. Do not interrupt unless they have gone past their allotted time, or their feedback is not aligned with [our values](https://fleetdm.com/handbook/company#values).
 
+> Approved ritual assisted applications include [EasyRetro](easyretro.io) and [Reetro](reetro.app) where the 4 sections (went well, could have gone better, learned, action items) can be managed but the output for each section still must be copied back into the ritual doc at the end. Remeber to add a link to the assistance application in the ritual doc. Why? This is to facilitate async feedback and voting / prioritization of topics and no other automation is expected.
+
 ### Agenda
 - **What went well?** - Celebrate successes, effective practices, and positive outcomes from the sprint.
 - **What could have been better?** - Identify challenges, bottlenecks, and areas for improvement.
