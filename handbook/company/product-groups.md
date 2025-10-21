@@ -910,7 +910,7 @@ If the buyer (aka the "Santa") hasn't reviewed the price in the first order form
 
 On the order form, customer promises are represented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
 
-**Participants:** AE, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM.
+**Participants:** AE, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM (+ temporarily: CRO)
 
 **Agenda:**
 - Review each proposed customer promise on the order form.
