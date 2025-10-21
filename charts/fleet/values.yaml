@@ -67,7 +67,7 @@ fleet:
   listenPort: 8080
   # servicePort is optional.  Use if the service port needs to differ from the listenPort above.
   # servicePort: 9080
-  # Name of the Secret resource storing S3 bucket and optionally TLS secrets
+  # Name of the Secret resource storing TLS secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   autoApplySQLMigrations: true
