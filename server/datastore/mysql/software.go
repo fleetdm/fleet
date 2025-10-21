@@ -3511,11 +3511,11 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 
 	// promote the last install info to the proper destination fields
 	if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
-		softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+		softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
 			CommandUUID: *softwareTitleRecord.LastInstallInstallUUID,
 		}
 		if softwareTitleRecord.LastInstallInstalledAt != nil {
-			softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
+			softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
 		}
 	}
 }
@@ -4065,7 +4065,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								LEFT OUTER JOIN labels lbl ON lbl.id = ihl.label_id
 								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id AND lm.host_id = :host_id
 							WHERE
-								ihl.in_house_app_id = iha.id AND 
+								ihl.in_house_app_id = iha.id AND
 								ihl.exclude = 1
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
