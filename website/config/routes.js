@@ -835,6 +835,7 @@ module.exports.routes = {
   'GET /announcements/one-agent-fewer-tools-fewer-gaps': '/articles/one-agent-fewer-tools-fewer-gaps',
   'GET /announcements/i-work-in-operations-i-deployed-fleet-in-minutes': '/articles/i-work-in-operations-i-deployed-fleet-in-minutes',
   'GET /announcements/not-everything-runs-in-kubernete': '/articles/not-everything-runs-in-kubernete',
+  'GET /guides/macos-mdm-setup': '/guides/apple-mdm-setup',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -881,8 +882,7 @@ module.exports.routes = {
   'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
 
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
-  'GET /guides/macos-mdm-setup': '/guides/apple-mdm-setup',
-  
+
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
   'GET /it': '/observability?utm_content=eo-it',
