@@ -1,4 +1,4 @@
-> **Updated -** October 20th, 2025, by [Jorge Falcon](https://github.com/BCTBB).
+> **Updated -** June 18th, 2025, by [Jorge Falcon](https://github.com/BCTBB).
 
 # Deploy Fleet on Kubernetes
 
@@ -151,42 +151,10 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: fleet-license
-  namespace: <namespace>
+  namespace: fleet
 type: Opaque
 stringData:
   license-key: <license-key>
-```
-
-### s3 - Software Installers
-
-To use s3 or s3 compatible storage with Fleet, for Software Installers, you'll need to configure secrets for use in the Fleet configuration.
-
-```yaml
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: software-installers
-  namespace: <namespace>
-type: Opaque
-stringData:
-  <secret-key-name>: <secret_value>
-```
-
-### s3 - Carving
-
-To use s3 or s3 compatible storage with Fleet, for Carving, you'll need to configure secrets for use in the Fleet configuration.
-
-```yaml
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: carving
-  namespace: <namespace>
-type: Opaque
-stringData:
-  <secret-key-name>: <secret_value>
 ```
 
 ## Deployment
@@ -279,39 +247,6 @@ cache:
   secretName: redis
   passwordKey: redis-password
 ...
-```
-
-- Optional: Update `values.yaml` to include the details for `s3 - Software Installers`
-
-```yaml
-softwareInstallers:
-  s3:
-    secretName: "software-installers"
-    bucketName: ""
-    prefix: ""
-    accessKeyID: ""
-    secretKey: <secret-key-name>
-    region: ""
-    endpointURL: ""
-    forceS3PathStyle: false
-    stsAssumeRoleARN: ""
-  
-```
-
-- Optional: Update `values.yaml` to include the details for `s3 - Carving`
-
-```yaml
-carving:
-  s3:
-    secretName: "carving"
-    bucketName: ""
-    prefix: ""
-    accessKeyID: ""
-    secretKey: <secret-key-name>
-    region: ""
-    endpointURL: ""
-    forceS3PathStyle: false
-    stsAssumeRoleARN: ""
 ```
 
 Once you have those configured, run the following:
@@ -411,46 +346,6 @@ database = {
       secret_name = "redis"
       password_key = "password"
   }
-...
-```
-
-- Optional: Update `main.tf` to include the details for `s3 - Software Installers`
-
-```txt
-...
-  software_installers = {
-    s3 = { 
-        bucket_name = ""
-        prefix = ""
-        endpoint_url = ""
-        force_s3_path_style = false
-        region = ""
-        secret_name = "software-installers"
-        access_key_id = ""
-        secret_key = "<secret-key-name>"
-        sts_assume_role_arn = ""
-    }
-  }
-...
-```
-
-- Optional: Update `main.tf` to include the details for `s3 - Carving`
-
-```txt
-...
-  carving = {
-      s3 = {
-          bucket_name = ""
-          prefix = ""
-          endpoint_url = ""
-          force_s3_path_style = false
-          region = ""
-          secret_name = "carving"
-          access_key_id = ""
-          secret_key = "<secret-key-name>"
-          sts_assume_role_arn = ""
-      }
-  } 
 ...
 ```
 
