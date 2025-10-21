@@ -57,6 +57,7 @@ func NewSetupExperiencer(orbitClient OrbitClient, deviceClient DeviceClient, roo
 		closeChan:    make(chan struct{}),
 		rootDirPath:  rootDirPath,
 		trw:          trw,
+		uiSteps:      make(map[string]swiftdialog.ListItem),
 	}
 }
 
@@ -67,7 +68,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	// If using the legacy UI, then call that method.
-	if !s.UseLegacyUI {
+	if s.UseLegacyUI {
 		return s.RunLegacy(oc)
 	}
 
@@ -480,6 +481,9 @@ func (s *SetupExperiencer) RunLegacy(oc *fleet.OrbitConfig) error {
 	// was removed from the payload that was there earlier(e.g. a deleted software title).
 	allStepsDone := true
 
+	// Log the payload JSON
+	log.Debug().Msgf("setup experience: payload: %+v", payload)
+
 	// Now render the UI for the software and script.
 	if len(payload.Software) > 0 || payload.Script != nil {
 		log.Info().Msg("setup experience: rendering software and script UI")
@@ -631,9 +635,9 @@ func (s *SetupExperiencer) startSwiftDialogLegacy(binaryPath, orgLogo string) er
 			ProgressText:     "Configuring your device...",
 			Button1Text:      "Close",
 			Button1Disabled:  true,
-			BlurScreen:       true,
-			OnTop:            true,
-			QuitKey:          "X", // Capital X to require command+shift+x
+			// BlurScreen:       true,
+			// OnTop:            true,
+			QuitKey: "X", // Capital X to require command+shift+x
 		}
 
 		if err := s.sd.Start(context.Background(), initOpts, true); err != nil {
