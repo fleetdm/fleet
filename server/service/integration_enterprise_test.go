@@ -156,7 +156,8 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 			"okta_certificate":                    nil,
 		},
 	}
-	b, _ := json.Marshal(body)
+	b, err := json.Marshal(body)
+	require.NoError(s.T(), err)
 	s.DoRaw("PATCH", "/api/latest/fleet/config", b, http.StatusOK)
 }
 
@@ -21501,7 +21502,8 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 				"okta_certificate":                    cert,
 			},
 		}
-		b, _ := json.Marshal(body)
+		b, err := json.Marshal(body)
+		require.NoError(t, err)
 		return b
 	}
 

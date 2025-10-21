@@ -1291,6 +1291,12 @@ const TAGGED_TEMPLATES = {
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
   ),
+  addedConditionalAccessOkta: () => (
+    <> configured Okta conditional access.</>
+  ),
+  deletedConditionalAccessOkta: () => (
+    <> deleted Okta conditional access configuration.</>
+  ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
     const teamName = activity.details?.team_name;
     return (
@@ -1868,6 +1874,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.AddedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.addedConditionalAccessOkta();
+    }
+    case ActivityType.DeletedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
     }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
