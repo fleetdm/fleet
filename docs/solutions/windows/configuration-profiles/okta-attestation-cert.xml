@@ -36,7 +36,7 @@
         <Data>yourChallengeHere</Data>
       </Item>
     </Add>
-    <!-- CN -->
+    <!-- CN - check Okta doc for required values (https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/devices-client-certificates-faqs.htm) -->
     <Add>
       <CmdID>4</CmdID>
       <Item>
@@ -46,7 +46,7 @@
         <Meta>
           <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>yourCnHere</Data>
+        <Data>$FLEET_VAR_HOST_UUID </Data>
       </Item>
     </Add>
     <!-- Key Length -->
