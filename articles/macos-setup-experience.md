@@ -172,6 +172,20 @@ Add setup experience software:
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
 3. Press **Save** to save your selection.
 
+> Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users. 
+
+#### Blocking setup on failed software installs
+
+You may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
+
+1. Click **Show advanced options** on the Install Software screen.
+2. Check the "Cancel setup if software install fails" checkbox.
+3. Press **Save**. 
+
+When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
+
+![screen shot of Fleet setup experience failed view](../website/assets/images/articles/setup-experience-failed-470x245@2x.png)
+
 ### Run script
 
 To configure a script to run during setup experience:
