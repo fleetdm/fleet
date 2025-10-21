@@ -9965,6 +9965,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 4)
 	require.Equal(t, []string{"inhouse1", "inhouse2", "inhouse3", "inhouseincl"}, pluckSoftwareNames(sw))
 
+	// Useful for debugging:
 	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 	// 	DumpTable(t, tx, "hosts", "id", "uuid", "platform", "hostname", "team_id")
 	// 	DumpTable(t, tx, "host_software")
