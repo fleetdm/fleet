@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/notarize"
@@ -40,6 +41,7 @@ func Notarize(path, bundleIdentifier string) error {
 			Status: &statusHuman{
 				Lock: &sync.Mutex{},
 			},
+			Timeout: 10 * time.Minute,
 		},
 	)
 	if err != nil {

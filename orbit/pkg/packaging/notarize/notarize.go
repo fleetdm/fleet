@@ -46,6 +46,11 @@ type Options struct {
 	// used for tests to overwrite where the codesign binary is. If this isn't
 	// specified then we use `xcrun notarytool` as the base.
 	BaseCmd *exec.Cmd
+
+	// Timeout is the maximum duration to wait for notarization to complete.
+	// If not specified (0), a default timeout of 60 minutes will be used.
+	// Set to a negative value (e.g., -1) to disable timeout (poll indefinitely).
+	Timeout time.Duration
 }
 
 // Notarize performs the notarization process for macOS applications. This
@@ -72,6 +77,17 @@ func Notarize(ctx context.Context, opts *Options) (*Info, *Log, error) {
 	lock := opts.UploadLock
 	if lock == nil {
 		lock = &sync.Mutex{}
+	}
+
+	// Set up timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = 60 * time.Minute // Default to 60 minutes
+	}
+	var deadline time.Time
+	timeoutEnabled := timeout > 0
+	if timeoutEnabled {
+		deadline = time.Now().Add(timeout)
 	}
 
 	// First perform the upload
@@ -130,8 +146,13 @@ func Notarize(ctx context.Context, opts *Options) (*Info, *Log, error) {
 		status.InfoStatus(*infoResult)
 
 		// If we reached a terminal state then exit
-		if infoResult.Status == "Accepted" || infoResult.Status == "Invalid" {
+		if infoResult.Status == "Accepted" || infoResult.Status == "Invalid" || infoResult.Status == "Rejected" {
 			break
+		}
+
+		// Check if we've exceeded the timeout
+		if timeoutEnabled && time.Now().After(deadline) {
+			return infoResult, nil, errors.New("notarization timed out waiting for completion")
 		}
 
 	RETRYINFO:
@@ -162,8 +183,13 @@ func Notarize(ctx context.Context, opts *Options) (*Info, *Log, error) {
 		status.LogStatus(*logResult)
 
 		// If we reached a terminal state then exit
-		if logResult.Status == "Accepted" || logResult.Status == "Invalid" {
+		if logResult.Status == "Accepted" || logResult.Status == "Invalid" || logResult.Status == "Rejected" {
 			break
+		}
+
+		// Check if we've exceeded the timeout
+		if timeoutEnabled && time.Now().After(deadline) {
+			return infoResult, logResult, errors.New("notarization timed out waiting for completion")
 		}
 
 	RETRYLOG:
@@ -172,10 +198,12 @@ func Notarize(ctx context.Context, opts *Options) (*Info, *Log, error) {
 		time.Sleep(5 * time.Second)
 	}
 
-	// If we're in an invalid status then return an error
+	// If we're in a failed status then return an error
 	err = nil
-	if logResult.Status == "Invalid" && infoResult.Status == "Invalid" {
-		err = errors.New("package is invalid.")
+	if logResult.Status == "Invalid" || logResult.Status == "Rejected" {
+		if infoResult.Status == "Invalid" || infoResult.Status == "Rejected" {
+			err = errors.New("package notarization failed: " + logResult.Status)
+		}
 	}
 
 	return infoResult, logResult, err
