@@ -126,9 +126,8 @@ fleet:
     licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
-  # If securityContext.enabled: true, currently only passes runAsNonRoot, runAsUser, runAsGroup
+  # Currently only passes runAsNonRoot, runAsUser, runAsGroup
   securityContext:
-    enabled: true
     runAsNonRoot: true
     runAsUser: 3333
     runAsGroup: 3333
