@@ -2351,12 +2351,6 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 
 	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "in_house_apps", "id", "title_id", "global_or_team_id", "name", "version", "platform")
-		DumpTable(t, tx, "software_titles", "id", "name", "source", "bundle_identifier", "additional_identifier", "application_id", "unique_identifier")
-		return nil
-	})
-
 	cases := []struct {
 		desc           string
 		opts           fleet.SoftwareTitleListOptions
