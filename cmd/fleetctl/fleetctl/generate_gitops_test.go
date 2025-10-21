@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -756,6 +757,56 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
+}
+
+func TestGeneratedOrgSettingsOktaConditionalAccessNotIncluded(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// Set Okta conditional access fields (these should NOT appear in GitOps output)
+	appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{
+		MicrosoftEntraTenantID:             "test-tenant-id",
+		MicrosoftEntraConnectionConfigured: true,
+		OktaIDPID:                          optjson.SetString("https://okta.example.com/idp"),
+		OktaAssertionConsumerServiceURL:    optjson.SetString("https://okta.example.com/acs"),
+		OktaAudienceURI:                    optjson.SetString("https://okta.example.com/audience"),
+		OktaCertificate:                    optjson.SetString("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"),
+	}
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+	var orgSettings map[string]any
+	b, err := yaml.Marshal(orgSettingsRaw)
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
+
+	// Verify that conditional_access section does not exist in the output
+	// (Okta configs are not supported in GitOps)
+	_, hasConditionalAccess := orgSettings["conditional_access"]
+	assert.False(t, hasConditionalAccess, "conditional_access section should not be present in GitOps output as Okta configs are not supported")
+
+	// Also verify by checking the YAML string directly
+	yamlStr := string(b)
+	assert.NotContains(t, yamlStr, "okta_idp_id", "Okta IDP ID should not be in GitOps output")
+	assert.NotContains(t, yamlStr, "okta_assertion_consumer_service_url", "Okta ACS URL should not be in GitOps output")
+	assert.NotContains(t, yamlStr, "okta_audience_uri", "Okta Audience URI should not be in GitOps output")
+	assert.NotContains(t, yamlStr, "okta_certificate", "Okta Certificate should not be in GitOps output")
+	assert.NotContains(t, yamlStr, "microsoft_entra_tenant_id", "Microsoft Entra Tenant ID should not be in GitOps output")
+	assert.NotContains(t, yamlStr, "microsoft_entra_connection_configured", "Microsoft Entra connection status should not be in GitOps output")
 }
 
 func TestGenerateOrgSettingsInsecure(t *testing.T) {
