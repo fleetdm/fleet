@@ -180,20 +180,6 @@ Items to cover in the section:
 - Who is involved. This should include who the DRI is.
 - Timeline. When will the working group start? When do we think we'll be done by?
 
-
-### UX group
-
-The goal of the UX group is to catch the Fleet product up with the [latest brand colors/styles](https://github.com/fleetdm/confidential/issues/11765) from the website (fleetdm.com), address [UX debt (spiffier)](https://github.com/fleetdm/confidential/issues/11868), and ship the Fleet product's first [2 graphs](https://github.com/fleetdm/confidential/issues/11864).
-
-This group will kick off on 2025-08-27 and plans to wrap up on 2025-09-29.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Product Manager (DRI)             | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
-| Quality Assurance                 | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-
 <!--
 Example working group section
 ### Name
