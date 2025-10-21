@@ -102,19 +102,6 @@ It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To 
 
 Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to export users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
 
-## Other IdPs
-
-IdPs generally require a Fleet SCIM URL and API token:
-
-- SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
-- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
-
-Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with ⁠`userName` as the unique identifier. Fleet uses the⁠ `userName` attribute to map to IdP groups and department.
-
-Fleet also supports the `department` attribute. Delete all other attributes.
-
-To map groups, configure your IdP to provision (push) them to Fleet.
-
 ### Prerequisites
 
 - [Install](https://docs.goauthentik.io/docs/install-config/install/aws) and run authentik
@@ -263,6 +250,19 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 8. For the **Backchannel Providers**, select the provider created above ("Fleet SCIM provider").
 9. Select **Create** to add the application.
 10. After a few minutes, you should see users mapped to hosts in Fleet.
+
+## Other IdPs
+
+IdPs generally require a Fleet SCIM URL and API token:
+
+- SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
+- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
+
+Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with ⁠`userName` as the unique identifier. Fleet uses the⁠ `userName` attribute to map to IdP groups and department.
+
+Fleet also supports the `department` attribute. Delete all other attributes.
+
+To map groups, configure your IdP to provision (push) them to Fleet.
 
 ## Verify connection
 
