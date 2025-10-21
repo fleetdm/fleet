@@ -67,7 +67,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	// If using the legacy UI, then call that method.
-	if !s.useLegacyUI {
+	if !s.UseLegacyUI {
 		return s.RunLegacy(oc)
 	}
 
