@@ -9770,6 +9770,9 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 
 	// make inhouse-1 pending install
 	inhouse1InstallCmd := createInHouseAppInstallRequest(t, ds, host.ID, inHouseID1, inHouseTitleID1, user)
+	ds.testActivateSpecificNextActivities = []string{inhouse1InstallCmd}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
 
 	// software inventory, no available for install, does not include the pending
 	// as it's not installed yet
@@ -9779,9 +9782,21 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 2)
 	require.Equal(t, []string{"a", "b"}, pluckSoftwareNames(sw))
 
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		fmt.Println(">>> command uuid: ", inhouse1InstallCmd)
+		DumpTable(t, tx, "hosts", "id", "uuid", "platform", "hostname", "team_id")
+		DumpTable(t, tx, "nano_devices")
+		DumpTable(t, tx, "nano_commands")
+		DumpTable(t, tx, "nano_command_results")
+		return nil
+	})
+
 	// make inhouse-1 installed, inhouse-2 pending
 	createInHouseAppInstallResultVerified(t, ds, host, inhouse1InstallCmd, "Acknowledged")
 	inhouse2InstallCmd := createInHouseAppInstallRequest(t, ds, host.ID, inHouseID2, inHouseTitleID2, user)
+	ds.testActivateSpecificNextActivities = []string{inhouse2InstallCmd}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
 
 	// mark it as reported as installed on the host
 	software = []fleet.Software{
