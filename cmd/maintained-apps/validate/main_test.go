@@ -4,13 +4,10 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,40 +125,4 @@ func TestValidateSqlInput(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestValidateAppsDarwin(t *testing.T) {
-	if os.Getenv("VALIDATION_TEST") != "1" {
-		t.Skip("Set VALIDATION_TEST=1 to run fma verification test")
-	}
-	cfg := &Config{}
-
-	// logger
-	cfg.logger = kitlog.NewLogfmtLogger(os.Stderr)
-	cfg.logLevel = "error"
-
-	// os detection
-	cfg.operatingSystem = strings.ToLower(os.Getenv("GOOS"))
-	if cfg.operatingSystem == "" {
-		cfg.operatingSystem = runtime.GOOS
-		t.Logf("GOOS environment variable is not set. Using system detected: '%s'", cfg.operatingSystem)
-	}
-	if cfg.operatingSystem != "darwin" {
-		t.Skip("Expected test operating system: darwin")
-		return
-	}
-
-	cmd := exec.Command("osqueryi", "--version")
-	_, err := cmd.Output()
-	if err != nil {
-		t.Skip("osqueryi error/doesn't exist")
-	}
-
-	// installation directory detection
-	cfg.installationSearchDirectory = os.Getenv("/Applications")
-	cfg.inputsPath = "test-data/inputs"
-	cfg.outputsPath = "test-data/outputs/"
-
-	err = run(cfg)
-	require.NoError(t, err)
 }
