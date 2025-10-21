@@ -2295,28 +2295,26 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 	}, &team1.ID)
 	require.NoError(t, err)
 
-	// create a couple in-house apps
+	// create a couple in-house apps (they always create both ios and ipados entries)
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "in-house1",
-		Source:          "ios_apps",
-		Filename:        "in-house1.ipa",
-		Extension:       "ipa",
-		UserID:          user.ID,
-		TeamID:          &team1.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		Platform:        string(fleet.IOSPlatform),
+		Title:            "in-house1",
+		Filename:         "in-house1.ipa",
+		BundleIdentifier: "in-house1",
+		Extension:        "ipa",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "in-house2",
-		Source:          "ios_apps",
-		Filename:        "in-house2.ipa",
-		Extension:       "ipa",
-		UserID:          user.ID,
-		TeamID:          &team1.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		Platform:        string(fleet.IOSPlatform),
+		Title:            "in-house2",
+		Filename:         "in-house2.ipa",
+		BundleIdentifier: "in-house2",
+		Extension:        "ipa",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -2353,6 +2351,12 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 
 	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
 
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		DumpTable(t, tx, "in_house_apps", "id", "title_id", "global_or_team_id", "name", "version", "platform")
+		DumpTable(t, tx, "software_titles", "id", "name", "source", "bundle_identifier", "additional_identifier", "application_id", "unique_identifier")
+		return nil
+	})
+
 	cases := []struct {
 		desc           string
 		opts           fleet.SoftwareTitleListOptions
@@ -2364,19 +2368,22 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			desc: "all",
 			opts: fleet.SoftwareTitleListOptions{
 				ListOptions: fleet.ListOptions{
-					OrderKey:       "name",
-					OrderDirection: fleet.OrderAscending,
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
 				},
 				TeamID: &team1.ID,
 			},
-			wantCount: 6,
-			wantNames: []string{"bar", "baz", "foo", "in-house1", "in-house2", "vpp1"},
+			wantCount: 8,
+			wantNames: []string{"bar", "baz", "foo", "in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				nil,
 				nil,
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2384,36 +2391,42 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			desc: "packages only",
 			opts: fleet.SoftwareTitleListOptions{
 				ListOptions: fleet.ListOptions{
-					OrderKey:       "name",
-					OrderDirection: fleet.OrderAscending,
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
 				},
 				TeamID:       &team1.ID,
 				PackagesOnly: true, // should include in-house, not VPP
 			},
-			wantCount: 3,
-			wantNames: []string{"foo", "in-house1", "in-house2"},
+			wantCount: 5,
+			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 			},
 		},
 		{
 			desc: "available for install",
 			opts: fleet.SoftwareTitleListOptions{
 				ListOptions: fleet.ListOptions{
-					OrderKey:       "name",
-					OrderDirection: fleet.OrderAscending,
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
 				},
 				TeamID:              &team1.ID,
 				AvailableForInstall: true,
 			},
-			wantCount: 4,
-			wantNames: []string{"foo", "in-house1", "in-house2", "vpp1"},
+			wantCount: 6,
+			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
 				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2421,8 +2434,9 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			desc: "self-service only",
 			opts: fleet.SoftwareTitleListOptions{
 				ListOptions: fleet.ListOptions{
-					OrderKey:       "name",
-					OrderDirection: fleet.OrderAscending,
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
 				},
 				TeamID:          &team1.ID,
 				SelfServiceOnly: true,
@@ -2433,8 +2447,9 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			desc: "macos only",
 			opts: fleet.SoftwareTitleListOptions{
 				ListOptions: fleet.ListOptions{
-					OrderKey:       "name",
-					OrderDirection: fleet.OrderAscending,
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
 				},
 				TeamID:   &team1.ID,
 				Platform: "macos",
@@ -2449,8 +2464,9 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			desc: "iOS only",
 			opts: fleet.SoftwareTitleListOptions{
 				ListOptions: fleet.ListOptions{
-					OrderKey:       "name",
-					OrderDirection: fleet.OrderAscending,
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
 				},
 				TeamID:   &team1.ID,
 				Platform: "ios",
@@ -2466,17 +2482,20 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			desc: "iOS and IPadOS",
 			opts: fleet.SoftwareTitleListOptions{
 				ListOptions: fleet.ListOptions{
-					OrderKey:       "name",
-					OrderDirection: fleet.OrderAscending,
+					OrderKey:              "name",
+					OrderDirection:        fleet.OrderAscending,
+					TestSecondaryOrderKey: "in_house_app_platform",
 				},
 				TeamID:   &team1.ID,
 				Platform: "ios,ipados",
 			},
-			wantCount: 3,
-			wantNames: []string{"in-house1", "in-house2", "vpp1"},
+			wantCount: 5,
+			wantNames: []string{"in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
