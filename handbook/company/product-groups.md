@@ -908,13 +908,17 @@ The Account Executive (AE) or Customer Success Manager (CSM) schedules this meet
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attached to the promise(s), then we're not ready for this call.
 
-On the order form, customer promises are reprented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
+On the order form, customer promises are represented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
 
-**Participants:** AE or CSM, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM.  (+ temporarily: CRO)
+**Participants:** AE or CSM, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM (+ temporarily: CRO).
 
 **Agenda:**
-- Discuss new promises from an order form with promises
-- Kick off 1 business day SLA for the Head of Product Design to process this and work with the CTO to deliver a revised order form back to the AE.
+- Review each proposed customer promise on the order form.
+- For each customer request, create user stories and [T-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) them.
+  - If necessary, the EM takes up to 1 business day to gather information necessary to T-shirt size.
+- Review the [release planning roadmap](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
+- Decide which Fleet release can be targeted for each customer promise.
+- Update the order form to reflect targeted date of each release.
 
 
 ## Development best practices
