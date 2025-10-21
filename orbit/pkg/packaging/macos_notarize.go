@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/mitchellh/gon/notarize"
-	"github.com/mitchellh/gon/staple"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/notarize"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/staple"
 	"github.com/rs/zerolog/log"
 )
 
