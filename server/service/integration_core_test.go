@@ -3890,6 +3890,103 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	require.Len(t, listHosts.Hosts, 0)
 }
 
+func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
+	t := s.T()
+	hosts := s.createHosts(t)
+	host := hosts[0]
+
+	// Test 1: Test invalid source parameter validation
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "test@example.com", Source: "invalid"},
+		http.StatusUnprocessableEntity, &putResp)
+
+	// Test 2: Test endpoint routing - empty source defaults to custom (should work without premium)
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "default@example.com"},
+		http.StatusOK, &putResp)
+
+	// Find the new mapping in the response
+	var foundCustom bool
+	for _, mapping := range putResp.DeviceMapping {
+		if mapping.Email == "default@example.com" {
+			assert.Equal(t, fleet.DeviceMappingCustomReplacement, mapping.Source)
+			foundCustom = true
+			break
+		}
+	}
+	assert.True(t, foundCustom, "Should find the default custom mapping")
+
+	// Test 3: Explicit custom source should work without premium
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "custom@example.com", Source: "custom"},
+		http.StatusOK, &putResp)
+
+	// Find the custom mapping in the response
+	var foundExplicitCustom bool
+	for _, mapping := range putResp.DeviceMapping {
+		if mapping.Email == "custom@example.com" {
+			assert.Equal(t, fleet.DeviceMappingCustomReplacement, mapping.Source)
+			foundExplicitCustom = true
+			break
+		}
+	}
+	assert.True(t, foundExplicitCustom, "Should find the explicit custom mapping")
+
+	// Test 4: Verify custom mappings appear in host details via getHostEndpoint
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+
+	// Should have at least 1 end user with device mappings
+	require.GreaterOrEqual(t, len(hostResp.Host.EndUsers), 1)
+
+	// Find mappings by checking OtherEmails in EndUsers
+	foundMappings := make(map[string]string) // email -> source
+	for _, endUser := range hostResp.Host.EndUsers {
+		for _, otherEmail := range endUser.OtherEmails {
+			foundMappings[otherEmail.Email] = otherEmail.Source
+		}
+	}
+
+	// Verify that we have at least one custom mapping
+	// (the exact emails present may vary based on how the system consolidates mappings)
+	hasCustomMapping := false
+	for email, source := range foundMappings {
+		if source == fleet.DeviceMappingCustomReplacement {
+			hasCustomMapping = true
+			t.Logf("Found custom mapping: %s -> %s", email, source)
+		}
+	}
+	assert.True(t, hasCustomMapping, "Should find at least one custom mapping in host details")
+
+	// Verify that if we find specific mappings, they have the correct source
+	if source, found := foundMappings["default@example.com"]; found {
+		assert.Equal(t, fleet.DeviceMappingCustomReplacement, source)
+	}
+	if source, found := foundMappings["custom@example.com"]; found {
+		assert.Equal(t, fleet.DeviceMappingCustomReplacement, source)
+	}
+
+	// Also test the ID-based endpoint
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+
+	// Verify mappings are consistent between identifier and ID endpoints
+	foundMappingsById := make(map[string]string) // email -> source
+	for _, endUser := range hostResp.Host.EndUsers {
+		for _, otherEmail := range endUser.OtherEmails {
+			foundMappingsById[otherEmail.Email] = otherEmail.Source
+		}
+	}
+	assert.Equal(t, foundMappings, foundMappingsById, "Host details should be consistent between identifier and ID endpoints")
+
+	// Test 5: IDP source validation (requires Fleet Premium)
+	// This test verifies that the endpoint rejects IDP requests appropriately on free tier
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "idp.user1@example.com", Source: "idp"},
+		http.StatusPaymentRequired, &putResp)
+}
+
 func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 	t := s.T()
 	ctx := context.Background()
