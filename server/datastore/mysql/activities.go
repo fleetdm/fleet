@@ -947,12 +947,10 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 			return nil, ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
 		}
 
-		// TODO(mna): this will need to be adapted when in-house app verification is implemented, we'll probably
-		// have a similar SoftwareInstallInHousePrefix?
-		// const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
-		// if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
-		// 	return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
-		// }
+		const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+		if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
+		}
 	}
 
 	var titleID uint
@@ -989,7 +987,7 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 
 		const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
 		if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
+			return nil, ctxerr.Wrap(ctx, err, "delete verify from host_mdm_commands")
 		}
 	}
 

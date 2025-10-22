@@ -3911,7 +3911,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// If the command succeeded, then start the install verification process.
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
 			// Only send a new InstalledApplicationList command if there's not one in flight
-			commandsPending, err := svc.ds.IsHostPendingVPPInstallVerification(r.Context, cmdResult.Identifier())
+			commandsPending, err := svc.ds.IsHostPendingMDMInstallVerification(r.Context, cmdResult.Identifier())
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}

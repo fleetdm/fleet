@@ -1956,7 +1956,6 @@ SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE verification_failed_at IS NULL AND verification_at IS NULL
 `
 
-	// TODO(mna): maybe there will be another job to delete for in-house verification?
 	deletePendingJobsStmt := `
 DELETE FROM jobs
 WHERE name = ?
