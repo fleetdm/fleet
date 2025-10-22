@@ -2310,6 +2310,11 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
+	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
 	for profUUID, target := range installTargets {
 		p, ok := profileContents[profUUID]
 		if !ok {
@@ -2338,11 +2343,19 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					continue
 				}
 
-				// Preprocess the profile content for this specific host
-				processedContent := microsoft_mdm.PreprocessWindowsProfileContents(hostUUID, string(p.SyncML))
-
 				// Create a unique command UUID for this host since the content is unique
 				hostCmdUUID := uuid.New().String()
+
+				// Preprocess the profile content for this specific host
+				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, hostCmdUUID, profUUID, groupedCAs, string(p.SyncML))
+				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
+				if err != nil && !errors.As(err, &profileProcessingError) {
+					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
+				} else if err != nil && errors.As(err, &profileProcessingError) {
+					hp.Status = &fleet.MDMDeliveryFailed
+					hp.Detail = profileProcessingError.Error()
+					continue
+				}
 
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
