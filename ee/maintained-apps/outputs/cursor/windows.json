@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "1.7.52",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere';"
+      },
+      "installer_url": "https://downloads.cursor.com/production/9675251a06b1314d50ff34b0cbe5109b78f848cd/win32/x64/system-setup/CursorSetup-x64-1.7.52.exe",
+      "install_script_ref": "c829a2f1",
+      "uninstall_script_ref": "772b6c14",
+      "sha256": "6fe2a384dff54f1dfd2761a3c649a82e66bd878e8d3a2f06fbf5b235a8eaf179",
+      "default_categories": [
+        "Developer Tools"
+      ]
+    }
+  ],
+  "refs": {
+    "772b6c14": "# Uninstall Cursor by PackageIdentifier (exact match)\nwinget uninstall --id Anysphere.Cursor -e\nExit $LASTEXITCODE",
+    "c829a2f1": "# Install Cursor system-wide, silent\nwinget install --id Anysphere.Cursor -e --accept-source-agreements --accept-package-agreements --scope machine\nExit $LASTEXITCODE"
+  }
+}
