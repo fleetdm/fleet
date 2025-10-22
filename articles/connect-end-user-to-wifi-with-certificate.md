@@ -424,12 +424,12 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 3: Create a custom script
 
-To automatically deploy certificates to Linux hosts when they ernoll, we'll create a custom script to write a certificate to a location. This script will be triggered by a policy that checks for the existence of a certificate.
+To automatically deploy certificates to Linux hosts when they enroll, we'll create a custom script to write a certificate to a location. This script will be triggered by a policy that checks for the existence of a certificate.
 
 This custom script will create a certificate signing request (CSR) and make a request to Fleet's "Request certificate" API endpoint.
 
 1. Create an API-only user with the global maintainer role. Learn more how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
-2. In Fleet, head to **Controls > Variables** to and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
+2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
 3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your Hydrant CA. You'll use this `id` in your script.
 4. In Fleet, head to **Controls > Scripts**, and add a script like the one below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
