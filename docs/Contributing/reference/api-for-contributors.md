@@ -3678,7 +3678,7 @@ Redirects to the transparency URL.
 #### Download device's MDM manual enrollment profile
 
 Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
-for a device. A User may be required to complete SSO authenticaton if configured on the team before being presented
+for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
 with the download option.
 
 `GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
