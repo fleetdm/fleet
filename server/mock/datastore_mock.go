@@ -517,7 +517,7 @@ type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installU
 
 type ReplaceVPPInstallVerificationUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
 
-type IsHostPendingVPPInstallVerificationFunc func(ctx context.Context, hostUUID string) (bool, error)
+type IsHostPendingMDMInstallVerificationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type GetUnverifiedVPPInstallsForHostFunc func(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
 
@@ -2317,8 +2317,8 @@ type DataStore struct {
 	ReplaceVPPInstallVerificationUUIDFunc        ReplaceVPPInstallVerificationUUIDFunc
 	ReplaceVPPInstallVerificationUUIDFuncInvoked bool
 
-	IsHostPendingVPPInstallVerificationFunc        IsHostPendingVPPInstallVerificationFunc
-	IsHostPendingVPPInstallVerificationFuncInvoked bool
+	IsHostPendingMDMInstallVerificationFunc        IsHostPendingMDMInstallVerificationFunc
+	IsHostPendingMDMInstallVerificationFuncInvoked bool
 
 	GetUnverifiedVPPInstallsForHostFunc        GetUnverifiedVPPInstallsForHostFunc
 	GetUnverifiedVPPInstallsForHostFuncInvoked bool
@@ -5636,11 +5636,11 @@ func (s *DataStore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVe
 	return s.ReplaceVPPInstallVerificationUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
 }
 
-func (s *DataStore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
+func (s *DataStore) IsHostPendingMDMInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
 	s.mu.Lock()
-	s.IsHostPendingVPPInstallVerificationFuncInvoked = true
+	s.IsHostPendingMDMInstallVerificationFuncInvoked = true
 	s.mu.Unlock()
-	return s.IsHostPendingVPPInstallVerificationFunc(ctx, hostUUID)
+	return s.IsHostPendingMDMInstallVerificationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetUnverifiedVPPInstallsForHost(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
