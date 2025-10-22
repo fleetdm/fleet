@@ -630,7 +630,6 @@ WHERE
 		HostID:          res.HostID,
 		HostDisplayName: res.HostDisplayName,
 		SoftwareTitle:   res.SoftwareTitle,
-		InstallUUID:     res.CommandUUID,
 		CommandUUID:     res.CommandUUID,
 		Status:          status,
 	}
