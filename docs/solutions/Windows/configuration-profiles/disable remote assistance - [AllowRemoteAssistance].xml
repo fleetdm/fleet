@@ -1,5 +1,4 @@
 <Replace>
-  <CmdID>019a0126-d124-7639-b672-199c12f88d97</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/RemoteAssistance/UnsolicitedRemoteAssistance</LocURI>
