@@ -311,6 +311,7 @@ const SoftwareInstallerCard = ({
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isScriptPackage={isScriptPackage}
             />
             <div className={`${baseClass}__tags-wrapper`}>
               {Array.isArray(automaticInstallPolicies) &&
@@ -411,6 +412,7 @@ const SoftwareInstallerCard = ({
           iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
+          isScriptPackage={isScriptPackage}
         />
       )}
     </Card>

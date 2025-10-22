@@ -14,6 +14,7 @@ interface RenderYamlHelperText {
   onClickPostInstallScript?: (evt: MouseEvent) => void;
   onClickUninstallScript?: (evt: MouseEvent) => void;
   onClickIcon?: (evt: MouseEvent) => void;
+  hasAdvancedOptionsAvailable?: boolean;
 }
 
 // Helper to join items with commas and Oxford comma before "and"
@@ -48,6 +49,7 @@ export const renderDownloadFilesText = ({
   onClickPostInstallScript,
   onClickUninstallScript,
   onClickIcon,
+  hasAdvancedOptionsAvailable = true,
 }: RenderYamlHelperText): JSX.Element => {
   const items: { key: string; element: JSX.Element }[] = [];
 
@@ -120,10 +122,15 @@ export const renderDownloadFilesText = ({
     <>
       Next, download your {joinWithCommasAnd(items)} and add{" "}
       {items.length === 1 ? "it" : "them"} to your repository using the{" "}
-      {items.length === 1 ? "path" : "paths"} above. If you edited{" "}
-      <b>Advanced options</b>, download and replace the{" "}
-      {items.length === 1 ? "file" : "files"} in your repository with the
-      updated {items.length === 1 ? "one" : "ones"}.
+      {items.length === 1 ? "path" : "paths"} above.
+      {hasAdvancedOptionsAvailable && (
+        <>
+          {" "}
+          If you edited <b>Advanced options</b>, download and replace the{" "}
+          {items.length === 1 ? "file" : "files"} in your repository with the
+          updated {items.length === 1 ? "one" : "ones"}.
+        </>
+      )}
     </>
   );
 };

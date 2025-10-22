@@ -55,6 +55,7 @@ interface IInstallerDetailsWidgetProps {
   versionInfo?: JSX.Element;
   sha256?: string | null;
   isFma: boolean;
+  isScriptPackage: boolean;
 }
 
 const InstallerDetailsWidget = ({
@@ -65,6 +66,7 @@ const InstallerDetailsWidget = ({
   sha256,
   versionInfo,
   isFma,
+  isScriptPackage,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -92,6 +94,10 @@ const InstallerDetailsWidget = ({
   };
 
   const renderDetails = () => {
+    const renderVersionInfo = () => {
+      return isScriptPackage ? "" : <>&bull; {versionInfo}</>;
+    };
+
     const renderTimeStamp = () =>
       addedTimestamp ? (
         <>
@@ -143,7 +149,8 @@ const InstallerDetailsWidget = ({
 
     return (
       <>
-        {renderInstallerDisplayText(installerType, isFma)} &bull; {versionInfo}
+        {renderInstallerDisplayText(installerType, isFma)}
+        {renderVersionInfo()}
         {renderTimeStamp()}
         {renderSha256()}
       </>
