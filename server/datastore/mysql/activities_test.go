@@ -1491,6 +1491,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:      hIOS.ID,
 		AppStoreID:  vppApp1IOS.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1_ios,
+		Status:      "Error", // using a failure because otherwise it requires verification to activate next
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
@@ -1511,8 +1512,98 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, ihaCmd, pendingActs[0].UUID)
 	require.Equal(t, vpp1_1_ios, pendingActs[1].UUID)
 
-	// TODO(mna): once the past activity handling is done for in-house apps, record a result
-	// for it and it should activate the next VPP app.
+	// record a result for in-house app and it should activate the next VPP app.
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: ihaCmd,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+		HostID:      hIOS.ID,
+		CommandUUID: ihaCmd,
+		Status:      "Error", // using a failure because otherwise it requires verification to activate next
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+
+	// enqueue the in-house app again
+	ihaCmd = uuid.NewString()
+	err = ds.InsertHostInHouseAppInstall(ctx, hIOS.ID, ihaID, ihaTitleID, ihaCmd, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+	require.Equal(t, ihaCmd, pendingActs[1].UUID)
+
+	// record a successful result for the VPP app, will not activate the next until verification
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: vpp1_1_ios,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+		HostID:      hIOS.ID,
+		CommandUUID: vpp1_1_ios,
+		Status:      string(fleet.SoftwareInstalled),
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	// both are still upcoming...
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+	require.Equal(t, ihaCmd, pendingActs[1].UUID)
+
+	// mark the VPP app as verified, will activate the next activity
+	err = ds.SetVPPInstallAsVerified(ctx, hIOS.ID, vpp1_1_ios, uuid.NewString())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	// record a successful result for the in-house app, will not become "past" until verification
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: ihaCmd,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+		HostID:      hIOS.ID,
+		CommandUUID: ihaCmd,
+		Status:      string(fleet.SoftwareInstalled),
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	// mark the in-house app as failed, will become "past"
+	err = ds.SetVPPInstallAsFailed(ctx, hIOS.ID, ihaCmd, uuid.NewString())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 0)
 }
 
 func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
