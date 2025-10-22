@@ -981,6 +981,13 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			expectedContents: `<Replace><Data>Email: test@idp.com</Data></Replace>`,
 		},
 		{
+			name:            "no host end user email idp found",
+			hostUUID:        "test-uuid-no-end-user",
+			profileContents: `<Replace><Data>Email: $FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data></Replace>`,
+			expectError:     true,
+			processingError: fleet.HostEndUserEmailIDPVariableReplacementFailedError,
+		},
+		{
 			name:             "scep windows certificate id",
 			hostUUID:         "test-host-1234-uuid",
 			hostCmdUUID:      "cmd-uuid-5678",
