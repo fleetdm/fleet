@@ -37,7 +37,7 @@ func rSign(pkgPath, cert string) error {
 	}, retry.WithMaxAttempts(3))
 }
 
-func rNotarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
+func notarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
 	path, err := writeAPIKeys(apiKeyIssuer, apiKeyID, apiKeyContent)
 	defer os.Remove(path)
 	if err != nil {

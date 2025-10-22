@@ -204,12 +204,22 @@ The `fleetctl package` command supports signing and notarizing macOS fleetd via 
 Check out the example below:
 
 ```sh
-  AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET]
+  AC_API_KEY_ID=ABC123DEFG AC_API_KEY_ISSUER=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee AC_API_KEY_CONTENT="$(cat ~/AuthKey_ABC123DEFG.p8)" fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET]
 ```
 
 The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd can only be done on macOS devices.
 
-Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
+Remember to replace the environment variables with your App Store Connect API credentials:
+- `AC_API_KEY_ID`: Your App Store Connect API Key ID
+- `AC_API_KEY_ISSUER`: Your App Store Connect API Key Issuer ID
+- `AC_API_KEY_CONTENT`: The full content of your `.p8` API key file
+
+To obtain these credentials:
+1. Go to [App Store Connect](https://appstoreconnect.apple.com/access/api)
+2. Click "Keys" under "Team Keys"
+3. Generate a new key with "Developer" access
+4. Download the `.p8` file (you can only download it once!)
+5. Note the Key ID and Issuer ID displayed on the page
 
 ### Grant full disk access to osquery on macOS
 

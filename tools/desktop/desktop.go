@@ -80,7 +80,7 @@ func macos() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:    "notarize",
-				Usage:   "If true, the generated application will be notarized and stapled. Requires the `AC_USERNAME` and `AC_PASSWORD` to be set in the environment",
+				Usage:   "If true, the generated application will be notarized. Requires App Store Connect API keys: `AC_API_KEY_ID`, `AC_API_KEY_ISSUER`, and `AC_API_KEY_CONTENT` in the environment",
 				EnvVars: []string{"FLEET_DESKTOP_NOTARIZE"},
 			},
 		},
@@ -204,22 +204,34 @@ func createMacOSApp(version, authority string, notarize bool) error {
 	}
 
 	if notarize {
+		// Get App Store Connect API keys from environment
+		acAPIKeyID := os.Getenv("AC_API_KEY_ID")
+		acAPIKeyIssuer := os.Getenv("AC_API_KEY_ISSUER")
+		acAPIKeyContent := os.Getenv("AC_API_KEY_CONTENT")
+
+		if acAPIKeyID == "" || acAPIKeyIssuer == "" || acAPIKeyContent == "" {
+			return errors.New("notarization requires App Store Connect API keys: AC_API_KEY_ID, AC_API_KEY_ISSUER, and AC_API_KEY_CONTENT must be set")
+		}
+
 		const notarizationZip = "desktop.zip"
-		// Note that the app needs to be zipped in order to upload to Apple for Notarization, but
-		// the Stapling has to happen on just the app (not zipped). Apple is a bit inconsistent here.
+		// Note that the app needs to be zipped in order to upload to Apple for Notarization
 		if err := zip.Zip(context.Background(), &zip.Options{Files: []string{appDir}, OutputPath: notarizationZip}); err != nil {
 			return fmt.Errorf("zip app for notarization: %w", err)
 		}
 		defer os.Remove(notarizationZip)
 
-		if err := packaging.Notarize(notarizationZip, "com.fleetdm.desktop"); err != nil {
+		if err := packaging.Notarize(notarizationZip, acAPIKeyID, acAPIKeyIssuer, acAPIKeyContent); err != nil {
 			return err
 		}
 
-		if err := packaging.Staple(appDir); err != nil {
-			return err
+		// Staple the notarization to the app using the rcodesign staple command
+		zlog.Info().Str("app", appDir).Msg("Stapling notarization")
+		stapleCmd := exec.Command("rcodesign", "staple", appDir)
+		stapleCmd.Stderr = os.Stderr
+		stapleCmd.Stdout = os.Stdout
+		if err := stapleCmd.Run(); err != nil {
+			return fmt.Errorf("staple notarization: %w", err)
 		}
-
 	}
 
 	const tarGzName = "desktop.app.tar.gz"

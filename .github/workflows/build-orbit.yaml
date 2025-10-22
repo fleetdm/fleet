@@ -71,9 +71,6 @@ jobs:
         run: go run ./orbit/tools/build/build.go
         env:
           GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
-          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
-          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           AC_API_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
           AC_API_KEY_ISSUER: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
           AC_API_KEY_CONTENT: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY }}
