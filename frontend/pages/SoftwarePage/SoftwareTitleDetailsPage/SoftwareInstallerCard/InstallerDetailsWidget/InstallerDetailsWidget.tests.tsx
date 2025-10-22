@@ -23,6 +23,7 @@ describe("InstallerDetailsWidget", () => {
     addedTimestamp: "2024-05-06T10:00:00Z",
     versionInfo: <span>v1.2.3</span>,
     isFma: false,
+    isScriptPackage: false,
   };
 
   it("renders the package icon when installerType is 'package'", () => {
@@ -39,6 +40,18 @@ describe("InstallerDetailsWidget", () => {
   it("renders version info and relative time when addedTimestamp is present", () => {
     render(<InstallerDetailsWidget {...defaultProps} />);
     expect(screen.getByText("v1.2.3")).toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
+  });
+
+  it("does not render version info for a script package", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        versionInfo={undefined}
+        isScriptPackage={false}
+      />
+    );
+    expect(screen.queryByText(/version/i)).not.toBeInTheDocument();
     expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 
