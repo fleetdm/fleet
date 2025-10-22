@@ -466,7 +466,8 @@ jq -r .certificate response.json > /opt/company/certificate.pem
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs that the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
-The `userinfo` file in the scripts looks like the below. However, the variables could be loaded from the output of a command or even a separate network request depending on your requirements:
+For simplicity, the scripts use a `userinfo` file (below). However, the best practice is to load variables from the output of a command or even a separate network request:
+
 ```shell
 PASSWORD="<Password-for-the-certificate-private-key>"
 USERNAME="<End-user-email>"

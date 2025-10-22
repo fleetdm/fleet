@@ -113,6 +113,9 @@
   description: "After sprint kickoff: 1. Check for API design PRs on estimated stories that were not brought into the sprint, then @-mention the product designer to request documentation changes be reverted. 2. Check for unmerged API design PRs on the release docs branch (filter: is:pr is:open base:docs-vX.X.X). For stories that made it into the sprint, merge the PR. For stories that did not make it in, close the PR and @-mention the author."
   moreInfoUrl: ""
   dri: "rachaelshaw"
+  autoIssue:
+    labels: [ ":product" ]
+    repo: "fleet"
 -
   task: "Create release documentation PR"
   startedOn: "2025-10-31"
@@ -120,6 +123,9 @@
   description: "1. Close any draft PRs (to auto-generated docs) for released features. 2. Prepare documentation PR to `main`. 3. @-mention release DRI"
   moreInfoUrl: ""
   dri: "rachaelshaw"
+  autoIssue:
+    labels: [ ":product" ]
+    repo: "fleet"
 -
   task: "Update release documentation branches"
   startedOn: "2025-10-31"
@@ -127,3 +133,6 @@
   description: "After a release documentation PR is merged to `main`, merge the latest from `main` into each upcoming release docs branch."
   moreInfoUrl: ""
   dri: "rachaelshaw"
+  autoIssue:
+    labels: [ ":product" ]
+    repo: "fleet"
