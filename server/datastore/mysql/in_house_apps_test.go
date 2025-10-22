@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -272,7 +272,7 @@ func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, ap
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	cmdUUID := "comm_" + strconv.FormatUint(uint64(hostID), 10)
+	cmdUUID := uuid.NewString()
 
 	err := ds.InsertHostInHouseAppInstall(ctx, hostID, appID, titleID, cmdUUID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
@@ -302,4 +302,20 @@ func createInHouseAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host
 		CommandUUID: cmdUUID,
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
+}
+
+func createInHouseAppInstallResultVerified(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
+	createInHouseAppInstallResult(t, ds, host, cmdUUID, status)
+
+	ctx := t.Context()
+	timestampCol := "verification_at"
+	if status != "Acknowledged" {
+		timestampCol = "verification_failed_at"
+	}
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE host_in_house_software_installs SET 
+			%s = NOW(6), verification_command_uuid = ? WHERE host_id = ? AND command_uuid = ?`, timestampCol),
+			uuid.NewString(), host.ID, cmdUUID)
+		return err
+	})
 }
