@@ -351,6 +351,23 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 			return ctxerr.Wrap(ctx, errors.Join(lifecycleErrs...), msg)
 		}
 
+		// Create activities for host deletions
+		adminUser := authz.UserFromContext(ctx)
+		for _, host := range hosts {
+			if err := svc.NewActivity(
+				ctx,
+				adminUser,
+				fleet.ActivityTypeDeletedHost{
+					HostID:          host.ID,
+					HostDisplayName: host.DisplayName(),
+					HostSerial:      host.HardwareSerial,
+					TriggeredBy:     "manual",
+				},
+			); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}
 
@@ -815,6 +832,21 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
+	// Create activity for host deletion
+	adminUser := authz.UserFromContext(ctx)
+	if err := svc.NewActivity(
+		ctx,
+		adminUser,
+		fleet.ActivityTypeDeletedHost{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+			HostSerial:      host.HardwareSerial,
+			TriggeredBy:     "manual",
+		},
+	); err != nil {
+		return err
+	}
+
 	if fleet.MDMSupported(host.Platform) {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
@@ -827,6 +859,32 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	}
 
 	return nil
+}
+
+func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHostDetails, error) {
+	// Call datastore to get expired hosts and their details
+	hostDetails, err := svc.ds.CleanupExpiredHosts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create activities for each deleted host
+	for _, hostDetail := range hostDetails {
+		if err := svc.NewActivity(
+			ctx,
+			nil, // Fleet automation user
+			fleet.ActivityTypeDeletedHost{
+				HostID:          hostDetail.ID,
+				HostDisplayName: hostDetail.DisplayName,
+				HostSerial:      hostDetail.Serial,
+				TriggeredBy:     "expiration",
+			},
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	return hostDetails, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -221,6 +221,8 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.ExpiredHostDetails, error)
+
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
@@ -1141,6 +1143,9 @@ type Service struct {
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
+
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
@@ -2778,6 +2783,13 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	s.RefetchHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.RefetchHostFunc(ctx, id)
+}
+
+func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHostDetails, error) {
+	s.mu.Lock()
+	s.CleanupExpiredHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredHostsFunc(ctx)
 }
 
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {

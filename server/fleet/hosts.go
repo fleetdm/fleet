@@ -1557,3 +1557,10 @@ func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTea
 	params.BatchSize = batchSize
 	return params
 }
+
+// ExpiredHostDetails contains details about a host that has expired and is being cleaned up.
+type ExpiredHostDetails struct {
+	ID          uint
+	DisplayName string
+	Serial      string
+}

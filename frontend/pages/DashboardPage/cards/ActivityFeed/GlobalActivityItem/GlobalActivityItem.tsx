@@ -226,6 +226,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  deletedHost: (activity: IActivity) => {
+    const { host_display_name, triggered_by } = activity.details || {};
+
+    if (triggered_by === "expiration") {
+      return (
+        <>
+          automatically deleted host <b>{host_display_name}</b> after{" "}
+          {/* host expiry window info */} days of inactivity.
+        </>
+      );
+    }
+
+    return (
+      <>
+        deleted host <b>{host_display_name}</b>.
+      </>
+    );
+  },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
     const { actor_id } = activity;
     const { user_id, user_email, role } = activity.details || {};
@@ -1612,6 +1630,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.UserDeleted: {
       return TAGGED_TEMPLATES.userDeleted(activity);
+    }
+    case ActivityType.HostDeleted: {
+      return TAGGED_TEMPLATES.deletedHost(activity);
     }
     case ActivityType.UserChangedGlobalRole: {
       return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);

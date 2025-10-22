@@ -3506,7 +3506,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	return policies, nil
 }
 
-func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
+func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHostDetails, error) {
 	ac, err := appConfigDB(ctx, ds.reader(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
@@ -3600,6 +3600,15 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 		allIdsToDelete = append(allIdsToDelete, ids...)
 	}
 
+	// Get host details before deletion for activity creation
+	var hostsToDelete []*fleet.Host
+	if len(allIdsToDelete) > 0 {
+		hostsToDelete, err = ds.ListHostsLiteByIDs(ctx, allIdsToDelete)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host details for expired hosts")
+		}
+	}
+
 	for _, id := range allIdsToDelete {
 		err = ds.DeleteHost(ctx, id)
 		if err != nil {
@@ -3618,7 +3627,17 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 		}
 	}
 
-	return allIdsToDelete, nil
+	// Return host details for activity creation
+	hostDetails := make([]fleet.ExpiredHostDetails, len(hostsToDelete))
+	for i, host := range hostsToDelete {
+		hostDetails[i] = fleet.ExpiredHostDetails{
+			ID:          host.ID,
+			DisplayName: host.DisplayName(),
+			Serial:      host.HardwareSerial,
+		}
+	}
+
+	return hostDetails, nil
 }
 
 func (ds *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {

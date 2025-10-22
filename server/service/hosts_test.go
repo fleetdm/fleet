@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -1100,6 +1101,224 @@ func TestDeleteHost(t *testing.T) {
 	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
+}
+
+func TestDeleteHostCreatesActivity(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Create a user for the deletion
+	user := &fleet.User{
+		Name:       "Test User",
+		Email:      "testuser@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Password:   []byte("password"),
+		Salt:       "salt",
+	}
+	user, err := ds.NewUser(ctx, user)
+	require.NoError(t, err)
+
+	mockClock := clock.NewMockClock()
+	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
+	host.HardwareSerial = "ABC123"
+	host.ComputerName = "Test Computer"
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// Get activities before deletion
+	prevActivities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+
+	// Delete the host
+	err = svc.DeleteHost(test.UserContext(ctx, user), host.ID)
+	require.NoError(t, err)
+
+	// Verify the activity was created
+	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey:       "id",
+			OrderDirection: fleet.OrderDescending,
+			PerPage:        1,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	require.Greater(t, len(activities), len(prevActivities)-1)
+
+	activity := activities[0]
+	expectedActivityType := fleet.ActivityTypeDeletedHost{}.ActivityName()
+	require.Equal(t, expectedActivityType, activity.Type)
+	require.NotNil(t, activity.Details)
+
+	var details fleet.ActivityTypeDeletedHost
+	err = json.Unmarshal(*activity.Details, &details)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, details.HostID)
+	require.Equal(t, "Test Computer", details.HostDisplayName)
+	require.Equal(t, "ABC123", details.HostSerial)
+	require.Equal(t, "manual", details.TriggeredBy)
+}
+
+func TestDeleteHostsCreatesActivities(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Create a user for the deletion
+	user := &fleet.User{
+		Name:       "Test User",
+		Email:      "testuser@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Password:   []byte("password"),
+		Salt:       "salt",
+	}
+	user, err := ds.NewUser(ctx, user)
+	require.NoError(t, err)
+
+	mockClock := clock.NewMockClock()
+
+	// Create multiple hosts
+	host1 := test.NewHost(t, ds, "host1", "192.168.1.10", "1", "1", mockClock.Now())
+	host1.HardwareSerial = "SERIAL1"
+	host1.ComputerName = "Computer 1"
+	err = ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+
+	host2 := test.NewHost(t, ds, "host2", "192.168.1.11", "2", "2", mockClock.Now())
+	host2.HardwareSerial = "SERIAL2"
+	host2.ComputerName = "Computer 2"
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+
+	// Get activities before deletion
+	prevActivities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+
+	// Delete the hosts
+	err = svc.DeleteHosts(test.UserContext(ctx, user), []uint{host1.ID, host2.ID}, nil)
+	require.NoError(t, err)
+
+	// Verify activities were created
+	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey:       "id",
+			OrderDirection: fleet.OrderDescending,
+			PerPage:        10,
+		},
+	})
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(activities), 2)
+
+	// Verify we have at least 2 more activities than before
+	require.Greater(t, len(activities), len(prevActivities)-1)
+
+	// Check the first two activities are for deleted hosts
+	expectedActivityType := fleet.ActivityTypeDeletedHost{}.ActivityName()
+	for i := 0; i < 2; i++ {
+		activity := activities[i]
+		require.Equal(t, expectedActivityType, activity.Type)
+		require.NotNil(t, activity.Details)
+
+		var details fleet.ActivityTypeDeletedHost
+		err = json.Unmarshal(*activity.Details, &details)
+		require.NoError(t, err)
+		require.Contains(t, []uint{host1.ID, host2.ID}, details.HostID)
+		require.Contains(t, []string{"Computer 1", "Computer 2"}, details.HostDisplayName)
+		require.Contains(t, []string{"SERIAL1", "SERIAL2"}, details.HostSerial)
+		require.Equal(t, "manual", details.TriggeredBy)
+	}
+}
+
+func TestCleanupExpiredHostsCreatesActivities(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Enable host expiry
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	ac.HostExpirySettings.HostExpiryWindow = 1 // 1 day expiry window
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// Create hosts that are expired (seen time > 1 day ago)
+	mockClock := clock.NewMockClock()
+	expiredTime := mockClock.Now().Add(-2 * 24 * time.Hour)
+
+	host1 := test.NewHost(t, ds, "expired1", "192.168.1.10", "1", "1", expiredTime)
+	host1.HardwareSerial = "EXP_SERIAL1"
+	host1.ComputerName = "Expired Computer 1"
+	err = ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+
+	host2 := test.NewHost(t, ds, "expired2", "192.168.1.11", "2", "2", expiredTime)
+	host2.HardwareSerial = "EXP_SERIAL2"
+	host2.ComputerName = "Expired Computer 2"
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+
+	// Get activities before cleanup
+	prevActivities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+
+	// Run the cleanup service method
+	deletedHosts, err := svc.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Len(t, deletedHosts, 2)
+
+	// Extract IDs from the result
+	deletedIDs := make([]uint, len(deletedHosts))
+	for i, host := range deletedHosts {
+		deletedIDs[i] = host.ID
+	}
+	require.Contains(t, deletedIDs, host1.ID)
+	require.Contains(t, deletedIDs, host2.ID)
+
+	// Verify activities were created
+	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey:       "id",
+			OrderDirection: fleet.OrderDescending,
+			PerPage:        10,
+		},
+	})
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(activities), 2)
+	require.Greater(t, len(activities), len(prevActivities)-1)
+
+	// Check the activities
+	foundHost1 := false
+	foundHost2 := false
+	expectedActivityType := fleet.ActivityTypeDeletedHost{}.ActivityName()
+	for _, activity := range activities {
+		if activity.Type != expectedActivityType {
+			continue
+		}
+		require.NotNil(t, activity.Details)
+
+		var details fleet.ActivityTypeDeletedHost
+		err = json.Unmarshal(*activity.Details, &details)
+		require.NoError(t, err)
+		require.Equal(t, "expiration", details.TriggeredBy)
+
+		if details.HostID == host1.ID {
+			foundHost1 = true
+			require.Equal(t, "Expired Computer 1", details.HostDisplayName)
+			require.Equal(t, "EXP_SERIAL1", details.HostSerial)
+		} else if details.HostID == host2.ID {
+			foundHost2 = true
+			require.Equal(t, "Expired Computer 2", details.HostDisplayName)
+			require.Equal(t, "EXP_SERIAL2", details.HostSerial)
+		}
+	}
+
+	require.True(t, foundHost1, "Activity for host1 not found")
+	require.True(t, foundHost2, "Activity for host2 not found")
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {
