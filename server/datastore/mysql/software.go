@@ -4268,10 +4268,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			for _, s := range installedInHouseAppIDs {
 				if s.InHouseAppID != nil {
 					if tmpByInHouseID[*s.InHouseAppID] == nil {
-						// inventoried by osquery, but not installed by fleet
+						// inventoried, but not installed by fleet
 						tmpByInHouseID[*s.InHouseAppID] = s
 					} else {
-						// inventoried by osquery, but installed by fleet
+						// inventoried, but installed by fleet
 						// We want to preserve the install information from host_in_house_software_installs
 						// so don't overwrite the existing record
 						tmpByInHouseID[*s.InHouseAppID].InHouseAppVersion = s.InHouseAppVersion
