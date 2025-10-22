@@ -1,9 +1,9 @@
 <div id="fleet-premium-trial" v-cloak>
-  <modal @close="closeModalAndRedirect()" v-if="trialType !== 'local-trial'">
+  <modal @close="closeModalAndRedirect()" v-if="trialType === 'local-trial'">
     <div purpose="modal-logo">
-      <img src="/images/logo-brandmark-140x140@2x.png">
+      <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
     </div>
-    <div purpose="content" v-if="trialIsExpired">
+    <div purpose="content" v-if="!trialIsExpired">
       <div>
         <h3>Here’s your trial license key</h3>
         <p class="mb-0">
@@ -45,12 +45,16 @@
         </a>
       </div>
       <p class="mb-0">Got questions? <a href="/contact">Get in touch</a></p>
+
     </div>
   </modal>
-  <modal @close="closeModalAndRedirect()" v-else>
-  <!-- <modal @close="closeModalAndRedirect()" v-if="trialType === 'render-trial'"> -->
+  <!-- <modal @close="closeModalAndRedirect()" v-else> -->
+  <modal @close="closeModalAndRedirect()" v-if="trialType === 'render-trial'">
+
+
+
     <div purpose="modal-logo">
-      <img src="/images/logo-brandmark-140x140@2x.png">
+      <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
     </div>
     <div purpose="content">
       <div>
