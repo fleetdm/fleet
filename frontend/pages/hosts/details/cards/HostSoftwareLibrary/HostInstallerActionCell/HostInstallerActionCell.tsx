@@ -243,8 +243,13 @@ export const HostInstallerActionCell = ({
       "failed_uninstall",
     ].includes(ui_status);
 
+  const isIpaPackage =
+    (software.source === "ios_apps" || software.source === "ipados_apps") &&
+    !!software_package;
+
   const canUninstallSoftware =
     !app_store_app &&
+    !isIpaPackage &&
     !!software_package &&
     (installedVersionsDetected || installedTgzPackageDetected);
 
