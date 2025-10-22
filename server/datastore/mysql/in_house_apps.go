@@ -569,8 +569,8 @@ FROM
 	host_in_house_software_installs hihsi
 	LEFT OUTER JOIN users u ON hihsi.user_id = u.id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hihsi.host_id
-	LEFT OUTER JOIN in_house_apps vpa ON hihsi.in_house_app_id = vpa.id
-	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+	LEFT OUTER JOIN in_house_apps iha ON hihsi.in_house_app_id = iha.id
+	LEFT OUTER JOIN software_titles st ON st.id = iha.title_id
 WHERE
 	hihsi.command_uuid = :command_uuid AND
 	hihsi.canceled = 0
