@@ -405,16 +405,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "checking if application exists")
 		}
-		if androidApp == nil {
-			return 0, ctxerr.NewWithData(ctx, "app store app not found", map[string]any{"app_store_app_id": appID.AdamID})
-		} else {
-			fmt.Printf("found androidApp: %v\n", androidApp)
-		}
 
 		app = &fleet.VPPApp{
 			VPPAppTeam:       appID,
 			BundleIdentifier: appID.AdamID,
-			IconURL:          androidApp.IconUrl, // TODO(JVE): these come from the validation process above
+			IconURL:          androidApp.IconUrl,
 			Name:             androidApp.Title,
 		}
 

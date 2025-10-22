@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
@@ -299,15 +301,32 @@ func getLastPart(ctx context.Context, name string) (string, error) {
 	return nameParts[len(nameParts)-1], nil
 }
 
+type appNotFoundError struct{}
+
+var _ fleet.NotFoundError = (*appNotFoundError)(nil)
+
+func (p appNotFoundError) Error() string {
+	return "Couldn’t add software. The application ID isn’t available in Play Store. Please find ID on the Play Store and try again."
+}
+
+func (p appNotFoundError) IsNotFound() bool {
+	return true
+}
+
 // TODO(JVE): implement
 func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
-	fmt.Printf("looking for packageName: %v\n", packageName)
 	if g == nil || g.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
 	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
 	if err != nil {
+		var gapiErr *googleapi.Error
+		if errors.As(err, &gapiErr) {
+			if gapiErr.Code == http.StatusNotFound {
+				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
+			}
+		}
 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
 	}
 	return app, nil
