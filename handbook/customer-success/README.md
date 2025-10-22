@@ -63,6 +63,18 @@ When on call, CSEs/CSAs will start their day by following these steps to gather 
 2. Search GitHub issues for `label:bug` and `label:customer-codename`.
 3. Debrief with any internal resources in order to gather information if needed, and be prepared to provide a status update.
 
+### CSE Morning Procedures
+
+The first person to come online throughout the day is referred to in this section as the "morning person" and responsible for completing the listed tasks at the start of the day. The morning person should follow the below steps as listed, and any person starting their day after should be able to begin their day at step seven, unless otherwise directed.
+1. Check Osquery Slack Channel/Unthread for support issues
+2. Check MacAdmins Slack Channel for support issues
+    1. These are not populated in Unthread at the time of this writing
+3. Check unassigned queue and re-assign any tickets from overnight/over the weekend to yourself
+4. Check "all" for potential off hours mis-assigned tickets and re-assign any tickets from overnight/over the weekend
+5. Analyze the customer meetings for the day, check for coverage and conflicts
+6. Update the help-customers channel that morning procedures are complete, and include any escalations, calendar conflicts
+7. As additional support engineers come online throughout the day, check in with the "morning person" or help-customers message to support any escalated or unaddressed support issues and meeting conflicts.
+
 
 ### Invite new customer DRI
 
