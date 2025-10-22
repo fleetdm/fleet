@@ -180,8 +180,18 @@ func BuildPkg(opt Options) (string, error) {
 	if opt.Notarize {
 		switch {
 		case isDarwin:
-			if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
-				return "", err
+			// Check if we have App Store Connect API keys (new method)
+			if len(opt.AppStoreConnectAPIKeyID) > 0 && len(opt.AppStoreConnectAPIKeyIssuer) > 0 {
+				// Use rcodesign with App Store Connect API (new method, required as of October 2024)
+				if err := rNotarizeStaple(generatedPath, opt.AppStoreConnectAPIKeyID, opt.AppStoreConnectAPIKeyIssuer, opt.AppStoreConnectAPIKeyContent); err != nil {
+					return "", err
+				}
+			} else {
+				// Fall back to legacy method (deprecated by Apple as of October 17, 2024)
+				log.Warn().Msg("Using legacy notarization method. This is deprecated and will stop working. Please use App Store Connect API keys instead.")
+				if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
+					return "", err
+				}
 			}
 		case isLinuxNative:
 			if len(opt.AppStoreConnectAPIKeyID) == 0 || len(opt.AppStoreConnectAPIKeyIssuer) == 0 {

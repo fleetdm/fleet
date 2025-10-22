@@ -24,10 +24,15 @@ func main() {
 	// Codesigning configuration
 	codesignIdentity := os.Getenv("CODESIGN_IDENTITY")
 
-	// Notarization configuration
+	// Notarization configuration (legacy method - deprecated)
 	acUsername := os.Getenv("AC_USERNAME")
 	acPassword := os.Getenv("AC_PASSWORD")
 	acTeamID := os.Getenv("AC_TEAM_ID")
+
+	// Notarization configuration (new App Store Connect API method)
+	acAPIKeyID := os.Getenv("AC_API_KEY_ID")
+	acAPIKeyIssuer := os.Getenv("AC_API_KEY_ISSUER")
+	acAPIKeyContent := os.Getenv("AC_API_KEY_CONTENT")
 
 	version := os.Getenv("ORBIT_VERSION")
 	commit := os.Getenv("ORBIT_COMMIT")
@@ -46,10 +51,16 @@ func main() {
 	}
 
 	notarize := false
-	if acUsername != "" && acPassword != "" && acTeamID != "" {
+	// Check for new App Store Connect API keys first (preferred method)
+	if acAPIKeyID != "" && acAPIKeyIssuer != "" && acAPIKeyContent != "" {
 		notarize = true
+		zlog.Info().Msg("will use App Store Connect API for notarization")
+	} else if acUsername != "" && acPassword != "" && acTeamID != "" {
+		// Fall back to legacy method (deprecated by Apple as of October 17, 2024)
+		notarize = true
+		zlog.Warn().Msg("using legacy notarization method (deprecated by Apple)")
 	} else {
-		zlog.Info().Msg("skipping running notarization: AC_USERNAME, AC_PASSWORD, AC_TEAM_ID not all set")
+		zlog.Info().Msg("skipping running notarization: neither App Store Connect API keys nor legacy credentials are set")
 	}
 
 	const (
@@ -95,8 +106,16 @@ func main() {
 		}
 		defer os.Remove(notarizationZip)
 
-		if err := packaging.Notarize(notarizationZip, bundleIdentifier); err != nil {
-			panic(err)
+		// Use new App Store Connect API if keys are available
+		if acAPIKeyID != "" && acAPIKeyIssuer != "" && acAPIKeyContent != "" {
+			if err := packaging.RNotarize(notarizationZip, acAPIKeyID, acAPIKeyIssuer, acAPIKeyContent); err != nil {
+				panic(err)
+			}
+		} else {
+			// Fall back to legacy method
+			if err := packaging.Notarize(notarizationZip, bundleIdentifier); err != nil {
+				panic(err)
+			}
 		}
 		// TODO(lucas): packaging.Staple doesn't work on plain binaries.
 	}
