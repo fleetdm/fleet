@@ -1,4 +1,4 @@
-# macOS MDM setup
+# Apple MDM setup
 
 To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
 
@@ -114,5 +114,5 @@ If a host is turned off due to user action or a low battery during the Setup Ass
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
 <meta name="publishedOn" value="2024-07-02">
-<meta name="articleTitle" value="macOS MDM setup">
-<meta name="description" value="Learn how to turn on MDM features in Fleet.">
+<meta name="articleTitle" value="Apple MDM setup">
+<meta name="description" value="Learn how to turn on MDM features for Apple hosts in Fleet.">

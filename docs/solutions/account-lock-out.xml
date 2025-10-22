@@ -1,0 +1,11 @@
+<Add>
+    <Item>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/AccountLockoutPolicy</LocURI>
+        </Target>
+        <Data>AccountLockoutDuration:30, AccountLockoutThreshold:10, ResetAccountLockoutCounterAfter:3</Data>
+    </Item>
+</Add>

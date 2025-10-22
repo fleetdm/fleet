@@ -138,7 +138,12 @@ const Calendars = (): JSX.Element => {
     [formData]
   );
 
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
+  if (!isPremiumTier)
+    return (
+      <SettingsSection title="Calendars">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
