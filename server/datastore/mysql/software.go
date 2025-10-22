@@ -889,6 +889,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if sw.ApplicationID != nil && *sw.ApplicationID != "" {
 						st.ApplicationID = sw.ApplicationID
 					}
+					if sw.UpgradeCode != nil && *sw.UpgradeCode != "" {
+						st.UpgradeCode = sw.UpgradeCode
+					}
 					newTitlesNeeded[checksum] = st
 				}
 			}
@@ -998,7 +1001,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			// Insert software entries
 			const numberOfArgsPerSoftware = 13
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
 			stmt := fmt.Sprintf(
 				`INSERT IGNORE INTO software (
