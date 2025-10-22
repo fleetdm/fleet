@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -52,6 +51,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -4142,7 +4142,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 		// We run this check here as we only want to run it on re-check ins for deleted hosts.
 		if (platform == "ios" || platform == "ipados") && isLostModeEnabled {
-			fmt.Println("===lost mode enabled on iPhone/iPad, checking for lock command record", host.UUID)
 			cmd, err := svc.ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "check for existing EnableLostMode command")
@@ -5211,13 +5210,15 @@ func preprocessProfileContents(
 				}
 				if customSCEPCAs == nil {
 					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyCA)
+					for _, ca := range groupedCAs.CustomScepProxy {
+						customSCEPCAs[ca.Name] = &ca
+					}
 				}
-				configured, err := isCustomSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, customSCEPCAs, profUUID, target, caName,
-					fleetVar)
+				err := profiles.IsCustomSCEPConfigured(ctx, customSCEPCAs, caName, fleetVar, func(errMsg string) error {
+					_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, errMsg, ptr.Time(time.Now().UTC()))
+					return err
+				})
 				if err != nil {
-					return ctxerr.Wrap(ctx, err, "checking custom SCEP configuration")
-				}
-				if !configured {
 					valid = false
 					break initialFleetVarLoop
 				}
@@ -5339,58 +5340,39 @@ func preprocessProfileContents(
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
-					hostContents = replaceFleetVariableInXML(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 
 				case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, profUUID)))
-					hostContents = replaceFleetVariableInXML(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 
 				case fleetVar == string(fleet.FleetVarSCEPRenewalID):
 					// Insert the SCEP renewal ID into the SCEP Payload CN or OU
 					fleetRenewalID := "fleet-" + profUUID
-					hostContents = replaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
-					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
-					ca, ok := customSCEPCAs[caName]
-					if !ok {
-						level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, hostContents)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
+					}
+					if !replacedVariable {
 						continue
 					}
-					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPChallengePrefix), ca.Name, hostContents, ca.Challenge)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP challenge")
-					}
+					hostContents = replacedContents
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
-					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
-					ca, ok := customSCEPCAs[caName]
-					if !ok {
-						level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing custom SCEP proxy URL variable")
+					}
+					if !replacedVariable {
 						continue
 					}
-					// Generate a new SCEP challenge for the profile
-					challenge, err := ds.NewChallenge(ctx)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "generating SCEP challenge")
-					}
-					// Insert the SCEP URL into the profile contents
-					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
-						url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", hostUUID, profUUID, caName, challenge)))
-					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPProxyURLPrefix), ca.Name, hostContents, proxyURL)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
-					}
-					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
-						HostUUID:    hostUUID,
-						ProfileUUID: profUUID,
-						Type:        fleet.CAConfigCustomSCEPProxy,
-						CAName:      caName,
-					})
+					hostContents = replacedContents
+					managedCertificatePayloads = append(managedCertificatePayloads, managedCertificate)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)):
 					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
@@ -5427,7 +5409,7 @@ func preprocessProfileContents(
 						CAName:               caName,
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
-					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPChallengePrefix), ca.Name, hostContents, challenge)
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPChallengePrefix), ca.Name, hostContents, challenge)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP challenge variable")
 					}
@@ -5437,21 +5419,32 @@ func preprocessProfileContents(
 					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
-					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPProxyURLPrefix), caName, hostContents, proxyURL)
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPProxyURLPrefix), caName, hostContents, proxyURL)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP URL variable")
 					}
 
 				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
-					email, ok, err := getIDPEmail(ctx, ds, target, hostUUID)
+					replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserEmailIDPVariable(ctx, ds, hostContents, hostUUID)
 					if err != nil {
-						return ctxerr.Wrap(ctx, err, "getting IDP email")
+						return ctxerr.Wrap(ctx, err, "replacing host end user email IDP variable")
 					}
-					if !ok {
+					if !replacedVariable {
+						// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
+						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:   target.cmdUUID,
+							HostUUID:      hostUUID,
+							Status:        &fleet.MDMDeliveryFailed,
+							Detail:        fleet.HostEndUserEmailIDPVariableReplacementFailedError,
+							OperationType: fleet.MDMOperationTypeInstall,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for host end user email IDP")
+						}
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = replaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
+					hostContents = replacedContents
 
 				case fleetVar == string(fleet.FleetVarHostHardwareSerial):
 					hardwareSerial, ok, err := getHostHardwareSerial(ctx, ds, target, hostUUID)
@@ -5462,7 +5455,7 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = replaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
 
 				case fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
 					fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
@@ -5495,7 +5488,7 @@ func preprocessProfileContents(
 						rx = fleetVarHostEndUserIDPFullnameRegexp
 						value = strings.TrimSpace(user.IdpFullName)
 					}
-					hostContents = replaceFleetVariableInXML(rx, hostContents, value)
+					hostContents = profiles.ReplaceFleetVariableInXML(rx, hostContents, value)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)):
 					// We will replace the password when we populate the certificate data
@@ -5558,12 +5551,12 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarDigiCertDataPrefix), caName, hostContents,
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarDigiCertDataPrefix), caName, hostContents,
 						base64.StdEncoding.EncodeToString(cert.PfxData))
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert data")
 					}
-					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarDigiCertPasswordPrefix), caName, hostContents, cert.Password)
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarDigiCertPasswordPrefix), caName, hostContents, cert.Password)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
 					}
@@ -5624,16 +5617,28 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
 			if !ok {
 				var err error
-				email, ok, err = getIDPEmail(ctx, ds, target, hostUUID)
+				foundEmail, err := fleet.GetFirstIDPEmail(ctx, ds, hostUUID)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
 				}
-				if !ok {
+				if foundEmail == nil {
+					// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
+					err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+						CommandUUID:   target.cmdUUID,
+						HostUUID:      hostUUID,
+						Status:        &fleet.MDMDeliveryFailed,
+						Detail:        fleet.HostEndUserEmailIDPVariableReplacementFailedError,
+						OperationType: fleet.MDMOperationTypeInstall,
+					})
+					if err != nil {
+						return false, err
+					}
 					return false, nil
 				}
-				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = email
+				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = *foundEmail
+				email = *foundEmail
 			}
-			*item = replaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, *item, email)
+			*item = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, *item, email)
 		case string(fleet.FleetVarHostHardwareSerial):
 			hardwareSerial, ok := caVarsCache[string(fleet.FleetVarHostHardwareSerial)]
 			if !ok {
@@ -5647,7 +5652,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 				}
 				caVarsCache[string(fleet.FleetVarHostHardwareSerial)] = hardwareSerial
 			}
-			*item = replaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, *item, hardwareSerial)
+			*item = profiles.ReplaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, *item, hardwareSerial)
 		default:
 			// We should not reach this since we validated the variables when saving app config
 		}
@@ -5771,33 +5776,6 @@ func getEmailLocalPart(email string) string {
 	// return the string unchanged.
 	local, _, _ := strings.Cut(email, "@")
 	return local
-}
-
-func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
-	// Insert the end user email IDP into the profile contents
-	emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
-	if err != nil {
-		// This is a server error, so we exit.
-		return "", false, ctxerr.Wrap(ctx, err, "getting host emails")
-	}
-	if len(emails) == 0 {
-		// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
-		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-			CommandUUID: target.cmdUUID,
-			HostUUID:    hostUUID,
-			Status:      &fleet.MDMDeliveryFailed,
-			Detail: fmt.Sprintf("There is no IdP email for this host. "+
-				"Fleet couldn't populate $FLEET_VAR_%s. "+
-				"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
-				fleet.FleetVarHostEndUserEmailIDP),
-			OperationType: fleet.MDMOperationTypeInstall,
-		})
-		if err != nil {
-			return "", false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user email IdP")
-		}
-		return "", false, nil
-	}
-	return emails[0], true, nil
 }
 
 func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
@@ -6098,37 +6076,6 @@ func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
 	return cs, !alreadyPresent
 }
 
-func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
-	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
-	userEnrollmentsToHostUUIDsMap map[string]string,
-	existingCustomSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
-) (bool, error) {
-	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
-	}
-	if _, ok := existingCustomSCEPCAs[caName]; ok {
-		return true, nil
-	}
-	configured := false
-	var scepCA *fleet.CustomSCEPProxyCA
-	if len(groupedCAs.CustomScepProxy) > 0 {
-		for _, ca := range groupedCAs.CustomScepProxy {
-			if ca.Name == caName {
-				scepCA = &ca
-				configured = true
-				break
-			}
-		}
-	}
-	if !configured || scepCA == nil {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
-			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
-	}
-
-	existingCustomSCEPCAs[caName] = scepCA
-	return true, nil
-}
-
 type smallstepVarsFound struct {
 	urlCA          map[string]struct{}
 	challengeCA    map[string]struct{}
@@ -6310,33 +6257,6 @@ func markProfilesFailed(
 		return false, ctxerr.Wrap(ctx, err, "marking host profiles failed")
 	}
 	return false, nil
-}
-
-func replaceFleetVariableInXML(regExp *regexp.Regexp, contents string, replacement string) string {
-	// Escape XML characters since this replacement is intended for XML profile.
-	b := make([]byte, 0, len(replacement))
-	buf := bytes.NewBuffer(b)
-	// error is always nil for Buffer.Write method, so we ignore it
-	_ = xml.EscapeText(buf, []byte(replacement))
-	return regExp.ReplaceAllLiteralString(contents, buf.String())
-}
-
-func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) (string, error) {
-	// Escape XML characters since this replacement is intended for XML profile.
-	b := make([]byte, 0, len(replacement))
-	buf := bytes.NewBuffer(b)
-	// error is always nil for Buffer.Write method, so we ignore it
-	_ = xml.EscapeText(buf, []byte(replacement))
-
-	// We are replacing an exact variable, which should be present in XML like: <something>$FLEET_VAR_OUR_VAR</something>
-	// We strip the leading/trailing whitespace since we don't want them to remain in XML
-	// Our plist parser ignores spaces in <data> type. We don't catch this issue at profile validation, so we handle it here.
-	fleetVar := "FLEET_VAR_" + prefix + suffix
-	re, err := regexp.Compile(fmt.Sprintf(`>\s*((\$%s)|(\${%s}))\s*<`, fleetVar, fleetVar))
-	if err != nil {
-		return "", err
-	}
-	return re.ReplaceAllLiteralString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
 }
 
 // scepCertRenewalThresholdDays defines the number of days before a SCEP

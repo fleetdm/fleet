@@ -1587,6 +1587,8 @@ type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.Ce
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
+type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3933,6 +3935,9 @@ type DataStore struct {
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
+
+	UpdateOrDeleteHostMDMWindowsProfileFunc        UpdateOrDeleteHostMDMWindowsProfileFunc
+	UpdateOrDeleteHostMDMWindowsProfileFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -9409,4 +9414,11 @@ func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	s.GetCurrentTimeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCurrentTimeFunc(ctx)
+}
+
+func (s *DataStore) UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
+	s.mu.Lock()
+	s.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateOrDeleteHostMDMWindowsProfileFunc(ctx, profile)
 }

@@ -2453,6 +2453,8 @@ type Datastore interface {
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
+
+	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
 }
 
 type AndroidDatastore interface {
