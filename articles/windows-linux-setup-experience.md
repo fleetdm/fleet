@@ -27,7 +27,7 @@ To replace the Fleet logo with your organization's logo:
 To pick which software is installed during the setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **3. Install software**.
-2. Click on the tab corresponding to the operating system you're configuring, either **macOS**, **Windows** or **Linux**.
+2. Click on the tab corresponding to the operating system you're configuring: either **macOS**, **Windows**, or **Linux**.
 3. Click **Add software**, then select or search for the software you want installed during the setup experience.
 4. Press **Save** to save your selection.
 
