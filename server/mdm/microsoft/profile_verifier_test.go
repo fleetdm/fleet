@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
@@ -65,7 +66,7 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		uniqueHash  string
 	}
 	got := []wantStruct{}
-	err := LoopOverExpectedHostProfiles(ctx, ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := LoopOverExpectedHostProfiles(ctx, log.NewNopLogger(), ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		got = append(got, wantStruct{
 			locURI:      locURI,
 			data:        data,
@@ -821,7 +822,16 @@ type hostProfile struct {
 	RetryCount  uint
 }
 
-func TestPreprocessWindowsProfileContents(t *testing.T) {
+func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
+	ds := new(mock.Store)
+
+	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID, source string) ([]string, error) {
+		if source == fleet.DeviceMappingMDMIdpAccounts && strings.Contains(hostUUID, "end-user-email") {
+			return []string{"test@idp.com"}, nil
+		}
+		return nil, nil
+	}
+
 	tests := []struct {
 		name             string
 		hostUUID         string
@@ -882,12 +892,218 @@ func TestPreprocessWindowsProfileContents(t *testing.T) {
 			profileContents:  `<Replace><Data>ID1: $FLEET_VAR_HOST_UUID, ID2: ${FLEET_VAR_HOST_UUID}</Data></Replace>`,
 			expectedContents: `<Replace><Data>ID1: test-host-1234-uuid, ID2: test-host-1234-uuid</Data></Replace>`,
 		},
+		{
+			name:             "fleet variable with db access",
+			hostUUID:         "test-host-end-user-email",
+			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, Other: $FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID: test-host-end-user-email, Other: test@idp.com</Data></Replace>`,
+		},
+		{
+			name:             "skips scep windows id var",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, SCEP: $FLEET_VAR_HOST_SCEP_WINDOWS_ID</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID: test-host-1234-uuid, SCEP: $FLEET_VAR_HOST_SCEP_WINDOWS_ID</Data></Replace>`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PreprocessWindowsProfileContents(tt.hostUUID, tt.profileContents)
+			result := PreprocessWindowsProfileContentsForVerification(t.Context(), log.NewNopLogger(), ds, tt.hostUUID, uuid.NewString(), tt.profileContents)
 			require.Equal(t, tt.expectedContents, result)
+		})
+	}
+}
+
+// TODO: Add test for Deployment preprocessing.
+func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
+	ds := new(mock.Store)
+
+	baseSetup := func() {
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID, source string) ([]string, error) {
+			if source == fleet.DeviceMappingMDMIdpAccounts && strings.Contains(hostUUID, "end-user-email") {
+				return []string{"test@idp.com"}, nil
+			}
+			return nil, nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			if ds.GetAllCertificateAuthoritiesFunc == nil {
+				return &fleet.GroupedCertificateAuthorities{
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{},
+				}, nil
+			}
+
+			cas, err := ds.GetAllCertificateAuthoritiesFunc(ctx, includeSecrets)
+			if err != nil {
+				return nil, err
+			}
+
+			return fleet.GroupCertificateAuthoritiesByType(cas)
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://test-fleet.com",
+				},
+			}, nil
+		}
+	}
+
+	// use the same uuid for all profile UUID actions
+	profileUUID := uuid.NewString()
+
+	tests := []struct {
+		name             string
+		hostUUID         string
+		hostCmdUUID      string
+		profileContents  string
+		expectedContents string
+		expectError      bool
+		processingError  string // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
+		setup            func() // Used for setting up datastore mocks.
+		freeTier         bool
+	}{
+		{
+			name:             "no fleet variables",
+			hostUUID:         "test-uuid-123",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+		},
+		{
+			name:             "host uuid fleet variable",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-456</Data></Item></Replace>`,
+		},
+		{
+			name:             "host end user email idp",
+			hostUUID:         "test-uuid-end-user-email",
+			profileContents:  `<Replace><Data>Email: $FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data></Replace>`,
+			expectedContents: `<Replace><Data>Email: test@idp.com</Data></Replace>`,
+		},
+		{
+			name:             "scep windows certificate id",
+			hostUUID:         "test-host-1234-uuid",
+			hostCmdUUID:      "cmd-uuid-5678",
+			profileContents:  `<Replace><Data>SCEP: $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data></Replace>`,
+			expectedContents: `<Replace><Data>SCEP: cmd-uuid-5678</Data></Replace>`,
+		},
+		{
+			name:            "custom scep proxy url not usable in free tier",
+			hostUUID:        "test-host-1234-uuid",
+			hostCmdUUID:     "cmd-uuid-5678",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Custom SCEP integration requires a Fleet Premium license.",
+			freeTier:        true,
+		},
+		{
+			name:            "custom scep proxy url ca not found",
+			hostUUID:        "test-host-1234-uuid",
+			hostCmdUUID:     "cmd-uuid-5678",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Fleet couldn't populate $CUSTOM_SCEP_PROXY_URL_CERTIFICATE because CERTIFICATE certificate authority doesn't exist.",
+		},
+		{
+			name:             "custom scep proxy url ca found and replaced",
+			hostUUID:         "test-host-1234-uuid",
+			hostCmdUUID:      "cmd-uuid-5678",
+			profileContents:  `<Replace><Data>     $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
+			expectedContents: `<Replace><Data>https://test-fleet.com/mdm/scep/proxy/test-host-1234-uuid%2C` + profileUUID + `%2CCERTIFICATE%2Csupersecret</Data></Replace>`,
+			setup: func() {
+				ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+					return []*fleet.CertificateAuthority{
+						{
+							ID:        1,
+							Name:      ptr.String("CERTIFICATE"),
+							Type:      string(fleet.CATypeCustomSCEPProxy),
+							URL:       ptr.String("https://scep.proxy.url/scep"),
+							Challenge: ptr.String("supersecret"),
+						},
+					}, nil
+				}
+				ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+					return "supersecret", nil
+				}
+			},
+		},
+		{
+			name:            "custom scep challenge not usable in free tier",
+			hostUUID:        "test-host-1234-uuid",
+			hostCmdUUID:     "cmd-uuid-5678",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Custom SCEP integration requires a Fleet Premium license.",
+			freeTier:        true,
+		},
+		{
+			name:            "custom scep proxy challenge ca not found",
+			hostUUID:        "test-host-1234-uuid",
+			hostCmdUUID:     "cmd-uuid-5678",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Fleet couldn't populate $CUSTOM_SCEP_CHALLENGE_CERTIFICATE because CERTIFICATE certificate authority doesn't exist.",
+		},
+		{
+			name:             "custom scep proxy challenge ca found and replaced",
+			hostUUID:         "test-host-1234-uuid",
+			hostCmdUUID:      "cmd-uuid-5678",
+			profileContents:  `<Replace><Data>     $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectedContents: `<Replace><Data>supersecret</Data></Replace>`,
+			setup: func() {
+				ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+					return []*fleet.CertificateAuthority{
+						{
+							ID:        1,
+							Name:      ptr.String("CERTIFICATE"),
+							Type:      string(fleet.CATypeCustomSCEPProxy),
+							URL:       ptr.String("https://scep.proxy.url/scep"),
+							Challenge: ptr.String("supersecret"),
+						},
+					}, nil
+				}
+				ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+					return "supersecret", nil
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			baseSetup()
+			if tt.setup != nil {
+				tt.setup()
+			}
+			t.Cleanup(func() {
+				ds = new(mock.Store) // Reset the mock datastore after each test, to avoid overlapping setups.
+			})
+
+			licenseInfo := &fleet.LicenseInfo{
+				Tier: fleet.TierPremium,
+			}
+			if tt.freeTier {
+				licenseInfo.Tier = fleet.TierFree
+			}
+			ctx := license.NewContext(t.Context(), licenseInfo)
+
+			// Populate this one, in setup by mocking ds.GetAllCertificateAuthoritiesFunc if needed.
+			groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+			require.NoError(t, err)
+
+			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents)
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.processingError != "" {
+					var processingErr *MicrosoftProfileProcessingError
+					require.ErrorAs(t, err, &processingErr, "expected ProfileProcessingError")
+					require.Equal(t, tt.processingError, processingErr.Error())
+				}
+				return // do not verify profile contents if an error is expected
+			}
+
+			require.Equal(t, tt.expectedContents, result)
+			require.NoError(t, err)
 		})
 	}
 }
