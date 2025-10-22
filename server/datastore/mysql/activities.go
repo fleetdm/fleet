@@ -443,8 +443,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.created_at AS created_at,
 			JSON_OBJECT(
 				'host_id', ua.host_id,
-				'host_display_name', hdn.display_name,
-				'software_title', st.name,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'software_title', COALESCE(st.name, ''),
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
@@ -481,8 +481,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.created_at AS created_at,
 			JSON_OBJECT(
 				'host_id', ua.host_id,
-				'host_display_name', hdn.display_name,
-				'software_title', st.name,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'software_title', COALESCE(st.name, ''),
 				'command_uuid', ua.execution_id,
 				'self_service', false,
 				'status', 'pending_install'
