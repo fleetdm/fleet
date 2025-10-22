@@ -108,9 +108,12 @@ Use the Winget ingester. You will author:
 - An input JSON in `ee/maintained-apps/inputs/winget/`
 - Optional PowerShell scripts in `ee/maintained-apps/inputs/winget/scripts/`
 
-Can I do this on macOS?
-- Yes. You can author Windows inputs and run the generator on macOS. The ingester is Go code that fetches data from winget/GitHub and works cross‑platform.
+### Can I do this on macOS?
+
+The instructions below are meant to be run on a Windows host. But, you can most of this on a macOS host, as well:
+- You can author Windows inputs and run the generator on macOS. The ingester is Go code that fetches data from winget/GitHub and works cross‑platform.
 - To find a Winget PackageIdentifier without a Windows host, browse the winget-pkgs repo: https://github.com/microsoft/winget-pkgs (search for your app’s manifests).
+- To find the PackageName and Publisher, you can look in the locale and installer yaml files in the winget-pkgs repo.
 - Validation and testing still require a Windows host (to verify programs.name and to run install/uninstall).
 
 ### Step 1: Find the Winget PackageIdentifier
