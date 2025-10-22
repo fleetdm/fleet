@@ -5122,6 +5122,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	for _, detail := range hostDetails {
 		require.NotZero(t, detail.ID)
 		require.NotEmpty(t, detail.DisplayName)
+		require.Equal(t, hostExpiryWindow, detail.HostExpiryWindow)
 		// Serial may be empty for some hosts
 	}
 

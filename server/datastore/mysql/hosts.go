@@ -3506,7 +3506,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	return policies, nil
 }
 
-func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHostDetails, error) {
+func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 	ac, err := appConfigDB(ctx, ds.reader(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
@@ -3560,6 +3560,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHo
 			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)`
 
 	var allIdsToDelete []uint
+	hostIDToExpiryWindow := make(map[uint]int)
 	// Process hosts using global expiry
 	if ac.HostExpirySettings.HostExpiryEnabled {
 		sqlQuery := findHostsSql + " AND (team_id IS NULL"
@@ -3572,15 +3573,20 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHo
 			}
 		}
 		sqlQuery += ")"
+		var globalIDs []uint
 		err = ds.writer(ctx).SelectContext(
 			ctx,
-			&allIdsToDelete,
+			&globalIDs,
 			sqlQuery,
 			args...,
 		)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting global expired hosts")
 		}
+		for _, id := range globalIDs {
+			hostIDToExpiryWindow[id] = ac.HostExpirySettings.HostExpiryWindow
+		}
+		allIdsToDelete = append(allIdsToDelete, globalIDs...)
 	}
 
 	// Process hosts using team expiry
@@ -3596,6 +3602,9 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHo
 		)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team expired hosts")
+		}
+		for _, id := range ids {
+			hostIDToExpiryWindow[id] = expiry
 		}
 		allIdsToDelete = append(allIdsToDelete, ids...)
 	}
@@ -3628,12 +3637,13 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHo
 	}
 
 	// Return host details for activity creation
-	hostDetails := make([]fleet.ExpiredHostDetails, len(hostsToDelete))
+	hostDetails := make([]fleet.DeletedHostDetails, len(hostsToDelete))
 	for i, host := range hostsToDelete {
-		hostDetails[i] = fleet.ExpiredHostDetails{
-			ID:          host.ID,
-			DisplayName: host.DisplayName(),
-			Serial:      host.HardwareSerial,
+		hostDetails[i] = fleet.DeletedHostDetails{
+			ID:               host.ID,
+			DisplayName:      host.DisplayName(),
+			Serial:           host.HardwareSerial,
+			HostExpiryWindow: hostIDToExpiryWindow[host.ID],
 		}
 	}
 

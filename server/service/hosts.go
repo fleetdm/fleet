@@ -861,7 +861,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHostDetails, error) {
+func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 	// Call datastore to get expired hosts and their details
 	hostDetails, err := svc.ds.CleanupExpiredHosts(ctx)
 	if err != nil {
@@ -874,10 +874,11 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHos
 			ctx,
 			nil, // Fleet automation user
 			fleet.ActivityTypeDeletedHost{
-				HostID:          hostDetail.ID,
-				HostDisplayName: hostDetail.DisplayName,
-				HostSerial:      hostDetail.Serial,
-				TriggeredBy:     "expiration",
+				HostID:           hostDetail.ID,
+				HostDisplayName:  hostDetail.DisplayName,
+				HostSerial:       hostDetail.Serial,
+				TriggeredBy:      "expiration",
+				HostExpiryWindow: &hostDetail.HostExpiryWindow,
 			},
 		); err != nil {
 			return nil, err

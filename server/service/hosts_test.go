@@ -1232,34 +1232,87 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 	}
 }
 
-func TestCleanupExpiredHostsCreatesActivities(t *testing.T) {
+func TestCleanupExpiredHostsActivities(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	// Enable host expiry
+	// Set global host expiry
+	const globalExpiryWindow = 10
+	const team1ExpiryWindow = 5
+	const team2ExpiryWindow = 15
+
 	ac, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
 	ac.HostExpirySettings.HostExpiryEnabled = true
-	ac.HostExpirySettings.HostExpiryWindow = 1 // 1 day expiry window
+	ac.HostExpirySettings.HostExpiryWindow = globalExpiryWindow
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 
-	// Create hosts that are expired (seen time > 1 day ago)
-	mockClock := clock.NewMockClock()
-	expiredTime := mockClock.Now().Add(-2 * 24 * time.Hour)
+	// Create Team 1 with custom expiry window
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team1.Config.HostExpirySettings.HostExpiryEnabled = true
+	team1.Config.HostExpirySettings.HostExpiryWindow = team1ExpiryWindow
+	_, err = ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
 
-	host1 := test.NewHost(t, ds, "expired1", "192.168.1.10", "1", "1", expiredTime)
-	host1.HardwareSerial = "EXP_SERIAL1"
-	host1.ComputerName = "Expired Computer 1"
+	// Create Team 2 with different custom expiry window
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	team2.Config.HostExpirySettings.HostExpiryEnabled = true
+	team2.Config.HostExpirySettings.HostExpiryWindow = team2ExpiryWindow
+	_, err = ds.SaveTeam(ctx, team2)
+	require.NoError(t, err)
+
+	// Create Team 3 that uses global expiry (no custom setting)
+	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+	// team3 does not have custom host expiry settings, so it uses global
+
+	mockClock := clock.NewMockClock()
+
+	// Create expired hosts for Team 1 (use team1ExpiryWindow)
+	team1ExpiredTime := mockClock.Now().Add(-time.Duration(team1ExpiryWindow+1) * 24 * time.Hour)
+	host1 := test.NewHost(t, ds, "team1-host1", "192.168.1.10", "1", "1", team1ExpiredTime)
+	host1.HardwareSerial = "TEAM1_SERIAL1"
+	host1.ComputerName = "Team 1 Computer 1"
+	host1.TeamID = &team1.ID
 	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
 
-	host2 := test.NewHost(t, ds, "expired2", "192.168.1.11", "2", "2", expiredTime)
-	host2.HardwareSerial = "EXP_SERIAL2"
-	host2.ComputerName = "Expired Computer 2"
+	host2 := test.NewHost(t, ds, "team1-host2", "192.168.1.11", "2", "2", team1ExpiredTime)
+	host2.HardwareSerial = "TEAM1_SERIAL2"
+	host2.ComputerName = "Team 1 Computer 2"
+	host2.TeamID = &team1.ID
 	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+
+	// Create expired host for Team 2 (use team2ExpiryWindow)
+	team2ExpiredTime := mockClock.Now().Add(-time.Duration(team2ExpiryWindow+1) * 24 * time.Hour)
+	host3 := test.NewHost(t, ds, "team2-host1", "192.168.1.12", "3", "3", team2ExpiredTime)
+	host3.HardwareSerial = "TEAM2_SERIAL1"
+	host3.ComputerName = "Team 2 Computer 1"
+	host3.TeamID = &team2.ID
+	err = ds.UpdateHost(ctx, host3)
+	require.NoError(t, err)
+
+	// Create expired host for Team 3 (uses global expiry)
+	globalExpiredTime := mockClock.Now().Add(-time.Duration(globalExpiryWindow+1) * 24 * time.Hour)
+	host4 := test.NewHost(t, ds, "team3-host1", "192.168.1.13", "4", "4", globalExpiredTime)
+	host4.HardwareSerial = "TEAM3_SERIAL1"
+	host4.ComputerName = "Team 3 Computer 1"
+	host4.TeamID = &team3.ID
+	err = ds.UpdateHost(ctx, host4)
+	require.NoError(t, err)
+
+	// Create expired host with no team (uses global expiry)
+	host5 := test.NewHost(t, ds, "no-team-host", "192.168.1.14", "5", "5", globalExpiredTime)
+	host5.HardwareSerial = "NOTEAM_SERIAL1"
+	host5.ComputerName = "No Team Computer 1"
+	host5.TeamID = nil
+	err = ds.UpdateHost(ctx, host5)
 	require.NoError(t, err)
 
 	// Get activities before cleanup
@@ -1269,32 +1322,30 @@ func TestCleanupExpiredHostsCreatesActivities(t *testing.T) {
 	// Run the cleanup service method
 	deletedHosts, err := svc.CleanupExpiredHosts(ctx)
 	require.NoError(t, err)
-	require.Len(t, deletedHosts, 2)
-
-	// Extract IDs from the result
-	deletedIDs := make([]uint, len(deletedHosts))
-	for i, host := range deletedHosts {
-		deletedIDs[i] = host.ID
-	}
-	require.Contains(t, deletedIDs, host1.ID)
-	require.Contains(t, deletedIDs, host2.ID)
+	require.Len(t, deletedHosts, 5, "Should have deleted 5 hosts")
 
 	// Verify activities were created
 	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "id",
 			OrderDirection: fleet.OrderDescending,
-			PerPage:        10,
+			PerPage:        20,
 		},
 	})
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(activities), 2)
-	require.Greater(t, len(activities), len(prevActivities)-1)
+	require.Greater(t, len(activities), len(prevActivities), "Should have new activities")
 
-	// Check the activities
-	foundHost1 := false
-	foundHost2 := false
+	// Collect all deleted host activities
+	type hostActivity struct {
+		hostID       uint
+		displayName  string
+		serial       string
+		expiryWindow int
+	}
+
+	deletedHostActivities := []hostActivity{}
 	expectedActivityType := fleet.ActivityTypeDeletedHost{}.ActivityName()
+
 	for _, activity := range activities {
 		if activity.Type != expectedActivityType {
 			continue
@@ -1304,21 +1355,47 @@ func TestCleanupExpiredHostsCreatesActivities(t *testing.T) {
 		var details fleet.ActivityTypeDeletedHost
 		err = json.Unmarshal(*activity.Details, &details)
 		require.NoError(t, err)
-		require.Equal(t, "expiration", details.TriggeredBy)
 
-		if details.HostID == host1.ID {
-			foundHost1 = true
-			require.Equal(t, "Expired Computer 1", details.HostDisplayName)
-			require.Equal(t, "EXP_SERIAL1", details.HostSerial)
-		} else if details.HostID == host2.ID {
-			foundHost2 = true
-			require.Equal(t, "Expired Computer 2", details.HostDisplayName)
-			require.Equal(t, "EXP_SERIAL2", details.HostSerial)
+		if details.TriggeredBy == "expiration" {
+			require.NotNil(t, details.HostExpiryWindow, "HostExpiryWindow should be set for expired hosts")
+			deletedHostActivities = append(deletedHostActivities, hostActivity{
+				hostID:       details.HostID,
+				displayName:  details.HostDisplayName,
+				serial:       details.HostSerial,
+				expiryWindow: *details.HostExpiryWindow,
+			})
 		}
 	}
 
-	require.True(t, foundHost1, "Activity for host1 not found")
-	require.True(t, foundHost2, "Activity for host2 not found")
+	require.Len(t, deletedHostActivities, 5, "Should have 5 deleted host activities")
+
+	// Verify each host has the correct expiry window
+	for _, ha := range deletedHostActivities {
+		switch ha.hostID {
+		case host1.ID:
+			require.Equal(t, "Team 1 Computer 1", ha.displayName)
+			require.Equal(t, "TEAM1_SERIAL1", ha.serial)
+			require.Equal(t, team1ExpiryWindow, ha.expiryWindow, "Team 1 host should have team1 expiry window")
+		case host2.ID:
+			require.Equal(t, "Team 1 Computer 2", ha.displayName)
+			require.Equal(t, "TEAM1_SERIAL2", ha.serial)
+			require.Equal(t, team1ExpiryWindow, ha.expiryWindow, "Team 1 host should have team1 expiry window")
+		case host3.ID:
+			require.Equal(t, "Team 2 Computer 1", ha.displayName)
+			require.Equal(t, "TEAM2_SERIAL1", ha.serial)
+			require.Equal(t, team2ExpiryWindow, ha.expiryWindow, "Team 2 host should have team2 expiry window")
+		case host4.ID:
+			require.Equal(t, "Team 3 Computer 1", ha.displayName)
+			require.Equal(t, "TEAM3_SERIAL1", ha.serial)
+			require.Equal(t, globalExpiryWindow, ha.expiryWindow, "Team 3 host should use global expiry window")
+		case host5.ID:
+			require.Equal(t, "No Team Computer 1", ha.displayName)
+			require.Equal(t, "NOTEAM_SERIAL1", ha.serial)
+			require.Equal(t, globalExpiryWindow, ha.expiryWindow, "No team host should use global expiry window")
+		default:
+			t.Fatalf("Unexpected host ID in activities: %d", ha.hostID)
+		}
+	}
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {

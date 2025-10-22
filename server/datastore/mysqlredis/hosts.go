@@ -164,7 +164,7 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return err
 }
 
-func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.ExpiredHostDetails, error) {
+func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 	details, err := d.Datastore.CleanupExpiredHosts(ctx)
 	if err == nil && d.enforceHostLimit > 0 {
 		// Extract IDs from details for redis cleanup

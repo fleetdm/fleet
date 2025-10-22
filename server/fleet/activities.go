@@ -833,10 +833,11 @@ func (a ActivityTypeDeletedUser) Documentation() (activity string, details strin
 }
 
 type ActivityTypeDeletedHost struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	HostSerial      string `json:"host_serial"`
-	TriggeredBy     string `json:"triggered_by"`
+	HostID           uint   `json:"host_id"`
+	HostDisplayName  string `json:"host_display_name"`
+	HostSerial       string `json:"host_serial"`
+	TriggeredBy      string `json:"triggered_by"`
+	HostExpiryWindow *int   `json:"host_expiry_window,omitempty"`
 }
 
 func (a ActivityTypeDeletedHost) ActivityName() string {
@@ -853,11 +854,13 @@ func (a ActivityTypeDeletedHost) Documentation() (activity string, details strin
 - "host_id": Unique ID of the deleted host in Fleet.
 - "host_display_name": Display name of the deleted host.
 - "host_serial": Hardware serial number of the deleted host.
-- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.`, `{
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days the host was allowed to be inactive before expiration. Only present for deletions triggered by expiration.`, `{
 	"host_id": 42,
 	"host_display_name": "SEBASTIAN-WINDOWS",
 	"host_serial": "ABC123",
-	"triggered_by": "manual"
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
 }`
 }
 
