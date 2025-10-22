@@ -4142,7 +4142,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 		// We run this check here as we only want to run it on re-check ins for deleted hosts.
 		if (platform == "ios" || platform == "ipados") && isLostModeEnabled {
-			fmt.Println("===lost mode enabled on iPhone/iPad, checking for lock command record", host.UUID)
 			cmd, err := svc.ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "check for existing EnableLostMode command")
@@ -5558,7 +5557,6 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 		switch caVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP):
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
-			fmt.Println("===REPLACING HOST_END_USER_EMAIL_IDP FLEET VAR", ok, email, *item)
 			if !ok {
 				var err error
 				foundEmail, err := fleet.GetFirstIDPEmail(ctx, ds, hostUUID)
