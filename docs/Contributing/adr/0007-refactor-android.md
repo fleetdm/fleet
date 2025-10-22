@@ -16,13 +16,18 @@ In June 2025, we decided in [ADR-0001: Pilot splitting service layer into separa
 
 Several aspects of the Android module work well, and should be kept and iterated upon:
 
-- tk
+- Having a separate Android module provides a good developer experience (DX) in that it:
+  - means most implementation work can take place within the module
+  - test-dev-test iterations are fast
+  - ...
+- 
 
 ### What doesn't work well
 
 Some aspects of the Android module don't work well, and should be revisited:
 
-- tk
+- Though modularity is desirable, making the codebase modular along platform lines doesn't align with the product's goal of a single API approach for features across all platforms. This causes integration challenges and makes it difficult to maintain the codebase.
+- 
 
 ## Decision
 
