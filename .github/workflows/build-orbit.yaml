@@ -63,7 +63,9 @@ jobs:
 
       - name: Install rcodesign
         run: |
-          brew install rcodesign
+          # Install rcodesign via cargo (Rust package manager)
+          brew install rust
+          cargo install apple-codesign
 
       - name: Build, codesign and notarize orbit
         run: go run ./orbit/tools/build/build.go
