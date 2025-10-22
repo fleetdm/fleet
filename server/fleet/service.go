@@ -387,13 +387,10 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
-	// SetCustomHostDeviceMapping sets the custom email address associated with
-	// the host, which is either set by the fleetd installer at startup (via a
-	// device-authenticated API), or manually by the user (via the
-	// user-authenticated API).
-	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
-	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
-	// The identifier string will be matched against the Hostname, OsqueryHostID, NodeKey, UUID and HardwareSerial fields.
+	// SetHostDeviceMapping sets the email address associated with the host.
+	// The source parameter determines the type: "custom" for manually set
+	// mappings or DeviceMappingIDP for identity provider mappings.
+	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)

@@ -45,16 +45,6 @@ export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
     return HttpResponse.json(response);
   });
 
-export const defaultDeviceMappingHandler = http.get(
-  baseUrl("/device/:token/device_mapping"),
-  () => {
-    return HttpResponse.json({
-      device_mapping: [createMockDeviceUser()],
-      host_id: 1,
-    });
-  }
-);
-
 export const defaultMacAdminsHandler = http.get(
   baseUrl("/device/:token/macadmins"),
   () => {
