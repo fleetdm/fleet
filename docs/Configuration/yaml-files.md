@@ -70,8 +70,8 @@ labels:
     description: Hosts belonging to the C-Suite
     label_membership_type: manual
     hosts:
-      - "ceo-laptop"
-      - "the-CFOs-computer"
+      - "IR7M6ZGQJM"
+      - "JMFWY8VZ09"
   - name: Engineering department
     description: Hosts used by engineers
     label_membership_type: host_vitals
@@ -93,8 +93,8 @@ labels:
   description: Hosts belonging to the C-Suite
   label_membership_type: manual
   hosts:
-    - "ceo-laptop"
-    - "the-CFOs-computer"
+      - "IR7M6ZGQJM"
+      - "JMFWY8VZ09"
   - name: Engineering department
     description: Hosts used by engineers
     label_membership_type: host_vitals

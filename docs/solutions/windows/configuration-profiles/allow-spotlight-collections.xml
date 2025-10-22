@@ -1,0 +1,12 @@
+<Replace>
+  <CmdID>019a01c6-9e1e-7e70-9c72-21151773f075</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowSpotlightCollection</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
