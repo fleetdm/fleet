@@ -5566,13 +5566,10 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 				if foundEmail == nil {
 					// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
 					err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-						CommandUUID: target.cmdUUID,
-						HostUUID:    hostUUID,
-						Status:      &fleet.MDMDeliveryFailed,
-						Detail: fmt.Sprintf("There is no IdP email for this host. "+
-							"Fleet couldn't populate $FLEET_VAR_%s. "+
-							"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
-							fleet.FleetVarHostEndUserEmailIDP),
+						CommandUUID:   target.cmdUUID,
+						HostUUID:      hostUUID,
+						Status:        &fleet.MDMDeliveryFailed,
+						Detail:        fleet.HostEndUserEmailIDPVariableReplacementFailedError,
 						OperationType: fleet.MDMOperationTypeInstall,
 					})
 					if err != nil {
