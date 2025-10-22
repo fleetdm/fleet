@@ -177,6 +177,17 @@ Add setup experience software:
 3. Press **Save** to save your selection.
 
 To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
+#### Blocking setup on failed software installs
+
+You may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
+
+1. Click **Show advanced options** on the Install Software screen.
+2. Check the "Cancel setup if software install fails" checkbox.
+3. Press **Save**. 
+
+When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
+
+![screen shot of Fleet setup experience failed view](../website/assets/images/articles/setup-experience-failed-470x245@2x.png)
 
 ### Run script
 
@@ -187,6 +198,15 @@ To configure a script to run during setup experience:
 2. Click **Upload** and select a script (.sh file) from the file picker modal. 
 
 > Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
+
+### Exiting the setup experience
+
+The Fleet setup experience for macOS will exit if any of the following occurs:
+
+* All setup steps complete successfully.
+* All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
+* The user presses Command (⌘) + Shift + X at any time during the setup process.
+
 
 ## macOS Setup Assistant
 
