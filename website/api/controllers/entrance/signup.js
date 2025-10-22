@@ -36,12 +36,10 @@ the account verification message.)`,
     },
 
     organization: {
-      // required: true,
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
       description: 'The organization the user works for',
-      defaultsTo: '?',
     },
 
     firstName:  {
@@ -107,6 +105,11 @@ the account verification message.)`,
       throw 'invalidEmailDomain';
     }
 
+    // If organization was not provided (e.g., The user signed up with the signup modal), use their email domain as their organization.
+    if(!organization) {
+      organization = emailDomain;
+    }
+
 
     if (!sails.config.custom.enableBillingFeatures) {
       throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
@@ -139,6 +142,134 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+
+    // Enrich the information provided.
+    let enrichmentInformation = await sails.helpers.iq.getEnriched.with({
+      firstName,
+      lastName,
+      organization,
+      emailAddress: newEmailAddress,
+    }).tolerate((err)=>{
+      sails.log.warn(`When a new user signed up for an account, enrichment information could not be obtained with the information provided. Full error: ${require('util').inspect(err)}`);
+      return { employer: undefined, person: undefined};
+    });
+
+
+    let fleetPremiumTrialType = 'local-trial';
+    if(enrichmentInformation.employer) {
+      if(enrichmentInformation.employer.numberOfEmployees > 700){
+        fleetPremiumTrialType = 'render-trial';
+      }
+    }
+    // Test code to make the
+
+    let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
+    let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
+      numberOfHosts: 10,
+      organization: emailDomain,
+      expiresAt: thirtyDaysFromNowAt,
+    });
+
+    await User.updateOne({id: newUserRecord.id}).set({
+      fleetPremiumTrialLicenseKeyExpiresAt: thirtyDaysFromNowAt,
+      fleetPremiumTrialLicenseKey: trialLicenseKeyForThisUser,
+      fleetPremiumTrialType,
+    });
+
+
+
+    if(fleetPremiumTrialType === 'render-trial') {
+
+      // Since this user is eligable for a Render trial, we'll complete the setup process on the trial instance.
+
+      let renderInstancesThatCanBeAssignedToThisUser = await RenderProofOfValue.find({
+        where: {status: 'ready-for-assignment', user: null},
+        sort: 'createdAt DESC',
+      });
+
+      if(!renderInstancesThatCanBeAssignedToThisUser){
+        // TODO: what if there are no instances available?
+        // Option 1: We run a background helper at this point to provision them a Render instance, redirect them to the /try page after signup, where they have a message saying that their instance will be available in ~5 minutes.
+        // ^ We may need to do that last part even if there is an instance available. It takes ~1-2 minutes to apply the
+      } else {
+        let instanceToAssign = renderInstancesThatCanBeAssignedToThisUser[0];
+        // Configure this user's license key on their Fleet instance.
+        await sails.helpers.http.sendHttpRequest.with({
+          method: 'PUT',
+          url: `https://api.render.com/v1/services/${instanceToAssign.renderFleetServiceId}/env-vars/FLEET_LICENSE_KEY`,
+          body: {
+            key: 'FLEET_LICENSE_KEY',
+            value: trialLicenseKeyForThisUser
+          },
+          headers: {
+            authorization: `Bearer ${sails.config.custom.renderApiToken}`
+          },
+        });
+        await sails.helpers.http.sendHttpRequest.with({
+          method: 'PUT',
+          url: `https://api.render.com/v1/services/${instanceToAssign.renderFleetServiceId}/env-vars/FLEET_LICENSE_KEY`,
+          body: {
+            key: 'FLEET_LICENSE_KEY',
+            value: trialLicenseKeyForThisUser
+          },
+          headers: {
+            authorization: `Bearer ${sails.config.custom.renderApiToken}`
+          },
+        });
+
+        let startDeployResponse = await sails.helpers.http.sendHttpRequest.with({
+          method: 'POST',
+          url: `https://api.render.com/v1/services/${instanceToAssign.renderFleetServiceId}/deploys`,
+          headers: {
+            authorization: `Bearer ${sails.config.custom.renderApiToken}`
+          },
+        });
+
+        console.log(startDeployResponse);
+        let parsedResponseBody = JSON.parse(startDeployResponse.body);
+
+        await RenderProofOfValue.updateOne({id: instanceToAssign.id}).set({
+          renderTrialEndsAt: thirtyDaysFromNowAt,
+          renderBeforeFirstUseDeployId: parsedResponseBody.id,
+          user: newUserRecord.id,
+        });
+      }
+
+      await sails.helpers.sendTemplateEmail.with({
+        to: newEmailAddress,
+        from: sails.config.custom.fromEmailAddress,
+        fromName: sails.config.custom.fromName,
+        subject: 'Your Fleet trial is ready',
+        template: 'email-14-day-fleet-premium-trial-started',
+        layout: 'layout-nurture-email',
+        templateData: {
+          firstName,
+          emailAddress: newEmailAddress,
+        }
+      });
+
+    } else {
+
+      await sails.helpers.sendTemplateEmail.with({
+        to: newEmailAddress,
+        from: sails.config.custom.fromEmailAddress,
+        fromName: sails.config.custom.fromName,
+        subject: 'Your 30-day Fleet Premium trial key',
+        template: 'email-30-day-fleet-premium-trial-started',
+        layout: 'layout-nurture-email',
+        templateData: {
+          firstName,
+          emailAddress: newEmailAddress,
+        }
+      });
+
+
+    }
+
+
+
+
+
     let psychologicalStageChangeReason;
     if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
       let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
@@ -151,7 +282,7 @@ the account verification message.)`,
       emailAddress: newEmailAddress,
       firstName: firstName,
       lastName: lastName,
-      organization: organization,
+      organization: emailDomain,// TODO.
       contactSource: 'Website - Sign up',
       psychologicalStageChangeReason,
     }).exec((err)=>{
