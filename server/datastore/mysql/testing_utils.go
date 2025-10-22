@@ -263,9 +263,9 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 		func() {
 			// Stop replica
 			if out, err := exec.Command(
-				"docker", "compose", "exec", "-T", "mysql_replica_test",
+				"docker", "compose", "exec", "-T", testing_utils.TestDBReplicaService,
 				// Command run inside container
-				"mysql",
+				testing_utils.TestDBClient,
 				"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 				"-e",
 				"STOP REPLICA; RESET REPLICA ALL;",
@@ -303,29 +303,29 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 	setSourceStmt := fmt.Sprintf(`
 			CHANGE REPLICATION SOURCE TO
 				GET_SOURCE_PUBLIC_KEY=1,
-				SOURCE_HOST='mysql_test',
+				SOURCE_HOST='%s',
 				SOURCE_USER='%s',
 				SOURCE_PASSWORD='%s',
 				SOURCE_LOG_FILE='%s',
 				SOURCE_LOG_POS=%d
-		`, replicaUser, replicaPassword, ms.File, ms.Position)
+		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
 	if strings.HasPrefix(version, "8.0") {
 		setSourceStmt = fmt.Sprintf(`
 			CHANGE MASTER TO
 				GET_MASTER_PUBLIC_KEY=1,
-				MASTER_HOST='mysql_test',
+				MASTER_HOST='%s',
 				MASTER_USER='%s',
 				MASTER_PASSWORD='%s',
 				MASTER_LOG_FILE='%s',
 				MASTER_LOG_POS=%d
-		`, replicaUser, replicaPassword, ms.File, ms.Position)
+		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
 	}
 
 	// Configure replica and start replication
 	if out, err := exec.Command(
-		"docker", "compose", "exec", "-T", "mysql_replica_test",
+		"docker", "compose", "exec", "-T", testing_utils.TestDBReplicaService,
 		// Command run inside container
-		"mysql",
+		testing_utils.TestDBClient,
 		"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		"-e",
 		fmt.Sprintf(
@@ -362,7 +362,12 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 // test.
 func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
-	schemaPath := path.Join(path.Dir(filename), "schema.sql")
+	schemaFile := "schema.sql"
+	// Use MariaDB-compatible schema if using MariaDB
+	if testing_utils.TestDBClient == "mariadb" {
+		schemaFile = "schema-mariadb.sql"
+	}
+	schemaPath := path.Join(path.Dir(filename), schemaFile)
 	testing_utils.LoadSchema(t, testName, opts, schemaPath)
 	return connectMySQL(t, testName, opts)
 }

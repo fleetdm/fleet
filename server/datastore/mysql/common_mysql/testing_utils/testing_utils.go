@@ -23,7 +23,12 @@ const (
 	TestReplicaAddress        = "localhost:3310"
 )
 
-var TestAddress = getTestAddress()
+var (
+	TestAddress          = getTestAddress()
+	TestDBService        = getTestDBService()
+	TestDBReplicaService = getTestDBReplicaService()
+	TestDBClient         = getTestDBClient()
+)
 
 // getTestAddress returns the MySQL test server address from environment variable
 // FLEET_MYSQL_TEST_PORT or defaults to localhost:3307
@@ -32,6 +37,33 @@ func getTestAddress() string {
 		return "localhost:" + port
 	}
 	return "localhost:3307"
+}
+
+// getTestDBService returns the docker-compose service name for the test database
+// Defaults to "database_test" which can be MySQL or MariaDB depending on which compose file is used
+func getTestDBService() string {
+	if service := os.Getenv("FLEET_DB_SERVICE"); service != "" {
+		return service
+	}
+	return "database_test"
+}
+
+// getTestDBReplicaService returns the docker-compose service name for the test replica database
+// Defaults to "database_replica_test" which can be MySQL or MariaDB depending on which compose file is used
+func getTestDBReplicaService() string {
+	if service := os.Getenv("FLEET_DB_REPLICA_SERVICE"); service != "" {
+		return service
+	}
+	return "database_replica_test"
+}
+
+// getTestDBClient returns the database client command to use inside containers
+// Defaults to "mysql", for MariaDB, set FLEET_DB_CLIENT=mariadb
+func getTestDBClient() string {
+	if client := os.Getenv("FLEET_DB_CLIENT"); client != "" {
+		return client
+	}
+	return "mysql"
 }
 
 // TruncateTables truncates the specified tables, in order, using ds.writer.
@@ -129,9 +161,9 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 		)
 
 		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_test",
+			"docker", "compose", "exec", "-T", TestDBService,
 			// Command run inside container
-			"mysql",
+			TestDBClient,
 			"-u"+TestUsername, "-p"+TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)
@@ -150,9 +182,9 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 		)
 
 		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_replica_test",
+			"docker", "compose", "exec", "-T", TestDBReplicaService,
 			// Command run inside container
-			"mysql",
+			TestDBClient,
 			"-u"+TestUsername, "-p"+TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)

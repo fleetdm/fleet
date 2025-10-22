@@ -97,6 +97,9 @@ type Datastore struct {
 	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
 	// certificates and keys.
 	serverPrivateKey string
+
+	// SQL dialect helper for database-specific SQL generation
+	dialect *SQLDialect
 }
 
 // WithPusher sets an APNs pusher for the datastore, used when activating
@@ -267,9 +270,14 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
 		serverPrivateKey:    options.PrivateKey,
 		Datastore:           NewAndroidDatastore(options.Logger, dbWriter, dbReader),
+		dialect:             NewSQLDialect(dbWriter.DB),
 	}
 
 	go ds.writeChanLoop()
+
+	if dialect, version, err := DetectDialect(dbWriter.DB); err == nil {
+		level.Info(options.Logger).Log("msg", "detected database dialect", "dialect", dialect.String(), "version", version)
+	}
 
 	return ds, nil
 }

@@ -1,9 +1,9 @@
 ---
 services:
-  # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
-  # officially supported).
+  # Default database is MySQL 8.0
+  # To use MariaDB, run: docker compose -f docker-compose.yml -f docker-compose-mariadb.yml up
   # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
-  mysql:
+  database:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
@@ -28,7 +28,7 @@ services:
     ports:
       - "3306:3306"
 
-  mysql_test:
+  database_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
@@ -54,7 +54,7 @@ services:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
 
-  mysql_replica_test:
+  database_replica_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.

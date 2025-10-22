@@ -63,6 +63,7 @@ GROUP BY
 	st.source,
 	st.extension_for,
 	st.bundle_identifier,
+	st.application_id,
 	hosts_count,
 	vap.icon_url
 	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
@@ -441,6 +442,11 @@ WHERE
 	{{end}}
 GROUP BY
 	st.id
+	,st.name
+	,st.source
+	,st.extension_for
+	,st.bundle_identifier
+	,st.application_id
 	{{if hasTeamID .}}
 		,package_self_service
 		,package_name
@@ -543,7 +549,7 @@ LEFT JOIN software_cve scve ON shc.software_id = scve.software_id
 WHERE s.title_id IN (?)
 AND %s
 AND shc.hosts_count > 0
-GROUP BY s.id`
+GROUP BY s.id, s.title_id, s.version`
 
 	extraSelect := ""
 	if withCounts {

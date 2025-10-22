@@ -1,0 +1,58 @@
+---
+# Docker Compose override file for MariaDB support
+# Usage: docker compose -f docker-compose.yml -f docker-compose-mariadb.yml up
+services:
+  database:
+    image: mariadb:11.6
+    platform: linux/x86_64
+    volumes:
+      - mariadb-persistent-volume:/var/lib/mysql
+    command: [
+        "mariadbd",
+        "--datadir=/var/lib/mysql",
+        "--log-bin=bin.log",
+        "--server-id=1",
+        "--max_allowed_packet=536870912",
+      ]
+    environment: &mariadb-default-environment
+      MARIADB_ROOT_PASSWORD: toor
+      MARIADB_DATABASE: fleet
+      MARIADB_USER: fleet
+      MARIADB_PASSWORD: insecure
+
+  database_test:
+    image: mariadb:11.6
+    platform: linux/x86_64
+    command: [
+        "mariadbd",
+        "--datadir=/tmpfs",
+        "--slow_query_log=1",
+        "--log_output=TABLE",
+        "--log-queries-not-using-indexes",
+        "--innodb-file-per-table=OFF",
+        "--table-definition-cache=8192",
+        "--log-bin=bin.log",
+        "--server-id=1",
+        "--max_allowed_packet=536870912",
+      ]
+    environment: *mariadb-default-environment
+
+  database_replica_test:
+    image: mariadb:11.6
+    platform: linux/x86_64
+    command: [
+        "mariadbd",
+        "--datadir=/tmpfs",
+        "--slow_query_log=1",
+        "--log_output=TABLE",
+        "--log-queries-not-using-indexes",
+        "--innodb-file-per-table=OFF",
+        "--table-definition-cache=8192",
+        "--log-bin=bin.log",
+        "--server-id=2",
+        "--max_allowed_packet=536870912",
+      ]
+    environment: *mariadb-default-environment
+
+volumes:
+  mariadb-persistent-volume:
