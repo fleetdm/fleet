@@ -836,19 +836,31 @@ Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comm
 
 > In addition to design reviews, Fleeties or community members can provide feedback asynchronously at any time by finding the GitHub issue (user story) associated with the designs and @ mentioning the assigned Product Designer in the comment section.
 
-Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
+Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue. Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
 
-After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
+After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round. The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
+
+Contributors should use this meeting to discuss stories in the current sprint, and any questions outside of this should be discussed in Sync & solve meeting (except if it's a critical bug and it can't wait for the next Sync & solve).
+
+Contributors should discuss stories in the current sprint. Any questions outside of this should be addressed in the [Sync & Solve](sync-solve) meeting, unless it concerns a critical bug that cannot wait for the next Sync & Solve.
 
 Here are some tips for making this meeting effective:
 - Say the user story out loud to remind participants of what it is.
-- Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
+- Avoid explaining or showing multiple ways it could work. Show the one way you think it should work and let your work speak for itself.
 - Make clear whether we're in "final review" or "feedback" mode:
   - Final review: The contributor is 70% sure the design is 100% done.
   — Feedback: the design is not ready for final review, but the contributor would like to get early feedback.
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
+
+### Sync & Solve
+
+Sync & Solve are conducted semiweekly between [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces (UI/API/YAML) that are not related to a stories in current sprint, but related to bugs, or any other product questions. The goal is to unblock contributors, and keep Design reviews for new stories (features).
+
+Here are some examples for discussion in this meeting:
+- Product Designer need feedback on the solution specified for a bug.
+- Engineer need to discuss work that is in progress (current sprint).
 
 
 ### User story reviews
