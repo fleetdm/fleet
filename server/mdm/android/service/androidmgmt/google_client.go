@@ -300,14 +300,35 @@ func getLastPart(ctx context.Context, name string) (string, error) {
 }
 
 // TODO(JVE): implement
-// func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
-// 	if g == nil || g.mgmt == nil {
-// 		return nil, errors.New("android management service not initialized")
-// 	}
-// 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
-// 	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
-// 	}
-// 	return app, nil
-// }
+func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	fmt.Printf("looking for packageName: %v\n", packageName)
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
+	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
+	}
+	return app, nil
+}
+
+func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: []*androidmanagement.ApplicationPolicyChange{
+			{
+				Application: appPolicy,
+			},
+		},
+	}
+	ret, err := g.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		// TODO(JVE): does it make sense to return an error here?
+		return nil, err
+	case err != nil:
+		return nil, ctxerr.Wrapf(ctx, err, "modifying application policy %s", policyName)
+	}
+	return ret.Policy, nil
+}

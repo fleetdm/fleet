@@ -892,6 +892,7 @@ the way that the Fleet server works.
 					scepConfigMgr,
 					digiCertService,
 					hydrantService,
+					androidSvc,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")

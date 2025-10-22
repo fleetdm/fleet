@@ -855,3 +855,28 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	}
 	return nil
 }
+
+func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
+	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
+}
+
+func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string) error {
+
+	// TODO(JVE): do we need to increment this number? or is it always 1?
+	policyName := fmt.Sprintf("%s/policies/1", enterpriseName)
+
+	appPolicy := &androidmanagement.ApplicationPolicy{
+		PackageName:          applicationID,
+		InstallType:          "AVAILABLE",
+		ManagedConfiguration: googleapi.RawMessage(`{"systemConfig": {"passThroughCommand": "<wap-provisioningdoc><characteristic version=\"4.3\" type=\"DisplayMgr\"><parm name=\"TimeoutInterval\" value=\"1800\" \/><\/characteristic><\/wap-provisioningdoc>"}}`),
+	}
+
+	// TODO(JVE): do we need to bubble up the policy? I don't think so
+	_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -3,6 +3,8 @@ package android
 import (
 	"context"
 	"net/http"
+
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 type Service interface {
@@ -18,6 +20,9 @@ type Service interface {
 
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
+
+	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
+	AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string) error
 }
 
 // /////////////////////////////////////////////

@@ -395,25 +395,34 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		appID.SelfService = true
 		appID.AddAutoInstallPolicy = false
 
-		// TODO(JVE): Validate application ID with Android API
-		// androidApp, err := svc.androidAPIClient.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
-		// if err != nil {
-		// 	return 0, ctxerr.Wrap(ctx, err, "checking if application exists")
-		// }
-		// if androidApp == nil {
-		// } else {
-		// 	jsonBytes, _ := json.Marshal(androidApp)
-		// }
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "add app store app: get android enterprise")
+		}
+
+		// TODO(JVE): is it worth wrapping both of these operations in a single androidService method? they're technically just wrappers around a "datastore"
+		androidApp, err := svc.androidService.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "checking if application exists")
+		}
+		if androidApp == nil {
+			return 0, ctxerr.NewWithData(ctx, "app store app not found", map[string]any{"app_store_app_id": appID.AdamID})
+		} else {
+			fmt.Printf("found androidApp: %v\n", androidApp)
+		}
 
 		app = &fleet.VPPApp{
 			VPPAppTeam:       appID,
 			BundleIdentifier: appID.AdamID,
-			IconURL:          "https://example.com", // TODO(JVE): these come from the validation process above
-			Name:             "Test",
+			IconURL:          androidApp.IconUrl, // TODO(JVE): these come from the validation process above
+			Name:             androidApp.Title,
 		}
 
 		// Update Android MDM policy to include the app in self service
-		// Create activity
+		err = svc.androidService.AddAppToAndroidPolicy(ctx, enterprise.Name(), appID.AdamID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		}
 
 	default:
 		vppToken, err := svc.getVPPToken(ctx, teamID)

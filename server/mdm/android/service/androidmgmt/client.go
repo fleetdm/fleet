@@ -54,8 +54,9 @@ type Client interface {
 	// SetAuthenticationSecret sets the secret used for authentication.
 	SetAuthenticationSecret(secret string) error
 
-	// TODO(JVE): implement
-	// EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error)
+	EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error)
+
+	EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
 }
 
 type EnterprisesCreateRequest struct {

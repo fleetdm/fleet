@@ -250,6 +250,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			scepConfigService,
 			digiCertService,
 			hydrantService,
+			nil, // TODO(JVE): make a real android service
 		)
 		if err != nil {
 			panic(err)

@@ -281,3 +281,13 @@ func isErrorCode(err error, code int) bool {
 	ok := errors.As(err, &ae)
 	return ok && ae.Code == code
 }
+
+func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	// TODO(JVE): do we need to implement this? I think so
+	return nil, nil
+}
+
+func (g *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	// TODO(JVE): do we need to implement this? I think so
+	return nil, nil
+}
