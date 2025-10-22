@@ -1,0 +1,103 @@
+<Replace>
+  <!-- Set Node here -->
+  <CmdID>1</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">node</Format>
+    </Meta>
+  </Item>
+</Replace>
+<Add>
+  <!-- SCEP URL -->
+  <CmdID>2</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/ServerURL</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>yourUrlHere</Data>
+  </Item>
+</Add>
+<!-- SCEP Challenge -->
+<Add>
+  <CmdID>3</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/Challenge</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>yourChallengeHere</Data>
+  </Item>
+</Add>
+<!-- CN - check Okta doc for required values (https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/devices-client-certificates-faqs.htm) -->
+<Add>
+  <CmdID>4</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/SubjectName</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>$FLEET_VAR_HOST_UUID </Data>
+  </Item>
+</Add>
+<!-- Key Length -->
+<Add>
+  <CmdID>5</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/KeyLength</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>2048</Data>
+  </Item>
+</Add>
+<!-- Hash Algorithm -->
+<Add>
+  <CmdID>6</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/HashAlgorithm</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>SHA256</Data>
+  </Item>
+</Add>
+<!-- Key Usage -->
+<Add>
+  <CmdID>7</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/KeyUsage</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>160</Data>
+  </Item>
+</Add>
+<!-- Extended Key Usage -->
+<Add>
+  <CmdID>8</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/EKUMapping</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>1.3.6.1.5.5.7.3.2</Data>
+  </Item>
+</Add>
