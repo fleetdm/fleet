@@ -34,6 +34,13 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
+  task: "🦢🔄🧩 Sync & Solve"
+  startedOn: "2025-10-22" 
+  frequency: "Semiweekly" 
+  description: "Contributors bring bugs and different product questions. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Unblock contributors" 
+  moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#sync-solve" 
+  dri: "noahtalerman"
+-
   task: "🦢📨 Unpacking the 'why'"
   startedOn: "2024-09-30" 
   frequency: "Daily" 
