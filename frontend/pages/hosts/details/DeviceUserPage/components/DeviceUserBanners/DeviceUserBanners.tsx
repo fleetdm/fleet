@@ -6,18 +6,21 @@ import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
 import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
+import URL_PREFIX from "router/url_prefix";
+import endpoints from "utilities/endpoints";
 
 const baseClass = "device-user-banners";
 
 interface IDeviceUserBannersProps extends IHostBannersBaseProps {
+  deviceToken: string;
   mdmEnabledAndConfigured: boolean;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
-  onTurnOnMdm: () => void;
   onClickCreatePIN: () => void;
   onTriggerEscrowLinuxKey: () => void;
 }
 
 const DeviceUserBanners = ({
+  deviceToken,
   hostPlatform,
   hostOsVersion,
   mdmEnrollmentStatus,
@@ -25,7 +28,6 @@ const DeviceUserBanners = ({
   connectedToFleetMdm,
   macDiskEncryptionStatus,
   diskEncryptionActionRequired,
-  onTurnOnMdm,
   onClickCreatePIN,
   diskEncryptionOSSetting,
   diskIsEncrypted,
@@ -46,9 +48,17 @@ const DeviceUserBanners = ({
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
-    <Button variant="text-link-dark" onClick={onTurnOnMdm}>
-      Turn on MDM
-    </Button>
+    <CustomLink
+      url={`${
+        global.window.location
+      }${URL_PREFIX}/api${endpoints.DEVICE_USER_MDM_ENROLLMENT_PROFILE(
+        deviceToken
+      )}`}
+      text="Turn on MDM"
+      className={`${baseClass}`}
+      variant="banner-link"
+      newTab
+    />
   );
 
   const renderBanner = () => {

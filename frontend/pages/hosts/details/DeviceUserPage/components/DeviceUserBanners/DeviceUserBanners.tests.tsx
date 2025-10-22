@@ -13,13 +13,13 @@ describe("Device User Banners", () => {
   it("renders the turn on mdm banner correctly", () => {
     render(
       <DeviceUserBanners
+        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
         mdmEnabledAndConfigured
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
       />
@@ -30,13 +30,13 @@ describe("Device User Banners", () => {
   it("renders the reset key for non-linux disk encryption banner correctly", () => {
     render(
       <DeviceUserBanners
+        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
         connectedToFleetMdm
         macDiskEncryptionStatus="action_required"
         diskEncryptionActionRequired="rotate_key"
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
       />
@@ -48,6 +48,7 @@ describe("Device User Banners", () => {
   it("renders the create new linux disk encryption key banner correctly for Ubuntu", () => {
     render(
       <DeviceUserBanners
+        deviceToken="foobar"
         hostPlatform="ubuntu"
         diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
         diskIsEncrypted
@@ -58,7 +59,6 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
       />
@@ -70,6 +70,7 @@ describe("Device User Banners", () => {
   it("renders the create new linux disk encryption key banner correctly for Fedora", () => {
     render(
       <DeviceUserBanners
+        deviceToken="foobar"
         hostPlatform="rhel"
         hostOsVersion="somethingsomethingfedorasomething"
         diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
@@ -81,7 +82,6 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
       />
@@ -94,6 +94,7 @@ describe("Device User Banners", () => {
   it("renders the create PIN banner correctly for Windows", () => {
     render(
       <DeviceUserBanners
+        deviceToken="foobar"
         hostPlatform="windows"
         diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
         diskIsEncrypted
@@ -104,7 +105,6 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
       />
@@ -115,13 +115,13 @@ describe("Device User Banners", () => {
   it("renders no banner correctly for a mac that is verifying its disk encryption", () => {
     render(
       <DeviceUserBanners
+        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (manual)"
         mdmEnabledAndConfigured
         connectedToFleetMdm
         macDiskEncryptionStatus="verifying"
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         diskEncryptionOSSetting={{ status: "verifying", detail: "" }}
         onClickCreatePIN={noop}
@@ -140,13 +140,13 @@ describe("Device User Banners", () => {
     // setup so mdm is not enabled and configured.
     render(
       <DeviceUserBanners
+        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus={null}
         mdmEnabledAndConfigured={false}
         connectedToFleetMdm={false}
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
-        onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
       />

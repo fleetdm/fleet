@@ -3460,14 +3460,38 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 
 type getManualEnrollmentProfileRequest struct{}
 
+type getManualEnrollmentProfileResponse struct {
+	// Profile field is used in HijackRender for the response.
+	Profile []byte
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getManualEnrollmentProfileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// make the browser download the content to a file
+	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	// explicitly set the content length before the write, so the caller can
+	// detect short writes (if it fails to send the full content properly)
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
+	// this content type will make macos open the profile with the proper application
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
+	// prevent detection of content, obey the provided content-type
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if n, err := w.Write(r.Profile); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func (r getManualEnrollmentProfileResponse) Error() error { return r.Err }
+
 func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
 	if err != nil {
-		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+		return getManualEnrollmentProfileResponse{Err: err}, nil
 	}
 
-	// Using this type to keep code DRY as it already has all the functionality we need.
-	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+	return getManualEnrollmentProfileResponse{Profile: profile}, nil
 }
 
 func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
