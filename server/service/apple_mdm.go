@@ -4097,7 +4097,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		wifiMac = wifiMacVal.(string)
 	}
 	productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
-	isLostModeEnabled := deviceInformationResponse.QueryResponses["IsMDMLostModeEnabled"].(bool)
+	isLostModeEnabled := false
+	isLostModeEnabledVal, ok := deviceInformationResponse.QueryResponses["IsMDMLostModeEnabled"]
+	if ok {
+		isLostModeEnabled = isLostModeEnabledVal.(bool)
+	}
 	host.ComputerName = deviceName
 	host.Hostname = deviceName
 	host.GigsDiskSpaceAvailable = availableDeviceCapacity
