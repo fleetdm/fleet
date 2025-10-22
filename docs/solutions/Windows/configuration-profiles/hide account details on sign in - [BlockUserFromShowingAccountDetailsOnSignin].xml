@@ -9,7 +9,7 @@
       <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_Logon/BlockUserFromShowingAccountDetailsOnSignin</LocURI>
     </Target>
     <Data>
-    <![CDATA[<enabled/>]]>
+      <![CDATA[<enabled/>]]>
     </Data>
   </Item>
 </Replace>
