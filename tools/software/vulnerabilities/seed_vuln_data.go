@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"time"
 
@@ -69,6 +70,30 @@ func createOrGetHost(ctx context.Context, ds *mysql.Datastore, identifier string
 	base.Hostname = identifier
 	base.NodeKey = ptr.String(identifier)
 	return ds.NewHost(ctx, &base)
+}
+
+func calculateKernelCount(hostIndex, totalHosts int) int {
+	const maxKernels = 90
+	const minKernels = 1
+
+	if totalHosts == 1 {
+		return maxKernels
+	}
+
+	// Use exponential decay to distribute kernel counts
+	// The decay factor is calculated to spread from 90 to 1 across all hosts
+	decayFactor := math.Log(float64(maxKernels)/float64(minKernels)) / float64(totalHosts-1)
+	kernelCount := int(math.Round(float64(maxKernels) * math.Exp(-decayFactor*float64(hostIndex-1))))
+
+	// Ensure we stay within bounds
+	if kernelCount < minKernels {
+		kernelCount = minKernels
+	}
+	if kernelCount > maxKernels {
+		kernelCount = maxKernels
+	}
+
+	return kernelCount
 }
 
 func main() {
@@ -229,12 +254,13 @@ func main() {
 		}
 	}
 
-	// Linux kernels for Ubuntu
+	// Linux kernels for Ubuntu with variable distribution
 	if *linuxKernels > 0 && len(ubuntuIDs) > 0 {
-		fmt.Printf("Adding %d Linux kernel package(s) per Ubuntu host…\n", *linuxKernels)
-		for _, ubuntuID := range ubuntuIDs {
+		fmt.Printf("Adding variable Linux kernel packages per Ubuntu host (max 90)…\n")
+		for i, ubuntuID := range ubuntuIDs {
+			kernelCount := calculateKernelCount(i+1, len(ubuntuIDs))
 			var pkgs []fleet.Software
-			for k := 1; k <= *linuxKernels; k++ {
+			for k := 1; k <= kernelCount; k++ {
 				pkgs = append(pkgs, fleet.Software{
 					Name:     fmt.Sprintf("linux-image-6.8.0-%d-generic", k),
 					Version:  fmt.Sprintf("6.8.0-%d", k),
@@ -244,6 +270,8 @@ func main() {
 			}
 			if _, err := ds.UpdateHostSoftware(ctx, ubuntuID, pkgs); err != nil {
 				fmt.Printf("insert kernel software for Ubuntu host %d failed: %v\n", ubuntuID, err)
+			} else {
+				fmt.Printf("Added %d kernels to Ubuntu host %d\n", kernelCount, ubuntuID)
 			}
 		}
 	}
