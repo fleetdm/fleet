@@ -499,6 +499,8 @@ type SetInHouseAppInstallAsFailedFunc func(ctx context.Context, hostID uint, ins
 
 type ReplaceInHouseAppInstallVerificationUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
 
+type GetPastActivityDataForInHouseAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error)
+
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error)
@@ -2289,6 +2291,9 @@ type DataStore struct {
 
 	ReplaceInHouseAppInstallVerificationUUIDFunc        ReplaceInHouseAppInstallVerificationUUIDFunc
 	ReplaceInHouseAppInstallVerificationUUIDFuncInvoked bool
+
+	GetPastActivityDataForInHouseAppInstallFunc        GetPastActivityDataForInHouseAppInstallFunc
+	GetPastActivityDataForInHouseAppInstallFuncInvoked bool
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
@@ -5571,6 +5576,13 @@ func (s *DataStore) ReplaceInHouseAppInstallVerificationUUID(ctx context.Context
 	s.ReplaceInHouseAppInstallVerificationUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceInHouseAppInstallVerificationUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
+}
+
+func (s *DataStore) GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	s.mu.Lock()
+	s.GetPastActivityDataForInHouseAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPastActivityDataForInHouseAppInstallFunc(ctx, commandResults)
 }
 
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
