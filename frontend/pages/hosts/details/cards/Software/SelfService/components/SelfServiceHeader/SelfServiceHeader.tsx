@@ -2,7 +2,13 @@ import React from "react";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 
-const SelfServiceHeader = ({ contactUrl }: { contactUrl: string }) => (
+const SelfServiceHeader = ({
+  contactUrl,
+  variant,
+}: {
+  contactUrl: string;
+  variant?: "mobile-header";
+}) => (
   <CardHeader
     header="Self-service"
     subheader={
@@ -16,6 +22,7 @@ const SelfServiceHeader = ({ contactUrl }: { contactUrl: string }) => (
         )}
       </>
     }
+    variant={variant}
   />
 );
 

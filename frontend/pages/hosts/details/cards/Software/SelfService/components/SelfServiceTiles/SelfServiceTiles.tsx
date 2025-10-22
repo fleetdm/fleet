@@ -67,7 +67,7 @@ const SelfServiceTiles = ({
             </div>
             <div className={`${tileBaseClass}__item-name-version`}>
               <div className={`${tileBaseClass}__item-name`}>
-                <TooltipTruncatedText value={software.name} />
+                <TooltipTruncatedText isMobileView value={software.name} />
               </div>
               <div className={`${tileBaseClass}__item-version`}>
                 {software.software_package?.version ||

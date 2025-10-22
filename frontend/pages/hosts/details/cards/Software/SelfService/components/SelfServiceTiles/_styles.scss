@@ -7,6 +7,7 @@
 .self-service-tile {
   display: flex;
   padding: $pad-medium;
+  gap: $pad-medium;
   justify-content: space-between;
   align-items: center;
   align-self: stretch;

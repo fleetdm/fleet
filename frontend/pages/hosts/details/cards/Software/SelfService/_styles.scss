@@ -10,6 +10,10 @@
     @include vertical-card-layout;
   }
 
+  &__mobile-installers {
+    @include flex-column-16px-gap;
+  }
+
   &__header-filters {
     display: flex;
     flex-direction: column;

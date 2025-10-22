@@ -6,7 +6,7 @@ import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwa
 import CustomLink from "components/CustomLink";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
-import { filterSoftwareByCategory, CATEGORIES_NAV_ITEMS } from "../../helpers";
+import { CATEGORIES_NAV_ITEMS } from "../../helpers";
 import CategoriesMenu from "../CategoriesMenu/CategoriesMenu";
 
 interface SelfServiceTableProps {
@@ -53,10 +53,7 @@ const SelfServiceTable = ({
       />
       <TableContainer
         columnConfigs={tableConfig}
-        data={filterSoftwareByCategory(
-          enhancedSoftware || [],
-          queryParams.category_id
-        )}
+        data={enhancedSoftware}
         isLoading={isFetching}
         defaultSortHeader={initialSortHeader}
         defaultSortDirection={initialSortDirection}

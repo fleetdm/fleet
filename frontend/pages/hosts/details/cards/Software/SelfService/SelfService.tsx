@@ -176,7 +176,7 @@ const SoftwareSelfService = ({
     false
   );
 
-  const enhancedSoftware = useMemo(() => {
+  const enhancedSoftware: IDeviceSoftwareWithUiStatus[] = useMemo(() => {
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
       ...software,

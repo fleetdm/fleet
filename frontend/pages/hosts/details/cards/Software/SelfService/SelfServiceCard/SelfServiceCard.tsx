@@ -17,6 +17,7 @@ import SelfServiceTable from "../components/SelfServiceTable";
 import SelfServiceHeader from "../components/SelfServiceHeader";
 import SelfServiceFilters from "../components/SelfServiceFilters";
 import SelfServiceTiles from "../components/SelfServiceTiles";
+import { filterSoftwareByCategory } from "../helpers";
 
 const baseClass = "software-self-service";
 
@@ -129,7 +130,7 @@ const SelfServiceCard = ({
     );
   };
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) return <Spinner includeContainer={false} />;
   if (isError) return <EmptyTable header="Error loading software." />;
 
   // Empty state
@@ -143,23 +144,41 @@ const SelfServiceCard = ({
     );
   }
 
+  const filteredSoftwareByCategory: IDeviceSoftwareWithUiStatus[] = filterSoftwareByCategory(
+    enhancedSoftware || [],
+    queryParams.category_id
+  );
+
+  // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
+  const filteredSoftware = isMobileView
+    ? filteredSoftwareByCategory.filter((software) => {
+        const query = queryParams.query?.toLowerCase().trim() ?? "";
+        if (!query) return true;
+        return software.name.toLowerCase().includes(query);
+      })
+    : filteredSoftwareByCategory;
+
   if (isMobileView) {
     return (
       <>
-        <SelfServiceHeader contactUrl={contactUrl} />
-        <SelfServiceFilters
-          query={queryParams.query}
-          category_id={queryParams.category_id}
-          onSearchQueryChange={onSearchQueryChange}
-          onCategoriesDropdownChange={onCategoriesDropdownChange}
-        />
-        <SelfServiceTiles
-          contactUrl={contactUrl}
-          enhancedSoftware={enhancedSoftware}
-          isFetching={isFetching}
-          isEmptySearch={isEmptySearch}
-          onClickInstallAction={onClickInstallAction}
-        />
+        <SelfServiceHeader contactUrl={contactUrl} variant="mobile-header" />
+        <div className={`${baseClass}__mobile-installers`}>
+          <SelfServiceFilters
+            query={queryParams.query}
+            category_id={queryParams.category_id}
+            onSearchQueryChange={onSearchQueryChange}
+            onCategoriesDropdownChange={onCategoriesDropdownChange}
+          />
+          <SelfServiceTiles
+            contactUrl={contactUrl}
+            enhancedSoftware={filteredSoftware}
+            isFetching={isFetching}
+            isEmptySearch={
+              enhancedSoftware.length > 0 && filteredSoftware.length === 0
+            }
+            onClickInstallAction={onClickInstallAction}
+          />
+        </div>
       </>
     );
   }
@@ -180,7 +199,7 @@ const SelfServiceCard = ({
         baseClass={baseClass}
         contactUrl={contactUrl}
         queryParams={queryParams}
-        enhancedSoftware={enhancedSoftware}
+        enhancedSoftware={filteredSoftware}
         selfServiceData={selfServiceData}
         tableConfig={tableConfig}
         isFetching={isFetching}

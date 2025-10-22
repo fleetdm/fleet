@@ -2,6 +2,7 @@ import React from "react";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import Spinner from "components/Spinner";
 
 const baseClass = "tile-action-status";
 
@@ -38,19 +39,39 @@ const TileActionStatus = ({
     software.ui_status === "failed_install" ||
     software.ui_status === "failed_install_update_available";
 
+  const isActiveAction =
+    software.ui_status === "updating" || software.ui_status === "installing";
+
+  const renderActiveActionStatus = () => {
+    return (
+      <>
+        <Spinner size="x-small" includeContainer={false} centered={false} />
+        {software.ui_status === "updating" ? "Updating..." : "Installing..."}
+      </>
+    );
+  };
+
+  const renderActionStatus = () => {
+    return (
+      <>
+        {isError && (
+          <div className="self-service-tile__item-error">
+            <Icon name="error" />
+            Failed
+          </div>
+        )}
+        {actionLabel && (
+          <Button variant="inverse" onClick={() => onActionClick(software)}>
+            {actionLabel}
+          </Button>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className={baseClass}>
-      {isError && (
-        <div className="self-service-tile__item-error">
-          <Icon name="error" />
-          Failed
-        </div>
-      )}
-      {actionLabel && (
-        <Button variant="inverse" onClick={() => onActionClick(software)}>
-          {actionLabel}
-        </Button>
-      )}
+      {isActiveAction ? renderActiveActionStatus() : renderActionStatus()}
     </div>
   );
 };

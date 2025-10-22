@@ -32,7 +32,7 @@ export const CATEGORIES_NAV_ITEMS: ICategory[] = [
 export const filterSoftwareByCategory = (
   software?: IDeviceSoftwareWithUiStatus[],
   category_id?: number
-): IDeviceSoftware[] => {
+): IDeviceSoftwareWithUiStatus[] => {
   // Find the category value string for the given id
   const category = CATEGORIES_NAV_ITEMS.find((cat) => cat.id === category_id);
 

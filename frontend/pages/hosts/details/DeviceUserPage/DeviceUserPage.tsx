@@ -514,7 +514,7 @@ const DeviceUserPage = ({
       isLoadingDeviceCertificates ||
       isLoadingSetupSteps
     ) {
-      return <Spinner />;
+      return <Spinner includeContainer={false} />;
     }
     if (isErrorSetupSteps) {
       return <DataError description="Could not get software setup status." />;
