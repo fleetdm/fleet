@@ -949,7 +949,7 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 
 		const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
 		if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
+			return nil, ctxerr.Wrap(ctx, err, "delete verify from host_mdm_commands")
 		}
 	}
 
@@ -987,7 +987,7 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 
 		const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
 		if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete verify from host_mdm_commands")
+			return nil, ctxerr.Wrap(ctx, err, "delete verify vpp from host_mdm_commands")
 		}
 	}
 
