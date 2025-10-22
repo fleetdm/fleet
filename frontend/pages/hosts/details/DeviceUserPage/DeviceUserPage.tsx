@@ -2,10 +2,12 @@ import React, { useState, useContext, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import useIsMobile from "hooks/useIsMobile";
 
 import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
+import classNames from "classnames";
 
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
@@ -29,6 +31,8 @@ import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
+import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
+
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -37,6 +41,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import FlashMessage from "components/FlashMessage";
 import DataError from "components/DataError";
+import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -128,6 +133,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
+  const isMobileView = useIsMobile();
 
   const { renderFlash, notification, hideFlash } = useContext(
     NotificationContext
@@ -529,6 +535,31 @@ const DeviceUserPage = ({
         />
       );
     }
+
+    if (isMobileView) {
+      // Render the simplified mobile version
+      // Currently only available for self-service page
+      return (
+        <div className={`${baseClass} main-content`}>
+          <div className="device-user-mobile">
+            <SelfService
+              contactUrl={orgContactURL}
+              deviceToken={deviceAuthToken}
+              isSoftwareEnabled
+              pathname={location.pathname}
+              queryParams={parseSelfServiceQueryParams(location.query)}
+              router={router}
+              refetchHostDetails={refetchHostDetails}
+              isHostDetailsPolling={showRefetchSpinner}
+              hostSoftwareUpdatedAt={host.software_updated_at}
+              hostDisplayName={host?.hostname || ""}
+              isMobileView={isMobileView}
+            />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <>
         <div className={`${baseClass} main-content`}>
@@ -743,16 +774,26 @@ const DeviceUserPage = ({
     );
   };
 
+  const coreWrapperClassnames = classNames("core-wrapper", {
+    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+  });
+
+  const siteNavContainerClassnames = classNames("site-nav-container", {
+    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+  });
+
   return (
     <div className="app-wrap">
-      <UnsupportedScreenSize />
+      {shouldShowUnsupportedScreen(location.pathname) && (
+        <UnsupportedScreenSize />
+      )}
       <FlashMessage
         fullWidth
         notification={notification}
         onRemoveFlash={hideFlash}
         pathname={location.pathname}
       />
-      <nav className="site-nav-container">
+      <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
@@ -767,12 +808,21 @@ const DeviceUserPage = ({
               </div>
             </li>
           </ul>
+          {isMobileView && (
+            <div className="site-nav-better-link">
+              <CustomLink
+                url="https://www.fleetdm.com/better"
+                text="About Fleet"
+                newTab
+              />
+            </div>
+          )}
         </div>
       </nav>
       {isDeviceUserError ? (
         <DeviceUserError />
       ) : (
-        <div className="core-wrapper">{renderDeviceUserPage()}</div>
+        <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
       {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
     </div>

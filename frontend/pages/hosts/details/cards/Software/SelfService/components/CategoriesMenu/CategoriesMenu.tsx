@@ -5,7 +5,7 @@ import LinkWithContext from "components/LinkWithContext";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import { ICategory } from "../../helpers";
-import { SelfServiceQueryParams } from "../SelfServiceCard";
+import { SelfServiceQueryParams } from "../../SelfServiceCard/SelfServiceCard";
 
 const baseClass = "categories-menu";
 
