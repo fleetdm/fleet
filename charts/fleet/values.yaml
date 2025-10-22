@@ -105,6 +105,7 @@ fleet:
       prefix: ""
       accessKeyID: ""
       secretKey: s3-bucket
+      region: ""
       endpointURL: ""
       forceS3PathStyle: false
       stsAssumeRoleARN: ""
@@ -114,6 +115,7 @@ fleet:
       prefix: ""
       accessKeyID: ""
       secretKey: software-installers
+      region: ""
       endpointURL: ""
       forceS3PathStyle: false
       stsAssumeRoleARN: ""
