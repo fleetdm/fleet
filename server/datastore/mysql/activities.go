@@ -444,6 +444,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.host_id = :host_id AND
 			activity_type = 'software_uninstall'
 		`,
+		// list pending VPP apps
 		`SELECT
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
@@ -480,6 +481,41 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'vpp_app_install'
+		`,
+		// list pending in-house apps
+		`SELECT
+			ua.execution_id AS uuid,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			u.id AS user_id,
+			u.api_only as api_only,
+			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
+			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
+			:installed_software_type as activity_type,
+			ua.created_at AS created_at,
+			JSON_OBJECT(
+				'host_id', ua.host_id,
+				'host_display_name', hdn.display_name,
+				'software_title', st.name,
+				'command_uuid', ua.execution_id,
+				'self_service', false,
+				'status', 'pending_install'
+			) AS details,
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated
+		FROM
+			upcoming_activities ua
+		INNER JOIN
+			in_house_app_upcoming_activities ihua ON ihua.upcoming_activity_id = ua.id
+		LEFT OUTER JOIN
+			users u ON ua.user_id = u.id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = ua.host_id
+		LEFT OUTER JOIN
+			software_titles st ON st.id = ihua.software_title_id
+		WHERE
+			ua.host_id = :host_id AND
+			ua.activity_type = 'in_house_app_install'
 		`,
 	}
 

@@ -1140,6 +1140,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
+	hIOS := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now().Add(-1*time.Second), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hIOS, false)
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
@@ -1160,6 +1162,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
 	require.NoError(t, err)
+	vppApp1IOS := &fleet.VPPApp{
+		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.IOSPlatform}},
+		BundleIdentifier: "vpp1",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil)
+	require.NoError(t, err)
 
 	// create a software installer that can be installed later
 	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
@@ -1175,6 +1183,19 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		UserID:          u.ID,
 		UninstallScript: "uninstall foo",
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// create an in-house app that can be installed later
+	ihaID, ihaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        uuid.NewString(),
+		Filename:         "inhouse.ipa",
+		Title:            "inhouse",
+		Source:           "ios_apps",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouse",
+		UserID:           u.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -1203,6 +1224,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	script1_2 := hsr.ExecutionID
+
+	// host 2 is unaffected, activating results in nothing activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h2.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
 
 	// add a couple install requests for vpp1 and vpp2
 	vpp1_1 := uuid.NewString()
@@ -1435,6 +1461,58 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 0)
+
+	// enqueue a VPP app request for iOS host
+	vpp1_1_ios := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, hIOS.ID, vppApp1IOS.VPPAppID, vpp1_1_ios, "event-id-1-ios", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// enqueue an in-house app request for the iOS host
+	ihaCmd := uuid.NewString()
+	err = ds.InsertHostInHouseAppInstall(ctx, hIOS.ID, ihaID, ihaTitleID, ihaCmd, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+	require.Equal(t, ihaCmd, pendingActs[1].UUID)
+
+	// record a result for the VPP app install, which will activate the in-house app
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: vpp1_1_ios,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      hIOS.ID,
+		AppStoreID:  vppApp1IOS.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_1_ios,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	// the in-house app is now activated
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	// enqueue a VPP app request for iOS host once more
+	vpp1_1_ios = uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, hIOS.ID, vppApp1IOS.VPPAppID, vpp1_1_ios, "event-id-2-ios", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+	require.Equal(t, vpp1_1_ios, pendingActs[1].UUID)
+
+	// TODO(mna): once the past activity handling is done for in-house apps, record a result
+	// for it and it should activate the next VPP app.
 }
 
 func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {

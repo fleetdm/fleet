@@ -1840,6 +1840,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
+	CommandUUID         string  `json:"command_uuid"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1866,6 +1867,7 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "status": Status of the software installation.
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 `, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
@@ -1875,7 +1877,8 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
   "policy_id": 1337,
-  "policy_name": "Ensure 1Password is installed and up to date"
+  "policy_name": "Ensure 1Password is installed and up to date",
+  "command_uuid": ""
 }`
 }
 
