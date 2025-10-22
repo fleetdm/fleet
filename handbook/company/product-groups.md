@@ -856,7 +856,7 @@ Here are some tips for making this meeting effective:
 
 ### Sync & Solve
 
-Sync & Solve are conducted semiweekly between [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces (UI/API/YAML) that are not related to a stories in current sprint, but related to bugs, or any other product questions. The goal is to unblock contributors, and keep Design reviews for new stories (features).
+Sync & Solve meetings are conducted semiweekly between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors, typically Product Designers. These meetings focus on proposed changes to Fleet's interfaces (UI/API/YAML) that are not tied to the stories in the current design sprint but address bugs or other product questions. The goal is to unblock contributors and reserve Design reviews for new stories (features).
 
 Here are some examples for discussion in this meeting:
 - Product Designer need feedback on the solution specified for a bug.
