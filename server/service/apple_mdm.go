@@ -5558,13 +5558,14 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 		switch caVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP):
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
+			fmt.Println("===REPLACING HOST_END_USER_EMAIL_IDP FLEET VAR", ok, email, *item)
 			if !ok {
 				var err error
-				email, err := fleet.GetFirstIDPEmail(ctx, ds, hostUUID)
+				foundEmail, err := fleet.GetFirstIDPEmail(ctx, ds, hostUUID)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
 				}
-				if email == nil {
+				if foundEmail == nil {
 					// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
 					err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 						CommandUUID: target.cmdUUID,
@@ -5581,7 +5582,8 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 					}
 					return false, nil
 				}
-				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = *email
+				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = *foundEmail
+				email = *foundEmail
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, *item, email)
 		case string(fleet.FleetVarHostHardwareSerial):
