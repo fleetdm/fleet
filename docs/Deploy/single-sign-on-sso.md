@@ -23,6 +23,8 @@ Once configured, you will need to retrieve the issuer URI from **View Setup Inst
 
 ## Google Workspace
 
+If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
+
 Create a new SAML app in Google Workspace:
 
 1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click **Add App -> Add custom SAML app**.
@@ -63,6 +65,7 @@ Create a new SAML app in Google Workspace:
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
 ## Entra
+
 Create a new SAML app in Microsoft Entra Admin Center:
 1. From the left sidebar, navigate to **Applications > Enterprise Applications**.
 2. At the top of the page, click **+ New Application**.
