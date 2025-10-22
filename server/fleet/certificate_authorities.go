@@ -48,6 +48,7 @@ const (
 	CATypeDigiCert        CAType = "digicert"
 	CATypeCustomSCEPProxy CAType = "custom_scep_proxy"
 	CATypeHydrant         CAType = "hydrant"
+	CATypeEST             CAType = "est" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
 )
 
@@ -78,9 +79,9 @@ type CertificateAuthority struct {
 	// Smallstep
 	ChallengeURL *string `json:"challenge_url,omitempty" db:"challenge_url"`
 
-	// Username is stored by both Smallstep and NDES CA types
+	// Username is stored by Smallstep, NDES, and EST CA types
 	Username *string `json:"username,omitempty" db:"username"`
-	// Password is stored by both Smallstep and NDES CA types
+	// Password is stored by Smallstep, NDES, and EST CA types
 	Password *string `json:"password,omitempty" db:"-"`
 
 	// Custom SCEP Proxy
@@ -133,6 +134,34 @@ func (d *DigiCertCA) Preprocess() {
 	d.Name = Preprocess(d.Name)
 	d.URL = Preprocess(d.URL)
 	d.ProfileID = Preprocess(d.ProfileID)
+}
+
+// Enrollment over Secure Transport Certificate Authority
+type ESTProxyCA struct {
+	ID       uint   `json:"-"`
+	Name     string `json:"name"`
+	URL      string `json:"url"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func (h *ESTProxyCA) Equals(other *ESTProxyCA) bool {
+	return h.Name == other.Name &&
+		h.URL == other.URL &&
+		h.Username == other.Username &&
+		(h.Password == "" || h.Password == MaskedPassword || h.Password == other.Password)
+}
+
+func (h *ESTProxyCA) NeedToVerify(other *ESTProxyCA) bool {
+	return h.Name != other.Name ||
+		h.URL != other.URL ||
+		h.Username != other.Username ||
+		!(h.Password == "" || h.Password == MaskedPassword || h.Password == other.Password)
+}
+
+func (h *ESTProxyCA) Preprocess() {
+	h.Name = Preprocess(h.Name)
+	h.URL = Preprocess(h.URL)
 }
 
 type HydrantCA struct {
@@ -426,6 +455,7 @@ func (c *RequestCertificatePayload) AuthzType() string {
 }
 
 type GroupedCertificateAuthorities struct {
+	EST             []ESTProxyCA           `json:"custom_est_proxy"` // Enrollment over Secure Transport
 	Hydrant         []HydrantCA            `json:"hydrant"`
 	DigiCert        []DigiCertCA           `json:"digicert"`
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
@@ -580,6 +610,22 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 			return nil, fmt.Errorf("org_settings.certificate_authorities.hydrant cannot be parsed: %w", err)
 		}
 		groupedCAs.Hydrant = hydrantData
+	}
+
+	if ESTCA, ok := spec.(map[string]any)["custom_est_proxy"]; !ok || ESTCA == nil {
+		groupedCAs.EST = []ESTProxyCA{}
+	} else {
+		// We unmarshal EST CA integration into its dedicated type for additional validation
+		estJSON, err := json.Marshal(spec.(map[string]any)["custom_est_proxy"])
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_est_proxy cannot be marshalled into JSON: %w", err)
+		}
+		var estData []ESTProxyCA
+		err = json.Unmarshal(estJSON, &estData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_est_proxy cannot be parsed: %w", err)
+		}
+		groupedCAs.EST = estData
 	}
 
 	// TODO(sca): confirm this

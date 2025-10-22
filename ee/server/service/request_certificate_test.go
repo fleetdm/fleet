@@ -142,7 +142,7 @@ func TestRequestCertificate(t *testing.T) {
 			logger: logger,
 			ds:     ds,
 			authz:  authorizer,
-			hydrantService: hydrant.NewService(
+			estService: hydrant.NewService(
 				hydrant.WithTimeout(2*time.Second),
 				hydrant.WithLogger(logger),
 			),

@@ -859,6 +859,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+		if estCA, ok := result["custom_est_proxy"]; ok && estCA != nil {
+			for _, intg := range estCA.([]any) {
+				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your EST password here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.custom_est_proxy.client_secret",
+				})
+			}
+		}
 		if smallstep, ok := result["smallstep"]; ok && smallstep != nil {
 			for _, intg := range smallstep.([]interface{}) {
 				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your Smallstep password here")

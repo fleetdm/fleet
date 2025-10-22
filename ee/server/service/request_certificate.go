@@ -28,10 +28,10 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	if err != nil {
 		return nil, err
 	}
-	if ca.Type != string(fleet.CATypeHydrant) {
-		return nil, &fleet.BadRequestError{Message: "This API currently only supports Hydrant Certificate Authorities."}
+	if ca.Type != string(fleet.CATypeHydrant) && ca.Type != string(fleet.CATypeEST) {
+		return nil, &fleet.BadRequestError{Message: "This API currently only supports Hydrant and EST Certificate Authorities."}
 	}
-	if ca.ClientSecret == nil {
+	if ca.Type == string(fleet.CATypeHydrant) && ca.ClientSecret == nil {
 		return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
 	}
 	certificateRequest, err := svc.parseCSR(ctx, p.CSR)
@@ -86,7 +86,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	csrForRequest = strings.ReplaceAll(csrForRequest, "-----END CERTIFICATE REQUEST-----", "")
 	csrForRequest = strings.ReplaceAll(csrForRequest, "\\n", "")
 
-	certificate, err := svc.hydrantService.GetCertificate(ctx, fleet.HydrantCA{
+	certificate, err := svc.estService.GetCertificate(ctx, fleet.HydrantCA{
 		Name:         *ca.Name,
 		URL:          *ca.URL,
 		ClientID:     *ca.ClientID,

@@ -311,7 +311,7 @@ func (svc *Service) validateHydrant(ctx context.Context, hydrantCA *fleet.Hydran
 	if hydrantCA.ClientSecret == "" || hydrantCA.ClientSecret == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("client_secret", fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix))
 	}
-	if err := svc.hydrantService.ValidateHydrantURL(ctx, *hydrantCA); err != nil {
+	if err := svc.estService.ValidateHydrantURL(ctx, *hydrantCA); err != nil {
 		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix))
 	}
 	return nil
@@ -1199,7 +1199,7 @@ func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.Hy
 		hydrantCAToVerify := fleet.HydrantCA{ // The hydrant service for verification only requires the URL.
 			URL: *hydrant.URL,
 		}
-		if err := svc.hydrantService.ValidateHydrantURL(ctx, hydrantCAToVerify); err != nil {
+		if err := svc.estService.ValidateHydrantURL(ctx, hydrantCAToVerify); err != nil {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix)}
 		}
 	}

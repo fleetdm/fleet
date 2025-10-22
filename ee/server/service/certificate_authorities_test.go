@@ -204,7 +204,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
-			hydrantService:  hydrant.NewService(),
+			estService:      hydrant.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
 				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
 				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
@@ -1199,7 +1199,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
-			hydrantService:  hydrant.NewService(),
+			estService:      hydrant.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
 				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
 				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
