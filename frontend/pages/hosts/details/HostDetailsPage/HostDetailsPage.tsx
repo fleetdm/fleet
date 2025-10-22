@@ -129,9 +129,6 @@ import {
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
-import SoftwareIpaInstallDetailsModal, {
-  ISoftwareIpaInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
 
 const baseClass = "host-details";
 
@@ -225,10 +222,6 @@ const HostDetailsPage = ({
     packageInstallDetails,
     setPackageInstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
-  const [
-    ipaInstallDetails,
-    setIpaInstallDetails,
-  ] = useState<ISoftwareIpaInstallDetails | null>(null);
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
@@ -688,27 +681,14 @@ const HostDetailsPage = ({
           setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          if (details?.command_uuid) {
-            console.log("should be ipa activity");
-            setIpaInstallDetails({
-              ...details,
-              commandUuid: details.command_uuid,
-              fleetInstallStatus: (details?.status ||
-                "pending_install") as SoftwareInstallUninstallStatus,
-              hostDisplayName:
-                host?.display_name || details?.host_display_name || "",
-              appName: details.pack_name || "",
-            });
-          } else {
-            setPackageInstallDetails({
-              ...details,
-              // FIXME: It seems like the backend is not using the correct display name when it returns
-              // upcoming install activities. As a workaround, we'll prefer the display name from
-              // the host object if it's available.
-              host_display_name:
-                host?.display_name || details?.host_display_name || "",
-            });
-          }
+          setPackageInstallDetails({
+            ...details,
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
           break;
         case "uninstalled_software":
           setPackageUninstallDetails({
@@ -766,10 +746,6 @@ const HostDetailsPage = ({
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
     setPackageInstallDetails(null);
-  }, []);
-
-  const onCancelIpaInstallDetailsModal = useCallback(() => {
-    setIpaInstallDetails(null);
   }, []);
 
   const onCancelVppInstallDetailsModal = useCallback(() => {
@@ -1414,12 +1390,6 @@ const HostDetailsPage = ({
             <RunScriptDetailsModal
               scriptExecutionId={scriptExecutionId}
               onCancel={onCancelRunScriptDetailsModal}
-            />
-          )}
-          {!!ipaInstallDetails && (
-            <SoftwareIpaInstallDetailsModal
-              details={ipaInstallDetails}
-              onCancel={onCancelIpaInstallDetailsModal}
             />
           )}
           {!!packageInstallDetails && (

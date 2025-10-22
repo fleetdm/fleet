@@ -1877,7 +1877,7 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
   "policy_id": 1337,
-  "policy_name": "Ensure 1Password is installed and up to date",
+  "policy_name": "Ensure 1Password is installed and up to date"
 }`
 }
 
