@@ -1116,8 +1116,7 @@ WHERE
 	switch commandResults.Status {
 	case fleet.MDMAppleStatusAcknowledged:
 		status = string(fleet.SoftwareInstalled)
-	case fleet.MDMAppleStatusCommandFormatError:
-	case fleet.MDMAppleStatusError:
+	case fleet.MDMAppleStatusCommandFormatError, fleet.MDMAppleStatusError:
 		status = string(fleet.SoftwareInstallFailed)
 	default:
 		// This case shouldn't happen (we should only be doing this check if the command is in a

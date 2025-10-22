@@ -4339,10 +4339,7 @@ func NewInstalledApplicationListResultsHandler(
 					return ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
 				},
 			}
-			if err := setStatusForExpectedInstall(
-				expectedInstall,
-				setter,
-			); err != nil {
+			if err := setStatusForExpectedInstall(expectedInstall, setter); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting status for in-house app installs")
 			}
 		}
