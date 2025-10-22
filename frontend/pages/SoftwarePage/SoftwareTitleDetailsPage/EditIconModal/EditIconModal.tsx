@@ -466,7 +466,9 @@ const EditIconModal = ({
               uploadedAt={iconUploadedAt}
             />
           )}
-          <TooltipTruncatedText value={previewInfo.name} />
+          <div className={`${baseClass}__self-service-preview-name`}>
+            <TooltipTruncatedText value={previewInfo.name} />
+          </div>
         </div>
       </Card>
       <div
