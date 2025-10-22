@@ -59,6 +59,19 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.
 		encodeSCEPResponse,
 		opts...,
 	))
+	// To emulate MS-NDES
+	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("GET").Handler(kithttp.NewServer(
+		e.GetEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
+	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("POST").Handler(kithttp.NewServer(
+		e.PostEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
 
 	return r
 }
