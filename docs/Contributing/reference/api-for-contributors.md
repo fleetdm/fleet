@@ -3677,7 +3677,9 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Downloads the Mobile Device Management (MDM) enrollment profile to install on the device for a manual enrollment into Fleet MDM.
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+for a device. A User may be required to complete SSO authenticaton if configured on the team before being presented
+with the download option.
 
 `GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
 
@@ -3693,15 +3695,9 @@ Downloads the Mobile Device Management (MDM) enrollment profile to install on th
 
 ##### Default response
 
-`Status: 200`
+`Status: 307`
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<!-- ... -->
-</plist>
-```
+Redirects to the enrollment URL.
 
 ---
 
