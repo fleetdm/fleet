@@ -294,17 +294,11 @@ func PreprocessWindowsProfileContentsForVerification(ctx context.Context, logger
 
 // PreprocessWindowsProfileContentsForDeployment processes Windows configuration profiles to replace Fleet variables
 // with their actual values for each host during profile deployment.
-func PreprocessWindowsProfileContentsForDeployment(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, hostUUID string, hostCmdUUID string, profileUUID string, groupedCAs *fleet.GroupedCertificateAuthorities, profileContents string) (string, error) {
-	// TODO: Can we avoid iterating this list each profile?
+func PreprocessWindowsProfileContentsForDeployment(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, appConfig *fleet.AppConfig, hostUUID string, hostCmdUUID string, profileUUID string, groupedCAs *fleet.GroupedCertificateAuthorities, profileContents string) (string, error) {
+	// TODO: Should we avoid iterating this list for every profile?
 	customSCEPCAs := make(map[string]*fleet.CustomSCEPProxyCA, len(groupedCAs.CustomScepProxy))
 	for _, ca := range groupedCAs.CustomScepProxy {
 		customSCEPCAs[ca.Name] = &ca
-	}
-
-	// TODO: Move top-level to avoid fetching every profile
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		return profileContents, ctxerr.Wrap(ctx, err, "fetching app config for windows profile preprocessing")
 	}
 
 	return preprocessWindowsProfileContents(ctx, logger, ds, appConfig, false, hostUUID, hostCmdUUID, profileUUID, customSCEPCAs, profileContents)

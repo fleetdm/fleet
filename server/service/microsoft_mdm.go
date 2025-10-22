@@ -2347,7 +2347,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				hostCmdUUID := uuid.New().String()
 
 				// Preprocess the profile content for this specific host
-				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, hostUUID, hostCmdUUID, profUUID, groupedCAs, string(p.SyncML))
+				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, hostCmdUUID, profUUID, groupedCAs, string(p.SyncML))
 				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
 				if err != nil && !errors.As(err, &profileProcessingError) {
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)

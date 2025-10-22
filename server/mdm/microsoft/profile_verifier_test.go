@@ -914,7 +914,6 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 	}
 }
 
-// TODO: Add test for Deployment preprocessing.
 func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -1094,11 +1093,14 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			}
 			ctx := license.NewContext(t.Context(), licenseInfo)
 
+			appConfig, err := ds.AppConfig(ctx)
+			require.NoError(t, err)
+
 			// Populate this one, in setup by mocking ds.GetAllCertificateAuthoritiesFunc if needed.
 			groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 			require.NoError(t, err)
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents)
+			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {
