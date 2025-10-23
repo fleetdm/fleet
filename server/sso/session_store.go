@@ -11,6 +11,10 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
+type SSORequestData struct {
+	HostUUID string `json:"host_uuid,omitempty"`
+}
+
 // Session stores state for the lifetime of a single sign on session.
 type Session struct {
 	// RequestID is the SAMLRequest ID that must match "InResponseTo" in the SAMLResponse.
@@ -19,6 +23,8 @@ type Session struct {
 	Metadata string `json:"metadata"`
 	// OriginalURL is the resource being accessed when login request was triggered
 	OriginalURL string `json:"original_url"`
+	// Additional request data that may be needed to complete the SSO process.
+	RequestData SSORequestData `json:"request_data,omitempty"`
 }
 
 // SessionStore persists state of a sso session across process boundries and
@@ -27,7 +33,7 @@ type Session struct {
 // is constrained in the backing store (Redis) so if the sso process is not completed in
 // a reasonable amount of time, it automatically expires and is removed.
 type SessionStore interface {
-	create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint) error
+	create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint, requestData SSORequestData) error
 	get(sessionID string) (*Session, error)
 	expire(sessionID string) error
 	// Fullfill loads a session with the given session ID, deletes it and returns it.
@@ -43,7 +49,7 @@ type store struct {
 	pool fleet.RedisPool
 }
 
-func (s *store) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint) error {
+func (s *store) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint, requestData SSORequestData) error {
 	if len(sessionID) < 8 {
 		return errors.New("request id must be 8 or more characters in length")
 	}
@@ -54,6 +60,7 @@ func (s *store) create(sessionID, requestID, originalURL, metadata string, lifet
 		RequestID:   requestID,
 		Metadata:    metadata,
 		OriginalURL: originalURL,
+		RequestData: requestData,
 	}
 	var writer bytes.Buffer
 	err := json.NewEncoder(&writer).Encode(session)

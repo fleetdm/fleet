@@ -771,6 +771,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		sso.SSORequestData{},
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMSSO creating authorization")

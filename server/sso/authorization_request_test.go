@@ -47,6 +47,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		0,
+		SSORequestData{},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 300*time.Second, store.sessionLifetime) // check default is used
@@ -79,6 +80,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		sessionTTL,
+		SSORequestData{},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, store.sessionLifetime)
@@ -105,11 +107,12 @@ type mockStore struct {
 	sessionLifetime time.Duration
 }
 
-func (s *mockStore) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint) error {
+func (s *mockStore) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint, requestData SSORequestData) error {
 	s.session = &Session{
 		RequestID:   requestID,
 		OriginalURL: originalURL,
 		Metadata:    metadata,
+		RequestData: requestData,
 	}
 	s.sessionLifetime = time.Duration(lifetimeSecs) * time.Second // nolint:gosec // dismiss G115
 	return nil
