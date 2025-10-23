@@ -1796,8 +1796,11 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 
 // fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
 // supported in Windows configuration profiles.
+// except prefix variables
 var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
+	fleet.FleetVarSCEPWindowsCertificateID,
+	fleet.FleetVarHostEndUserEmailIDP,
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) ([]string, error) {
