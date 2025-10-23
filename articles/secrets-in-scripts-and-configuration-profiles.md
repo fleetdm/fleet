@@ -89,6 +89,9 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 </plist>
 ```
 
+> In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. Fleet variables will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`.
+
+
 ## Known limitations and issues
 
 - **Apple MDM profiles**: Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field of Apple configuration profiles. This field becomes the visible name of the profile and using secrets here could expose sensitive information. Place secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
