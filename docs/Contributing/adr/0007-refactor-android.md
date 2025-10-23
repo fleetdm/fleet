@@ -19,7 +19,8 @@ Several aspects of the Android module work well, and should be kept and iterated
 - Having a separate Android module provides a good developer experience (DX) in that it:
   - means most implementation work can take place within the module
   - test-dev-test iterations are fast
-  - ...
+  - new bugs are isolated to the module are less likely to impact functionality on other platforms, so it's easier to reason about changes
+-
 - 
 
 ### What doesn't work well
@@ -50,12 +51,21 @@ Describe the consequences of the decision, both positive and negative. This shou
 
 Describe alternative solutions that were considered and why they were not chosen.
 
+- An orchestrator pattern was considered:
+  - a higher level module routes requests to the appropriate platform-specific module
+  - however, it felt like there could still be difficulties:
+    - GitOps-related endpoints that operate on multiple platforms in a single API call if the base service couldn't access Android-specific interfaces itself
+- Separate, per-platform endpoints were considered:
+  - this would be a breaking change that goes against Fleet's API design goals, so wasn't selected
+
 For each alternative:
 - Describe the alternative approach
 - List pros and cons
 - Explain why it was not selected
 
 ## References
+
+Related: [#34213](https://github.com/fleetdm/fleet/issues/34213)
 
 List any references, such as:
 - Links to related issues or discussions
