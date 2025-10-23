@@ -1,7 +1,7 @@
 <Replace>
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_LetEveryonePermissionsApplyToAnonymousUsers</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAlwaysInstallWithElevatedPrivileges</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>

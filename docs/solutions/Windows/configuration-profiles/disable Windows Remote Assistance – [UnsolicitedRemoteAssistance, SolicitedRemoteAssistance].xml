@@ -10,7 +10,6 @@
   </Item>
 </Replace>
 <Replace>
-  <CmdID>019a0127-11a3-780b-958d-907a64c528a4</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/RemoteAssistance/SolicitedRemoteAssistance</LocURI>
