@@ -869,14 +869,12 @@ func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName, a
 	policyName := fmt.Sprintf("%s/policies/1", enterpriseName)
 
 	appPolicy := &androidmanagement.ApplicationPolicy{
-		PackageName:          applicationID,
-		InstallType:          "AVAILABLE",
-		ManagedConfiguration: googleapi.RawMessage(`{"systemConfig": {"passThroughCommand": "<wap-provisioningdoc><characteristic version=\"4.3\" type=\"DisplayMgr\"><parm name=\"TimeoutInterval\" value=\"1800\" \/><\/characteristic><\/wap-provisioningdoc>"}}`),
+		PackageName: applicationID,
+		InstallType: "AVAILABLE",
 	}
 
 	// TODO(JVE): do we need to bubble up the policy? I don't think so
 	_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
-
 	if err != nil {
 		return err
 	}
