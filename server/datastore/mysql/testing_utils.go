@@ -68,7 +68,11 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
 	// This ensures we catch data truncation errors and other strict behaviors during testing
 	// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
-	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(common_mysql.TestSQLMode), WithFleetConfig(&tc))
+	sqlMode := common_mysql.TestSQLMode
+	if testing_utils.TestDBClient == "mariadb" {
+		sqlMode = common_mysql.TestSQLModeMariaDB
+	}
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(sqlMode), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -79,7 +83,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
 			Logger:              log.NewNopLogger(),
-			SqlMode:             common_mysql.TestSQLMode,
+			SqlMode:             sqlMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
