@@ -48,7 +48,7 @@ jobs:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fast", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.6", "mysql:9.4.0"] # make sure to update supported versions docs when this changes
+        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.6", "mysql:9.4.0", "mariadb:11.6"] # make sure to update supported versions docs when this changes
         isCron:
           - ${{ github.event_name == 'schedule' }}
         exclude:
@@ -56,6 +56,9 @@ jobs:
             mysql: "mysql:8.4.6" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
           - isCron: false
             mysql: "mysql:8.0.32" # Run MySQL 8.0.32 tests on cron schedule and not every time.
+          # Uncomment this before merging - MariaDB is experiemental, and should only run on cron schedule to not slow down regular dev
+          # - isCron: false
+          #   mysql: "mariadb:11.6" # Run MariaDB tests on cron schedule only
           # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
           - suite: "fast"
             mysql: "mysql:8.0.32" # We must make sure that at least 1 instance of this suite will run, which is 8.0.36 in this case
@@ -63,12 +66,16 @@ jobs:
             mysql: "mysql:8.4.6"
           - suite: "fast"
             mysql: "mysql:9.4.0"
+          - suite: "fast"
+            mysql: "mariadb:11.6"
           - suite: "scripts"
             mysql: "mysql:8.0.32"
           - suite: "scripts"
             mysql: "mysql:8.4.6"
           - suite: "scripts"
             mysql: "mysql:9.4.0"
+          - suite: "scripts"
+            mysql: "mariadb:11.6"
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
@@ -77,7 +84,7 @@ jobs:
     env:
       RACE_ENABLED: false
       GO_TEST_TIMEOUT: 20m
-      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test
+      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d database_test database_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test
 
     steps:
     - name: Harden Runner
@@ -139,7 +146,12 @@ jobs:
     - name: Start Infra Dependencies
       if: ${{ env.NEED_DOCKER }}
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND &
+      run: |
+        if [[ "${{ matrix.mysql }}" == mariadb* ]]; then
+          # For MariaDB, use an override docker command
+          DOCKER_COMMAND="docker compose -f docker-compose.yml -f docker-compose-mariadb.yml -f docker-compose-redis-cluster.yml up -d database_test database_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test"
+        fi
+        FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND &
 
     - name: Add TLS certificate for SMTP Tests
       if: ${{ env.NEED_DOCKER }}
@@ -218,13 +230,13 @@ jobs:
         
         while [ $attempt -le $max_attempts ]; do
           echo "Attempt $attempt of $max_attempts"
-          
-          # Try to connect to MySQL
-          if wait_for_mysql "mysql_test"; then
-            # If MySQL is ready, try to connect to MySQL replica
-            if wait_for_mysql "mysql_replica_test"; then
+
+          # Try to connect to database
+          if wait_for_mysql "database_test"; then
+            # If database is ready, try to connect to database replica
+            if wait_for_mysql "database_replica_test"; then
               # Both are ready, we're done
-              echo "All MySQL connections successful"
+              echo "All database connections successful"
               exit 0
             fi
           fi
@@ -245,10 +257,21 @@ jobs:
 
     - name: Generate test schema
       if: ${{ env.GENERATE_TEST_SCHEMA }}
-      run: make test-schema
+      run: |
+        if [[ "${{ matrix.mysql }}" == mariadb* ]]; then
+          # For MariaDB, use the existing schema.sql
+          ./tools/mariadb/fix-mariadb-schema.sh
+        else
+          make test-schema
+        fi
 
     - name: Run Go Tests
       run: |
+        # Set FLEET_DB_CLIENT for MariaDB tests
+        if [[ "${{ matrix.mysql }}" == mariadb* ]]; then
+          export FLEET_DB_CLIENT=mariadb
+        fi
+
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TESTS_ARG }}" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \
