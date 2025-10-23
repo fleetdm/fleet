@@ -3,4 +3,5 @@
   align-items: center;
   gap: $pad-small;
   font-size: $x-small;
+  height: 36px; // Min height of button to keep height the same when switching to active action "Installing..."
 }

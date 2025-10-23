@@ -15,10 +15,10 @@
   &__item {
     display: flex;
     flex-direction: row;
-    height: 66px;
     align-items: center;
     gap: $pad-medium;
     overflow: hidden;
+    max-width: 100%;
   }
 
   &__item-icon {
@@ -29,7 +29,6 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    height: 64px;
     overflow: hidden;
   }
 
@@ -57,5 +56,43 @@
     display: flex;
     gap: $pad-small;
     font-size: $x-small;
+  }
+}
+
+@media (max-width: (349px)) {
+  .self-service-tile {
+    gap: $pad-small;
+    padding: $pad-small;
+
+    &__item-error-text {
+      display: none;
+    }
+
+    &__item {
+      gap: $pad-small;
+    }
+
+    .tile-action-status {
+      gap: $pad-xsmall;
+    }
+  }
+}
+
+@media (max-width: (299px)) {
+  .self-service-tile {
+    &__item-name {
+      font-size: $xx-small;
+    }
+
+    &__item-version {
+      font-size: $xxx-small;
+    }
+
+    &__item-icon {
+      svg {
+        width: 32px;
+        height: 32px;
+      }
+    }
   }
 }

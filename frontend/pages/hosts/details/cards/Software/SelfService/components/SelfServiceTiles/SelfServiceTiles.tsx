@@ -62,7 +62,7 @@ const SelfServiceTiles = ({
                 url={software.icon_url}
                 name={software.name}
                 source={software.source}
-                size="large"
+                size="medium"
               />
             </div>
             <div className={`${tileBaseClass}__item-name-version`}>

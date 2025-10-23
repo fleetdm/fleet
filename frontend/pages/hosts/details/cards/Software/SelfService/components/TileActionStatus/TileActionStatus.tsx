@@ -57,7 +57,7 @@ const TileActionStatus = ({
         {isError && (
           <div className="self-service-tile__item-error">
             <Icon name="error" />
-            Failed
+            <div className="self-service-tile__item-error-text">Failed</div>
           </div>
         )}
         {actionLabel && (
