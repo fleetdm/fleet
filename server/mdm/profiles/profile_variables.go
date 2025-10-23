@@ -82,10 +82,11 @@ func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger kitlog.Logger
 
 func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	fleetVar string, profileContents string, hostUUID string,
-	hostIDForUUIDCache map[string]uint, userForHostIDCache map[uint]*fleet.HostEndUser,
+	hostIDForUUIDCache map[string]uint,
 	onError func(errMsg string) error,
 ) (replacedContents string, replacedVariable bool, err error) {
-	user, ok, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, userForHostIDCache, onError)
+	fmt.Println("Replacing", fleetVar, "in profile", profileContents, "for host", hostUUID)
+	user, ok, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
 	if err != nil {
 		return "", false, err
 	}
@@ -119,7 +120,6 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 
 func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint,
-	userForHostIDCache map[uint]*fleet.HostEndUser,
 	onError func(errMsg string) error,
 ) (*fleet.HostEndUser, bool, error) {
 	hostID, ok := hostIDForUUIDCache[hostUUID]
@@ -137,11 +137,6 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		}
 		hostID = ids[0]
 		hostIDForUUIDCache[hostUUID] = hostID
-	}
-
-	idpUser, ok := userForHostIDCache[hostID]
-	if ok {
-		return idpUser, true, nil
 	}
 
 	users, err := fleet.GetEndUsers(ctx, ds, hostID)
@@ -164,8 +159,6 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
 			return nil, false, onError(noFullnameErr)
 		}
-
-		userForHostIDCache[hostID] = &idpUser
 
 		return &idpUser, true, nil
 	}

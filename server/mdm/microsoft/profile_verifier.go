@@ -43,7 +43,6 @@ func LoopOverExpectedHostProfiles(
 
 	params := PreprocessingParameters{
 		HostIDForUUIDCache: make(map[string]uint),
-		UserForHostIDCache: make(map[uint]*fleet.HostEndUser),
 	}
 
 	for _, expectedProf := range profileMap {
@@ -291,8 +290,6 @@ func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
 type PreprocessingParameters struct {
 	// a lookup map to avoid repeated datastore calls for hostID from hostUUID
 	HostIDForUUIDCache map[string]uint
-	// a lookup map to avoid repeated datastore calls for end user from hostID
-	UserForHostIDCache map[uint]*fleet.HostEndUser
 }
 
 // PreprocessWindowsProfileContentsForVerification processes Windows configuration profiles to replace Fleet variables
@@ -373,7 +370,7 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 		if fleetVar == string(fleet.FleetVarHostUUID) {
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, hostUUID)
 		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {
-			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(ctx, ds, fleetVar, result, hostUUID, params.HostIDForUUIDCache, params.UserForHostIDCache, func(errMsg string) error {
+			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(ctx, ds, fleetVar, result, hostUUID, params.HostIDForUUIDCache, func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})
 			if err != nil {

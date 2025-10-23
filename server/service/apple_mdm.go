@@ -5063,7 +5063,6 @@ func preprocessProfileContents(
 	// this is used to cache the host ID corresponding to the UUID, so we don't
 	// need to look it up more than once per host.
 	hostIDForUUIDCache := make(map[string]uint)
-	userForHostIDCache := make(map[uint]*fleet.HostEndUser)
 
 	var addedTargets map[string]*cmdTarget
 	for profUUID, target := range targets {
@@ -5387,7 +5386,7 @@ func preprocessProfileContents(
 				case fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
 					fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
 					fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
-					replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(ctx, ds, fleetVar, hostContents, hostUUID, hostIDForUUIDCache, userForHostIDCache, func(errMsg string) error {
+					replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(ctx, ds, fleetVar, hostContents, hostUUID, hostIDForUUIDCache, func(errMsg string) error {
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:   target.cmdUUID,
 							HostUUID:      hostUUID,

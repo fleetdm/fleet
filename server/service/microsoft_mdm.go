@@ -2317,7 +2317,6 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 
 	params := microsoft_mdm.PreprocessingParameters{
 		HostIDForUUIDCache: make(map[string]uint),
-		UserForHostIDCache: make(map[uint]*fleet.HostEndUser),
 	}
 
 	for profUUID, target := range installTargets {

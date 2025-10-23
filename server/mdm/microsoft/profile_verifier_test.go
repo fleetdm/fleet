@@ -896,7 +896,6 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 
 	params := PreprocessingParameters{
 		HostIDForUUIDCache: make(map[string]uint),
-		UserForHostIDCache: make(map[uint]*fleet.HostEndUser),
 	}
 
 	for _, tt := range tests {
@@ -1086,7 +1085,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 
 	params := PreprocessingParameters{
 		HostIDForUUIDCache: make(map[string]uint),
-		UserForHostIDCache: make(map[uint]*fleet.HostEndUser),
 	}
 
 	for _, tt := range tests {
