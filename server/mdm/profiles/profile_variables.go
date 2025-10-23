@@ -85,7 +85,6 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	hostIDForUUIDCache map[string]uint,
 	onError func(errMsg string) error,
 ) (replacedContents string, replacedVariable bool, err error) {
-	fmt.Println("Replacing", fleetVar, "in profile", profileContents, "for host", hostUUID)
 	user, ok, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
 	if err != nil {
 		return "", false, err
