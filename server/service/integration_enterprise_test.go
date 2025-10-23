@@ -18559,11 +18559,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 			InstallerFile:     installerFile,
 		}
 
-		s.uploadSoftwareInstaller(t, payload, 200, "")
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// Verify fields were cleared
 		var listResp listSoftwareTitlesResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, 200, &listResp, "team_id", "0", "available_for_install", "true")
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
 
 		var found bool
 		var titleID uint
@@ -18577,7 +18577,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		require.True(t, found, "Script package should be created")
 
 		var titleResp getSoftwareTitleResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, 200, &titleResp, "team_id", "0")
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
 
 		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
 		installer := titleResp.SoftwareTitle.SoftwarePackage
@@ -18606,11 +18606,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 			InstallerFile:     installerFile,
 		}
 
-		s.uploadSoftwareInstaller(t, payload, 200, "")
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// Verify fields were cleared
 		var listResp listSoftwareTitlesResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, 200, &listResp, "team_id", "0", "available_for_install", "true")
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
 
 		var found bool
 		var titleID uint
@@ -18624,7 +18624,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		require.True(t, found, "Script package should be created")
 
 		var titleResp getSoftwareTitleResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, 200, &titleResp, "team_id", "0")
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
 
 		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
 		installer := titleResp.SoftwareTitle.SoftwarePackage
