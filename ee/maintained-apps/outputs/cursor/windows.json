@@ -6,8 +6,8 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere';"
       },
       "installer_url": "https://downloads.cursor.com/production/9675251a06b1314d50ff34b0cbe5109b78f848cd/win32/x64/system-setup/CursorSetup-x64-1.7.52.exe",
-      "install_script_ref": "c829a2f1",
-      "uninstall_script_ref": "772b6c14",
+      "install_script_ref": "5bc4ef5c",
+      "uninstall_script_ref": "470fed69",
       "sha256": "6fe2a384dff54f1dfd2761a3c649a82e66bd878e8d3a2f06fbf5b235a8eaf179",
       "default_categories": [
         "Developer Tools"
@@ -15,7 +15,7 @@
     }
   ],
   "refs": {
-    "772b6c14": "# Uninstall Cursor by PackageIdentifier (exact match)\nwinget uninstall --id Anysphere.Cursor -e\nExit $LASTEXITCODE",
-    "c829a2f1": "# Install Cursor system-wide, silent\nwinget install --id Anysphere.Cursor -e --accept-source-agreements --accept-package-agreements --scope machine\nExit $LASTEXITCODE"
+    "470fed69": "# Attempts to locate Cursor's uninstaller from registry and execute it silently\n# If found, adds common silent flags for Inno or MSI uninstallers\n\n$displayName = \"Cursor\"\n$publisher = \"Anysphere\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher)\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n$cmd = $uninstall.UninstallString\nif ($cmd -match 'unins.*\\\\.exe') { $cmd += ' /VERYSILENT /SUPRESSMSGBOXES /NORESTART' }\nelseif ($cmd -match 'msiexec') { if ($cmd -notmatch '/x') { $cmd = $cmd + ' /x' }; $cmd += ' /quiet /norestart' }\n\ntry {\n  $process = Start-Process -FilePath \"powershell\" -ArgumentList \"-NoProfile\",\"-NonInteractive\",\"-Command\", $cmd -PassThru -Wait\n  Exit $process.ExitCode\n} catch {\n  Write-Host \"Error running uninstaller: $_\"\n  Exit 1\n}",
+    "5bc4ef5c": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add arguments to install silently (Cursor uses an Inno Setup-based installer)\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/SP- /VERYSILENT /SUPRESSMSGBOXES /NORESTART /RESTARTEXISTCODE=0\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}"
   }
 }
