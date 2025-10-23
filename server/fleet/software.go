@@ -29,13 +29,14 @@ const (
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
 	SoftwareArchMaxLength    = 16
-	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
-	// == 1rune –> 38chars
-	UpgradeCodeMaxLength = 38
 
 	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
 	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
 	SoftwareTeamIdentifierMaxLength = 10
+
+	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
+	// == 1rune –> 38chars
+	UpgradeCodeExpectedLength = 38
 )
 
 type Vulnerabilities []CVE
@@ -555,8 +556,10 @@ func SoftwareFromOsqueryRow(
 
 	var upgradeCodeForFleetSW *string
 	if upgradeCode != "" {
-		truncated := truncateString(upgradeCode, UpgradeCodeMaxLength) // TODO - truncation necessary? should always be exactly 38 runes or empty
-		upgradeCodeForFleetSW = &truncated
+		if len(upgradeCode) != UpgradeCodeExpectedLength {
+			return nil, errors.New("host reported invalid upgrade code - unexpected length")
+		}
+		upgradeCodeForFleetSW = &upgradeCode
 	}
 
 	software := Software{
