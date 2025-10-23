@@ -210,7 +210,7 @@ This updates/creates:
 Edit `ee/maintained-apps/outputs/apps.json` to add a human-friendly `description` for your app’s entry. For Windows entries, use the vendor description (from the winget manifest or vendor site).
 
 ### Step 8: Test in a Fleet instance
-- Set an override to point Fleet at your branch’s catalog:
+- Set an override to point your Fleet instance at your branch’s catalog:
 ```bash
 export FLEET_DEV_MAINTAINED_APPS_BASE_URL="https://raw.githubusercontent.com/<repository-name>/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs"
 ```
