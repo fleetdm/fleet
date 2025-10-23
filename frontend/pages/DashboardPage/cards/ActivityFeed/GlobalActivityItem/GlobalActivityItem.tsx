@@ -19,6 +19,7 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import TooltipWrapper from "components/TooltipWrapper";
 import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
@@ -227,13 +228,21 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedHost: (activity: IActivity) => {
-    const { host_display_name, triggered_by } = activity.details || {};
+    const { host_display_name, triggered_by, host_expiry_window } =
+      activity.details || {};
 
     if (triggered_by === "expiration") {
       return (
         <>
           automatically deleted host <b>{host_display_name}</b> after{" "}
-          {/* host expiry window info */} days of inactivity.
+          <TooltipWrapper
+            tipContent="The host expiry window configured in Settings > Organization settings > Advanced options"
+            position="top"
+            underline={false}
+          >
+            {host_expiry_window} days of inactivity
+          </TooltipWrapper>
+          .
         </>
       );
     }
