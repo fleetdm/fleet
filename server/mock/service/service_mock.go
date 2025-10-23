@@ -233,7 +233,7 @@ type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint,
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
-type SetHostDeviceMappingFunc func(ctx context.Context, id uint, email, source string) ([]*fleet.HostDeviceMapping, error)
+type SetHostDeviceMappingFunc func(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
@@ -2822,7 +2822,7 @@ func (s *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
-func (s *Service) SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+func (s *Service) SetHostDeviceMapping(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
 	s.mu.Lock()
 	s.SetHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()

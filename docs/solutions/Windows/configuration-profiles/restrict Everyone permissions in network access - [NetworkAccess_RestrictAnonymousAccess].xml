@@ -1,5 +1,4 @@
 <Replace>
-  <CmdID>019a01b4-68a6-7aab-a125-fb36dc055a4c</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_LetEveryonePermissionsApplyToAnonymousUsers</LocURI>
@@ -10,4 +9,3 @@
     <Data>0</Data>
   </Item>
 </Replace>
-
