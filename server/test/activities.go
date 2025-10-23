@@ -153,6 +153,49 @@ func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage
 		HostID:      host.ID,
 		AppStoreID:  adamID,
 		CommandUUID: execID,
+		Status:      "Error",
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+}
+
+// CreateHostInHouseAppInstallUpcomingActivity creates an in-house app install
+// request for the provided host. It returns the upcoming activity's execution
+// ID.
+func CreateHostInHouseAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, host *fleet.Host, user *fleet.User) (execID string) {
+	ctx := context.Background()
+	ihaID, ihaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "inhouse.ipa",
+		Title:            uuid.NewString(),
+		Source:           "ios_apps",
+		Extension:        "ipa",
+		BundleIdentifier: "com.example.inhouseapp",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	execID = uuid.NewString()
+	err = ds.InsertHostInHouseAppInstall(ctx, host.ID, ihaID, ihaTitleID, execID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	return execID
+}
+
+func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, status string) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
+
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: execID,
+		Status:      status,
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err := nanods.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, nil, fleet.ActivityTypeInstalledSoftware{
+		HostID:      host.ID,
+		CommandUUID: execID,
+		Status:      "Error",
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 }
