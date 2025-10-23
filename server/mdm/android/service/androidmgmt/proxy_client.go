@@ -287,7 +287,7 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 	return nil, nil
 }
 
-func (g *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 	// TODO(JVE): do we need to implement this? I think so
 	return nil, nil
 }
