@@ -353,7 +353,7 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 		if fleetVar == string(fleet.FleetVarHostUUID) {
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, hostUUID)
 		} else if fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) {
-			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserEmailIDPVariable(ctx, ds, profileContents, hostUUID)
+			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserEmailIDPVariable(ctx, ds, result, hostUUID)
 			if err != nil {
 				return profileContents, ctxerr.Wrap(ctx, err, "replacing host end user email IDP variable")
 			}
