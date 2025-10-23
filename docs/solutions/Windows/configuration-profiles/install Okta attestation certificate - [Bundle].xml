@@ -1,103 +1,142 @@
-<Replace>
-  <!-- Set Node here -->
-  <CmdID>1</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">node</Format>
-    </Meta>
-  </Item>
-</Replace>
 <Add>
-  <!-- SCEP URL -->
-  <CmdID>2</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/ServerURL</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">chr</Format>
-    </Meta>
-    <Data>yourUrlHere</Data>
-  </Item>
+        <!-- Name of SCEP node -->
+<CmdID>2</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">node</Format>
+</Meta>
+</Item>
 </Add>
-<!-- SCEP Challenge -->
 <Add>
-  <CmdID>3</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/Challenge</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">chr</Format>
-    </Meta>
-    <Data>yourChallengeHere</Data>
-  </Item>
+        <!-- Retry count for SCEP installation -->
+<CmdID>3</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryCount</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">int</Format>
+</Meta>
+<Data>3</Data>
+</Item>
 </Add>
-<!-- CN - check Okta doc for required values (https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/devices-client-certificates-faqs.htm) -->
 <Add>
-  <CmdID>4</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/SubjectName</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">chr</Format>
-    </Meta>
-    <Data>$FLEET_VAR_HOST_UUID </Data>
-  </Item>
+        <!-- Retry delay for SCEP installation -->
+<CmdID>4</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryDelay</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">int</Format>
+</Meta>
+<Data>10</Data>
+</Item>
 </Add>
-<!-- Key Length -->
 <Add>
-  <CmdID>5</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/KeyLength</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">int</Format>
-    </Meta>
-    <Data>2048</Data>
-  </Item>
+        <!-- Key Usage - keep default for Okta -->
+<CmdID>5</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyUsage</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">int</Format>
+</Meta>
+<Data>160</Data>
+</Item>
 </Add>
-<!-- Hash Algorithm -->
 <Add>
-  <CmdID>6</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/HashAlgorithm</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">chr</Format>
-    </Meta>
-    <Data>SHA256</Data>
-  </Item>
+        <!-- Key Length - min 2048 for Okta -->
+<CmdID>6</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyLength</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">int</Format>
+</Meta>
+<Data>2048</Data>
+</Item>
 </Add>
-<!-- Key Usage -->
 <Add>
-  <CmdID>7</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/KeyUsage</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">int</Format>
-    </Meta>
-    <Data>160</Data>
-  </Item>
+        <!-- Hash Algorithm - keep default for Okta -->
+<CmdID>7</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/HashAlgorithm</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">chr</Format>
+</Meta>
+<Data>SHA-1</Data>
+</Item>
 </Add>
-<!-- Extended Key Usage -->
 <Add>
-  <CmdID>8</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/OktaVerify/Install/EKUMapping</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">chr</Format>
-    </Meta>
-    <Data>1.3.6.1.5.5.7.3.2</Data>
-  </Item>
+        <!-- CN - keep default for Okta -->
+<CmdID>8</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/SubjectName</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">chr</Format>
+</Meta>
+<Data>CN=$FLEET_VAR_HOST_UUID managementAttestation</Data>
+</Item>
+</Add>
+<Add>
+        <!-- Extended Key Usage - keep default for Okta -->
+<CmdID>9</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/EKUMapping</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">chr</Format>
+</Meta>
+<Data>1.3.6.1.4.1.311.10.3.12+1.3.6.1.4.1.311.10.3.4+1.3.6.1.4.1.311.20.2.2+1.3.6.1.5.5.7.3.2</Data>
+</Item>
+</Add>
+<Add>
+        <!-- SCEP Server URL -->
+<CmdID>10</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/ServerURL</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">chr</Format>
+</Meta>
+<Data>{{yourScepUrl}}</Data>
+</Item>
+</Add>
+<Add>
+        <!-- SCEP Challenge - Does not need to be b64 -->
+<CmdID>11</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/Challenge</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">chr</Format>
+</Meta>
+<Data>{{yourScepChallenge}}</Data>
+</Item>
+</Add>
+<Add>
+        <!-- SCEP CA Thumbprint - Download Okta CA (if using) and specify thumbprint here -->
+<CmdID>12</CmdID>
+<Item>
+<Target>
+<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/CAThumbprint</LocURI>
+</Target>
+<Meta>
+<Format xmlns="syncml:metinf">chr</Format>
+</Meta>
+<Data>{{yourScepCAThumbprint}}</Data>
+</Item>
 </Add>
