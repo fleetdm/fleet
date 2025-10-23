@@ -345,6 +345,13 @@ type Datastore interface {
 	// SetOrUpdateCustomHostDeviceMapping replaces the custom email address
 	// associated with the host with the provided one.
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
+	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
+	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
+	// mapping already exists, it will be updated to the new SCIM user.
+	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error
+	// DeleteHostSCIMUserMapping removes the association between a host and a SCIM user.
+	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)
@@ -2417,6 +2424,8 @@ type Datastore interface {
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
+
+	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
 }
 
 type AndroidDatastore interface {

@@ -1,3 +1,10 @@
+## Fleet 4.75.1 (Oct 21, 2025)
+
+### Bug fixes
+
+- Fixed `fleetctl generate-gitops` when MDM is not turned on.
+- Reduced load on migration from 4.74.0 and below.
+
 ## Fleet 4.75.0 (Oct 17, 2025)
 
 ### Security Engineers
@@ -151,13 +158,6 @@
 - Fixed banner link colors in UI. 
 - Fixed an alignment issue on the My device page.
 - Fix deadlocks when updating automations for 10+ policies at one time.
-
-## Fleet 4.73.4 (Sep 30, 2025)
-
-### Bug fixes
-
-- Added logic to detect and fix migration issues caused by improperly published Fleet v4.73.2 Linux binary
-- Removing the software renaming fix introduced in 4.73.3 due to MySQL DB performance issues.
 
 ## Fleet 4.73.3 (Sep 26, 2025)
 

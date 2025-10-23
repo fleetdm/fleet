@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -318,6 +319,8 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
+	appReportsEnabled := license.IsPremium(ctx)
+
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
@@ -335,7 +338,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			// We should disable them for free accounts. To enable them for a server transitioning from Free to Premium, we will need to patch the existing policies.
 			// For server transitioning from Premium to Free, we will need to patch the existing policies to disable software inventory, which could also be done
 			// by the fleetdm.com androidAPIClient or manually. The androidAPIClient could also enforce this report setting.
-			ApplicationReportsEnabled:    false,
+			ApplicationReportsEnabled:    appReportsEnabled,
 			ApplicationReportingSettings: nil,
 		},
 	})

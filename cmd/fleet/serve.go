@@ -471,6 +471,11 @@ the way that the Fleet server works.
 				}
 			}
 
+			if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
+				config.MDM.EnableCustomOSUpdatesAndFileVault = false
+				level.Warn(logger).Log("msg", "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
+			}
+
 			mdmStorage, err := mds.NewMDMAppleMDMStorage()
 			if err != nil {
 				initFatal(err, "initialize mdm apple MySQL storage")

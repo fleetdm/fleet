@@ -1195,6 +1195,8 @@ func main() {
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
 			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw)
+			// Use the legacy UI if the server indicates so via capabilities.
+			setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)
 			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
 
