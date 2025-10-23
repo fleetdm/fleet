@@ -1,7 +1,7 @@
 .icon-status-message {
   display: flex;
   align-items: flex-start;
-  gap: 8px; /* Adjust spacing between icon and text */
+  gap: $pad-small;
 }
 
 .icon-status-message__icon {
