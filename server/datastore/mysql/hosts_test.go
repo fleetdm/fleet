@@ -127,6 +127,7 @@ func TestHosts(t *testing.T) {
 		{"HostsExpiration", testHostsExpiration},
 		{"IOSHostExpiration", testIOSHostsExpiration},
 		{"DEPHostExpiration", testDEPHostsExpiration},
+		{"AppleMDMHostWithoutOrbitExpiration", testAppleMDMHostsWithoutOrbitExpiration},
 		{"TeamHostsExpiration", testTeamHostsExpiration},
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
@@ -5210,6 +5211,86 @@ func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
 
 	// And it doesn't remove more than it should
 	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, deleted, 0)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+}
+
+func testAppleMDMHostsWithoutOrbitExpiration(t *testing.T, ds *Datastore) {
+	// Apple MDM enrolled hosts(macOS devices specifically) which never get
+	ctx := context.Background()
+	hostExpiryWindow := 70
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	ac.HostExpirySettings.HostExpiryEnabled = false
+	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
+
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		platform := "darwin"
+		nanoLastSeen := time.Now()
+		if i >= 5 {
+			nanoLastSeen = nanoLastSeen.Add(time.Duration(-1*(hostExpiryWindow+1)*24) * time.Hour)
+		}
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: nanoLastSeen,
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+
+		nanoEnroll(t, ds, host, platform == "darwin")
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			// Hosts that only enroll via MDM get no host_seen_times
+			_, err := q.ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, host.ID)
+			require.NoError(t, err)
+			r, err := q.ExecContext(ctx,
+				`UPDATE nano_enrollments SET last_seen_at = ? WHERE device_id = ?`,
+				nanoLastSeen, host.UUID)
+			require.NoError(t, err)
+			rowsAffected, _ := r.RowsAffected()
+			require.GreaterOrEqual(t, rowsAffected, int64(1))
+			return err
+		})
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	deleted, err := ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+
+	// host expiration is still disabled so nothing should have been deleted
+	require.Len(t, deleted, 0)
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+
+	// once enabled, it works
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	deleted, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Len(t, deleted, 5)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+
+	// Calling it again deletes nothing
+	deleted, err = ds.CleanupExpiredHosts(ctx)
 	require.NoError(t, err)
 	require.Len(t, deleted, 0)
 
