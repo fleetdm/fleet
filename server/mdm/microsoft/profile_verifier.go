@@ -369,7 +369,7 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 
 	// Process each Fleet variable
 	result := profileContents
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		if fleetVar == string(fleet.FleetVarHostUUID) {
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, result, hostUUID)
 		} else if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) {

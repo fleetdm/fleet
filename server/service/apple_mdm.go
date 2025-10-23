@@ -456,7 +456,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 
 	// Convert profile variable names to FleetVarName type
 	varNames := make([]fleet.FleetVarName, 0, len(profileVars))
-	for varName := range profileVars {
+	for _, varName := range profileVars {
 		varNames = append(varNames, fleet.FleetVarName(varName))
 	}
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, varNames)
@@ -512,7 +512,7 @@ func CheckProfileIsNotSigned(data []byte) error {
 	return nil
 }
 
-func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) (map[string]struct{}, error) {
+func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
 	fleetVars := variables.FindKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
@@ -673,12 +673,8 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			return nil, err
 		}
 	}
-	// Convert slice to map for deduplication
-	result := make(map[string]struct{}, len(fleetVars))
-	for _, v := range fleetVars {
-		result[v] = struct{}{}
-	}
-	return result, nil
+
+	return variables.Dedupe(fleetVars), nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
@@ -5098,7 +5094,7 @@ func preprocessProfileContents(
 		// validation works as expected
 		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
 		// well
-		for fleetVar := range fleetVars {
+		for _, fleetVar := range fleetVars {
 			if fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
 				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
@@ -5111,7 +5107,7 @@ func preprocessProfileContents(
 		}
 
 	initialFleetVarLoop:
-		for fleetVar := range fleetVars {
+		for _, fleetVar := range fleetVars {
 			switch {
 			case fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 				configured, err := isNDESSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
@@ -5234,7 +5230,7 @@ func preprocessProfileContents(
 			hostContents := contentsStr
 			failed := false
 		fleetVarLoop:
-			for fleetVar := range fleetVars {
+			for _, fleetVar := range fleetVars {
 				var err error
 				switch {
 				case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
@@ -5564,7 +5560,7 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget
 func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
 ) (bool, error) {
 	caFleetVars := variables.Find(*item)
-	for caVar := range caFleetVars {
+	for _, caVar := range caFleetVars {
 		switch caVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP):
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
