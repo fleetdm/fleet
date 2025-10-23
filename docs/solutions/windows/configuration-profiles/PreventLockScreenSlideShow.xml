@@ -1,6 +1,5 @@
 <Replace>
   <!-- Prevent enabling lock screen slide show -->
-  <CmdID>1</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
