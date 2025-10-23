@@ -1313,6 +1313,50 @@ type softwareCVE struct {
 	CreatedAt *time.Time `db:"created_at"`
 }
 
+// buildSoftwareCountSQL builds a simplified query for counting software.
+// It uses the inner subquery from selectSoftwareSQL but strips out the outer CVE joins
+// ONLY when they're not needed for filtering or ordering.
+// TODO: This is a hacky approach and we need to properly refactor the selectSoftwareSQL query to separate
+// the part that is needed for software count
+func buildSoftwareCountSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
+	// Build the full query using the existing logic
+	fullSQL, args, err := selectSoftwareSQL(opts)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// We can only strip outer joins if:
+	// 1. No MatchQuery (which might reference scv.cve)
+	// 2. IncludeCVEScores is false (which means scv/c tables aren't used for filtering/ordering)
+	// 3. VulnerableOnly is false (which means we're not filtering to only vulnerable software)
+	//
+	// In production with vulnerable=false&without_vulnerability_details=true, all conditions are met,
+	// so we can safely strip the outer joins.
+	if opts.ListOptions.MatchQuery != "" || opts.IncludeCVEScores || opts.VulnerableOnly {
+		return fullSQL, args, nil
+	}
+
+	// The full query has this structure:
+	// SELECT ... FROM (inner subquery) AS s
+	// LEFT JOIN software_cve ...
+	// LEFT JOIN cve_meta ...
+	//
+	// For counting, we only need the inner subquery.
+	// Find where "LEFT JOIN `software_cve`" appears in the outer query and truncate there.
+
+	// Look for the pattern that marks the start of outer joins
+	outerJoinMarker := ") AS `s` LEFT JOIN `software_cve`"
+	if idx := strings.Index(fullSQL, outerJoinMarker); idx != -1 {
+		// Extract just the inner subquery + the closing ) AS `s`
+		innerSQL := fullSQL[:idx+len(") AS `s`")]
+		return innerSQL, args, nil
+	}
+
+	// If the pattern isn't found, it means there are no outer joins
+	// Return the full query as-is
+	return fullSQL, args, nil
+}
+
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
 	ds := dialect.
 		From(goqu.I("software").As("s")).
@@ -1553,7 +1597,27 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		)
 	}
 
-	ds = appendOrderByToSelect(ds, opts.ListOptions)
+	// The outer ORDER BY is only necessary when sorting by CVE-related fields (cvss_score, epss_probability, etc.)
+	// because the LEFT JOIN on software_cve can create multiple rows per software, and we need to ensure
+	// the software items are ordered correctly after the join.
+	//
+	// However, when ordering by software fields (name, hosts_count, etc.), the inner subquery already
+	// sorted and limited the results, and LEFT JOINs preserve the order of the left table.
+	// Re-sorting forces MySQL to materialize and sort all the joined CVE rows unnecessarily.
+	//
+	// CVE-related order keys that require outer ORDER BY:
+	cveRelatedOrderKeys := map[string]bool{
+		"cvss_score":         true,
+		"epss_probability":   true,
+		"cisa_known_exploit": true,
+		"cve_published":      true,
+	}
+
+	if cveRelatedOrderKeys[opts.ListOptions.OrderKey] {
+		// Re-apply ORDER BY for CVE-related fields
+		ds = appendOrderByToSelect(ds, opts.ListOptions)
+	}
+	// Otherwise, skip the redundant ORDER BY - the inner query's order is preserved
 
 	return ds.ToSQL()
 }
@@ -1563,11 +1627,8 @@ func countSoftwareDB(
 	q sqlx.QueryerContext,
 	opts fleet.SoftwareListOptions,
 ) (int, error) {
-	opts.ListOptions = fleet.ListOptions{
-		MatchQuery: opts.ListOptions.MatchQuery,
-	}
-
-	sql, args, err := selectSoftwareSQL(opts)
+	// Build a simplified query without outer CVE joins for efficient counting
+	sql, args, err := buildSoftwareCountSQL(opts)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "sql build")
 	}
