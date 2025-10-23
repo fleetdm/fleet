@@ -34,10 +34,10 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
-  task: "🦢🔄🧩 Sync & Solve"
+  task: "🦢🪲🔨💥 Bug bash"
   startedOn: "2025-10-22" 
   frequency: "Semiweekly" 
-  description: "Contributors bring bugs and different product questions. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Unblock contributors" 
+  description: "Contributors bring bug fixes to review. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Focused time to discuss bugs, so we can efficiently use design reviews to discuss stories in the current design sprint." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#sync-solve" 
   dri: "noahtalerman"
 -
