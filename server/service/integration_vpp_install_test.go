@@ -881,6 +881,44 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+
+	// ========================================================
+	// Test iOS VPP app installation
+	// ========================================================
+
+	// Enroll iOS device, add serial number to fake Apple server, and transfer to team
+	iosHost2, iosDevice2 := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice2.SerialNumber)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID}, TeamID: &team.ID}, http.StatusOK)
+	require.NotZero(t, iosTitleID)
+
+	// Trigger install to the iOS device
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", iosHost2.UUID, iosTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+
+	// Verify pending status
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	// Simulate successful installation on iOS device
+	opts.appInstallTimeout = false
+	opts.appInstallVerified = true
+	opts.failOnInstall = false
+	opts.bundleID = iOSApp.BundleIdentifier
+	installCmdUUID = processVPPInstallOnClient(iosDevice2, opts)
+
+	// Verify successful installation
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+	assert.Len(t, listResp.Hosts, 2)
+	assert.Equal(t, iosHost2.ID, listResp.Hosts[1].ID)
+
+	// TODO(JK): Test ipad
 }
 
 // for https://github.com/fleetdm/fleet/issues/31083
