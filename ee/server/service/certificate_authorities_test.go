@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est_ca"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -204,7 +204,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
-			estService:      hydrant.NewService(),
+			estService:      est_ca.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
 				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
 				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },

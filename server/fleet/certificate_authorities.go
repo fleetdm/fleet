@@ -48,7 +48,7 @@ const (
 	CATypeDigiCert        CAType = "digicert"
 	CATypeCustomSCEPProxy CAType = "custom_scep_proxy"
 	CATypeHydrant         CAType = "hydrant"
-	CATypeEST             CAType = "est" // Enrollment over Secure Transport
+	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
 )
 
@@ -104,6 +104,7 @@ type CertificateAuthorityPayload struct {
 	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`
 	CustomSCEPProxy *CustomSCEPProxyCA    `json:"custom_scep_proxy,omitempty"`
 	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
+	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
 }
 
@@ -237,6 +238,7 @@ type CertificateAuthorityUpdatePayload struct {
 	*NDESSCEPProxyCAUpdatePayload      `json:"ndes_scep_proxy,omitempty"`
 	*CustomSCEPProxyCAUpdatePayload    `json:"custom_scep_proxy,omitempty"`
 	*HydrantCAUpdatePayload            `json:"hydrant,omitempty"`
+	*CustomESTCAUpdatePayload          `json:"custom_est_proxy,omitempty"`
 	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
 }
 
@@ -247,6 +249,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 		caInPayload++
 	}
 	if p.HydrantCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.CustomESTCAUpdatePayload != nil {
 		caInPayload++
 	}
 	if p.NDESSCEPProxyCAUpdatePayload != nil {
@@ -401,6 +406,36 @@ func (hp *HydrantCAUpdatePayload) Preprocess() {
 	}
 	if hp.URL != nil {
 		*hp.URL = Preprocess(*hp.URL)
+	}
+}
+
+type CustomESTCAUpdatePayload struct {
+	Name     *string `json:"name"`
+	URL      *string `json:"url"`
+	Username *string `json:"username"`
+	Password *string `json:"password"`
+}
+
+// IsEmpty checks if the struct only has all empty values
+func (ep CustomESTCAUpdatePayload) IsEmpty() bool {
+	return ep.Name == nil && ep.URL == nil && ep.Username == nil && ep.Password == nil
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Name is provided then the Username and Password must also be provided
+func (ep *CustomESTCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	if ep.URL != nil && (ep.Username == nil || ep.Password == nil) {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying "url" of an existing certificate authority: %s.`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (ep *CustomESTCAUpdatePayload) Preprocess() {
+	if ep.Name != nil {
+		*ep.Name = Preprocess(*ep.Name)
+	}
+	if ep.URL != nil {
+		*ep.URL = Preprocess(*ep.URL)
 	}
 }
 

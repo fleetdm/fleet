@@ -91,6 +91,22 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		activity = fleet.ActivityAddedHydrant{}
 	}
 
+	if p.CustomESTProxy != nil {
+		p.CustomESTProxy.Preprocess()
+
+		if err := svc.validateEST(ctx, p.CustomESTProxy, errPrefix); err != nil {
+			return nil, err
+		}
+
+		caToCreate.Type = string(fleet.CATypeCustomESTProxy)
+		caToCreate.Name = &p.CustomESTProxy.Name
+		caToCreate.URL = &p.CustomESTProxy.URL
+		caToCreate.Username = &p.CustomESTProxy.Username
+		caToCreate.Password = &p.CustomESTProxy.Password
+		caDisplayType = "custom EST"
+		activity = fleet.ActivityAddedCustomESTProxy{}
+	}
+
 	if p.NDESSCEPProxy != nil {
 		p.NDESSCEPProxy.Preprocess()
 
@@ -311,8 +327,33 @@ func (svc *Service) validateHydrant(ctx context.Context, hydrantCA *fleet.Hydran
 	if hydrantCA.ClientSecret == "" || hydrantCA.ClientSecret == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("client_secret", fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix))
 	}
-	if err := svc.estService.ValidateHydrantURL(ctx, *hydrantCA); err != nil {
+	if err := svc.estService.ValidateESTURL(ctx, fleet.ESTProxyCA{
+		ID:       hydrantCA.ID,
+		Name:     hydrantCA.Name,
+		URL:      hydrantCA.URL,
+		Username: hydrantCA.ClientID,
+		Password: hydrantCA.ClientSecret,
+	}); err != nil {
 		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix))
+	}
+	return nil
+}
+
+func (svc *Service) validateEST(ctx context.Context, estProxyCA *fleet.ESTProxyCA, errPrefix string) error {
+	if err := validateCAName(estProxyCA.Name, errPrefix); err != nil {
+		return err
+	}
+	if err := validateURL(estProxyCA.URL, "EST", errPrefix); err != nil {
+		return err
+	}
+	if estProxyCA.Username == "" {
+		return fleet.NewInvalidArgumentError("username", fmt.Sprintf("%sInvalid EST Username. Please correct and try again.", errPrefix))
+	}
+	if estProxyCA.Password == "" || estProxyCA.Password == fleet.MaskedPassword {
+		return fleet.NewInvalidArgumentError("password", fmt.Sprintf("%sInvalid EST Password. Please correct and try again.", errPrefix))
+	}
+	if err := svc.estService.ValidateESTURL(ctx, *estProxyCA); err != nil {
+		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid EST URL. Please correct and try again.", errPrefix))
 	}
 	return nil
 }
@@ -423,6 +464,10 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 		}
 	case string(fleet.CATypeSmallstep):
 		activity = fleet.ActivityDeletedSmallstep{
+			Name: ca.Name,
+		}
+	case string(fleet.CATypeCustomESTProxy):
+		activity = fleet.ActivityDeletedCustomSCEPProxy{
 			Name: ca.Name,
 		}
 	}
@@ -1014,6 +1059,30 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		}
 		activity = fleet.ActivityEditedHydrant{Name: caActivityName}
 	}
+	if p.CustomESTCAUpdatePayload != nil {
+		if p.CustomESTCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCustom EST CA update payload is empty", errPrefix)}
+		}
+
+		if err := p.CustomESTCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
+			return err
+		}
+		p.CustomESTCAUpdatePayload.Preprocess()
+		if err := svc.validateCustomESTUpdate(ctx, p.CustomESTCAUpdatePayload, oldCA, errPrefix); err != nil {
+			return err
+		}
+		caToUpdate.Type = string(fleet.CATypeCustomESTProxy)
+		caToUpdate.Name = p.CustomESTCAUpdatePayload.Name
+		caToUpdate.URL = p.CustomESTCAUpdatePayload.URL
+		caToUpdate.Username = p.CustomESTCAUpdatePayload.Username
+		caToUpdate.Password = p.CustomESTCAUpdatePayload.Password
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedCustomESTProxy{Name: caActivityName}
+	}
 	if p.NDESSCEPProxyCAUpdatePayload != nil {
 		if p.NDESSCEPProxyCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sNDES SCEP Proxy CA update payload is empty", errPrefix)}
@@ -1196,10 +1265,10 @@ func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.Hy
 			return err
 		}
 
-		hydrantCAToVerify := fleet.HydrantCA{ // The hydrant service for verification only requires the URL.
+		hydrantCAToVerify := fleet.ESTProxyCA{ // The hydrant service for verification only requires the URL.
 			URL: *hydrant.URL,
 		}
-		if err := svc.estService.ValidateHydrantURL(ctx, hydrantCAToVerify); err != nil {
+		if err := svc.estService.ValidateESTURL(ctx, hydrantCAToVerify); err != nil {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix)}
 		}
 	}
@@ -1211,6 +1280,38 @@ func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.Hy
 	if hydrant.ClientSecret != nil && *hydrant.ClientSecret == "" {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix),
+		}
+	}
+
+	return nil
+}
+
+func (svc *Service) validateCustomESTUpdate(ctx context.Context, estUpdate *fleet.CustomESTCAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string) error {
+	if estUpdate.Name != nil {
+		if err := validateCAName(*estUpdate.Name, errPrefix); err != nil {
+			return err
+		}
+	}
+	if estUpdate.URL != nil {
+		if err := validateURL(*estUpdate.URL, "EST", errPrefix); err != nil {
+			return err
+		}
+
+		hydrantCAToVerify := fleet.ESTProxyCA{ // The EST service for verification only requires the URL.
+			URL: *estUpdate.URL,
+		}
+		if err := svc.estService.ValidateESTURL(ctx, hydrantCAToVerify); err != nil {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid EST URL. Please correct and try again.", errPrefix)}
+		}
+	}
+	if estUpdate.Username != nil && *estUpdate.Username == "" {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid EST Username. Please correct and try again.", errPrefix),
+		}
+	}
+	if estUpdate.Password != nil && *estUpdate.Password == "" {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid EST Password. Please correct and try again.", errPrefix),
 		}
 	}
 
