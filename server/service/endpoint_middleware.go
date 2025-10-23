@@ -42,6 +42,7 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 }
 
 func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+	// TODO(JK): host uuid / scep based authentication!!!!
 	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		token, err := getDeviceAuthToken(request)
 		if err != nil {

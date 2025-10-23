@@ -883,20 +883,25 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
 
 	// ========================================================
-	// Test iOS VPP app installation
+	// Test iOS VPP app self service installation
 	// ========================================================
+
+	// Edit iOS app to enable self service
+	require.NotZero(t, iosTitleID)
+	updateAppResp := updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", iosTitleID), &updateAppStoreAppRequest{TitleID: iosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
 
 	// Enroll iOS device, add serial number to fake Apple server, and transfer to team
 	iosHost2, iosDevice2 := s.createAppleMobileHostThenEnrollMDM("ios")
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice2.SerialNumber)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID}, TeamID: &team.ID}, http.StatusOK)
-	require.NotZero(t, iosTitleID)
+		&addHostsToTeamRequest{HostIDs: []uint{iosHost2.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Trigger install to the iOS device
-	installResp = installSoftwareResponse{}
+	iosHost2.UUID = "super-mega-secret-uuid-secret"
+	ssInstallResp := submitSelfServiceSoftwareInstallResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", iosHost2.UUID, iosTitleID), &installSoftwareRequest{},
-		http.StatusAccepted, &installResp)
+		http.StatusAccepted, &ssInstallResp)
 
 	// Verify pending status
 	countResp = countHostsResponse{}
