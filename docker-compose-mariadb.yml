@@ -13,6 +13,7 @@ services:
         "--log-bin=bin.log",
         "--server-id=1",
         "--max_allowed_packet=536870912",
+        "--sql-mode=",  # <-- delete this line to turn on ONLY_FULL_GROUP_BY
       ]
     environment: &mariadb-default-environment
       MARIADB_ROOT_PASSWORD: toor
@@ -34,6 +35,7 @@ services:
         "--log-bin=bin.log",
         "--server-id=1",
         "--max_allowed_packet=536870912",
+        "--sql-mode=",  # <-- delete this line to turn on ONLY_FULL_GROUP_BY
       ]
     environment: *mariadb-default-environment
 
@@ -51,6 +53,7 @@ services:
         "--log-bin=bin.log",
         "--server-id=2",
         "--max_allowed_packet=536870912",
+        "--sql-mode=",  # <-- delete this line to turn on ONLY_FULL_GROUP_BY
       ]
     environment: *mariadb-default-environment
 

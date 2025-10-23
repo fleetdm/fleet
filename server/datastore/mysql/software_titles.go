@@ -549,7 +549,7 @@ LEFT JOIN software_cve scve ON shc.software_id = scve.software_id
 WHERE s.title_id IN (?)
 AND %s
 AND shc.hosts_count > 0
-GROUP BY s.id, s.title_id, s.version`
+GROUP BY s.id`
 
 	extraSelect := ""
 	if withCounts {
