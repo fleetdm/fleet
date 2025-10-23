@@ -712,7 +712,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 
 const appleMDMAccountDrivenEnrollmentUrl = "/api/mdm/apple/account_driven_enroll"
 
-func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -771,7 +771,9 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
-		sso.SSORequestData{},
+		sso.SSORequestData{
+			HostUUID: hostUUID,
+		},
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMSSO creating authorization")
