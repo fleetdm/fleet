@@ -158,7 +158,7 @@ try {
   # Silent arguments vary by installer (e.g., /S, /silent, /VERYSILENT)
   $processOptions = @{
     FilePath     = "$exeFilePath"
-    ArgumentList = "/SP- /VERYSILENT /SUPRESSMSGBOXES /NORESTART /RESTARTEXISTCODE=0"
+    ArgumentList = "/VERYSILENT /NORESTART"
     PassThru     = $true
     Wait         = $true
   }
