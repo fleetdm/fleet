@@ -33,6 +33,10 @@ type EnterprisesListFunc func(ctx context.Context, serverURL string) ([]*android
 
 type SetAuthenticationSecretFunc func(secret string) error
 
+type EnterprisesApplicationsFunc func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error)
+
+type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
+
 type Client struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
 	SignupURLsCreateFuncInvoked bool
@@ -63,6 +67,12 @@ type Client struct {
 
 	SetAuthenticationSecretFunc        SetAuthenticationSecretFunc
 	SetAuthenticationSecretFuncInvoked bool
+
+	EnterprisesApplicationsFunc        EnterprisesApplicationsFunc
+	EnterprisesApplicationsFuncInvoked bool
+
+	EnterprisesPoliciesModifyPolicyApplicationsFunc        EnterprisesPoliciesModifyPolicyApplicationsFunc
+	EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -135,4 +145,18 @@ func (p *Client) SetAuthenticationSecret(secret string) error {
 	p.SetAuthenticationSecretFuncInvoked = true
 	p.mu.Unlock()
 	return p.SetAuthenticationSecretFunc(secret)
+}
+
+func (p *Client) EnterprisesApplications(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+	p.mu.Lock()
+	p.EnterprisesApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesApplicationsFunc(ctx, enterpriseName, packageName)
+}
+
+func (p *Client) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesModifyPolicyApplicationsFunc(ctx, policyName, appPolicy)
 }
