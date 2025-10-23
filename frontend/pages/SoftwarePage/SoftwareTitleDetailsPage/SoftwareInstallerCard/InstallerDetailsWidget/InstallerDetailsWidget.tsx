@@ -3,10 +3,11 @@
 
 import React, { useState } from "react";
 import classnames from "classnames";
-import { stringToClipboard } from "utilities/copy_text";
 
+import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import Graphic from "components/Graphic";
@@ -14,6 +15,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "installer-details-widget";
 
@@ -52,7 +54,7 @@ interface IInstallerDetailsWidgetProps {
   softwareName: string;
   installerType: "package" | "vpp";
   addedTimestamp?: string;
-  versionInfo?: JSX.Element;
+  version?: string | null;
   sha256?: string | null;
   isFma: boolean;
   isScriptPackage: boolean;
@@ -64,7 +66,7 @@ const InstallerDetailsWidget = ({
   installerType,
   addedTimestamp,
   sha256,
-  versionInfo,
+  version,
   isFma,
   isScriptPackage,
 }: IInstallerDetailsWidgetProps) => {
@@ -95,7 +97,46 @@ const InstallerDetailsWidget = ({
 
   const renderDetails = () => {
     const renderVersionInfo = () => {
-      return isScriptPackage ? "" : <>&bull; {versionInfo}</>;
+      if (isScriptPackage) {
+        return null;
+      }
+
+      let versionInfo = <span>{version}</span>;
+
+      if (installerType === "vpp") {
+        versionInfo = (
+          <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
+            <span>{version}</span>
+          </TooltipWrapper>
+        );
+      }
+
+      if (!version) {
+        versionInfo = (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                Fleet couldn&apos;t read the version from {softwareName}.
+                {installerType === "package" && (
+                  <>
+                    {" "}
+                    <CustomLink
+                      newTab
+                      url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+                      text="Learn more"
+                      variant="tooltip-link"
+                    />
+                  </>
+                )}
+              </span>
+            }
+          >
+            <span>Version (unknown)</span>
+          </TooltipWrapper>
+        );
+      }
+
+      return <> &bull; {versionInfo}</>;
     };
 
     const renderTimeStamp = () =>

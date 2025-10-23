@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
@@ -21,7 +21,7 @@ describe("InstallerDetailsWidget", () => {
     softwareName: "Test Software",
     installerType: "package" as const,
     addedTimestamp: "2024-05-06T10:00:00Z",
-    versionInfo: <span>v1.2.3</span>,
+    version: "v1.2.3",
     isFma: false,
     isScriptPackage: false,
   };
@@ -43,15 +43,27 @@ describe("InstallerDetailsWidget", () => {
     expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 
-  it("does not render version info for a script package", () => {
+  it("does not render Version (unknown) info for a script package", () => {
     render(
       <InstallerDetailsWidget
         {...defaultProps}
-        versionInfo={undefined}
+        version={undefined}
+        isScriptPackage
+      />
+    );
+    expect(screen.queryByText(/Version \(unknown\)/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
+  });
+
+  it("renders Version (unknown) info for a non-script package with no version info", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        version={undefined}
         isScriptPackage={false}
       />
     );
-    expect(screen.queryByText(/version/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Version \(unknown\)/i)).toBeInTheDocument();
     expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 
