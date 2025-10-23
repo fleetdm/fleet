@@ -236,13 +236,16 @@ const TAGGED_TEMPLATES = {
         <>
           automatically deleted host <b>{host_display_name}</b> after{" "}
           <TooltipWrapper
-            tipContent="The host expiry window configured in Settings > Organization settings > Advanced options"
-            position="top"
-            underline={false}
+            tipContent={
+              <>
+                The host expiry window configured in <br />
+                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+              </>
+            }
           >
-            {host_expiry_window} days of inactivity
-          </TooltipWrapper>
-          .
+            {host_expiry_window} day{host_expiry_window !== 1 ? "s" : ""}
+          </TooltipWrapper>{" "}
+          of inactivity.
         </>
       );
     }
