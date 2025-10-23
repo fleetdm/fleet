@@ -223,6 +223,9 @@ export const SOURCE_TYPE_CONVERSION = {
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
+  sh_packages: "Payload-free (Linux)",
+  ps1_packages: "Payload-free (Windows)",
+  jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -252,7 +255,17 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   chocolatey_packages: "windows",
   pkg_packages: "darwin",
   vscode_extensions: null,
+  sh_packages: "linux", // 4.76 Added support for Linux hosts only
+  ps1_packages: "windows",
+  jetbrains_plugins: null,
 } as const;
+
+export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
+
+export const NO_VERSION_OR_HOST_DATA_SOURCES = [
+  "tgz_packages",
+  ...SCRIPT_PACKAGE_SOURCES,
+];
 
 export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
@@ -274,6 +287,21 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
   trae: "Trae",
   windsurf: "Windsurf",
   cursor: "Cursor",
+
+  // jebtbrains versions
+  clion: "CLion",
+  datagrip: "DataGrip",
+  goland: "GoLand",
+  intellij_idea: "IntelliJ IDEA",
+  intellij_idea_community_edition: "IntelliJ IDEA Community Edition",
+  phpstorm: "PhpStorm",
+  pycharm: "PyCharm",
+  pycharm_community_edition: "PyCharm Community Edition",
+  resharper: "ReSharper",
+  rider: "Rider",
+  rubymine: "RubyMine",
+  rust_rov: "RustRover",
+  webstorm: "WebStorm",
 } as const;
 
 export type SoftwareExtensionFor =
@@ -311,18 +339,47 @@ export const SOFTWARE_INSTALL_STATUSES = [
   "installed",
   "pending_install",
   "failed_install",
+] as const;
+
+// Payload-free (script) software statuses
+export const SOFTWARE_SCRIPT_STATUSES = [
+  "ran_script",
+  "pending_script",
+  "failed_script",
+] as const;
+
+export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
+
+export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
+  ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
+  // Payload-free (script) software statuses use API's SOFTWARE_INSTALL_STATUSES
 ] as const;
 
 /*
- * SoftwareInstallStatus represents the possible states of software install operations.
+ * SoftwareInstallUninstallStatus represents the possible states of software install operations.
  */
-export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
+export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
-export const isValidSoftwareInstallStatus = (
+/** Include payload-free statuses */
+export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
+  ...SOFTWARE_INSTALL_STATUSES,
+  ...SOFTWARE_UNINSTALL_STATUSES,
+  ...SOFTWARE_SCRIPT_STATUSES, // Payload-free (script) software
+] as const;
+
+/*
+ * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including payload-free used in the UI.
+ */
+export type EnhancedSoftwareInstallUninstallStatus = typeof ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
+
+export const isValidSoftwareInstallUninstallStatus = (
   s: string | undefined | null
-): s is SoftwareInstallStatus =>
-  !!s && SOFTWARE_INSTALL_STATUSES.includes(s as SoftwareInstallStatus);
+): s is EnhancedSoftwareInstallUninstallStatus =>
+  !!s &&
+  ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES.includes(
+    s as EnhancedSoftwareInstallUninstallStatus
+  );
 
 export const SOFTWARE_AGGREGATE_STATUSES = [
   "installed",
@@ -376,7 +433,7 @@ export interface ISoftwareInstallResult {
   software_title_id: number;
   software_package: string;
   host_id: number;
-  status: SoftwareInstallStatus;
+  status: SoftwareInstallUninstallStatus;
   detail: string;
   output: string;
   pre_install_query_output: string;
@@ -385,6 +442,11 @@ export interface ISoftwareInstallResult {
   updated_at: string | null;
   self_service: boolean;
 }
+
+// Script results are only install results, never uninstall
+export type ISoftwareScriptResult = Omit<ISoftwareInstallResult, "status"> & {
+  status: SoftwareInstallStatus;
+};
 
 export interface ISoftwareInstallResults {
   results: ISoftwareInstallResult;
@@ -453,7 +515,7 @@ export interface IHostSoftware {
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
   bundle_identifier?: string;
-  status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
+  status: Exclude<SoftwareInstallUninstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
@@ -483,7 +545,13 @@ export type IHostSoftwareUiStatus =
   | "failed_install_update_available" // Install/update failed; newer installer version available
   | "failed_uninstall" // Uninstall attempt failed
   | "failed_uninstall_update_available" // Uninstall/update failed; newer installer version available
-  | "update_available"; // In inventory, but newer fleet installer version is available
+  | "update_available" // In inventory, but newer fleet installer version is available
+  // Script UI statuses
+  | "ran_script" // Script package ran successfully
+  | "failed_script" // Script package failed to run
+  | "running_script" // ONLINE; fleet-initiated script run in progress
+  | "pending_script" // OFFLINE; fleet-initiated script run scheduled
+  | "never_ran_script"; // Script package never ran before
 
 /**
  * Extends IHostSoftware with a computed `ui_status` field.
@@ -513,7 +581,7 @@ export type IDeviceSoftware = IHostSoftware;
 export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;
 
 const INSTALL_STATUS_PREDICATES: Record<
-  SoftwareInstallStatus | "pending",
+  EnhancedSoftwareInstallUninstallStatus | "pending",
   string
 > = {
   pending: "pending",
@@ -523,15 +591,38 @@ const INSTALL_STATUS_PREDICATES: Record<
   failed_install: "failed to install",
   pending_uninstall: "told Fleet to uninstall",
   failed_uninstall: "failed to uninstall",
+  ran_script: "ran", // Payload-free (script) software
+  failed_script: "failed to run", // Payload-free (script) software
+  pending_script: "told Fleet to run", // Payload-free (script) software
 } as const;
 
-export const getInstallStatusPredicate = (status: string | undefined) => {
+export const getInstallUninstallStatusPredicate = (
+  status: string | undefined,
+  isScriptPackage = false
+) => {
   if (!status) {
     return INSTALL_STATUS_PREDICATES.pending;
   }
+
+  // If it is a script package, map install statuses to script-specific predicates
+  if (isScriptPackage) {
+    switch (status.toLowerCase()) {
+      case "installed":
+        return INSTALL_STATUS_PREDICATES.ran_script;
+      case "pending_install":
+        return INSTALL_STATUS_PREDICATES.pending_script;
+      case "failed_install":
+        return INSTALL_STATUS_PREDICATES.failed_script;
+      default:
+        break;
+    }
+  }
+
+  // For all other cases, return the matching predicate or default to pending
   return (
-    INSTALL_STATUS_PREDICATES[status.toLowerCase() as SoftwareInstallStatus] ||
-    INSTALL_STATUS_PREDICATES.pending
+    INSTALL_STATUS_PREDICATES[
+      status.toLowerCase() as keyof typeof INSTALL_STATUS_PREDICATES
+    ] || INSTALL_STATUS_PREDICATES.pending
   );
 };
 
@@ -544,7 +635,7 @@ export const aggregateInstallStatusCounts = (
 });
 
 export const INSTALL_STATUS_ICONS: Record<
-  SoftwareInstallStatus | "pending" | "failed",
+  EnhancedSoftwareInstallUninstallStatus | "pending" | "failed",
   IconNames
 > = {
   pending: "pending-outline",
@@ -555,6 +646,9 @@ export const INSTALL_STATUS_ICONS: Record<
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error-outline",
+  ran_script: "success-outline", // Payload-free (script) software
+  failed_script: "error-outline", // Payload-free (script) software
+  pending_script: "pending-outline", // Payload-free (script) software
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
@@ -619,3 +713,15 @@ export interface IFleetMaintainedAppDetails {
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
   categories: SoftwareCategory[];
 }
+
+export const ROLLING_ARCH_LINUX_NAMES = [
+  "Arch Linux",
+  "Arch Linux ARM",
+  "Manjaro Linux",
+  "Manjaro Linux ARM",
+  "Manjaro ARM Linux",
+];
+
+export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(
+  (name) => `${name} rolling`
+);

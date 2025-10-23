@@ -1,0 +1,1 @@
+Changed the default name of Host Identity CA to 'Fleet Host Identity CA' to avoid conflict with Fleet's Apple MDM CA.

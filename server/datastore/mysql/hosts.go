@@ -728,6 +728,7 @@ SELECT
   COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
   COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
   COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+  hd.gigs_all_disk_space,
   hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
@@ -1019,6 +1020,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+    hd.gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
@@ -2981,6 +2983,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+    hd.gigs_all_disk_space as gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
 	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	` + hostMDMSelect + `
@@ -3799,6 +3802,30 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 	return ds.listHostDeviceMappingDB(ctx, ds.writer(ctx), hostID)
 }
 
+func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+	const (
+		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
+		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
+	)
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// First, delete any existing IDP mappings for this host (both sources)
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingIDP); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
+		}
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing MDM IDP device mappings")
+		}
+
+		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
+		}
+
+		return nil
+	})
+	return err
+}
+
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
 	for _, m := range mappings {
 		if hid != m.HostID {
@@ -4316,6 +4343,30 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 	return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
 }
 
+// deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
+func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExecerContext, hostID uint) error {
+	_, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Remove any existing SCIM user mapping for this host
+		if err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			return err
+		}
+
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+	})
+}
+
+func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
+	return deleteHostSCIMUserMapping(ctx, ds.writer(ctx), hostID)
+}
+
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
 	stmt := `
 	SELECT email
@@ -4332,12 +4383,12 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
-func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ? WHERE host_id = ?`,
-		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, host_id) VALUES (?, ?, ?, ?)`,
-		gigsAvailable, percentAvailable, gigsTotal, hostID,
+		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ?, gigs_all_disk_space = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space, host_id) VALUES (?, ?, ?, ?, ?)`,
+		gigsAvailable, percentAvailable, gigsTotal, gigsAll, hostID,
 	)
 }
 

@@ -34,6 +34,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
@@ -149,6 +150,10 @@ const HostSoftwareLibrary = ({
   const [
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWScriptDetails,
+    setSelectedHostSWScriptDetails,
   ] = useState<IHostSoftware | null>(null);
   const [
     selectedHostSWUninstallDetails,
@@ -377,6 +382,15 @@ const HostSoftwareLibrary = ({
     [setSelectedHostSWInstallDetails]
   );
 
+  const onSetSelectedHostSWScriptDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWScriptDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWScriptDetails]
+  );
+
   const onSetSelectedHostSWUninstallDetails = useCallback(
     (uninstallDetails?: ISWUninstallDetailsParentState) => {
       if (uninstallDetails) {
@@ -420,20 +434,30 @@ const HostSoftwareLibrary = ({
   }, []);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number) => {
+    async (softwareId: number, isScriptPackage = false) => {
       try {
         await hostAPI.installHostSoftwarePackage(id as number, softwareId);
         if (isMountedRef.current) {
           onInstallOrUninstall();
         }
+
+        const message = () => {
+          switch (true) {
+            case isHostOnline && isScriptPackage:
+              return "Script is running.";
+            case isHostOnline && !isScriptPackage:
+              return "Software is installing.";
+            case !isHostOnline && isScriptPackage:
+              return "Script will run when the host comes online.";
+            default:
+              return "Software will install when the host comes online.";
+          }
+        };
+
         renderFlash(
           "success",
           <>
-            Software{" "}
-            {isHostOnline
-              ? "is installing"
-              : "will install when the host comes online"}
-            . To see details, go to <b>Details &gt; Activity</b>.
+            {message()} To see details, go to <b>Details &gt; Activity</b>.
           </>
         );
       } catch (e) {
@@ -479,6 +503,7 @@ const HostSoftwareLibrary = ({
       onShowInventoryVersions,
       onShowUpdateDetails,
       onSetSelectedHostSWInstallDetails,
+      onSetSelectedHostSWScriptDetails,
       onSetSelectedHostSWUninstallDetails,
       onSetSelectedVPPInstallDetails,
       onClickInstallAction,
@@ -495,6 +520,7 @@ const HostSoftwareLibrary = ({
     onShowInventoryVersions,
     onShowUpdateDetails,
     onSetSelectedHostSWInstallDetails,
+    onSetSelectedHostSWScriptDetails,
     onSetSelectedHostSWUninstallDetails,
     onSetSelectedVPPInstallDetails,
     onClickInstallAction,
@@ -564,6 +590,18 @@ const HostSoftwareLibrary = ({
           }}
           hostSoftware={selectedHostSWInstallDetails}
           onCancel={() => setSelectedHostSWInstallDetails(null)}
+        />
+      )}
+      {selectedHostSWScriptDetails && (
+        <SoftwareScriptDetailsModal
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWScriptDetails.software_package?.last_install
+                ?.install_uuid,
+          }}
+          hostSoftware={selectedHostSWScriptDetails}
+          onCancel={() => setSelectedHostSWScriptDetails(null)}
         />
       )}
       {selectedHostSWUninstallDetails && (

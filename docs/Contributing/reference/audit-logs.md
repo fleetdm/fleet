@@ -1343,6 +1343,7 @@ This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
 
@@ -1358,6 +1359,7 @@ This activity contains the following fields:
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }
@@ -1374,6 +1376,7 @@ This activity contains the following fields:
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 
 #### Example
 
@@ -1384,7 +1387,8 @@ This activity contains the following fields:
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
-  "status": "uninstalled"
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }
 ```
 

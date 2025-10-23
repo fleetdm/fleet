@@ -5,12 +5,14 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   isLinuxLike,
   isAppleDevice,
+  isMacOS,
   isMobilePlatform,
   isAndroid,
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 import {
+  isAutomaticDeviceEnrollment,
   isBYODAccountDrivenUserEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
@@ -138,10 +140,20 @@ const canLockHost = ({
   isTeamAdmin,
   isTeamMaintainer,
   hostMdmDeviceStatus,
+  hostMdmEnrollmentStatus,
 }: IHostActionConfigOptions) => {
-  // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
-  const canLockDarwin =
+  // apple device hosts can be locked if they are enrolled in MDM and the MDM is enabled
+  const isLockableMacOSDevice =
     hostPlatform === "darwin" &&
+    isConnectedToFleetMdm &&
+    isMacMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  // ios and ipad devices can be locked if they are company owned enrollment in MDM,
+  // meaning they have to be enrolled via automated device enrollment (ADE)
+  const isLockableIosOrIpadDevice =
+    isIPadOrIPhone(hostPlatform) &&
+    isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
@@ -152,7 +164,8 @@ const canLockHost = ({
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
-      canLockDarwin) &&
+      isLockableMacOSDevice ||
+      isLockableIosOrIpadDevice) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -208,19 +221,20 @@ const canUnlock = ({
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  // macOS hosts can be unlocked if they are enrolled in the Fleet MDM and the
+  // apple device hosts can be unlocked if they are enrolled in the Fleet MDM and the
   // MDM is enabled and configured.
-  const canUnlockDarwin =
-    hostPlatform === "darwin" &&
+  const canUnlockApple =
+    isAppleDevice(hostPlatform) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // "unlocking" for a macOS host means that somebody saw the unlock pin, but
-  // shouldn't prevent users from trying to see the pin again, which is
-  // considered an "unlock"
+  // "unlocking" for a macos devices host means that somebody saw the unlock pin, but we
+  // shouldn't prevent users from trying to see the pin again so we still want to show
+  // the unlock option when macos hosts are unlocking. This is not the same for
+  // ios/ipad devices.
   const isValidState =
-    (hostMdmDeviceStatus === "unlocking" && hostPlatform === "darwin") ||
+    (hostMdmDeviceStatus === "unlocking" && isMacOS(hostPlatform)) ||
     hostMdmDeviceStatus === "locked";
 
   return (
@@ -228,7 +242,7 @@ const canUnlock = ({
     !isAndroid(hostPlatform) &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
-    (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
+    (canUnlockApple || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 
@@ -243,10 +257,23 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
-  return (
-    !isMobilePlatform(hostPlatform) && isPremiumTier && doesStoreEncryptionKey
-  );
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    doesStoreEncryptionKey,
+    hostPlatform,
+  } = config;
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  // For Apple devices, the encryption key is only available when connected to Fleet MDM
+  if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
+    return false;
+  }
+  return doesStoreEncryptionKey;
 };
 
 const canRunScript = ({

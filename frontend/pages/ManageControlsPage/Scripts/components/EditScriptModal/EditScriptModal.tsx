@@ -19,7 +19,7 @@ import paths from "router/paths";
 
 import { ScriptContent } from "interfaces/script";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getErrorMessage } from "../ScriptUploader/helpers";
+import { getErrorMessage } from "../ScriptUploadModal/helpers";
 
 const baseClass = "edit-script-modal";
 

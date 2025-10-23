@@ -138,6 +138,7 @@ func TestHosts(t *testing.T) {
 		{"HostDeviceMapping", testHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"CustomHostDeviceMapping", testHostsCustomHostDeviceMapping},
+		{"IDPHostDeviceMapping", testIDPHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
 		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
@@ -1154,9 +1155,9 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	}, "src1"))
 
 	// add some disks space info for some hosts
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0, 30.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0, 50.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0, 70.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0, 30.0, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0, 50.0, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0, 70.0, nil))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -2307,7 +2308,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 30
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5, 100.0, ptr.Float64(120.0)))
 
 	// Online
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -2325,7 +2326,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 3600
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50, 100.0, ptr.Float64(120.0)))
 
 	// Offline
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -2370,7 +2371,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// Set -1 sentinel values to indicate storage measurement not supported
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, -1, -1, 128.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, -1, -1, 128.0, nil))
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -2468,7 +2469,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "android-unmeasurable",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h1.ID, -1, -1, 128.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h1.ID, -1, -1, 128.0, nil))
 
 	// Host 2: Regular host with 0 GB (should be counted - legitimate disk full)
 	h2, err := ds.NewHost(ctx, &fleet.Host{
@@ -2483,7 +2484,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "mac-disk-full",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h2.ID, 0, 0, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h2.ID, 0, 0, 100.0, nil))
 
 	// Host 3: Regular host with 5 GB (should be counted)
 	h3, err := ds.NewHost(ctx, &fleet.Host{
@@ -2498,7 +2499,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "windows-low-space",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h3.ID, 5, 5, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h3.ID, 5, 5, 100.0, nil))
 
 	// Host 4: Regular host with 50 GB (should NOT be counted - above threshold)
 	h4, err := ds.NewHost(ctx, &fleet.Host{
@@ -2513,7 +2514,7 @@ func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 		Hostname:        "linux-good-space",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h4.ID, 50, 50, 100.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h4.ID, 50, 50, 100.0, ptr.Float64(120.0)))
 
 	// Test with low disk space filter set to 32 GB (typical threshold)
 	opts := fleet.HostListOptions{
@@ -3036,12 +3037,13 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 		NodeKey:         ptr.String("nodekey"),
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0, 3.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0, 3.0, ptr.Float64(4.0))
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
@@ -3614,10 +3616,6 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// host 3 only has foo v0.0.3
 	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, software[1:2])
-	require.NoError(t, err)
-
-	// reconcile software, will sync software titles
-	err = ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
 
 	var fooV002ID uint
@@ -6674,6 +6672,177 @@ func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping)
 	}
 }
 
+func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test hosts
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("idp-host-1"),
+		NodeKey:         ptr.String("idp-host-1"),
+		Platform:        "linux",
+		Hostname:        "idp-host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("idp-host-2"),
+		NodeKey:         ptr.String("idp-host-2"),
+		Platform:        "linux",
+		Hostname:        "idp-host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Test 1: Add first IDP mapping for h1
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user1@idp.com")
+	require.NoError(t, err)
+
+	// Verify the mapping was created
+	mappings, err := ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user1@idp.com", Source: fleet.DeviceMappingIDP},
+	})
+
+	// Test 2: Replace IDP mapping with new user (should replace, not add)
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	require.NoError(t, err)
+
+	// Should have only the new mapping (user1 should be replaced by user2)
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+	})
+
+	// Test 3: Test idempotent behavior - setting same mapping again should not change anything
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	require.NoError(t, err)
+
+	// Should still have only the same mapping
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+	})
+
+	// Test 4: Add IDP mapping for different host
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, "user3@idp.com")
+	require.NoError(t, err)
+
+	// Verify h2 has its own mapping
+	mappings, err = ds.ListHostDeviceMapping(ctx, h2.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user3@idp.com", Source: fleet.DeviceMappingIDP},
+	})
+
+	// Verify h1 still has its current mapping unchanged
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+	})
+
+	// Test 5: Test coexistence with custom mappings
+	customMappings, err := ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "custom@example.com", fleet.DeviceMappingCustomOverride)
+	require.NoError(t, err)
+
+	// Should have both IDP and custom mappings (only one IDP mapping)
+	require.Len(t, customMappings, 2)
+	assertHostDeviceMapping(t, customMappings, []*fleet.HostDeviceMapping{
+		{Email: "custom@example.com", Source: fleet.DeviceMappingCustomReplacement}, // displayed as "custom"
+		{Email: "user2@idp.com", Source: fleet.DeviceMappingIDP},
+	})
+
+	// Test 6: Test replacement with various email formats
+	testEmails := []string{
+		"simple@domain.com",
+		"user.name+tag@long-domain-name.co.uk",
+		"unicode-üser@domain.org",
+		"123numbers@domain123.net",
+	}
+
+	for i, email := range testEmails {
+		err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, email)
+		require.NoError(t, err, "Failed to set email: %s", email)
+
+		// Verify only the current email exists (replacement behavior)
+		mappings, err = ds.ListHostDeviceMapping(ctx, h2.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1, "Should have exactly one IDP mapping after email %d", i)
+		assert.Equal(t, email, mappings[0].Email, "Should have the latest email")
+		assert.Equal(t, fleet.DeviceMappingIDP, mappings[0].Source, "Should be IDP source")
+	}
+
+	// Test 7: Test empty email (edge case)
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "")
+	require.NoError(t, err) // Should handle empty email gracefully
+
+	// Verify empty email was added
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	found := false
+	for _, mapping := range mappings {
+		if mapping.Email == "" && mapping.Source == fleet.DeviceMappingIDP {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "Should find empty email mapping")
+
+	// Test 8: Test replacement of mdm_idp_accounts entries
+	// First, manually insert an mdm_idp_accounts entry to simulate MDM enrollment
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		"mdm.user@example.com", h1.ID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Verify the mdm_idp_accounts entry exists
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	foundMdmIdp := false
+	for _, mapping := range mappings {
+		if mapping.Email == "mdm.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+			foundMdmIdp = true
+			break
+		}
+	}
+	require.True(t, foundMdmIdp, "Should find MDM IDP mapping")
+
+	// Now set a new IDP mapping - this should replace the mdm_idp_accounts entry
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "new.user@example.com")
+	require.NoError(t, err)
+
+	// Verify only the new IDP mapping exists (mdm_idp_accounts should be gone)
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	foundNewIdp := false
+	foundOldMdmIdp := false
+	foundEmptyEmail := false
+	for _, mapping := range mappings {
+		if mapping.Email == "new.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+			foundNewIdp = true
+		}
+		if mapping.Email == "mdm.user@example.com" && mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+			foundOldMdmIdp = true
+		}
+		if mapping.Email == "" && mapping.Source == fleet.DeviceMappingIDP {
+			foundEmptyEmail = true
+		}
+	}
+	require.True(t, foundNewIdp, "Should find new IDP mapping")
+	require.False(t, foundOldMdmIdp, "Should NOT find old MDM IDP mapping (replacement behavior)")
+	require.False(t, foundEmptyEmail, "Should NOT find empty email mapping (replaced)")
+}
+
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	_, err := ds.GetHostMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
@@ -8001,7 +8170,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(stmt, host.ID, 1, 123)
 	require.NoError(t, err)
 	// set host' disk space
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0, nil)
 	require.NoError(t, err)
 	// set host orbit info
 	err = ds.SetOrUpdateHostOrbitInfo(
@@ -8740,10 +8909,10 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2, 50.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2, 50.0, nil)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4, 90.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4, 90.0, nil)
 	require.NoError(t, err)
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -8756,7 +8925,7 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0, nil)
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)

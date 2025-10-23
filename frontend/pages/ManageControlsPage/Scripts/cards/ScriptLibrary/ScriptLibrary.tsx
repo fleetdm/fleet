@@ -22,6 +22,7 @@ import SectionHeader from "components/SectionHeader";
 import UploadList from "../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
 import EditScriptModal from "../../components/EditScriptModal";
+import ScriptUploadModal from "../../components/ScriptUploadModal";
 import ScriptListHeading from "../../components/ScriptListHeading";
 import ScriptListItem from "../../components/ScriptListItem";
 import ScriptUploader from "../../components/ScriptUploader";
@@ -42,6 +43,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);
+  const [showAddScriptModal, setShowAddScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -133,12 +135,16 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       return null;
     }
 
+    const headingComponent = () => (
+      <ScriptListHeading onClickAddScript={() => setShowAddScriptModal(true)} />
+    );
+
     return (
       <>
         <UploadList
           keyAttribute="id"
           listItems={scripts || []}
-          HeadingComponent={ScriptListHeading}
+          HeadingComponent={headingComponent}
           ListItemComponent={({ listItem }) => (
             <ScriptListItem
               script={listItem}
@@ -175,8 +181,8 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       <SectionHeader title="Library" alignLeftHeaderVertically />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
-      {!isLoading && (
-        <ScriptUploader currentTeamId={teamId} onUpload={onUploadScript} />
+      {!isLoading && currentPage === 0 && !scripts?.length && (
+        <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
       )}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
@@ -191,6 +197,16 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
           scriptId={selectedScript.current.id}
           scriptName={selectedScript.current.name}
           onExit={onExitEditScript}
+        />
+      )}
+      {showAddScriptModal && (
+        <ScriptUploadModal
+          currentTeamId={teamId}
+          onExit={() => setShowAddScriptModal(false)}
+          onSubmit={() => {
+            setShowAddScriptModal(false);
+            refetchScripts();
+          }}
         />
       )}
     </div>

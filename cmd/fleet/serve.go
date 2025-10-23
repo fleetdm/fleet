@@ -471,6 +471,11 @@ the way that the Fleet server works.
 				}
 			}
 
+			if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
+				config.MDM.EnableCustomOSUpdatesAndFileVault = false
+				level.Warn(logger).Log("msg", "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
+			}
+
 			mdmStorage, err := mds.NewMDMAppleMDMStorage()
 			if err != nil {
 				initFatal(err, "initialize mdm apple MySQL storage")
@@ -979,7 +984,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
+				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}

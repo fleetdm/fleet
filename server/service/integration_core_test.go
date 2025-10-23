@@ -1295,8 +1295,8 @@ func (s *integrationTestSuite) TestHostsCount() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0, nil))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0, nil)) // not low disk
 
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -1513,8 +1513,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0, nil))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0, nil)) // not low disk
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -1577,8 +1577,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host0, false))
 
 	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
 	err = s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now())
 	require.NoError(t, err)
@@ -2388,13 +2386,15 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	assert.Equal(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable)
 	assert.Equal(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable)
+	assert.Equal(t, 500.0, getHostResp.Host.GigsTotalDiskSpace)
+	assert.Equal(t, ptr.Float64(600.0), getHostResp.Host.GigsAllDiskSpace)
 
 	var resp getHostSummaryResponse
 
@@ -3890,6 +3890,103 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	require.Len(t, listHosts.Hosts, 0)
 }
 
+func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
+	t := s.T()
+	hosts := s.createHosts(t)
+	host := hosts[0]
+
+	// Test 1: Test invalid source parameter validation
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "test@example.com", Source: "invalid"},
+		http.StatusUnprocessableEntity, &putResp)
+
+	// Test 2: Test endpoint routing - empty source defaults to custom (should work without premium)
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "default@example.com"},
+		http.StatusOK, &putResp)
+
+	// Find the new mapping in the response
+	var foundCustom bool
+	for _, mapping := range putResp.DeviceMapping {
+		if mapping.Email == "default@example.com" {
+			assert.Equal(t, fleet.DeviceMappingCustomReplacement, mapping.Source)
+			foundCustom = true
+			break
+		}
+	}
+	assert.True(t, foundCustom, "Should find the default custom mapping")
+
+	// Test 3: Explicit custom source should work without premium
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "custom@example.com", Source: "custom"},
+		http.StatusOK, &putResp)
+
+	// Find the custom mapping in the response
+	var foundExplicitCustom bool
+	for _, mapping := range putResp.DeviceMapping {
+		if mapping.Email == "custom@example.com" {
+			assert.Equal(t, fleet.DeviceMappingCustomReplacement, mapping.Source)
+			foundExplicitCustom = true
+			break
+		}
+	}
+	assert.True(t, foundExplicitCustom, "Should find the explicit custom mapping")
+
+	// Test 4: Verify custom mappings appear in host details via getHostEndpoint
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+
+	// Should have at least 1 end user with device mappings
+	require.GreaterOrEqual(t, len(hostResp.Host.EndUsers), 1)
+
+	// Find mappings by checking OtherEmails in EndUsers
+	foundMappings := make(map[string]string) // email -> source
+	for _, endUser := range hostResp.Host.EndUsers {
+		for _, otherEmail := range endUser.OtherEmails {
+			foundMappings[otherEmail.Email] = otherEmail.Source
+		}
+	}
+
+	// Verify that we have at least one custom mapping
+	// (the exact emails present may vary based on how the system consolidates mappings)
+	hasCustomMapping := false
+	for email, source := range foundMappings {
+		if source == fleet.DeviceMappingCustomReplacement {
+			hasCustomMapping = true
+			t.Logf("Found custom mapping: %s -> %s", email, source)
+		}
+	}
+	assert.True(t, hasCustomMapping, "Should find at least one custom mapping in host details")
+
+	// Verify that if we find specific mappings, they have the correct source
+	if source, found := foundMappings["default@example.com"]; found {
+		assert.Equal(t, fleet.DeviceMappingCustomReplacement, source)
+	}
+	if source, found := foundMappings["custom@example.com"]; found {
+		assert.Equal(t, fleet.DeviceMappingCustomReplacement, source)
+	}
+
+	// Also test the ID-based endpoint
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+
+	// Verify mappings are consistent between identifier and ID endpoints
+	foundMappingsById := make(map[string]string) // email -> source
+	for _, endUser := range hostResp.Host.EndUsers {
+		for _, otherEmail := range endUser.OtherEmails {
+			foundMappingsById[otherEmail.Email] = otherEmail.Source
+		}
+	}
+	assert.Equal(t, foundMappings, foundMappingsById, "Host details should be consistent between identifier and ID endpoints")
+
+	// Test 5: IDP source validation (requires Fleet Premium)
+	// This test verifies that the endpoint rejects IDP requests appropriately on free tier
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "idp.user1@example.com", Source: "idp"},
+		http.StatusPaymentRequired, &putResp)
+}
+
 func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 	t := s.T()
 	ctx := context.Background()
@@ -4873,7 +4970,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	)
 
 	// set disk space information
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0, nil)) // low disk
 
 	// Update host fields
 	host.Uptime = 30 * time.Second
@@ -8158,8 +8255,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	hosts := s.createHosts(t)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	// no search criteria
 	var searchResp searchHostsResponse
@@ -8170,9 +8267,13 @@ func (s *integrationTestSuite) TestSearchHosts() {
 		case hosts[0].ID:
 			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+			assert.Equal(t, 500.0, h.GigsTotalDiskSpace)
+			assert.Equal(t, ptr.Float64(600.0), h.GigsAllDiskSpace)
 		case hosts[1].ID:
 			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+			assert.Equal(t, 1000.0, h.GigsTotalDiskSpace)
+			assert.Equal(t, ptr.Float64(1200.0), h.GigsAllDiskSpace)
 		}
 		assert.Equal(t, h.SoftwareUpdatedAt, h.CreatedAt)
 	}
@@ -9050,8 +9151,8 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	// create software for host [0]
 	software := []fleet.Software{
@@ -9060,9 +9161,6 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	_, err = s.ds.UpdateHostSoftware(ctx, hosts[0].ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, hosts[0], false))
-
-	err = s.ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
 
 	var fooV1ID, fooTitleID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -9092,11 +9190,11 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 54)         // total number of cols
+	assert.Len(t, rows[0], 55)         // total number of cols
 
 	const (
 		idCol        = 3
-		issuesCol    = 45
+		issuesCol    = 46
 		gigsDiskCol  = 42
 		pctDiskCol   = 43
 		gigsTotalCol = 44
@@ -9468,7 +9566,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 
 	// before any disk encryption is received, all hosts report NULL (even if
 	// some have disk space information, i.e. an entry exists in host_disks).
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0, nil))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
@@ -11425,7 +11523,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 54)         // total number of cols
+	assert.Len(t, rows1[0], 55)         // total number of cols
 
 	var (
 		idIdx     int
@@ -11455,7 +11553,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 54)         // total number of cols
+	assert.Len(t, rows2[0], 55)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {

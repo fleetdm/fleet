@@ -975,7 +975,7 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	const (
 		getInstallerStmt = `
 SELECT
-	filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name
+	filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name, st.source
 FROM
 	software_installers si
 	LEFT JOIN software_titles st
@@ -992,6 +992,7 @@ VALUES
 			'installer_filename', ?,
 			'version', ?,
 			'software_title_name', ?,
+			'source', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
@@ -1021,6 +1022,7 @@ VALUES
 		Version   string  `db:"version"`
 		TitleID   *uint   `db:"title_id"`
 		TitleName *string `db:"title_name"`
+		Source    *string `db:"source"`
 	}
 	if err = sqlx.GetContext(ctx, ds.reader(ctx), &installerDetails, getInstallerStmt, softwareInstallerID); err != nil {
 		if err == sql.ErrNoRows {
@@ -1047,6 +1049,7 @@ VALUES
 			installerDetails.Filename,
 			installerDetails.Version,
 			installerDetails.TitleName,
+			installerDetails.Source,
 			userID,
 		)
 		if err != nil {
@@ -1152,7 +1155,7 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	const (
-		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
+		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name, st.source
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
 
 		insertUAStmt = `
@@ -1164,6 +1167,7 @@ VALUES
 			'installer_filename', '',
 			'version', 'unknown',
 			'software_title_name', ?,
+			'source', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?),
 			'self_service', ?
 		)
@@ -1191,6 +1195,7 @@ VALUES
 	var installerDetails struct {
 		TitleID   *uint   `db:"title_id"`
 		TitleName *string `db:"title_name"`
+		Source    *string `db:"source"`
 	}
 	if err = sqlx.GetContext(ctx, ds.reader(ctx), &installerDetails, getInstallerStmt, softwareInstallerID); err != nil {
 		if err == sql.ErrNoRows {
@@ -1213,6 +1218,7 @@ VALUES
 			false,
 			executionID,
 			installerDetails.TitleName,
+			installerDetails.Source,
 			userID,
 			selfService,
 		)
@@ -1258,7 +1264,8 @@ SELECT
 	hsi.host_deleted_at,
 	hsi.policy_id,
 	hsi.created_at as created_at,
-	hsi.updated_at as updated_at
+	hsi.updated_at as updated_at,
+	st.source
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
@@ -1286,7 +1293,8 @@ SELECT
 	NULL AS host_deleted_at,
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,
-	ua.updated_at as updated_at
+	ua.updated_at as updated_at,
+	st.source
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua

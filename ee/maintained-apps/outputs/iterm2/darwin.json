@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.6.4",
+      "version": "3.6.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';"
       },
-      "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_6_4.zip",
+      "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_6_5.zip",
       "install_script_ref": "fca23567",
       "uninstall_script_ref": "f76177f9",
-      "sha256": "b42f689cdd6330166dc504dd0b4733db16961365de2bb6a7e21369020c916a95",
+      "sha256": "3e480cf0b94c9eadde3d870a49ef62c2a75d3d00d2dd17e6676880dbe9a64ec4",
       "default_categories": [
         "Developer tools"
       ]

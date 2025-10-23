@@ -25,16 +25,21 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	row := rows[0]
 
 	// spot check a few fields and types
-	require.Equal(t, "2025-09-01T12:34:56Z", row["last_successful_rule"])
-	require.Equal(t, "apns", row["push_notifications"])
-	require.Equal(t, "1", row["bundle_scanning"]) // bool → "1"
-	require.Equal(t, "0", row["clean_required"])
-	require.Equal(t, "monitor", row["mode"])
-	require.Equal(t, "3", row["watchdog_cpu_events"])
-	require.Equal(t, "42", row["root_cache_count"])
-	require.Equal(t, "1", row["watch_items_enabled"])
+	require.Equal(t, "Monitor", row["mode"])
+	require.Equal(t, "0", row["watchdog_cpu_events"])
+	require.Equal(t, "3", row["watchdog_ram_events"])
+	require.Equal(t, "175", row["root_cache_count"])
+	require.Equal(t, "0", row["watch_items_enabled"])
+	require.Equal(t, "1", row["file_logging"])
+	require.Equal(t, "file", row["log_type"])
+	require.Equal(t, "6", row["static_rule_count"])
+	require.Equal(t, "rdonly", row["remount_usb_mode"])
+	require.Equal(t, "0", row["sync_enabled"])
+	require.Equal(t, "0", row["metrics_enabled"])
+	require.Equal(t, "0", row["events_pending_upload"])
 	// float formatting should be plain (no trailing zeros or scientific unless big)
-	require.True(t, strings.Contains(row["watchdog_ram_peak"], "1024"))
+	require.True(t, strings.Contains(row["watchdog_ram_peak"], "252.453125"))
+	require.True(t, strings.Contains(row["watchdog_cpu_peak"], "4.759"))
 }
 
 func TestGenerateStatus_CommandErrorReturnsEmptyNoError(t *testing.T) {
@@ -77,8 +82,8 @@ func TestStatusColumns_Contract(t *testing.T) {
 	}
 	// a few key columns to lock contract
 	for _, name := range []string{
-		"last_successful_rule", "push_notifications", "bundle_scanning",
 		"file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
+		"sync_enabled", "metrics_enabled", "events_pending_upload",
 	} {
 		if _, ok := names[name]; !ok {
 			t.Fatalf("missing column %q", name)
@@ -157,40 +162,43 @@ func TestHelperProcess(t *testing.T) {
 
 func sampleStatusJSON() string {
 	return `{
-	  "watch_items": { "enabled": true },
-	  "daemon": {
-	    "file_logging": true,
-	    "watchdog_ram_events": 5,
-	    "driver_connected": true,
-	    "log_type": "file",
-	    "watchdog_cpu_events": 3,
-	    "mode": "monitor",
-	    "watchdog_cpu_peak": 1.25,
-	    "watchdog_ram_peak": 1024,
-	    "transitive_rules": true,
-	    "remount_usb_mode": "ro",
-	    "block_usb": false,
-	    "on_start_usb_options": "block"
-	  },
-	  "cache": { "root_cache_count": 42, "non_root_cache_count": 7 },
-	  "static_rules": { "rule_count": 9 },
-	  "database": {
-	    "certificate_rules": 1,
-	    "cdhash_rules": 2,
-	    "transitive_rules": 3,
-	    "teamid_rules": 4,
-	    "signingid_rules": 5,
-	    "compiler_rules": 6,
-	    "binary_rules": 7,
-	    "events_pending_upload": 8
-	  },
-	  "sync": {
-	    "last_successful_rule": "2025-09-01T12:34:56Z",
-	    "push_notifications": "apns",
-	    "bundle_scanning": true,
-	    "clean_required": false,
-	    "server": "https://example.test",
-	    "last_successful_full": "2025-09-01T12:34:56Z"
-	  }
-	}`
+	"daemon" : {
+		"watchdog_ram_events" : 3,
+		"block_usb" : false,
+		"log_type" : "file",
+		"mode" : "Monitor",
+		"watchdog_cpu_events" : 0,
+		"static_rules" : 6,
+		"watchdog_ram_peak" : 252.453125,
+		"watchdog_cpu_peak" : 4.7590483333333333,
+		"file_logging" : true,
+		"remount_usb_mode" : "rdonly",
+		"on_start_usb_options" : "None"
+	},
+	"sync" : {
+		"enabled" : false
+	},
+	"rule_types" : {
+		"cdhash_rules" : 0,
+		"teamid_rules" : 4,
+		"certificate_rules" : 0,
+		"signingid_rules" : 1,
+		"binary_rules" : 1
+	},
+	"cache" : {
+		"root_cache_count" : 175,
+		"non_root_cache_count" : 5
+	},
+	"watch_items" : {
+		"enabled" : false
+	},
+	"metrics" : {
+		"enabled" : false
+	},
+	"transitive_allowlisting" : {
+		"enabled" : false,
+		"compiler_rules" : 0,
+		"transitive_rules" : 0
+	}
+}`
 }
