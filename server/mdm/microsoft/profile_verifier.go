@@ -377,7 +377,7 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 				return profileContents, err
 			}
 			if !replacedVariable {
-				return profileContents, &MicrosoftProfileProcessingError{message: fmt.Sprintf("Host end user IDP variable replacement failed for variable %s", fleetVar)}
+				return profileContents, ctxerr.Wrap(ctx, err, "host end user IDP variable replacement failed for variable")
 			}
 			result = replacedContents
 		}
