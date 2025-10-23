@@ -79,7 +79,7 @@ func main() {
 
 	// Dump schema to dumpfile
 	cmd := exec.Command(
-		"docker", "compose", "exec", "-T", "mysql_test",
+		"docker", "compose", "exec", "-T", "database_test",
 		// Command run inside container
 		"mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb", "--compact", "--skip-comments",
 	)

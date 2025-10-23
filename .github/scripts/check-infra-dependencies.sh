@@ -29,7 +29,7 @@ checkInfraFun() {
     INFRA=$1
     echo "check whether the $INFRA is ready"
     if [ "$INFRA" == "mysql" ]; then
-        ! docker-compose exec -T mysql_test bash -c 'echo "SHOW DATABASES;" | mysql -uroot -ptoor' && return 1
+        ! docker-compose exec -T database_test bash -c 'echo "SHOW DATABASES;" | mysql -uroot -ptoor' && return 1
         echo "mysql is ready!"
     elif [ "$INFRA" == "redis" ]; then
         ! docker-compose exec -T redis bash -c "redis-cli ping" && return 1

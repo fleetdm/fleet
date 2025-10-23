@@ -78,12 +78,12 @@ jobs:
 
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker compose up -d mysql_test &
+      run: docker compose up -d database_test &
 
     - name: Wait for mysql
       run: |
         echo "waiting for mysql..."
-        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        until docker compose exec -T database_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
             echo "."
             sleep 1
         done
