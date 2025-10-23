@@ -367,7 +367,6 @@ const EditIconModal = ({
               !currentIconUrl && software.icon_url ? software.icon_url : null
             }
             versions={versions}
-            hosts={0} // required field but not shown in isPreview
             iconPreviewUrl={iconState.previewUrl}
             iconUploadedAt={iconUploadedAt}
           />
@@ -467,7 +466,9 @@ const EditIconModal = ({
               uploadedAt={iconUploadedAt}
             />
           )}
-          <TooltipTruncatedText value={previewInfo.name} />
+          <div className={`${baseClass}__self-service-preview-name`}>
+            <TooltipTruncatedText value={previewInfo.name} />
+          </div>
         </div>
       </Card>
       <div

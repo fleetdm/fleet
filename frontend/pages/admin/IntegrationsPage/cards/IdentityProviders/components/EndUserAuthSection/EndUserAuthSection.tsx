@@ -10,7 +10,7 @@ import { AppContext } from "context/app";
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink/CustomLink";
 import Button from "components/buttons/Button/Button";
-import SectionHeader from "components/SectionHeader";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -196,8 +196,9 @@ const EndUserAuthSection = () => {
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="End user authentication" />
-      {renderContent()}
+      <SettingsSection title="End user authentication">
+        {renderContent()}
+      </SettingsSection>
     </div>
   );
 };

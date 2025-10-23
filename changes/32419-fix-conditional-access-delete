@@ -1,1 +1,0 @@
-* Fixed deletion of conditional access integration by adding a spinner and clearing the tenant ID after the deletion.

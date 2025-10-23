@@ -505,6 +505,12 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		return nil
 	}
 
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*mdm_types.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{},
+		}, nil
+	}
+
 	// Run ReconcileWindowsProfiles
 	err := ReconcileWindowsProfiles(ctx, ds, logger)
 	require.NoError(t, err) // The function should not return an error even if insert fails

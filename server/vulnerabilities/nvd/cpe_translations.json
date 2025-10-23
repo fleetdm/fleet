@@ -521,6 +521,16 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.now.gg.BlueStacksMIM"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["bluestacks"],
+      "vendor": ["bluestacks"]
+    }
+  },
+  {
+    "software": {
       "name": ["sourcegraph.cody-ai"],
       "source": ["vscode_extensions"]
     },
@@ -537,6 +547,26 @@
     "filter": {
       "product": ["pull_requests_and_issues"],
       "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.oracle.SQLDeveloper"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["sql_developer"],
+      "vendor": ["oracle"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.poly.lens.legacyhost.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lens"],
+      "vendor": ["poly"]
     }
   },
   {
