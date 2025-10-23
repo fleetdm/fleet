@@ -1,7 +1,7 @@
 <Replace>
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureSimpleTCPIPServicesStartupMode</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureMicrosoftFTPServiceStartupMode</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
