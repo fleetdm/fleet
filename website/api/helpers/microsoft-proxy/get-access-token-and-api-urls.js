@@ -31,30 +31,47 @@ module.exports = {
       return new Error(`No matching tenant record could be found with the specified ID. (${complianceTenantRecordId}`);
     }
 
+    sails.log.info(`Microsoft proxy: Getting access tokens for tenant ${informationAboutThisTenant.entraTenantId}`);
+
     // Get a graph access token for this tenant
-    let graphAccessTokenResponse = await sails.helpers.http.sendHttpRequest.with({
-      method: 'POST',
-      url: `https://login.microsoftonline.com/${informationAboutThisTenant.entraTenantId}/oauth2/v2.0/token`,
-      enctype: 'application/x-www-form-urlencoded',
-      body: {
-        client_id: sails.config.custom.compliancePartnerClientId,// eslint-disable-line camelcase
-        scope: 'https://graph.microsoft.com/.default',
-        client_secret: sails.config.custom.compliancePartnerClientSecret,// eslint-disable-line camelcase
-        grant_type: 'client_credentials'// eslint-disable-line camelcase
-      }
-    });
+    let graphAccessTokenResponse;
+    try {
+      graphAccessTokenResponse = await sails.helpers.http.sendHttpRequest.with({
+        method: 'POST',
+        url: `https://login.microsoftonline.com/${informationAboutThisTenant.entraTenantId}/oauth2/v2.0/token`,
+        enctype: 'application/x-www-form-urlencoded',
+        body: {
+          client_id: sails.config.custom.compliancePartnerClientId,// eslint-disable-line camelcase
+          scope: 'https://graph.microsoft.com/.default',
+          client_secret: sails.config.custom.compliancePartnerClientSecret,// eslint-disable-line camelcase
+          grant_type: 'client_credentials'// eslint-disable-line camelcase
+        }
+      });
+      sails.log.info(`Microsoft proxy: Successfully obtained Graph API access token`);
+    } catch(err) {
+      sails.log.error(`Microsoft proxy: Failed to get Graph API access token: ${require('util').inspect(err, {depth: 3})}`);
+      throw err;
+    }
+
     // Get a management API access token for this tenant
-    let manageAccessTokenResponse = await sails.helpers.http.sendHttpRequest.with({
-      method: 'POST',
-      url: `https://login.microsoftonline.com/${informationAboutThisTenant.entraTenantId}/oauth2/v2.0/token`,
-      enctype: 'application/x-www-form-urlencoded',
-      body: {
-        client_id: sails.config.custom.compliancePartnerClientId,// eslint-disable-line camelcase
-        scope: 'https://api.manage.microsoft.com//.default',
-        client_secret: sails.config.custom.compliancePartnerClientSecret,// eslint-disable-line camelcase
-        grant_type: 'client_credentials'// eslint-disable-line camelcase
-      }
-    });
+    let manageAccessTokenResponse;
+    try {
+      manageAccessTokenResponse = await sails.helpers.http.sendHttpRequest.with({
+        method: 'POST',
+        url: `https://login.microsoftonline.com/${informationAboutThisTenant.entraTenantId}/oauth2/v2.0/token`,
+        enctype: 'application/x-www-form-urlencoded',
+        body: {
+          client_id: sails.config.custom.compliancePartnerClientId,// eslint-disable-line camelcase
+          scope: 'https://api.manage.microsoft.com//.default',
+          client_secret: sails.config.custom.compliancePartnerClientSecret,// eslint-disable-line camelcase
+          grant_type: 'client_credentials'// eslint-disable-line camelcase
+        }
+      });
+      sails.log.info(`Microsoft proxy: Successfully obtained Manage API access token`);
+    } catch(err) {
+      sails.log.error(`Microsoft proxy: Failed to get Manage API access token: ${require('util').inspect(err, {depth: 3})}`);
+      throw err;
+    }
 
     // Parse the json response body to get the access token.
     let graphAccessToken;
@@ -67,12 +84,20 @@ module.exports = {
     }
 
     // [?]: https://learn.microsoft.com/en-us/graph/api/resources/serviceprincipal
-    let servicePrincipalResponse = await sails.helpers.http.get.with({
-      url: `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=${encodeURIComponent(`appId eq '0000000a-0000-0000-c000-000000000000'`)}`,
-      headers: {
-        'Authorization': `Bearer ${graphAccessToken}`
-      }
-    });
+    sails.log.info(`Microsoft proxy: Querying Graph API for Intune service principal`);
+    let servicePrincipalResponse;
+    try {
+      servicePrincipalResponse = await sails.helpers.http.get.with({
+        url: `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=${encodeURIComponent(`appId eq '0000000a-0000-0000-c000-000000000000'`)}`,
+        headers: {
+          'Authorization': `Bearer ${graphAccessToken}`
+        }
+      });
+      sails.log.info(`Microsoft proxy: Successfully queried service principal`);
+    } catch(err) {
+      sails.log.error(`Microsoft proxy: Failed to query Graph API for service principal. This usually means the Fleet compliance app needs admin consent in this tenant, or the app doesn't have the required Graph API permissions. Error: ${require('util').inspect(err, {depth: 3})}`);
+      throw err;
+    }
 
     let servicePrincipalObjectId = servicePrincipalResponse.value[0].id;
 

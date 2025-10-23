@@ -1,3 +1,6 @@
+// TEMPORARY: Shared storage for testing
+const testDeviceStorage = require('./_test-device-storage');
+
 module.exports = {
 
 
@@ -64,6 +67,38 @@ module.exports = {
     } catch(err){
       throw new Error(`When parsing the JSON response body of a Microsoft compliance partner update status, an error occured. full error: ${require('util').inspect(err)}`);
     }
+
+    // Log the status response
+    sails.log.info(`Microsoft proxy: Get status result - Status: ${parsedComplianceUpdateResponse.Status}, ErrorCode: ${parsedComplianceUpdateResponse.ErrorCode || 'N/A'}, ErrorDetail: ${parsedComplianceUpdateResponse.ErrorDetail || 'none'}`);
+
+    // If status is "Completed", query Entra ID to verify the compliance status was updated
+    if(parsedComplianceUpdateResponse.Status === 'Completed' && testDeviceStorage.lastDeviceId) {
+      try {
+        let graphAccessToken = tokenAndApiUrls.graphAccessToken;
+        let deviceId = testDeviceStorage.lastDeviceId;
+
+        sails.log.info(`Microsoft proxy: Status is Completed - now querying Entra ID for device ${deviceId} to verify compliance update`);
+
+        // Query using $filter on deviceId field (not the object ID)
+        let entraDeviceQuery = await sails.helpers.http.get.with({
+          url: `https://graph.microsoft.com/v1.0/devices?$filter=${encodeURIComponent(`deviceId eq '${deviceId}'`)}&$select=id,deviceId,displayName,isCompliant,approximateLastSignInDateTime,profileType`,
+          headers: {
+            'Authorization': `Bearer ${graphAccessToken}`
+          }
+        });
+
+        if(entraDeviceQuery.value && entraDeviceQuery.value.length > 0) {
+          let device = entraDeviceQuery.value[0];
+          sails.log.info(`Microsoft proxy: [AFTER COMPLETION] Device info from Entra ID: ${JSON.stringify(device, null, 2)}`);
+          sails.log.info(`Microsoft proxy: [AFTER COMPLETION] Entra ID shows device as compliant: ${device.isCompliant}`);
+        } else {
+          sails.log.warn(`Microsoft proxy: No device found in Entra ID with deviceId ${deviceId}`);
+        }
+      } catch(err) {
+        sails.log.warn(`Microsoft proxy: Failed to query device from Entra ID after completion (non-fatal): ${require('util').inspect(err, {depth: 2})}`);
+      }
+    }
+
     let result = {
       message_id: messageId,// eslint-disable-line camelcase
       status: parsedComplianceUpdateResponse.Status

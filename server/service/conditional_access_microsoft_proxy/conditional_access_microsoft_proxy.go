@@ -215,8 +215,10 @@ func (p *Proxy) post(path string, request interface{}, response interface{}) err
 	if err != nil {
 		return fmt.Errorf("post read response body: %w", err)
 	}
+	// Log the raw response body for debugging
+	fmt.Printf("DEBUG: proxy response body: %s\n", string(body))
 	if err := json.Unmarshal(body, response); err != nil {
-		return fmt.Errorf("post unmarshal response: %w", err)
+		return fmt.Errorf("post unmarshal response (body: %s): %w", string(body), err)
 	}
 	return nil
 }
