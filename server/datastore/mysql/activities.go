@@ -73,42 +73,29 @@ func (ds *Datastore) NewActivity(
 		cols = append(cols, "user_email")
 	}
 
-	vppPtrAct, okPtr := activity.(*fleet.ActivityInstalledAppStoreApp)
-	vppAct, ok := activity.(fleet.ActivityInstalledAppStoreApp)
-	if okPtr || ok {
-		hostID := vppAct.HostID
-		cmdUUID := vppAct.CommandUUID
-		if okPtr {
-			cmdUUID = vppPtrAct.CommandUUID
-			hostID = vppPtrAct.HostID
-		}
-
-		activateNext := vppAct.Status != string(fleet.SoftwareInstalled)
-		if vppPtrAct != nil {
-			activateNext = vppPtrAct.Status != string(fleet.SoftwareInstalled)
-		}
-
-		if activateNext {
-			// NOTE: ideally this would be called in the same transaction as storing
-			// the nanomdm command results, but the current design doesn't allow for
-			// that with the nano store being a distinct entity to our datastore (we
-			// should get rid of that distinction eventually, we've broken it already
-			// in some places and it doesn't bring much benefit anymore).
-			//
-			// Instead, this gets called from CommandAndReportResults, which is
-			// executed after the results have been saved in nano, but we already
-			// accept this non-transactional fact for many other states we manage in
-			// Fleet (wipe, lock results, setup experience results, etc. - see all
-			// critical data that gets updated in CommandAndReportResults) so there's
-			// no reason to treat the unified queue differently.
-			//
-			// This place here is a bit hacky but perfect for VPP apps as the activity
-			// gets created only when the MDM command status is in a final state
-			// (success or failure), which is exactly when we want to activate the next
-			// activity.
-			if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
-			}
+	if aa, ok := activity.(fleet.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
+		hostID, cmdUUID := aa.ActivateNextUpcomingActivityArgs()
+		// NOTE: ideally this would be called in the same transaction as storing
+		// the nanomdm command results, but the current design doesn't allow for
+		// that with the nano store being a distinct entity to our datastore (we
+		// should get rid of that distinction eventually, we've broken it already
+		// in some places and it doesn't bring much benefit anymore).
+		//
+		// Instead, this gets called from CommandAndReportResults, which is
+		// executed after the results have been saved in nano, but we already
+		// accept this non-transactional fact for many other states we manage in
+		// Fleet (wipe, lock results, setup experience results, etc. - see all
+		// critical data that gets updated in CommandAndReportResults) so there's
+		// no reason to treat the unified queue differently.
+		//
+		// This place here is a bit hacky but perfect for VPP/InHouse apps as the activity
+		// gets created only when the MDM command status is in a final state
+		// (success or failure), which is exactly when we want to activate the next
+		// activity. Though note that on success of the MDM command, we wait until the
+		// app gets verified (or it times out waiting for verification) to activate the
+		// next activity, to ensure the app is actually installed.
+		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
 		}
 	}
 
@@ -444,6 +431,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.host_id = :host_id AND
 			activity_type = 'software_uninstall'
 		`,
+		// list pending VPP apps
 		`SELECT
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
@@ -455,8 +443,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.created_at AS created_at,
 			JSON_OBJECT(
 				'host_id', ua.host_id,
-				'host_display_name', hdn.display_name,
-				'software_title', st.name,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'software_title', COALESCE(st.name, ''),
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
@@ -480,6 +468,41 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'vpp_app_install'
+		`,
+		// list pending in-house apps
+		`SELECT
+			ua.execution_id AS uuid,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			u.id AS user_id,
+			u.api_only as api_only,
+			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
+			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
+			:installed_software_type as activity_type,
+			ua.created_at AS created_at,
+			JSON_OBJECT(
+				'host_id', ua.host_id,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'software_title', COALESCE(st.name, ''),
+				'command_uuid', ua.execution_id,
+				'self_service', false,
+				'status', 'pending_install'
+			) AS details,
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated
+		FROM
+			upcoming_activities ua
+		INNER JOIN
+			in_house_app_upcoming_activities ihua ON ihua.upcoming_activity_id = ua.id
+		LEFT OUTER JOIN
+			users u ON ua.user_id = u.id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = ua.host_id
+		LEFT OUTER JOIN
+			software_titles st ON st.id = ihua.software_title_id
+		WHERE
+			ua.host_id = :host_id AND
+			ua.activity_type = 'in_house_app_install'
 		`,
 	}
 
@@ -947,12 +970,10 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 			return nil, ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
 		}
 
-		// TODO(mna): this will need to be adapted when in-house app verification is implemented, we'll probably
-		// have a similar SoftwareInstallInHousePrefix?
-		// const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
-		// if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
-		// 	return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
-		// }
+		const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+		if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete verify from host_mdm_commands")
+		}
 	}
 
 	var titleID uint
@@ -989,7 +1010,7 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 
 		const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
 		if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
+			return nil, ctxerr.Wrap(ctx, err, "delete verify vpp from host_mdm_commands")
 		}
 	}
 

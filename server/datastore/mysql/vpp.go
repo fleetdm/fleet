@@ -1116,8 +1116,7 @@ WHERE
 	switch commandResults.Status {
 	case fleet.MDMAppleStatusAcknowledged:
 		status = string(fleet.SoftwareInstalled)
-	case fleet.MDMAppleStatusCommandFormatError:
-	case fleet.MDMAppleStatusError:
+	case fleet.MDMAppleStatusCommandFormatError, fleet.MDMAppleStatusError:
 		status = string(fleet.SoftwareInstallFailed)
 	default:
 		// This case shouldn't happen (we should only be doing this check if the command is in a
@@ -1956,7 +1955,6 @@ SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE verification_failed_at IS NULL AND verification_at IS NULL
 `
 
-	// TODO(mna): maybe there will be another job to delete for in-house verification?
 	deletePendingJobsStmt := `
 DELETE FROM jobs
 WHERE name = ?

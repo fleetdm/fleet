@@ -9826,7 +9826,6 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, sw[2].SoftwarePackage.Platform, "ios")
 	require.Equal(t, sw[2].SoftwarePackage.SelfService, ptr.Bool(false))
 	require.NotNil(t, sw[2].SoftwarePackage.LastInstall)
-	// TODO: should an in-house app fill the InstallUUID instead? For frontend?
 	require.Equal(t, sw[2].SoftwarePackage.LastInstall.CommandUUID, inhouse1InstallCmd)
 
 	// software with available for install, also includes the pending one

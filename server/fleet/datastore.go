@@ -662,6 +662,7 @@ type Datastore interface {
 	SetInHouseAppInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
 	SetInHouseAppInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
 	ReplaceInHouseAppInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityTypeInstalledSoftware, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
@@ -695,8 +696,8 @@ type Datastore interface {
 	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
 	// VPP app install attempts were related to oldVerifyUUID.
 	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
-	// IsHostPendingVPPInstallVerification checks if a host has a pending VPP install verification command.
-	IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error)
+	// IsHostPendingMDMInstallVerification checks if a host has a pending VPP or in-house install verification command.
+	IsHostPendingMDMInstallVerification(ctx context.Context, hostUUID string) (bool, error)
 	// GetUnverifiedVPPInstallsForHost gets unverified HostVPPSoftwareInstalls by host UUID.
 	GetUnverifiedVPPInstallsForHost(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that

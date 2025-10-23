@@ -1345,6 +1345,7 @@ This activity contains the following fields:
 - "status": Status of the software installation.
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 
 
 #### Example
