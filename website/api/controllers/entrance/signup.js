@@ -161,7 +161,10 @@ the account verification message.)`,
         fleetPremiumTrialType = 'render-trial';
       }
     }
-    // Test code to make the
+    // TODO: remove before merging.
+    if(emailDomain === 'feralgoblin.com') {
+      fleetPremiumTrialType = 'render-trial';
+    }
 
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
@@ -193,44 +196,10 @@ the account verification message.)`,
         // ^ We may need to do that last part even if there is an instance available. It takes ~1-2 minutes to apply the
       } else {
         let instanceToAssign = renderInstancesThatCanBeAssignedToThisUser[0];
-        // Configure this user's license key on their Fleet instance.
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'PUT',
-          url: `https://api.render.com/v1/services/${instanceToAssign.renderFleetServiceId}/env-vars/FLEET_LICENSE_KEY`,
-          body: {
-            key: 'FLEET_LICENSE_KEY',
-            value: trialLicenseKeyForThisUser
-          },
-          headers: {
-            authorization: `Bearer ${sails.config.custom.renderApiToken}`
-          },
-        });
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'PUT',
-          url: `https://api.render.com/v1/services/${instanceToAssign.renderFleetServiceId}/env-vars/FLEET_LICENSE_KEY`,
-          body: {
-            key: 'FLEET_LICENSE_KEY',
-            value: trialLicenseKeyForThisUser
-          },
-          headers: {
-            authorization: `Bearer ${sails.config.custom.renderApiToken}`
-          },
-        });
-
-        let startDeployResponse = await sails.helpers.http.sendHttpRequest.with({
-          method: 'POST',
-          url: `https://api.render.com/v1/services/${instanceToAssign.renderFleetServiceId}/deploys`,
-          headers: {
-            authorization: `Bearer ${sails.config.custom.renderApiToken}`
-          },
-        });
-
-        console.log(startDeployResponse);
-        let parsedResponseBody = JSON.parse(startDeployResponse.body);
 
         await RenderProofOfValue.updateOne({id: instanceToAssign.id}).set({
+          status: 'in-use',
           renderTrialEndsAt: thirtyDaysFromNowAt,
-          renderBeforeFirstUseDeployId: parsedResponseBody.id,
           user: newUserRecord.id,
         });
       }
