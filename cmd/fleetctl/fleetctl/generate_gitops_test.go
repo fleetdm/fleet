@@ -1138,14 +1138,17 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	var shScriptPkg, ps1ScriptPkg, regularPkg map[string]interface{}
 	for _, pkg := range packages {
 		p := pkg.(map[string]interface{})
-		if url, ok := p["url"].(string); ok {
-			if url == "https://example.com/download/my-script.sh" {
-				shScriptPkg = p
-			} else if url == "https://example.com/download/setup.ps1" {
-				ps1ScriptPkg = p
-			} else if url == "https://example.com/download/regular-package.deb" {
-				regularPkg = p
-			}
+		url, ok := p["url"].(string)
+		if !ok {
+			continue
+		}
+		switch url {
+		case "https://example.com/download/my-script.sh":
+			shScriptPkg = p
+		case "https://example.com/download/setup.ps1":
+			ps1ScriptPkg = p
+		case "https://example.com/download/regular-package.deb":
+			regularPkg = p
 		}
 	}
 
@@ -1244,11 +1247,11 @@ func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.
 	}
 }
 
-func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
-	switch ID {
+func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	switch id {
 	case 3:
 		if *teamID != 2 {
-			return nil, fmt.Errorf("team ID mismatch")
+			return nil, errors.New("team ID mismatch")
 		}
 		// InstallScript is populated internally from file contents, but these fields
 		// should NOT be output in GitOps YAML
@@ -1267,7 +1270,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(ID uint, teamID *uint
 		}, nil
 	case 4:
 		if *teamID != 2 {
-			return nil, fmt.Errorf("team ID mismatch")
+			return nil, errors.New("team ID mismatch")
 		}
 		return &fleet.SoftwareTitle{
 			ID: 4,
@@ -1284,7 +1287,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(ID uint, teamID *uint
 		}, nil
 	case 5:
 		if *teamID != 2 {
-			return nil, fmt.Errorf("team ID mismatch")
+			return nil, errors.New("team ID mismatch")
 		}
 		// InstallScript is populated internally from file contents, but these fields
 		// should NOT be output in GitOps YAML
@@ -1302,7 +1305,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(ID uint, teamID *uint
 			},
 		}, nil
 	default:
-		return c.MockClient.GetSoftwareTitleByID(ID, teamID)
+		return c.MockClient.GetSoftwareTitleByID(id, teamID)
 	}
 }
 

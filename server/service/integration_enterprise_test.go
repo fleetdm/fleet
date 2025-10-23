@@ -18582,7 +18582,8 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
 		installer := titleResp.SoftwareTitle.SoftwarePackage
 
-		require.Empty(t, installer.InstallScript, ".sh script package should not have install_script")
+		require.Equal(t, string(shScriptContent), installer.InstallScript, ".sh script package should have install_script from file contents")
+		require.NotEqual(t, "echo 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
 		require.Empty(t, installer.PostInstallScript, ".sh script package should not have post_install_script")
 		require.Empty(t, installer.UninstallScript, ".sh script package should not have uninstall_script")
 		require.Empty(t, installer.PreInstallQuery, ".sh script package should not have pre_install_query")
@@ -18628,7 +18629,8 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
 		installer := titleResp.SoftwareTitle.SoftwarePackage
 
-		require.Empty(t, installer.InstallScript, ".ps1 script package should not have install_script")
+		require.Equal(t, string(ps1ScriptContent), installer.InstallScript, ".ps1 script package should have install_script from file contents")
+		require.NotEqual(t, "Write-Host 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
 		require.Empty(t, installer.PostInstallScript, ".ps1 script package should not have post_install_script")
 		require.Empty(t, installer.UninstallScript, ".ps1 script package should not have uninstall_script")
 		require.Empty(t, installer.PreInstallQuery, ".ps1 script package should not have pre_install_query")
