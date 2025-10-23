@@ -2166,6 +2166,16 @@ func (svc *Service) softwareBatchUpload(
 				installer.InstallerFile = tfr
 				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
+
+				// For script packages (.sh and .ps1), clear unsupported fields early.
+				// Determine extension from filename to validate before metadata extraction.
+				ext := strings.ToLower(filepath.Ext(filename))
+				ext = strings.TrimPrefix(ext, ".")
+				if fleet.IsScriptPackage(ext) {
+					installer.PostInstallScript = ""
+					installer.UninstallScript = ""
+					installer.PreInstallQuery = ""
+				}
 			}
 
 			if p.Slug != nil && *p.Slug != "" {
@@ -2238,8 +2248,15 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// custom scripts only for exe installers
-			if installer.Extension != "exe" {
+			// For script packages (.sh and .ps1), clear unsupported fields
+			// The file contents become the install script, so post_install_script,
+			// uninstall_script, and pre_install_query are not supported.
+			if fleet.IsScriptPackage(installer.Extension) {
+				installer.PostInstallScript = ""
+				installer.UninstallScript = ""
+				installer.PreInstallQuery = ""
+			} else if installer.Extension != "exe" {
+				// custom scripts only for exe installers and non-script packages
 				if installer.InstallScript == "" {
 					installer.InstallScript = file.GetInstallScript(installer.Extension)
 				}

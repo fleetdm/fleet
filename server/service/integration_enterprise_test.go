@@ -18525,6 +18525,120 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
 
+// TestScriptPackageUploadValidation tests that script packages (.sh and .ps1)
+// properly ignore unsupported fields (install_script, post_install_script,
+// uninstall_script, pre_install_query) when uploaded via the API. These fields
+// are not supported because the file contents themselves become the install script.
+func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
+	t := s.T()
+
+	tmpDir := t.TempDir()
+
+	shScriptPath := filepath.Join(tmpDir, "test-script.sh")
+	shScriptContent := []byte("#!/bin/bash\necho 'Installing...'\n")
+	err := os.WriteFile(shScriptPath, shScriptContent, 0644)
+	require.NoError(t, err)
+
+	ps1ScriptPath := filepath.Join(tmpDir, "test-script.ps1")
+	ps1ScriptContent := []byte("Write-Host 'Installing...'\n")
+	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0644)
+	require.NoError(t, err)
+
+	t.Run("sh script package ignores unsupported fields", func(t *testing.T) {
+		installerFile, err := fleet.NewKeepFileReader(shScriptPath)
+		require.NoError(t, err)
+		defer installerFile.Close()
+
+		// Upload with unsupported fields populated
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "echo 'This should be ignored'",
+			PostInstallScript: "echo 'Post-install should be ignored'",
+			UninstallScript:   "echo 'Uninstall should be ignored'",
+			PreInstallQuery:   "SELECT 1",
+			Filename:          "test-script.sh",
+			InstallerFile:     installerFile,
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Verify fields were cleared
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+
+		var found bool
+		var titleID uint
+		for _, sw := range listResp.SoftwareTitles {
+			if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "test-script.sh" {
+				found = true
+				titleID = sw.ID
+				break
+			}
+		}
+		require.True(t, found, "Script package should be created")
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		installer := titleResp.SoftwareTitle.SoftwarePackage
+
+		require.Equal(t, string(shScriptContent), installer.InstallScript, ".sh script package should have install_script from file contents")
+		require.NotEqual(t, "echo 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Empty(t, installer.PostInstallScript, ".sh script package should not have post_install_script")
+		require.Empty(t, installer.UninstallScript, ".sh script package should not have uninstall_script")
+		require.Empty(t, installer.PreInstallQuery, ".sh script package should not have pre_install_query")
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
+	})
+
+	t.Run("ps1 script package ignores unsupported fields", func(t *testing.T) {
+		installerFile, err := fleet.NewKeepFileReader(ps1ScriptPath)
+		require.NoError(t, err)
+		defer installerFile.Close()
+
+		// Upload with unsupported fields populated
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "Write-Host 'This should be ignored'",
+			PostInstallScript: "Write-Host 'Post-install should be ignored'",
+			UninstallScript:   "Write-Host 'Uninstall should be ignored'",
+			PreInstallQuery:   "SELECT 1",
+			Filename:          "test-script.ps1",
+			InstallerFile:     installerFile,
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Verify fields were cleared
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+
+		var found bool
+		var titleID uint
+		for _, sw := range listResp.SoftwareTitles {
+			if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "test-script.ps1" {
+				found = true
+				titleID = sw.ID
+				break
+			}
+		}
+		require.True(t, found, "Script package should be created")
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		installer := titleResp.SoftwareTitle.SoftwarePackage
+
+		require.Equal(t, string(ps1ScriptContent), installer.InstallScript, ".ps1 script package should have install_script from file contents")
+		require.NotEqual(t, "Write-Host 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Empty(t, installer.PostInstallScript, ".ps1 script package should not have post_install_script")
+		require.Empty(t, installer.UninstallScript, ".ps1 script package should not have uninstall_script")
+		require.Empty(t, installer.PreInstallQuery, ".ps1 script package should not have pre_install_query")
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
+	})
+}
+
 func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	t := s.T()
 
