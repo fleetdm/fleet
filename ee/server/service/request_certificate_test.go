@@ -210,7 +210,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorContains(t, err, "Hydrant certificate request failed")
+		require.ErrorContains(t, err, "EST certificate request failed")
 		require.Nil(t, cert)
 	})
 
@@ -263,7 +263,7 @@ func TestRequestCertificate(t *testing.T) {
 		require.Nil(t, cert)
 	})
 
-	t.Run("Request certificate - non-Hydrant CA", func(t *testing.T) {
+	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          digicertCA.ID,
@@ -272,7 +272,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-idp-client-id"),
 		})
-		require.ErrorContains(t, err, "This API currently only supports Hydrant Certificate Authorities.")
+		require.ErrorContains(t, err, "This API currently only supports Hydrant and EST Certificate Authorities.")
 	})
 
 	t.Run("Request certificate - nonexistent CA", func(t *testing.T) {
