@@ -72,16 +72,19 @@ func createOrGetHost(ctx context.Context, ds *mysql.Datastore, identifier string
 	return ds.NewHost(ctx, &base)
 }
 
-func calculateKernelCount(hostIndex, totalHosts int) int {
-	const maxKernels = 90
+func calculateKernelCount(hostIndex, totalHosts, maxKernels int) int {
 	const minKernels = 1
+
+	if maxKernels < minKernels {
+		maxKernels = minKernels
+	}
 
 	if totalHosts == 1 {
 		return maxKernels
 	}
 
 	// Use exponential decay to distribute kernel counts
-	// The decay factor is calculated to spread from 90 to 1 across all hosts
+	// The decay factor is calculated to spread from maxKernels to 1 across all hosts
 	decayFactor := math.Log(float64(maxKernels)/float64(minKernels)) / float64(totalHosts-1)
 	kernelCount := int(math.Round(float64(maxKernels) * math.Exp(-decayFactor*float64(hostIndex-1))))
 
@@ -96,13 +99,81 @@ func calculateKernelCount(hostIndex, totalHosts int) int {
 	return kernelCount
 }
 
+type ubuntuVersion struct {
+	version        string
+	displayVersion string
+	kernelVersion  string
+	osVersion      string
+}
+
+func generateUbuntuVersions(count int) []ubuntuVersion {
+	var versions []ubuntuVersion
+
+	// Ubuntu 20.04 series (6 point releases)
+	for i := 1; i <= 6 && len(versions) < count; i++ {
+		versions = append(versions, ubuntuVersion{
+			version:        fmt.Sprintf("20.04.%d", i),
+			displayVersion: "20.04",
+			kernelVersion:  fmt.Sprintf("5.4.0-%d-generic", 148+(i-1)*2),
+			osVersion:      fmt.Sprintf("Ubuntu 20.04.%d LTS", i),
+		})
+	}
+
+	// Ubuntu 22.04 series (6 point releases)
+	for i := 1; i <= 6 && len(versions) < count; i++ {
+		versions = append(versions, ubuntuVersion{
+			version:        fmt.Sprintf("22.04.%d", i),
+			displayVersion: "22.04",
+			kernelVersion:  fmt.Sprintf("5.15.0-%d-generic", 56+(i-1)*2),
+			osVersion:      fmt.Sprintf("Ubuntu 22.04.%d LTS", i),
+		})
+	}
+
+	// Ubuntu 24.04 series (6 point releases)
+	for i := 1; i <= 6 && len(versions) < count; i++ {
+		versions = append(versions, ubuntuVersion{
+			version:        fmt.Sprintf("24.04.%d", i),
+			displayVersion: "24.04",
+			kernelVersion:  fmt.Sprintf("6.8.0-%d-generic", 31+(i-1)*2),
+			osVersion:      fmt.Sprintf("Ubuntu 24.04.%d LTS", i),
+		})
+	}
+
+	// Ubuntu 26.04 series (if we need more)
+	for i := 1; i <= 6 && len(versions) < count; i++ {
+		versions = append(versions, ubuntuVersion{
+			version:        fmt.Sprintf("26.04.%d", i),
+			displayVersion: "26.04",
+			kernelVersion:  fmt.Sprintf("6.12.0-%d-generic", 20+(i-1)*2),
+			osVersion:      fmt.Sprintf("Ubuntu 26.04.%d LTS", i),
+		})
+	}
+
+	// If we still need more, continue with future versions
+	currentMajor := 28
+	for len(versions) < count {
+		for i := 1; i <= 6 && len(versions) < count; i++ {
+			versions = append(versions, ubuntuVersion{
+				version:        fmt.Sprintf("%d.04.%d", currentMajor, i),
+				displayVersion: fmt.Sprintf("%d.04", currentMajor),
+				kernelVersion:  fmt.Sprintf("6.%d.0-%d-generic", 14+currentMajor-28, 20+(i-1)*2),
+				osVersion:      fmt.Sprintf("Ubuntu %d.04.%d LTS", currentMajor, i),
+			})
+		}
+		currentMajor += 2
+	}
+
+	return versions
+}
+
 func main() {
 	// Flags
 	var (
-		ubuntuCount  = flag.Int("ubuntu", 0, "Number of Ubuntu hosts to create (default 0)")
-		macosCount   = flag.Int("macos", 0, "Number of macOS hosts to create (default 0)")
-		windowsCount = flag.Int("windows", 0, "Number of Windows hosts to create (default 0)")
-		linuxKernels = flag.Int("linux-kernels", 0, "Number of Linux kernels to add per Ubuntu host (default 0)")
+		ubuntuCount    = flag.Int("ubuntu", 0, "Number of Ubuntu hosts to create (default 0)")
+		macosCount     = flag.Int("macos", 0, "Number of macOS hosts to create (default 0)")
+		windowsCount   = flag.Int("windows", 0, "Number of Windows hosts to create (default 0)")
+		linuxKernels   = flag.Int("linux-kernels", 0, "Maximum Linux kernels per Ubuntu host, enables variable distribution (default 0)")
+		ubuntuVersions = flag.Int("ubuntu-versions", 10, "Number of different Ubuntu OS versions to use (default 10)")
 	)
 	flag.Parse()
 
@@ -181,8 +252,21 @@ func main() {
 	var ubuntuIDs []uint
 	if *ubuntuCount > 0 {
 		fmt.Printf("Creating %d Ubuntu host(s)…\n", *ubuntuCount)
+
+		// Generate Ubuntu OS versions based on the requested count
+		maxVersions := *ubuntuVersions
+		if maxVersions < 1 {
+			maxVersions = 1
+		}
+		osVersions := generateUbuntuVersions(maxVersions)
+
 		for i := 1; i <= *ubuntuCount; i++ {
 			name := fmt.Sprintf("ubuntu-seed-host-%d", i)
+
+			// Distribute hosts evenly across OS versions
+			osIndex := (i - 1) % len(osVersions)
+			selectedOS := osVersions[osIndex]
+
 			host, err := createOrGetHost(ctx, ds, name, fleet.Host{
 				DetailUpdatedAt: now,
 				LabelUpdatedAt:  now,
@@ -191,7 +275,7 @@ func main() {
 				PrimaryIP:       fmt.Sprintf("192.168.1.%d", i+1),
 				PrimaryMac:      fmt.Sprintf("00:11:22:33:44:%02d", i+1),
 				Platform:        "ubuntu",
-				OSVersion:       "Ubuntu 20.04.6 LTS",
+				OSVersion:       selectedOS.osVersion,
 			})
 			if err != nil {
 				fmt.Printf("create ubuntu host failed (%s): %v\n", name, err)
@@ -199,11 +283,11 @@ func main() {
 			}
 			if err := ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
 				Name:           "Ubuntu",
-				Version:        fmt.Sprintf("20.04.%d", i),
+				Version:        selectedOS.version,
 				Platform:       "ubuntu",
 				Arch:           "x86_64",
-				KernelVersion:  "5.4.0-148-generic",
-				DisplayVersion: "20.04",
+				KernelVersion:  selectedOS.kernelVersion,
+				DisplayVersion: selectedOS.displayVersion,
 			}); err != nil {
 				fmt.Printf("update ubuntu host OS failed (%s): %v\n", name, err)
 				continue
@@ -256,9 +340,9 @@ func main() {
 
 	// Linux kernels for Ubuntu with variable distribution
 	if *linuxKernels > 0 && len(ubuntuIDs) > 0 {
-		fmt.Printf("Adding variable Linux kernel packages per Ubuntu host (max 90)…\n")
+		fmt.Printf("Adding variable Linux kernel packages per Ubuntu host (max %d)…\n", *linuxKernels)
 		for i, ubuntuID := range ubuntuIDs {
-			kernelCount := calculateKernelCount(i+1, len(ubuntuIDs))
+			kernelCount := calculateKernelCount(i+1, len(ubuntuIDs), *linuxKernels)
 			var pkgs []fleet.Software
 			for k := 1; k <= kernelCount; k++ {
 				pkgs = append(pkgs, fleet.Software{
