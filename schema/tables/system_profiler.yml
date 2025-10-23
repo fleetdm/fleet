@@ -6,7 +6,7 @@ examples: |-
   Collect Mac Activation Lock Status:
 
   ```
-  SELECT json_extract (value,'$[0].activation_lock_status') AS activation_lock_status
+  SELECT json_extract (value,'$[0].activation_lock_status') AS activation_lock_status 
   FROM system_profiler
   WHERE data_type='SPHardwareDataType';
   ```
@@ -14,7 +14,7 @@ examples: |-
   Collect Mac Hardware UUID (platform_uuid):
 
   ```
-  SELECT json_extract (value,'$[0].platform_UUID') AS hardware_uuid
+  SELECT json_extract (value,'$[0].platform_UUID') AS hardware_uuid 
   FROM system_profiler
   WHERE data_type='SPHardwareDataType';
   ```
@@ -22,7 +22,7 @@ examples: |-
   Collect Mac Serial Number:
 
   ```
-  SELECT json_extract (value,'$[0].serial_number') AS serial_number
+  SELECT json_extract (value,'$[0].serial_number') AS serial_number 
   FROM system_profiler
   WHERE data_type='SPHardwareDataType';
   ```
@@ -30,7 +30,7 @@ examples: |-
   Collect Audio Devices:
 
   ```
-  SELECT each.value->>'_name' AS name, each.value->>'coreaudio_device_manufacturer' AS manufacturer
+  SELECT each.value->>'_name' AS name, each.value->>'coreaudio_device_manufacturer' AS manufacturer 
   FROM system_profiler sp, JSON_EACH(sp.value->'[0]._items') each
   WHERE data_type = 'SPAudioDataType';
   ```
