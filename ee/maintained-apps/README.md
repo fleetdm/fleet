@@ -127,7 +127,7 @@ The Windows ingester expects `unique_identifier` to match the value in `programs
   - PowerShell: `Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object {$_.DisplayName -like '*<App Name>*'} | Select-Object DisplayName, DisplayVersion, Publisher`
 - Use the exact `DisplayName`/`programs.name` string as `unique_identifier`.
 
-### Step 3: Decide installer metadata
+### Step 3: Choose installer metadata
 If the winget manifest supports multiple installers, these fields select the right one:
 - `installer_arch`: `x64` or `x86` (most apps use `x64`)
 - `installer_type`: `exe`, `msi`, or `msix` (file type, not vendor tech like "wix")
@@ -138,24 +138,46 @@ If the winget manifest supports multiple installers, these fields select the rig
 
 Tip: Setting these accurately avoids ambiguity when multiple installers exist.
 
-### Step 4: Provide install/uninstall scripts (optional but recommended)
-Place scripts in `ee/maintained-apps/inputs/winget/scripts/`. For many apps, simple winget commands are sufficient.
+### Step 4: Provide install/uninstall scripts
+
+How scripts work:
+- MSI installers: The ingester automatically generates install and uninstall scripts. Do not add scripts unless you need to override the generated behavior.
+- EXE installers: You must provide PowerShell scripts that run the installer file directly. Fleet stores the installer and sends it to the host at install time; your script must execute it using the INSTALLER_PATH environment variable.
+
+Place scripts in `ee/maintained-apps/inputs/winget/scripts/`.
 
 Example install script `ee/maintained-apps/inputs/winget/scripts/box_drive_install.ps1`:
 ```powershell
-# Install Box Drive system-wide, silent
-winget install --id Box.Box -e --accept-source-agreements --accept-package-agreements --scope machine
-Exit $LASTEXITCODE
+# Install system-wide, silent
+# Learn more about .exe install scripts:
+# http://fleetdm.com/learn-more-about/exe-install-scripts
+
+$exeFilePath = "${env:INSTALLER_PATH}"
+
+try {
+  # Silent arguments vary by installer (e.g., /S, /silent, /VERYSILENT)
+  $processOptions = @{
+    FilePath     = "$exeFilePath"
+    ArgumentList = "/SP- /VERYSILENT /SUPRESSMSGBOXES /NORESTART /RESTARTEXISTCODE=0"
+    PassThru     = $true
+    Wait         = $true
+  }
+
+  $process = Start-Process @processOptions
+  $exitCode = $process.ExitCode
+
+  Write-Host "Install exit code: $exitCode"
+  Exit $exitCode
+}
+catch {
+  Write-Host "Error: $_"
+  Exit 1
+}
 ```
 
-Example uninstall script `ee/maintained-apps/inputs/winget/scripts/box_drive_uninstall.ps1`:
-```powershell
-# Uninstall Box Drive by PackageIdentifier (exact match)
-winget uninstall --id Box.Box -e
-Exit $LASTEXITCODE
-```
+Uninstall scripts for EXE installers are vendor-specific. Use the vendor’s documented silent uninstall switch or the registered UninstallString (if available), ensuring the script runs silently and returns the installer’s exit code.
 
-If you omit scripts, the generator will synthesize uninstall logic using ProductCode/UpgradeCode from winget when available. Explicit scripts are more predictable.
+For MSI installers, you can omit scripts; for EXE installers, scripts are required.
 
 ### Step 5: Create the Winget input JSON
 Create `ee/maintained-apps/inputs/winget/box-drive.json`:
