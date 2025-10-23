@@ -171,7 +171,16 @@ jobs:
     - name: Wait for mysql
       if: ${{ env.NEED_DOCKER }}
       run: |
-        # Function to wait for MySQL with timeout
+        # Determine which database client to use
+        if [[ "${{ matrix.mysql }}" == mariadb* ]]; then
+          DB_CLIENT="mariadb"
+          DB_PASSWORD_VAR="MARIADB_ROOT_PASSWORD"
+        else
+          DB_CLIENT="mysql"
+          DB_PASSWORD_VAR="MYSQL_ROOT_PASSWORD"
+        fi
+
+        # Function to wait for database with timeout
         wait_for_mysql() {
           local container_name=$1
           local timeout_seconds=60  # 1 minute
@@ -187,14 +196,14 @@ jobs:
               echo "Timeout reached (${timeout_seconds}s) while waiting for ${container_name}"
               echo "Connection attempt logs:"
               echo "$attempt_logs"
-              # Dump MySQL container logs
+              # Dump database container logs
               echo "Dumping ${container_name} logs:"
               docker compose logs ${container_name}
               return 1
             fi
-            
-            # Try to connect to MySQL
-            output=$(docker compose exec -T $container_name sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" 2>&1)
+
+            # Try to connect to database
+            output=$(docker compose exec -T $container_name sh -c "$DB_CLIENT -uroot -p\"\${$DB_PASSWORD_VAR}\" -e \"SELECT 1=1\" fleet" 2>&1)
             exit_code=$?
             
             # Log the attempt
