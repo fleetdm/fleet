@@ -834,7 +834,7 @@ Design reviews are conducted daily between the [Head of Product Design](https://
 
 User stories in the current design sprint are always reviewed first during design reviews. Bugs are discussed in [Bug bash](#bug-bash) meetings.
 
-For questions about stories in the current engineering sprint or critical bugs, start a Slack thread or schedule an ad-hoc meeting.
+For questions about stories or bugs in the current engineering sprint, start a Slack thread or schedule an ad-hoc meeting.
 
 Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster.
 
