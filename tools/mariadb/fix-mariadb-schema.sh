@@ -24,16 +24,23 @@ cat >> "$OUTPUT" << 'EOF'
 SET FOREIGN_KEY_CHECKS=1;
 EOF
 
+# Detect OS for sed -i syntax (macOS vs Linux)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  SED_INPLACE="sed -i ''"
+else
+  SED_INPLACE="sed -i"
+fi
+
 # Fix 1: Remove the functional index - MariaDB doesn't support this MySQL 8.0 syntax
 # We'll just remove this index as it's an optimization, not critical
-sed -i '' '/KEY `idx_host_vpp_software_installs_verification`/d' "$OUTPUT"
+$SED_INPLACE '/KEY `idx_host_vpp_software_installs_verification`/d' "$OUTPUT"
 
 # Fix 2: Remove TABLESPACE directives - MariaDB handles these differently
-sed -i '' 's/\/\*!50100 TABLESPACE `innodb_system` \*\/ //g' "$OUTPUT"
+$SED_INPLACE 's/\/\*!50100 TABLESPACE `innodb_system` \*\/ //g' "$OUTPUT"
 
 # Fix 3: Fix STORED NOT NULL -> just STORED (MariaDB doesn't like NOT NULL after STORED for generated columns)
 # Line 2013 has: STORED NOT NULL
-sed -i '' 's/) STORED NOT NULL/) STORED/g' "$OUTPUT"
+$SED_INPLACE 's/) STORED NOT NULL/) STORED/g' "$OUTPUT"
 
 echo "✓ MariaDB-compatible schema created at: $OUTPUT"
 echo ""
