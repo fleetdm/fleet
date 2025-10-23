@@ -118,6 +118,14 @@ func TestRequestCertificate(t *testing.T) {
 		APIToken:  ptr.String("test-api-token"),
 		ProfileID: ptr.String("test-profile-id"),
 	}
+	customESTCA := &fleet.CertificateAuthority{
+		ID:       3,
+		Name:     ptr.String("TestCustomESTCA"),
+		Type:     string(fleet.CATypeCustomESTProxy),
+		URL:      &mockHydrantServer.URL,
+		Username: ptr.String("test-username"),
+		Password: ptr.String("test-password"),
+	}
 
 	baseSetupForTests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
@@ -125,7 +133,7 @@ func TestRequestCertificate(t *testing.T) {
 		// Setup DS mocks
 		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 			require.True(t, includeSecrets, "RequestCertificate should always fetch secrets")
-			for _, ca := range []*fleet.CertificateAuthority{hydrantCA, digicertCA} {
+			for _, ca := range []*fleet.CertificateAuthority{hydrantCA, digicertCA, customESTCA} {
 				if ca.ID == id {
 					return ca, nil
 				}
@@ -261,6 +269,17 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.ErrorAs(t, err, &invalidIDP)
 		require.Nil(t, cert)
+	})
+
+	t.Run("Request a certificate - Custom EST CA", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  customESTCA.ID,
+			CSR: goodCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
 	})
 
 	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {
