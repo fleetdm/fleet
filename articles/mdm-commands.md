@@ -128,7 +128,11 @@ To deliver the MDM command payload with `fleetctl`, use something like the follo
 
 For targeting multiple hosts, the `--hosts` option can be populated with comma-separated values.
 
-To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for both Apple and Windows MDM command payloads. E.g., to encode the `.plist` in Terminal:
+To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for both Apple and Windows MDM command payloads.
+
+E.g., 
+
+to `base64` encode a `.plist` in Terminal:
 
 ```
 % echo '<?xml version="1.0" encoding="UTF-8"?>
@@ -149,7 +153,15 @@ To prepare the MDM command payload for execution in a Fleet API call, it must be
 PD94bWwgdmVyc2lvbj0iMS4wIiBlSomeMorebase64blahblahblah...
 ```
 
-Then, to deliver the MDM command payload via the Fleet API, use a command that conforms to the `curl` example below. (This can be achieved with any programmatic solution, e.g., python `requests` or `urllib.request`).
+to `base64` encode an `.xml` in PowerShell:
+
+```
+PS C:\WINDOWS\system32> cd C:\Users\username\Desktop\
+PS C:\Users\username\Desktop> [Convert]::ToBase64String((Get-Content -path "file.xml" -Encoding byte))
+cG9vcXblahblahblah...
+```
+
+To deliver the MDM command payload via the Fleet API, use a command that conforms to the `curl` example below. (This can be achieved with any programmatic solution, e.g., python `requests` or `urllib.request`).
 
 ```
 % fleet_key='yourfleetAPItoken'
