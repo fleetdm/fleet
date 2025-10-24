@@ -62,7 +62,6 @@ import {
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import BitLockerPinModal from "./BitLockerPinModal";
 import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
@@ -533,6 +532,7 @@ const DeviceUserPage = ({
       <>
         <div className={`${baseClass} main-content`}>
           <DeviceUserBanners
+            deviceToken={deviceAuthToken}
             hostPlatform={host.platform}
             hostOsVersion={host.os_version}
             mdmEnrollmentStatus={host.mdm.enrollment_status}
@@ -544,7 +544,6 @@ const DeviceUserPage = ({
             diskEncryptionActionRequired={
               host.mdm.macos_settings?.action_required ?? null
             }
-            onTurnOnMdm={toggleEnrollMdmModal}
             onClickCreatePIN={() => setShowBitLockerPINModal(true)}
             onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
             diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
@@ -678,16 +677,9 @@ const DeviceUserPage = ({
               )}
             </Tabs>
           </TabNav>
-          {showEnrollMdmModal &&
-            (host.dep_assigned_to_fleet ? (
-              <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
-            ) : (
-              <ManualEnrollMdmModal
-                host={host}
-                onCancel={toggleEnrollMdmModal}
-                token={deviceAuthToken}
-              />
-            ))}
+          {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
+            <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
+          ) : null}
           {showBitLockerPINModal && (
             <BitLockerPinModal
               onCancel={() => setShowBitLockerPINModal(false)}

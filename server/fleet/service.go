@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -852,7 +853,7 @@ type Service interface {
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
-	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
+	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
