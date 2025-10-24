@@ -38,7 +38,7 @@ specified filters or skip the software item based on the `filter` specified.
 
 `filter` attributes:
 
-- `product`: array of strings to search by product field
+- `product`: array of strings to search by product field.  If not specified, the software name is used.
 - `vendor`: array of strings to search by vendor field
 - `target_sw`: array of strings to search by target_sw field
 - `part`: string to override the default "a" Part value
