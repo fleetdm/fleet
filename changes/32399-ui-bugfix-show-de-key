@@ -1,2 +1,0 @@
-- Fixed UI bug where "Show disk encryption key" option was incorrectly displayed for hosts enrolled
-  with a third-party MDM solution.

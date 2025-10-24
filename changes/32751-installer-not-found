@@ -1,1 +1,0 @@
-* Fixed bug where uploading a software installer failed because it was "not found in the datastore".
