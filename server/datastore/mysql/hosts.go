@@ -3555,18 +3555,23 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	// so instead, we get the ids one by one and delete things one by one
 	// it might take longer, but it should lock only the row we need.
 	//
-	// host_seen_time entries are not available for ios/ipados devices, since they're updated on
-	// osquery check-in. Instead we fall back to detail_updated_at, which is updated every time a
-	// full detail refetch happens. For the detail_updated_at value, we consider server.NeverTimestamp
-	// to be nullish because this value is set as the default in some scenarios, in which
-	// case we will fall back to the created_at timestamp.
+	// host_seen_time entries are not available for ios/ipados/android devices, since they're updated on
+	// osquery check-in. Instead we fall back to the MDM protocol last_seen_at, then detail_updated_at,
+	// which is updated every time a full detail refetch happens. For the detail_updated_at value, we
+	// consider server.NeverTimestamp to be nullish because this value is set as the default in some scenarios,
+	// in which case we will fall back to the created_at timestamp.
+	// Additionally, COALESCE(GREATEST(COALESCE...)) with seen_time and last_seen at ensures that we get the greater
+	// value if both are set(GREATEST normally returning NULL if either operand is NULL) but still treat as NULL if
+	// neither is set. This ensures that we cover hosts that for some reason stop checking in via OSQuery but keep
+	// checking in via MDM
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
 	// host_dep_assignments table.
 	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
-		WHERE COALESCE(hst.seen_time, NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
+		LEFT JOIN nano_enrollments ne ON ne.id=h.uuid AND ne.type IN ('Device', 'User Enrollment (Device)')
+		WHERE COALESCE(GREATEST(COALESCE(hst.seen_time, ne.last_seen_at), COALESCE(ne.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
 			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)`
 
 	var allIdsToDelete []uint
