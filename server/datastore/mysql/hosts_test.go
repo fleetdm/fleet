@@ -5234,6 +5234,9 @@ func testAppleMDMHostsWithoutOrbitExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 
+	never, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
+	require.NoError(t, err)
+
 	for i := 0; i < 10; i++ {
 		platform := "darwin"
 		nanoLastSeen := time.Now()
@@ -5244,6 +5247,7 @@ func testAppleMDMHostsWithoutOrbitExpiration(t *testing.T, ds *Datastore) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
+			DetailUpdatedAt: never, // Hosts will get this timestamp when enrolling only via MDM
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 			Platform:        platform,
@@ -5255,8 +5259,6 @@ func testAppleMDMHostsWithoutOrbitExpiration(t *testing.T, ds *Datastore) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			// Hosts that only enroll via MDM get no host_seen_times
 			_, err := q.ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, host.ID)
-			require.NoError(t, err)
-			_, err = q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = NULL WHERE id = ?`, host.ID)
 			require.NoError(t, err)
 			r, err := q.ExecContext(ctx,
 				`UPDATE nano_enrollments SET last_seen_at = ? WHERE device_id = ?`,
