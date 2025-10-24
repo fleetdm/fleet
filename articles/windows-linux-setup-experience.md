@@ -1,8 +1,8 @@
-# Install software during new Linux setup
+# Windows & Linux setup experience
 
 _Available in Fleet Premium_
 
-In Fleet, you can customize the software that's installed when a new Windows or Linux workstation enrolls to Fleet. This feature is similar to the setup experience [available on macOS](https://fleetdm.com/guides/macos-setup-experience) during ADE enrollment.
+In Fleet, you can customize the software that's installed when a new Windows and Linux workstations enroll to Fleet.
 
 Fleet automatically opens the default web browser to show end users software install progress:
 
@@ -37,5 +37,5 @@ Fleet also provides a API endpoints for managing setup experience software progr
 <meta name="authorGitHubUsername" value="dantecatalfamo">
 <meta name="authorFullName" value="Dante Catalfamo">
 <meta name="publishedOn" value="2025-09-24">
-<meta name="articleTitle" value="Installing software during new Linux setup">
-<meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">
+<meta name="articleTitle" value="Windows & Linux setup experience">
+<meta name="description" value="Install software when Linux and Windows workstations enroll to Fleet">
