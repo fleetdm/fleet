@@ -67,6 +67,10 @@ type OrbitClient struct {
 	// If set then it will be deleted on HTTP 401 errors from Fleet and it will cause ExecuteConfigReceivers
 	// to terminate to trigger a restart.
 	hostIdentityCertPath string
+
+	// initiatedIdpAuth is a flag indicating whether a window has been opened
+	// to the sign-on page for the organizations Identity Provider.
+	initiatedIdpAuth bool
 }
 
 // time-to-live for config cache
@@ -509,6 +513,9 @@ func (oc *OrbitClient) enroll() (string, error) {
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
 	if err != nil {
+		if errors.Is(err, ErrUnauthenticated) {
+			log.Info().Msg("!!!need to authenticate!!!")
+		}
 		return "", err
 	}
 	return resp.OrbitNodeKey, nil
@@ -540,6 +547,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	var (
 		orbitNodeKey_        string
 		endpointDoesNotExist bool
+		neededIdpAuth        bool
 	)
 	if err := retry.Do(
 		func() error {
@@ -551,6 +559,12 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			case errors.Is(err, notFoundErr{}):
 				// Do not retry if the endpoint does not exist.
 				endpointDoesNotExist = true
+				return nil
+			case errors.Is(err, ErrUnauthenticated):
+				// Do not retry on unauthenticated errors.
+				// The config receiver sub-system will call this
+				// again in (typically) 30 seconds.
+				neededIdpAuth = true
 				return nil
 			default:
 				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
@@ -568,6 +582,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	}
 	if endpointDoesNotExist {
 		return "", errors.New("enroll endpoint does not exist")
+	}
+	if neededIdpAuth {
+		return "", errors.New("enrollment requires identity provider authentication")
 	}
 	return orbitNodeKey_, nil
 }

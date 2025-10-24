@@ -76,6 +76,7 @@ export interface IAppleSetupEnrollmentProfileResponse {
 export interface IMDMSSOParams {
   deviceinfo: string;
   initiator: string;
+  host_uuid?: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {

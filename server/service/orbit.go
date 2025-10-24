@@ -189,9 +189,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 
 	if isEndUserAuthRequired {
 		// Try to find an IdP account for this host.
-		_, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
+		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
 		if err != nil {
 			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
+		}
+		if idpAccount == nil {
+			return "", fleet.NewOrbitIDPAuthRequiredError()
 		}
 	}
 

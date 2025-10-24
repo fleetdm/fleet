@@ -633,11 +633,24 @@ func (fe FleetdError) ToMap() map[string]any {
 // with a failed request's response.
 type OrbitError struct {
 	Message string
+	code    int
 }
 
 // Error implements the error interface for the OrbitError.
 func (e OrbitError) Error() string {
 	return e.Message
+}
+
+// StatusCode implements the ErrWithStatusCode interface for the OrbitError.
+func (e OrbitError) StatusCode() int {
+	return e.code
+}
+
+func NewOrbitIDPAuthRequiredError() *OrbitError {
+	return &OrbitError{
+		Message: "Your organization requires authentication before device enrollment",
+		code:    http.StatusUnauthorized,
+	}
 }
 
 // Message that may surfaced by the server or the fleetctl client.
