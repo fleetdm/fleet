@@ -1,0 +1,12 @@
+<Replace>
+  <CmdID>0199f1d1-56db-7c8c-b912-89b4883b21e4</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/System/BootStartDriverInitialization</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;disabled/&gt;</Data>
+  </Item>
+</Replace>
