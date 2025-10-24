@@ -1,0 +1,12 @@
+<Replace>
+  <CmdID>0199f25b-795f-7dee-92cc-0a69d91d6c8a</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureWindowsMobileHotspotServiceStartupMode</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>4</Data>
+  </Item>
+</Replace>

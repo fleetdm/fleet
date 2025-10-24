@@ -1,0 +1,12 @@
+<Replace>
+  <CmdID>0199f25b-795f-703f-99a1-abecba6b71f8</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureSSDPDiscoveryServiceStartupMode</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>4</Data>
+  </Item>
+</Replace>

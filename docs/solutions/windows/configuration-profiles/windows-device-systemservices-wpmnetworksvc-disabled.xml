@@ -1,0 +1,12 @@
+<Replace>
+  <CmdID>0199f25b-795f-7af7-99ba-2f418f05e77b</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureWindowsMediaPlayerNetworkSharingServiceStartupMode</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>4</Data>
+  </Item>
+</Replace>
