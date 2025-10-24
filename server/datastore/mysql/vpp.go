@@ -560,6 +560,8 @@ WHERE
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	// TODO(JVE): create an app store app generic version of this that can handle android apps, which don't have an associated VPP token.
+	// Will need a DB migration as well since the column is not nullable atm.
 	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
@@ -725,12 +727,15 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	res, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, appID.InstallDuringSetup)
-	if IsDuplicate(err) {
-		err = &existsError{
-			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
-			TeamID:       teamID,
-			ResourceType: "VPPAppID",
+	if err != nil {
+		if IsDuplicate(err) {
+			err = &existsError{
+				Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
+				TeamID:       teamID,
+				ResourceType: "VPPAppID",
+			}
 		}
+		return 0, ctxerr.Wrap(ctx, err, "inserting app store app")
 	}
 
 	var id int64
@@ -773,6 +778,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		source = "ios_apps"
 	case fleet.IPadOSPlatform:
 		source = "ipados_apps"
+	case fleet.AndroidPlatform:
+		source = "android_apps"
 	default:
 		source = "apps"
 	}
@@ -785,6 +792,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	if app.BundleIdentifier != "" {
 		// match by bundle identifier first, or standard matching if we
 		// don't have a bundle identifier match
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
+		insertArgs = append(insertArgs, app.BundleIdentifier)
 		switch source {
 		case "ios_apps", "ipados_apps":
 			selectStmt = `
@@ -794,6 +803,13 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    ORDER BY bundle_identifier = ? DESC
 				    LIMIT 1`
 			selectArgs = []any{app.BundleIdentifier, source, app.Name, source, app.BundleIdentifier}
+		case "android_apps":
+			selectStmt = `
+				   SELECT id
+				   FROM software_titles
+				   WHERE application_id = ? AND additional_identifier IS NULL`
+			selectArgs = []any{app.BundleIdentifier}
+			insertStmt = `INSERT INTO software_titles (name, source, application_id, extension_for) VALUES (?, ?, ?, '')`
 		default:
 			selectStmt = `
 				    SELECT id
@@ -801,8 +817,6 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    WHERE bundle_identifier = ? AND additional_identifier = 0`
 			selectArgs = []any{app.BundleIdentifier}
 		}
-		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
-		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
 	titleID, err := ds.optimisticGetOrInsertWithWriter(ctx,
@@ -817,7 +831,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		},
 	)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert VPP app")
+		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert app store app")
 	}
 
 	return titleID, nil

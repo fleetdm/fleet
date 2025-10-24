@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -35,6 +36,7 @@ type Service struct {
 	scepConfigService      fleet.SCEPConfigService
 	digiCertService        fleet.DigiCertService
 	hydrantService         fleet.HydrantService
+	androidService         android.Service
 }
 
 func NewService(
@@ -56,6 +58,7 @@ func NewService(
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	hydrantService fleet.HydrantService,
+	androidService android.Service,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -82,6 +85,7 @@ func NewService(
 		scepConfigService:      scepConfigService,
 		digiCertService:        digiCertService,
 		hydrantService:         hydrantService,
+		androidService:         androidService,
 	}
 
 	// Override methods that can't be easily overriden via

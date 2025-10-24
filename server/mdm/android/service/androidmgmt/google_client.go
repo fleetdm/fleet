@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
@@ -162,8 +165,30 @@ func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string
 	return topic.String(), nil
 }
 
+func policyFieldMask() string {
+	getJSONFieldName := func(t string) string {
+		return strings.TrimSuffix(t, ",omitempty")
+	}
+	var p androidmanagement.Policy
+	t := reflect.TypeOf(p)
+	var mask []string
+	for i := range t.NumField() {
+		f := t.Field(i)
+		jsonTag, ok := f.Tag.Lookup("json")
+		// ignore applications because we manage that directly
+		if n := getJSONFieldName(jsonTag); ok &&
+			n != "applications" &&
+			n != "-" {
+			mask = append(mask, n)
+		}
+	}
+
+	return strings.Join(mask, ",")
+}
+
 func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
+	mask := policyFieldMask()
+	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(mask).Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
@@ -297,4 +322,55 @@ func getLastPart(ctx context.Context, name string) (string, error) {
 		return "", ctxerr.Errorf(ctx, "invalid Google resource name: %s", name)
 	}
 	return nameParts[len(nameParts)-1], nil
+}
+
+type appNotFoundError struct{}
+
+var _ fleet.NotFoundError = (*appNotFoundError)(nil)
+
+func (p appNotFoundError) Error() string {
+	return "Couldn’t add software. The application ID isn’t available in Play Store. Please find ID on the Play Store and try again."
+}
+
+func (p appNotFoundError) IsNotFound() bool {
+	return true
+}
+
+func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+
+	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
+	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
+	if err != nil {
+		var gapiErr *googleapi.Error
+		if errors.As(err, &gapiErr) {
+			if gapiErr.Code == http.StatusNotFound {
+				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
+			}
+		}
+		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
+	}
+	return app, nil
+}
+
+func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: []*androidmanagement.ApplicationPolicyChange{
+			{
+				Application: appPolicy,
+			},
+		},
+	}
+	ret, err := g.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		// TODO(JVE): does it make sense to return an error here?
+		return nil, err
+	case err != nil:
+		return nil, ctxerr.Wrapf(ctx, err, "modifying application policy %s", policyName)
+	}
+	return ret.Policy, nil
 }

@@ -1,0 +1,115 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
+)
+
+func (s *integrationMDMTestSuite) TestFoobar() {
+	require.Fail(s.T(), "oops")
+}
+
+func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
+	// ctx := context.Background()
+	t := s.T()
+	// TODO(JVE): REMOVE THIS
+	s.setVPPTokenForTeam(0)
+
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
+	t.Cleanup(func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.AndroidEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	})
+
+	EnterpriseID := "LC02k5wxw7"
+	EnterpriseSignupURL := "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
+	s.androidAPIClient.InitCommonMocks()
+
+	s.androidAPIClient.EnterprisesCreateFunc = func(_ context.Context, _ androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
+		return androidmgmt.EnterprisesCreateResponse{
+			EnterpriseName: "enterprises/" + EnterpriseID,
+			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
+		}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		assert.Contains(t, policyName, EnterpriseID)
+		return &androidmanagement.Policy{}, nil
+	}
+	s.androidAPIClient.EnterpriseDeleteFunc = func(_ context.Context, enterpriseName string) error {
+		assert.Equal(t, "enterprises/"+EnterpriseID, enterpriseName)
+		return nil
+	}
+
+	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
+		fmt.Println("called")
+		fmt.Printf("callbackURL: %v\n", callbackURL)
+		s.proxyCallbackURL = callbackURL
+		return &android.SignupDetails{
+			Url:  EnterpriseSignupURL,
+			Name: "signupUrls/Cb08124d0999c464f",
+		}, nil
+	}
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Test App"}, nil
+	}
+
+	// Create enterprise
+	var signupResp android.EnterpriseSignupResponse
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+
+	const enterpriseToken = "enterpriseToken"
+	fmt.Printf("s.proxyCallbackURL: %v\n", s.proxyCallbackURL)
+	s.Do("GET", s.proxyCallbackURL[22:], nil, http.StatusOK, "enterpriseToken", enterpriseToken)
+
+	// Update the LIST mock to return the enterprise after "creation"
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + EnterpriseID},
+		}, nil
+	}
+
+	resp := android.GetEnterpriseResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
+	assert.Equal(t, EnterpriseID, resp.EnterpriseID)
+
+	// Android MDM setup
+	androidApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.whatsapp",
+				Platform: fleet.AndroidPlatform,
+			},
+		},
+		Name:             "WhatsApp",
+		BundleIdentifier: "com.whatsapp",
+		IconURL:          "https://example.com/images/2",
+	}
+
+	// Add Android app
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: androidApp.AdamID, Platform: fleet.AndroidPlatform},
+		http.StatusOK,
+		&addAppResp,
+	)
+
+}
