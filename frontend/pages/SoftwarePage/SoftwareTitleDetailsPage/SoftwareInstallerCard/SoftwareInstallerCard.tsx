@@ -266,36 +266,6 @@ const SoftwareInstallerCard = ({
     }
   }, [renderFlash, softwareId, name, teamId]);
 
-  let versionInfo = <span>{version}</span>;
-
-  if (installerType === "vpp") {
-    versionInfo = (
-      <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
-        <span>{version}</span>
-      </TooltipWrapper>
-    );
-  }
-
-  if (installerType === "package" && !version) {
-    versionInfo = (
-      <TooltipWrapper
-        tipContent={
-          <span>
-            Fleet couldn&apos;t read the version from {name}.{" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-              variant="tooltip-link"
-            />
-          </span>
-        }
-      >
-        <span>Version (unknown)</span>
-      </TooltipWrapper>
-    );
-  }
-
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
@@ -307,10 +277,11 @@ const SoftwareInstallerCard = ({
             <InstallerDetailsWidget
               softwareName={softwareInstaller?.name || name}
               installerType={installerType}
-              versionInfo={versionInfo}
+              version={version}
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isScriptPackage={isScriptPackage}
             />
             <div className={`${baseClass}__tags-wrapper`}>
               {Array.isArray(automaticInstallPolicies) &&
@@ -411,6 +382,7 @@ const SoftwareInstallerCard = ({
           iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
+          isScriptPackage={isScriptPackage}
         />
       )}
     </Card>
