@@ -48,6 +48,7 @@ SELECT
 	st.extension_for,
 	st.bundle_identifier,
 	st.application_id,
+	st.upgrade_code,
 	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
