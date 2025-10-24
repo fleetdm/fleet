@@ -1,3 +1,13 @@
+## Orbit 1.49.0 (Oct 24, 2025)
+
+* During setup experience, try software installs up to 3 times by default in case of intermittent failures.
+
+* Improved orbit debug logs when response contains a large HTML page.
+
+* Added windows support for web setup experience.
+
+* Add `mcp_listening_servers` table to find MCP servers listening over HTTP.
+
 ## Orbit 1.48.1 (Sep 24, 2025)
 
 * Added agent support for setup experience on Linux
