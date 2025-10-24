@@ -13,7 +13,7 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-// SoftwareIngestionService handles ingesting software data from osquery agents
+// SoftwareIngestionService handles ingesting software data from multiple sources
 // and updating the software-related database tables.
 //
 // This service owns the following database tables:
@@ -25,6 +25,9 @@ import (
 type SoftwareIngestionService interface {
 	// IngestOsquerySoftware processes software data reported by osquery agents
 	IngestOsquerySoftware(ctx context.Context, hostID uint, host *fleet.Host, softwareRows []map[string]string) error
+
+	// IngestMDMSoftware processes software data from MDM sources (iOS, iPadOS, macOS apps)
+	IngestMDMSoftware(ctx context.Context, hostID uint, host *fleet.Host, software []fleet.Software) error
 }
 
 // Datastore defines the interface for software-related database operations
@@ -102,6 +105,87 @@ func (s *service) IngestOsquerySoftware(ctx context.Context, hostID uint, host *
 	)
 
 	return nil
+}
+
+// IngestMDMSoftware processes software data from MDM sources (iOS, iPadOS, macOS apps)
+func (s *service) IngestMDMSoftware(ctx context.Context, hostID uint, host *fleet.Host, software []fleet.Software) error {
+	if len(software) == 0 {
+		level.Debug(s.logger).Log(
+			"msg", "no MDM software to ingest",
+			"host_id", hostID,
+		)
+		return nil
+	}
+
+	// Apply platform-specific transformations for MDM software
+	var processedSoftware []fleet.Software
+	for _, sw := range software {
+		// Make a copy to avoid modifying the input
+		processed := sw
+
+		// Set the appropriate source based on platform
+		processed.Source = s.determineMDMSoftwareSource(host.Platform)
+
+		// Apply MDM-specific transformations
+		s.applyMDMSoftwareTransformations(host, &processed)
+
+		// Skip software that should be filtered out
+		if s.shouldFilterSoftware(host, &processed) {
+			continue
+		}
+
+		processedSoftware = append(processedSoftware, processed)
+	}
+
+	// Persist software data to database
+	result, err := s.ds.UpdateHostSoftware(ctx, hostID, processedSoftware)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host MDM software")
+	}
+
+	// MDM software typically doesn't have installed paths like osquery software,
+	// but we'll call with empty paths to ensure consistency
+	emptyPaths := map[string]struct{}{}
+	if err := s.ds.UpdateHostSoftwareInstalledPaths(ctx, hostID, emptyPaths, result); err != nil {
+		return ctxerr.Wrap(ctx, err, "update MDM software installed paths")
+	}
+
+	level.Debug(s.logger).Log(
+		"msg", "ingested MDM software for host",
+		"host_id", hostID,
+		"platform", host.Platform,
+		"software_count", len(processedSoftware),
+	)
+
+	return nil
+}
+
+// determineMDMSoftwareSource returns the appropriate source string for MDM software
+func (s *service) determineMDMSoftwareSource(platform string) string {
+	switch platform {
+	case "ios":
+		return "ios_apps"
+	case "ipados":
+		return "ipados_apps"
+	case "darwin":
+		return "app_store_apps" // macOS App Store apps
+	default:
+		return "mdm_apps" // fallback for other platforms
+	}
+}
+
+// applyMDMSoftwareTransformations applies MDM-specific transformations
+func (s *service) applyMDMSoftwareTransformations(host *fleet.Host, software *fleet.Software) {
+	// MDM software typically comes with bundle identifiers already set
+	// Apply any platform-specific normalization here
+
+	// Ensure we have reasonable defaults for required fields
+	if software.Vendor == "" && software.BundleIdentifier != nil {
+		// Extract vendor from bundle identifier if possible
+		if parts := strings.Split(*software.BundleIdentifier, "."); len(parts) >= 2 {
+			software.Vendor = parts[1] // e.g., "com.apple.music" -> "apple"
+		}
+	}
 }
 
 // parseSoftwareRow converts an osquery row to fleet.Software
