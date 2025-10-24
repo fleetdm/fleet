@@ -63,6 +63,20 @@ When on call, CSEs/CSAs will start their day by following these steps to gather 
 2. Search GitHub issues for `label:bug` and `label:customer-codename`.
 3. Debrief with any internal resources in order to gather information if needed, and be prepared to provide a status update.
 
+### Perform morning triage
+
+The first CSE to sign on for the day is responsible for triaging new support issues that were reported after hours. The following actions are a general guideline for what should be checked during morning triage:
+1. Look at all new support requests and immediately respond to any urgent or high-priority issues.
+2. Check the osquery Slack Channel/Unthread for support issues.
+3. Check the MacAdmins Slack Channel for support issues.
+   >Note: MacAdmins Slack messages are not populated in Unthread.
+4. Check the Unassigned queue in Unthread and re-assign any issues from after hours to the appropriate resource.
+5. Check the All queue in Unthread for potential after hours mis-assigned issues and re-assign them to the appropriate resource.
+6. Look at all customer meetings for the day to check that they can be attended by a CSE/CSA and that there are no scheduling conflicts.
+7. Update the #help-customers Slack channel that morning triage is complete. Report any escalations or customer meeting conflicts to the Manager of Customer Success and Solutions Architecture.
+
+Other CSEs that sign on after morning triage has been completed should check the Morning Triage thread in the #help-customers Slack channel to learn what items are still outstanding.
+
 
 ### Invite new customer DRI
 
