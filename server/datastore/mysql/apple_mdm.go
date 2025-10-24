@@ -3767,12 +3767,12 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
       INSERT INTO mdm_idp_accounts
         (uuid, username, fullname, email)
       VALUES
-        (UUID(), ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
+        (COALESCE(NULLIF(?, ""), UUID()), ?, ?, ?)
+      ON DUPLICATE KEY UPDATE	  	
         username   = VALUES(username),
         fullname   = VALUES(fullname)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.Username, account.Fullname, account.Email)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
@@ -7058,7 +7058,11 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 	return result, err
 }
 
-func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, acctUUID string) error {
+func (ds *Datastore) AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error {
+	return associateHostMDMIdPAccountDB(ctx, ds.writer(ctx), hostUUID, acctUUID)
+}
+
+func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, acctUUID string) error {
 	const stmt = `
 INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid)
 VALUES (?, ?)

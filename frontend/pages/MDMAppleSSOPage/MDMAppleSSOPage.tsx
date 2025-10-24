@@ -15,9 +15,11 @@ const DEPSSOLoginPage = ({
   location: { pathname, query },
 }: WithRouterProps<object, IMDMSSOParams>) => {
   localStorage.setItem("deviceinfo", query.deviceinfo || "");
-  query.initiator = "mdm_sso";
-  if (pathname === "/mdm/apple/account_driven_enroll/sso") {
-    query.initiator = "account_driven_enroll";
+  if (!query.initiator) {
+    query.initiator = "mdm_sso";
+    if (pathname === "/mdm/apple/account_driven_enroll/sso") {
+      query.initiator = "account_driven_enroll";
+    }
   }
   const { error } = useQuery<IMdmSSOReponse, AxiosError>(
     ["dep_sso"],

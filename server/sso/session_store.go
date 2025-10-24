@@ -12,7 +12,8 @@ import (
 )
 
 type SSORequestData struct {
-	HostUUID string `json:"host_uuid,omitempty"`
+	HostUUID  string `json:"host_uuid,omitempty"`
+	Initiator string `json:"initiator,omitempty"`
 }
 
 // Session stores state for the lifetime of a single sign on session.
