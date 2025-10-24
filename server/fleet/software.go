@@ -33,6 +33,10 @@ const (
 	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
 	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
 	SoftwareTeamIdentifierMaxLength = 10
+
+	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
+	// == 1rune –> 38chars
+	UpgradeCodeExpectedLength = 38
 )
 
 type Vulnerabilities []CVE
@@ -100,6 +104,8 @@ type Software struct {
 	IsKernel bool `json:"-"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 func (Software) AuthzType() string {
@@ -141,6 +147,11 @@ func (s Software) ToUniqueStr() string {
 	}
 	if s.ApplicationID != nil && *s.ApplicationID != "" {
 		ss = append(ss, *s.ApplicationID)
+	}
+	// UpgradeCode added in a migration, include only if it exists // TODO - understanding this
+	// reasoning better
+	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
+		ss = append(ss, *s.UpgradeCode)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -246,6 +257,9 @@ type SoftwareTitle struct {
 	IsKernel bool `json:"-" db:"is_kernel"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -327,6 +341,9 @@ type SoftwareTitleListResult struct {
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -512,7 +529,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -537,17 +554,31 @@ func SoftwareFromOsqueryRow(
 		return str
 	}
 
+	truncatedSource := truncateString(source, SoftwareSourceMaxLength)
+
+	var upgradeCodeForFleetSW *string
+	// nil for sources other than "programs", "" if "programs" source and no code returned,
+	// length-validated code for "programs" source and non-empty value returned
+	if truncatedSource == "programs" {
+		if upgradeCode != "" && len(upgradeCode) != UpgradeCodeExpectedLength {
+			return nil, errors.New("host reported invalid upgrade code - unexpected length")
+		}
+		upgradeCodeForFleetSW = &upgradeCode
+
+	}
+
 	software := Software{
 		Name:             truncateString(name, SoftwareNameMaxLength),
 		Version:          truncateString(version, SoftwareVersionMaxLength),
-		Source:           truncateString(source, SoftwareSourceMaxLength),
+		Source:           truncatedSource,
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		ExtensionFor:     truncateString(extensionFor, SoftwareExtensionForMaxLength),
 
-		Release: truncateString(release, SoftwareReleaseMaxLength),
-		Vendor:  vendor,
-		Arch:    truncateString(arch, SoftwareArchMaxLength),
+		Release:     truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:      vendor,
+		Arch:        truncateString(arch, SoftwareArchMaxLength),
+		UpgradeCode: upgradeCodeForFleetSW,
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
