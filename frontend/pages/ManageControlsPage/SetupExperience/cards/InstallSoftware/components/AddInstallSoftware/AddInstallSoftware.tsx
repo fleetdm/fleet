@@ -110,7 +110,7 @@ const AddInstallSoftware = ({
       <>
         {installSoftwareDuringSetupCount} software item
         {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
-        <TooltipWrapper tipContent="Software order will vary.">
+        <TooltipWrapper tipContent="Installation order will depend on software name, starting with 0-9 then A-Z.">
           installed during setup.
         </TooltipWrapper>
       </>
