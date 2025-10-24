@@ -16,6 +16,7 @@ interface ITooltipTruncatedTextCellProps {
   tooltipBreakOnWord?: boolean;
   className?: string;
   tooltipPosition?: "top" | "bottom" | "left" | "right";
+  isMobileView?: boolean; // new prop
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -26,6 +27,7 @@ const TooltipTruncatedText = ({
   tooltipBreakOnWord = false,
   className,
   tooltipPosition = "top",
+  isMobileView = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
@@ -36,9 +38,16 @@ const TooltipTruncatedText = ({
   const isTruncated = useCheckTruncatedElement(ref);
 
   const tooltipId = uniqueId();
+
   return (
     <div className={classNames}>
-      <div className="tooltip-truncated" data-tip data-for={tooltipId}>
+      <div
+        className="tooltip-truncated"
+        data-tip
+        data-for={tooltipId}
+        // toggle trigger events based on prop
+        data-event={isMobileView ? "click" : "mouseenter focus"}
+      >
         <div ref={ref} className={isTruncated ? "truncated" : undefined}>
           {value}
         </div>
@@ -53,6 +62,7 @@ const TooltipTruncatedText = ({
         clickable
         delayHide={200} // need delay set to hover using clickable
         disable={!isTruncated}
+        globalEventOff={isMobileView ? "click" : undefined}
       >
         <>
           {tooltip ?? value}

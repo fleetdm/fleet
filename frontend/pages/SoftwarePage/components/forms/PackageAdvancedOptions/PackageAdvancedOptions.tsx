@@ -31,6 +31,7 @@ const PKG_TYPE_TO_ID_TEXT = {
   exe: "software name",
   sh: "package name",
   ps1: "package name",
+  ipa: "placeholder, previous IPA PR will go through first", // TODO
 } as const;
 
 const getInstallScriptTooltip = (pkgType: PackageType) => {

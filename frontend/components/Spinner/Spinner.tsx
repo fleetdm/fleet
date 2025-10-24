@@ -17,6 +17,7 @@ interface ISpinnerProps {
   /** Center the spinner in its parent. defaults: `true` */
   centered?: boolean;
   className?: string;
+  variant?: "mobile";
 }
 
 const Spinner = ({
@@ -28,6 +29,7 @@ const Spinner = ({
   includeContainer = true,
   centered = true,
   className,
+  variant = undefined,
 }: ISpinnerProps): JSX.Element => {
   const classOptions = classnames(`loading-spinner`, className, size, {
     small,
@@ -35,7 +37,8 @@ const Spinner = ({
     white,
     centered,
     "small-padding": verticalPadding === "small",
-    "include-container": includeContainer,
+    "include-container": includeContainer && variant !== "mobile",
+    "mobile-view": variant === "mobile",
   });
   return (
     <div className={classOptions} data-testid="spinner">

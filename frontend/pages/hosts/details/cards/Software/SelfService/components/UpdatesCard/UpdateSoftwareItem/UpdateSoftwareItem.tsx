@@ -20,12 +20,12 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { HostInstallerActionButton } from "../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import { HostInstallerActionButton } from "../../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import {
   InstallOrCommandUuid,
   IStatusDisplayConfig,
   RECENT_SUCCESS_ACTION_MESSAGE,
-} from "../../../InstallStatusCell/InstallStatusCell";
+} from "../../../../InstallStatusCell/InstallStatusCell";
 
 const baseClass = "update-software-item";
 

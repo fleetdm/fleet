@@ -63,7 +63,7 @@ interface IPackageFormProps {
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
   onClickShowSchema?: () => void;
-  onClickPreviewEndUserExperience: () => void;
+  onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
@@ -262,6 +262,7 @@ const PackageForm = ({
   const isExePackage = ext === "exe";
   const isTarballPackage = ext === "tar.gz";
   const isScriptPackage = ext === "sh" || ext === "ps1";
+  const isIosOrIpadosApp = ext === "ipa";
   // We currently don't support replacing a tarball package
   const canEditFile = isEditingSoftware && !isTarballPackage;
 
@@ -332,8 +333,8 @@ const PackageForm = ({
                   isExePackage={isExePackage}
                   isTarballPackage={isTarballPackage}
                   isScriptPackage={isScriptPackage}
-                  onClickPreviewEndUserExperience={
-                    onClickPreviewEndUserExperience
+                  onClickPreviewEndUserExperience={() =>
+                    onClickPreviewEndUserExperience(isIosOrIpadosApp)
                   }
                 />
               </Card>

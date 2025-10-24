@@ -2,6 +2,16 @@
   .site-nav {
     height: 50px;
   }
+  .site-nav-better-link {
+    margin-right: 20px;
+    width: 120px;
+    display: flex;
+    align-items: center;
+
+    a {
+      white-space: nowrap;
+    }
+  }
 }
 
 // styles specific to DeviceUserPage
@@ -78,4 +88,8 @@
 
 .dup-org-logo {
   cursor: default;
+}
+
+.device-user-mobile {
+  @include vertical-page-layout;
 }

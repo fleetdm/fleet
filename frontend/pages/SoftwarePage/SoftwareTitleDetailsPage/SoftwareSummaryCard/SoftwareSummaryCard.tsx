@@ -125,6 +125,7 @@ const SoftwareSummaryCard = ({
               currentIconUrl: title.icon_url,
               versions: title.versions?.length ?? 0,
               countsUpdatedAt: title.counts_updated_at,
+              selfServiceVersion: softwareInstaller.version,
             }}
           />
         )}

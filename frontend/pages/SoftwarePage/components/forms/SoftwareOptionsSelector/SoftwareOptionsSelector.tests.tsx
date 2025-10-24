@@ -155,7 +155,7 @@ describe("SoftwareOptionsSelector", () => {
 
     expect(
       screen.getByText(
-        /Currently, self-service and automatic installation are not available for iOS and iPadOS/i
+        /Currently, automatic installation are not available for iOS and iPadOS/i
       )
     ).toBeInTheDocument();
   });
@@ -165,7 +165,7 @@ describe("SoftwareOptionsSelector", () => {
 
     expect(
       screen.getByText(
-        /Currently, self-service and automatic installation are not available for iOS and iPadOS/i
+        /Currently, automatic installation are not available for iOS and iPadOS/i
       )
     ).toBeInTheDocument();
   });
