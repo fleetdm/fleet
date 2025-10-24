@@ -2,99 +2,23 @@
 
 ![Managing labels in Fleet](../website/assets/images/articles/managing-labels-in-fleet-1600x900@2x.png)
 
+In Fleet you can labels (tags), to scope [software](https://fleetdm.com/guides/deploy-software-packages), [policies](https://fleetdm.com/securing/what-are-fleet-policies), [queries](https://fleetdm.com/guides/queries), and [configuration profiles](https://fleetdm.com/guides/custom-os-settings) to specific hosts. In addition, you can use labels to create a custom filtered view of your hosts.
 
-Labels in Fleet provide a powerful way to scope profiles to specific hosts. This guide will walk you
-through managing labels using the Fleet web UI. Labels can be created manually by selecting specific
-hosts or dynamically using queries or host vitals. Dynamic labels are applied to hosts that match
-either the query
-or the host vitals criteria, while manual labels are assigned to hosts you select.
+Labels in Fleet can be on of the following types:
+- **Dynamic**: Query based label. All hosts that return a result to the query get this label applied.
+- **Manual**: A list of selected hosts.
+- **Host vitals**: All hosts that have a specific host vital get this label applied. Currently only supported for IdP host vitals (groups and department) on macOS, iOS, iPadOS, and Android hosts.
 
+To add or edit a label in Fleet, select the avatar  select the avatar on the right side of the top navigation and select **Labels**.
 
-### Managing labels
+You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
 
-To access and manage labels in Fleet, navigate to the Labels page by clicking on the user menu at the top
-right of the window, then selecting "Labels".
+> For dynamic labels, if you want to change the query or platforms, you must delete the existing label and create a new one.
 
-### Filtering hosts by label
-
-There are two ways to filter hosts by label:
-
-* **From the Labels page**: Hover over the row of the label whose hosts you want to see, select the
-"Actions" menu, and select "View all hosts" from the dropdown.
-
-* **From the Hosts page**: Select the "Filter by platform or
-label" drop-down menu, then select the label you want to filter by.
-
-### Adding a label
-
-To add a new label:
-
-1. **Access the new label form**:
-   * From the [Labels page](#managing-labels), click the "Add label" button, or
-   * From the Hosts page, select the "Filter by platform or label" drop-down menu, then select the "Add
-     label +" button.
-2. **On the new label form**:
-    1. **Enter a label name**: You may also provide an optional description for the label.
-    2. **Choose label type**: You will be prompted to choose between "Dynamic", "Manual" or "Host vitals" label creation.
-        1. **Dynamic**: Build your query and select the platforms to which this label applies.
-        2. **Manual**: Select the hosts to which you want to apply this label.
-        3. **Host vitals**: Select an attribute from the "Label criteria" dropdown, and enter a value that each host in the label should match for that attribute.
-    3. **Save the label**: Click the "Save" button to create your label.
-
-
-### Editing a label
-
-To edit an existing label:
-
-1. **Access the edit label form**:
-  * **From the Labels page**:
-    1. Hover over the row of the label you want to edit.
-    2. Select the "Actions" menu.
-    3. Select "Edit"
-  * **From  the Hosts page**:
-    1. [Filter by the desired label](#filtering-hosts-by-label).
-    2. Click the pencil icon: A pencil icon will appear next to the label if it is editable. Clicking this icon allows you to edit the label.
-2. **Edit the label details**: For manually applied labels, you can change the name, description,
-   and selected hosts. For dynamically applied labels, you can view the query.  Host vitals labels
-   cannot be edited at this time.
-
-> **Update restrictions**: To change the query or platforms a dynamic label targets, you must delete the existing label and create a new one. Once set, label queries and platforms are immutable.
-
-
-### Using the REST API for Labels
-
-Fleet also provides a REST API to manage labels programmatically. The API allows you to add, update, retrieve, list, and delete labels. Find detailed documentation on Fleet's [REST API here](https://fleetdm.com/docs/rest-api/rest-api#labels).
-
-
-### Managing labels with `fleetctl`
-
-Fleet's command line tool, `fleetctl` will also allow you to list and manage labels. While managing labels with `fleetctl` is beyond the scope of this guide, you can list all labels using the following command:
-
-```bash
-
-fleetctl get labels
-
-```
-
-> Learn more about [`fleetctl` CLI](https://fleetdm.com/docs/using-fleet/fleetctl-cli).
-
-
-#### Additional Information
-
-
-
-* **Targeting extensions with labels**: Labels can also [target extensions to specific hosts](https://fleetdm.com/docs/configuration/agent-configuration#targeting-extensions-with-labels).
-
-
-### Conclusion
-
-Using labels in Fleet enhances your ability to effectively manage and scope profiles to specific hosts. Whether you prefer to manage labels through the web UI or programmatically via the REST API, Fleet provides the flexibility and control you need. For more information on using Fleet, please refer to the [Fleet documentation](https://fleetdm.com/docs) and [guides](https://fleetdm.com/guides).
-
-
-<meta name="articleTitle" value="Managing labels in Fleet">
-<meta name="authorFullName" value="JD Strong">
-<meta name="authorGitHubUsername" value="spokanemac">
+<meta name="articleTitle" value="Labels in Fleet">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-06-30">
+<meta name="publishedOn" value="2025-10-24">
 <meta name="articleImageUrl" value="../website/assets/images/articles/managing-labels-in-fleet-1600x900@2x.png">
-<meta name="description" value="This guide will walk you through managing labels using the Fleet web UI.">
+<meta name="description" value="Using labels in the Fleet">
