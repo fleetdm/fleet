@@ -118,6 +118,7 @@ interface IEditIconModalProps {
   previewInfo: {
     type?: string;
     versions?: number;
+    selfServiceVersion?: string;
     source?: string;
     currentIconUrl: string | null;
     /** Name used in preview UI but also for FMA default icon matching */
@@ -139,8 +140,6 @@ const EditIconModal = ({
 }: IEditIconModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  console.log("source", previewInfo);
-  console.log("software", software);
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
     previewInfo?.source || ""
@@ -487,12 +486,13 @@ const EditIconModal = ({
     </Card>
   );
 
+  // TODO: Confirm design with designer as this was a missed spec and not on Figma
   const renderPreviewSelfServiceMobileCard = () => (
     <Card
       borderRadiusSize="medium"
-      color="grey"
+      color="white"
       className={`${baseClass}__preview-card`}
-      paddingSize="small"
+      paddingSize="xlarge"
     >
       <div className={`${baseClass}__preview-img-container--mobile`}>
         <img
@@ -523,13 +523,23 @@ const EditIconModal = ({
             uploadedAt={iconUploadedAt}
           />
         )}
-        <div className={`${baseClass}__self-service-preview-name`}>
-          <TooltipTruncatedText value={previewInfo.name} />
+        <div
+          className={`${baseClass}__self-service-preview-name-version--mobile`}
+        >
+          <div className={`${baseClass}__self-service-preview-name--mobile`}>
+            <TooltipTruncatedText value={previewInfo.name} />
+          </div>
+          <div className={`${baseClass}__self-service-preview-version--mobile`}>
+            {"latest_version" in software
+              ? software.latest_version
+              : software.version || "Version (unknown)"}
+          </div>
         </div>
       </div>
     </Card>
   );
 
+  console.log("EDIT ICON MODAL software", software);
   const renderForm = () => (
     <>
       <FileUploader

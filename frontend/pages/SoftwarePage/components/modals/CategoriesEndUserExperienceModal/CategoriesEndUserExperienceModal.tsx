@@ -16,7 +16,6 @@ const CategoriesEndUserExperienceModal = ({
   onCancel,
   isIosOrIpadosApp = false,
 }: ICategoriesEndUserExperienceModal): JSX.Element => {
-  console.log("isIosOrIpadosApp", isIosOrIpadosApp);
   return (
     <Modal title="End user experience" onExit={onCancel} className={baseClass}>
       <>

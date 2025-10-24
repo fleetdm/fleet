@@ -176,7 +176,31 @@ export const getSelfServiceTooltip = (isIosOrIpadosApp: boolean) => {
   ) : (
     <>
       End users can install from <br />
-      <b>Fleet Desktop</b> &gt; <b>Self-service</b>. <br />
+      <strong>Fleet Desktop</strong> &gt; <strong>Self-service</strong>. <br />
+      <CustomLink
+        newTab
+        text="Learn more"
+        variant="tooltip-link"
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
+      />
+    </>
+  );
+};
+
+export const getSelfServiceHelpText = (isIosOrIpadosApp: boolean) => {
+  return isIosOrIpadosApp ? (
+    <>
+      End users can install from self-service.{" "}
+      <CustomLink
+        newTab
+        text="Learn how to deploy self-service"
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/deploy-self-service-to-ios`}
+      />
+    </>
+  ) : (
+    <>
+      End users can install from <br />
+      <strong>Fleet Desktop</strong> &gt; <strong>Self-service</strong>.{" "}
       <CustomLink
         newTab
         text="Learn more"

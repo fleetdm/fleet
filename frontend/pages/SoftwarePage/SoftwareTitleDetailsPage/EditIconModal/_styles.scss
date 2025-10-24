@@ -79,10 +79,9 @@
   }
 
   &__self-service-preview--mobile {
-    // TODO
     position: relative;
-    top: -76px;
-    left: 188px;
+    top: -88px;
+    left: 156px;
     display: flex;
     gap: $pad-small;
     font-size: 12px;
@@ -100,6 +99,21 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  &__self-service-preview-name-version--mobile {
+    display: flex;
+    flex-direction: column;
+    font-size: $xxx-small;
+  }
+
+  // Required for tooltip truncating long software names
+  &__self-service-preview-name--mobile {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
   }
 
   &__mask-overlay {

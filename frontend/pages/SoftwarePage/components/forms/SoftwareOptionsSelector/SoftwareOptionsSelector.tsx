@@ -6,7 +6,10 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getSelfServiceTooltip,
+  getSelfServiceHelpText,
+} from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
@@ -149,23 +152,36 @@ const SoftwareOptionsSelector = ({
   // Ability to set categories when adding software is in a future ticket #28061
   const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
 
+  const renderOptionsDescription = () => {
+    // Render unavailable description for iOS or iPadOS add software form only
+    return isPlatformIosOrIpados && !isEditingSoftware ? (
+      <p>
+        Currently, automatic installation are not available for iOS and iPadOS.
+        Manually install on the <b>Host details</b> page for each host.
+      </p>
+    ) : null;
+  };
+
   return (
     <div className={`form-field ${classNames}`}>
       <div className="form-field__label">Options</div>
-      {isPlatformIosOrIpados && (
-        <p>
-          Currently, automatic installation are not available for iOS and
-          iPadOS. Manually install on the <b>Host details</b> page for each
-          host.
-        </p>
-      )}
+      {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
         <Checkbox
           value={formData.selfService}
           onChange={(newVal: boolean) => onToggleSelfService(newVal)}
           className={`${baseClass}__self-service-checkbox`}
+          // TODO: Discuss the inconsistency of design with designer
           labelTooltipContent={
-            !isSelfServiceDisabled && getSelfServiceTooltip()
+            !isSelfServiceDisabled &&
+            getSelfServiceTooltip(isIpaPackage || false)
+          }
+          // TODO: Discuss the inconsistency of design with designer
+          helpText={
+            !isSelfServiceDisabled &&
+            isPlatformIosOrIpados &&
+            !isEditingSoftware &&
+            getSelfServiceHelpText(isPlatformIosOrIpados)
           }
           disabled={isSelfServiceDisabled}
         >
