@@ -5219,7 +5219,9 @@ func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
 }
 
 func testAppleMDMHostsWithoutOrbitExpiration(t *testing.T, ds *Datastore) {
-	// Apple MDM enrolled hosts(macOS devices specifically) which never get
+	// Apple MDM enrolled hosts(macOS devices specifically) which never get orbit
+	// installed and also don't have our usual REFETCH commands run(which only run
+	// on iOS/iPadOS devices)
 	ctx := context.Background()
 	hostExpiryWindow := 70
 
