@@ -19,7 +19,6 @@ module.exports = {
         'record-created',
         'provisioning',
         'ready-for-assignment',
-        'deployed',
         'in-use',
         'expired',
       ],
@@ -57,11 +56,6 @@ module.exports = {
     renderFleetServiceId: {
       type: 'string',
       description: 'The ID of the Fleet service this Render POV is configured to use'
-    },
-
-    renderBeforeFirstUseDeployId: {
-      type: 'string',
-      description: 'The ID of the deploy that was creaed when a user was assigned to this instance. Used to check the status of the instance before redirecting the user to it.'
     },
 
     renderTrialEndsAt: {
