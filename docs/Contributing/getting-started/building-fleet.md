@@ -36,9 +36,9 @@ Install dependencies:
 sudo apt-get install -y git golang make nodejs npm
 sudo npm install -g yarn
 # Install nvm to manage node versions (apt very out of date) https://github.com/nvm-sh/nvm#install--update-script
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 # refresh your session before continuing
-nvm install v20.18.1
+nvm install v24.10.0
 ```
 
 #### Windows
@@ -74,7 +74,7 @@ The binaries are now available in `./build/`.
 To set up a working local development environment, you must have the following toolset:
 
 * [Go](https://golang.org/doc/install)
-* [Node.js v20.18.1](https://nodejs.org/en/blog/release/v20.18.1) and [Yarn](https://yarnpkg.com/en/docs/install)
+* [Node.js v24.10.0](https://nodejs.org/en/blog/release/v24.10.0) and [Yarn](https://yarnpkg.com/en/docs/install)
   * A specific version of Node.js can be installed using [nvm](https://github.com/nvm-sh/nvm#install--update-script)
 * [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
 
