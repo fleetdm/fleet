@@ -903,6 +903,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			for checksum, title := range existingTitlesForNewSoftware {
 				titleIDsByChecksum[checksum] = title.ID
 			}
+			// TODO: somewhere around here: if new SW title has diff upgrade_code from existing, log as an error and
+			// do NOT insert the new title
 
 			if len(newTitlesNeeded) > 0 {
 				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
@@ -4771,6 +4773,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
+					software_titles.upgrade_code AS upgrade_code, -- should be empty or non-empty string for "programs" sourced software, null otherwise
 					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
 					software_installers.filename AS package_name,
@@ -4812,6 +4815,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
+					software_titles.upgrade_code AS upgrade_code, -- should always be null for vpp (mac) apps
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
