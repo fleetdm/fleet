@@ -25,6 +25,7 @@ func TestListVulnsByMultipleOSVersions(t *testing.T) {
 		{"WithTeamFilter", testListVulnsByMultipleOSVersionsWithTeamFilter},
 		{"NonExistentOS", testListVulnsByMultipleOSVersionsNonExistentOS},
 		{"MixedPlatforms", testListVulnsByMultipleOSVersionsMixedPlatforms},
+		{"MultipleLinuxOSWithManyKernels", testListVulnsByMultipleLinuxOSWithManyKernels},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -377,4 +378,162 @@ func setupKernelVulnsWithTeam(t *testing.T, ds *Datastore, ctx context.Context, 
 		ON DUPLICATE KEY UPDATE hosts_count = VALUES(hosts_count)
 	`, titleID, softwareID, osVersion.OSVersionID)
 	require.NoError(t, err)
+}
+
+// Test comprehensive scenario: multiple Linux OS versions with multiple kernels and shared vulnerabilities
+func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create software title for kernels
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO software_titles (name, source, is_kernel)
+		VALUES ('linux-kernel', 'deb_packages', TRUE)
+		ON DUPLICATE KEY UPDATE is_kernel = TRUE
+	`)
+	require.NoError(t, err)
+
+	var titleID uint
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &titleID,
+		`SELECT id FROM software_titles WHERE name = 'linux-kernel'`)
+	require.NoError(t, err)
+
+	// Create 3 Linux OS versions: Ubuntu 22.04.0, 22.04.1, 22.04.2
+	var osVersions []fleet.OSVersion
+	osVersionNames := []string{"22.04.0", "22.04.1", "22.04.2"}
+
+	for idx, osVersionName := range osVersionNames {
+		os := fleet.OperatingSystem{
+			Name:          "Ubuntu",
+			Version:       osVersionName,
+			Platform:      "linux",
+			KernelVersion: "5.15.0-generic",
+		}
+
+		err := ds.UpdateHostOperatingSystem(ctx, uint(1000+idx), os) //nolint:gosec
+		require.NoError(t, err)
+
+		// Get the created OS
+		stmt := `SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? LIMIT 1`
+		var osID uint
+		var osVersionID uint
+		err = ds.writer(ctx).QueryRowContext(ctx, stmt, "Ubuntu", osVersionName).Scan(&osID, &osVersionID)
+		require.NoError(t, err)
+
+		osVersions = append(osVersions, fleet.OSVersion{
+			ID:          osID,
+			OSVersionID: osVersionID,
+			NameOnly:    "Ubuntu",
+			Version:     osVersionName,
+			Platform:    "linux",
+		})
+
+		// Create 3-4 different kernels for each OS version
+		// Make kernel versions unique per OS to avoid sharing software entries
+		baseKernelNum := idx * 10 // OS 0: 0-2, OS 1: 10-13, OS 2: 20-22
+		kernelVersions := []string{
+			fmt.Sprintf("5.15.0-%d", 100+baseKernelNum),
+			fmt.Sprintf("5.15.0-%d", 101+baseKernelNum),
+			fmt.Sprintf("5.15.0-%d", 102+baseKernelNum),
+		}
+		if idx == 1 {
+			// Second OS version gets an extra kernel
+			kernelVersions = append(kernelVersions, fmt.Sprintf("5.15.0-%d", 103+baseKernelNum))
+		}
+
+		for kernelIdx, kernelVersion := range kernelVersions {
+			// Create kernel software entry
+			_, err = ds.writer(ctx).ExecContext(ctx, `
+				INSERT INTO software (name, version, source, title_id, checksum)
+				VALUES ('linux-kernel', ?, 'deb_packages', ?, ?)
+				ON DUPLICATE KEY UPDATE id = id
+			`, kernelVersion, titleID, fmt.Sprintf("cs%d%d", idx, kernelIdx))
+			require.NoError(t, err)
+
+			var softwareID uint
+			err = sqlx.GetContext(ctx, ds.writer(ctx), &softwareID,
+				`SELECT id FROM software WHERE name = 'linux-kernel' AND version = ?`, kernelVersion)
+			require.NoError(t, err)
+
+			// Define CVEs for this kernel
+			// Some CVEs are shared across kernels (CVE-2024-SHARED-*), some are unique
+			cves := []string{
+				fmt.Sprintf("CVE-2024-SHARED-1"),                        // Shared across all kernels
+				fmt.Sprintf("CVE-2024-SHARED-2"),                        // Shared across all kernels
+				fmt.Sprintf("CVE-2024-OS%d-KERNEL%d-1", idx, kernelIdx), // Unique to this OS+kernel
+			}
+
+			// Kernel 0 and 1 share an additional CVE
+			if kernelIdx <= 1 {
+				cves = append(cves, "CVE-2024-SHARED-K0-K1")
+			}
+
+			// Add CVEs for this kernel
+			for _, cve := range cves {
+				_, err = ds.writer(ctx).ExecContext(ctx, `
+					INSERT INTO software_cve (software_id, cve, resolved_in_version)
+					VALUES (?, ?, NULL)
+					ON DUPLICATE KEY UPDATE resolved_in_version = VALUES(resolved_in_version)
+				`, softwareID, cve)
+				require.NoError(t, err)
+			}
+
+			// Add kernel_host_counts linking this kernel to this OS version
+			_, err = ds.writer(ctx).ExecContext(ctx, `
+				INSERT INTO kernel_host_counts (software_title_id, software_id, os_version_id, hosts_count, team_id)
+				VALUES (?, ?, ?, 50, 0)
+				ON DUPLICATE KEY UPDATE hosts_count = VALUES(hosts_count)
+			`, titleID, softwareID, osVersionID)
+			require.NoError(t, err)
+		}
+	}
+
+	// Now query for vulnerabilities
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil)
+	require.NoError(t, err)
+	require.NotNil(t, vulnsMap)
+
+	// Should have results for all 3 OS versions
+	assert.Len(t, vulnsMap, 3)
+
+	// Verify deduplication: each OS version should have the shared CVEs plus unique ones
+	for idx, osV := range osVersions {
+		key := osV.NameOnly + "-" + osV.Version
+		vulns, ok := vulnsMap[key]
+		assert.True(t, ok, "Should have vulnerabilities for %s", key)
+
+		// Count expected CVEs
+		// - 2 shared across all kernels (CVE-2024-SHARED-1, CVE-2024-SHARED-2)
+		// - 1 shared between kernel 0 and 1 (CVE-2024-SHARED-K0-K1)
+		// - N unique CVEs (one per kernel)
+		numKernels := 3
+		if idx == 1 {
+			numKernels = 4 // Second OS version has 4 kernels
+		}
+
+		expectedUniqueCVEs := numKernels                // One unique CVE per kernel
+		expectedTotalCVEs := 2 + 1 + expectedUniqueCVEs // 2 fully shared + 1 k0-k1 shared + unique
+
+		assert.Len(t, vulns, expectedTotalCVEs, "OS version %s should have %d CVEs", key, expectedTotalCVEs)
+
+		// Verify the shared CVEs are present
+		cveSet := make(map[string]bool)
+		for _, vuln := range vulns {
+			cveSet[vuln.CVE] = true
+		}
+
+		assert.True(t, cveSet["CVE-2024-SHARED-1"], "Should have CVE-2024-SHARED-1")
+		assert.True(t, cveSet["CVE-2024-SHARED-2"], "Should have CVE-2024-SHARED-2")
+		assert.True(t, cveSet["CVE-2024-SHARED-K0-K1"], "Should have CVE-2024-SHARED-K0-K1")
+
+		// Verify at least one unique CVE is present
+		foundUnique := false
+		expectedPrefix := fmt.Sprintf("CVE-2024-OS%d-KERNEL", idx)
+		for cve := range cveSet {
+			if len(cve) > len(expectedPrefix) && cve[:len(expectedPrefix)] == expectedPrefix {
+				foundUnique = true
+				break
+			}
+		}
+		assert.True(t, foundUnique, "Should have at least one unique CVE for OS %d", idx)
+	}
 }

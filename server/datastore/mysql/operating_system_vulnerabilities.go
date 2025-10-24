@@ -475,17 +475,29 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			return
 		}
 
+		// Optimize by aggregating at os_version_id level first, then joining to os.id
+		// This reduces row explosion when multiple OS IDs share the same os_version_id
 		kernelQuery := `
 			SELECT
 				os.id as os_id,
-				sc.cve,
-				sc.resolved_in_version,
-				MIN(sc.created_at) as created_at
-			FROM software_cve sc
-			JOIN kernel_host_counts khc ON khc.software_id = sc.software_id
-			JOIN operating_systems os ON os.os_version_id = khc.os_version_id
-			WHERE os.id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSIDs)), ",") + `)
-			AND khc.hosts_count > 0
+				cve_agg.cve,
+				cve_agg.resolved_in_version,
+				cve_agg.created_at
+			FROM operating_systems os
+			JOIN (
+				SELECT
+					khc.os_version_id,
+					sc.cve,
+					sc.resolved_in_version,
+					MIN(sc.created_at) as created_at
+				FROM kernel_host_counts khc
+				JOIN software_cve sc ON sc.software_id = khc.software_id
+				WHERE khc.os_version_id IN (
+					SELECT os_version_id
+					FROM operating_systems
+					WHERE id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSIDs)), ",") + `)
+				)
+				AND khc.hosts_count > 0
 		`
 
 		kargs := make([]any, len(linuxOSIDs))
@@ -498,7 +510,14 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			kargs = append(kargs, *teamID)
 		}
 
-		kernelQuery += ` GROUP BY os.id, sc.cve, sc.resolved_in_version`
+		kernelQuery += `
+				GROUP BY khc.os_version_id, sc.cve, sc.resolved_in_version
+			) cve_agg ON cve_agg.os_version_id = os.os_version_id
+			WHERE os.id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSIDs)), ",") + `)
+		`
+
+		// Add the same OS IDs again for the outer WHERE clause
+		kargs = append(kargs, kargs[:len(linuxOSIDs)]...)
 
 		var kernelVulnResults []struct {
 			OSID              uint      `db:"os_id"`
