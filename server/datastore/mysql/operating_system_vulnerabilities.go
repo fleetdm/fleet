@@ -404,13 +404,30 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		result[key] = make(fleet.Vulnerabilities, 0)
 	}
 
-	// Step 2: Execute queries
+	// Step 2: Execute queries in parallel
 	vulnsByKey := make(map[string][]fleet.CVE)
 	cveSet := make(map[string]struct{})
 
+	type vulnResult struct {
+		OSID              uint
+		CVE               string
+		ResolvedInVersion *string
+		CreatedAt         time.Time
+	}
+
+	// Channels for collecting results from parallel queries
+	osVulnsChan := make(chan []vulnResult, 1)
+	kernelVulnsChan := make(chan []vulnResult, 1)
+	errChan := make(chan error, 2)
+
 	// Query 1: OS Vulnerabilities (non-Linux only, as Linux uses kernel vulnerabilities)
 	// The operating_system_vulnerabilities table does not contain Linux vulnerabilities
-	if len(nonLinuxOSIDs) > 0 {
+	go func() {
+		if len(nonLinuxOSIDs) == 0 {
+			osVulnsChan <- nil
+			return
+		}
+
 		osVulnsQuery := `
 		SELECT
 			osv.operating_system_id,
@@ -434,42 +451,30 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osVulnResults, osVulnsQuery, osArgs...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "batch query OS vulnerabilities")
+			errChan <- ctxerr.Wrap(ctx, err, "batch query OS vulnerabilities")
+			return
 		}
 
-		for _, r := range osVulnResults {
-			key := osIDMap[r.OSID]
-			vuln := fleet.CVE{
-				CVE:       r.CVE,
-				CreatedAt: r.CreatedAt,
+		// Convert to generic vulnResult format
+		results := make([]vulnResult, len(osVulnResults))
+		for i, r := range osVulnResults {
+			results[i] = vulnResult{
+				OSID:              r.OSID,
+				CVE:               r.CVE,
+				ResolvedInVersion: r.ResolvedInVersion,
+				CreatedAt:         r.CreatedAt,
 			}
-
-			if r.ResolvedInVersion != nil {
-				resolvedVersion := r.ResolvedInVersion // avoid address of range var field
-				vuln.ResolvedInVersion = &resolvedVersion
-			}
-
-			// Check if we already have this CVE for this key (deduplication across architectures)
-			found := false
-			for i, existing := range vulnsByKey[key] {
-				if existing.CVE == r.CVE {
-					found = true
-					// Keep the earliest CreatedAt time
-					if r.CreatedAt.Before(existing.CreatedAt) {
-						vulnsByKey[key][i].CreatedAt = r.CreatedAt
-					}
-					break
-				}
-			}
-			if !found {
-				vulnsByKey[key] = append(vulnsByKey[key], vuln)
-			}
-			cveSet[r.CVE] = struct{}{}
 		}
-	}
+		osVulnsChan <- results
+	}()
 
 	// Query 2: Kernel Vulnerabilities (for Linux only)
-	if len(linuxOSIDs) > 0 {
+	go func() {
+		if len(linuxOSIDs) == 0 {
+			kernelVulnsChan <- nil
+			return
+		}
+
 		kernelQuery := `
 			SELECT
 				os.id as os_id,
@@ -503,34 +508,93 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &kernelVulnResults, kernelQuery, kargs...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "batch query kernel vulnerabilities")
+			errChan <- ctxerr.Wrap(ctx, err, "batch query kernel vulnerabilities")
+			return
 		}
-		for _, r := range kernelVulnResults {
-			key := osIDMap[r.OSID]
-			vuln := fleet.CVE{
-				CVE:       r.CVE,
-				CreatedAt: r.CreatedAt,
-			}
 
-			if r.ResolvedInVersion != nil {
-				resolvedVersion := r.ResolvedInVersion // avoid address of range var field
-				vuln.ResolvedInVersion = &resolvedVersion
+		// Convert to generic vulnResult format
+		results := make([]vulnResult, len(kernelVulnResults))
+		for i, r := range kernelVulnResults {
+			results[i] = vulnResult{
+				OSID:              r.OSID,
+				CVE:               r.CVE,
+				ResolvedInVersion: r.ResolvedInVersion,
+				CreatedAt:         r.CreatedAt,
 			}
+		}
+		kernelVulnsChan <- results
+	}()
 
-			// Check if we already have this CVE
-			found := false
-			for _, existing := range vulnsByKey[key] {
-				if existing.CVE == r.CVE {
-					found = true
-					break
+	// Collect results from both queries
+	var osVulnResults, kernelVulnResults []vulnResult
+	for i := 0; i < 2; i++ {
+		select {
+		case results := <-osVulnsChan:
+			osVulnResults = results
+		case results := <-kernelVulnsChan:
+			kernelVulnResults = results
+		case err := <-errChan:
+			return nil, err
+		}
+	}
+
+	// Process OS vulnerability results
+	for _, r := range osVulnResults {
+		key := osIDMap[r.OSID]
+		vuln := fleet.CVE{
+			CVE:       r.CVE,
+			CreatedAt: r.CreatedAt,
+		}
+
+		if r.ResolvedInVersion != nil {
+			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+			vuln.ResolvedInVersion = &resolvedVersion
+		}
+
+		// Check if we already have this CVE for this key (deduplication across architectures)
+		found := false
+		for i, existing := range vulnsByKey[key] {
+			if existing.CVE == r.CVE {
+				found = true
+				// Keep the earliest CreatedAt time
+				if r.CreatedAt.Before(existing.CreatedAt) {
+					vulnsByKey[key][i].CreatedAt = r.CreatedAt
 				}
+				break
 			}
-			if !found {
-				vulnsByKey[key] = append(vulnsByKey[key], vuln)
-			}
-
-			cveSet[r.CVE] = struct{}{}
 		}
+		if !found {
+			vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		}
+		cveSet[r.CVE] = struct{}{}
+	}
+
+	// Process kernel vulnerability results
+	for _, r := range kernelVulnResults {
+		key := osIDMap[r.OSID]
+		vuln := fleet.CVE{
+			CVE:       r.CVE,
+			CreatedAt: r.CreatedAt,
+		}
+
+		if r.ResolvedInVersion != nil {
+			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+			vuln.ResolvedInVersion = &resolvedVersion
+		}
+
+		// Check if we already have this CVE
+		found := false
+		for _, existing := range vulnsByKey[key] {
+			if existing.CVE == r.CVE {
+				found = true
+				break
+			}
+		}
+		if !found {
+			vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		}
+
+		cveSet[r.CVE] = struct{}{}
 	}
 
 	// Step 3: Fetch CVE metadata for all CVEs
@@ -541,7 +605,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		// Fetch metadata in batches using the common batch processing utility
-		batchSize := 1000
+		batchSize := 2000
 		metadataMap := make(map[string]struct {
 			CVSSScore        *float64
 			EPSSProbability  *float64
