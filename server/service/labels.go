@@ -595,7 +595,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				label.LabelType != fleet.LabelTypeBuiltIn ||
 				label.LabelMembershipType != spec.LabelMembershipType {
 				return fleet.NewUserMessageError(
-					ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", spec.Name), http.StatusUnprocessableEntity,
+					ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name), http.StatusUnprocessableEntity,
 				)
 			}
 		}
