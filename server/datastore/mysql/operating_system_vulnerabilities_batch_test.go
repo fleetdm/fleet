@@ -114,23 +114,20 @@ func testListVulnsByMultipleOSVersionsWithCVSS(t *testing.T, ds *Datastore) {
 func testListVulnsByMultipleOSVersionsWithTeamFilter(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Create test OS versions
-	osVersions := setupTestOSVersionsWithVulns(t, ds, ctx)
-
-	// Create kernel vulnerabilities with team-specific data
-	setupKernelVulnsWithTeam(t, ds, ctx, osVersions[0])
+	// Create a Linux OS version for testing kernel vulnerabilities
+	linuxOS := setupLinuxOSWithKernelVulns(t, ds, ctx)
 
 	teamID := uint(1)
 
 	// Test with team filter
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions[:1], false, &teamID)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, []fleet.OSVersion{linuxOS}, false, &teamID)
 	require.NoError(t, err)
 
-	key := osVersions[0].NameOnly + "-" + osVersions[0].Version
+	key := linuxOS.NameOnly + "-" + linuxOS.Version
 	vulns := vulnsMap[key]
 
-	// Should have OS vulnerabilities plus kernel vulnerabilities for the team
-	assert.GreaterOrEqual(t, len(vulns), 2)
+	// Should have kernel vulnerabilities for the team
+	assert.GreaterOrEqual(t, len(vulns), 1)
 }
 
 func testListVulnsByMultipleOSVersionsNonExistentOS(t *testing.T, ds *Datastore) {
@@ -192,16 +189,22 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 		}
 		osVersions = append(osVersions, osVersionObj)
 
-		// Add a vulnerability for each OS
-		vulns := []fleet.OSVulnerability{
-			{
-				OSID:              result.ID,
-				CVE:               fmt.Sprintf("CVE-2024-PLAT-%d", i),
-				ResolvedInVersion: ptr.String(osVersion + ".1"),
-			},
+		// Add vulnerabilities based on platform type
+		if platform == "linux" {
+			// For Linux, add kernel vulnerabilities
+			setupKernelVulnsWithTeam(t, ds, ctx, osVersionObj)
+		} else {
+			// For non-Linux, add OS vulnerabilities to operating_system_vulnerabilities table
+			vulns := []fleet.OSVulnerability{
+				{
+					OSID:              result.ID,
+					CVE:               fmt.Sprintf("CVE-2024-PLAT-%d", i),
+					ResolvedInVersion: ptr.String(osVersion + ".1"),
+				},
+			}
+			_, err = ds.InsertOSVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+			require.NoError(t, err)
 		}
-		_, err = ds.InsertOSVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
-		require.NoError(t, err)
 	}
 
 	// Test batch query with mixed platforms
@@ -214,25 +217,47 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 	for i, osV := range osVersions {
 		key := osV.NameOnly + "-" + osV.Version
 		vulns, ok := vulnsMap[key]
-		assert.True(t, ok, "Should have vulnerabilities for %s", key)
-		assert.Len(t, vulns, 1)
-		assert.Equal(t, fmt.Sprintf("CVE-2024-PLAT-%d", i), vulns[0].CVE)
+		assert.True(t, ok, "Should have key in map for %s", key)
+
+		// All platforms should have vulnerabilities
+		assert.GreaterOrEqual(t, len(vulns), 1, "Platform %s should have at least 1 vulnerability", osV.Platform)
+
+		if osV.Platform == "linux" {
+			// Linux should have kernel vulnerability
+			foundKernelCVE := false
+			for _, vuln := range vulns {
+				if vuln.CVE == "CVE-2024-KERNEL-001" {
+					foundKernelCVE = true
+					break
+				}
+			}
+			assert.True(t, foundKernelCVE, "Linux should have kernel vulnerability CVE-2024-KERNEL-001")
+		} else {
+			// Non-Linux should have OS vulnerability
+			assert.Len(t, vulns, 1, "Non-Linux platforms should have 1 vulnerability")
+			assert.Equal(t, fmt.Sprintf("CVE-2024-PLAT-%d", i), vulns[0].CVE)
+		}
 	}
 }
 
 // Helper function to set up test OS versions with vulnerabilities
+// Uses non-Linux platforms since operating_system_vulnerabilities table doesn't contain Linux vulns
 func setupTestOSVersionsWithVulns(t *testing.T, ds *Datastore, ctx context.Context) []fleet.OSVersion {
 	var osVersions []fleet.OSVersion
 
+	// Use non-Linux platforms for testing operating_system_vulnerabilities
+	platforms := []string{"darwin", "windows", "chrome"}
+	osNames := []string{"macOS", "Microsoft Windows 11 Enterprise", "Google Chrome OS"}
+
 	for i := 0; i < 3; i++ {
-		osName := "Ubuntu"
-		osVersion := "22.04." + string(rune('0'+i))
+		osName := osNames[i]
+		osVersion := "1.0." + string(rune('0'+i))
 
 		os := fleet.OperatingSystem{
 			Name:          osName,
 			Version:       osVersion,
-			Platform:      "linux",
-			KernelVersion: "5.15.0-generic",
+			Platform:      platforms[i],
+			KernelVersion: "test-kernel",
 		}
 
 		err := ds.UpdateHostOperatingSystem(ctx, uint(i+1), os) //nolint:gosec
@@ -250,7 +275,7 @@ func setupTestOSVersionsWithVulns(t *testing.T, ds *Datastore, ctx context.Conte
 			OSVersionID: osVersionID,
 			NameOnly:    osName,
 			Version:     osVersion,
-			Platform:    "linux",
+			Platform:    platforms[i],
 		}
 		osVersions = append(osVersions, osVersionObj)
 
@@ -272,6 +297,42 @@ func setupTestOSVersionsWithVulns(t *testing.T, ds *Datastore, ctx context.Conte
 	}
 
 	return osVersions
+}
+
+// Helper function to set up a Linux OS with kernel vulnerabilities
+func setupLinuxOSWithKernelVulns(t *testing.T, ds *Datastore, ctx context.Context) fleet.OSVersion {
+	osName := "Ubuntu"
+	osVersion := "22.04.0"
+
+	os := fleet.OperatingSystem{
+		Name:          osName,
+		Version:       osVersion,
+		Platform:      "linux",
+		KernelVersion: "5.15.0-generic",
+	}
+
+	err := ds.UpdateHostOperatingSystem(ctx, 1, os)
+	require.NoError(t, err)
+
+	// Get the created OS
+	stmt := `SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? LIMIT 1`
+	var osID uint
+	var osVersionID uint
+	err = ds.writer(ctx).QueryRowContext(ctx, stmt, osName, osVersion).Scan(&osID, &osVersionID)
+	require.NoError(t, err)
+
+	osVersionObj := fleet.OSVersion{
+		ID:          osID,
+		OSVersionID: osVersionID,
+		NameOnly:    osName,
+		Version:     osVersion,
+		Platform:    "linux",
+	}
+
+	// Set up kernel vulnerabilities
+	setupKernelVulnsWithTeam(t, ds, ctx, osVersionObj)
+
+	return osVersionObj
 }
 
 // Helper function to set up kernel vulnerabilities with team-specific data

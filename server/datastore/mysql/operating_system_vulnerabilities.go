@@ -352,6 +352,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	osIDMap := make(map[uint]string, len(osVersions))
 	osIDs := make([]uint, 0, len(osVersions))
 	linuxOSIDs := make([]uint, 0)          // Track Linux OS IDs separately for kernel vulnerabilities
+	nonLinuxOSIDs := make([]uint, 0)       // Track non-Linux OS IDs for operating_system_vulnerabilities query
 	platformMap := make(map[string]string) // Map "name-version" to platform
 
 	// Build query using IN with tuples - more efficient with the index on (name, version)
@@ -388,6 +389,9 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		// Check if this OS is Linux and add to Linux-specific list
 		if platform, ok := platformMap[key]; ok && fleet.IsLinux(platform) {
 			linuxOSIDs = append(linuxOSIDs, r.ID)
+		} else {
+			// Non-Linux OS - add to list for operating_system_vulnerabilities query
+			nonLinuxOSIDs = append(nonLinuxOSIDs, r.ID)
 		}
 	}
 
@@ -404,61 +408,64 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	vulnsByKey := make(map[string][]fleet.CVE)
 	cveSet := make(map[string]struct{})
 
-	// Query 1: OS Vulnerabilities
-	osVulnsQuery := `
+	// Query 1: OS Vulnerabilities (non-Linux only, as Linux uses kernel vulnerabilities)
+	// The operating_system_vulnerabilities table does not contain Linux vulnerabilities
+	if len(nonLinuxOSIDs) > 0 {
+		osVulnsQuery := `
 		SELECT
 			osv.operating_system_id,
 			osv.cve,
 			osv.resolved_in_version,
 			osv.created_at
 		FROM operating_system_vulnerabilities osv
-		WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(osIDs)), ",") + `)
+		WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)
 	`
 
-	osArgs := make([]any, len(osIDs))
-	for i, id := range osIDs {
-		osArgs[i] = id
-	}
-
-	var osVulnResults []struct {
-		OSID              uint      `db:"operating_system_id"`
-		CVE               string    `db:"cve"`
-		ResolvedInVersion *string   `db:"resolved_in_version"`
-		CreatedAt         time.Time `db:"created_at"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osVulnResults, osVulnsQuery, osArgs...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "batch query OS vulnerabilities")
-	}
-
-	for _, r := range osVulnResults {
-		key := osIDMap[r.OSID]
-		vuln := fleet.CVE{
-			CVE:       r.CVE,
-			CreatedAt: r.CreatedAt,
+		osArgs := make([]any, len(nonLinuxOSIDs))
+		for i, id := range nonLinuxOSIDs {
+			osArgs[i] = id
 		}
 
-		if r.ResolvedInVersion != nil {
-			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
-			vuln.ResolvedInVersion = &resolvedVersion
+		var osVulnResults []struct {
+			OSID              uint      `db:"operating_system_id"`
+			CVE               string    `db:"cve"`
+			ResolvedInVersion *string   `db:"resolved_in_version"`
+			CreatedAt         time.Time `db:"created_at"`
 		}
 
-		// Check if we already have this CVE for this key (deduplication across architectures)
-		found := false
-		for i, existing := range vulnsByKey[key] {
-			if existing.CVE == r.CVE {
-				found = true
-				// Keep the earliest CreatedAt time
-				if r.CreatedAt.Before(existing.CreatedAt) {
-					vulnsByKey[key][i].CreatedAt = r.CreatedAt
-				}
-				break
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osVulnResults, osVulnsQuery, osArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "batch query OS vulnerabilities")
+		}
+
+		for _, r := range osVulnResults {
+			key := osIDMap[r.OSID]
+			vuln := fleet.CVE{
+				CVE:       r.CVE,
+				CreatedAt: r.CreatedAt,
 			}
+
+			if r.ResolvedInVersion != nil {
+				resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+				vuln.ResolvedInVersion = &resolvedVersion
+			}
+
+			// Check if we already have this CVE for this key (deduplication across architectures)
+			found := false
+			for i, existing := range vulnsByKey[key] {
+				if existing.CVE == r.CVE {
+					found = true
+					// Keep the earliest CreatedAt time
+					if r.CreatedAt.Before(existing.CreatedAt) {
+						vulnsByKey[key][i].CreatedAt = r.CreatedAt
+					}
+					break
+				}
+			}
+			if !found {
+				vulnsByKey[key] = append(vulnsByKey[key], vuln)
+			}
+			cveSet[r.CVE] = struct{}{}
 		}
-		if !found {
-			vulnsByKey[key] = append(vulnsByKey[key], vuln)
-		}
-		cveSet[r.CVE] = struct{}{}
 	}
 
 	// Query 2: Kernel Vulnerabilities (for Linux only)
@@ -526,7 +533,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 	}
 
-	// Step 3: Fetch CVE metadata (for Linux kernels only)
+	// Step 3: Fetch CVE metadata for all CVEs
 	if includeCVSS && len(cveSet) > 0 {
 		cveList := make([]string, 0, len(cveSet))
 		for cve := range cveSet {
@@ -534,7 +541,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		// Fetch metadata in batches using the common batch processing utility
-		batchSize := 500
+		batchSize := 1000
 		metadataMap := make(map[string]struct {
 			CVSSScore        *float64
 			EPSSProbability  *float64
