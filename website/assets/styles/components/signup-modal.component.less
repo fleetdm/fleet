@@ -56,7 +56,7 @@
             min-width: 10px;
             min-height: 10px;
             border-radius: 50%;
-            background-color: #009A7D;
+            background-color: @core-vibrant-green;
             transform: scale(0);
             transition: 180ms transform ease-in-out;
           }
@@ -224,10 +224,7 @@
      }
    }
  }
-[parasails-component='signup-modal'] {
 
-
-}
 
 // Modal backdrop styles are exposed globally here because this gets appended to the <body>
 .modal-backdrop {
@@ -238,9 +235,31 @@
     opacity: 0.25;
   }
 }
-@media (max-width: 768px) {
+@media (max-width: 991px) {
   .modal-backdrop {
     background-color: #FFF;
+    &.show {
+      opacity: 1;
+    }
+  }
+
+
+  [parasails-component='signup-modal'] {
+    max-width: 100vw;
+    -webkit-overflow-scrolling: touch;//« makes this actually scrollable on certain phones
+    [purpose='modal-dialog'] {
+      z-index: 100;
+      position: relative;
+      // max-width: 100%;
+      [purpose='modal-content'] {
+        box-shadow: none;
+        margin-top: 48px;
+        width: 100%;
+        // max-width: 100%;
+        padding: 48px;
+        border: none;
+      }
+    }
   }
 }
 

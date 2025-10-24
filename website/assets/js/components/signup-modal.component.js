@@ -59,7 +59,7 @@ parasails.registerComponent('signupModal', {
           <button type="button" class="position-absolute" data-dismiss="modal" data-target="#signupmodal" aria-label="Close" purpose="modal-close-button" @click="$emit('close')">&times;</button>
           <div purpose="signup-modal">
             <div purpose="modal-logo">
-              <img src="/images/logo-brandmark-140x140@2x.png">
+              <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
             </div>
           <h3 class="mb-0">Welcome to Fleet</h3>
           <p class="mb-0">We just need a few details in order to get started.</p>
@@ -75,7 +75,7 @@ parasails.registerComponent('signupModal', {
               I don't have an account
             </label>
           </div>
-          <ajax-form action="signup" purpose="modal-form" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="signupFormErrors" :form-data="signupFormData" :form-rules="signupFormRules" v-if="formToDisplay === 'signup'">
+          <ajax-form action="signup" purpose="modal-form" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="signupFormErrors" :form-data="signupFormData" :form-rules="signupFormRules" @submitted="submittedSignupForm()" v-if="formToDisplay === 'signup'">
             <div class="form-group">
               <label for="email-address">Work email *</label>
               <input tabindex="1" class="form-control" id="email-address"  :class="[signupFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="signupFormData.emailAddress" @input="typeClearOneFormError('emailAddress')">
