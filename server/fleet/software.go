@@ -105,7 +105,7 @@ type Software struct {
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
-	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	UpgradeCode *string `json:"upgrade_code" db:"upgrade_code"`
 }
 
 func (Software) AuthzType() string {
@@ -262,7 +262,7 @@ type SoftwareTitle struct {
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
-	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	UpgradeCode *string `json:"upgrade_code" db:"upgrade_code"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -344,6 +344,9 @@ type SoftwareTitleListResult struct {
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code" db:"upgrade_code"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -554,18 +557,23 @@ func SoftwareFromOsqueryRow(
 		return str
 	}
 
+	truncatedSource := truncateString(source, SoftwareSourceMaxLength)
+
 	var upgradeCodeForFleetSW *string
-	if upgradeCode != "" {
-		if len(upgradeCode) != UpgradeCodeExpectedLength {
+	// nil for sources other than "programs", "" if "programs" source and no code returned,
+	// length-validated code for "programs" source and non-empty value returned
+	if truncatedSource == "programs" {
+		if upgradeCode != "" && len(upgradeCode) != UpgradeCodeExpectedLength {
 			return nil, errors.New("host reported invalid upgrade code - unexpected length")
 		}
 		upgradeCodeForFleetSW = &upgradeCode
+
 	}
 
 	software := Software{
 		Name:             truncateString(name, SoftwareNameMaxLength),
 		Version:          truncateString(version, SoftwareVersionMaxLength),
-		Source:           truncateString(source, SoftwareSourceMaxLength),
+		Source:           truncatedSource,
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		ExtensionFor:     truncateString(extensionFor, SoftwareExtensionForMaxLength),
