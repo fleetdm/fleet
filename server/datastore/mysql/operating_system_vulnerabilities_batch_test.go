@@ -457,8 +457,8 @@ func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) 
 			// Define CVEs for this kernel
 			// Some CVEs are shared across kernels (CVE-2024-SHARED-*), some are unique
 			cves := []string{
-				fmt.Sprintf("CVE-2024-SHARED-1"),                        // Shared across all kernels
-				fmt.Sprintf("CVE-2024-SHARED-2"),                        // Shared across all kernels
+				"CVE-2024-SHARED-1", // Shared across all kernels
+				"CVE-2024-SHARED-2", // Shared across all kernels
 				fmt.Sprintf("CVE-2024-OS%d-KERNEL%d-1", idx, kernelIdx), // Unique to this OS+kernel
 			}
 
