@@ -50,10 +50,10 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	plugins := orbittable.OrbitDefaultTables()
 	opts := orbittable.PluginOpts{
 		Socket: *socket,
 	}
+	plugins := orbittable.OrbitDefaultTables(opts)
 	platformTables, err := orbittable.PlatformTables(opts)
 	if err != nil {
 		log.Fatalln(err)
