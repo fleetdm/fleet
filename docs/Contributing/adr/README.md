@@ -43,3 +43,5 @@ To create a new ADR:
 - [ADR-0003: Fork management](0003-fork-management.md) (Rejected)
 - [ADR-0004: Third-party library vendoring](0004-third-party-vendoring.md)
 - [ADR-0005: Standardize on OpenTelemetry for observability](0005-opentelemetry-standardization.md)
+- [ADR-0006: Replace "No Team" with real default team](0006-replace-no-team-with-default-team.md)
+- [ADR-0007: Refactor Android](0007-refactor-android.md)
