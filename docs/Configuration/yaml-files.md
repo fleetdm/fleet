@@ -477,7 +477,7 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages, Apple App Store apps, and Fleet-maintained apps that you want to install on your hosts.
 
-- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, .deb, or .tar.gz).
+- `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .rpm, .deb, or .tar.gz).
 - `app_store_apps` is a list of Apple App Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
@@ -531,7 +531,7 @@ software:
   - `Communication`: shown as **👬 Communication**
   - `Developer tools`: shown as **🧰 Developer tools**
   - `Productivity`: shown as **🖥️ Productivity**
-- `setup_experience` installs the software when macOS, Windows, and Linux hosts enroll. Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#software-and-script). This setting is ignored on software that applies to other platforms (default: `false`).
+- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience).
 
 ### packages
 
@@ -542,6 +542,7 @@ software:
 
 > You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
 
+- `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -756,6 +757,14 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+=======
+>>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
+=======
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 #### Example
 
@@ -822,6 +831,11 @@ Can only be configured for all teams (`org_settings`). Use API to configure Zend
 ### certificate_authorities
 
 _Available in Fleet Premium._
+<<<<<<< HEAD
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+=======
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
 
@@ -897,6 +911,9 @@ Can only be configured for all teams (`org_settings`).
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
 #### smallstep
 
 - `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
@@ -905,7 +922,23 @@ Can only be configured for all teams (`org_settings`).
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
+>>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 Can only be configured for all teams (`org_settings`).
+
+=======
+>>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
+#### smallstep
+
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the **SCEP URL** from Smallstep.
+- `challenge_url` is the **Webhook URL** from Smallstep.
+- `username` is the **Challenge Basic Authentication Username** from Smallstep.
+- `password` is the **Challenge Basic Authentication Password** from Smallstep.
+<<<<<<< HEAD
+=======
+
+Can only be configured for all teams (`org_settings`).
+>>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
 
 ### webhook_settings
 

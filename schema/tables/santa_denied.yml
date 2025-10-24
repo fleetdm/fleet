@@ -1,5 +1,5 @@
 name: santa_denied
-description: List of applications Santa has denied from running on the host.
+description: Logs events for when Santa denied applications from running on the host. Fleet's agent (fleetd) only stores the most recent 10,000 denied events.
 platforms: 
   - darwin
 evented: false
@@ -8,6 +8,9 @@ examples: |-
   ```
   SELECT * FROM santa_denied;
   ```
+notes: |-
+  - Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).
+  - "If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits"
 columns:
   - name: timestamp
     description: Timestamp of the decision
