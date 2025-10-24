@@ -568,7 +568,12 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		}
 		for name := range fleet.ReservedLabelNames() {
 			if spec.Name == name {
-				return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", name), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(
+						ctx,
+						"cannot add label '%s' because it conflicts with the name of a built-in label",
+						name,
+					), http.StatusUnprocessableEntity)
 			}
 		}
 
@@ -590,7 +595,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				label.LabelType != fleet.LabelTypeBuiltIn ||
 				label.LabelMembershipType != spec.LabelMembershipType {
 				return fleet.NewUserMessageError(
-					ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name), http.StatusUnprocessableEntity,
+					ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", spec.Name), http.StatusUnprocessableEntity,
 				)
 			}
 		}
