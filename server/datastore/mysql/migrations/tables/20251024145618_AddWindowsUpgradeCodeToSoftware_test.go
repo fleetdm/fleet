@@ -12,64 +12,95 @@ import (
 func TestUp_20251024145618(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// Add Mac and Windows software. The unique_identifier should be the bundle_identifier for the macOS software and the name for the Windows software.
-	stIDMac := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES ("iTerm.app", "apps", "com.googlecode.iterm2")`)
-	stIDWindows := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES ("Notepad", "programs")`)
+	ms := fleet.SoftwareTitle{
+		Name:             "iTerm.app",
+		Source:           "apps",
+		BundleIdentifier: ptr.String("com.googlecode.iterm2"),
+		UpgradeCode:      nil,
+	}
 
-	// TODO - add to `software` table
+	ws := fleet.SoftwareTitle{
+		Name:        "Notepad",
+		Source:      "programs",
+		UpgradeCode: ptr.String("{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}"),
+	}
 
+	// Add Mac and Windows software, no upgrade codes yet. The unique_identifier should be the bundle_identifier for the
+	// macOS software and the name for the Windows software.
+
+	ms.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)`, ms.Name, ms.Source, ms.BundleIdentifier))
+	ws.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws.Name, ws.Source))
+
+	// // //
 	// Apply current migration.
 	applyNext(t, db)
+	// // //
+
+	// Check default values are set as expected
+	var winUC *string
+	err := db.Get(&winUC, `SELECT upgrade_code FROM software_titles WHERE id = ?`, ws.ID)
+	require.NoError(t, err)
+	require.Equal(t, *winUC, ptr.String(""))
+
+	var macUC *string
+	err = db.Get(&macUC, `SELECT upgrade_code FROM software_titles WHERE id = ?`, ms.ID)
+	require.NoError(t, err)
+	require.Nil(t, macUC)
 
 	// Delete the existing Windows software, then add it back now including an upgrade_code
 	// software_titles
-	execNoErr(t, db, `DELETE FROM software_titles WHERE id = ?`, stIDWindows)
+	execNoErr(t, db, `DELETE FROM software_titles WHERE id = ?`, ws.ID)
 
-	uC := "{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}"
-	stIDWindows = execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES ("Notepad", "programs", ?)`, uC)
-	// TODO software
+	ws.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES ("Notepad", "programs", ?)`, ws.UpgradeCode))
 
 	cases := []struct {
-		name        string
-		titleID     int64
-		source      string
-		expectedBID *string
-		expectedUC  *string
+		name                string
+		titleID             uint
+		source              string
+		expectedBundleID    *string
+		expectedUpgradeCode *string
+		expectedUniqueID    string
 	}{
 		{
-			name:        "macOS software title",
-			titleID:     stIDMac,
-			source:      "apps",
-			expectedBID: ptr.String("com.googlecode.iterm2"),
-			expectedUC:  nil,
+			name:                "macOS software title",
+			titleID:             ms.ID,
+			source:              ms.Source,
+			expectedBundleID:    ms.BundleIdentifier,
+			expectedUpgradeCode: ms.UpgradeCode,       // nil
+			expectedUniqueID:    *ms.BundleIdentifier, // expect COALESCE to choose populated bundle id
 		},
 		{
-			name:        "windows software title",
-			titleID:     stIDWindows,
-			source:      "programs",
-			expectedBID: nil,
-			expectedUC:  ptr.String(uC),
+			name:                "windows software title",
+			titleID:             ws.ID,
+			source:              ws.Source,
+			expectedBundleID:    nil,
+			expectedUpgradeCode: ws.UpgradeCode,
+			expectedUniqueID:    *ws.UpgradeCode, // expect COALESCE to choose populated upgrade code
 		},
 	}
 
 	for _, tC := range cases {
 		t.Run(tC.name, func(t *testing.T) {
 			var title fleet.SoftwareTitle
-			err := db.Get(&title, `SELECT id, source, bundle_identifier, upgrade_code FROM software_titles WHERE id = ?`, tC.titleID)
+			err := db.Get(&title, `SELECT id, source, bundle_identifier, upgrade_code, unique_identifier FROM software_titles WHERE id = ?`, tC.titleID)
 			require.NoError(t, err)
-			if tC.expectedUC == nil {
+			if tC.expectedUpgradeCode == nil {
 				// mac sw
 				require.Nil(t, title.UpgradeCode)
 				require.NotNil(t, title.BundleIdentifier)
-				assert.Equal(t, *tC.expectedBID, *title.BundleIdentifier)
+				assert.Equal(t, *tC.expectedBundleID, *title.BundleIdentifier)
 			} else {
 				// windows sw
 				require.Nil(t, title.BundleIdentifier)
 				require.NotNil(t, title.UpgradeCode)
-				assert.Equal(t, *tC.expectedUC, *title.UpgradeCode)
+				assert.Equal(t, *tC.expectedUpgradeCode, *title.UpgradeCode)
 			}
 
-			// TODO - test unique_identifier?
+			var gotUniqueID fleet.StringIdentifierToIDPayload
+			err = db.Get(&gotUniqueID, "SELECT unique_identifier FROM software_titles WHERE id = ?", tC.titleID)
+			require.NoError(t, err)
+
+			assert.Equal(t, tC.expectedUniqueID, gotUniqueID)
 		})
 	}
 }

@@ -2589,7 +2589,7 @@ CREATE TABLE `software_titles` (
   `additional_identifier` tinyint unsigned GENERATED ALWAYS AS ((case when (`source` = _utf8mb4'ios_apps') then 1 when (`source` = _utf8mb4'ipados_apps') then 2 when (`bundle_identifier` is not null) then 0 else NULL end)) VIRTUAL,
   `is_kernel` tinyint(1) NOT NULL DEFAULT '0',
   `application_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `unique_identifier` varchar(255) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (coalesce(`bundle_identifier`,`application_id`,`name`)) VIRTUAL,
+  `unique_identifier` varchar(255) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (coalesce(`bundle_identifier`,`application_id`,`upgrade_code`,`name`)) VIRTUAL,
   `upgrade_code` char(38) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_titles_bundle_identifier` (`bundle_identifier`,`additional_identifier`),
