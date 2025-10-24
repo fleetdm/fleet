@@ -414,7 +414,7 @@ func amountTeamsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 
 // TeamAgentOptions loads the agents options of a team.
 func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawMessage, error) {
-	stmt := fmt.Sprintf(`SELECT config->'$.agent_options' FROM teams WHERE id = %d`, tid) // safe because uint
+	stmt := fmt.Sprintf(`SELECT JSON_EXTRACT(config, '$.agent_options') FROM teams WHERE id = %d`, tid) // safe because uint
 	var agentOptions *json.RawMessage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &agentOptions, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team")
@@ -428,7 +428,7 @@ func (ds *Datastore) TeamFeatures(ctx context.Context, tid uint) (*fleet.Feature
 }
 
 func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Features, error) {
-	stmt := fmt.Sprintf(`SELECT config->'$.features' as features FROM teams WHERE id = %d`, tid) // safe due to uint
+	stmt := fmt.Sprintf(`SELECT JSON_EXTRACT(config, '$.features') AS features FROM teams WHERE id = %d`, tid) // safe due to uint
 	var raw *json.RawMessage
 	if err := sqlx.GetContext(ctx, q, &raw, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get team config features")
@@ -445,7 +445,7 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 }
 
 func (ds *Datastore) TeamMDMConfig(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
-	sql := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
+	sql := `SELECT JSON_EXTRACT(config, '$.mdm') AS mdm FROM teams WHERE id = ?`
 	var raw *json.RawMessage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &raw, sql, tid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team MDM config")
@@ -518,7 +518,7 @@ func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) (
 			teams
 		WHERE
 			config IS NOT NULL AND
-			config->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+			JSON_EXTRACT(config, '$.mdm.macos_setup.enable_end_user_authentication') = TRUE
 
 		UNION
 
@@ -527,7 +527,7 @@ func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) (
 		FROM
 			app_config_json
 		WHERE
-			json_value->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+			JSON_EXTRACT(json_value, '$.mdm.macos_setup.enable_end_user_authentication') = TRUE
 `
 	var teamIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {

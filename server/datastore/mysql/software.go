@@ -3538,92 +3538,89 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					-- do the label membership check for software installers and VPP apps
 						EXISTS (
 
-						SELECT 1 FROM (
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
 
-							-- no labels
-							SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
-							WHERE NOT EXISTS (
-								SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
-							) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
+						UNION
 
-							UNION
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
 
-							-- include any
-							SELECT
-								COUNT(*) AS count_installer_labels,
-								COUNT(lm.label_id) AS count_host_labels,
-								0 as count_host_updated_after_labels
-							FROM
-								software_installer_labels sil
-								LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-								AND lm.host_id = :host_id
-							WHERE
-								sil.software_installer_id = si.id
-								AND sil.exclude = 0
-							HAVING
-								count_installer_labels > 0 AND count_host_labels > 0
+						UNION
 
-							UNION
+						-- exclude any, ignore software that depends on labels created
+						-- _after_ the label_updated_at timestamp of the host (because
+						-- we don't have results for that label yet, the host may or may
+						-- not be a member).
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 
-							-- exclude any, ignore software that depends on labels created
-							-- _after_ the label_updated_at timestamp of the host (because
-							-- we don't have results for that label yet, the host may or may
-							-- not be a member).
-							SELECT
-								COUNT(*) AS count_installer_labels,
-								COUNT(lm.label_id) AS count_host_labels,
-								SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
-							FROM
-								software_installer_labels sil
-								LEFT OUTER JOIN labels lbl
-									ON lbl.id = sil.label_id
-								LEFT OUTER JOIN label_membership lm
-									ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-							WHERE
-								sil.software_installer_id = si.id
-								AND sil.exclude = 1
-							HAVING
-								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+						UNION
 
-							UNION
+						-- vpp include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
 
-							-- vpp include any
-							SELECT
-								COUNT(*) AS count_installer_labels,
-								COUNT(lm.label_id) AS count_host_labels,
-								0 as count_host_updated_after_labels
-							FROM
-								vpp_app_team_labels vatl
-								LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-								AND lm.host_id = :host_id
-							WHERE
-								vatl.vpp_app_team_id = vat.id
-								AND vatl.exclude = 0
-							HAVING
-								count_installer_labels > 0 AND count_host_labels > 0
+						UNION
 
-							UNION
-
-							-- vpp exclude any
-							SELECT
-								COUNT(*) AS count_installer_labels,
-								COUNT(lm.label_id) AS count_host_labels,
-								SUM(CASE
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
-								ELSE 0 END) as count_host_updated_after_labels
-							FROM
-								vpp_app_team_labels vatl
-								LEFT OUTER JOIN labels lbl
-									ON lbl.id = vatl.label_id
-								LEFT OUTER JOIN label_membership lm
-									ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
-							WHERE
-								vatl.vpp_app_team_id = vat.id
-								AND vatl.exclude = 1
-							HAVING
-								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
-							) t
+						-- vpp exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+							ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = vatl.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 						)
 				)
 			`
