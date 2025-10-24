@@ -285,4 +285,18 @@ describe("renderYamlHelperText", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("does not render advanced options help text when hasAdvancedOptionsAvailable is false", () => {
+    render(
+      renderDownloadFilesText({
+        installScript: "echo install",
+        onClickInstallScript: noop,
+        hasAdvancedOptionsAvailable: false,
+      })
+    );
+
+    // Should not show the "Advanced options" instructional text
+    expect(screen.queryByText(/If you edited/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Advanced options/i)).not.toBeInTheDocument();
+  });
 });

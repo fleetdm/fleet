@@ -6,7 +6,7 @@ import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import FileSaver from "file-saver";
-import { ISoftwarePackage } from "interfaces/software";
+import { ISoftwarePackage, SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
@@ -29,6 +29,7 @@ interface IViewYamlModalProps {
   iconUrl?: string | null;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
+  isScriptPackage?: boolean;
 }
 
 interface HandleDownloadParams {
@@ -47,6 +48,7 @@ const ViewYamlModal = ({
   iconUrl,
   softwarePackage,
   onExit,
+  isScriptPackage = false,
 }: IViewYamlModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -227,6 +229,7 @@ const ViewYamlModal = ({
               ? onDownloadUninstallScript
               : undefined,
             onClickIcon: iconUrl ? onDownloadIcon : undefined,
+            hasAdvancedOptionsAvailable: !isScriptPackage,
           })}
         </p>
         <div className="modal-cta-wrap">
