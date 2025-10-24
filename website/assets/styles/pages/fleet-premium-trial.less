@@ -14,6 +14,17 @@
     line-height: 28.8px; /* 120% */
     margin-bottom: 16px;
   }
+  h4 {
+    color: var(--Core-Fleet-Black, #192147);
+    margin-bottom: 4px;
+
+    /* Title XS */
+    font-family: Inter;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 19.2px; /* 120% */
+  }
   [parasails-component='modal'] {
     max-width: 100vw;
     -webkit-overflow-scrolling: touch;//« makes this actually scrollable on certain phones
@@ -75,7 +86,7 @@
     [purpose='trial-key-fade'] {
       background: linear-gradient(270deg, #F9FAFC 40.43%, rgba(249, 250, 252, 0.00) 104.79%);
       height: 53px;
-      width: 60px;
+      width: 80px;
       position: absolute;
       right: 0px;
       top: 0px;
@@ -99,6 +110,8 @@
       background-repeat: no-repeat;
       cursor: pointer;
       z-index: 4;
+      border-radius: 8px;
+      background-color: var(--Off-white, #F9FAFC);
       &.copied {
         display: inline-block;
         background: url('/images/icon-copy-clicked-checkmark-32x32@2x.png');
@@ -142,14 +155,6 @@
     h4 {
       color: var(--Core-Fleet-Black, #192147);
       text-align: center;
-      margin-bottom: 4px;
-
-      /* Title XS */
-      font-family: Inter;
-      font-size: 16px;
-      font-style: normal;
-      font-weight: 800;
-      line-height: 19.2px; /* 120% */
     }
     p {
       margin-bottom: 0px;
@@ -200,21 +205,50 @@
     }
   }
   @media (max-width: 768px) {
+    background: none;
     [parasails-component='modal'] {
       max-width: 100vw;
       -webkit-overflow-scrolling: touch;//« makes this actually scrollable on certain phones
       [purpose='modal-dialog'] {
         z-index: 100;
         position: relative;
-        max-width: 100%;
+        // max-width: 100%;
         [purpose='modal-content'] {
+          box-shadow: none;
           margin-top: 100px;
           width: 100%;
-          max-width: 100%;
+          // max-width: 100%;
           padding: 48px;
         }
       }
     }
+  }
+  @media (max-width: 576px) {
+    [purpose='modal-button-links'] {
+      flex-direction: column;
+      [purpose='modal-button'] {
+        // &:first-of-type {
+        //   margin-bottom: ;
+        // }
+      }
+    }
+    [parasails-component='modal'] {
+      max-width: 100vw;
+      -webkit-overflow-scrolling: touch;//« makes this actually scrollable on certain phones
+      [purpose='modal-dialog'] {
+        z-index: 100;
+        position: relative;
+        margin: 0px;
+        // max-width: 100%;
+        [purpose='modal-content'] {
+          box-shadow: none;
+          margin-top: 0px;
+          width: 100%;
+          padding: 48px;
+        }
+      }
+    }
+
   }
 
 }
