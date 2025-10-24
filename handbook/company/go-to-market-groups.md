@@ -149,6 +149,47 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+
+##### Event process
+ 
+The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is responsible for delegating and confirming the execution of on-site activities, team coordination, and ensuring key pre- and post-event tasks are tracked and completed.
+
+
+**Assign the pre-event DRI**
+
+- Ensure the [🎪 **Events**](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?pli=1&gid=1931288160#gid=1931288160) sheet is complete.  
+- Assign an **on-site DRI**. The DRI oversees on-site activities, keeps the team coordinated, and ensures key tasks are completed.
+
+
+#### Pre-event check-in call TODO do the thing I did above to the rest of the headings you added. 
+
+Schedule a Zoom call with the team **at least one week before** the event.
+
+**During the call:**
+- Review objectives and roles.  
+- Confirm logistics (booth setup, travel, materials, swag).  
+- Go over contact and outreach strategy.  
+- Make sure systems and materials are ready.  
+- Track any action items and assign owners.
+
+
+#### On-site responsibilities (DRI) TODO do the thing I did above to the rest of the headings you added.
+
+- Make sure the booth/demo area is set up correctly.  
+- Ensure **1–2 team members** are at the booth when coverage is needed, based on the event schedule.  
+- Keep the team aligned and on track.  
+- Make sure contacts are created and updated in `#help-create-contact`.  
+- Handle any issues that come up and escalate if needed.  
+- Confirm demos, materials, and setups are working.
+
+
+#### Post-event follow-up TODO do the thing I did above to the rest of the headings you added.
+
+- Confirm all contacts and leads are recorded, and the team knows any follow-up actions.  
+- Capture lessons learned for future events.  
+- Coordinate content with the **Content Specialist**.
+
+
 ##### Creating contacts in the wild
 
 Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM quickly. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
