@@ -5848,11 +5848,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				assert.Empty(t, vars)
 			} else {
 				assert.NoError(t, err)
-				gotVars := make([]string, 0, len(vars))
-				for v := range vars {
-					gotVars = append(gotVars, v)
-				}
-				assert.ElementsMatch(t, tc.vars, gotVars)
+				assert.ElementsMatch(t, tc.vars, vars)
 			}
 		})
 	}
