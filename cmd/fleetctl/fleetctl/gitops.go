@@ -149,15 +149,15 @@ func gitopsCommand() *cli.Command {
 			// Get all labels ... this is used to both populate the proposedLabelNames list and check if
 			// we reference a built-in label (which is not allowed).
 			storedLabelNames := make(map[fleet.LabelType]map[string]interface{}) // label type -> label name set
-			if labels, err := fleetClient.GetLabels(); err != nil {
+			labels, err := fleetClient.GetLabels()
+			if err != nil {
 				return fmt.Errorf("getting labels: %w", err)
-			} else {
-				for _, lbl := range labels {
-					if storedLabelNames[lbl.LabelType] == nil {
-						storedLabelNames[lbl.LabelType] = make(map[string]interface{})
-					}
-					storedLabelNames[lbl.LabelType][lbl.Name] = struct{}{}
+			}
+			for _, lbl := range labels {
+				if storedLabelNames[lbl.LabelType] == nil {
+					storedLabelNames[lbl.LabelType] = make(map[string]interface{})
 				}
+				storedLabelNames[lbl.LabelType][lbl.Name] = struct{}{}
 			}
 
 			// Parsed config and filename pair
