@@ -130,6 +130,8 @@ export enum ActivityType {
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
+  AddedConditionalAccessOkta = "added_conditional_access_okta",
+  DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
