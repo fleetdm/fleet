@@ -105,7 +105,7 @@ type Software struct {
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
-	UpgradeCode *string `json:"upgrade_code" db:"upgrade_code"`
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 func (Software) AuthzType() string {
@@ -262,7 +262,7 @@ type SoftwareTitle struct {
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
-	UpgradeCode *string `json:"upgrade_code" db:"upgrade_code"`
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -346,7 +346,7 @@ type SoftwareTitleListResult struct {
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
-	UpgradeCode *string `json:"upgrade_code" db:"upgrade_code"`
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 type SoftwareTitleListOptions struct {
