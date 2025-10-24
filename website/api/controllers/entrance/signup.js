@@ -160,7 +160,10 @@ the account verification message.)`,
         fleetPremiumTrialType = 'render-trial';
       }
     }
-
+    // TODO: remove before merging.
+    if(emailDomain === 'feralgoblin.com') {
+      fleetPremiumTrialType = 'render-trial';
+    }
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
       numberOfHosts: 10,
@@ -242,7 +245,7 @@ the account verification message.)`,
       emailAddress: newEmailAddress,
       firstName: firstName,
       lastName: lastName,
-      organization: emailDomain,// TODO.
+      // organization: emailDomain,
       contactSource: 'Website - Sign up',
       psychologicalStageChangeReason,
     }).exec((err)=>{
