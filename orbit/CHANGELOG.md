@@ -1,14 +1,18 @@
 ## Orbit 1.49.0 (Oct 24, 2025)
 
-* During setup experience, try software installs up to 3 times by default in case of intermittent failures.
+* Added `mcp_listening_servers` table to find MCP servers listening over HTTP.
 
-* Improved orbit debug logs when response contains a large HTML page.
+* Added `santa_status`, `santa_allowed`, and `santa_denied` tables for Santa support.
 
 * Added windows support for web setup experience.
 
-* Add `mcp_listening_servers` table to find MCP servers listening over HTTP.
+* Setup experience for macOS hosts may now be configured to halt if any software install fails (requires Fleet server 4.76.0)
+
+* Improved orbit debug logs when HTTP response contains a large HTML page.
 
 ## Orbit 1.48.1 (Sep 24, 2025)
+
+* During setup experience, try software installs up to 3 times by default in case of intermittent failures.
 
 * Added agent support for setup experience on Linux
 
