@@ -923,6 +923,21 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.Len(t, listResp.Hosts, 2)
 	assert.Equal(t, iosHost2.ID, listResp.Hosts[1].ID)
 
+	// Verify activity log entry
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null}`,
+			iosHost2.ID,
+			iosHost2.DisplayName(),
+			iOSApp.Name,
+			iOSApp.AdamID,
+			installCmdUUID,
+			fleet.SoftwareInstalled,
+		),
+		0,
+	)
+
 	// TODO(JK): Test ipad
 }
 

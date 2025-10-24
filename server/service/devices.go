@@ -239,8 +239,8 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing device authentication token"))
 	}
 	// TODO(JK): remove
-	if authToken == "super-mega-secret-uuid-secret" {
-		host, err := svc.ds.Host(ctx, 5)
+	if authToken == "super-mega-secret-uuid-secret" || authToken == "00008110-001E59A90CF9401E" {
+		host, err := svc.ds.Host(ctx, 5) // by chance this is also the uuid of my real iphone on the real db
 		if err != nil {
 			fmt.Println(err)
 		}
