@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251021151925(t *testing.T) {
+func TestUp_20251024145618(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Add Mac and Windows software. The unique_identifier should be the bundle_identifier for the macOS software and the name for the Windows software.
