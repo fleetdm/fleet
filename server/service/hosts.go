@@ -1385,7 +1385,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.Policies = policies
 
-	endUsers, err := getEndUsers(ctx, svc.ds, host.ID)
+	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
@@ -1400,61 +1400,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		LastMDMEnrolledAt:  mdmLastEnrollment,
 		LastMDMCheckedInAt: mdmLastCheckedIn,
 	}, nil
-}
-
-func getEndUsers(ctx context.Context, ds fleet.Datastore, hostID uint) ([]fleet.HostEndUser, error) {
-	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "get scim user by host id")
-	}
-
-	var endUsers []fleet.HostEndUser
-	if scimUser != nil {
-		endUser := fleet.HostEndUser{
-			IdpUserName:      scimUser.UserName,
-			IdpFullName:      scimUser.DisplayName(),
-			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
-		}
-
-		if scimUser.ExternalID != nil {
-			endUser.IdpID = *scimUser.ExternalID
-		}
-		for _, group := range scimUser.Groups {
-			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
-		}
-		if scimUser.Department != nil {
-			endUser.Department = *scimUser.Department
-		}
-		endUsers = append(endUsers, endUser)
-	}
-
-	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host device mapping")
-	}
-
-	if len(deviceMapping) > 0 {
-		endUser := fleet.HostEndUser{}
-		for _, email := range deviceMapping {
-			switch {
-			case (email.Source == fleet.DeviceMappingMDMIdpAccounts || email.Source == fleet.DeviceMappingIDP) && len(endUsers) == 0:
-				// If SCIM data is missing, we still populate IdpUserName if present.
-				// For DeviceMappingIDP source, this is the user-provided IDP username.
-				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
-				endUser.IdpUserName = email.Email
-			case email.Source != fleet.DeviceMappingMDMIdpAccounts && email.Source != fleet.DeviceMappingIDP:
-				// Only add to OtherEmails if it's not an IDP source
-				endUser.OtherEmails = append(endUser.OtherEmails, *email)
-			}
-		}
-		if len(endUsers) > 0 {
-			endUsers[0].OtherEmails = endUser.OtherEmails
-		} else {
-			endUsers = append(endUsers, endUser)
-		}
-	}
-
-	return endUsers, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
