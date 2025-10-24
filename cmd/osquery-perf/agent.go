@@ -1615,6 +1615,24 @@ func randomString(n int) string {
 	return sb.String()
 }
 
+// randomizeVersion returns a version string with realistic randomization:
+func randomizeVersion(baseVersion, alternateVersion string) string {
+	r := rand.Float64()
+	switch {
+	case r < 0.99:
+		// 99% - return base version
+		return baseVersion
+	case r < 0.999:
+		// 0.9% - return alternate version
+		return alternateVersion
+	default:
+		// 0.1% - return one of 30 random patch versions
+		// Generate a random patch version based on the base version
+		patchNum := rand.Intn(30)
+		return fmt.Sprintf("%s.%d", baseVersion, patchNum)
+	}
+}
+
 func (a *agent) CachedString(key string) string {
 	if val, ok := a.strings[key]; ok {
 		return val
@@ -1701,7 +1719,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 		if i < totalCommon {
 			commonSoftware = append(commonSoftware, map[string]string{
 				"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
-				"version":           "0.0.1",
+				"version":           randomizeVersion("0.0.1", "0.0.2"),
 				"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 				"source":            "apps",
 				"last_opened_at":    lastOpenedAt,
@@ -1738,7 +1756,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 		}
 		uniqueSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			"version":           "1.1.1",
+			"version":           randomizeVersion("1.1.1", "1.1.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
 			"source":            "apps",
 			"last_opened_at":    lastOpenedAt,
@@ -1818,7 +1836,7 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	for i := 0; i < len(commonSoftware); i++ {
 		commonSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Common_%d", i),
-			"version":           "0.0.1",
+			"version":           randomizeVersion("0.0.1", "0.0.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 			"source":            source,
 		}
@@ -1833,7 +1851,7 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	for i := 0; i < len(uniqueSoftware); i++ {
 		uniqueSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			"version":           "1.1.1",
+			"version":           randomizeVersion("1.1.1", "1.1.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
 			"source":            source,
 		}
@@ -1866,7 +1884,7 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
 		commonVSCodeExtensionsSoftware[i] = map[string]string{
 			"name":    fmt.Sprintf("common.extension_%d", i),
-			"version": "0.0.1",
+			"version": randomizeVersion("0.0.1", "0.0.2"),
 			"source":  "vscode_extensions",
 		}
 	}
@@ -1880,7 +1898,7 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	for i := 0; i < len(uniqueVSCodeExtensionsSoftware); i++ {
 		uniqueVSCodeExtensionsSoftware[i] = map[string]string{
 			"name":    fmt.Sprintf("unique.extension_%s_%d", a.CachedString("hostname"), i),
-			"version": "1.1.1",
+			"version": randomizeVersion("1.1.1", "1.1.2"),
 			"source":  "vscode_extensions",
 		}
 	}
@@ -2503,7 +2521,18 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			results = windowsSoftware
+			results = make([]map[string]string, 0, len(windowsSoftware))
+			for _, s := range windowsSoftware {
+				// Randomize version for each software item
+				baseVersion := s["version"]
+				alternateVersion := baseVersion + ".1"
+				m := map[string]string{
+					"name":    s["name"],
+					"source":  s["source"],
+					"version": randomizeVersion(baseVersion, alternateVersion),
+				}
+				results = append(results, m)
+			}
 			a.installedSoftware.Range(func(key, value interface{}) bool {
 				results = append(results, value.(map[string]string))
 				return true
@@ -2524,9 +2553,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					if a.linuxUniqueSoftwareTitle {
 						softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
 					}
-					version := s["version"]
+					var version string
 					if a.linuxUniqueSoftwareVersion {
 						version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
+					} else {
+						// Randomize version for each software item
+						baseVersion := s["version"]
+						alternateVersion := baseVersion + ".1"
+						version = randomizeVersion(baseVersion, alternateVersion)
 					}
 					m := map[string]string{
 						"name":    softwareName,
