@@ -786,6 +786,40 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		listSoftwareCheckCount(t, ds, 0, 0, opts, true)
 	})
 
+	t.Run("filters by CVE with WithoutVulnerabilityDetails", func(t *testing.T) {
+		// Regression test for https://github.com/fleetdm/fleet/issues/34713
+		// When WithoutVulnerabilityDetails=true and IncludeCVEScores=false,
+		// the software_cve table is not joined in the subquery, but the WHERE clause
+		// still tries to reference scv.cve, causing "Unknown column 'scv.cve'" error.
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: "CVE-2022-0001",
+			},
+			WithoutVulnerabilityDetails: true,
+			IncludeCVEScores:            false,
+		}
+		software := listSoftwareCheckCount(t, ds, 1, 1, opts, true)
+		expectedFoo001 := fleet.Software{
+			Name:    "foo",
+			Version: "0.0.1",
+			Source:  "chrome_extensions",
+		}
+		require.Len(t, software, 1)
+		require.Equal(t, expectedFoo001.Name, software[0].Name)
+		require.Equal(t, expectedFoo001.Version, software[0].Version)
+		require.Equal(t, expectedFoo001.Source, software[0].Source)
+
+		// Test with partial CVE
+		opts.ListOptions.MatchQuery = "0002"
+		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
+		require.Len(t, software, 1)
+		require.Equal(t, expectedFoo001.Name, software[0].Name)
+
+		// Test with unknown CVE
+		opts.ListOptions.MatchQuery = "CVE-2022-0000"
+		listSoftwareCheckCount(t, ds, 0, 0, opts, true)
+	})
+
 	t.Run("filters by query", func(t *testing.T) {
 		// query by name (case insensitive)
 		opts := fleet.SoftwareListOptions{
