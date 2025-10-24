@@ -335,7 +335,7 @@ Conduct a postmortem meetings for every service or feature outage and every crit
 3. Follow and populate document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
 4. Assign each action item an owner that who is responsible for creating a Github issue promptly and working with with the relevant PM/EM to prioritize.
 
-[Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
+[Example finished document](https://docs.google.com/document/d/1J35KUdhEaayE8Xoytxf6aVVoCXHwk2IPGk2rXHJgRNk/edit?usp=sharing)
 
 
 ### Maintain TUF repo for secure agent updates
