@@ -1374,13 +1374,16 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("Expired Host", { exact: false })
     ).toBeInTheDocument();
+
+    // Check for "30 days" and "of inactivity" separately since they're in different DOM elements
+    expect(screen.getByText("30 days", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("30 days of inactivity", { exact: false })
+      screen.getByText("of inactivity", { exact: false })
     ).toBeInTheDocument();
 
     // Verify tooltip wrapper is present with correct data attributes
     const tooltipElement = screen
-      .getByText("30 days of inactivity", { exact: false })
+      .getByText("30 days", { exact: false })
       .closest("[data-tip]");
     expect(tooltipElement).toBeInTheDocument();
     expect(tooltipElement).toHaveAttribute("data-tip", "true");
