@@ -19,9 +19,15 @@ const (
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
 )
 
-// ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs.
-func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
+// ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
+func ListCATypesWithRenewalSupport() []CAConfigAssetType {
 	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+}
+
+// ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
+// is not included as renewal does not need special support within the profile
+func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
+	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
 }
 
 // SupportsRenewalID returns whether the CA type supports renewal IDs.

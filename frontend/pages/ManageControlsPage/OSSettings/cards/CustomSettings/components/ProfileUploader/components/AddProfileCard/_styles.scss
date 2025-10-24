@@ -5,8 +5,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: $pad-medium;
-    padding: 28.5px 0;
+    gap: $pad-large;
   }
 
   &__profile-graphic {
@@ -18,6 +17,12 @@
     &--message {
       text-align: center;
       line-height: 20px;
+      color: $ui-fleet-black-50;
+    }
+
+    &--title {
+        color: $ui-fleet-black-75;
+        font-weight: $bold;
     }
   }
 }

@@ -137,7 +137,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   return (
     <>
       <MainContent className={baseClass}>
-        <h1>Edit label</h1>
+        <h1 className="page-header">Edit label</h1>
         {renderContent()}
       </MainContent>
     </>

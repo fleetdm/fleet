@@ -8,7 +8,10 @@ import {
   isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -1136,16 +1139,18 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
+      source,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
-
+    const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
+        <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.
       </>
@@ -1168,7 +1173,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
         <b>{hostName}</b>.
       </>
@@ -1285,6 +1290,10 @@ const TAGGED_TEMPLATES = {
   ),
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
+  ),
+  addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
+  deletedConditionalAccessOkta: () => (
+    <> deleted Okta conditional access configuration.</>
   ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
     const teamName = activity.details?.team_name;
@@ -1863,6 +1872,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.AddedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.addedConditionalAccessOkta();
+    }
+    case ActivityType.DeletedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
     }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);

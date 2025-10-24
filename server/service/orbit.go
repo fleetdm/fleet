@@ -1018,7 +1018,7 @@ func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 		return orbitPutDeviceMappingResponse{Err: err}, nil
 	}
 
-	_, err := svc.SetCustomHostDeviceMapping(ctx, host.ID, req.Email)
+	_, err := svc.SetHostDeviceMapping(ctx, host.ID, req.Email, fleet.DeviceMappingCustomReplacement)
 	return orbitPutDeviceMappingResponse{Err: err}, nil
 }
 
@@ -1398,6 +1398,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					SoftwarePackage:     hsi.SoftwarePackage,
 					InstallUUID:         failedExecID,
 					Status:              string(result.Status()),
+					Source:              hsi.Source,
 					SelfService:         hsi.SelfService,
 					PolicyID:            nil,
 					PolicyName:          nil,
@@ -1412,10 +1413,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	}
 
-	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "save host software installation result")
-	}
 	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// This might be a setup experience software install result, so we attempt to update the
@@ -1443,6 +1440,11 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
 		}
+	}
+
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
 	// do not create a "past" activity if the status is not terminal or if the activity
@@ -1479,6 +1481,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				SoftwarePackage:     hsi.SoftwarePackage,
 				InstallUUID:         result.InstallUUID,
 				Status:              string(status),
+				Source:              hsi.Source,
 				SelfService:         hsi.SelfService,
 				PolicyID:            hsi.PolicyID,
 				PolicyName:          policyName,
@@ -1505,6 +1508,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 type getOrbitSetupExperienceStatusRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	ForceRelease bool   `json:"force_release"`
+	// Whether to re-enqueue canceled setup experience steps after a previous
+	// software install failure on MacOS.
+	ResetFailedSetupSteps bool `json:"reset_failed_setup_steps"`
 }
 
 func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
@@ -1524,14 +1530,14 @@ func (r getOrbitSetupExperienceStatusResponse) Error() error { return r.Err }
 
 func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOrbitSetupExperienceStatusRequest)
-	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease, req.ResetFailedSetupSteps)
 	if err != nil {
 		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
 	}
 	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

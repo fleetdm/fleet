@@ -494,6 +494,55 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		software fleet.Software
 		cpe      string
 	}{
+		// This should work but there are no CPE entries in the database despite CVE-2024-25659 existing, using
+		// the following cpe_translations changes:
+		/*
+		  {
+		    "software": {
+		      "bundle_identifier": ["/^TNMS_/"],
+		      "source": ["apps"]
+		    },
+		    "filter": {
+		      "product": ["nokia"],
+		      "vendor": ["transcend_network_management_system"]
+		    }
+		  },
+		*/
+		/*{
+			software: fleet.Software{
+				Name:             "TNMS",
+				BundleIdentifier: "TNMS_19.10.3",
+				Source:           "apps",
+				Version:          "19.10.3",
+			},
+			cpe: "cpe:2.3:a:nokia:transcend_network_management_system:19.10.3:*:*:*:*:macos:*:*",
+		},*/
+		{
+			software: fleet.Software{
+				Name:             "Oracle SQLDeveloper",
+				BundleIdentifier: "com.oracle.SQLDeveloper",
+				Source:           "apps",
+				Version:          "24.3.1",
+			},
+			cpe: "cpe:2.3:a:oracle:sql_developer:24.3.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Poly Lens Desktop",
+				BundleIdentifier: "com.poly.lens.legacyhost.app",
+				Source:           "apps",
+			},
+			cpe: "cpe:2.3:a:poly:lens:*:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "BlueStacksMIM",
+				BundleIdentifier: "com.now.gg.BlueStacksMIM",
+				Source:           "apps",
+				Version:          "4.100.1",
+			},
+			cpe: "cpe:2.3:a:bluestacks:bluestacks:4.100.1:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "Adobe Acrobat Reader DC.app",
@@ -521,6 +570,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "com.apple.finder",
 			}, cpe: "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
+		},
+		{ // Make sure we generate the expected CPE so we can match it downstream and drop the false negative vulns
+			software: fleet.Software{
+				Name:             "Dota 2",
+				Source:           "apps",
+				Version:          "1.0", // default version; on ingestion it's actually blank
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{

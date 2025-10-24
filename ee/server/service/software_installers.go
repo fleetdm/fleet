@@ -64,6 +64,16 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.UserID = vc.UserID()
 
+	// Determine extension early so we can clear unsupported params for script packages
+	ext := strings.ToLower(filepath.Ext(payload.Filename))
+	ext = strings.TrimPrefix(ext, ".")
+	if fleet.IsScriptPackage(ext) {
+		// For script packages, clear unsupported params before any processing
+		payload.UninstallScript = ""
+		payload.PostInstallScript = ""
+		payload.PreInstallQuery = ""
+	}
+
 	// make sure all scripts use unix-style newlines to prevent errors when
 	// running them, browsers use windows-style newlines, which breaks the
 	// shebang when the file is directly executed.
@@ -423,72 +433,93 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.UpgradeCode = existingInstaller.UpgradeCode
 	}
 
+	isScriptPackage := fleet.IsScriptPackage(existingInstaller.Extension)
+
 	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
-	if payload.PreInstallQuery != nil && *payload.PreInstallQuery != existingInstaller.PreInstallQuery {
-		dirty["PreInstallQuery"] = true
+	if payload.PreInstallQuery != nil {
+		if isScriptPackage {
+			emptyQuery := ""
+			payload.PreInstallQuery = &emptyQuery
+		} else if *payload.PreInstallQuery != existingInstaller.PreInstallQuery {
+			dirty["PreInstallQuery"] = true
+		}
 	}
 
 	if payload.InstallScript != nil {
-		installScript := file.Dos2UnixNewlines(*payload.InstallScript)
-		if installScript == "" {
-			installScript = file.GetInstallScript(existingInstaller.Extension)
-		}
-		if installScript == "" {
-			return nil, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+		if isScriptPackage {
+			payload.InstallScript = nil
+		} else {
+			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
+			if installScript == "" {
+				installScript = file.GetInstallScript(existingInstaller.Extension)
 			}
-		}
+			if installScript == "" {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+				}
+			}
 
-		if installScript != existingInstaller.InstallScript {
-			dirty["InstallScript"] = true
+			if installScript != existingInstaller.InstallScript {
+				dirty["InstallScript"] = true
+			}
+			payload.InstallScript = &installScript
 		}
-		payload.InstallScript = &installScript
 	}
 
 	if payload.PostInstallScript != nil {
-		postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
-		if postInstallScript != existingInstaller.PostInstallScript {
-			dirty["PostInstallScript"] = true
+		if isScriptPackage {
+			emptyScript := ""
+			payload.PostInstallScript = &emptyScript
+		} else {
+			postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
+			if postInstallScript != existingInstaller.PostInstallScript {
+				dirty["PostInstallScript"] = true
+			}
+			payload.PostInstallScript = &postInstallScript
 		}
-		payload.PostInstallScript = &postInstallScript
 	}
 
 	if payload.UninstallScript != nil {
-		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
-		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
-			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
-			if payload.UpgradeCode != "" {
-				uninstallScript = file.UninstallMsiWithUpgradeCodeScript
+		if isScriptPackage {
+			emptyScript := ""
+			payload.UninstallScript = &emptyScript
+		} else {
+			uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
+			if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
+				uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+				if payload.UpgradeCode != "" {
+					uninstallScript = file.UninstallMsiWithUpgradeCodeScript
+				}
 			}
-		}
-		if uninstallScript == "" {
-			return nil, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+			if uninstallScript == "" {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+				}
 			}
-		}
 
-		payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
-			Extension:       existingInstaller.Extension,
-			UninstallScript: uninstallScript,
-			PackageIDs:      existingInstaller.PackageIDs(),
-			UpgradeCode:     existingInstaller.UpgradeCode,
-		}
-		if payloadForNewInstallerFile != nil {
-			payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
-			payloadForUninstallScript.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
-		}
-
-		if err := preProcessUninstallScript(payloadForUninstallScript); err != nil {
-			return nil, &fleet.BadRequestError{
-				Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+			payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
+				Extension:       existingInstaller.Extension,
+				UninstallScript: uninstallScript,
+				PackageIDs:      existingInstaller.PackageIDs(),
+				UpgradeCode:     existingInstaller.UpgradeCode,
 			}
-		}
+			if payloadForNewInstallerFile != nil {
+				payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
+				payloadForUninstallScript.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
+			}
 
-		if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
-			dirty["UninstallScript"] = true
+			if err := preProcessUninstallScript(payloadForUninstallScript); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+				}
+			}
+
+			if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
+				dirty["UninstallScript"] = true
+			}
+			uninstallScript = payloadForUninstallScript.UninstallScript
+			payload.UninstallScript = &uninstallScript
 		}
-		uninstallScript = payloadForUninstallScript.UninstallScript
-		payload.UninstallScript = &uninstallScript
 	}
 
 	fieldsShouldSideEffect := map[string]struct{}{
@@ -1676,7 +1707,12 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	payload.BundleIdentifier = ""
 	payload.PackageIDs = nil
 	payload.Extension = extension
-	payload.Source = "scripts"
+	switch extension {
+	case "sh":
+		payload.Source = "sh_packages"
+	case "ps1":
+		payload.Source = "ps1_packages"
+	}
 
 	platform, err := fleet.SoftwareInstallerPlatformFromExtension(extension)
 	if err != nil {
@@ -2075,6 +2111,16 @@ func (svc *Service) softwareBatchUpload(
 				installer.InstallerFile = tfr
 				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
+
+				// For script packages (.sh and .ps1), clear unsupported fields early.
+				// Determine extension from filename to validate before metadata extraction.
+				ext := strings.ToLower(filepath.Ext(filename))
+				ext = strings.TrimPrefix(ext, ".")
+				if fleet.IsScriptPackage(ext) {
+					installer.PostInstallScript = ""
+					installer.UninstallScript = ""
+					installer.PreInstallQuery = ""
+				}
 			}
 
 			if p.Slug != nil && *p.Slug != "" {
@@ -2147,8 +2193,15 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// custom scripts only for exe installers
-			if installer.Extension != "exe" {
+			// For script packages (.sh and .ps1), clear unsupported fields
+			// The file contents become the install script, so post_install_script,
+			// uninstall_script, and pre_install_query are not supported.
+			if fleet.IsScriptPackage(installer.Extension) {
+				installer.PostInstallScript = ""
+				installer.UninstallScript = ""
+				installer.PreInstallQuery = ""
+			} else if installer.Extension != "exe" {
+				// custom scripts only for exe installers and non-script packages
 				if installer.InstallScript == "" {
 					installer.InstallScript = file.GetInstallScript(installer.Extension)
 				}
@@ -2382,11 +2435,11 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
-	case ".msi", ".exe":
+	case ".msi", ".exe", ".ps1":
 		requiredPlatform = "windows"
 	case ".pkg", ".dmg", ".zip":
 		requiredPlatform = "darwin"
-	case ".deb", ".rpm", ".gz", ".tgz":
+	case ".deb", ".rpm", ".gz", ".tgz", ".sh":
 		requiredPlatform = "linux"
 	default:
 		return ""
