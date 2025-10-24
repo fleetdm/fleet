@@ -1756,7 +1756,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 
 	// Collect Fleet variables used in the profile
 	var usesFleetVars []fleet.FleetVarName
-	for varName := range foundVars {
+	for _, varName := range foundVars {
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
 	}
 
@@ -1800,7 +1800,7 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
 }
 
-func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
+func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) ([]string, error) {
 	foundVars := variables.Find(contents)
 	if len(foundVars) == 0 {
 		return nil, nil
@@ -1812,7 +1812,7 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	}
 
 	// Check if all found variables are supported
-	for varName := range foundVars {
+	for _, varName := range foundVars {
 		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
 			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
 		}
@@ -2081,7 +2081,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
 		varNames := make([]fleet.FleetVarName, 0, len(variables))
-		for varName := range variables {
+		for _, varName := range variables {
 			varNames = append(varNames, fleet.FleetVarName(varName))
 		}
 		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
@@ -2207,7 +2207,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
-) (map[string]map[string]struct{}, error) {
+) (map[string][]string, error) {
 	var err error
 
 	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
@@ -2215,7 +2215,7 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
+	profileVarsByProfIdentifier := make(map[string][]string)
 	for _, p := range appleProfiles {
 		profileVars, err := validateConfigProfileFleetVariables(string(p.Mobileconfig), lic, groupedCAs)
 		if err != nil {
