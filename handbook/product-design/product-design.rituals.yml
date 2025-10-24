@@ -34,6 +34,13 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
+  task: "🦢🪲🔨💥 Bug bash"
+  startedOn: "2025-10-22" 
+  frequency: "Semiweekly" 
+  description: "Contributors bring bug fixes to review. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Focused time to triage new bugs: https://fleetdm.com/handbook/product-design#triage-new-bugs" 
+  moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#sync-solve" 
+  dri: "noahtalerman"
+-
   task: "🦢📨 Unpacking the 'why'"
   startedOn: "2024-09-30" 
   frequency: "Daily" 

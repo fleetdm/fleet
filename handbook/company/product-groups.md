@@ -830,19 +830,23 @@ All participants are expected to review the user story and associated designs an
 
 ### Design reviews
 
-Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
+Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI), REST API or YAML.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
+
+User stories in the current design sprint are always reviewed first during design reviews. Bugs are discussed in [Bug bash](#bug-bash) meetings.
+
+For questions about stories or bugs in the current engineering sprint, start a Slack thread or schedule an ad-hoc meeting.
 
 Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster.
 
 > In addition to design reviews, Fleeties or community members can provide feedback asynchronously at any time by finding the GitHub issue (user story) associated with the designs and @ mentioning the assigned Product Designer in the comment section.
 
-Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
+Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue. Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
 
-After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
+After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round. The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
 
 Here are some tips for making this meeting effective:
 - Say the user story out loud to remind participants of what it is.
-- Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
+- Avoid explaining or showing multiple ways it could work. Show the one way you think it should work and let your work speak for itself.
 - Make clear whether we're in "final review" or "feedback" mode:
   - Final review: The contributor is 70% sure the design is 100% done.
   — Feedback: the design is not ready for final review, but the contributor would like to get early feedback.
@@ -850,6 +854,9 @@ Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
 
+### Bug bash
+
+Bug bash meetings are conducted semiweekly between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors, usually Product Designers.  These meetings concentrate on bug fixes. The goal is to review bug fixes and ensure that [new bugs are triaged](https://fleetdm.com/handbook/product-design#triage-new-bugs).
 
 ### User story reviews
 
