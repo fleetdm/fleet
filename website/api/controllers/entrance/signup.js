@@ -147,13 +147,12 @@ the account verification message.)`,
     let enrichmentInformation = await sails.helpers.iq.getEnriched.with({
       firstName,
       lastName,
-      organization,
       emailAddress: newEmailAddress,
     }).tolerate((err)=>{
       sails.log.warn(`When a new user signed up for an account, enrichment information could not be obtained with the information provided. Full error: ${require('util').inspect(err)}`);
       return { employer: undefined, person: undefined};
     });
-
+    console.log(enrichmentInformation);
 
     let fleetPremiumTrialType = 'local-trial';
     if(enrichmentInformation.employer) {
@@ -161,15 +160,11 @@ the account verification message.)`,
         fleetPremiumTrialType = 'render-trial';
       }
     }
-    // TODO: remove before merging.
-    if(emailDomain === 'feralgoblin.com') {
-      fleetPremiumTrialType = 'render-trial';
-    }
 
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
       numberOfHosts: 10,
-      organization: emailDomain,
+      organization,
       expiresAt: thirtyDaysFromNowAt,
     });
 
@@ -182,18 +177,17 @@ the account verification message.)`,
 
 
     if(fleetPremiumTrialType === 'render-trial') {
-
-      // Since this user is eligable for a Render trial, we'll complete the setup process on the trial instance.
-
+      // If this user is eligable for a Render POV, we'll
       let renderInstancesThatCanBeAssignedToThisUser = await RenderProofOfValue.find({
         where: {status: 'ready-for-assignment', user: null},
         sort: 'createdAt DESC',
+        limit: 1,
       });
 
       if(!renderInstancesThatCanBeAssignedToThisUser){
-        // TODO: what if there are no instances available?
-        // Option 1: We run a background helper at this point to provision them a Render instance, redirect them to the /try page after signup, where they have a message saying that their instance will be available in ~5 minutes.
-        // ^ We may need to do that last part even if there is an instance available. It takes ~1-2 minutes to apply the
+        // If there are no instances available, fallback to a local trial with Docker.We do this because the /try page currently has no state for render-trial users with an ongoing pov (it just redirects users to their Fleet instance.)
+        fleetPremiumTrialType = 'local-trial';// FUTURE: revert this behavior.
+        // FUTURE: run a background helper at this point to provision this user a Render instance, redirect them to the /try page after signup, where they have a message saying that their instance will be available in ~5 minutes.
       } else {
         let instanceToAssign = renderInstancesThatCanBeAssignedToThisUser[0];
 
@@ -202,37 +196,34 @@ the account verification message.)`,
           renderTrialEndsAt: thirtyDaysFromNowAt,
           user: newUserRecord.id,
         });
+
+        await sails.helpers.sendTemplateEmail.with({
+          to: newEmailAddress,
+          from: sails.config.custom.fromEmailAddress,
+          fromName: sails.config.custom.fromName,
+          subject: 'Your Fleet trial is ready',
+          template: 'email-fleet-premium-pov-trial-started',
+          layout: 'layout-nurture-email',
+          templateData: {
+            firstName,
+          }
+        });
       }
+    }
 
-      await sails.helpers.sendTemplateEmail.with({
-        to: newEmailAddress,
-        from: sails.config.custom.fromEmailAddress,
-        fromName: sails.config.custom.fromName,
-        subject: 'Your Fleet trial is ready',
-        template: 'email-14-day-fleet-premium-trial-started',
-        layout: 'layout-nurture-email',
-        templateData: {
-          firstName,
-          emailAddress: newEmailAddress,
-        }
-      });
-
-    } else {
-
+    // Note: this is not an else to handle cases where no Render POVs are available, and we need to fallback to a local-trial.
+    if(fleetPremiumTrialType === 'local-trial') {
       await sails.helpers.sendTemplateEmail.with({
         to: newEmailAddress,
         from: sails.config.custom.fromEmailAddress,
         fromName: sails.config.custom.fromName,
         subject: 'Your 30-day Fleet Premium trial key',
-        template: 'email-30-day-fleet-premium-trial-started',
+        template: 'email-fleet-premium-local-trial-started',
         layout: 'layout-nurture-email',
         templateData: {
           firstName,
-          emailAddress: newEmailAddress,
         }
       });
-
-
     }
 
 
