@@ -32,6 +32,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -231,6 +234,18 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			}
 			softwareInstallStore = store
 		}
+
+		var androidSvc android.Service
+		if len(opts) > 0 {
+			androidSvc, err = android_service.NewServiceWithClient(logger, ds, opts[0].androidMockClient, svc, "test-private-key", ds)
+			if err != nil {
+				panic(err)
+			}
+			androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+
+			opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, androidSvc))
+		}
+
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
@@ -250,11 +265,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			scepConfigService,
 			digiCertService,
 			hydrantService,
-			nil, // TODO(JVE): make a real android service
+			androidSvc,
 		)
 		if err != nil {
 			panic(err)
 		}
+
 	}
 	return svc, ctx
 }
@@ -387,6 +403,7 @@ type TestServerOpts struct {
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity
+	androidMockClient               *android_mock.Client
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

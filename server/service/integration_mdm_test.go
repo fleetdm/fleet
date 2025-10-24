@@ -35,6 +35,8 @@ import (
 	"testing"
 	"time"
 
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -115,6 +117,8 @@ type integrationMDMTestSuite struct {
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
+	androidAPIClient          *android_mock.Client
+	proxyCallbackURL          string
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -243,6 +247,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
+	androidMockClient := &android_mock.Client{}
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -257,6 +262,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Lq:                    s.lq,
 		SoftwareInstallStore:  softwareInstallerStore,
 		BootstrapPackageStore: bootstrapPackageStore,
+		androidMockClient:     androidMockClient,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -385,6 +391,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
+	s.androidAPIClient = androidMockClient
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)

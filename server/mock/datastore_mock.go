@@ -1343,6 +1343,8 @@ type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPP
 
 type GetIncludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
 
+type GetIncludedHostUUIDMapForAppStoreAppFunc func(ctx context.Context, vppAppTeamID uint) (map[string]struct{}, error)
+
 type GetExcludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
 
 type ClearVPPAppAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error
@@ -3545,6 +3547,9 @@ type DataStore struct {
 
 	GetIncludedHostIDMapForVPPAppFunc        GetIncludedHostIDMapForVPPAppFunc
 	GetIncludedHostIDMapForVPPAppFuncInvoked bool
+
+	GetIncludedHostUUIDMapForAppStoreAppFunc        GetIncludedHostUUIDMapForAppStoreAppFunc
+	GetIncludedHostUUIDMapForAppStoreAppFuncInvoked bool
 
 	GetExcludedHostIDMapForVPPAppFunc        GetExcludedHostIDMapForVPPAppFunc
 	GetExcludedHostIDMapForVPPAppFuncInvoked bool
@@ -8500,6 +8505,13 @@ func (s *DataStore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTea
 	s.GetIncludedHostIDMapForVPPAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetIncludedHostIDMapForVPPAppFunc(ctx, vppAppTeamID)
+}
+
+func (s *DataStore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.GetIncludedHostUUIDMapForAppStoreAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetIncludedHostUUIDMapForAppStoreAppFunc(ctx, vppAppTeamID)
 }
 
 func (s *DataStore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {

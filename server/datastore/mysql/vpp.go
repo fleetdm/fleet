@@ -560,6 +560,8 @@ WHERE
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	// TODO(JVE): create an app store app generic version of this that can handle android apps, which don't have an associated VPP token.
+	// Will need a DB migration as well since the column is not nullable atm.
 	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
