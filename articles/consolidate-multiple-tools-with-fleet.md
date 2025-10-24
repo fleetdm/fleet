@@ -22,7 +22,7 @@ Stripe set out to address four key device management goals:
 
 ## Challenge
 
-Stripe wanted to simplify device management. They also wanted to reduce the load on their engineering teams without sacrificing control over the critical devices they manage. Their use of multiple device management solutions created operational silos, required specialized expertise for legacy systems, and led to engineering inefficiencies.
+Stripe wanted to simplify device management. They also wanted to reduce the load on their engineering teams without sacrificing control over the devices they manage. Their use of multiple device management solutions created operational silos, required specialized expertise for legacy systems, and led to engineering inefficiencies.
 
 ## Solution
 
@@ -70,7 +70,7 @@ By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/gu
 
 ### Next-generation change management
 
-Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source) Fleet provides transparency and flexibility, allowing Stripe to customize it to their requirements. This builds trust among peers on Stripe's engineering teams allowing them to extend Fleet as needed.
+Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source), Fleet provides transparency and flexibility, allowing Stripe to customize it to their requirements. This builds trust among peers on Stripe's engineering teams allowing them to extend Fleet as needed.
 
 ## Conclusion
 
