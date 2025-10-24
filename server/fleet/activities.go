@@ -855,9 +855,9 @@ func (a ActivityTypeDeletedHost) Documentation() (activity string, details strin
 - "host_display_name": Display name of the deleted host.
 - "host_serial": Hardware serial number of the deleted host.
 - "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
-- "host_expiry_window": (Optional) The number of days the host was allowed to be inactive before expiration. Only present for deletions triggered by expiration.`, `{
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".`, `{
 	"host_id": 42,
-	"host_display_name": "SEBASTIAN-WINDOWS",
+	"host_display_name": "USER-WINDOWS",
 	"host_serial": "ABC123",
 	"triggered_by": "expiration",
 	"host_expiry_window": 30
