@@ -426,13 +426,7 @@ At the end of each week, the Engineering KPIs are recorded by the engineering ou
 
 ### Edit a DNS record
 
-We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
-
-1. Log into your Cloudflare account and select the "Fleet" account.
-2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
-3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
-
-> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Luke Heath](https://fleetdm.com/handbook/engineering#team) in Slack for an invitation.
+All Fleet DNS records are managed via Terraform. Submit a PR to the appropriate Terraform file in the [Cloudflare infrastructure directory](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloudflare).
 
 
 ### Accept new Apple developer account terms
