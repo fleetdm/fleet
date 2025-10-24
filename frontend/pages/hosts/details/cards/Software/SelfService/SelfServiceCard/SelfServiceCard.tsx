@@ -130,8 +130,15 @@ const SelfServiceCard = ({
     );
   };
 
-  if (isLoading) return <Spinner includeContainer={false} />;
-  if (isError) return <EmptyTable header="Error loading software." />;
+  if (!isLoading)
+    return <Spinner {...(isMobileView && { variant: "mobile" })} />;
+  if (isError)
+    return (
+      <EmptyTable
+        header="Error loading software."
+        {...(isMobileView && { variant: "mobile" })}
+      />
+    );
 
   // Empty state
   if ((isEmpty || !selfServiceData) && !isFetching) {
@@ -140,6 +147,7 @@ const SelfServiceCard = ({
         graphicName="empty-software"
         header="No self-service software available yet"
         info="Your organization didn’t add any self-service software."
+        {...(isMobileView && { variant: "mobile" })}
       />
     );
   }
