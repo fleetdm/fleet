@@ -1,7 +1,11 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import {
+  IAppStoreApp,
+  isIpadOrIphoneSoftwareSource,
+  ISoftwarePackage,
+} from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
@@ -26,6 +30,7 @@ import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfS
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
 import PreviewSelfServiceIcon from "../../../../../assets/images/preview-self-service-icon.png";
+import PreviewSelfServiceMobileIcon from "../../../../../assets/images/preview-self-service-mobile-icon.png";
 
 const baseClass = "edit-icon-modal";
 
@@ -134,7 +139,12 @@ const EditIconModal = ({
 }: IEditIconModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  console.log("source", previewInfo);
+  console.log("software", software);
   const isSoftwarePackage = installerType === "package";
+  const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
+    previewInfo?.source || ""
+  );
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
@@ -477,6 +487,49 @@ const EditIconModal = ({
     </Card>
   );
 
+  const renderPreviewSelfServiceMobileCard = () => (
+    <Card
+      borderRadiusSize="medium"
+      color="grey"
+      className={`${baseClass}__preview-card`}
+      paddingSize="small"
+    >
+      <div className={`${baseClass}__preview-img-container--mobile`}>
+        <img
+          className={`${baseClass}__preview-img--mobile`}
+          src={PreviewSelfServiceMobileIcon}
+          alt="Preview icon on Fleet Desktop > Self-service"
+        />
+      </div>
+      <div className={`${baseClass}__self-service-preview--mobile`}>
+        {iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
+          <img
+            src={iconState.previewUrl}
+            alt="Uploaded self-service icon"
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: "4px",
+              overflow: "hidden",
+            }}
+          />
+        ) : (
+          // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
+          // is set as VPP icon is not returned by the API if a custom icon is returned
+          <SoftwareIcon
+            name={previewInfo.name}
+            source={previewInfo.source}
+            url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
+            uploadedAt={iconUploadedAt}
+          />
+        )}
+        <div className={`${baseClass}__self-service-preview-name`}>
+          <TooltipTruncatedText value={previewInfo.name} />
+        </div>
+      </div>
+    </Card>
+  );
+
   const renderForm = () => (
     <>
       <FileUploader
@@ -504,7 +557,11 @@ const EditIconModal = ({
             </Tab>
           </TabList>
           <TabPanel>{renderPreviewFleetCard()}</TabPanel>
-          <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
+          <TabPanel>
+            {isIosOrIpadosApp
+              ? renderPreviewSelfServiceMobileCard()
+              : renderPreviewSelfServiceCard()}
+          </TabPanel>
         </Tabs>
       </TabNav>
     </>

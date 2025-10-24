@@ -6,7 +6,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
@@ -105,7 +105,7 @@ const SoftwareOptionsSelector = ({
 
   const isPlatformIosOrIpados =
     platform === "ios" || platform === "ipados" || isIpaPackage;
-  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
+  const isSelfServiceDisabled = disableOptions;
   const isAutomaticInstallDisabled =
     disableOptions ||
     isPlatformIosOrIpados ||
@@ -154,9 +154,9 @@ const SoftwareOptionsSelector = ({
       <div className="form-field__label">Options</div>
       {isPlatformIosOrIpados && (
         <p>
-          Currently, self-service and automatic installation are not available
-          for iOS and iPadOS. Today, you can manually install on the{" "}
-          <b>Host details</b> page for each host.
+          Currently, automatic installation are not available for iOS and
+          iPadOS. Manually install on the <b>Host details</b> page for each
+          host.
         </p>
       )}
       <div className={`${baseClass}__self-service`}>
@@ -164,7 +164,9 @@ const SoftwareOptionsSelector = ({
           value={formData.selfService}
           onChange={(newVal: boolean) => onToggleSelfService(newVal)}
           className={`${baseClass}__self-service-checkbox`}
-          labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+          labelTooltipContent={
+            !isSelfServiceDisabled && getSelfServiceTooltip()
+          }
           disabled={isSelfServiceDisabled}
         >
           Self-service

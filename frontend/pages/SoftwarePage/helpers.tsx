@@ -170,18 +170,22 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
-export const SELF_SERVICE_TOOLTIP = (
-  <>
-    End users can install from <br />
-    <b>Fleet Desktop</b> &gt; <b>Self-service</b>. <br />
-    <CustomLink
-      newTab
-      text="Learn more"
-      variant="tooltip-link"
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
-    />
-  </>
-);
+export const getSelfServiceTooltip = (isIosOrIpadosApp: boolean) => {
+  return isIosOrIpadosApp ? (
+    <>End users can install from self-service web app.</>
+  ) : (
+    <>
+      End users can install from <br />
+      <b>Fleet Desktop</b> &gt; <b>Self-service</b>. <br />
+      <CustomLink
+        newTab
+        text="Learn more"
+        variant="tooltip-link"
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
+      />
+    </>
+  );
+};
 
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware

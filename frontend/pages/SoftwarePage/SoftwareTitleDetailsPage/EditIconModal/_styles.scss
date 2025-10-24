@@ -40,6 +40,12 @@
     }
   }
 
+  &__preview-img-container--mobile {
+    img {
+      width: 100%; // TODO
+    }
+  }
+
   &__preview-results-count {
     display: flex;
     align-items: center;
@@ -58,6 +64,22 @@
   }
 
   &__self-service-preview {
+    position: relative;
+    top: -76px;
+    left: 188px;
+    display: flex;
+    gap: $pad-small;
+    font-size: 12px;
+    align-items: center;
+    max-width: 210px;
+
+    .software-icon__xsmall {
+      border-radius: $border-radius-small;
+    }
+  }
+
+  &__self-service-preview--mobile {
+    // TODO
     position: relative;
     top: -76px;
     left: 188px;
