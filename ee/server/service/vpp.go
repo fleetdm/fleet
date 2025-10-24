@@ -403,7 +403,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		// TODO(JVE): is it worth wrapping both of these operations in a single androidService method? they're technically just wrappers around a "datastore"
 		androidApp, err := svc.androidService.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
 		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "checking if application exists")
+			return 0, ctxerr.Wrap(ctx, err, "add app store app: check if android app exists")
 		}
 
 		app = &fleet.VPPApp{
@@ -411,10 +411,16 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			BundleIdentifier: appID.AdamID,
 			IconURL:          androidApp.IconUrl,
 			Name:             androidApp.Title,
+			TeamID:           teamID,
+		}
+
+		hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 		}
 
 		// Update Android MDM policy to include the app in self service
-		err = svc.androidService.AddAppToAndroidPolicy(ctx, enterprise.Name(), appID.AdamID)
+		err = svc.androidService.AddAppToAndroidPolicy(ctx, enterprise.Name(), appID.AdamID, hosts)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 		}

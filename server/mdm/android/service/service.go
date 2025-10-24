@@ -863,20 +863,21 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }
 
-func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string) error {
+func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string, hostUUIDs map[string]struct{}) error {
 
-	// TODO(JVE): do we need to increment this number? or is it always 1?
-	policyName := fmt.Sprintf("%s/policies/1", enterpriseName)
+	// TODO(JVE): I think this should go in a job, since this could be a lot of hosts
+	for uuid := range hostUUIDs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
 
-	appPolicy := &androidmanagement.ApplicationPolicy{
-		PackageName: applicationID,
-		InstallType: "AVAILABLE",
-	}
+		appPolicy := &androidmanagement.ApplicationPolicy{
+			PackageName: applicationID,
+			InstallType: "AVAILABLE",
+		}
 
-	// TODO(JVE): do we need to bubble up the policy? I don't think so
-	_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
-	if err != nil {
-		return err
+		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

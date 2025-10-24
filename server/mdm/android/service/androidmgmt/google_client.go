@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -164,8 +165,30 @@ func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string
 	return topic.String(), nil
 }
 
+func policyFieldMask() string {
+	getJSONFieldName := func(t string) string {
+		return strings.TrimSuffix(t, ",omitempty")
+	}
+	var p androidmanagement.Policy
+	t := reflect.TypeOf(p)
+	var mask []string
+	for i := range t.NumField() {
+		f := t.Field(i)
+		jsonTag, ok := f.Tag.Lookup("json")
+		// ignore applications because we manage that directly
+		if n := getJSONFieldName(jsonTag); ok &&
+			n != "applications" &&
+			n != "-" {
+			mask = append(mask, n)
+		}
+	}
+
+	return strings.Join(mask, ",")
+}
+
 func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
+	mask := policyFieldMask()
+	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(mask).Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
