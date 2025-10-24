@@ -62,8 +62,8 @@ module.exports = {
         'Implemented a trial key',
         'Signed up for Sales-led event',
         'Signed up for Marketing-led event',
-        'Engaged with Fleetie at Sales-led event'
-        'Engaged with Fleetie at Marketing-led event'
+        'Engaged with Fleetie at Sales-led event',
+        'Engaged with Fleetie at Marketing-led event',
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
         'Forked the fleetdm/fleet repo on GitHub',
