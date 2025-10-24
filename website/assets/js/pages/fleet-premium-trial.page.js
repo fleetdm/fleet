@@ -21,7 +21,11 @@ parasails.registerPage('fleet-premium-trial', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     closeModalAndRedirect: function() {
-      this.goto('/');
+      if(window.navigation && window.navigation.canGoBack){
+        window.navigation.back();
+      } else {
+        this.goto('/');
+      }
     },
     clickCopyLicenseKey: async function() {
       $('[purpose="command-copy-button"]').addClass('copied');
