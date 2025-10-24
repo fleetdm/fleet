@@ -1,5 +1,4 @@
 # Attempts to locate Cursor's uninstaller from registry and execute it silently
-# If found, adds common silent flags for Inno or MSI uninstallers
 
 $displayName = "Cursor"
 $publisher = "Anysphere"
@@ -23,14 +22,45 @@ if (-not $uninstall -or -not $uninstall.UninstallString) {
   Exit 0
 }
 
-$cmd = $uninstall.UninstallString
-if ($cmd -match 'unins.*\\.exe') { $cmd += ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART' }
-elseif ($cmd -match 'msiexec') { if ($cmd -notmatch '/x') { $cmd = $cmd + ' /x' }; $cmd += ' /quiet /norestart' }
+# Kill any running Cursor processes before uninstalling
+Stop-Process -Name "Cursor" -Force -ErrorAction SilentlyContinue
+
+$uninstallCommand = $uninstall.UninstallString
+$uninstallArgs = "/VERYSILENT /NORESTART"
+
+# Parse the uninstall command to separate executable from existing arguments
+$splitArgs = $uninstallCommand.Split('"')
+if ($splitArgs.Length -gt 1) {
+    if ($splitArgs.Length -eq 3) {
+        $existingArgs = $splitArgs[2].Trim()
+        if ($existingArgs -ne '') {
+            $uninstallArgs = "$existingArgs $uninstallArgs"
+        }
+    } elseif ($splitArgs.Length -gt 3) {
+        Write-Host "Error: Uninstall command contains multiple quoted strings"
+        Exit 1
+    }
+    $uninstallCommand = $splitArgs[1]
+}
+
+Write-Host "Uninstall command: $uninstallCommand"
+Write-Host "Uninstall args: $uninstallArgs"
 
 try {
-  $process = Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-NonInteractive","-Command", $cmd -PassThru -Wait
-  Exit $process.ExitCode
+    $processOptions = @{
+        FilePath = $uninstallCommand
+        ArgumentList = $uninstallArgs
+        NoNewWindow = $true
+        PassThru = $true
+        Wait = $true
+    }
+    
+    $process = Start-Process @processOptions
+    $exitCode = $process.ExitCode
+    
+    Write-Host "Uninstall exit code: $exitCode"
+    Exit $exitCode
 } catch {
-  Write-Host "Error running uninstaller: $_"
-  Exit 1
+    Write-Host "Error running uninstaller: $_"
+    Exit 1
 }
