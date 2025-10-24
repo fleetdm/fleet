@@ -121,12 +121,28 @@ func (s *SQLDialect) GeneratedColumnStoredSuffix(nullable bool) string {
 	return "STORED NOT NULL"
 }
 
+//////////
+//
+// TODO maybe use these maybe don't
+//
+/////////
+
 // JSONExtractText returns SQL to extract a text value from a JSON path
 // MySQL: column->>'$.path' (shorthand for JSON_UNQUOTE(JSON_EXTRACT(...)))
 // MariaDB: JSON_UNQUOTE(JSON_EXTRACT(column, '$.path'))
-func (s *SQLDialect) JSONExtractText(column, path string) string {
-	if IsMariaDB(s.db) {
-		return "JSON_UNQUOTE(JSON_EXTRACT(" + column + ", '" + path + "'))"
-	}
-	return column + "->>" + "'" + path + "'"
-}
+// func (s *SQLDialect) JSONExtractText(column, path string) string {
+// 	if IsMariaDB(s.db) {
+// 		return "JSON_UNQUOTE(JSON_EXTRACT(" + column + ", '" + path + "'))"
+// 	}
+// 	return column + "->>" + "'" + path + "'"
+// }
+
+// JSONExtract returns SQL to extract a JSON value from a JSON path
+// MySQL: column->'$.path' (shorthand for JSON_EXTRACT(...))
+// MariaDB: JSON_EXTRACT(column, '$.path')
+// func (s *SQLDialect) JSONExtract(column, path string) string {
+// 	if IsMariaDB(s.db) {
+// 		return "JSON_EXTRACT(" + column + ", '" + path + "')"
+// 	}
+// 	return column + "->" + "'" + path + "'"
+//}
