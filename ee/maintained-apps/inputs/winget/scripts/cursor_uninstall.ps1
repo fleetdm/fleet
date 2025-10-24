@@ -24,7 +24,7 @@ if (-not $uninstall -or -not $uninstall.UninstallString) {
 }
 
 $cmd = $uninstall.UninstallString
-if ($cmd -match 'unins.*\\.exe') { $cmd += ' /VERYSILENT /SUPRESSMSGBOXES /NORESTART' }
+if ($cmd -match 'unins.*\\.exe') { $cmd += ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART' }
 elseif ($cmd -match 'msiexec') { if ($cmd -notmatch '/x') { $cmd = $cmd + ' /x' }; $cmd += ' /quiet /norestart' }
 
 try {

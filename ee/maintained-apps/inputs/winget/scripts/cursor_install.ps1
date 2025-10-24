@@ -8,7 +8,7 @@ try {
 # Add arguments to install silently (Cursor uses an Inno Setup-based installer)
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/SP- /VERYSILENT /SUPRESSMSGBOXES /NORESTART /RESTARTEXISTCODE=0"
+  ArgumentList = "/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /RESTARTCODE=0"
   PassThru = $true
   Wait = $true
 }
