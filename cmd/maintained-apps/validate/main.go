@@ -19,6 +19,7 @@ import (
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	kitlog "github.com/go-kit/log"
@@ -32,10 +33,12 @@ type Config struct {
 	operatingSystem             string
 	logger                      kitlog.Logger
 	logLevel                    string
+	inputsPath                  string
+	outputsPath                 string
 }
 
 func run(cfg *Config) error {
-	apps, err := getListOfApps()
+	apps, err := getListOfApps(cfg.outputsPath)
 	if err != nil {
 		level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error getting list of apps: %v", err))
 		return err
@@ -73,7 +76,7 @@ func run(cfg *Config) error {
 		)
 		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
 
-		appJson, err := getAppJson(app.Slug)
+		appJson, err := getAppJson(cfg.outputsPath, app.Slug)
 		if err != nil {
 			level.Error(appLogger).Log("msg", fmt.Sprintf("Error getting app json manifest: %v", err))
 			appWithError = append(appWithError, app.Name)
@@ -109,10 +112,22 @@ func run(cfg *Config) error {
 		}
 
 		err = ac.extractAppVersion(installerTFR)
-		installerTFR.Close()
 		if err != nil {
 			level.Error(appLogger).Log("msg", fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
 			appWithError = append(appWithError, ac.Name)
+		}
+
+		hash, err := file.SHA256FromTempFileReader(installerTFR)
+		installerTFR.Close()
+		if err != nil {
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error checking if sha256 hash matches: %v", err))
+			appWithError = append(appWithError, ac.Name)
+			continue
+		}
+		if hash != maintainedApp.SHA256 && maintainedApp.SHA256 != "no_check" {
+			level.Error(appLogger).Log("msg", "SHA256 hash in manifest does not match installer file hash")
+			appWithError = append(appWithError, ac.Name)
+			continue
 		}
 
 		// If application is already installed, attempt to uninstall it
@@ -241,14 +256,23 @@ func main() {
 		level.Info(cfg.logger).Log("msg", fmt.Sprintf("INSTALLATION_SEARCH_DIRECTORY environment variable is not set. Using default: '%s'", cfg.installationSearchDirectory))
 	}
 
+	// paths
+	switch cfg.operatingSystem {
+	case "darwin":
+		cfg.inputsPath = "ee/maintained-apps/inputs/homebrew"
+	case "windows":
+		cfg.inputsPath = "ee\\maintained-apps\\inputs\\winget"
+	}
+	cfg.outputsPath = maintained_apps.OutputPath
+
 	err := run(cfg)
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
-func getListOfApps() ([]maintained_apps.FMAListFileApp, error) {
-	appListFilePath := path.Join(maintained_apps.OutputPath, "apps.json")
+func getListOfApps(outputPath string) ([]maintained_apps.FMAListFileApp, error) {
+	appListFilePath := path.Join(outputPath, "apps.json")
 	inputJson, err := os.ReadFile(appListFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading output apps list file: %w", err)
@@ -260,8 +284,8 @@ func getListOfApps() ([]maintained_apps.FMAListFileApp, error) {
 	return outputAppsFile.Apps, nil
 }
 
-func getAppJson(slug string) (*maintained_apps.FMAManifestFile, error) {
-	appJsonFilePath := path.Join(maintained_apps.OutputPath, fmt.Sprintf("%s.json", slug))
+func getAppJson(outputPath string, slug string) (*maintained_apps.FMAManifestFile, error) {
+	appJsonFilePath := path.Join(outputPath, fmt.Sprintf("%s.json", slug))
 	inputJson, err := os.ReadFile(appJsonFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading app '%s' json manifest: %w", slug, err)
