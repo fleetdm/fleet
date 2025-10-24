@@ -400,6 +400,7 @@ SELECT
 	,st.extension_for
 	,st.bundle_identifier
 	,st.application_id
+	,st.upgrade_code
 	,MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count
 	,MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at
 	{{if hasTeamID .}}
