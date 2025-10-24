@@ -35,7 +35,8 @@
     <div purpose="content" v-else>
       <div>
         <h3>How was it?</h3>
-        <p>Your 30-day trial expired <js-timestamp :at="me.fleetPremiumTrialLicenseKeyExpiresAt" format="billing"></js-timestamp>. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
+        <p v-if="trialExpiredAt !== 0">Your 30-day trial expired <js-timestamp :at="trialExpiredAt" format="billing"></js-timestamp>. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
+        <p v-else>Your 30-day trial expired. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
       </div>
       <div purpose="modal-button-links">
         <a purpose="modal-button" href="/new-license" no-underline>
