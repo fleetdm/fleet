@@ -35,6 +35,11 @@ const (
 // It provides clearer semantics when used in function signatures and data structures.
 type FleetVarName string
 
+// Includes $FLEET_VAR prefix
+func (n FleetVarName) WithPrefix() string {
+	return fmt.Sprintf("$FLEET_VAR_%s", n)
+}
+
 const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
