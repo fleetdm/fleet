@@ -346,62 +346,77 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		return result, nil
 	}
 
-	// Step 1: Batch fetch OS IDs by name and version
-	// The OSVersions from ds.OSVersions() don't include the ID field,
-	// only OSVersionID, so we need to look them up
-	osIDMap := make(map[uint]string, len(osVersions))
-	osIDs := make([]uint, 0, len(osVersions))
-	linuxOSIDs := make([]uint, 0)          // Track Linux OS IDs separately for kernel vulnerabilities
-	nonLinuxOSIDs := make([]uint, 0)       // Track non-Linux OS IDs for operating_system_vulnerabilities query
-	platformMap := make(map[string]string) // Map "name-version" to platform
+	// Step 1: Separate Linux from non-Linux OS versions
+	// For Linux: we'll query by os_version_id directly (no need to expand to os.id)
+	// For non-Linux: we need to fetch os.id values to query operating_system_vulnerabilities table
 
-	// Build query using IN with tuples - more efficient with the index on (name, version)
-	tuples := make([]string, 0, len(osVersions))
-	args := make([]any, 0, len(osVersions)*2)
+	// Track unique Linux os_version_ids and their keys
+	linuxOSVersionMap := make(map[uint]string) // os_version_id -> "name-version" key
+	linuxOSVersionIDs := make([]uint, 0)       // unique os_version_id values for Linux
 
+	// Track non-Linux OS info for database lookup
+	nonLinuxOSVersions := make([]fleet.OSVersion, 0)
+	nonLinuxOSIDMap := make(map[uint]string) // os.id -> "name-version" key
+	nonLinuxOSIDs := make([]uint, 0)         // os.id values for non-Linux
+
+	// Separate Linux from non-Linux and track unique os_version_ids for Linux
 	for _, os := range osVersions {
-		tuples = append(tuples, "(?, ?)")
-		args = append(args, os.NameOnly, os.Version)
-		// Store the platform for each OS version
-		platformMap[fmt.Sprintf("%s-%s", os.NameOnly, os.Version)] = os.Platform
-	}
+		key := fmt.Sprintf("%s-%s", os.NameOnly, os.Version)
 
-	stmt := `
-		SELECT id, name, version
-		FROM operating_systems
-		WHERE (name, version) IN (` + strings.Join(tuples, ", ") + `)`
-
-	var osResults []struct {
-		ID      uint   `db:"id"`
-		Name    string `db:"name"`
-		Version string `db:"version"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osResults, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "batch fetch OS IDs")
-	}
-
-	for _, r := range osResults {
-		key := fmt.Sprintf("%s-%s", r.Name, r.Version)
-		osIDs = append(osIDs, r.ID)
-		osIDMap[r.ID] = key
-
-		// Check if this OS is Linux and add to Linux-specific list
-		if platform, ok := platformMap[key]; ok && fleet.IsLinux(platform) {
-			linuxOSIDs = append(linuxOSIDs, r.ID)
+		if fleet.IsLinux(os.Platform) {
+			// For Linux, track by os_version_id (no need to fetch os.id)
+			if _, exists := linuxOSVersionMap[os.OSVersionID]; !exists {
+				linuxOSVersionMap[os.OSVersionID] = key
+				linuxOSVersionIDs = append(linuxOSVersionIDs, os.OSVersionID)
+				// Initialize result map entry for Linux
+				if _, exists := result[key]; !exists {
+					result[key] = make(fleet.Vulnerabilities, 0)
+				}
+			}
 		} else {
-			// Non-Linux OS - add to list for operating_system_vulnerabilities query
-			nonLinuxOSIDs = append(nonLinuxOSIDs, r.ID)
+			// For non-Linux, we'll need to fetch os.id values
+			nonLinuxOSVersions = append(nonLinuxOSVersions, os)
 		}
 	}
 
-	if len(osIDs) == 0 {
-		return result, nil
+	// Fetch OS IDs for non-Linux platforms
+	if len(nonLinuxOSVersions) > 0 {
+		tuples := make([]string, 0, len(nonLinuxOSVersions))
+		args := make([]any, 0, len(nonLinuxOSVersions)*2)
+
+		for _, os := range nonLinuxOSVersions {
+			tuples = append(tuples, "(?, ?)")
+			args = append(args, os.NameOnly, os.Version)
+		}
+
+		stmt := `
+			SELECT id, name, version
+			FROM operating_systems
+			WHERE (name, version) IN (` + strings.Join(tuples, ", ") + `)`
+
+		var osResults []struct {
+			ID      uint   `db:"id"`
+			Name    string `db:"name"`
+			Version string `db:"version"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osResults, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "batch fetch OS IDs for non-Linux")
+		}
+
+		for _, r := range osResults {
+			key := fmt.Sprintf("%s-%s", r.Name, r.Version)
+			nonLinuxOSIDs = append(nonLinuxOSIDs, r.ID)
+			nonLinuxOSIDMap[r.ID] = key
+			// Initialize result map entry for non-Linux
+			if _, exists := result[key]; !exists {
+				result[key] = make(fleet.Vulnerabilities, 0)
+			}
+		}
 	}
 
-	// Initialize result map
-	for _, key := range osIDMap {
-		result[key] = make(fleet.Vulnerabilities, 0)
+	if len(linuxOSVersionIDs) == 0 && len(nonLinuxOSIDs) == 0 {
+		return result, nil
 	}
 
 	// Step 2: Execute queries in parallel
@@ -409,10 +424,12 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	cveSet := make(map[string]struct{})
 
 	type vulnResult struct {
-		OSID              uint
+		OSID              uint // For non-Linux: os.id
+		OSVersionID       uint // For Linux: os_version_id
 		CVE               string
 		ResolvedInVersion *string
 		CreatedAt         time.Time
+		IsLinux           bool // Flag to distinguish between Linux and non-Linux results
 	}
 
 	// Channels for collecting results from parallel queries
@@ -463,6 +480,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				CVE:               r.CVE,
 				ResolvedInVersion: r.ResolvedInVersion,
 				CreatedAt:         r.CreatedAt,
+				IsLinux:           false,
 			}
 		}
 		osVulnsChan <- results
@@ -470,38 +488,26 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 
 	// Query 2: Kernel Vulnerabilities (for Linux only)
 	go func() {
-		if len(linuxOSIDs) == 0 {
+		if len(linuxOSVersionIDs) == 0 {
 			kernelVulnsChan <- nil
 			return
 		}
 
-		// Optimize by aggregating at os_version_id level first, then joining to os.id
-		// This reduces row explosion when multiple OS IDs share the same os_version_id
+		// Query directly by os_version_id - no need to expand to os.id
 		kernelQuery := `
 			SELECT
-				os.id as os_id,
-				cve_agg.cve,
-				cve_agg.resolved_in_version,
-				cve_agg.created_at
-			FROM operating_systems os
-			JOIN (
-				SELECT
-					khc.os_version_id,
-					sc.cve,
-					sc.resolved_in_version,
-					MIN(sc.created_at) as created_at
-				FROM kernel_host_counts khc
-				JOIN software_cve sc ON sc.software_id = khc.software_id
-				WHERE khc.os_version_id IN (
-					SELECT os_version_id
-					FROM operating_systems
-					WHERE id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSIDs)), ",") + `)
-				)
-				AND khc.hosts_count > 0
+				khc.os_version_id,
+				sc.cve,
+				sc.resolved_in_version,
+				MIN(sc.created_at) as created_at
+			FROM kernel_host_counts khc
+			JOIN software_cve sc ON sc.software_id = khc.software_id
+			WHERE khc.os_version_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSVersionIDs)), ",") + `)
+			AND khc.hosts_count > 0
 		`
 
-		kargs := make([]any, len(linuxOSIDs))
-		for i, id := range linuxOSIDs {
+		kargs := make([]any, len(linuxOSVersionIDs))
+		for i, id := range linuxOSVersionIDs {
 			kargs[i] = id
 		}
 
@@ -511,16 +517,11 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		kernelQuery += `
-				GROUP BY khc.os_version_id, sc.cve, sc.resolved_in_version
-			) cve_agg ON cve_agg.os_version_id = os.os_version_id
-			WHERE os.id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSIDs)), ",") + `)
+			GROUP BY khc.os_version_id, sc.cve, sc.resolved_in_version
 		`
 
-		// Add the same OS IDs again for the outer WHERE clause
-		kargs = append(kargs, kargs[:len(linuxOSIDs)]...)
-
 		var kernelVulnResults []struct {
-			OSID              uint      `db:"os_id"`
+			OSVersionID       uint      `db:"os_version_id"`
 			CVE               string    `db:"cve"`
 			ResolvedInVersion *string   `db:"resolved_in_version"`
 			CreatedAt         time.Time `db:"created_at"`
@@ -535,10 +536,11 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		results := make([]vulnResult, len(kernelVulnResults))
 		for i, r := range kernelVulnResults {
 			results[i] = vulnResult{
-				OSID:              r.OSID,
+				OSVersionID:       r.OSVersionID,
 				CVE:               r.CVE,
 				ResolvedInVersion: r.ResolvedInVersion,
 				CreatedAt:         r.CreatedAt,
+				IsLinux:           true,
 			}
 		}
 		kernelVulnsChan <- results
@@ -557,9 +559,9 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 	}
 
-	// Process OS vulnerability results
+	// Process OS vulnerability results (non-Linux)
 	for _, r := range osVulnResults {
-		key := osIDMap[r.OSID]
+		key := nonLinuxOSIDMap[r.OSID]
 		vuln := fleet.CVE{
 			CVE:       r.CVE,
 			CreatedAt: r.CreatedAt,
@@ -588,9 +590,10 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		cveSet[r.CVE] = struct{}{}
 	}
 
-	// Process kernel vulnerability results
+	// Process kernel vulnerability results (Linux)
+	// These are already aggregated at os_version_id level, so no deduplication needed
 	for _, r := range kernelVulnResults {
-		key := osIDMap[r.OSID]
+		key := linuxOSVersionMap[r.OSVersionID]
 		vuln := fleet.CVE{
 			CVE:       r.CVE,
 			CreatedAt: r.CreatedAt,
@@ -601,7 +604,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			vuln.ResolvedInVersion = &resolvedVersion
 		}
 
-		// Check if we already have this CVE
+		// Check if we already have this CVE (shouldn't happen as we're grouping in the query)
 		found := false
 		for _, existing := range vulnsByKey[key] {
 			if existing.CVE == r.CVE {
