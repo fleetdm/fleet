@@ -109,11 +109,35 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	var softwareTitle *fleet.SoftwareTitle
 	if req.Opts.SoftwareTitleIDFilter != nil {
-		var err error
-
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software title in that case
+		// First try for this team
+		st, err := svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
+		switch {
+		case fleet.IsNotFound(err):
+			// Try without team filter
+			stGlobal, errGlobal := svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, nil)
+			switch {
+			case fleet.IsNotFound(errGlobal):
+				// Still not found: set id and empty name
+				softwareTitle = &fleet.SoftwareTitle{
+					ID:   *req.Opts.SoftwareTitleIDFilter,
+					Name: "",
+				}
+			case errGlobal == nil:
+				// Found globally: use that name but fills other fields with the default empty states
+				softwareTitle = &fleet.SoftwareTitle{
+					ID:   stGlobal.ID,
+					Name: stGlobal.Name,
+				}
+			default:
+				// Other error
+				return listHostsResponse{Err: errGlobal}, nil
+			}
+		case err != nil:
+			// Other error
 			return listHostsResponse{Err: err}, nil
+		default:
+			// Success: found for this team
+			softwareTitle = st
 		}
 	}
 
