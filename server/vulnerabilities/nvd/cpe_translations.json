@@ -657,6 +657,14 @@
   },
   {
     "software": {
+      "source": ["npm_packages"]
+    },
+    "filter": {
+      "target_sw": ["node.js"]
+    }
+  },
+  {
+    "software": {
       "name": ["Firefox ESR.app"],
       "source": ["apps"]
     },
