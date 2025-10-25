@@ -730,6 +730,9 @@ func TestHostAuth(t *testing.T) {
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
 		return nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
@@ -1090,14 +1093,25 @@ func TestDeleteHost(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	// Create a user for the deletion (needed for activity creation)
+	user := &fleet.User{
+		Name:       "Test User",
+		Email:      "testuser@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Password:   []byte("password"),
+		Salt:       "salt",
+	}
+	user, err := ds.NewUser(ctx, user)
+	require.NoError(t, err)
+
 	mockClock := clock.NewMockClock()
 	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
 	assert.NotZero(t, host.ID)
 
-	err := svc.DeleteHost(test.UserContext(ctx, test.UserAdmin), host.ID)
+	err = svc.DeleteHost(test.UserContext(ctx, user), host.ID)
 	assert.Nil(t, err)
 
-	filter := fleet.TeamFilter{User: test.UserAdmin}
+	filter := fleet.TeamFilter{User: user}
 	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
