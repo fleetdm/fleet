@@ -26,6 +26,7 @@ func TestListVulnsByMultipleOSVersions(t *testing.T) {
 		{"NonExistentOS", testListVulnsByMultipleOSVersionsNonExistentOS},
 		{"MixedPlatforms", testListVulnsByMultipleOSVersionsMixedPlatforms},
 		{"MultipleLinuxOSWithManyKernels", testListVulnsByMultipleLinuxOSWithManyKernels},
+		{"WithMaxVulnerabilities", testListVulnsByMultipleOSVersionsWithMaxVulnerabilities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -536,5 +537,106 @@ func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) 
 			}
 		}
 		assert.True(t, foundUnique, "Should have at least one unique CVE for OS %d", idx)
+	}
+}
+
+func testListVulnsByMultipleOSVersionsWithMaxVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test OS versions with vulnerabilities
+	osVersions := setupTestOSVersionsWithVulns(t, ds, ctx)
+	linuxOS := setupLinuxOSWithKernelVulns(t, ds, ctx)
+
+	testCases := []struct {
+		name           string
+		maxVulns       *int
+		osVersions     []fleet.OSVersion
+		expectError    bool
+		errorMessage   string
+		validateResult func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount)
+	}{
+		{
+			name:         "negative value returns error",
+			maxVulns:     ptr.Int(-1),
+			osVersions:   osVersions,
+			expectError:  true,
+			errorMessage: "max_vulnerabilities must be >= 0",
+		},
+		{
+			name:       "max = 0 returns empty array with count",
+			maxVulns:   ptr.Int(0),
+			osVersions: osVersions,
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				assert.Len(t, vulnsMap, 3)
+				for _, osV := range osVersions {
+					key := osV.NameOnly + "-" + osV.Version
+					vulnData, ok := vulnsMap[key]
+					assert.True(t, ok, "Should have entry for %s", key)
+					assert.Len(t, vulnData.Vulnerabilities, 0, "Should have 0 vulnerabilities when max=0")
+					assert.Equal(t, 2, vulnData.Count, "Count should still show total of 2 vulnerabilities")
+				}
+			},
+		},
+		{
+			name:       "max = 1 limits to 1 vulnerability",
+			maxVulns:   ptr.Int(1),
+			osVersions: osVersions,
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				assert.Len(t, vulnsMap, 3)
+				for _, osV := range osVersions {
+					key := osV.NameOnly + "-" + osV.Version
+					vulnData, ok := vulnsMap[key]
+					assert.True(t, ok, "Should have vulnerabilities for %s", key)
+					assert.Len(t, vulnData.Vulnerabilities, 1, "Should have exactly 1 vulnerability (limited)")
+					assert.Equal(t, 2, vulnData.Count, "Count should show total of 2 vulnerabilities")
+				}
+			},
+		},
+		{
+			name:       "max exceeds total returns all vulnerabilities",
+			maxVulns:   ptr.Int(10),
+			osVersions: osVersions,
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				assert.Len(t, vulnsMap, 3)
+				for _, osV := range osVersions {
+					key := osV.NameOnly + "-" + osV.Version
+					vulnData, ok := vulnsMap[key]
+					assert.True(t, ok, "Should have vulnerabilities for %s", key)
+					assert.Len(t, vulnData.Vulnerabilities, 2, "Should have all 2 vulnerabilities when max exceeds total")
+					assert.Equal(t, 2, vulnData.Count, "Count should show 2 vulnerabilities")
+				}
+			},
+		},
+		{
+			name:       "max = 1 for Linux kernel vulnerabilities",
+			maxVulns:   ptr.Int(1),
+			osVersions: []fleet.OSVersion{linuxOS},
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				key := linuxOS.NameOnly + "-" + linuxOS.Version
+				vulnData, ok := vulnsMap[key]
+				assert.True(t, ok, "Should have vulnerabilities for Linux OS")
+				assert.Len(t, vulnData.Vulnerabilities, 1, "Should have exactly 1 vulnerability (limited)")
+				assert.GreaterOrEqual(t, vulnData.Count, 1, "Count should be at least 1")
+				if vulnData.Count > 1 {
+					assert.Equal(t, 1, len(vulnData.Vulnerabilities), "Should be limited to 1 vulnerability even though total is %d", vulnData.Count)
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, tc.osVersions, false, nil, tc.maxVulns)
+
+			if tc.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errorMessage)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, vulnsMap)
+			tc.validateResult(t, vulnsMap)
+		})
 	}
 }
