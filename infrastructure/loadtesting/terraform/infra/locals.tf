@@ -5,7 +5,7 @@ locals {
   # Tracing configuration - either OTEL or Elastic APM
   otel_environment_variables = var.enable_otel ? {
     OTEL_SERVICE_NAME               = terraform.workspace
-    OTEL_EXPORTER_OTLP_ENDPOINT     = "http://${module.signoz[0].otel_collector_endpoint}"
+    OTEL_EXPORTER_OTLP_ENDPOINT     = "http://${data.terraform_remote_state.signoz[0].outputs.otel_collector_endpoint}"
     FLEET_LOGGING_TRACING_ENABLED   = "true"
     FLEET_LOGGING_TRACING_TYPE      = "opentelemetry"
   } : {}

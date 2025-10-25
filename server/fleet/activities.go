@@ -225,6 +225,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeAddedConditionalAccessOkta{},
+	ActivityTypeDeletedConditionalAccessOkta{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
 	ActivityTypeDisabledConditionalAccessAutomations{},
 
@@ -2817,6 +2819,28 @@ func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName()
 
 func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
 	return "Generated when Microsoft Entra is integration is disconnected.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeAddedConditionalAccessOkta struct{}
+
+func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
+	return "added_conditional_access_okta"
+}
+
+func (a ActivityTypeAddedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta is configured or edited for conditional access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessOkta struct{}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
+	return "deleted_conditional_access_okta"
+}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta conditional access configuration is removed.",
 		"This activity does not contain any detail fields.", ""
 }
 

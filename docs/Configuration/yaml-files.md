@@ -447,6 +447,20 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
 
+#### Example
+
+`teams/team-name.yml`, or `teams/no-team.yml`
+
+```yaml
+macos_setup:
+  bootstrap_package: "https://your-storage/package.pkg"
+  manual_agent_install: false
+  enable_end_user_authentication: true
+  enable_release_device_manually: false
+  macos_setup_assistant: "./setup_assistant.json"
+  script: "./post_setup.sh"
+```
+
 ### macos_migration
 
 The `macos_migration` section lets you control the [end user migration workflow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) for macOS hosts that enrolled to your old MDM solution.

@@ -1,0 +1,14 @@
+<Replace>
+  <!-- Dsiable remote desktop services, an ADMX-backed policy -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/RemoteDesktopServices/AllowUsersToConnectRemotely</LocURI>
+    </Target>
+    <Data>
+      <![CDATA[<enabled/><data id="SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" value="1"/>]]>
+    </Data>
+  </Item>
+</Replace>

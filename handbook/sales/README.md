@@ -28,7 +28,7 @@ The Sales department is directly responsible for attaining the revenue goals of 
 ### Add an account to your patch
 
 Use the following steps to add an account to Salesforce if one doesn't exist already:
-1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a dupicate, parent, or child account doesn't already exist. 
+1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a duplicate, parent, or child account doesn't already exist. 
 2. If the account already exists, reach out to the [Head of Digital Workspace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
 
 

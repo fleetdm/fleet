@@ -2090,6 +2090,18 @@ Generated when Microsoft Entra is integration is disconnected.
 
 This activity does not contain any detail fields.
 
+## added_conditional_access_okta
+
+Generated when Okta is configured or edited for conditional access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_okta
+
+Generated when Okta conditional access configuration is removed.
+
+This activity does not contain any detail fields.
+
 ## enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a team.
