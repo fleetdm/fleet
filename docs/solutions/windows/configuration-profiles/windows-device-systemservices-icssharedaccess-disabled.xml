@@ -1,5 +1,4 @@
 <Replace>
-  <CmdID>0199f25b-795f-76d9-99cb-d122e5b6e6f1</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureInternetConnectionSharingServiceStartupMode</LocURI>
