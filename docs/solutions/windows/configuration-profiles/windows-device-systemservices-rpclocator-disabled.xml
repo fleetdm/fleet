@@ -1,5 +1,4 @@
 <Replace>
-  <CmdID>0199f25b-795f-7882-9309-44b8f0633b01</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureRemoteProcedureCallLocatorServiceStartupMode</LocURI>
