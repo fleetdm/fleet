@@ -1,5 +1,4 @@
 <Replace>
-  <CmdID>0199f25b-795f-7966-a812-4b1d5c5c54cb</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureWorldWideWebPublishingServiceStartupMode</LocURI>
