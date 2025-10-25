@@ -2476,6 +2476,7 @@ None.
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
 - [Batch-delete hosts by filter or ids](#batch-delete-hosts-by-filter-or-ids)
 - [Update human-device mapping](#update-human-device-mapping)
+- [Delete IDP host device mapping](#delete-idp-host-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
@@ -3972,6 +3973,27 @@ Updates the email for the data source in the human-device mapping. This source c
 	]
 }
 ```
+
+### Delete IDP host device mapping
+
+`DELETE /api/v1/fleet/hosts/:id/device_mapping`
+
+Deletes the device mapping for a specific IDP email on a host.
+
+#### Parameters
+
+| Name       | Type              | In    | Description                                                                   |
+| ---------- | ----------------- | ----- | ----------------------------------------------------------------------------- |
+| id         | integer           | path  | **Required**. The host's `id`.                                                |
+| email      | string            | query | **Required**. The email to delete from the mapping.                          |
+
+#### Example
+
+`DELETE /api/v1/fleet/hosts/1/device_mapping?email=user@example.com`
+
+##### Default response
+
+`Status: 204`
 
 
 ### Get host's device health report
