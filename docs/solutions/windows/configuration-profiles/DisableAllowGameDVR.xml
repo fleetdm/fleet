@@ -1,6 +1,5 @@
 <Replace>
   <!-- Disable Windows Game Recording and Broadcasting --> 
-  <CmdID>1</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
