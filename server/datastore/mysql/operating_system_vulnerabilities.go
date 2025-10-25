@@ -466,7 +466,8 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			osArgs[i] = id
 		}
 
-		if maxVulnerabilities != nil && *maxVulnerabilities == 0 {
+		switch {
+		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
 			// Special case: max = 0 means return only counts, no vulnerabilities
 			osVulnsQuery = `
 			SELECT
@@ -478,7 +479,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			FROM operating_system_vulnerabilities osv
 			WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)
 			GROUP BY osv.operating_system_id`
-		} else if maxVulnerabilities != nil {
+		case maxVulnerabilities != nil:
 			// With limit: use ROW_NUMBER() to limit and COUNT() to get total
 			osVulnsQuery = `
 			WITH ranked_vulns AS (
@@ -496,7 +497,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			FROM ranked_vulns
 			WHERE rn <= ?`
 			osArgs = append(osArgs, *maxVulnerabilities)
-		} else {
+		default:
 			// No limit: simpler query with just COUNT() for total
 			osVulnsQuery = `
 			SELECT
@@ -557,7 +558,8 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		var kernelQuery string
-		if maxVulnerabilities != nil && *maxVulnerabilities == 0 {
+		switch {
+		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
 			// Special case: max = 0 means return only counts, no vulnerabilities
 			kernelQuery = `
 			WITH grouped_vulns AS (
@@ -578,7 +580,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				COUNT(*) as total_count
 			FROM grouped_vulns
 			GROUP BY os_version_id`
-		} else if maxVulnerabilities != nil {
+		case maxVulnerabilities != nil:
 			// With limit: use CTE with ROW_NUMBER() to limit and COUNT() to get total
 			kernelQuery = `
 			WITH grouped_vulns AS (
@@ -607,7 +609,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			FROM ranked_vulns
 			WHERE rn <= ?`
 			kargs = append(kargs, *maxVulnerabilities)
-		} else {
+		default:
 			// No limit: simpler query with just COUNT() for total
 			kernelQuery = `
 			WITH grouped_vulns AS (

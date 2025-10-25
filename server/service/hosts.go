@@ -2378,15 +2378,15 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
-	emptyKernels := make([]*fleet.Kernel, 0)
-	osVersion.Kernels = &emptyKernels // avoid null in JSON, pointer to empty slice shows as []
+	osVersion.VulnerabilitiesCount = len(vulns)
 	for _, vuln := range vulns {
 		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
-
 	}
 
 	if fleet.IsLinux(osVersion.Platform) && includeKernels {
+		emptyKernels := make([]*fleet.Kernel, 0)
+		osVersion.Kernels = &emptyKernels // avoid null in JSON, pointer to empty slice shows as []
 		kernels, err := svc.ds.ListKernelsByOS(ctx, osVersion.OSVersionID, teamID)
 		if err != nil {
 			return err
