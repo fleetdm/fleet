@@ -1,5 +1,4 @@
 <Replace>
-  <CmdID>0199f23e-ca37-7030-90ec-da3c2bda128f</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureXboxAccessoryManagementServiceStartupMode</LocURI>
@@ -11,7 +10,6 @@
   </Item>
 </Replace>
 <Replace>
-  <CmdID>0199f23e-ca37-7135-bdb5-912d6c0aa140</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureXboxLiveAuthManagerServiceStartupMode</LocURI>
@@ -23,7 +21,6 @@
   </Item>
 </Replace>
 <Replace>
-  <CmdID>0199f23e-ca37-79b2-98a0-79be7848c4f4</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureXboxLiveGameSaveServiceStartupMode</LocURI>
@@ -35,7 +32,6 @@
   </Item>
 </Replace>
 <Replace>
-  <CmdID>0199f23e-ca37-7671-bafd-0aba48014837</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureXboxLiveNetworkingServiceStartupMode</LocURI>
