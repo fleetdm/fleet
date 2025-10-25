@@ -30,9 +30,9 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	// reuse OSVersions, but include premium options
-	return svc.Service.OSVersions(ctx, teamID, platform, name, version, opts, true)
+	return svc.Service.OSVersions(ctx, teamID, platform, name, version, opts, true, maxVulnerabilities)
 }
 
 func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {

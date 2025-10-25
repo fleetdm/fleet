@@ -340,99 +340,354 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	osVersions []fleet.OSVersion,
 	includeCVSS bool,
 	teamID *uint,
-) (map[string]fleet.Vulnerabilities, error) {
-	result := make(map[string]fleet.Vulnerabilities)
+	maxVulnerabilities *int,
+) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+	result := make(map[string]fleet.OSVulnerabilitiesWithCount)
 	if len(osVersions) == 0 {
 		return result, nil
 	}
 
-	// Step 1: Batch fetch OS IDs by name and version
-	// The OSVersions from ds.OSVersions() don't include the ID field,
-	// only OSVersionID, so we need to look them up
-	osIDMap := make(map[uint]string, len(osVersions))
-	osIDs := make([]uint, 0, len(osVersions))
-	linuxOSIDs := make([]uint, 0)          // Track Linux OS IDs separately for kernel vulnerabilities
-	platformMap := make(map[string]string) // Map "name-version" to platform
+	// Validate maxVulnerabilities parameter
+	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
+		return nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
+	}
 
-	// Build query using IN with tuples - more efficient with the index on (name, version)
-	tuples := make([]string, 0, len(osVersions))
-	args := make([]any, 0, len(osVersions)*2)
+	// Step 1: Separate Linux from non-Linux OS versions
+	// For Linux: we'll query by os_version_id directly (no need to expand to os.id)
+	// For non-Linux: we need to fetch os.id values to query operating_system_vulnerabilities table
 
+	// Track unique Linux os_version_ids and their keys
+	linuxOSVersionMap := make(map[uint]string) // os_version_id -> "name-version" key
+	linuxOSVersionIDs := make([]uint, 0)       // unique os_version_id values for Linux
+
+	// Track non-Linux OS info for database lookup
+	nonLinuxOSVersions := make([]fleet.OSVersion, 0)
+	nonLinuxOSIDMap := make(map[uint]string) // os.id -> "name-version" key
+	nonLinuxOSIDs := make([]uint, 0)         // os.id values for non-Linux
+
+	// Separate Linux from non-Linux and track unique os_version_ids for Linux
 	for _, os := range osVersions {
-		tuples = append(tuples, "(?, ?)")
-		args = append(args, os.NameOnly, os.Version)
-		// Store the platform for each OS version
-		platformMap[fmt.Sprintf("%s-%s", os.NameOnly, os.Version)] = os.Platform
-	}
+		key := fmt.Sprintf("%s-%s", os.NameOnly, os.Version)
 
-	stmt := `
-		SELECT id, name, version
-		FROM operating_systems
-		WHERE (name, version) IN (` + strings.Join(tuples, ", ") + `)`
-
-	var osResults []struct {
-		ID      uint   `db:"id"`
-		Name    string `db:"name"`
-		Version string `db:"version"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osResults, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "batch fetch OS IDs")
-	}
-
-	for _, r := range osResults {
-		key := fmt.Sprintf("%s-%s", r.Name, r.Version)
-		osIDs = append(osIDs, r.ID)
-		osIDMap[r.ID] = key
-
-		// Check if this OS is Linux and add to Linux-specific list
-		if platform, ok := platformMap[key]; ok && fleet.IsLinux(platform) {
-			linuxOSIDs = append(linuxOSIDs, r.ID)
+		if fleet.IsLinux(os.Platform) {
+			// For Linux, track by os_version_id (no need to fetch os.id)
+			if _, exists := linuxOSVersionMap[os.OSVersionID]; !exists {
+				linuxOSVersionMap[os.OSVersionID] = key
+				linuxOSVersionIDs = append(linuxOSVersionIDs, os.OSVersionID)
+				// Initialize result map entry for Linux
+				if _, exists := result[key]; !exists {
+					result[key] = fleet.OSVulnerabilitiesWithCount{
+						Vulnerabilities: make([]fleet.CVE, 0),
+						Count:           0,
+					}
+				}
+			}
+		} else {
+			// For non-Linux, we'll need to fetch os.id values
+			nonLinuxOSVersions = append(nonLinuxOSVersions, os)
 		}
 	}
 
-	if len(osIDs) == 0 {
+	// Fetch OS IDs for non-Linux platforms
+	if len(nonLinuxOSVersions) > 0 {
+		tuples := make([]string, 0, len(nonLinuxOSVersions))
+		args := make([]any, 0, len(nonLinuxOSVersions)*2)
+
+		for _, os := range nonLinuxOSVersions {
+			tuples = append(tuples, "(?, ?)")
+			args = append(args, os.NameOnly, os.Version)
+		}
+
+		stmt := `
+			SELECT id, name, version
+			FROM operating_systems
+			WHERE (name, version) IN (` + strings.Join(tuples, ", ") + `)`
+
+		var osResults []struct {
+			ID      uint   `db:"id"`
+			Name    string `db:"name"`
+			Version string `db:"version"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osResults, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "batch fetch OS IDs for non-Linux")
+		}
+
+		for _, r := range osResults {
+			key := fmt.Sprintf("%s-%s", r.Name, r.Version)
+			nonLinuxOSIDs = append(nonLinuxOSIDs, r.ID)
+			nonLinuxOSIDMap[r.ID] = key
+			// Initialize result map entry for non-Linux
+			if _, exists := result[key]; !exists {
+				result[key] = fleet.OSVulnerabilitiesWithCount{
+					Vulnerabilities: make([]fleet.CVE, 0),
+					Count:           0,
+				}
+			}
+		}
+	}
+
+	if len(linuxOSVersionIDs) == 0 && len(nonLinuxOSIDs) == 0 {
 		return result, nil
 	}
 
-	// Initialize result map
-	for _, key := range osIDMap {
-		result[key] = make(fleet.Vulnerabilities, 0)
-	}
-
-	// Step 2: Execute queries
+	// Step 2: Execute queries in parallel
 	vulnsByKey := make(map[string][]fleet.CVE)
+	countByKey := make(map[string]int) // Track total counts per key
 	cveSet := make(map[string]struct{})
 
-	// Query 1: OS Vulnerabilities
-	osVulnsQuery := `
-		SELECT
-			osv.operating_system_id,
-			osv.cve,
-			osv.resolved_in_version,
-			osv.created_at
-		FROM operating_system_vulnerabilities osv
-		WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(osIDs)), ",") + `)
-	`
-
-	osArgs := make([]any, len(osIDs))
-	for i, id := range osIDs {
-		osArgs[i] = id
+	type vulnResult struct {
+		OSID              uint // For non-Linux: os.id
+		OSVersionID       uint // For Linux: os_version_id
+		CVE               string
+		ResolvedInVersion *string
+		CreatedAt         time.Time
+		TotalCount        int  // Total count from window function
+		IsLinux           bool // Flag to distinguish between Linux and non-Linux results
 	}
 
-	var osVulnResults []struct {
-		OSID              uint      `db:"operating_system_id"`
-		CVE               string    `db:"cve"`
-		ResolvedInVersion *string   `db:"resolved_in_version"`
-		CreatedAt         time.Time `db:"created_at"`
+	// Channels for collecting results from parallel queries
+	osVulnsChan := make(chan []vulnResult, 1)
+	kernelVulnsChan := make(chan []vulnResult, 1)
+	errChan := make(chan error, 2)
+
+	// Query 1: OS Vulnerabilities (non-Linux only, as Linux uses kernel vulnerabilities)
+	// The operating_system_vulnerabilities table does not contain Linux vulnerabilities
+	go func() {
+		if len(nonLinuxOSIDs) == 0 {
+			osVulnsChan <- nil
+			return
+		}
+
+		// Use window functions to get count and optionally limit results
+		var osVulnsQuery string
+		osArgs := make([]any, len(nonLinuxOSIDs))
+		for i, id := range nonLinuxOSIDs {
+			osArgs[i] = id
+		}
+
+		switch {
+		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
+			// Special case: max = 0 means return only counts, no vulnerabilities
+			osVulnsQuery = `
+			SELECT
+				osv.operating_system_id,
+				'' as cve,
+				NULL as resolved_in_version,
+				NOW() as created_at,
+				COUNT(*) as total_count
+			FROM operating_system_vulnerabilities osv
+			WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)
+			GROUP BY osv.operating_system_id`
+		case maxVulnerabilities != nil:
+			// With limit: use ROW_NUMBER() to limit and COUNT() to get total
+			osVulnsQuery = `
+			WITH ranked_vulns AS (
+				SELECT
+					osv.operating_system_id,
+					osv.cve,
+					osv.resolved_in_version,
+					osv.created_at,
+					ROW_NUMBER() OVER (PARTITION BY osv.operating_system_id ORDER BY osv.cve) as rn,
+					COUNT(*) OVER (PARTITION BY osv.operating_system_id) as total_count
+				FROM operating_system_vulnerabilities osv
+				WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)
+			)
+			SELECT operating_system_id, cve, resolved_in_version, created_at, total_count
+			FROM ranked_vulns
+			WHERE rn <= ?`
+			osArgs = append(osArgs, *maxVulnerabilities)
+		default:
+			// No limit: simpler query with just COUNT() for total
+			osVulnsQuery = `
+			SELECT
+				osv.operating_system_id,
+				osv.cve,
+				osv.resolved_in_version,
+				osv.created_at,
+				COUNT(*) OVER (PARTITION BY osv.operating_system_id) as total_count
+			FROM operating_system_vulnerabilities osv
+			WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)`
+		}
+
+		var osVulnResults []struct {
+			OSID              uint      `db:"operating_system_id"`
+			CVE               string    `db:"cve"`
+			ResolvedInVersion *string   `db:"resolved_in_version"`
+			CreatedAt         time.Time `db:"created_at"`
+			TotalCount        int       `db:"total_count"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osVulnResults, osVulnsQuery, osArgs...); err != nil {
+			errChan <- ctxerr.Wrap(ctx, err, "batch query OS vulnerabilities")
+			return
+		}
+
+		// Convert to generic vulnResult format
+		results := make([]vulnResult, len(osVulnResults))
+		for i, r := range osVulnResults {
+			results[i] = vulnResult{
+				OSID:              r.OSID,
+				CVE:               r.CVE,
+				ResolvedInVersion: r.ResolvedInVersion,
+				CreatedAt:         r.CreatedAt,
+				TotalCount:        r.TotalCount,
+				IsLinux:           false,
+			}
+		}
+		osVulnsChan <- results
+	}()
+
+	// Query 2: Kernel Vulnerabilities (for Linux only)
+	go func() {
+		if len(linuxOSVersionIDs) == 0 {
+			kernelVulnsChan <- nil
+			return
+		}
+
+		// Query directly by os_version_id with window functions for count
+		kargs := make([]any, len(linuxOSVersionIDs))
+		for i, id := range linuxOSVersionIDs {
+			kargs[i] = id
+		}
+
+		teamFilter := ""
+		if teamID != nil {
+			teamFilter = ` AND khc.team_id = ?`
+			kargs = append(kargs, *teamID)
+		}
+
+		var kernelQuery string
+		switch {
+		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
+			// Special case: max = 0 means return only counts, no vulnerabilities
+			kernelQuery = `
+			WITH grouped_vulns AS (
+				SELECT
+					khc.os_version_id,
+					sc.cve
+				FROM kernel_host_counts khc
+				JOIN software_cve sc ON sc.software_id = khc.software_id
+				WHERE khc.os_version_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSVersionIDs)), ",") + `)
+				AND khc.hosts_count > 0` + teamFilter + `
+				GROUP BY khc.os_version_id, sc.cve
+			)
+			SELECT
+				os_version_id,
+				'' as cve,
+				NULL as resolved_in_version,
+				NOW() as created_at,
+				COUNT(*) as total_count
+			FROM grouped_vulns
+			GROUP BY os_version_id`
+		case maxVulnerabilities != nil:
+			// With limit: use CTE with ROW_NUMBER() to limit and COUNT() to get total
+			kernelQuery = `
+			WITH grouped_vulns AS (
+				SELECT
+					khc.os_version_id,
+					sc.cve,
+					sc.resolved_in_version,
+					MIN(sc.created_at) as created_at
+				FROM kernel_host_counts khc
+				JOIN software_cve sc ON sc.software_id = khc.software_id
+				WHERE khc.os_version_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSVersionIDs)), ",") + `)
+				AND khc.hosts_count > 0` + teamFilter + `
+				GROUP BY khc.os_version_id, sc.cve, sc.resolved_in_version
+			),
+			ranked_vulns AS (
+				SELECT
+					os_version_id,
+					cve,
+					resolved_in_version,
+					created_at,
+					ROW_NUMBER() OVER (PARTITION BY os_version_id ORDER BY cve) as rn,
+					COUNT(*) OVER (PARTITION BY os_version_id) as total_count
+				FROM grouped_vulns
+			)
+			SELECT os_version_id, cve, resolved_in_version, created_at, total_count
+			FROM ranked_vulns
+			WHERE rn <= ?`
+			kargs = append(kargs, *maxVulnerabilities)
+		default:
+			// No limit: simpler query with just COUNT() for total
+			kernelQuery = `
+			WITH grouped_vulns AS (
+				SELECT
+					khc.os_version_id,
+					sc.cve,
+					sc.resolved_in_version,
+					MIN(sc.created_at) as created_at
+				FROM kernel_host_counts khc
+				JOIN software_cve sc ON sc.software_id = khc.software_id
+				WHERE khc.os_version_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSVersionIDs)), ",") + `)
+				AND khc.hosts_count > 0` + teamFilter + `
+				GROUP BY khc.os_version_id, sc.cve, sc.resolved_in_version
+			)
+			SELECT
+				os_version_id,
+				cve,
+				resolved_in_version,
+				created_at,
+				COUNT(*) OVER (PARTITION BY os_version_id) as total_count
+			FROM grouped_vulns`
+		}
+
+		var kernelVulnResults []struct {
+			OSVersionID       uint      `db:"os_version_id"`
+			CVE               string    `db:"cve"`
+			ResolvedInVersion *string   `db:"resolved_in_version"`
+			CreatedAt         time.Time `db:"created_at"`
+			TotalCount        int       `db:"total_count"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &kernelVulnResults, kernelQuery, kargs...); err != nil {
+			errChan <- ctxerr.Wrap(ctx, err, "batch query kernel vulnerabilities")
+			return
+		}
+
+		// Convert to generic vulnResult format
+		results := make([]vulnResult, len(kernelVulnResults))
+		for i, r := range kernelVulnResults {
+			results[i] = vulnResult{
+				OSVersionID:       r.OSVersionID,
+				CVE:               r.CVE,
+				ResolvedInVersion: r.ResolvedInVersion,
+				CreatedAt:         r.CreatedAt,
+				TotalCount:        r.TotalCount,
+				IsLinux:           true,
+			}
+		}
+		kernelVulnsChan <- results
+	}()
+
+	// Collect results from both queries
+	var osVulnResults, kernelVulnResults []vulnResult
+	for i := 0; i < 2; i++ {
+		select {
+		case results := <-osVulnsChan:
+			osVulnResults = results
+		case results := <-kernelVulnsChan:
+			kernelVulnResults = results
+		case err := <-errChan:
+			return nil, err
+		}
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osVulnResults, osVulnsQuery, osArgs...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "batch query OS vulnerabilities")
-	}
-
+	// Process OS vulnerability results (non-Linux)
 	for _, r := range osVulnResults {
-		key := osIDMap[r.OSID]
+		key := nonLinuxOSIDMap[r.OSID]
+
+		// Store the total count for this OS version (same for all rows with same OSID)
+		if _, exists := countByKey[key]; !exists {
+			countByKey[key] = r.TotalCount
+		}
+
+		// Skip dummy CVE entries (used when maxVulnerabilities=0 to only get counts)
+		if r.CVE == "" {
+			continue
+		}
+
 		vuln := fleet.CVE{
 			CVE:       r.CVE,
 			CreatedAt: r.CreatedAt,
@@ -461,72 +716,47 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		cveSet[r.CVE] = struct{}{}
 	}
 
-	// Query 2: Kernel Vulnerabilities (for Linux only)
-	if len(linuxOSIDs) > 0 {
-		kernelQuery := `
-			SELECT
-				os.id as os_id,
-				sc.cve,
-				sc.resolved_in_version,
-				MIN(sc.created_at) as created_at
-			FROM software_cve sc
-			JOIN kernel_host_counts khc ON khc.software_id = sc.software_id
-			JOIN operating_systems os ON os.os_version_id = khc.os_version_id
-			WHERE os.id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSIDs)), ",") + `)
-			AND khc.hosts_count > 0
-		`
+	// Process kernel vulnerability results (Linux)
+	// These are already aggregated at os_version_id level, so no deduplication needed
+	for _, r := range kernelVulnResults {
+		key := linuxOSVersionMap[r.OSVersionID]
 
-		kargs := make([]any, len(linuxOSIDs))
-		for i, id := range linuxOSIDs {
-			kargs[i] = id
+		// Store the total count for this OS version (same for all rows with same OSVersionID)
+		if _, exists := countByKey[key]; !exists {
+			countByKey[key] = r.TotalCount
 		}
 
-		if teamID != nil {
-			kernelQuery += ` AND khc.team_id = ?`
-			kargs = append(kargs, *teamID)
+		// Skip dummy CVE entries (used when maxVulnerabilities=0 to only get counts)
+		if r.CVE == "" {
+			continue
 		}
 
-		kernelQuery += ` GROUP BY os.id, sc.cve, sc.resolved_in_version`
-
-		var kernelVulnResults []struct {
-			OSID              uint      `db:"os_id"`
-			CVE               string    `db:"cve"`
-			ResolvedInVersion *string   `db:"resolved_in_version"`
-			CreatedAt         time.Time `db:"created_at"`
+		vuln := fleet.CVE{
+			CVE:       r.CVE,
+			CreatedAt: r.CreatedAt,
 		}
 
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &kernelVulnResults, kernelQuery, kargs...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "batch query kernel vulnerabilities")
+		if r.ResolvedInVersion != nil {
+			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+			vuln.ResolvedInVersion = &resolvedVersion
 		}
-		for _, r := range kernelVulnResults {
-			key := osIDMap[r.OSID]
-			vuln := fleet.CVE{
-				CVE:       r.CVE,
-				CreatedAt: r.CreatedAt,
+
+		// Check if we already have this CVE (shouldn't happen as we're grouping in the query)
+		found := false
+		for _, existing := range vulnsByKey[key] {
+			if existing.CVE == r.CVE {
+				found = true
+				break
 			}
-
-			if r.ResolvedInVersion != nil {
-				resolvedVersion := r.ResolvedInVersion // avoid address of range var field
-				vuln.ResolvedInVersion = &resolvedVersion
-			}
-
-			// Check if we already have this CVE
-			found := false
-			for _, existing := range vulnsByKey[key] {
-				if existing.CVE == r.CVE {
-					found = true
-					break
-				}
-			}
-			if !found {
-				vulnsByKey[key] = append(vulnsByKey[key], vuln)
-			}
-
-			cveSet[r.CVE] = struct{}{}
 		}
+		if !found {
+			vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		}
+
+		cveSet[r.CVE] = struct{}{}
 	}
 
-	// Step 3: Fetch CVE metadata (for Linux kernels only)
+	// Step 3: Fetch CVE metadata for all CVEs
 	if includeCVSS && len(cveSet) > 0 {
 		cveList := make([]string, 0, len(cveSet))
 		for cve := range cveSet {
@@ -534,7 +764,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		// Fetch metadata in batches using the common batch processing utility
-		batchSize := 500
+		batchSize := 2000
 		metadataMap := make(map[string]struct {
 			CVSSScore        *float64
 			EPSSProbability  *float64
@@ -616,9 +846,19 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 	}
 
-	// Step 4: Assign vulnerabilities to result
-	for key, vulns := range vulnsByKey {
-		result[key] = vulns
+	// Step 4: Assign vulnerabilities and counts to result
+	// We iterate over the result map keys (not vulnsByKey) to ensure we capture
+	// all OS versions, including those with maxVulnerabilities=0 where vulnsByKey is empty
+	for key := range result {
+		vulns := vulnsByKey[key]
+		if vulns == nil {
+			vulns = make([]fleet.CVE, 0)
+		}
+		count := countByKey[key]
+		result[key] = fleet.OSVulnerabilitiesWithCount{
+			Vulnerabilities: vulns,
+			Count:           count,
+		}
 	}
 
 	return result, nil

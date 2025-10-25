@@ -2101,10 +2101,11 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 
 type osVersionsRequest struct {
 	fleet.ListOptions
-	TeamID   *uint   `query:"team_id,optional"`
-	Platform *string `query:"platform,optional"`
-	Name     *string `query:"os_name,optional"`
-	Version  *string `query:"os_version,optional"`
+	TeamID             *uint   `query:"team_id,optional"`
+	Platform           *string `query:"platform,optional"`
+	Name               *string `query:"os_name,optional"`
+	Version            *string `query:"os_version,optional"`
+	MaxVulnerabilities *int    `query:"max_vulnerabilities,optional"`
 }
 
 type osVersionsResponse struct {
@@ -2120,7 +2121,7 @@ func (r osVersionsResponse) Error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false)
+	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false, req.MaxVulnerabilities)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -2141,6 +2142,7 @@ func (svc *Service) OSVersions(
 	version *string,
 	opts fleet.ListOptions,
 	includeCVSS bool,
+	maxVulnerabilities *int,
 ) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
@@ -2226,7 +2228,7 @@ func (svc *Service) OSVersions(
 		}, count, meta, nil
 	}
 
-	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID)
+	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID, maxVulnerabilities)
 	if err != nil {
 		return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions (paged)")
 	}
@@ -2244,14 +2246,13 @@ func (svc *Service) OSVersions(
 
 		osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null
 		key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
-		if vulns, ok := vulnsMap[key]; ok {
-			for _, v := range vulns {
+		if vulnData, ok := vulnsMap[key]; ok {
+			osV.VulnerabilitiesCount = vulnData.Count
+			for _, v := range vulnData.Vulnerabilities {
 				v.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", v.CVE)
 				osV.Vulnerabilities = append(osV.Vulnerabilities, v)
 			}
 		}
-
-		osV.Kernels = make([]*fleet.Kernel, 0) // avoid null
 	}
 
 	// Return only the page, but with total count
@@ -2377,21 +2378,22 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
-	osVersion.Kernels = make([]*fleet.Kernel, 0)               // avoid null in JSON
+	osVersion.VulnerabilitiesCount = len(vulns)
 	for _, vuln := range vulns {
 		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
-
 	}
 
 	if fleet.IsLinux(osVersion.Platform) && includeKernels {
+		emptyKernels := make([]*fleet.Kernel, 0)
+		osVersion.Kernels = &emptyKernels // avoid null in JSON, pointer to empty slice shows as []
 		kernels, err := svc.ds.ListKernelsByOS(ctx, osVersion.OSVersionID, teamID)
 		if err != nil {
 			return err
 		}
 
 		if len(kernels) > 0 {
-			osVersion.Kernels = kernels
+			osVersion.Kernels = &kernels
 		}
 	}
 
