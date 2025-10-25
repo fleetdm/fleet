@@ -1,5 +1,4 @@
 <Replace>
-  <CmdID>0199f25b-795f-7699-8735-e316ffc0564e</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/SystemServices/ConfigureRoutingAndRemoteAccessServiceStartupMode</LocURI>
