@@ -2376,7 +2376,8 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
-	osVersion.Kernels = make([]*fleet.Kernel, 0)               // avoid null in JSON
+	emptyKernels := make([]*fleet.Kernel, 0)
+	osVersion.Kernels = &emptyKernels // avoid null in JSON, pointer to empty slice shows as []
 	for _, vuln := range vulns {
 		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
@@ -2390,7 +2391,7 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 		}
 
 		if len(kernels) > 0 {
-			osVersion.Kernels = kernels
+			osVersion.Kernels = &kernels
 		}
 	}
 

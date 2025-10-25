@@ -1384,7 +1384,8 @@ type OSVersion struct {
 	// Vulnerabilities are pulled based on the software entries for the kernels.
 	// Kernels are associated based on enrolled hosts with the selected OS version.
 	// NOTE: The aggregate os_versions endpoint should not return this field.
-	Kernels []*Kernel `json:"kernels,omitempty"`
+	// Uses a pointer to distinguish between nil (omit field) and empty slice (show as []).
+	Kernels *[]*Kernel `json:"kernels,omitempty"`
 }
 
 type HostDetailOptions struct {

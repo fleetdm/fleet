@@ -151,15 +151,17 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			// Test entity endpoint
 			var osVersionResp getOSVersionResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersion.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", fmt.Sprintf("%d", 0))
-			assert.Len(t, osVersionResp.OSVersion.Kernels, len(tt.software))
+			require.NotNil(t, osVersionResp.OSVersion.Kernels)
+			kernels := *osVersionResp.OSVersion.Kernels
+			assert.Len(t, kernels, len(tt.software))
 			// Make sure the ordering is the same
-			sort.Slice(osVersionResp.OSVersion.Kernels, func(i, j int) bool {
-				return osVersionResp.OSVersion.Kernels[i].Version < osVersionResp.OSVersion.Kernels[j].Version
+			sort.Slice(kernels, func(i, j int) bool {
+				return kernels[i].Version < kernels[j].Version
 			})
 			sort.Slice(tt.software, func(i, j int) bool {
 				return tt.software[i].Version < tt.software[j].Version
 			})
-			for i, k := range osVersionResp.OSVersion.Kernels {
+			for i, k := range kernels {
 				assert.Equal(t, tt.software[i].Version, k.Version)
 				assert.Equal(t, uint(1), k.HostsCount)
 				assert.ElementsMatch(t, tt.vulnsByKernelVersion[k.Version], k.Vulnerabilities)
