@@ -113,9 +113,9 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 		dbOS = append(dbOS, *os)
 	}
 
-	cves, err := ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil)
+	cves, err := ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil, nil)
 	require.NoError(t, err)
-	require.Empty(t, cves)
+	require.Empty(t, cves.Vulnerabilities)
 
 	mockTime := time.Date(2024, time.January, 18, 10, 0, 0, 0, time.UTC)
 
@@ -169,33 +169,33 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// test without CVS meta
-	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil)
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil, nil)
 	require.NoError(t, err)
 
 	expected := []string{"CVE-2021-1234", "CVE-2021-1235"}
-	require.Len(t, cves, 2)
-	for _, cve := range cves {
+	require.Len(t, cves.Vulnerabilities, 2)
+	for _, cve := range cves.Vulnerabilities {
 		require.Contains(t, expected, cve.CVE)
 		require.Greater(t, cve.CreatedAt, time.Now().Add(-time.Hour)) // assert non-zero time
 	}
 
 	// test with CVS meta
-	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true, nil)
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true, nil, nil)
 	require.NoError(t, err)
-	require.Len(t, cves, 2)
+	require.Len(t, cves.Vulnerabilities, 2)
 
-	require.Equal(t, cveMeta[0].CVE, cves[0].CVE)
-	require.Equal(t, &cveMeta[0].CVSSScore, cves[0].CVSSScore)
-	require.Equal(t, &cveMeta[0].EPSSProbability, cves[0].EPSSProbability)
-	require.Equal(t, &cveMeta[0].CISAKnownExploit, cves[0].CISAKnownExploit)
-	require.Equal(t, cveMeta[0].Published, *cves[0].CVEPublished)
-	require.Equal(t, cveMeta[0].Description, **cves[0].Description)
-	require.Equal(t, cveMeta[1].CVE, cves[1].CVE)
-	require.Equal(t, &cveMeta[1].CVSSScore, cves[1].CVSSScore)
-	require.Equal(t, &cveMeta[1].EPSSProbability, cves[1].EPSSProbability)
-	require.Equal(t, &cveMeta[1].CISAKnownExploit, cves[1].CISAKnownExploit)
-	require.Equal(t, cveMeta[1].Published, *cves[1].CVEPublished)
-	require.Equal(t, cveMeta[1].Description, **cves[1].Description)
+	require.Equal(t, cveMeta[0].CVE, cves.Vulnerabilities[0].CVE)
+	require.Equal(t, &cveMeta[0].CVSSScore, cves.Vulnerabilities[0].CVSSScore)
+	require.Equal(t, &cveMeta[0].EPSSProbability, cves.Vulnerabilities[0].EPSSProbability)
+	require.Equal(t, &cveMeta[0].CISAKnownExploit, cves.Vulnerabilities[0].CISAKnownExploit)
+	require.Equal(t, cveMeta[0].Published, *cves.Vulnerabilities[0].CVEPublished)
+	require.Equal(t, cveMeta[0].Description, **cves.Vulnerabilities[0].Description)
+	require.Equal(t, cveMeta[1].CVE, cves.Vulnerabilities[1].CVE)
+	require.Equal(t, &cveMeta[1].CVSSScore, cves.Vulnerabilities[1].CVSSScore)
+	require.Equal(t, &cveMeta[1].EPSSProbability, cves.Vulnerabilities[1].EPSSProbability)
+	require.Equal(t, &cveMeta[1].CISAKnownExploit, cves.Vulnerabilities[1].CISAKnownExploit)
+	require.Equal(t, cveMeta[1].Published, *cves.Vulnerabilities[1].CVEPublished)
+	require.Equal(t, cveMeta[1].Description, **cves.Vulnerabilities[1].Description)
 }
 
 func testInsertOSVulnerabilities(t *testing.T, ds *Datastore) {
@@ -497,30 +497,30 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				expectedSet[v.CVE] = struct{}{}
 			}
 
-			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false, &teamID)
+			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false, &teamID, nil)
 			require.NoError(t, err)
-			for _, g := range cves {
+			for _, g := range cves.Vulnerabilities {
 				_, ok := expectedSet[g.CVE]
 				assert.Truef(t, ok, "got unexpected CVE: %s", g.CVE)
 			}
 
-			assert.Len(t, cves, len(tt.vulns))
+			assert.Len(t, cves.Vulnerabilities, len(tt.vulns))
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false, nil)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false, nil, nil)
 			require.NoError(t, err)
-			require.Empty(t, cves)
+			require.Empty(t, cves.Vulnerabilities)
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true, nil)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true, nil, nil)
 			require.NoError(t, err)
-			require.Len(t, cves, len(tt.vulns))
-			for _, g := range cves {
+			require.Len(t, cves.Vulnerabilities, len(tt.vulns))
+			for _, g := range cves.Vulnerabilities {
 				_, ok := expectedSet[g.CVE]
 				assert.True(t, ok)
 			}
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true, nil)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true, nil, nil)
 			require.NoError(t, err)
-			require.Empty(t, cves)
+			require.Empty(t, cves.Vulnerabilities)
 		})
 	}
 }

@@ -1125,7 +1125,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
-	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (Vulnerabilities, error)
+	// ListVulnsByOsNameAndVersion fetches vulnerabilities for a single OS version. If maxVulnerabilities is provided,
+	// limits the number of vulnerabilities returned while still providing the total count.
+	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (OSVulnerabilitiesWithCount, error)
 	// ListVulnsByMultipleOSVersions is an optimized batch query that fetches vulnerabilities for multiple OS versions
 	// in a single efficient operation. If maxVulnerabilities is provided, limits the number of vulnerabilities returned
 	// per OS version while still providing the total count.

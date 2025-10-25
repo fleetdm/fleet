@@ -801,7 +801,7 @@ type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []f
 
 type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error)
 
-type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error)
+type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (fleet.OSVulnerabilitiesWithCount, error)
 
 type ListVulnsByMultipleOSVersionsFunc func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (map[string]fleet.OSVulnerabilitiesWithCount, error)
 
@@ -6605,11 +6605,11 @@ func (s *DataStore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([
 	return s.ListOSVulnerabilitiesByOSFunc(ctx, osID)
 }
 
-func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
+func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (fleet.OSVulnerabilitiesWithCount, error) {
 	s.mu.Lock()
 	s.ListVulnsByOsNameAndVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS, teamID)
+	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS, teamID, maxVulnerabilities)
 }
 
 func (s *DataStore) ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (map[string]fleet.OSVulnerabilitiesWithCount, error) {

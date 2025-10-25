@@ -433,8 +433,9 @@ type Service interface {
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool, maxVulnerabilities *int) (*OSVersions, int, *PaginationMetadata, error)
-	// OSVersion returns an operating system and associated host counts
-	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*OSVersion, *time.Time, error)
+	// OSVersion returns an operating system and associated host counts. If maxVulnerabilities is provided,
+	// limits the number of vulnerabilities returned while still providing the total count.
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*OSVersion, *time.Time, error)
 
 	// ListHostSoftware lists the software installed or available for install on
 	// the specified host.

@@ -32,10 +32,25 @@ func (ds *Datastore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) (
 	return r, nil
 }
 
-func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
-	r := fleet.Vulnerabilities{}
+func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (fleet.OSVulnerabilitiesWithCount, error) {
+	// Validate maxVulnerabilities parameter
+	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
+		return fleet.OSVulnerabilitiesWithCount{}, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
+	}
 
-	stmt := `
+	var tmID uint
+	var teamFilter string
+	baseArgs := []any{name, version, name, version}
+	if teamID != nil {
+		tmID = *teamID
+		teamFilter = "AND kernel_host_counts.team_id = ?"
+		baseArgs = append(baseArgs, tmID)
+	}
+
+	if !includeCVSS {
+		// Simple query without CVSS metadata
+		baseCTE := `
+		WITH all_vulns AS (
 			SELECT
 				osv.cve,
 				MIN(osv.created_at) created_at
@@ -57,73 +72,215 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				operating_systems.name = ?
 				AND operating_systems.version = ?
 				AND kernel_host_counts.hosts_count > 0
-				%s
+				` + teamFilter + `
 			GROUP BY software_cve.cve
+		)
+		`
 
-			`
+		var stmt string
+		args := make([]any, len(baseArgs))
+		copy(args, baseArgs)
 
-	if includeCVSS {
-		// The group_concat below ensures we only one item is returned per CVE, and the assumption that we have a
-		// consistent resolved-in version across architectures/build numbers currently holds, so we shouldn't see
-		// distinct resolved-in versions under normal operation. We *could* see a different created_at if we see
-		// a new architecture for the same OS version after a vulnerability has been reported for that OS version.
-		stmt = `
+		switch {
+		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
+			// Return only count
+			stmt = baseCTE + `
 			SELECT
-				osv.cve,
-				cm.cvss_score,
-				cm.epss_probability,
-				cm.cisa_known_exploit,
-				cm.published as cve_published,
-				cm.description,
-				osv.resolved_in_version,
-				osv.created_at
+				'' as cve,
+				NOW() as created_at,
+				COUNT(*) as total_count
+			FROM all_vulns`
+
+		case maxVulnerabilities != nil:
+			// Limit with ROW_NUMBER()
+			stmt = baseCTE + `
+			SELECT
+				cve,
+				created_at,
+				total_count
 			FROM (
 				SELECT
-					v.cve,
-					MIN(v.created_at) created_at,
-					GROUP_CONCAT(DISTINCT v.resolved_in_version SEPARATOR ',') resolved_in_version
-				FROM operating_system_vulnerabilities v
-				JOIN operating_systems os ON os.id = v.operating_system_id
-					AND os.name = ? AND os.version = ?
-				GROUP BY v.cve
+					cve,
+					created_at,
+					ROW_NUMBER() OVER (ORDER BY cve) as rn,
+					COUNT(*) OVER () as total_count
+				FROM all_vulns
+			) ranked
+			WHERE rn <= ?`
+			args = append(args, *maxVulnerabilities)
 
-				UNION
+		default:
+			// Return all with count
+			stmt = baseCTE + `
+			SELECT
+				cve,
+				created_at,
+				COUNT(*) OVER () as total_count
+			FROM all_vulns`
+		}
 
-				SELECT DISTINCT
-					software_cve.cve,
-					MIN(software_cve.created_at) created_at,
-					GROUP_CONCAT(DISTINCT software_cve.resolved_in_version SEPARATOR ',') resolved_in_version
-				FROM
-					software_cve
-					JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
-					JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
-				WHERE
-					operating_systems.name = ?
-					AND operating_systems.version = ?
-					AND kernel_host_counts.hosts_count > 0
-					%s
-				GROUP BY software_cve.cve
-			) osv
-			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
-			`
+		type simpleResult struct {
+			CVE        string    `db:"cve"`
+			CreatedAt  time.Time `db:"created_at"`
+			TotalCount int       `db:"total_count"`
+		}
+
+		var results []simpleResult
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
+			return fleet.OSVulnerabilitiesWithCount{}, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+		}
+
+		totalCount := 0
+		vulns := make(fleet.Vulnerabilities, 0)
+		for _, r := range results {
+			totalCount = r.TotalCount
+			if r.CVE != "" { // Skip the count-only row when max=0
+				vulns = append(vulns, fleet.CVE{
+					CVE:       r.CVE,
+					CreatedAt: r.CreatedAt,
+				})
+			}
+		}
+
+		return fleet.OSVulnerabilitiesWithCount{
+			Vulnerabilities: vulns,
+			Count:           totalCount,
+		}, nil
 	}
 
-	var tmID uint
-	var teamFilter string
-	args := []any{name, version, name, version}
-	if teamID != nil {
-		tmID = *teamID
-		teamFilter = "AND kernel_host_counts.team_id = ?"
-		args = append(args, tmID)
+	// Query with CVSS metadata
+	baseCTE := `
+	WITH all_vulns AS (
+		SELECT
+			v.cve,
+			MIN(v.created_at) created_at,
+			GROUP_CONCAT(DISTINCT v.resolved_in_version SEPARATOR ',') resolved_in_version
+		FROM operating_system_vulnerabilities v
+		JOIN operating_systems os ON os.id = v.operating_system_id
+			AND os.name = ? AND os.version = ?
+		GROUP BY v.cve
+
+		UNION
+
+		SELECT DISTINCT
+			software_cve.cve,
+			MIN(software_cve.created_at) created_at,
+			GROUP_CONCAT(DISTINCT software_cve.resolved_in_version SEPARATOR ',') resolved_in_version
+		FROM
+			software_cve
+			JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
+			JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
+		WHERE
+			operating_systems.name = ?
+			AND operating_systems.version = ?
+			AND kernel_host_counts.hosts_count > 0
+			` + teamFilter + `
+		GROUP BY software_cve.cve
+	)
+	`
+
+	var stmt string
+	args := make([]any, len(baseArgs))
+	copy(args, baseArgs)
+
+	switch {
+	case maxVulnerabilities != nil && *maxVulnerabilities == 0:
+		// Return only count
+		stmt = baseCTE + `
+		SELECT
+			'' as cve,
+			NULL as cvss_score,
+			NULL as epss_probability,
+			NULL as cisa_known_exploit,
+			NULL as cve_published,
+			NULL as description,
+			NULL as resolved_in_version,
+			NOW() as created_at,
+			COUNT(*) as total_count
+		FROM all_vulns`
+
+	case maxVulnerabilities != nil:
+		// Limit with ROW_NUMBER()
+		stmt = baseCTE + `
+		SELECT
+			osv.cve,
+			cm.cvss_score,
+			cm.epss_probability,
+			cm.cisa_known_exploit,
+			cm.published as cve_published,
+			cm.description,
+			osv.resolved_in_version,
+			osv.created_at,
+			total_count
+		FROM (
+			SELECT
+				cve,
+				created_at,
+				resolved_in_version,
+				ROW_NUMBER() OVER (ORDER BY cve) as rn,
+				COUNT(*) OVER () as total_count
+			FROM all_vulns
+		) osv
+		LEFT JOIN cve_meta cm ON cm.cve = osv.cve
+		WHERE rn <= ?`
+		args = append(args, *maxVulnerabilities)
+
+	default:
+		// Return all with count
+		stmt = baseCTE + `
+		SELECT
+			osv.cve,
+			cm.cvss_score,
+			cm.epss_probability,
+			cm.cisa_known_exploit,
+			cm.published as cve_published,
+			cm.description,
+			osv.resolved_in_version,
+			osv.created_at,
+			COUNT(*) OVER () as total_count
+		FROM all_vulns osv
+		LEFT JOIN cve_meta cm ON cm.cve = osv.cve`
 	}
 
-	stmt = fmt.Sprintf(stmt, teamFilter)
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	type cvssResult struct {
+		CVE               string     `db:"cve"`
+		CVSSScore         *float64   `db:"cvss_score"`
+		EPSSProbability   *float64   `db:"epss_probability"`
+		CISAKnownExploit  *bool      `db:"cisa_known_exploit"`
+		CVEPublished      *time.Time `db:"cve_published"`
+		Description       *string    `db:"description"`
+		ResolvedInVersion *string    `db:"resolved_in_version"`
+		CreatedAt         time.Time  `db:"created_at"`
+		TotalCount        int        `db:"total_count"`
 	}
 
-	return r, nil
+	var results []cvssResult
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
+		return fleet.OSVulnerabilitiesWithCount{}, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+
+	totalCount := 0
+	vulns := make(fleet.Vulnerabilities, 0)
+	for _, r := range results {
+		totalCount = r.TotalCount
+		if r.CVE != "" { // Skip the count-only row when max=0
+			vulns = append(vulns, fleet.CVE{
+				CVE:               r.CVE,
+				CreatedAt:         r.CreatedAt,
+				CVSSScore:         &r.CVSSScore,
+				EPSSProbability:   &r.EPSSProbability,
+				CISAKnownExploit:  &r.CISAKnownExploit,
+				CVEPublished:      &r.CVEPublished,
+				Description:       &r.Description,
+				ResolvedInVersion: &r.ResolvedInVersion,
+			})
+		}
+	}
+
+	return fleet.OSVulnerabilitiesWithCount{
+		Vulnerabilities: vulns,
+		Count:           totalCount,
+	}, nil
 }
 
 func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {

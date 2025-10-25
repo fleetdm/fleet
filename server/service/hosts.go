@@ -2287,8 +2287,9 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 }
 
 type getOSVersionRequest struct {
-	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	ID                 uint  `url:"id"`
+	TeamID             *uint `query:"team_id,optional"`
+	MaxVulnerabilities *int  `query:"max_vulnerabilities,optional"`
 }
 
 type getOSVersionResponse struct {
@@ -2302,7 +2303,7 @@ func (r getOSVersionResponse) Error() error { return r.Err }
 func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOSVersionRequest)
 
-	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false)
+	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false, req.MaxVulnerabilities)
 	if err != nil {
 		return getOSVersionResponse{Err: err}, nil
 	}
@@ -2313,7 +2314,7 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
 
-func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, nil, err
 	}
@@ -2353,7 +2354,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	}
 
 	if osVersion != nil {
-		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS, teamID, true); err != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS, teamID, true, maxVulnerabilities); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -2362,7 +2363,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 }
 
 // PopulateOSVersionDetails populates the GeneratedCPEs and Vulnerabilities for an OSVersion.
-func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool, teamID *uint, includeKernels bool) error {
+func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool, teamID *uint, includeKernels bool, maxVulnerabilities *int) error {
 	// Populate GeneratedCPEs
 	if osVersion.Platform == "darwin" {
 		osVersion.GeneratedCPEs = []string{
@@ -2372,14 +2373,14 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	}
 
 	// Populate Vulnerabilities
-	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS, teamID)
+	vulnData, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS, teamID, maxVulnerabilities)
 	if err != nil {
 		return err
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
-	osVersion.VulnerabilitiesCount = len(vulns)
-	for _, vuln := range vulns {
+	osVersion.VulnerabilitiesCount = vulnData.Count
+	for _, vuln := range vulnData.Vulnerabilities {
 		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
 	}

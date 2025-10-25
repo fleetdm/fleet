@@ -176,7 +176,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 	t := s.T()
 	ctx := t.Context()
 
-	// Create a host with an OS that has many vulnerabilities
+	// Shared setup - create a host with an OS that has many vulnerabilities
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -210,10 +210,10 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 
 	cpes := make([]fleet.SoftwareCPE, 0, len(software))
-	for _, s := range host.Software {
+	for _, sw := range host.Software {
 		cpes = append(cpes, fleet.SoftwareCPE{
-			SoftwareID: s.ID,
-			CPE:        fmt.Sprintf("cpe:2.3:a:linux:kernel:%s:*:*:*:*:*:*:*", s.Version),
+			SoftwareID: sw.ID,
+			CPE:        fmt.Sprintf("cpe:2.3:a:linux:kernel:%s:*:*:*:*:*:*:*", sw.Version),
 		})
 	}
 	_, err = s.ds.UpsertSoftwareCPEs(ctx, cpes)
@@ -240,48 +240,88 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
 
-	// Test 1: Request without max_vulnerabilities should return all vulnerabilities
+	// Get the OS version ID for entity endpoint tests
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
-	var osVersion *fleet.OSVersion
+	var osVersionID uint
 	for _, os := range osVersionsResp.OSVersions {
 		if os.Version == "22.04.1 LTS" {
-			osVersion = &os
+			osVersionID = os.OSVersionID
 			break
 		}
 	}
-	require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
-	assert.Equal(t, len(vulns), len(osVersion.Vulnerabilities), "Should return all vulnerabilities when max_vulnerabilities is not specified")
-	assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should match total vulnerabilities")
+	require.NotZero(t, osVersionID, "Should find Ubuntu 22.04.1 LTS OS version ID")
 
-	// Test 2: Request with max_vulnerabilities=3 should return only 3 vulnerabilities
-	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=3", nil, http.StatusOK, &osVersionsResp)
-	osVersion = nil
-	for _, os := range osVersionsResp.OSVersions {
-		if os.Version == "22.04.1 LTS" {
-			osVersion = &os
-			break
+	t.Run("aggregate endpoint", func(t *testing.T) {
+		// Test 1: Request without max_vulnerabilities should return all vulnerabilities
+		var resp osVersionsResponse
+		s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &resp)
+		var osVersion *fleet.OSVersion
+		for _, os := range resp.OSVersions {
+			if os.Version == "22.04.1 LTS" {
+				osVersion = &os
+				break
+			}
 		}
-	}
-	require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
-	assert.Equal(t, 3, len(osVersion.Vulnerabilities), "Should return only 3 vulnerabilities when max_vulnerabilities=3")
-	assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+		require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+		assert.Equal(t, len(vulns), len(osVersion.Vulnerabilities), "Should return all vulnerabilities when max_vulnerabilities is not specified")
+		assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should match total vulnerabilities")
 
-	// Test 3: Request with max_vulnerabilities=0 should return empty array with count
-	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=0", nil, http.StatusOK, &osVersionsResp)
-	osVersion = nil
-	for _, os := range osVersionsResp.OSVersions {
-		if os.Version == "22.04.1 LTS" {
-			osVersion = &os
-			break
+		// Test 2: Request with max_vulnerabilities=3 should return only 3 vulnerabilities
+		s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=3", nil, http.StatusOK, &resp)
+		osVersion = nil
+		for _, os := range resp.OSVersions {
+			if os.Version == "22.04.1 LTS" {
+				osVersion = &os
+				break
+			}
 		}
-	}
-	require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
-	assert.Equal(t, 0, len(osVersion.Vulnerabilities), "Should return 0 vulnerabilities when max_vulnerabilities=0")
-	assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+		require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+		assert.Equal(t, 3, len(osVersion.Vulnerabilities), "Should return only 3 vulnerabilities when max_vulnerabilities=3")
+		assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
 
-	// Test 4: Request with max_vulnerabilities=-1 should return error
-	res := s.Do("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=-1", nil, http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+		// Test 3: Request with max_vulnerabilities=0 should return empty array with count
+		s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=0", nil, http.StatusOK, &resp)
+		osVersion = nil
+		for _, os := range resp.OSVersions {
+			if os.Version == "22.04.1 LTS" {
+				osVersion = &os
+				break
+			}
+		}
+		require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+		assert.Equal(t, 0, len(osVersion.Vulnerabilities), "Should return 0 vulnerabilities when max_vulnerabilities=0")
+		assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+		// Test 4: Request with max_vulnerabilities=-1 should return error
+		res := s.Do("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=-1", nil, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+	})
+
+	t.Run("entity endpoint", func(t *testing.T) {
+		// Test 1: Request without max_vulnerabilities should return all vulnerabilities
+		var resp getOSVersionResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersionID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.OSVersion)
+		assert.Equal(t, len(vulns), len(resp.OSVersion.Vulnerabilities), "Should return all vulnerabilities when max_vulnerabilities is not specified")
+		assert.Equal(t, len(vulns), resp.OSVersion.VulnerabilitiesCount, "Count should match total vulnerabilities")
+
+		// Test 2: Request with max_vulnerabilities=3 should return only 3 vulnerabilities
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=3", osVersionID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.OSVersion)
+		assert.Equal(t, 3, len(resp.OSVersion.Vulnerabilities), "Should return only 3 vulnerabilities when max_vulnerabilities=3")
+		assert.Equal(t, len(vulns), resp.OSVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+		// Test 3: Request with max_vulnerabilities=0 should return empty array with count
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=0", osVersionID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.OSVersion)
+		assert.Equal(t, 0, len(resp.OSVersion.Vulnerabilities), "Should return 0 vulnerabilities when max_vulnerabilities=0")
+		assert.Equal(t, len(vulns), resp.OSVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+		// Test 4: Request with max_vulnerabilities=-1 should return error
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=-1", osVersionID), nil, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+	})
 }

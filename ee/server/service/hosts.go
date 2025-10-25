@@ -35,9 +35,9 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	return svc.Service.OSVersions(ctx, teamID, platform, name, version, opts, true, maxVulnerabilities)
 }
 
-func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
 	// reuse OSVersion, but include premium options
-	return svc.Service.OSVersion(ctx, osID, teamID, true)
+	return svc.Service.OSVersion(ctx, osID, teamID, true, maxVulnerabilities)
 }
 
 func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error) {
