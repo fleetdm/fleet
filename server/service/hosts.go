@@ -2226,7 +2226,7 @@ func (svc *Service) OSVersions(
 		}, count, meta, nil
 	}
 
-	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID)
+	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID, nil)
 	if err != nil {
 		return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions (paged)")
 	}
@@ -2244,14 +2244,13 @@ func (svc *Service) OSVersions(
 
 		osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null
 		key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
-		if vulns, ok := vulnsMap[key]; ok {
-			for _, v := range vulns {
+		if vulnData, ok := vulnsMap[key]; ok {
+			osV.VulnerabilitiesCount = vulnData.Count
+			for _, v := range vulnData.Vulnerabilities {
 				v.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", v.CVE)
 				osV.Vulnerabilities = append(osV.Vulnerabilities, v)
 			}
 		}
-
-		osV.Kernels = make([]*fleet.Kernel, 0) // avoid null
 	}
 
 	// Return only the page, but with total count

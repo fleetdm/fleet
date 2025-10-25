@@ -41,7 +41,7 @@ func testListVulnsByMultipleOSVersionsBatchQuery(t *testing.T, ds *Datastore) {
 	// Create test OS versions
 	osVersions := setupTestOSVersionsWithVulns(t, ds, ctx)
 
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, vulnsMap)
 
@@ -50,15 +50,16 @@ func testListVulnsByMultipleOSVersionsBatchQuery(t *testing.T, ds *Datastore) {
 
 	for i, osV := range osVersions {
 		key := osV.NameOnly + "-" + osV.Version
-		vulns, ok := vulnsMap[key]
+		vulnData, ok := vulnsMap[key]
 		assert.True(t, ok, "Should have vulnerabilities for %s", key)
-		assert.Len(t, vulns, 2, "Should have 2 vulnerabilities for %s", key)
+		assert.Len(t, vulnData.Vulnerabilities, 2, "Should have 2 vulnerabilities for %s", key)
+		assert.Equal(t, 2, vulnData.Count, "Count should match vulnerabilities length")
 
 		// Check CVE values
 		expectedCVE1 := "CVE-2024-000" + string(rune('1'+i))
 		expectedCVE2 := "CVE-2024-100" + string(rune('1'+i))
 
-		cves := []string{vulns[0].CVE, vulns[1].CVE}
+		cves := []string{vulnData.Vulnerabilities[0].CVE, vulnData.Vulnerabilities[1].CVE}
 		assert.Contains(t, cves, expectedCVE1)
 		assert.Contains(t, cves, expectedCVE2)
 	}
@@ -67,7 +68,7 @@ func testListVulnsByMultipleOSVersionsBatchQuery(t *testing.T, ds *Datastore) {
 func testListVulnsByMultipleOSVersionsEmptyInput(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, []fleet.OSVersion{}, false, nil)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, []fleet.OSVersion{}, false, nil, nil)
 	require.NoError(t, err)
 	assert.Empty(t, vulnsMap)
 }
@@ -86,16 +87,16 @@ func testListVulnsByMultipleOSVersionsWithCVSS(t *testing.T, ds *Datastore) {
 	`)
 	require.NoError(t, err)
 
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions[:1], true, nil)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions[:1], true, nil, nil)
 	require.NoError(t, err)
 
 	key := osVersions[0].NameOnly + "-" + osVersions[0].Version
-	vulns := vulnsMap[key]
-	require.NotEmpty(t, vulns)
+	vulnData := vulnsMap[key]
+	require.NotEmpty(t, vulnData.Vulnerabilities)
 
 	// Find the vulnerability with metadata
 	foundMetadata := false
-	for _, vuln := range vulns {
+	for _, vuln := range vulnData.Vulnerabilities {
 		if vuln.CVE == "CVE-2024-0001" {
 			foundMetadata = true
 			assert.NotNil(t, vuln.CVSSScore)
@@ -121,14 +122,14 @@ func testListVulnsByMultipleOSVersionsWithTeamFilter(t *testing.T, ds *Datastore
 	teamID := uint(1)
 
 	// Test with team filter
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, []fleet.OSVersion{linuxOS}, false, &teamID)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, []fleet.OSVersion{linuxOS}, false, &teamID, nil)
 	require.NoError(t, err)
 
 	key := linuxOS.NameOnly + "-" + linuxOS.Version
-	vulns := vulnsMap[key]
+	vulnData := vulnsMap[key]
 
 	// Should have kernel vulnerabilities for the team
-	assert.GreaterOrEqual(t, len(vulns), 1)
+	assert.GreaterOrEqual(t, len(vulnData.Vulnerabilities), 1)
 }
 
 func testListVulnsByMultipleOSVersionsNonExistentOS(t *testing.T, ds *Datastore) {
@@ -144,7 +145,7 @@ func testListVulnsByMultipleOSVersionsNonExistentOS(t *testing.T, ds *Datastore)
 		},
 	}
 
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, nonExistentOS, false, nil)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, nonExistentOS, false, nil, nil)
 	require.NoError(t, err)
 
 	// Should return empty map for non-existent OS
@@ -209,7 +210,7 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 	}
 
 	// Test batch query with mixed platforms
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil, nil)
 	require.NoError(t, err)
 
 	// Should get results for all platforms
@@ -217,16 +218,16 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 
 	for i, osV := range osVersions {
 		key := osV.NameOnly + "-" + osV.Version
-		vulns, ok := vulnsMap[key]
+		vulnData, ok := vulnsMap[key]
 		assert.True(t, ok, "Should have key in map for %s", key)
 
 		// All platforms should have vulnerabilities
-		assert.GreaterOrEqual(t, len(vulns), 1, "Platform %s should have at least 1 vulnerability", osV.Platform)
+		assert.GreaterOrEqual(t, len(vulnData.Vulnerabilities), 1, "Platform %s should have at least 1 vulnerability", osV.Platform)
 
 		if osV.Platform == "linux" {
 			// Linux should have kernel vulnerability
 			foundKernelCVE := false
-			for _, vuln := range vulns {
+			for _, vuln := range vulnData.Vulnerabilities {
 				if vuln.CVE == "CVE-2024-KERNEL-001" {
 					foundKernelCVE = true
 					break
@@ -235,8 +236,8 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 			assert.True(t, foundKernelCVE, "Linux should have kernel vulnerability CVE-2024-KERNEL-001")
 		} else {
 			// Non-Linux should have OS vulnerability
-			assert.Len(t, vulns, 1, "Non-Linux platforms should have 1 vulnerability")
-			assert.Equal(t, fmt.Sprintf("CVE-2024-PLAT-%d", i), vulns[0].CVE)
+			assert.Len(t, vulnData.Vulnerabilities, 1, "Non-Linux platforms should have 1 vulnerability")
+			assert.Equal(t, fmt.Sprintf("CVE-2024-PLAT-%d", i), vulnData.Vulnerabilities[0].CVE)
 		}
 	}
 }
@@ -488,7 +489,7 @@ func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) 
 	}
 
 	// Now query for vulnerabilities
-	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil)
+	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, vulnsMap)
 
@@ -498,7 +499,7 @@ func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) 
 	// Verify deduplication: each OS version should have the shared CVEs plus unique ones
 	for idx, osV := range osVersions {
 		key := osV.NameOnly + "-" + osV.Version
-		vulns, ok := vulnsMap[key]
+		vulnData, ok := vulnsMap[key]
 		assert.True(t, ok, "Should have vulnerabilities for %s", key)
 
 		// Count expected CVEs
@@ -513,11 +514,11 @@ func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) 
 		expectedUniqueCVEs := numKernels                // One unique CVE per kernel
 		expectedTotalCVEs := 2 + 1 + expectedUniqueCVEs // 2 fully shared + 1 k0-k1 shared + unique
 
-		assert.Len(t, vulns, expectedTotalCVEs, "OS version %s should have %d CVEs", key, expectedTotalCVEs)
+		assert.Len(t, vulnData.Vulnerabilities, expectedTotalCVEs, "OS version %s should have %d CVEs", key, expectedTotalCVEs)
 
 		// Verify the shared CVEs are present
 		cveSet := make(map[string]bool)
-		for _, vuln := range vulns {
+		for _, vuln := range vulnData.Vulnerabilities {
 			cveSet[vuln.CVE] = true
 		}
 

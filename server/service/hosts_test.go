@@ -1302,8 +1302,8 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	}
 
 	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
-		teamID *uint,
-	) (map[string]fleet.Vulnerabilities, error) {
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
 		return nil, nil
 	}
 
@@ -1350,8 +1350,8 @@ func TestOSVersionsListOptions(t *testing.T) {
 	}
 
 	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
-		teamID *uint,
-	) (map[string]fleet.Vulnerabilities, error) {
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
 		return nil, nil
 	}
 
@@ -1438,8 +1438,8 @@ func TestOSVersionsDefaultPagination(t *testing.T) {
 	}
 
 	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
-		teamID *uint,
-	) (map[string]fleet.Vulnerabilities, error) {
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
 		return nil, nil
 	}
 
