@@ -11,7 +11,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -168,4 +170,118 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			}
 		})
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a host with an OS that has many vulnerabilities
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "1"),
+		NodeKey:         ptr.String(t.Name() + "1"),
+		UUID:            uuid.NewString(),
+		Hostname:        t.Name() + "foo.local",
+		Platform:        "ubuntu",
+	})
+	require.NoError(t, err)
+
+	// Set the OS version with a kernel version
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "22.04.1 LTS",
+		Platform:      "ubuntu",
+		Arch:          "x86_64",
+		KernelVersion: "5.15.0-1001",
+	}))
+
+	// Create kernel software with many vulnerabilities
+	software := []fleet.Software{
+		{Name: "linux-image-5.15.0-1001-generic", Version: "5.15.0-1001", Source: "deb_packages", IsKernel: true},
+		{Name: "linux-image-5.15.0-1002-generic", Version: "5.15.0-1002", Source: "deb_packages", IsKernel: true},
+	}
+
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+
+	cpes := make([]fleet.SoftwareCPE, 0, len(software))
+	for _, s := range host.Software {
+		cpes = append(cpes, fleet.SoftwareCPE{
+			SoftwareID: s.ID,
+			CPE:        fmt.Sprintf("cpe:2.3:a:linux:kernel:%s:*:*:*:*:*:*:*", s.Version),
+		})
+	}
+	_, err = s.ds.UpsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
+
+	// Reload software
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+
+	// Insert multiple vulnerabilities for each software
+	vulns := []string{"CVE-2024-0001", "CVE-2024-0002", "CVE-2024-0003", "CVE-2024-0004", "CVE-2024-0005", "CVE-2024-0006", "CVE-2024-0007", "CVE-2024-0008"}
+	for _, sw := range host.Software {
+		for _, cve := range vulns {
+			_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+				SoftwareID: sw.ID,
+				CVE:        cve,
+			}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+	}
+
+	// Update OS versions table
+	require.NoError(t, s.ds.UpdateOSVersions(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
+
+	// Test 1: Request without max_vulnerabilities should return all vulnerabilities
+	var osVersionsResp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
+	var osVersion *fleet.OSVersion
+	for _, os := range osVersionsResp.OSVersions {
+		if os.Version == "22.04.1 LTS" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+	assert.Equal(t, len(vulns), len(osVersion.Vulnerabilities), "Should return all vulnerabilities when max_vulnerabilities is not specified")
+	assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should match total vulnerabilities")
+
+	// Test 2: Request with max_vulnerabilities=3 should return only 3 vulnerabilities
+	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=3", nil, http.StatusOK, &osVersionsResp)
+	osVersion = nil
+	for _, os := range osVersionsResp.OSVersions {
+		if os.Version == "22.04.1 LTS" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+	assert.Equal(t, 3, len(osVersion.Vulnerabilities), "Should return only 3 vulnerabilities when max_vulnerabilities=3")
+	assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+	// Test 3: Request with max_vulnerabilities=0 should return empty array with count
+	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=0", nil, http.StatusOK, &osVersionsResp)
+	osVersion = nil
+	for _, os := range osVersionsResp.OSVersions {
+		if os.Version == "22.04.1 LTS" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Ubuntu 22.04.1 LTS")
+	assert.Equal(t, 0, len(osVersion.Vulnerabilities), "Should return 0 vulnerabilities when max_vulnerabilities=0")
+	assert.Equal(t, len(vulns), osVersion.VulnerabilitiesCount, "Count should still show total vulnerabilities")
+
+	// Test 4: Request with max_vulnerabilities=-1 should return error
+	res := s.Do("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=-1", nil, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
 }

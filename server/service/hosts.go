@@ -2101,10 +2101,11 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 
 type osVersionsRequest struct {
 	fleet.ListOptions
-	TeamID   *uint   `query:"team_id,optional"`
-	Platform *string `query:"platform,optional"`
-	Name     *string `query:"os_name,optional"`
-	Version  *string `query:"os_version,optional"`
+	TeamID             *uint   `query:"team_id,optional"`
+	Platform           *string `query:"platform,optional"`
+	Name               *string `query:"os_name,optional"`
+	Version            *string `query:"os_version,optional"`
+	MaxVulnerabilities *int    `query:"max_vulnerabilities,optional"`
 }
 
 type osVersionsResponse struct {
@@ -2120,7 +2121,7 @@ func (r osVersionsResponse) Error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false)
+	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false, req.MaxVulnerabilities)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -2141,6 +2142,7 @@ func (svc *Service) OSVersions(
 	version *string,
 	opts fleet.ListOptions,
 	includeCVSS bool,
+	maxVulnerabilities *int,
 ) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
@@ -2226,7 +2228,7 @@ func (svc *Service) OSVersions(
 		}, count, meta, nil
 	}
 
-	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID, nil)
+	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID, maxVulnerabilities)
 	if err != nil {
 		return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions (paged)")
 	}
