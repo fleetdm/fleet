@@ -75,7 +75,7 @@ The first CSE to sign on for the day is responsible for triaging new support iss
 6. Look at all customer meetings for the day to check that they can be attended by a CSE/CSA and that there are no scheduling conflicts.
 7. Update the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel that morning triage is complete. Report any escalations or conflicts with customer meetings to the [Manager of Customer Success and Solutions Architecture](https://fleetdm.com/handbook/customer-success#team).
 
-Other CSEs that sign on after morning triage has been completed should check the Morning Triage thread in the #help-customers Slack channel to learn what items are still outstanding.
+Other CSEs that sign on after morning triage has been completed should check the morning triage thread in the #help-customers Slack channel to learn what items are still outstanding.
 
 
 ### Invite new customer DRI
