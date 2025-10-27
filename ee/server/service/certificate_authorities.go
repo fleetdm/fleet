@@ -870,7 +870,7 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 		// if existing CA isn't in the incoming list, we should delete it
 		if _, ok := incomingByName[existing.Name]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
-				Type:     string(fleet.CATypeHydrant),
+				Type:     string(fleet.CATypeCustomESTProxy),
 				Name:     &existing.Name,
 				URL:      &existing.URL,
 				Username: &existing.Username,
@@ -890,7 +890,7 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 		if _, ok := existingByName[name]; ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
-				Type:     string(fleet.CATypeHydrant),
+				Type:     string(fleet.CATypeCustomESTProxy),
 				Name:     &incoming.Name,
 				URL:      &incoming.URL,
 				Username: &incoming.Username,
@@ -899,7 +899,7 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 		} else {
 			// add new
 			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
-				Type:     string(fleet.CATypeHydrant),
+				Type:     string(fleet.CATypeCustomESTProxy),
 				Name:     &incoming.Name,
 				URL:      &incoming.URL,
 				Username: &incoming.Username,

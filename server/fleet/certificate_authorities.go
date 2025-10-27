@@ -502,6 +502,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 	grouped := &GroupedCertificateAuthorities{
 		DigiCert:        []DigiCertCA{},
 		Hydrant:         []HydrantCA{},
+		EST:             []ESTProxyCA{},
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
@@ -540,6 +541,14 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				URL:          *ca.URL,
 				ClientID:     *ca.ClientID,
 				ClientSecret: *ca.ClientSecret,
+			})
+		case string(CATypeCustomESTProxy):
+			grouped.EST = append(grouped.EST, ESTProxyCA{
+				ID:       ca.ID,
+				Name:     *ca.Name,
+				URL:      *ca.URL,
+				Username: *ca.Username,
+				Password: *ca.Password,
 			})
 		case string(CATypeCustomSCEPProxy):
 			grouped.CustomScepProxy = append(grouped.CustomScepProxy, CustomSCEPProxyCA{

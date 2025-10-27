@@ -1528,6 +1528,22 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 		assert.Empty(t, gotCAs.Hydrant)
 	}
 
+	if len(expectedCAs.EST) != 0 {
+		assert.Len(t, gotCAs.EST, len(expectedCAs.EST))
+		wantByName := make(map[string]fleet.ESTProxyCA)
+		gotByName := make(map[string]fleet.ESTProxyCA)
+		for _, ca := range expectedCAs.EST {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.EST {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.EST)
+	}
+
 	if expectedCAs.NDESSCEP != nil {
 		assert.NotNil(t, gotCAs.NDESSCEP)
 		gotCAs.NDESSCEP.ID = 0 // ignore ID when comparing
