@@ -7,6 +7,8 @@ import Spinner from "components/Spinner/Spinner";
 import SSOError from "components/MDM/SSOError";
 import Button from "components/buttons/Button";
 
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+
 const baseClass = "mdm-apple-sso-callback-page";
 
 const RedirectTo = ({ url }: { url: string }) => {
@@ -57,10 +59,16 @@ const EnrollmentGate = ({
     );
   } else if (initiator === "setup_experience") {
     return (
-      <div className={`${baseClass}__setup-experience-message`}>
-        <h3>Enrollment in progress</h3>
-        <p>You can close this window and continue the setup on your device.</p>
-      </div>
+      <AuthenticationFormWrapper header="Authentication complete">
+        <div className={`${baseClass} form`}>
+          <p>
+            Thank you for confirming your identity.
+            <br />
+            <br />
+            You may now close this window. Setup will continue in a few moments.
+          </p>
+        </div>
+      </AuthenticationFormWrapper>
     );
   }
 
