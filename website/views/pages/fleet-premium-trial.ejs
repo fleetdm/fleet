@@ -1,92 +1,105 @@
 <div id="fleet-premium-trial" v-cloak>
-  <modal @close="closeModalAndRedirect()" v-if="trialType === 'local trial'">
-    <div purpose="modal-logo">
-      <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
-    </div>
-    <div purpose="content" v-if="!trialIsExpired">
-      <div>
-        <h3>Here’s your trial license key</h3>
-        <p class="mb-0">
-          This key unlocks Fleet Premium for 30 days starting now.<br>
-          Bookmark this URL. You’ll need this key after you deploy Fleet.
-        </p>
-      </div>
-      <div purpose="license-key">
-        <div purpose="trial-key-fade"></div>
-        <div purpose="license-key-container">
-          <code><span>{{me.fleetPremiumTrialLicenseKey}}</span></code>
+
+
+
+
+  <div purpose="page-container" class="container d-flex px-0">
+    <div purpose="modal" v-if="trialType === 'local trial'">
+      <div purpose="modal-content">
+      <div purpose="logo-row">
+        <div purpose="modal-logo">
+          <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
         </div>
-        <a purpose="command-copy-button" @click="clickCopyLicenseKey()"></a>
+        <div purpose="close-button">
+          <button type="button" class="position-absolute" data-dismiss="modal" aria-label="Close" purpose="modal-close-button"  @click="closeModalAndRedirect()">&times;</button>
+        </div>
       </div>
-      <div purpose="modal-button-links">
-        <a purpose="modal-button" href="/docs/deploy" no-underline>
-          <img alt="Premium support" src="/images/icon-deploy-fleet-64x64@2x.png">
-          <h4>Deploy Fleet</h4>
-          <p>Learn how to deploy Fleet.</p>
-        </a>
-        <a purpose="modal-button" href="/new-license" no-underline>
-          <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
-          <h4>Buy a license</h4>
-          <p>Purchase a Fleet Premium license.</p>
-        </a>
-      </div>
-      <p class="mb-0">Got questions? <a href="/contact">Get in touch</a></p>
-    </div>
-    <div purpose="content" v-else>
-      <div>
-        <h3>How was it?</h3>
-        <p v-if="trialExpiredAt !== 0">Your 30-day trial expired <js-timestamp :at="trialExpiredAt" format="billing"></js-timestamp>. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
-        <p v-else>Your 30-day trial expired. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
-      </div>
-      <div purpose="modal-button-links">
-        <a purpose="modal-button" href="/new-license" no-underline>
-          <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
-          <h4>Buy a license</h4>
-          <p>Purchase a Fleet Premium license.</p>
-        </a>
-      </div>
-      <p class="mb-0">Got questions? <a href="/contact">Get in touch</a></p>
-
-    </div>
-  </modal>
-  <!-- <modal @close="closeModalAndRedirect()" v-else> -->
-  <modal @close="closeModalAndRedirect()" v-if="trialType === 'render trial'">
-
-
-
-    <div purpose="modal-logo">
-      <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
-    </div>
-    <div purpose="content">
-      <div>
-        <h3>How was it?</h3>
-        <p>
-          Your 30-day trial has finished.<br>
-          If you liked Fleet, here’s how you can keep using it:
-        </p>
-      </div>
-      <div purpose="modal-alt-button-links">
-        <a purpose="modal-button" href="/contact" no-underline>
-          <img alt="Premium support" src="/images/icon-premium-support-64x64@2x.png">
-          <h4>Have Fleet host it</h4>
-          <p>Fleet Premium, fully managed.</p>
-        </a>
-        <a purpose="modal-button" href="/new-license" no-underline>
-          <img alt="Purchase a Fleet Premium license" src="/images/icon-deploy-fleet-64x64@2x.png">
-          <h4>Deploy yourself</h4>
-          <p>Use our guides to self-host Fleet.</p>
-        </a>
-      </div>
-      <div class="d-flex flex-row align-items-center">
-        <div purpose="license-icon"><img alt="Purchase a license" src="/images/start-purchase-license-64x64@2x.png"></div>
+      <div purpose="content" v-if="!trialIsExpired">
         <div>
-          <p class="mb-0">For self-hosted Fleet Premium, <a href="/new-license">buy a license</a>.</p>
+          <h3>Here’s your trial license key</h3>
+          <p class="mb-0">
+            This key unlocks Fleet Premium for 30 days starting now.<br>
+            Bookmark this URL. You’ll need this key after you deploy Fleet.
+          </p>
         </div>
+        <div purpose="license-key">
+          <div purpose="trial-key-fade"></div>
+          <div purpose="license-key-container">
+            <code><span>{{me.fleetPremiumTrialLicenseKey}}</span></code>
+          </div>
+          <a purpose="command-copy-button" @click="clickCopyLicenseKey()"></a>
+        </div>
+        <div purpose="modal-button-links">
+          <a purpose="modal-button" href="/docs/deploy" no-underline>
+            <img alt="Premium support" src="/images/icon-deploy-fleet-64x64@2x.png">
+            <h4>Deploy Fleet</h4>
+            <p>Learn how to deploy Fleet.</p>
+          </a>
+          <a purpose="modal-button" href="/new-license" no-underline>
+            <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
+            <h4>Buy a license</h4>
+            <p>Purchase a Fleet Premium license.</p>
+          </a>
+        </div>
+        <p class="mb-0">Got questions? <a href="/contact">Get in touch</a></p>
       </div>
-      <a purpose="contact-button" href="/contact" class="btn btn-primary">Get in touch</a>
+      <div purpose="content" v-else>
+        <div>
+          <h3>How was it?</h3>
+          <p v-if="trialExpiredAt !== 0">Your 30-day trial expired <js-timestamp :at="trialExpiredAt" format="billing"></js-timestamp>. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
+          <p v-else>Your 30-day trial expired. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
+        </div>
+        <div purpose="modal-button-links">
+          <a purpose="modal-button" href="/new-license" no-underline>
+            <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
+            <h4>Buy a license</h4>
+            <p>Purchase a Fleet Premium license.</p>
+          </a>
+        </div>
+        <p class="mb-0">Got questions? <a href="/contact">Get in touch</a></p>
+      </div>
+      </div>
     </div>
-  </modal>
-
-
+    <div purpose="modal" v-if="trialType === 'render trial'">
+      <div purpose="modal-content">
+        <div purpose="logo-row">
+          <div purpose="modal-logo">
+            <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
+          </div>
+          <div purpose="close-button">
+            <button type="button" class="position-absolute" data-dismiss="modal" aria-label="Close" purpose="modal-close-button"  @click="closeModalAndRedirect()">&times;</button>
+          </div>
+        </div>
+      <div purpose="content">
+        <div>
+          <h3>How was it?</h3>
+          <p>
+            Your 30-day trial has finished.<br>
+            If you liked Fleet, here’s how you can keep using it:
+          </p>
+        </div>
+        <div purpose="modal-alt-button-links">
+          <a purpose="modal-button" href="/contact" no-underline>
+            <img alt="Premium support" src="/images/icon-premium-support-64x64@2x.png">
+            <h4>Have Fleet host it</h4>
+            <p>Fleet Premium, fully managed.</p>
+          </a>
+          <a purpose="modal-button" href="/new-license" no-underline>
+            <img alt="Purchase a Fleet Premium license" src="/images/icon-deploy-fleet-64x64@2x.png">
+            <h4>Deploy yourself</h4>
+            <p>Use our guides to self-host Fleet.</p>
+          </a>
+        </div>
+        <div class="d-flex flex-row align-items-center">
+          <div purpose="license-icon"><img alt="Purchase a license" src="/images/start-purchase-license-64x64@2x.png"></div>
+          <div>
+            <p class="mb-0">For self-hosted Fleet Premium, <a href="/new-license">buy a license</a>.</p>
+          </div>
+        </div>
+        <a purpose="contact-button" href="/contact" class="btn btn-primary">Get in touch</a>
+      </div>
+    </div>
+    </div>
+  </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

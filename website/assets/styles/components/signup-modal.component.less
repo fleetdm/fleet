@@ -135,7 +135,7 @@
      position: relative;
      max-width: 600px;
      [purpose='modal-content'] {
-       margin-top: 100px;
+       margin-top: 0px;
        max-width: 600px;
        border-radius: 16px;
        padding: var(--spacing-6, 48px);
@@ -175,7 +175,6 @@
      border: 1px solid var(--border-border-primary, #E2E4EA);
      background: var(--surface-surface-primary, #FFF);
      box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
-     border-radius: 16px;
      background-clip: border-box;
      padding-top: 40px;
      padding-bottom: 40px;
@@ -226,20 +225,21 @@
  }
 
 
-// Modal backdrop styles are exposed globally here because this gets appended to the <body>
-.modal-backdrop {
-  background-color: #192147;
-  max-width: 100vw;
-  max-height: 100vh;
-  &.show {
-    opacity: 0.25;
-  }
-}
+// // Modal backdrop styles are exposed globally here because this gets appended to the <body>
+// .modal-backdrop {
+//   background-color: #192147;
+//   max-width: 100vw;
+//   max-height: 100vh;
+//   &.show {
+//     opacity: 0.25;
+//   }
+// }
 @media (max-width: 991px) {
-  .modal-backdrop {
+  .modal-backdrop.signup {
     background-color: #FFF;
     &.show {
       opacity: 1;
+      transition: none;
     }
   }
 

@@ -52,7 +52,7 @@ parasails.registerComponent('signupModal', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <transition name="modal" v-on:leave="leave" v-bind:css="false">
-    <div class="modal fade" id="signupmodal" tabindex="-1" role="dialog" data-dismiss="modal" data-target="#signupmodal"  @click="$emit('close')">
+    <div class="modal" id="signupmodal" tabindex="-1" role="dialog" data-dismiss="modal" data-target="#signupmodal"  @click="$emit('close')">
       <div class="petticoat"></div>
       <div class="modal-dialog custom-width position-relative" role="document" purpose="modal-dialog" >
         <div class="modal-content" purpose="modal-content" >
@@ -105,7 +105,7 @@ parasails.registerComponent('signupModal', {
               </div>
             </div>
             <cloud-error v-if="cloudError==='emailAlreadyInUse'">
-              <p>This email is already linked to a Fleet account.<br> Please <a href="/login">sign in</a> with your email and password.</p>
+              <p>This email is already linked to a Fleet account.<br> Please <a @click="formToDisplay = 'login'">sign in</a> with your email and password.</p>
             </cloud-error>
             <cloud-error v-if="cloudError === 'invalidEmailDomain'">
               <p>
@@ -134,7 +134,7 @@ parasails.registerComponent('signupModal', {
               <input tabindex="2" type="password" class="form-control" :class="[loginFormErrors.password ? 'is-invalid' : '']" v-model.trim="loginFormData.password" autocomplete="current-password">
               <div class="invalid-feedback" v-if="loginFormErrors.password">Please enter your password.</div>
             </div>
-            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a href="/customers/register">here</a>.</cloud-error>
+            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a @click="formToDisplay = 'signup'">here</a>.</cloud-error>
             <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
             <cloud-error v-else-if="cloudError"></cloud-error>
             <div class="pb-3">
@@ -184,15 +184,14 @@ parasails.registerComponent('signupModal', {
     // This is so we know when the entry animation has completed, allows
     // us to do cool things like auto-focus the first input in a form modal.
     $(this.$el).on('shown.bs.modal', ()=>{
-
+      $('.modal-backdrop.show').addClass('signup');
       // Focus our "focus-first" field, if relevant.
       // (but not on mobile, because it can get weird)
       if(typeof bowser !== 'undefined' && !bowser.mobile && this.$find('[focus-first]').length > 0) {
         this.$focus('[focus-first]');
       }
-
       this.$emit('opened');
-      $(this.$el).off('shown.bs.modal');
+      // $(this.$el).off('shown.bs.modal');
     });//ƒ
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
