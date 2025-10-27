@@ -648,7 +648,7 @@ func (e OrbitError) StatusCode() int {
 
 func NewOrbitIDPAuthRequiredError() *OrbitError {
 	return &OrbitError{
-		Message: "Your organization requires authentication before device enrollment",
+		Message: "END_USER_AUTH_REQUIRED",
 		code:    http.StatusUnauthorized,
 	}
 }
