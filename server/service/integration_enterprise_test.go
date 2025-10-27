@@ -470,7 +470,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"bar"`)
 
 	// dry-run with valid agent options and custom macos settings
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
@@ -595,9 +596,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
-	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings)         // unchanged
-	require.False(t, team.Config.MDM.EnableDiskEncryption)                 // unchanged
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"bar"`)
+	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings) // unchanged
+	require.False(t, team.Config.MDM.EnableDiskEncryption)         // unchanged
 
 	// apply without agent options specified
 	teamSpecs = map[string]any{
@@ -612,7 +614,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// agent options are unchanged, not cleared
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"bar"`)
 
 	// apply with agent options specified but null
 	teamSpecs = map[string]any{

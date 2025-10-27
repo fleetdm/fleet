@@ -784,7 +784,8 @@ type MasterStatus struct {
 
 func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (MasterStatus, error) {
 	stmt := "SHOW BINARY LOG STATUS"
-	if strings.HasPrefix(mysqlVersion, "8.0") {
+	// MySQL 8.0 and MariaDB use "SHOW MASTER STATUS"
+	if strings.HasPrefix(mysqlVersion, "8.0") || strings.Contains(mysqlVersion, "MariaDB") {
 		stmt = "SHOW MASTER STATUS"
 	}
 
