@@ -3566,7 +3566,7 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's token. For macOS, Windows, and Linux, this is random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
+| token | string | path | The device's token. For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 
 ##### Example
 
