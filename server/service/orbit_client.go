@@ -561,11 +561,12 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
 		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
 		retry.WithErrorFilter(func(err error) (errorOutcome retry.ErrorOutcome) {
+			log.Info().Err(err).Msg("orbit enroll attempt failed")
 			switch {
 			case errors.Is(err, notFoundErr{}):
 				// Do not retry if the endpoint does not exist.
 				return retry.ErrorOutcomeDoNotRetry
-			case errors.Is(err, ErrUnauthenticated):
+			case errors.Is(err, ErrEndUserAuthRequired):
 				// If we get an authentication error, then the user
 				// needs to authenticate with the identity provider.
 				// Open a browser window to the sign-on page and
