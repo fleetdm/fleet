@@ -18,10 +18,13 @@ module.exports = {
     if(!sails.config.custom.renderApiToken){
       throw new Error(`Missing config value! Please set sails.config.custom.renderApiToken and try running this script again.`);
     }
+    if(!sails.config.custom.renderInstancePoolSize){
+      throw new Error(`Missing config value! Please set sails.config.custom.renderApiToken and try running this script again.`);
+    }
 
 
 
-    let RENDER_POV_POOL_SIZE = sails.config.custom.renderInstancePoolSize ? sails.config.custom.renderInstancePoolSize : 5;
+    let RENDER_POV_POOL_SIZE = sails.config.custom.renderInstancePoolSize;
     // Create an empty object to store caught errors. We don't want this script to stop running if there is an error with a single Vanta integration, so instead, we'll store any errors that occur and bail early for that connection if any occur, and we'll log them individually before the script is done.
     let errorReportById = {};
 
@@ -41,11 +44,11 @@ module.exports = {
       // Note: We're using this approach so we can simultaneously generate the slugs for each new record that we need to create.
       let newRenderPovRecordsToCreate = Array.from({ length: numberOfRenderPovToCreate }, ()=>{return {};});
       sails.log(`Generating slugs and creating database records for ${newRenderPovRecordsToCreate.length} new database records`);
-      console.time(`Creating ${newRenderPovRecordsToCreate.length} new records(s)`)//Ω
+
       await sails.helpers.flow.simultaneouslyForEach(newRenderPovRecordsToCreate, async()=>{
         await sails.helpers.flow.build(async ()=>{
           let slugForThisInstance = await sails.helpers.ai.prompt.with({
-            prompt: 'Return a unique, lowercase, two-word slug joined by a hyphen (e.g., "bumbling-bumblesaur"). Return only the slug as JSON string',
+            prompt: 'You are a creative developer.  Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur").  If appropriate, use imagery from nature, such as swans, or from a glass city in the clouds.  Return only the slug as JSON string.',
             baseModel:'gpt-5-nano-2025-08-07',
             expectJson: true,
           }).retry();
@@ -57,9 +60,9 @@ module.exports = {
         }).retry('E_UNIQUE');// Retry if the generated slug is already being used by a DB record.
       });// End of simultaneouslyForEach(newRenderPovRecordsToCreate)
       sails.log(`Records created!`);
-      console.timeEnd(`Creating ${newRenderPovRecordsToCreate.length} new records(s)`)//Ω
+
       // Retrieve the records we just created and loop through them simutaniously.
-      let renderInstancesToCreate = await RenderProofOfValue.find({status: 'record-created'});
+      let renderInstancesToCreate = await RenderProofOfValue.find({status: 'record created'});
       sails.log(renderInstancesToCreate);
 
 
@@ -68,10 +71,10 @@ module.exports = {
       //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣ ╚═╗
       //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝╚═╝
       // Simultaneously create Render services for new database records.
-      console.time(`Provisioning services for ${renderInstancesToCreate.length} POV(s)`)//Ω
+
       await sails.helpers.flow.simultaneouslyForEach(renderInstancesToCreate, async(povRecord)=>{
-        console.time(`Provisioning services for ${povRecord.slug}`)//Ω
-        let instaceIdAsString = String(povRecord.id);
+
+        let instanceIdAsString = String(povRecord.id);
         // Create a new project in render for this Fleet instance.
         let createProjectResponse = await sails.helpers.http.post.with({
           url: 'https://api.render.com/v1/projects',
@@ -87,7 +90,7 @@ module.exports = {
             authorization: `Bearer ${sails.config.custom.renderApiToken}`
           },
         }).tolerate((err)=>{
-          errorReportById[instaceIdAsString] = new Error(`Could not create a new project for this Render POV. Error from Render API: ${util.inspect(err)}`);
+          errorReportById[instanceIdAsString] = new Error(`Could not create a new project for this Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
         sails.log(`Project ${povRecord.slug} created!`);
@@ -110,7 +113,7 @@ module.exports = {
         // }
 
         // If there was an error with the previous request, bail early for this instance.
-        if(errorReportById[instaceIdAsString]){
+        if(errorReportById[instanceIdAsString]){
           return;
         }
 
@@ -138,12 +141,12 @@ module.exports = {
             authorization: `Bearer ${sails.config.custom.renderApiToken}`
           },
         }).tolerate((err)=>{
-          errorReportById[instaceIdAsString] = new Error(`Could not create a Redis service for a new Render POV. Error from Render API: ${util.inspect(err)}`);
+          errorReportById[instanceIdAsString] = new Error(`Could not create a Redis service for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
         sails.log(`(id: ${povRecord.id}) Redis service created!`);
 
-        if(errorReportById[instaceIdAsString]){
+        if(errorReportById[instanceIdAsString]){
           return;
         }
         // example response:
@@ -218,10 +221,10 @@ module.exports = {
             authorization: `Bearer ${sails.config.custom.renderApiToken}`
           },
         }).tolerate((err)=>{
-          errorReportById[instaceIdAsString] = new Error(`Could not create a MySQL service for a new Render POV. Error from Render API: ${util.inspect(err)}`);
+          errorReportById[instanceIdAsString] = new Error(`Could not create a MySQL service for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
-        if(errorReportById[instaceIdAsString]){
+        if(errorReportById[instanceIdAsString]){
           return;
         }
         sails.log(`MySQL service created!`);
@@ -285,7 +288,7 @@ module.exports = {
           renderMySqlServiceId,
         });
 
-        console.time(`Waiting for MySQL service to be live (${povRecord.slug})`)//Ω
+
         // Note: we can create the Fleet service now, but if it is live before the mysql service is, then it won't be able to deploy.
         await sails.helpers.flow.until(async()=>{
 
@@ -302,8 +305,8 @@ module.exports = {
             // sails.log(`MySQL service is not deployed yet, waiting 10 seconds before trying again....`);
             await sails.helpers.flow.pause(10000);
           }
-        });
-        console.timeEnd(`Waiting for MySQL service to be live (${povRecord.slug})`)//Ω
+        }, 600000);
+
 
         let sixtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 60);
 
@@ -361,10 +364,10 @@ module.exports = {
             authorization: `Bearer ${sails.config.custom.renderApiToken}`
           },
         }).tolerate((err)=>{
-          errorReportById[instaceIdAsString] = new Error(`Could not create a Redis service for a new Render POV. Error from Render API: ${util.inspect(err)}`);
+          errorReportById[instanceIdAsString] = new Error(`Could not create a Redis service for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
-        if(errorReportById[instaceIdAsString]){
+        if(errorReportById[instanceIdAsString]){
           return;
         }
 
@@ -390,16 +393,16 @@ module.exports = {
             authorization: `Bearer ${sails.config.custom.renderApiToken}`
           },
         }).tolerate((err)=>{
-          errorReportById[instaceIdAsString] = new Error(`Could not move services to the project created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
+          errorReportById[instanceIdAsString] = new Error(`Could not move services to the project created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
         await RenderProofOfValue.updateOne({id: povRecord.id}).set({
           instanceUrl: createFleetResponse.service.serviceDetails.url,
-          status: 'ready-for-assignment'
+          status: 'ready for assignment'
         });
-        console.timeEnd(`Provisioning services for ${povRecord.slug}`)//Ω
+
       });// End of simultaneouslyForEach(renderInstancesToCreate)
-      console.timeEnd(`Provisioning services for ${renderInstancesToCreate.length} POV(s)`)//Ω
+
     }//ﬁ
 
 
@@ -409,17 +412,59 @@ module.exports = {
     //  ╚═╝╩═╝╚═╝╩ ╩╝╚╝╚═╝╩    ╚═╝╩ ╚═╩  ╩╩╚═╚═╝═╩╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╝╚╝╚═╝╚═╝╚═╝
     // Check for any instances that should be torn down during this run.
     let nowAt = Date.now();
-    let expiringInstances = await RenderProofOfValue.find({status: 'in-use', renderTrialEndsAt: {'>': nowAt}}).populate('user');
+    let expiringInstances = await RenderProofOfValue.find({status: 'in-use', renderTrialEndsAt: {'<': nowAt}}).populate('user');
     for(let expiringInstance of expiringInstances) {
-      // Tear down
+      // Delete the services and the project for this expired POV.
+
+
+      // Delete the MySQL service that was created for this record.
       await sails.helpers.http.sendHttpRequest.with({
         method: 'DELETE',
-        url: `https://api.render.com/v1/services/${expiringInstance.renderProjectId}`,
+        url: `https://api.render.com/v1/services/${expiringInstance.renderMySqlServiceId}`,
         headers: {
           authorization: `Bearer ${sails.config.custom.renderApiToken}`
         },
       }).tolerate((err)=>{
-        sails.log.warn(`When attempting to delete a Render project for an expiring Render POV record (id: ${expiringInstance.id}, slug: ${expiringInstance.slug}), the Render API returned an error. This render project will need to be manually deleted. Full error: ${util.inspect(err)}`);
+        sails.log.warn(`p1: When deleting a MySQL service (id: ${expiringInstance.renderMySqlServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        return;
+      });
+
+
+      // Delete the Redis service that was created for this record.
+      await sails.helpers.http.sendHttpRequest.with({
+        method: 'DELETE',
+        url: `https://api.render.com/v1/redis/${expiringInstance.renderRedisServiceId}`,
+        headers: {
+          authorization: `Bearer ${sails.config.custom.renderApiToken}`
+        },
+      }).tolerate((err)=>{
+        sails.log.warn(`p1: When deleting a Redis service (id: ${expiringInstance.renderRedisServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        return;
+      });
+
+
+      // Delete the Fleet service that was created for this record.
+      await sails.helpers.http.sendHttpRequest.with({
+        method: 'DELETE',
+        url: `https://api.render.com/v1/services/${expiringInstance.renderFleetServiceId}`,
+        headers: {
+          authorization: `Bearer ${sails.config.custom.renderApiToken}`
+        },
+      }).tolerate((err)=>{
+        sails.log.warn(`p1: When deleting a Fleet service (id: ${expiringInstance.renderFleetServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        return;
+      });
+
+      // Delete the Render project that was created for this record.
+      await sails.helpers.http.sendHttpRequest.with({
+        method: 'DELETE',
+        url: `https://api.render.com/v1/projects/${expiringInstance.renderProjectId}`,
+        headers: {
+          authorization: `Bearer ${sails.config.custom.renderApiToken}`
+        },
+      }).tolerate((err)=>{
+        sails.log.warn(`p1: When deleting a Render project (id: ${expiringInstance.renderProjectId}) for a Render POV that expired, the Render API returned an error. This project will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        return;
       });
 
       let user = expiringInstance.user;
@@ -429,13 +474,15 @@ module.exports = {
         from: sails.config.custom.fromEmailAddress,
         fromName: sails.config.custom.fromName,
         subject: 'Your Fleet trial has ended',
-        template: 'email-14-day-fleet-premium-trial-started',
+        template: 'email-fleet-premium-pov-trial-ended',
         layout: 'layout-nurture-email',
         templateData: {
           firstName: user.firstName,
         },
         ensureAck: true,
       });
+
+      await RenderProofOfValue.updateOne({id: expiringInstance.id}).set({status: 'expired'});
     }//∞
 
 
@@ -443,15 +490,15 @@ module.exports = {
     //  ╦  ╔═╗╔═╗  ╔═╗╦═╗╦═╗╔═╗╦═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╔═╗╔═╗╔╗╔  ╦ ╦╔═╗
     //  ║  ║ ║║ ╦  ║╣ ╠╦╝╠╦╝║ ║╠╦╝╚═╗  ╠═╣║║║ ║║  ║  ║  ║╣ ╠═╣║║║  ║ ║╠═╝
     //  ╩═╝╚═╝╚═╝  ╚═╝╩╚═╩╚═╚═╝╩╚═╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝╩═╝╚═╝╩ ╩╝╚╝  ╚═╝╩
-    for (let instaceIdAsString of Object.keys(errorReportById)) {
-      if (false === errorReportById[instaceIdAsString]) {
+    for (let instanceIdAsString of Object.keys(errorReportById)) {
+      if (false === errorReportById[instanceIdAsString]) {
         // If no error occured wehn setting up this POV, do nothing.
       } else {
         // If an error was logged while provisioning a Render POV, log the error as a warning.
-        sails.log.warn(`p1: When provisioning a new Render POV, an error occured. This script will clean up any services it created for this POV. Full error: ${errorReportById[instaceIdAsString]}`);
+        sails.log.warn(`p1: When provisioning a new Render POV, an error occured. This script will clean up any services it created for this POV. Full error: ${errorReportById[instanceIdAsString]}`);
 
         // Clean up the services associated with this record and delete it.
-        let povRecord = await RenderProofOfValue.findOne({id: instaceIdAsString});
+        let povRecord = await RenderProofOfValue.findOne({id: instanceIdAsString});
 
         if(povRecord.renderMySqlServiceId) {
           // Delete the MySQL service that was created for this record.
@@ -461,7 +508,7 @@ module.exports = {
             headers: {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
-          }).tolerate(()=>{
+          }).tolerate((err)=>{
             sails.log.warn(`p1: When deleting a MySQL service (id: ${povRecord.renderMySqlServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
             return;
           });
@@ -474,7 +521,7 @@ module.exports = {
             headers: {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
-          }).tolerate(()=>{
+          }).tolerate((err)=>{
             sails.log.warn(`p1: When deleting a Redis service (id: ${povRecord.renderRedisServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
             return;
           });
@@ -487,7 +534,7 @@ module.exports = {
             headers: {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
-          }).tolerate(()=>{
+          }).tolerate((err)=>{
             sails.log.warn(`p1: When deleting a Fleet service (id: ${povRecord.renderFleetServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
             return;
           });
@@ -500,14 +547,14 @@ module.exports = {
             headers: {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
-          }).tolerate(()=>{
+          }).tolerate((err)=>{
             sails.log.warn(`p1: When deleting a Render project (id: ${povRecord.renderProjectId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
             return;
           });
         }
 
         // Clean up the database record.
-        await RenderProofOfValue.destroy({id: instaceIdAsString});
+        await RenderProofOfValue.destroy({id: instanceIdAsString});
 
 
       }
