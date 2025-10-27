@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -13,15 +13,9 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func (s *integrationMDMTestSuite) TestFoobar() {
-	require.Fail(s.T(), "oops")
-}
-
 func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	// ctx := context.Background()
 	t := s.T()
-	// TODO(JVE): REMOVE THIS
-	s.setVPPTokenForTeam(0)
 
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
@@ -57,8 +51,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	}
 
 	s.androidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
-		fmt.Println("called")
-		fmt.Printf("callbackURL: %v\n", callbackURL)
 		s.proxyCallbackURL = callbackURL
 		return &android.SignupDetails{
 			Url:  EnterpriseSignupURL,
@@ -75,8 +67,12 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
 
 	const enterpriseToken = "enterpriseToken"
-	fmt.Printf("s.proxyCallbackURL: %v\n", s.proxyCallbackURL)
-	s.Do("GET", s.proxyCallbackURL[22:], nil, http.StatusOK, "enterpriseToken", enterpriseToken)
+
+	// callback URL includes the host, need to extract the path so we can call it with our
+	// HTTP request helpers
+	u, err := url.Parse(s.proxyCallbackURL)
+	require.NoError(t, err)
+	s.Do("GET", u.Path, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
 
 	// Update the LIST mock to return the enterprise after "creation"
 	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
