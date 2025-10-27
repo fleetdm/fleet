@@ -939,6 +939,8 @@ type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fl
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
+type AssociateHostMDMIdPAccountDBFunc func(ctx context.Context, hostUUID string, acctUUID string) error
+
 type GetMDMIdPAccountByUUIDFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
 
 type GetMDMIdPAccountByEmailFunc func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error)
@@ -2939,6 +2941,9 @@ type DataStore struct {
 
 	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
 	InsertMDMIdPAccountFuncInvoked bool
+
+	AssociateHostMDMIdPAccountDBFunc        AssociateHostMDMIdPAccountDBFunc
+	AssociateHostMDMIdPAccountDBFuncInvoked bool
 
 	GetMDMIdPAccountByUUIDFunc        GetMDMIdPAccountByUUIDFunc
 	GetMDMIdPAccountByUUIDFuncInvoked bool
@@ -7086,6 +7091,13 @@ func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMI
 	s.InsertMDMIdPAccountFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMIdPAccountFunc(ctx, account)
+}
+
+func (s *DataStore) AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error {
+	s.mu.Lock()
+	s.AssociateHostMDMIdPAccountDBFuncInvoked = true
+	s.mu.Unlock()
+	return s.AssociateHostMDMIdPAccountDBFunc(ctx, hostUUID, acctUUID)
 }
 
 func (s *DataStore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {

@@ -85,7 +85,7 @@ type GetUserSettingsFunc func(ctx context.Context, id uint) (settings *fleet.Use
 
 type InitiateSSOFunc func(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error)
 
@@ -2304,11 +2304,11 @@ func (s *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessionI
 	return s.InitiateSSOFunc(ctx, redirectURL)
 }
 
-func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	s.mu.Lock()
 	s.InitiateMDMSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL)
+	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL, hostUUID)
 }
 
 func (s *Service) InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error) {
