@@ -54,9 +54,12 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import { getErrorMessage, hasRemainingSetupSteps } from "./helpers";
+import {
+  getErrorMessage,
+  hasRemainingSetupSteps,
+  isSoftwareScriptSetup,
+} from "./helpers";
 
-import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
@@ -347,15 +350,17 @@ const DeviceUserPage = ({
       refetchIntervalInBackground: true,
       select: (response) => {
         // Marshal the response to include a `type` property so we can differentiate
-        // between software and script setup steps in the UI.
+        // between software, payload-free software, and script setup steps in the UI.
         return [
           ...(response.setup_experience_results.software ?? []).map((s) => ({
             ...s,
-            type: "software" as const,
+            type: isSoftwareScriptSetup(s)
+              ? "software_script_run" // used for payload-free software
+              : "software_install",
           })),
           ...(response.setup_experience_results.scripts ?? []).map((s) => ({
             ...s,
-            type: "script" as const,
+            type: "script_run" as const,
           })),
         ];
       },
@@ -516,6 +521,10 @@ const DeviceUserPage = ({
       return (
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
+          requireAllSoftware={
+            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            false
+          }
           toggleInfoModal={toggleInfoModal}
         />
       );
@@ -749,7 +758,11 @@ const DeviceUserPage = ({
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
-                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                  {isLoadingHost ? (
+                    <Spinner />
+                  ) : (
+                    <OrgLogoIcon className="logo" src={orgLogoURL} />
+                  )}
                 </div>
               </div>
             </li>

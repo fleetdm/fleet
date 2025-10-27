@@ -131,6 +131,9 @@ func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPE
 			return CPETranslation{}, false, err
 		}
 		if match {
+			if len(item.Filter.Product) == 0 {
+				item.Filter.Product = []string{s.Name}
+			}
 			return item.Filter, true, nil
 		}
 	}

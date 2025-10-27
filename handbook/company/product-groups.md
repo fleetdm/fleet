@@ -88,7 +88,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 **Areas of expertise**:
 - Software Install / uninstall / patch
 - Fleet-maintained apps (FMAs)
-- Apple Volumne Purchasing Program (VPP) apps
+- Apple Volume Purchasing Program (VPP) apps
 - Google Play apps
 - In-house apps (IPAs) 
 - End user self-service
@@ -179,20 +179,6 @@ Items to cover in the section:
 - Link to the working group Slack channel and GitHub project
 - Who is involved. This should include who the DRI is.
 - Timeline. When will the working group start? When do we think we'll be done by?
-
-
-### UX group
-
-The goal of the UX group is to catch the Fleet product up with the [latest brand colors/styles](https://github.com/fleetdm/confidential/issues/11765) from the website (fleetdm.com), address [UX debt (spiffier)](https://github.com/fleetdm/confidential/issues/11868), and ship the Fleet product's first [2 graphs](https://github.com/fleetdm/confidential/issues/11864).
-
-This group will kick off on 2025-08-27 and plans to wrap up on 2025-09-29.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Product Manager (DRI)             | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
-| Quality Assurance                 | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 
 <!--
 Example working group section
@@ -612,6 +598,9 @@ For community-reported bugs, this may require QA to gather more information from
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
 
+For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. QA should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, QA verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [reproduced state](#reproduced).
 
 #### Reproduced
 
@@ -745,7 +734,7 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 ### Design system
 
-The 🧩 ["Design System"](https://www.figma.com/file/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-System-(current)?type=design&mode=design&t=BytcobQwypszkxf5-1) component library in Figma is the source of truth for components. Components in the product (documented in [Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
+The 🧩 ["Design System"](https://www.figma.com/files/project/15701210) component library in Figma is the source of truth for components. Components in the product (documented in [Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
 
 ### Table empty states
 
@@ -841,19 +830,23 @@ All participants are expected to review the user story and associated designs an
 
 ### Design reviews
 
-Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
+Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI), REST API or YAML.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
+
+User stories in the current design sprint are always reviewed first during design reviews. Bugs are discussed in [Bug bash](#bug-bash) meetings.
+
+For questions about stories or bugs in the current engineering sprint, start a Slack thread or schedule an ad-hoc meeting.
 
 Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster.
 
 > In addition to design reviews, Fleeties or community members can provide feedback asynchronously at any time by finding the GitHub issue (user story) associated with the designs and @ mentioning the assigned Product Designer in the comment section.
 
-Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
+Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue. Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
 
-After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
+After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round. The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
 
 Here are some tips for making this meeting effective:
 - Say the user story out loud to remind participants of what it is.
-- Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
+- Avoid explaining or showing multiple ways it could work. Show the one way you think it should work and let your work speak for itself.
 - Make clear whether we're in "final review" or "feedback" mode:
   - Final review: The contributor is 70% sure the design is 100% done.
   — Feedback: the design is not ready for final review, but the contributor would like to get early feedback.
@@ -861,6 +854,9 @@ Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
 
+### Bug bash
+
+Bug bash meetings are conducted semiweekly between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors, usually Product Designers.  These meetings concentrate on bug fixes. The goal is to review bug fixes and ensure that [new bugs are triaged](https://fleetdm.com/handbook/product-design#triage-new-bugs).
 
 ### User story reviews
 
@@ -901,17 +897,21 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
 
 ### New customer promise(s)
 
-The Account Executive (AE) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
+The Account Executive (AE) or Customer Success Manager (CSM) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attached to the promise(s), then we're not ready for this call.
 
-On the order form, customer promises are reprented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
+On the order form, customer promises are represented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
 
-**Participants:** AE, SC, CEO, CTO, VP of Customer Success, and Head of Product Design.  (+ temporarily: CRO)
+**Participants:** AE or CSM, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM (+ temporarily: CRO).
 
 **Agenda:**
-- Discuss new promises from an order form with promises
-- Kick off 1 business day SLA for the Head of Product Design to process this and work with the CTO to deliver a revised order form back to the AE.
+- Review each proposed customer promise on the order form.
+- For each customer request, create user stories and [T-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) them.
+  - If necessary, the EM takes up to 1 business day to gather information necessary to T-shirt size.
+- Review the [release planning roadmap](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
+- Decide which Fleet release can be targeted for each customer promise.
+- Update the order form to reflect targeted date of each release.
 
 
 ## Development best practices

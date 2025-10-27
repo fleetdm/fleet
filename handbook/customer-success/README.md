@@ -63,6 +63,20 @@ When on call, CSEs/CSAs will start their day by following these steps to gather 
 2. Search GitHub issues for `label:bug` and `label:customer-codename`.
 3. Debrief with any internal resources in order to gather information if needed, and be prepared to provide a status update.
 
+### Perform morning triage
+
+The first CSE to sign on for the day is responsible for triaging new support issues that were reported after hours. The following actions are a general guideline for what should be checked during morning triage:
+1. Look at all new support requests and immediately respond to any urgent or high-priority issues.
+2. Check the osquery Slack channel/Unthread for support issues.
+3. Check the MacAdmins Slack channel for support issues.
+   > FYI: MacAdmins Slack messages are not populated in Unthread.
+4. Check the "Unassigned" queue in Unthread and re-assign any issues from after hours to the appropriate resource.
+5. Check the "All" queue in Unthread for potential after-hours mis-assigned issues and re-assign them to the appropriate resource.
+6. Look at all customer meetings for the day to check that they can be attended by a CSE/CSA and that there are no scheduling conflicts.
+7. Update the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel that morning triage is complete. Report any escalations or conflicts with customer meetings to the [Manager of Customer Success and Solutions Architecture](https://fleetdm.com/handbook/customer-success#team).
+
+Other CSEs that sign on after morning triage has been completed should check the morning triage thread in the #help-customers Slack channel to learn what items are still outstanding.
+
 
 ### Invite new customer DRI
 
@@ -228,6 +242,11 @@ When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#fea
 After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
 
 If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
+
+### Manage DNS records
+
+Fleet-managed DNS records are maintained in Cloudflare using Terraform.  
+See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
 
 
 ## Rituals

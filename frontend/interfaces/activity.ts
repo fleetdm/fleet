@@ -3,6 +3,7 @@ import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ISchedulableQueryStats } from "./schedulable_query";
+import { SoftwareSource } from "./software";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -129,6 +130,8 @@ export enum ActivityType {
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
+  AddedConditionalAccessOkta = "added_conditional_access_okta",
+  DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -158,7 +161,9 @@ export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.LockedHost
+  | ActivityType.UnlockedHost;
 
 export interface IActivity {
   created_at: string;
@@ -235,6 +240,7 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;
   status?: string;

@@ -16,7 +16,7 @@ import {
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
@@ -90,10 +90,11 @@ export const StatusMessage = ({
     );
   };
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon name={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"} />
-      {renderStatusCopy()}
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"}
+      message={renderStatusCopy()}
+    />
   );
 };
 
@@ -149,7 +150,7 @@ export interface ISWUninstallDetailsParentState {
   /** Optional since may come from dedicated state, may come from elsewhere */
   hostDisplayName?: string;
 
-  /** Optional since DUP only */
+  /** Optional since My Device Page only */
   hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
 }
 export interface ISoftwareUninstallDetailsModalProps {
@@ -160,7 +161,7 @@ export interface ISoftwareUninstallDetailsModalProps {
   onCancel: () => void;
   softwarePackageName?: string;
 
-  /** DUP only */
+  /** My Device Page only */
   onRetry?: (s: IHostSoftwareWithUiStatus) => void;
   hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
   deviceAuthToken?: string;

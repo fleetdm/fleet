@@ -67,8 +67,26 @@ Additionally, refer to the [Reference Architecture sizing recommendations](https
     Below is an example with all available variables.
 
     ```sh
-    terraform apply -var=tag=v4.72.0 -var=fleet_task_count=20 -var=fleet_task_memory=4096 -var=fleet_task_cpu=512 -var=database_instance_size=db.t4g.large -var=database_instance_count=3 -var=redis_instance_size=cache.t4g.small -var=redis_instance_count=3
+    terraform apply -var=tag=v4.72.0 -var=fleet_task_count=20 -var=fleet_task_memory=4096 -var=fleet_task_cpu=512 -var=database_instance_size=db.t4g.large -var=database_instance_count=3 -var=redis_instance_size=cache.t4g.small -var=redis_instance_count=3 -var=enable_otel=true
     ```
+
+## OpenTelemetry tracing with SigNoz
+
+By default, the loadtest environment uses Elastic APM. You can optionally use OpenTelemetry with SigNoz instead by setting `enable_otel=true`:
+
+```sh
+terraform apply -var=tag=v4.72.0 -var=enable_otel=true
+```
+
+This deploys both Fleet and SigNoz in a single command. See [../signoz/README.md](../signoz/README.md) for architecture details.
+
+### Accessing the SigNoz UI
+
+After deploying with `enable_otel=true`, get the SigNoz UI URL:
+
+```sh
+$(terraform output -raw signoz_configure_kubectl) && kubectl get svc signoz -n signoz -o jsonpath='http://{.status.loadBalancer.ingress[0].hostname}:8080'
+```
 
 # Destroy environment manually
 
@@ -167,7 +185,7 @@ terraform workspace delete <workspace_name>
 | [aws_secretsmanager_secret.license](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret) | data source |
 | [aws_secretsmanager_secret_version.enroll_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret_version) | data source |
 | [docker_registry_image.dockerhub](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/data-sources/registry_image) | data source |
-| [git_repository.tf](https://registry.terraform.io/providers/paultyng/git/latest/docs/data-sources/repository) | data source |
+| [git_repository.tf](https://registry.terraform.io/providers/metio/git/latest/docs/data-sources/repository) | data source |
 | [terraform_remote_state.shared](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 
 ## Inputs

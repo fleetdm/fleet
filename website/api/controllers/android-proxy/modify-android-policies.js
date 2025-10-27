@@ -20,7 +20,10 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The policy of an Android enterprise was successfully updated.' }
+    success: { description: 'The policy of an Android enterprise was successfully updated.' },
+    missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
+    unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
   },
 
 
@@ -33,7 +36,7 @@ module.exports = {
     if (authHeader && authHeader.startsWith('Bearer')) {
       fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
-      return this.res.unauthorized('Authorization header with Bearer token is required');
+      throw 'missingAuthHeader';
     }
 
     // Authenticate this request
@@ -43,18 +46,18 @@ module.exports = {
 
     // Return a 404 response if no records are found.
     if (!thisAndroidEnterprise) {
-      return this.res.notFound();
+      throw 'notFound';
     }
     // Return an unauthorized response if the provided secret does not match.
     if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
-      return this.res.unauthorized();
+      throw 'unauthorized';
     }
 
     // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
     let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
     // Return a 404 response if this Android enterprise is no longer managed by Fleet.
     if(!isEnterpriseManagedByFleet) {
-      return this.res.notFound();
+      throw 'notFound';
     }
 
     // Update the policy for this Android enterprise.
