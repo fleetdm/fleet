@@ -567,22 +567,22 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				// Do not retry if the endpoint does not exist.
 				return retry.ErrorOutcomeDoNotRetry
 			case errors.Is(err, ErrEndUserAuthRequired):
-				// If we get an authentication error, then the user
+				// If we get an ErrEndUserAuthRequired error, then the user
 				// needs to authenticate with the identity provider.
+				//
 				// Open a browser window to the sign-on page and
 				// then keep retrying until they authenticate.
-				//
-				// Sleep for 20 seconds to make the total retry inteval
-				// 30 seconds.
-				log.Info().Msg("enroll unauthenticated, opening SSO window")
+				log.Debug().Msg("enroll unauthenticated, waiting for end-user to authenticate via SSO")
 				if !oc.initiatedIdpAuth {
 					oc.initiatedIdpAuth = true
+					log.Debug().Msg("opening SSO window")
 					openWindowErr := oc.openSSOWindow()
 					if openWindowErr != nil {
 						log.Error().Err(openWindowErr).Msg("opening SSO window")
 						return retry.ErrorOutcomeNormalRetry
 					}
 				}
+				// Sleep for 20 seconds, making the total retry interval 30 seconds
 				time.Sleep(20 * time.Second)
 				return retry.ErrorOutcomeResetAttempts
 			default:
