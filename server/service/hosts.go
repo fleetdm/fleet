@@ -2145,6 +2145,12 @@ func (svc *Service) OSVersions(
 	maxVulnerabilities *int,
 ) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	var count int
+	// Input validation
+	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, count, nil, &fleet.BadRequestError{Message: "max_vulnerabilities must be >= 0"}
+	}
+
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, count, nil, err
 	}
@@ -2315,6 +2321,12 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
+	// Input validation
+	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, nil, &fleet.BadRequestError{Message: "max_vulnerabilities must be >= 0"}
+	}
+
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, nil, err
 	}
