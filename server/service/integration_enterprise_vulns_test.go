@@ -325,3 +325,147 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
 	})
 }
+
+// TestOSVersionsMaxVulnerabilitiesMultipleOSIDs tests the scenario where multiple OS IDs
+// exist for the same name+version (e.g., different architectures), which can cause
+// max_vulnerabilities to be exceeded after deduplication.
+// This test uses Windows with different architectures and non-overlapping CVEs.
+// Note: TestOSVersionsMaxVulnerabilities already tests Linux with multiple kernels and overlapping CVEs.
+func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilitiesMultipleOSIDs() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create two hosts with Windows 11 but different architectures
+	// This will result in two separate OS IDs in the operating_systems table
+	hostX64, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "x64"),
+		NodeKey:         ptr.String(t.Name() + "x64"),
+		UUID:            uuid.NewString(),
+		Hostname:        t.Name() + "x64.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	hostARM, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "arm"),
+		NodeKey:         ptr.String(t.Name() + "arm"),
+		UUID:            uuid.NewString(),
+		Hostname:        t.Name() + "arm.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	// Set the same Windows version for both hosts but with different architectures
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, hostX64.ID, fleet.OperatingSystem{
+		Name:     "Microsoft Windows 11 Pro 21H2",
+		Version:  "10.0.22000.795",
+		Platform: "windows",
+		Arch:     "x86_64",
+	}))
+
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, hostARM.ID, fleet.OperatingSystem{
+		Name:     "Microsoft Windows 11 Pro 21H2",
+		Version:  "10.0.22000.795",
+		Platform: "windows",
+		Arch:     "arm64",
+	}))
+
+	// Get the OS IDs for both architectures
+	type osIDResult struct {
+		ID   uint   `db:"id"`
+		Arch string `db:"arch"`
+	}
+	var osIDs []osIDResult
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &osIDs, `
+			SELECT id, arch
+			FROM operating_systems
+			WHERE name = 'Microsoft Windows 11 Pro 21H2' AND version = '10.0.22000.795'
+		`)
+	})
+	require.Len(t, osIDs, 2, "Should have two OS IDs for different architectures")
+
+	// Insert different vulnerabilities for each OS ID
+	// OS ID 1 (x86_64): CVE-2024-1001, CVE-2024-1002, CVE-2024-1003
+	// OS ID 2 (arm64):  CVE-2024-1004, CVE-2024-1005, CVE-2024-1006
+	// Total unique: 6 CVEs
+	vulnsPerArch := map[string][]string{
+		"x86_64": {"CVE-2024-1001", "CVE-2024-1002", "CVE-2024-1003"},
+		"arm64":  {"CVE-2024-1004", "CVE-2024-1005", "CVE-2024-1006"},
+	}
+
+	for _, osID := range osIDs {
+		vulnsList := vulnsPerArch[osID.Arch]
+		osVulns := make([]fleet.OSVulnerability, 0, len(vulnsList))
+		for _, cve := range vulnsList {
+			osVulns = append(osVulns, fleet.OSVulnerability{
+				OSID: osID.ID,
+				CVE:  cve,
+			})
+		}
+		_, err = s.ds.InsertOSVulnerabilities(ctx, osVulns, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	// Update OS versions aggregation table
+	require.NoError(t, s.ds.UpdateOSVersions(ctx))
+
+	// Test 1: Request with max_vulnerabilities=3
+	// Should enforce limit per name-version key, not per OSID
+	var resp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=3", nil, http.StatusOK, &resp)
+
+	var osVersion *fleet.OSVersion
+	for _, os := range resp.OSVersions {
+		if os.Version == "10.0.22000.795" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Windows 11 OS version")
+
+	// After the fix: limit is enforced per name-version key after deduplication
+	assert.LessOrEqual(t, len(osVersion.Vulnerabilities), 3,
+		"Should respect max_vulnerabilities=3 limit per name-version key")
+	// The count should reflect total unique CVEs (6 total across both architectures)
+	assert.Equal(t, 6, osVersion.VulnerabilitiesCount,
+		"Count should show total unique CVEs across all architectures")
+
+	// Test 2: Request with max_vulnerabilities=0 (count only)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=0", nil, http.StatusOK, &resp)
+	osVersion = nil
+	for _, os := range resp.OSVersions {
+		if os.Version == "10.0.22000.795" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Windows 11 OS version")
+	assert.Equal(t, 0, len(osVersion.Vulnerabilities),
+		"Should return 0 vulnerabilities when max_vulnerabilities=0")
+	assert.Equal(t, 6, osVersion.VulnerabilitiesCount,
+		"Count should still show total unique CVEs")
+
+	// Test 3: Request without max_vulnerabilities (all vulnerabilities)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &resp)
+	osVersion = nil
+	for _, os := range resp.OSVersions {
+		if os.Version == "10.0.22000.795" {
+			osVersion = &os
+			break
+		}
+	}
+	require.NotNil(t, osVersion, "Should find Windows 11 OS version")
+	assert.Equal(t, 6, len(osVersion.Vulnerabilities),
+		"Should return all 6 unique vulnerabilities when max_vulnerabilities is omitted")
+	assert.Equal(t, 6, osVersion.VulnerabilitiesCount,
+		"Count should show total unique CVEs")
+}

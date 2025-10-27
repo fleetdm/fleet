@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -590,7 +591,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 
 	// Step 2: Execute queries in parallel
 	vulnsByKey := make(map[string][]fleet.CVE)
-	countByKey := make(map[string]int) // Track total counts per key
+	cveSetByKey := make(map[string]map[string]struct{}) // Track unique CVEs per key for accurate counting
 	cveSet := make(map[string]struct{})
 
 	type vulnResult struct {
@@ -599,7 +600,6 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		CVE               string
 		ResolvedInVersion *string
 		CreatedAt         time.Time
-		TotalCount        int  // Total count from window function
 		IsLinux           bool // Flag to distinguish between Linux and non-Linux results
 	}
 
@@ -623,56 +623,37 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			osArgs[i] = id
 		}
 
+		// Build query based on maxVulnerabilities parameter
+		// Note: We always fetch all CVEs to properly count unique CVEs across OSIDs,
+		// but we limit the fetching of full vulnerability details for performance.
 		switch {
 		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
-			// Special case: max = 0 means return only counts, no vulnerabilities
+			// For max=0, only fetch minimal data needed for counting
 			osVulnsQuery = `
 			SELECT
 				osv.operating_system_id,
-				'' as cve,
-				NULL as resolved_in_version,
-				NOW() as created_at,
-				COUNT(*) as total_count
+				osv.cve
 			FROM operating_system_vulnerabilities osv
-			WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)
-			GROUP BY osv.operating_system_id`
-		case maxVulnerabilities != nil:
-			// With limit: use ROW_NUMBER() to limit and COUNT() to get total
-			osVulnsQuery = `
-			WITH ranked_vulns AS (
-				SELECT
-					osv.operating_system_id,
-					osv.cve,
-					osv.resolved_in_version,
-					osv.created_at,
-					ROW_NUMBER() OVER (PARTITION BY osv.operating_system_id ORDER BY osv.cve) as rn,
-					COUNT(*) OVER (PARTITION BY osv.operating_system_id) as total_count
-				FROM operating_system_vulnerabilities osv
-				WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)
-			)
-			SELECT operating_system_id, cve, resolved_in_version, created_at, total_count
-			FROM ranked_vulns
-			WHERE rn <= ?`
-			osArgs = append(osArgs, *maxVulnerabilities)
+			WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)`
+
 		default:
-			// No limit: simpler query with just COUNT() for total
+			// For max>0 or nil, fetch all CVEs with full details
+			// The per-key limit is applied in Go code after deduplication
 			osVulnsQuery = `
 			SELECT
 				osv.operating_system_id,
 				osv.cve,
 				osv.resolved_in_version,
-				osv.created_at,
-				COUNT(*) OVER (PARTITION BY osv.operating_system_id) as total_count
+				osv.created_at
 			FROM operating_system_vulnerabilities osv
 			WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)`
 		}
 
 		var osVulnResults []struct {
-			OSID              uint      `db:"operating_system_id"`
-			CVE               string    `db:"cve"`
-			ResolvedInVersion *string   `db:"resolved_in_version"`
-			CreatedAt         time.Time `db:"created_at"`
-			TotalCount        int       `db:"total_count"`
+			OSID              uint       `db:"operating_system_id"`
+			CVE               string     `db:"cve"`
+			ResolvedInVersion *string    `db:"resolved_in_version"`
+			CreatedAt         *time.Time `db:"created_at"`
 		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osVulnResults, osVulnsQuery, osArgs...); err != nil {
@@ -683,12 +664,15 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		// Convert to generic vulnResult format
 		results := make([]vulnResult, len(osVulnResults))
 		for i, r := range osVulnResults {
+			createdAt := time.Time{}
+			if r.CreatedAt != nil {
+				createdAt = *r.CreatedAt
+			}
 			results[i] = vulnResult{
 				OSID:              r.OSID,
 				CVE:               r.CVE,
 				ResolvedInVersion: r.ResolvedInVersion,
-				CreatedAt:         r.CreatedAt,
-				TotalCount:        r.TotalCount,
+				CreatedAt:         createdAt,
 				IsLinux:           false,
 			}
 		}
@@ -714,10 +698,13 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			kargs = append(kargs, *teamID)
 		}
 
+		// Build query based on maxVulnerabilities parameter
+		// Note: We always fetch all CVEs to properly count unique CVEs across OSVersionIDs,
+		// but we limit the fetching of full vulnerability details for performance.
 		var kernelQuery string
 		switch {
 		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
-			// Special case: max = 0 means return only counts, no vulnerabilities
+			// For max=0, only fetch minimal data needed for counting
 			kernelQuery = `
 			WITH grouped_vulns AS (
 				SELECT
@@ -731,43 +718,12 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			)
 			SELECT
 				os_version_id,
-				'' as cve,
-				NULL as resolved_in_version,
-				NOW() as created_at,
-				COUNT(*) as total_count
-			FROM grouped_vulns
-			GROUP BY os_version_id`
-		case maxVulnerabilities != nil:
-			// With limit: use CTE with ROW_NUMBER() to limit and COUNT() to get total
-			kernelQuery = `
-			WITH grouped_vulns AS (
-				SELECT
-					khc.os_version_id,
-					sc.cve,
-					sc.resolved_in_version,
-					MIN(sc.created_at) as created_at
-				FROM kernel_host_counts khc
-				JOIN software_cve sc ON sc.software_id = khc.software_id
-				WHERE khc.os_version_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSVersionIDs)), ",") + `)
-				AND khc.hosts_count > 0` + teamFilter + `
-				GROUP BY khc.os_version_id, sc.cve, sc.resolved_in_version
-			),
-			ranked_vulns AS (
-				SELECT
-					os_version_id,
-					cve,
-					resolved_in_version,
-					created_at,
-					ROW_NUMBER() OVER (PARTITION BY os_version_id ORDER BY cve) as rn,
-					COUNT(*) OVER (PARTITION BY os_version_id) as total_count
-				FROM grouped_vulns
-			)
-			SELECT os_version_id, cve, resolved_in_version, created_at, total_count
-			FROM ranked_vulns
-			WHERE rn <= ?`
-			kargs = append(kargs, *maxVulnerabilities)
+				cve
+			FROM grouped_vulns`
+
 		default:
-			// No limit: simpler query with just COUNT() for total
+			// For max>0 or nil, fetch all CVEs with full details
+			// The per-key limit is applied in Go code after deduplication
 			kernelQuery = `
 			WITH grouped_vulns AS (
 				SELECT
@@ -785,17 +741,15 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				os_version_id,
 				cve,
 				resolved_in_version,
-				created_at,
-				COUNT(*) OVER (PARTITION BY os_version_id) as total_count
+				created_at
 			FROM grouped_vulns`
 		}
 
 		var kernelVulnResults []struct {
-			OSVersionID       uint      `db:"os_version_id"`
-			CVE               string    `db:"cve"`
-			ResolvedInVersion *string   `db:"resolved_in_version"`
-			CreatedAt         time.Time `db:"created_at"`
-			TotalCount        int       `db:"total_count"`
+			OSVersionID       uint       `db:"os_version_id"`
+			CVE               string     `db:"cve"`
+			ResolvedInVersion *string    `db:"resolved_in_version"`
+			CreatedAt         *time.Time `db:"created_at"`
 		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &kernelVulnResults, kernelQuery, kargs...); err != nil {
@@ -806,12 +760,15 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		// Convert to generic vulnResult format
 		results := make([]vulnResult, len(kernelVulnResults))
 		for i, r := range kernelVulnResults {
+			createdAt := time.Time{}
+			if r.CreatedAt != nil {
+				createdAt = *r.CreatedAt
+			}
 			results[i] = vulnResult{
 				OSVersionID:       r.OSVersionID,
 				CVE:               r.CVE,
 				ResolvedInVersion: r.ResolvedInVersion,
-				CreatedAt:         r.CreatedAt,
-				TotalCount:        r.TotalCount,
+				CreatedAt:         createdAt,
 				IsLinux:           true,
 			}
 		}
@@ -835,15 +792,11 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	for _, r := range osVulnResults {
 		key := nonLinuxOSIDMap[r.OSID]
 
-		// Store the total count for this OS version (same for all rows with same OSID)
-		if _, exists := countByKey[key]; !exists {
-			countByKey[key] = r.TotalCount
+		// Track unique CVEs per key for accurate counting (handles overlapping CVEs across OSIDs)
+		if cveSetByKey[key] == nil {
+			cveSetByKey[key] = make(map[string]struct{})
 		}
-
-		// Skip dummy CVE entries (used when maxVulnerabilities=0 to only get counts)
-		if r.CVE == "" {
-			continue
-		}
+		cveSetByKey[key][r.CVE] = struct{}{}
 
 		vuln := fleet.CVE{
 			CVE:       r.CVE,
@@ -874,19 +827,14 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	}
 
 	// Process kernel vulnerability results (Linux)
-	// These are already aggregated at os_version_id level, so no deduplication needed
 	for _, r := range kernelVulnResults {
 		key := linuxOSVersionMap[r.OSVersionID]
 
-		// Store the total count for this OS version (same for all rows with same OSVersionID)
-		if _, exists := countByKey[key]; !exists {
-			countByKey[key] = r.TotalCount
+		// Track unique CVEs per key for accurate counting (handles overlapping CVEs across OSVersionIDs)
+		if cveSetByKey[key] == nil {
+			cveSetByKey[key] = make(map[string]struct{})
 		}
-
-		// Skip dummy CVE entries (used when maxVulnerabilities=0 to only get counts)
-		if r.CVE == "" {
-			continue
-		}
+		cveSetByKey[key][r.CVE] = struct{}{}
 
 		vuln := fleet.CVE{
 			CVE:       r.CVE,
@@ -1008,10 +956,32 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	// all OS versions, including those with maxVulnerabilities=0 where vulnsByKey is empty
 	for key := range result {
 		vulns := vulnsByKey[key]
+
+		// Calculate the actual count after deduplication using the CVE set.
+		// This accurately counts unique CVEs across all OSIDs/OSVersionIDs for this key,
+		// handling cases where CVEs overlap across different architectures or kernel versions.
+		count := 0
+		if cveSetByKey[key] != nil {
+			count = len(cveSetByKey[key])
+		}
+
+		// Apply per-key limit after deduplication if maxVulnerabilities is specified.
+		// The SQL queries limit per OSID/OSVersionID, but when multiple share the same name+version
+		// (e.g., different architectures or kernel versions), we need to enforce the limit after merging.
+		if maxVulnerabilities != nil && *maxVulnerabilities == 0 {
+			// For max=0, return empty array but include the count
+			vulns = make([]fleet.CVE, 0)
+		} else if maxVulnerabilities != nil && *maxVulnerabilities > 0 && len(vulns) > *maxVulnerabilities {
+			// Sort by CVE alphabetically for deterministic results (matches SQL ORDER BY cve)
+			sort.Slice(vulns, func(i, j int) bool {
+				return vulns[i].CVE < vulns[j].CVE
+			})
+			vulns = vulns[:*maxVulnerabilities]
+		}
+
 		if vulns == nil {
 			vulns = make([]fleet.CVE, 0)
 		}
-		count := countByKey[key]
 		result[key] = fleet.OSVulnerabilitiesWithCount{
 			Vulnerabilities: vulns,
 			Count:           count,
