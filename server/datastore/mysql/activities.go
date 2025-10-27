@@ -321,11 +321,11 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending scripts
 		`SELECT
 			ua.execution_id as uuid,
-			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) as name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.name')))) as name,
 			u.id as user_id,
 			u.api_only as api_only,
-			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
-			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
+			COALESCE(u.gravatar_url, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.gravatar_url'))) as gravatar_url,
+			COALESCE(u.email, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.email'))) as user_email,
 			:ran_script_type as activity_type,
 			ua.created_at as created_at,
 			JSON_OBJECT(
@@ -334,7 +334,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'script_name', COALESCE(ses.name, scr.name, ''),
 				'script_execution_id', ua.execution_id,
 				'batch_execution_id', bahr.batch_execution_id,
-				'async', NOT ua.payload->'$.sync_request',
+				'async', NOT JSON_EXTRACT(ua.payload, '$.sync_request'),
 				'policy_id', sua.policy_id,
 				'policy_name', p.name
 			) as details,
@@ -364,22 +364,22 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending software installs
 		`SELECT
 			ua.execution_id as uuid,
-			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.name')))) AS name,
 			ua.user_id as user_id,
 			u.api_only as api_only,
-			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
-			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
+			COALESCE(u.gravatar_url, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.gravatar_url'))) as gravatar_url,
+			COALESCE(u.email, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.email'))) as user_email,
 			:installed_software_type as activity_type,
 			ua.created_at as created_at,
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
-				'software_package', COALESCE(si.filename, ua.payload->>'$.installer_filename', ''),
+				'software_title', COALESCE(st.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name')), ''),
+				'software_package', COALESCE(si.filename, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.installer_filename')), ''),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
-				'self_service', ua.payload->'$.self_service' IS TRUE,
-				'source', COALESCE(st.source, ua.payload->>'$.source'),
+				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
+				'source', COALESCE(st.source, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.source'))),
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
@@ -407,21 +407,21 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending software uninstalls
 		`SELECT
 			ua.execution_id as uuid,
-			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.name')))) AS name,
 			ua.user_id as user_id,
 			u.api_only as api_only,
-			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
-			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
+			COALESCE(u.gravatar_url, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.gravatar_url'))) as gravatar_url,
+			COALESCE(u.email, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.email'))) as user_email,
 			:uninstalled_software_type as activity_type,
 			ua.created_at as created_at,
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
+				'software_title', COALESCE(st.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name')), ''),
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
-				'self_service', COALESCE(ua.payload->'$.self_service', FALSE) IS TRUE,
-				'source', COALESCE(st.source, ua.payload->>'$.source'),
+				'self_service', COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), FALSE) IS TRUE,
+				'source', COALESCE(st.source, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.source'))),
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
@@ -448,11 +448,11 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		`,
 		`SELECT
 			ua.execution_id AS uuid,
-			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.name')))) AS name,
 			u.id AS user_id,
 			u.api_only as api_only,
-			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
-			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
+			COALESCE(u.gravatar_url, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.gravatar_url'))) as gravatar_url,
+			COALESCE(u.email, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.email'))) as user_email,
 			:installed_app_store_app_type AS activity_type,
 			ua.created_at AS created_at,
 			JSON_OBJECT(
@@ -461,7 +461,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'software_title', st.name,
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
-				'self_service', ua.payload->'$.self_service' IS TRUE,
+				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
 				'status', 'pending_install'
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
@@ -733,7 +733,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.activity_type,
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
-		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		COALESCE(st.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name')), '') as canceled_name, -- software title name in this case
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -757,7 +757,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.activity_type,
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
-		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		COALESCE(st.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name')), '') as canceled_name, -- software title name in this case
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -1302,9 +1302,9 @@ SELECT
 	sua.script_id,
 	sua.policy_id,
 	ua.user_id,
-	COALESCE(ua.payload->'$.sync_request', 0),
+	COALESCE(JSON_EXTRACT(ua.payload, '$.sync_request'), 0),
 	sua.setup_experience_script_id,
-	COALESCE(ua.payload->'$.is_internal', 0)
+	COALESCE(JSON_EXTRACT(ua.payload, '$.is_internal'), 0)
 FROM
 	upcoming_activities ua
 	INNER JOIN script_upcoming_activities sua
@@ -1340,12 +1340,12 @@ SELECT
 	ua.host_id,
 	siua.software_installer_id,
 	ua.user_id,
-	COALESCE(ua.payload->'$.self_service', 0),
+	COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), 0),
 	siua.policy_id,
-	COALESCE(ua.payload->>'$.installer_filename', '[deleted installer]'),
-	COALESCE(ua.payload->>'$.version', 'unknown'),
+	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.installer_filename')), '[deleted installer]'),
+	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.version')), 'unknown'),
 	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name')), '[deleted title]')
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -1409,8 +1409,8 @@ SELECT
 	1,  -- uninstall
 	'', -- no installer_filename for uninstalls
 	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]'),
-	COALESCE(ua.payload->>'$.self_service', FALSE),
+	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.software_title_name')), '[deleted title]'),
+	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.self_service')), FALSE),
 	'unknown'
 FROM
 	upcoming_activities ua
@@ -1457,8 +1457,8 @@ SELECT
 	vaua.platform,
 	ua.execution_id,
 	ua.user_id,
-	ua.payload->>'$.associated_event_id',
-	COALESCE(ua.payload->'$.self_service', 0),
+	JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.associated_event_id')),
+	COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), 0),
 	vaua.policy_id
 FROM
 	upcoming_activities ua

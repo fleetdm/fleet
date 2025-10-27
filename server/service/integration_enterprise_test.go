@@ -16619,7 +16619,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&actor,
-			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
+			`SELECT user_id, user_name, user_email, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_id')) policy_id, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_name')) policy_name FROM activities WHERE id = ?`,
 			activityID,
 		)
 	})
@@ -16656,7 +16656,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&actor,
-			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
+			`SELECT user_id, user_name, user_email, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_id')) policy_id, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_name')) policy_name FROM activities WHERE id = ?`,
 			activityID,
 		)
 	})
