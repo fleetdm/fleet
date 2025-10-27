@@ -40,7 +40,7 @@ func TestUp_20251024145618(t *testing.T) {
 	var winUC *string
 	err := db.Get(&winUC, `SELECT upgrade_code FROM software_titles WHERE id = ?`, ws.ID)
 	require.NoError(t, err)
-	require.Equal(t, *winUC, ptr.String(""))
+	require.Equal(t, "", *winUC)
 
 	var macUC *string
 	err = db.Get(&macUC, `SELECT upgrade_code FROM software_titles WHERE id = ?`, ms.ID)
@@ -82,7 +82,7 @@ func TestUp_20251024145618(t *testing.T) {
 	for _, tC := range cases {
 		t.Run(tC.name, func(t *testing.T) {
 			var title fleet.SoftwareTitle
-			err := db.Get(&title, `SELECT id, source, bundle_identifier, upgrade_code, unique_identifier FROM software_titles WHERE id = ?`, tC.titleID)
+			err := db.Get(&title, `SELECT id, source, bundle_identifier, upgrade_code FROM software_titles WHERE id = ?`, tC.titleID)
 			require.NoError(t, err)
 			if tC.expectedUpgradeCode == nil {
 				// mac sw
@@ -96,7 +96,7 @@ func TestUp_20251024145618(t *testing.T) {
 				assert.Equal(t, *tC.expectedUpgradeCode, *title.UpgradeCode)
 			}
 
-			var gotUniqueID fleet.StringIdentifierToIDPayload
+			var gotUniqueID string
 			err = db.Get(&gotUniqueID, "SELECT unique_identifier FROM software_titles WHERE id = ?", tC.titleID)
 			require.NoError(t, err)
 
