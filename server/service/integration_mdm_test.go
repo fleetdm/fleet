@@ -14403,6 +14403,7 @@ func (s *integrationMDMTestSuite) TestSmallstepSCEPProxyWithMicrosoftSuffix() {
 func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(suffix string) {
 	t := s.T()
 	ctx := context.Background()
+	caName := "Smallstep" + strings.ReplaceAll(strings.ReplaceAll(suffix, "/", ""), ".", "")
 
 	// Add an MDM profile
 	globalProfiles := [][]byte{
@@ -14461,19 +14462,19 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 			HostUUID:    host.UUID,
 			ProfileUUID: profileUUID,
 			Type:        fleet.CAConfigSmallstep,
-			CAName:      "Smallstep",
+			CAName:      caName,
 		},
 		{
 			HostUUID:    host.UUID,
 			ProfileUUID: badProfile.ProfileUUID,
 			Type:        fleet.CAConfigSmallstep,
-			CAName:      "Smallstep",
+			CAName:      caName,
 		},
 	})
 	require.NoError(t, err)
 
-	identifier := url.PathEscape(host.UUID + "," + profileUUID + "," + "Smallstep")
-	badIdentifier := url.PathEscape(host.UUID + "," + badProfile.ProfileUUID + "," + "Smallstep")
+	identifier := url.PathEscape(host.UUID + "," + profileUUID + "," + caName)
+	badIdentifier := url.PathEscape(host.UUID + "," + badProfile.ProfileUUID + "," + caName)
 
 	data, err := os.ReadFile("./testdata/PKCSReq.der")
 	require.NoError(t, err)
@@ -14516,7 +14517,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	password := "pass"
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:         string(fleet.CATypeSmallstep),
-		Name:         ptr.String("Smallstep"),
+		Name:         ptr.String(caName),
 		URL:          &testServer.URL,
 		ChallengeURL: &challengeUrl,
 		Username:     &username,
@@ -14553,7 +14554,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	ca, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:         string(fleet.CATypeSmallstep),
-		Name:         ptr.String("Smallstep"),
+		Name:         ptr.String(caName),
 		URL:          &ndesTimeoutServer.URL,
 		ChallengeURL: &challengeUrl,
 		Username:     &username,
@@ -14575,7 +14576,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	_, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:         string(fleet.CATypeSmallstep),
-		Name:         ptr.String("Smallstep"),
+		Name:         ptr.String(caName),
 		URL:          ptr.String(scepServer.URL + "/scep"),
 		ChallengeURL: &challengeUrl,
 		Username:     &username,
@@ -14641,7 +14642,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 			ProfileUUID:          profileUUID,
 			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigSmallstep,
-			CAName:               "Smallstep",
+			CAName:               caName,
 		},
 	})
 	require.NoError(t, err)
@@ -14658,7 +14659,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 			ProfileUUID:          profileUUID,
 			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigSmallstep,
-			CAName:               "Smallstep",
+			CAName:               caName,
 		},
 	})
 	require.NoError(t, err)
