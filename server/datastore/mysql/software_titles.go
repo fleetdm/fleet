@@ -417,7 +417,7 @@ SELECT
 		,vap.latest_version as vpp_app_version
 		,vap.platform as vpp_app_platform
 		,vap.icon_url as vpp_app_icon_url
-		,iha.name as in_house_app_name
+		,iha.filename as in_house_app_name
 		,iha.version as in_house_app_version
 		,iha.platform as in_house_app_platform
 		,iha.storage_id as in_house_app_storage_id

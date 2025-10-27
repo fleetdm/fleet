@@ -3256,7 +3256,7 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 		ua.execution_id AS last_install_install_uuid,
 		ua.created_at AS last_install_installed_at,
 		ihua.in_house_app_id AS in_house_app_id,
-		iha.name AS in_house_app_name,
+		iha.filename AS in_house_app_name,
 		iha.platform AS in_house_app_platform,
 		iha.version AS in_house_app_version,
 		'pending_install' AS status
@@ -3285,7 +3285,7 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 		hihsi.command_uuid AS last_install_install_uuid,
 		hihsi.created_at AS last_install_installed_at,
 		hihsi.in_house_app_id AS in_house_app_id,
-		iha.name AS in_house_app_name,
+		iha.filename AS in_house_app_name,
 		iha.platform AS in_house_app_platform,
 		iha.version AS in_house_app_version,
 		-- inHouseAppHostStatusNamedQuery(hvsi, ncr, status)
@@ -3412,7 +3412,7 @@ func hostInstalledInHouses(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			hihsi.command_uuid AS last_install_install_uuid,
 			hihsi.created_at AS last_install_installed_at,
 			iha.id AS in_house_app_id,
-			iha.name AS in_house_app_name,
+			iha.filename AS in_house_app_name,
 			iha.version AS in_house_app_version,
 			iha.platform as in_house_app_platform,
 			'installed' AS status
@@ -3848,7 +3848,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				vap.platform as vpp_app_platform,
 				NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 				iha.id as in_house_app_id,
-				iha.name as in_house_app_name,
+				iha.filename as in_house_app_name,
 				iha.version as in_house_app_version,
 				iha.platform as in_house_app_platform,
 				NULL as last_install_installed_at,
@@ -4248,7 +4248,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				SELECT
 					iha.title_id AS id,
 					iha.id AS in_house_app_id,
-					iha.name AS in_house_app_name,
+					iha.filename AS in_house_app_name,
 					iha.version AS in_house_app_version,
 					iha.platform as in_house_app_platform
 				FROM
@@ -4855,7 +4855,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS vpp_app_icon_url_list,
 					NULL AS vpp_app_self_service_list,
 					GROUP_CONCAT(in_house_apps.id) AS in_house_app_id_list,
-					GROUP_CONCAT(in_house_apps.name) AS in_house_app_name_list,
+					GROUP_CONCAT(in_house_apps.filename) AS in_house_app_name_list,
 					GROUP_CONCAT(in_house_apps.version) AS in_house_app_version_list,
 					GROUP_CONCAT(in_house_apps.platform) as in_house_app_platform_list
 			`, `

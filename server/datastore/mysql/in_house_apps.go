@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -15,7 +16,7 @@ import (
 )
 
 func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
-	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND (bundle_identifier = ? OR name = ?)`
+	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND (bundle_identifier = ? OR filename = ?)`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -27,11 +28,12 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Name, payload.BundleID, "ipados_apps")
+	titleName, _ := strings.CutSuffix(payload.Filename, ".ipa")
+	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ipados_apps")
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 	}
-	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Name, payload.BundleID, "ios_apps")
+	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ios_apps")
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
 	}
@@ -39,19 +41,19 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	var installerID uint
 	var count uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Name)
+		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Filename)
 		if err := row.Scan(&count); err != nil {
 			return ctxerr.Wrap(ctx, err, "insertInHouseApp")
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			err = alreadyExists("insertInHouseApp", payload.Name)
+			err = alreadyExists("insertInHouseApp", payload.Filename)
 		}
 
 		argsIos := []any{
 			tid,
 			globalOrTeamID,
-			payload.Name,
+			payload.Filename,
 			payload.StorageID,
 			payload.Version,
 			payload.BundleID,
@@ -61,7 +63,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		argsIpad := []any{
 			tid,
 			globalOrTeamID,
-			payload.Name,
+			payload.Filename,
 			payload.StorageID,
 			payload.Version,
 			payload.BundleID,
@@ -86,7 +88,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 }
 
 func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name string, bundleID string, source string) (uint, error) {
-	selectStmt := `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ? OR (name = ? AND source = ?)`
+	selectStmt := `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ?)`
 	selectArgs := []any{bundleID, source, name, source}
 	insertStmt := `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 	insertArgs := []any{name, source, bundleID}
@@ -112,7 +114,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	INSERT INTO in_house_apps (
 		team_id,
 		global_or_team_id,
-		name,
+		filename,
 		storage_id,
 		version,
 		bundle_identifier,
@@ -124,7 +126,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		if IsDuplicate(err) {
-			err = alreadyExists("insertInHouseAppDB", payload.Name)
+			err = alreadyExists("insertInHouseAppDB", payload.Filename)
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
@@ -177,11 +179,12 @@ SELECT
   iha.id,
   iha.team_id,
   iha.title_id,
-  COALESCE(iha.name, '') AS software_title,
+  iha.filename,
   iha.platform,
   iha.storage_id,
+  iha.version,
   st.bundle_identifier AS bundle_identifier,
-  iha.version
+  COALESCE(st.name, '') AS software_title
 FROM
   in_house_apps iha
   JOIN software_titles st ON st.id = iha.title_id
@@ -229,7 +232,7 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `UPDATE in_house_apps SET
                     storage_id = ?,
-                    name = ?,
+                    filename = ?,
                     version = ?
                  WHERE id = ?`
 
