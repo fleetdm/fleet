@@ -1831,6 +1831,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## deleted_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## edited_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
 ## added_smallstep
 
 Generated when Smallstep certificate authority configuration is added in Fleet.
