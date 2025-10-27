@@ -14,7 +14,6 @@ import (
 )
 
 func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
-	// ctx := context.Background()
 	t := s.T()
 
 	appConf, err := s.ds.AppConfig(context.Background())
@@ -30,6 +29,16 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		err = s.ds.SaveAppConfig(context.Background(), appConf)
 		require.NoError(s.T(), err)
 	})
+
+	// Adding android app before android MDM is turned on should fail
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "com.should.fail", Platform: fleet.AndroidPlatform},
+		http.StatusNotFound,
+		&addAppResp,
+	)
 
 	EnterpriseID := "LC02k5wxw7"
 	EnterpriseSignupURL := "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
@@ -56,10 +65,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 			Url:  EnterpriseSignupURL,
 			Name: "signupUrls/Cb08124d0999c464f",
 		}, nil
-	}
-
-	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
-		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Test App"}, nil
 	}
 
 	// Create enterprise
@@ -98,8 +103,43 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		IconURL:          "https://example.com/images/2",
 	}
 
+	// Invalid application ID format: should fail
+	r := s.Do(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "thisisnotanappid", Platform: fleet.AndroidPlatform},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "app_store_id must be a valid Android application ID")
+
+	// Missing platform: should fail
+	r = s.Do(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "platform is required")
+
+	// Valid application ID format, but app isn't found: should fail
+	// Update mock to return a 404
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return nil, &notFoundError{}
+	}
+
+	r = s.Do(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Test App"}, nil
+	}
+
 	// Add Android app
-	var addAppResp addAppStoreAppResponse
 	s.DoJSON(
 		"POST",
 		"/api/latest/fleet/software/app_store_apps",

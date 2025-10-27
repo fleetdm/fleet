@@ -403,6 +403,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		// TODO(JVE): is it worth wrapping both of these operations in a single androidService method? they're technically just wrappers around a "datastore"
 		androidApp, err := svc.androidService.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
 		if err != nil {
+			if fleet.IsNotFound(err) {
+				return 0, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+			}
 			return 0, ctxerr.Wrap(ctx, err, "add app store app: check if android app exists")
 		}
 
