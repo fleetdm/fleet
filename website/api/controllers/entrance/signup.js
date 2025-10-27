@@ -152,13 +152,11 @@ the account verification message.)`,
       sails.log.warn(`When a new user signed up for an account, enrichment information could not be obtained with the information provided. Full error: ${require('util').inspect(err)}`);
       return { employer: undefined, person: undefined};
     });
-    console.log(enrichmentInformation);
+
 
     let fleetPremiumTrialType = 'local-trial';
-    if(enrichmentInformation.employer) {
-      if(enrichmentInformation.employer.numberOfEmployees > 700){
+    if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
         fleetPremiumTrialType = 'render-trial';
-      }
     }
     // TODO: remove before merging.
     if(emailDomain === 'feralgoblin.com') {
@@ -245,7 +243,7 @@ the account verification message.)`,
       emailAddress: newEmailAddress,
       firstName: firstName,
       lastName: lastName,
-      // organization: emailDomain,
+      // organization: emailDomain,// Note: organization is not provided because we're relying on the enrichment helper to find the correct account for this person.
       contactSource: 'Website - Sign up',
       psychologicalStageChangeReason,
     }).exec((err)=>{
