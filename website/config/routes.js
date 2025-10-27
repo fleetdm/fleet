@@ -281,7 +281,7 @@ module.exports.routes = {
     }
   },// handles /docs and /docs/foo/bar
 
-  'GET /handbook/?*':  {
+  'GET /handbook/?*': {
     skipAssets: false,
     action: 'handbook/view-basic-handbook',// Meta title and description set in view action
     locals: {
@@ -595,7 +595,7 @@ module.exports.routes = {
   'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
-  'GET /docs/contributing/testing':  '/docs/contributing/getting-started/testing-and-local-development',
+  'GET /docs/contributing/testing': '/docs/contributing/getting-started/testing-and-local-development',
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing',
   'GET /handbook/community': '/handbook/marketing',
@@ -610,8 +610,8 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/finance/security',
-  'GET /handbook/digital-experience/security':'/handbook/finance/security',
-  'GET /handbook/business-operations/security-policies':'/handbook/finance/security',
+  'GET /handbook/digital-experience/security': '/handbook/finance/security',
+  'GET /handbook/business-operations/security-policies': '/handbook/finance/security',
   'GET /handbook/business-operations/application-security': '/handbook/finance/security',
   'GET /handbook/business-operations/security-audits': '/handbook/finance/security',
   'GET /handbook/business-operations/security': '/handbook/finance/security',
@@ -627,7 +627,7 @@ module.exports.routes = {
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
   'GET /handbook/business-operations': '/handbook/finance',
-  'GET /handbook/digital-experience':'/handbook/it-and-enablement',
+  'GET /handbook/digital-experience': '/handbook/it-and-enablement',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
@@ -665,7 +665,7 @@ module.exports.routes = {
   'GET /docs/contributing/configuration': '/docs/configuration/configuration-files',
   'GET /docs/contributing/*': {
     skipAssets: true,
-    fn: (req, res)=>{
+    fn: (req, res) => {
       return res.redirect('https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
     }
   },
@@ -712,50 +712,50 @@ module.exports.routes = {
   'GET /docs/configuration/configuration-files': '/docs/using-fleet/gitops',
   'GET /try-fleet/explore-data': '/tables/account_policy_data',
   'GET /try-fleet/explore-data/:hostPlatform/:tableName': {
-    fn: (req, res)=>{
-      return res.redirect('/tables/'+req.param('tableName'));
+    fn: (req, res) => {
+      return res.redirect('/tables/' + req.param('tableName'));
     }
   },
-  'GET /docs/using-fleet/fleet-ui': (req,res)=> { return res.redirect(301, '/guides/queries');},
-  'GET /docs/using-fleet/learn-how-to-use-fleet': (req,res)=> { return res.redirect(301, '/guides/queries');},
-  'GET /docs/using-fleet/fleetctl-cli': (req,res)=> { return res.redirect(301, '/guides/fleetctl');},
-  'GET /docs/using-fleet/fleet-desktop': (req,res)=> { return res.redirect(301, '/guides/fleet-desktop');},
-  'GET /docs/using-fleet/enroll-hosts': (req,res)=> { return res.redirect(301, '/guides/enroll-hosts');},
-  'GET /docs/using-fleet/manage-access': (req,res)=> { return res.redirect(301, '/guides/role-based-access');},
-  'GET /docs/using-fleet/segment-hosts': (req,res)=> { return res.redirect(301, '/guides/teams');},
-  'GET /docs/using-fleet/supported-browsers': (req,res)=> { return res.redirect(301, '/docs/get-started/faq');},
-  'GET /docs/using-fleet/supported-host-operating-systems': (req,res)=> { return res.redirect(301, '/docs/get-started/faq');},
-  'GET /docs/using-fleet/gitops': (req,res)=> { return res.redirect(301, '/docs/configuration/yaml-files');},
-  'GET /docs/using-fleet/mdm-setup': (req,res)=> { return res.redirect(301, '/guides/macos-mdm-setup');},
-  'GET /docs/using-fleet/mdm-migration-guide': (req,res)=> { return res.redirect(301, '/guides/mdm-migration');},
-  'GET /docs/using-fleet/mdm-os-updates': (req,res)=> { return res.redirect(301, '/guides/enforce-os-updates');},
-  'GET /docs/using-fleet/mdm-disk-encryption': (req,res)=> { return res.redirect(301, '/guides/enforce-disk-encryption');},
-  'GET /docs/using-fleet/mdm-custom-os-settings': (req,res)=> { return res.redirect(301, '/guides/custom-os-settings');},
-  'GET /docs/using-fleet/mdm-macos-setup-experience': (req,res)=> { return res.redirect(301, '/guides/macos-setup-experience');},
-  'GET /docs/using-fleet/scripts': (req,res)=> { return res.redirect(301, '/guides/scripts');},
-  'GET /docs/using-fleet/automations': (req,res)=> { return res.redirect(301, '/guides/automations');},
-  'GET /docs/using-fleet/puppet-module': (req,res)=> { return res.redirect(301, '/guides/puppet-module');},
-  'GET /docs/using-fleet/vulnerability-processing': (req,res)=> { return res.redirect(301, '/guides/vulnerability-processing');},
-  'GET /docs/using-fleet/cis-benchmarks': (req,res)=> { return res.redirect(301, '/guides/cis-benchmarks');},
-  'GET /docs/using-fleet/osquery-process': (req,res)=> { return res.redirect(301, '/guides/osquery-watchdog');},
-  'GET /docs/using-fleet/update-agents': (req,res)=> { return res.redirect(301, '/guides/fleetd-updates');},
-  'GET /docs/using-fleet/usage-statistics': (req,res)=> { return res.redirect(301, '/guides/fleet-usage-statistics');},
-  'GET /docs/using-fleet/downgrading-fleet': (req,res)=> { return res.redirect(301, '/guides/downgrade-fleet');},
-  'GET /docs/using-fleet/enroll-chromebooks': (req,res)=> { return res.redirect(301, '/guides/chrome-os');},
-  'GET /docs/using-fleet/audit-logs': (req,res)=> { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md');},
-  'GET /docs/using-fleet/understanding-host-vitals': (req,res)=> { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md');},
-  'GET /docs/using-fleet/standard-query-library': (req,res)=> { return res.redirect(301, '/guides/standard-query-library');},
-  'GET /docs/using-fleet/mdm-commands': (req,res)=> { return res.redirect(301, '/guides/mdm-commands');},
-  'GET /docs/using-fleet/log-destinations': (req,res)=> { return res.redirect(301, '/guides/log-destinations');},
-  'GET /guides/how-to-uninstall-osquery': (req,res)=> { return res.redirect(301, '/guides/how-to-uninstall-fleetd');},
-  'GET /guides/sysadmin-diaries-lost-device': (req,res)=> { return res.redirect(301, '/guides/lock-wipe-hosts');},
+  'GET /docs/using-fleet/fleet-ui': (req, res) => { return res.redirect(301, '/guides/queries'); },
+  'GET /docs/using-fleet/learn-how-to-use-fleet': (req, res) => { return res.redirect(301, '/guides/queries'); },
+  'GET /docs/using-fleet/fleetctl-cli': (req, res) => { return res.redirect(301, '/guides/fleetctl'); },
+  'GET /docs/using-fleet/fleet-desktop': (req, res) => { return res.redirect(301, '/guides/fleet-desktop'); },
+  'GET /docs/using-fleet/enroll-hosts': (req, res) => { return res.redirect(301, '/guides/enroll-hosts'); },
+  'GET /docs/using-fleet/manage-access': (req, res) => { return res.redirect(301, '/guides/role-based-access'); },
+  'GET /docs/using-fleet/segment-hosts': (req, res) => { return res.redirect(301, '/guides/teams'); },
+  'GET /docs/using-fleet/supported-browsers': (req, res) => { return res.redirect(301, '/docs/get-started/faq'); },
+  'GET /docs/using-fleet/supported-host-operating-systems': (req, res) => { return res.redirect(301, '/docs/get-started/faq'); },
+  'GET /docs/using-fleet/gitops': (req, res) => { return res.redirect(301, '/docs/configuration/yaml-files'); },
+  'GET /docs/using-fleet/mdm-setup': (req, res) => { return res.redirect(301, '/guides/macos-mdm-setup'); },
+  'GET /docs/using-fleet/mdm-migration-guide': (req, res) => { return res.redirect(301, '/guides/mdm-migration'); },
+  'GET /docs/using-fleet/mdm-os-updates': (req, res) => { return res.redirect(301, '/guides/enforce-os-updates'); },
+  'GET /docs/using-fleet/mdm-disk-encryption': (req, res) => { return res.redirect(301, '/guides/enforce-disk-encryption'); },
+  'GET /docs/using-fleet/mdm-custom-os-settings': (req, res) => { return res.redirect(301, '/guides/custom-os-settings'); },
+  'GET /docs/using-fleet/mdm-macos-setup-experience': (req, res) => { return res.redirect(301, '/guides/macos-setup-experience'); },
+  'GET /docs/using-fleet/scripts': (req, res) => { return res.redirect(301, '/guides/scripts'); },
+  'GET /docs/using-fleet/automations': (req, res) => { return res.redirect(301, '/guides/automations'); },
+  'GET /docs/using-fleet/puppet-module': (req, res) => { return res.redirect(301, '/guides/puppet-module'); },
+  'GET /docs/using-fleet/vulnerability-processing': (req, res) => { return res.redirect(301, '/guides/vulnerability-processing'); },
+  'GET /docs/using-fleet/cis-benchmarks': (req, res) => { return res.redirect(301, '/guides/cis-benchmarks'); },
+  'GET /docs/using-fleet/osquery-process': (req, res) => { return res.redirect(301, '/guides/osquery-watchdog'); },
+  'GET /docs/using-fleet/update-agents': (req, res) => { return res.redirect(301, '/guides/fleetd-updates'); },
+  'GET /docs/using-fleet/usage-statistics': (req, res) => { return res.redirect(301, '/guides/fleet-usage-statistics'); },
+  'GET /docs/using-fleet/downgrading-fleet': (req, res) => { return res.redirect(301, '/guides/downgrade-fleet'); },
+  'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
+  'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
+  'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md'); },
+  'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/standard-query-library'); },
+  'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
+  'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
+  'GET /guides/how-to-uninstall-osquery': (req, res) => { return res.redirect(301, '/guides/how-to-uninstall-fleetd'); },
+  'GET /guides/sysadmin-diaries-lost-device': (req, res) => { return res.redirect(301, '/guides/lock-wipe-hosts'); },
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
   'GET /app-library': '/software-catalog',
   'GET /app-library/:appIdentifier': {
-    fn: (req,res)=> {
-      return res.redirect('/software-catalog/'+req.param('appIdentifier'));
+    fn: (req, res) => {
+      return res.redirect('/software-catalog/' + req.param('appIdentifier'));
     }
   },
   // Release note article redirects.
@@ -846,39 +846,39 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
-  'GET /admin':                      '/admin/email-preview',
-  'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
-  'GET /documentation':              '/docs',
-  'GET /contribute':                 '/docs/contributing',
-  'GET /install':                    '/fleetctl-preview',
-  'GET /company':                    '/company/about',
-  'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /company/contact':            '/contact',
-  'GET /legal':                      '/legal/terms',
-  'GET /terms':                      '/legal/terms',
-  'GET /handbook/security/github':   '/handbook/security#git-hub-security',
-  'GET /slack':                      '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
+  'GET /admin': '/admin/email-preview',
+  'GET /renew': 'https://calendly.com/zayhanlon/fleet-renewal-discussion',
+  'GET /documentation': '/docs',
+  'GET /contribute': '/docs/contributing',
+  'GET /install': '/fleetctl-preview',
+  'GET /company': '/company/about',
+  'GET /company/about': '/handbook', // FUTURE: brief "about" page explaining the origins of the company
+  'GET /company/contact': '/contact',
+  'GET /legal': '/legal/terms',
+  'GET /terms': '/legal/terms',
+  'GET /handbook/security/github': '/handbook/security#git-hub-security',
+  'GET /slack': '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
-  'GET /blog':                   '/articles',
-  'GET /brand':                  '/logos',
-  'GET /get-started':            '/try-fleet',
-  'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
-  'GET /test-fleet-sandbox':     '/register',
-  'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-marketing-emails?'+originalQueryString);},
-  'GET /unsubscribe-from-newsletter':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
-  'GET /tables':                 '/tables/account_policy_data',
-  'GET /vitals':                 '/vitals/battery',
-  'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
-  'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
-  'GET /fleetctl-preview':   '/try-fleet',
-  'GET /try-fleet/sandbox-expired':   '/try-fleet',
-  'GET /try-fleet/sandbox':   '/try-fleet',
-  'GET /try-fleet/waitlist':   '/try-fleet',
+  'GET /blog': '/articles',
+  'GET /brand': '/logos',
+  'GET /get-started': '/try-fleet',
+  'GET /g': (req, res) => { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/?meet-fleet' + originalQueryStringWithAmp); },
+  'GET /test-fleet-sandbox': '/register',
+  'GET /unsubscribe': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/api/v1/unsubscribe-from-marketing-emails?' + originalQueryString); },
+  'GET /unsubscribe-from-newsletter': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/api/v1/unsubscribe-from-all-newsletters?' + originalQueryString); },
+  'GET /tables': '/tables/account_policy_data',
+  'GET /vitals': '/vitals/battery',
+  'GET /imagine/launch-party': 'https://www.eventbrite.com/e/601763519887',
+  'GET /blackhat2023': 'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
+  'GET /fleetctl-preview': '/try-fleet',
+  'GET /try-fleet/sandbox-expired': '/try-fleet',
+  'GET /try-fleet/sandbox': '/try-fleet',
+  'GET /try-fleet/waitlist': '/try-fleet',
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
   'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/enrollment-profiles/automatic-enrollment.dep.json',
-  'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
-  'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
-  'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
+  'GET /vulnerability-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/software-management' + originalQueryString); },
+  'GET /endpoint-ops': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
+  'GET /observability': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
 
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
 
@@ -979,36 +979,41 @@ module.exports.routes = {
   'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/managed-lost-mode': 'https://it-training.apple.com/tutorials/deployment/dm255/',
+  'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#partial-failure-android-profiles',
+  'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
+  'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
+  'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
+  'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
 
   // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
   // XML file, which helps search engines know which pages are available on the website.
-  'GET /sitemap.xml':            { action: 'download-sitemap' },
+  'GET /sitemap.xml': { action: 'download-sitemap' },
 
   // RSS feeds
   // =============================================================================================================
-  'GET /rss/:categoryName': {action: 'download-rss-feed'},
+  'GET /rss/:categoryName': { action: 'download-rss-feed' },
 
   // Potential future pages
   // =============================================================================================================
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
   // redirects to somewhere else EXTERNAL to the Sails app.
-  'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
-  'GET /trust':                  'https://trust.fleetdm.com',
-  'GET /status':                 'https://status.fleetdm.com',
-  'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
-  'GET /apply':                  '/jobs',
-  'GET /jobs':                   'https://fleetdm.com/handbook/company#open-positions',
-  'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
-  'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
-  'GET /logout':                 '/api/v1/account/logout',
-  'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
-  'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',
+  'GET /security': 'https://github.com/fleetdm/fleet/security/policy',
+  'GET /trust': 'https://trust.fleetdm.com',
+  'GET /status': 'https://status.fleetdm.com',
+  'GET /hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
+  'GET /apply': '/jobs',
+  'GET /jobs': 'https://fleetdm.com/handbook/company#open-positions',
+  'GET /company/stewardship': 'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
+  'GET /legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
+  'GET /legal/privacy': 'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
+  'GET /logout': '/api/v1/account/logout',
+  'GET /defcon': 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /osquery-stickers': 'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
+  'GET /swag': 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /community': 'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',
 
   // Temporary redirects
   // =============================================================================================================
@@ -1023,22 +1028,22 @@ module.exports.routes = {
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
   'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
-  'POST /api/v1/webhooks/receive-from-clay': { action: 'webhooks/receive-from-clay', csrf: false},
-  'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},// TODO: change this route to match Sails conventions for webhooks and to be in the webhooks/ folder.  Then remove from policies: 'get-est-device-certificate': true, as it'll just be taken care of by being in the right place.
+  'POST /api/v1/webhooks/receive-from-clay': { action: 'webhooks/receive-from-clay', csrf: false },
+  'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false },// TODO: change this route to match Sails conventions for webhooks and to be in the webhooks/ folder.  Then remove from policies: 'get-est-device-certificate': true, as it'll just be taken care of by being in the right place.
 
 
   //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
   //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
-  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false},
-  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false},
-  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises'},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
-  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
-  'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
-  'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device', csrf: false},
-  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false},
-  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
+  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false },
+  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false },
+  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises' },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false },
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false },
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false },
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device', csrf: false },
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
@@ -1046,28 +1051,28 @@ module.exports.routes = {
   //  ╩ ╩╩  ╩  ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
   // Note that, in this app, these API endpoints may be accessed using the `Cloud.*()` methods
   // from the Parasails library, or by using those method names as the `action` in <ajax-form>.
-  'POST /api/v1/deliver-contact-form-message':        { action: 'deliver-contact-form-message' },
+  'POST /api/v1/deliver-contact-form-message': { action: 'deliver-contact-form-message' },
   'POST /api/v1/entrance/send-password-recovery-email': { action: 'entrance/send-password-recovery-email' },
-  'POST /api/v1/customers/signup':                     { action: 'entrance/signup' },
-  'POST /api/v1/account/update-profile':               { action: 'account/update-profile' },
-  'POST /api/v1/account/update-password':              { action: 'account/update-password' },
-  'POST /api/v1/account/update-billing-card':          { action: 'account/update-billing-card'},
-  'POST /api/v1/customers/login':                      { action: 'entrance/login' },
-  '/api/v1/account/logout':                            { action: 'account/logout' },
-  'POST /api/v1/customers/create-quote':               { action: 'customers/create-quote' },
+  'POST /api/v1/customers/signup': { action: 'entrance/signup' },
+  'POST /api/v1/account/update-profile': { action: 'account/update-profile' },
+  'POST /api/v1/account/update-password': { action: 'account/update-password' },
+  'POST /api/v1/account/update-billing-card': { action: 'account/update-billing-card' },
+  'POST /api/v1/customers/login': { action: 'entrance/login' },
+  '/api/v1/account/logout': { action: 'account/logout' },
+  'POST /api/v1/customers/create-quote': { action: 'customers/create-quote' },
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
-  'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
-  'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
+  'POST /api/v1/entrance/update-password-and-login': { action: 'entrance/update-password-and-login' },
+  'POST /api/v1/deliver-demo-signup': { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
-  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request'},
+  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/create-external-vanta-authorization-request': { action: 'create-vanta-authorization-request', csrf: false },
   'GET /redirect-vanta-authorization-request': { action: 'redirect-vanta-authorization-request' },
-  'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
+  'POST /api/v1/deliver-mdm-beta-signup': { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/get-human-interpretation-from-osquery-sql': { action: 'get-human-interpretation-from-osquery-sql', csrf: false },
-  'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
-  'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
+  'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false },
+  'POST /api/v1/deliver-mdm-demo-email': { action: 'deliver-mdm-demo-email' },
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },

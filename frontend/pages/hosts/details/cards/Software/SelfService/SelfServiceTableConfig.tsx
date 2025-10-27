@@ -41,11 +41,12 @@ export const generateSoftwareTableData = (
 interface ISelfServiceTableHeaders {
   onShowUpdateDetails: (software: IDeviceSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowScriptDetails: (hostSoftware: IHostSoftware) => void;
   onShowVPPInstallDetails: (hostSoftware: IVPPHostSoftware) => void;
   onShowUninstallDetails: (
     uninstallDetails: ISWUninstallDetailsParentState
   ) => void;
-  onClickInstallAction: (softwareId: number) => void;
+  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
   onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;
   onClickOpenInstructionsAction: (software: IHostSoftwareWithUiStatus) => void;
 }
@@ -55,6 +56,7 @@ interface ISelfServiceTableHeaders {
 export const generateSoftwareTableHeaders = ({
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowScriptDetails,
   onShowVPPInstallDetails,
   onShowUninstallDetails,
   onClickInstallAction,
@@ -99,6 +101,7 @@ export const generateSoftwareTableHeaders = ({
           software={cellProps.row.original}
           onShowUpdateDetails={onShowUpdateDetails}
           onShowInstallDetails={onShowInstallDetails}
+          onShowScriptDetails={onShowScriptDetails}
           onShowVPPInstallDetails={onShowVPPInstallDetails}
           onShowUninstallDetails={onShowUninstallDetails}
           isSelfService
