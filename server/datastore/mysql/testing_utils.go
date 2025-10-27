@@ -146,7 +146,8 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
 			_, err := replica.ExecContext(ctx, stmt)
 			// If the FK was already removed do nothing
-			if err != nil && strings.Contains(err.Error(), "check that column/key exists") {
+			// MySQL says "check that column/key exists", MariaDB says "check that it exists"
+			if err != nil && (strings.Contains(err.Error(), "check that column/key exists") || strings.Contains(err.Error(), "check that it exists")) {
 				continue
 			}
 
