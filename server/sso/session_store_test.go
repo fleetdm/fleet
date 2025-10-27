@@ -15,7 +15,7 @@ func TestSessionStore(t *testing.T) {
 		store := NewSessionStore(pool)
 
 		// Create session that lives for 1 second.
-		err := store.create("sessionID123", "requestID123", "https://originalurl.com", "some metadata", 1)
+		err := store.create("sessionID123", "requestID123", "https://originalurl.com", "some metadata", 1, SSORequestData{HostUUID: "host-uuid-123"})
 		require.NoError(t, err)
 
 		sess, err := store.get("sessionID123")
@@ -24,6 +24,7 @@ func TestSessionStore(t *testing.T) {
 		assert.Equal(t, "requestID123", sess.RequestID)
 		assert.Equal(t, "https://originalurl.com", sess.OriginalURL)
 		assert.Equal(t, "some metadata", sess.Metadata)
+		assert.Equal(t, "host-uuid-123", sess.RequestData.HostUUID)
 
 		// Wait a little bit more than one second, session should no longer be present.
 		time.Sleep(1100 * time.Millisecond)
@@ -33,7 +34,7 @@ func TestSessionStore(t *testing.T) {
 		assert.Nil(t, sess)
 
 		// Create another session for 1 second
-		err = store.create("sessionID456", "requestID456", "https://originalurl.com", "some metadata", 1)
+		err = store.create("sessionID456", "requestID456", "https://originalurl.com", "some metadata", 1, SSORequestData{})
 		require.NoError(t, err)
 
 		// Forcefully expire it
