@@ -787,7 +787,7 @@ func longestCommonPrefix(strs []string) string {
 func (ds *Datastore) preInsertSoftwareInventory(
 	ctx context.Context,
 	existingSoftware []softwareIDChecksum,
-	softwareChecksums map[string]fleet.Software,
+	softwareByChecksum map[string]fleet.Software,
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 ) error {
 	type titleKey struct {
@@ -801,14 +801,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	// Collect all software that needs to be inserted
 	needsInsert := make(map[string]fleet.Software)
 	bundleGroups := make(map[titleKey][]string)
-	keys := make([]string, 0, len(softwareChecksums))
+	keys := make([]string, 0, len(softwareByChecksum))
 
 	existingSet := make(map[string]struct{}, len(existingSoftware))
 	for _, es := range existingSoftware {
 		existingSet[es.Checksum] = struct{}{}
 	}
 
-	for checksum, sw := range softwareChecksums {
+	for checksum, sw := range softwareByChecksum {
 		if _, ok := existingSet[checksum]; !ok {
 			needsInsert[checksum] = sw
 			keys = append(keys, checksum)
@@ -889,7 +889,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if sw.ApplicationID != nil && *sw.ApplicationID != "" {
 						st.ApplicationID = sw.ApplicationID
 					}
-					if sw.UpgradeCode != nil && *sw.UpgradeCode != "" {
+					if sw.UpgradeCode != nil {
+						// intentionally write both empty and non-empty strings as upgrade codes
 						st.UpgradeCode = sw.UpgradeCode
 					}
 					newTitlesNeeded[checksum] = st

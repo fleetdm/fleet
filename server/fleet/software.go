@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
@@ -560,13 +562,15 @@ func SoftwareFromOsqueryRow(
 	truncatedSource := truncateString(source, SoftwareSourceMaxLength)
 
 	var upgradeCodeForFleetSW *string
-	// nil for sources other than "programs", "" if "programs" source and no code returned,
-	// length-validated code for "programs" source and non-empty value returned
+	// 3 options:
+	// - nil for sources other than "programs"
+	// - "" if "programs" source and no code returned, or
+	// - length-validated code for "programs" source and non-empty value returned
 	if truncatedSource == "programs" {
 		if upgradeCode != "" && len(upgradeCode) != UpgradeCodeExpectedLength {
 			return nil, errors.New("host reported invalid upgrade code - unexpected length")
 		}
-		upgradeCodeForFleetSW = &upgradeCode
+		upgradeCodeForFleetSW = ptr.String(upgradeCode)
 
 	}
 
