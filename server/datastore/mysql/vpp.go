@@ -1502,6 +1502,11 @@ func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 			return ctxerr.Wrap(ctx, err, "removing policy automations associated with vpp token")
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`, tokenID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing vpp apps associated with vpp token")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting vpp token")
