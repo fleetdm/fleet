@@ -35,6 +35,10 @@ type EnrollOrbitResponse struct {
 	Err          error  `json:"error,omitempty"`
 }
 
+type SSOURLResponse struct {
+	URL string `json:"url"`
+}
+
 type orbitGetConfigRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 }
@@ -176,6 +180,26 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
+	}
+	isEndUserAuthRequired := appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
+	// If the secret is for a team, get the team config as well.
+	if secret.TeamID != nil {
+		team, err := svc.ds.Team(ctx, *secret.TeamID)
+		if err != nil {
+			return "", fleet.OrbitError{Message: "failed to get team config: " + err.Error()}
+		}
+		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+	}
+
+	if isEndUserAuthRequired {
+		// Try to find an IdP account for this host.
+		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
+		if err != nil {
+			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
+		}
+		if idpAccount == nil {
+			return "", fleet.NewOrbitIDPAuthRequiredError()
+		}
 	}
 
 	var stickyEnrollment *string

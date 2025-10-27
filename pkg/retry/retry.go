@@ -5,10 +5,20 @@ import (
 	"time"
 )
 
+type ErrorOutcome int
+
+const (
+	ErrorOutcomeNormalRetry ErrorOutcome = iota
+	ErrorOutcomeResetAttempts
+	ErrorOutcomeIgnore
+	ErrorOutcomeDoNotRetry
+)
+
 type config struct {
 	initialInterval   time.Duration
 	backoffMultiplier int
 	maxAttempts       int
+	errorFilter       func(error) ErrorOutcome
 }
 
 // Option allows to configure the behavior of retry.Do
@@ -37,6 +47,12 @@ func WithMaxAttempts(a int) Option {
 	}
 }
 
+func WithErrorFilter(f func(error) ErrorOutcome) Option {
+	return func(c *config) {
+		c.errorFilter = f
+	}
+}
+
 // Do executes the provided function, if the function returns a
 // non-nil error it performs a retry according to the options
 // provided.
@@ -61,6 +77,20 @@ func Do(fn func() error, opts ...Option) error {
 		err := fn()
 		if err == nil {
 			return nil
+		}
+		if cfg.errorFilter != nil {
+			outcome := cfg.errorFilter(err)
+			switch outcome {
+			case ErrorOutcomeIgnore:
+				return nil
+			case ErrorOutcomeResetAttempts:
+				attempts = 0
+				backoff = 1
+			case ErrorOutcomeDoNotRetry:
+				return err
+			default:
+				// continue with normal retry
+			}
 		}
 
 		if cfg.maxAttempts != 0 && attempts >= cfg.maxAttempts {

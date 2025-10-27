@@ -67,6 +67,13 @@ type OrbitClient struct {
 	// If set then it will be deleted on HTTP 401 errors from Fleet and it will cause ExecuteConfigReceivers
 	// to terminate to trigger a restart.
 	hostIdentityCertPath string
+
+	// initiatedIdpAuth is a flag indicating whether a window has been opened
+	// to the sign-on page for the organizations Identity Provider.
+	initiatedIdpAuth bool
+
+	// openSSOWindow is a function that opens a browser window to the SSO URL.
+	openSSOWindow func() error
 }
 
 // time-to-live for config cache
@@ -77,6 +84,10 @@ type configCache struct {
 	lastUpdated time.Time
 	config      *fleet.OrbitConfig
 	err         error
+}
+
+func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
+	oc.openSSOWindow = f
 }
 
 func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
@@ -537,25 +548,11 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	default:
 		return "", fmt.Errorf("read orbit node key file: %w", err)
 	}
-	var (
-		orbitNodeKey_        string
-		endpointDoesNotExist bool
-	)
+	var orbitNodeKey_ string
 	if err := retry.Do(
 		func() error {
-			var err error
 			orbitNodeKey_, err = oc.enrollAndWriteNodeKeyFile()
-			switch {
-			case err == nil:
-				return nil
-			case errors.Is(err, notFoundErr{}):
-				// Do not retry if the endpoint does not exist.
-				endpointDoesNotExist = true
-				return nil
-			default:
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
-				return err
-			}
+			return err
 		},
 		// The below configuration means the following retry intervals (exponential backoff):
 		// 10s, 20s, 40s, 80s, 160s and then return the failure (max attempts = 6)
@@ -563,11 +560,40 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 		retry.WithInterval(orbitEnrollRetryInterval()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
 		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
+		retry.WithErrorFilter(func(err error) (errorOutcome retry.ErrorOutcome) {
+			switch {
+			case errors.Is(err, notFoundErr{}):
+				// Do not retry if the endpoint does not exist.
+				return retry.ErrorOutcomeDoNotRetry
+			case errors.Is(err, ErrUnauthenticated):
+				// If we get an authentication error, then the user
+				// needs to authenticate with the identity provider.
+				// Open a browser window to the sign-on page and
+				// then keep retrying until they authenticate.
+				//
+				// Sleep for 20 seconds to make the total retry inteval
+				// 30 seconds.
+				log.Info().Msg("enroll unauthenticated, opening SSO window")
+				if !oc.initiatedIdpAuth {
+					oc.initiatedIdpAuth = true
+					openWindowErr := oc.openSSOWindow()
+					if openWindowErr != nil {
+						log.Error().Err(openWindowErr).Msg("opening SSO window")
+						return retry.ErrorOutcomeNormalRetry
+					}
+				}
+				time.Sleep(20 * time.Second)
+				return retry.ErrorOutcomeResetAttempts
+			default:
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
+				return retry.ErrorOutcomeNormalRetry
+			}
+		}),
 	); err != nil {
+		if errors.Is(err, notFoundErr{}) {
+			return "", errors.New("enroll endpoint does not exist")
+		}
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
-	}
-	if endpointDoesNotExist {
-		return "", errors.New("enroll endpoint does not exist")
 	}
 	return orbitNodeKey_, nil
 }
