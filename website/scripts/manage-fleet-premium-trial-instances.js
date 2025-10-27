@@ -308,12 +308,12 @@ module.exports = {
         }, 600000);
 
 
-        let sixtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 60);
+        let ninetyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 90);
 
         let licenseKey = await sails.helpers.createLicenseKey.with({
           numberOfHosts: 10,
           organization: povRecord.slug,
-          expiresAt: sixtyDaysFromNowAt,
+          expiresAt: ninetyDaysFromNowAt,
         });
 
 
