@@ -1425,7 +1425,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
-			require.Contains(t, errMsg, "name is already used by another custom EST certificate authority")
+			require.Contains(t, errMsg, "name is already used by another Custom EST Proxy certificate authority")
 
 			// try to create a custom est ca with same name as another digicert
 			testCopy = goodESTCA
