@@ -34,7 +34,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
   resolveUninstallStatus,
-  SoftwareInstallStatus,
+  SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
@@ -42,7 +42,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -66,7 +66,6 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
 import BackButton from "components/BackButton";
-import Card from "components/Card";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
@@ -138,6 +137,10 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const doubleHeightCardClass = `${baseClass}__card--double-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
+const BYOD_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
+const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -700,7 +703,7 @@ const HostDetailsPage = ({
           setActivityVPPInstallDetails({
             appName: details?.software_title || "",
             fleetInstallStatus: (details?.status ||
-              "pending_install") as SoftwareInstallStatus,
+              "pending_install") as SoftwareInstallUninstallStatus,
             commandUuid: details?.command_uuid || "",
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
@@ -967,7 +970,7 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+  const showSoftwareLibraryTab = isPremiumTier;
 
   const showUsersCard =
     isAppleDevice(host.platform) ||
@@ -984,7 +987,7 @@ const HostDetailsPage = ({
   const renderSoftwareCard = () => {
     return (
       <div className={`${baseClass}__software-card`}>
-        {isSoftwareLibrarySupported ? (
+        {showSoftwareLibraryTab ? (
           <>
             <TabList>
               <Tab>
@@ -1023,8 +1026,9 @@ const HostDetailsPage = ({
             <TabPanel>
               {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
-               when we add that feature. */}
-              {isBYODAccountDrivenEnrollment(host.mdm.enrollment_status) ? (
+               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
+              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
+              isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
@@ -1033,7 +1037,11 @@ const HostDetailsPage = ({
                       <CustomLink
                         newTab
                         text="Learn more"
-                        url="https://fleetdm.com/learn-more-about/byod-hosts-vpp-install"
+                        url={
+                          isAndroidHost
+                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
+                        }
                       />
                     </>
                   }

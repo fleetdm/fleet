@@ -23,6 +23,8 @@ Once configured, you will need to retrieve the issuer URI from **View Setup Inst
 
 ## Google Workspace
 
+If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
+
 Create a new SAML app in Google Workspace:
 
 1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click **Add App -> Add custom SAML app**.
@@ -63,6 +65,7 @@ Create a new SAML app in Google Workspace:
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
 ## Entra
+
 Create a new SAML app in Microsoft Entra Admin Center:
 1. From the left sidebar, navigate to **Applications > Enterprise Applications**.
 2. At the top of the page, click **+ New Application**.
@@ -79,8 +82,8 @@ Create a new SAML app in Microsoft Entra Admin Center:
  ![The new SAML app's details page in Enta Admin Center](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-step-6.png)
 
 On your Fleet server: 
-1. Navigate to **Settings > Organization settings > Single sign-on options**.
-2. On the **Single sign-on options** page:
+1. Navigate to **Settings > Organization settings > Single sign-on (SSO)**.
+2. On the **Single sign-on (SSO)** page:
    - Check the box to **Enable single sign-on**.
    - For **Identity provider name**, enter `Entra`.
    - For **Entity ID**, enter `fleet`.
@@ -161,11 +164,8 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 Fleet automates user creation using just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is coming soon.
 
-This section explains how JIT user provisioning works. With JIT, Fleet will automatically create a user account when someone logs in for the first time using your configured SSO. This removes the need to create individual user accounts for a large organization.
+When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization. The new account's email and full name are copied from the user data in the SSO response.
 
-When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO.
-
-The new account's email and full name are copied from the user data in the SSO response.
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
 To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
 

@@ -111,3 +111,4 @@ labels:
   - path: ./lib/all/labels/team-g-software.yml
   - path: ./lib/all/labels/conditional-access-test-group.yml
   - path: ./lib/all/labels/nudge-test-devices.yml
+  - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml

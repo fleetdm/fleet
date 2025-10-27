@@ -260,7 +260,7 @@ const Secrets = () => {
           <span>
             Profiles can also use any of Fleet&rsquo;s{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings"
+              url="https://fleetdm.com/learn-more-about/built-in-variables"
               text="built-in variables"
               newTab
             />

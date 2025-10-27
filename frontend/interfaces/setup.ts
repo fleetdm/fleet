@@ -8,12 +8,18 @@ export const SETUP_STEP_STATUSES = [
 
 export type SetupStepStatus = typeof SETUP_STEP_STATUSES[number];
 
-export const SETUP_STEP_TYPES = ["software_install", "script_run"];
+/** These type extends onto API returned software steps */
+export const SETUP_STEP_TYPES = [
+  "software_install", // API key: software
+  "software_script_run", // API key: software, key: name ending in .sh or .ps1 for now
+  "script_run", // API key: scripts
+];
 
 export type SetupStepType = typeof SETUP_STEP_TYPES[number];
 
 export interface ISetupStep {
   name: string | null;
   status: SetupStepStatus;
-  type?: SetupStepType;
+  type: SetupStepType;
+  error?: string | null;
 }

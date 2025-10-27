@@ -224,6 +224,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeAddedConditionalAccessOkta{},
+	ActivityTypeDeletedConditionalAccessOkta{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
 	ActivityTypeDisabledConditionalAccessAutomations{},
 
@@ -972,6 +974,7 @@ type ActivityTypeMDMEnrolled struct {
 	MDMPlatform      string  `json:"mdm_platform"`
 	// EnrollmentID is the unique identifier for the MDM BYOD enrollments. It is nil for other enrollments.
 	EnrollmentID *string `json:"enrollment_id"`
+	Platform     string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
@@ -985,20 +988,24 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
-- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.`, `{
+- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
+- "platform": The enrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
-  "mdm_platform": "apple"
-  "enrollment_id": null
+  "mdm_platform": "apple",
+  "enrollment_id": null,
+  "platform": "darwin"
 }`
 }
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
-	HostSerial       string `json:"host_serial"`
-	HostDisplayName  string `json:"host_display_name"`
-	InstalledFromDEP bool   `json:"installed_from_dep"`
+	HostSerial       string  `json:"host_serial"`
+	EnrollmentID     *string `json:"enrollment_id"`
+	HostDisplayName  string  `json:"host_display_name"`
+	InstalledFromDEP bool    `json:"installed_from_dep"`
+	Platform         string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
@@ -1009,11 +1016,15 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
 	return `Generated when a host is unenrolled from Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.`, `{
+- "installed_from_dep": Whether the host was enrolled via DEP.
+- "platform": The unenrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
+  "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "installed_from_dep": true
+  "installed_from_dep": true,
+  "platform": "darwin"
 }`
 }
 
@@ -1828,6 +1839,7 @@ type ActivityTypeInstalledSoftware struct {
 	SelfService         bool    `json:"self_service"`
 	InstallUUID         string  `json:"install_uuid"`
 	Status              string  `json:"status"`
+	Source              *string `json:"source,omitempty"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
@@ -1855,6 +1867,7 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
 `, `{
@@ -1865,18 +1878,20 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }`
 }
 
 type ActivityTypeUninstalledSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	ExecutionID     string `json:"script_execution_id"`
-	SelfService     bool   `json:"self_service"`
-	Status          string `json:"status"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	SoftwareTitle   string  `json:"software_title"`
+	ExecutionID     string  `json:"script_execution_id"`
+	SelfService     bool    `json:"self_service"`
+	Status          string  `json:"status"`
+	Source          *string `json:"source,omitempty"`
 }
 
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
@@ -1895,13 +1910,15 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 - "software_title": Name of the software.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
-- "status": Status of the software uninstallation.`, `{
+- "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
-  "status": "uninstalled"
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }`
 }
 
@@ -2769,6 +2786,28 @@ func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName()
 
 func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
 	return "Generated when Microsoft Entra is integration is disconnected.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeAddedConditionalAccessOkta struct{}
+
+func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
+	return "added_conditional_access_okta"
+}
+
+func (a ActivityTypeAddedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta is configured or edited for conditional access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessOkta struct{}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
+	return "deleted_conditional_access_okta"
+}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta conditional access configuration is removed.",
 		"This activity does not contain any detail fields.", ""
 }
 
