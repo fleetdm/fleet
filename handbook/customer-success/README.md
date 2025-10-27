@@ -67,7 +67,7 @@ When on call, CSEs/CSAs will start their day by following these steps to gather 
 
 The first CSE to sign on for the day is responsible for triaging new support issues that were reported after hours. The following actions are a general guideline for what should be checked during morning triage:
 1. Look at all new support requests and immediately respond to any urgent or high-priority issues.
-2. Check the osquery Slack Channel/Unthread for support issues.
+2. Check the osquery Slack channel/Unthread for support issues.
 3. Check the MacAdmins Slack Channel for support issues.
    >Note: MacAdmins Slack messages are not populated in Unthread.
 4. Check the Unassigned queue in Unthread and re-assign any issues from after hours to the appropriate resource.
