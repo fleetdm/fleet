@@ -882,7 +882,7 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 	}
 
 	for name, incoming := range incomingByName {
-		if err := svc.validateEST(ctx, incoming, "certificate_authorities.hydrant: "); err != nil {
+		if err := svc.validateEST(ctx, incoming, "certificate_authorities.custom_est_proxy: "); err != nil {
 			return err
 		}
 
