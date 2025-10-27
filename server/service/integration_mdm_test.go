@@ -696,6 +696,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		return err
 	})
 
+	// Delete any CAs
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
+		return err
+	})
+
 	// clear any pending worker job
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM jobs")
