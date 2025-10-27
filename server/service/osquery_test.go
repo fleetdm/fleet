@@ -1838,7 +1838,7 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 		require.Equal(t, 277.0, gigsAvailable)
 		require.Equal(t, 56.0, percentAvailable)
 		require.Equal(t, 500.1, gigsTotal)

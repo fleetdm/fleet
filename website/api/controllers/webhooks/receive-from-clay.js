@@ -35,9 +35,9 @@ module.exports = {
         'Website - Newsletter',
         'Event - Sales-led event',
         'Event - Marketing-led event',
-        'Event - Engaged with Fleetie at event',
         'GitHub - Stared fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
+        'GitHub - Contributed to fleetdm/fleet',
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
@@ -62,9 +62,12 @@ module.exports = {
         'Implemented a trial key',
         'Signed up for Sales-led event',
         'Signed up for Marketing-led event',
+        'Engaged with Fleetie at Sales-led event',
+        'Engaged with Fleetie at Marketing-led event',
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
         'Forked the fleetdm/fleet repo on GitHub',
+        'Contributed to the fleetdm/fleet repo on GitHub',
         'Subscribed to the Fleet newsletter',
         'Attended a Fleet training course'
       ]

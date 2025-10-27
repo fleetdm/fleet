@@ -713,10 +713,12 @@ var testStdoutHTTPTracer = &httptrace.ClientTrace{
 }
 
 // GetSetupExperienceStatus checks the status of the setup experience for this host.
-func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error) {
+func (oc *OrbitClient) GetSetupExperienceStatus(resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	verb, path := "POST", "/api/fleet/orbit/setup_experience/status"
 	var resp getOrbitSetupExperienceStatusResponse
-	err := oc.authenticatedRequest(verb, path, &getOrbitSetupExperienceStatusRequest{}, &resp)
+	err := oc.authenticatedRequest(verb, path, &getOrbitSetupExperienceStatusRequest{
+		ResetFailedSetupSteps: resetFailedSetupSteps,
+	}, &resp)
 	if err != nil {
 		return nil, err
 	}

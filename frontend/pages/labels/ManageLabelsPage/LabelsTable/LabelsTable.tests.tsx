@@ -48,6 +48,7 @@ describe("LabelsTable", () => {
         name: "Custom label 1",
         label_type: "regular",
         description: "First custom label",
+        label_membership_type: "dynamic",
       }),
       createMockLabel({
         id: 3,
@@ -59,6 +60,14 @@ describe("LabelsTable", () => {
         name: "Custom label 2",
         label_type: "regular",
         description: "Second custom label",
+        label_membership_type: "manual",
+      }),
+      createMockLabel({
+        id: 5,
+        name: "Custom label 3",
+        label_type: "regular",
+        description: "Third custom label",
+        label_membership_type: "host_vitals",
       }),
     ];
 
@@ -75,9 +84,16 @@ describe("LabelsTable", () => {
 
     // Custom labels should be visible, each with the regular copy and the full name in a tooltip
     expect(screen.queryAllByText("Custom label 1")).toHaveLength(2);
-    expect(screen.queryAllByText("Custom label 2")).toHaveLength(2);
     expect(screen.queryAllByText("First custom label")).toHaveLength(2);
+    expect(screen.queryAllByText("Dynamic")).toHaveLength(1);
+
+    expect(screen.queryAllByText("Custom label 2")).toHaveLength(2);
     expect(screen.queryAllByText("Second custom label")).toHaveLength(2);
+    expect(screen.queryAllByText("Manual")).toHaveLength(1);
+
+    expect(screen.queryAllByText("Custom label 3")).toHaveLength(2);
+    expect(screen.queryAllByText("Third custom label")).toHaveLength(2);
+    expect(screen.queryAllByText("Host vitals")).toHaveLength(1);
 
     // Builtin labels should not be visible
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();

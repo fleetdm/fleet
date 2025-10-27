@@ -345,6 +345,13 @@ type Datastore interface {
 	// SetOrUpdateCustomHostDeviceMapping replaces the custom email address
 	// associated with the host with the provided one.
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
+	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
+	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
+	// mapping already exists, it will be updated to the new SCIM user.
+	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error
+	// DeleteHostSCIMUserMapping removes the association between a host and a SCIM user.
+	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)
@@ -999,7 +1006,9 @@ type Datastore interface {
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
-	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
+	// SetOrUpdateHostDisksSpace sets or updates the gigs_total_disk_space and gigs_all_disk_space
+	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
+	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -2168,6 +2177,13 @@ type Datastore interface {
 	// Fedora hosts have hosts.platform_like = 'rhel'.
 	EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
 
+	// ResetSetupExperienceItemsAfterFailure resets any setup experience items that were canceled after
+	// a software item failed to install on a host whose team was configured to stop setup experience on failure.
+	ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
+
+	// CancelPendingSetupExperienceSteps cancels any setup experience items for the given host that aren't already completed.
+	CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error
+
 	// GetSetupExperienceScript gets the setup experience script for a team. There can only be 1
 	// setup experience script per team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
@@ -2437,6 +2453,8 @@ type Datastore interface {
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
+
+	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
 }
 
 type AndroidDatastore interface {

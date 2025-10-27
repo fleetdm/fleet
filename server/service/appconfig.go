@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
@@ -52,8 +53,6 @@ type appConfigResponseFields struct {
 	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
 	Err            error               `json:"error,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
-	// ConditionalAccess holds the Microsoft conditional access configuration.
-	ConditionalAccess *fleet.ConditionalAccessSettings `json:"conditional_access,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -134,16 +133,26 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
-	var conditionalAccessSettings *fleet.ConditionalAccessSettings
+	// Add Microsoft Entra settings from the integration table to appConfig.ConditionalAccess
+	// (Okta settings are already in appConfig.ConditionalAccess from the database)
 	conditionalAccessIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	// Always initialize ConditionalAccess so it's never nil (even when empty)
+	if appConfig.ConditionalAccess == nil {
+		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
+
+	// Set or clear Microsoft Entra fields based on integration status
 	if conditionalAccessIntegration != nil {
-		conditionalAccessSettings = &fleet.ConditionalAccessSettings{
-			MicrosoftEntraTenantID:             conditionalAccessIntegration.TenantID,
-			MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
-		}
+		appConfig.ConditionalAccess.MicrosoftEntraTenantID = conditionalAccessIntegration.TenantID
+		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = conditionalAccessIntegration.SetupDone
+	} else {
+		// Clear Entra fields when integration is deleted
+		appConfig.ConditionalAccess.MicrosoftEntraTenantID = ""
+		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = false
 	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
@@ -199,21 +208,21 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 			FleetDesktop: fleetDesktop,
 
-			WebhookSettings: appConfig.WebhookSettings,
-			Integrations:    appConfig.Integrations,
-			MDM:             appConfig.MDM,
-			Scripts:         appConfig.Scripts,
-			UIGitOpsMode:    appConfig.UIGitOpsMode,
+			WebhookSettings:   appConfig.WebhookSettings,
+			Integrations:      appConfig.Integrations,
+			MDM:               appConfig.MDM,
+			Scripts:           appConfig.Scripts,
+			UIGitOpsMode:      appConfig.UIGitOpsMode,
+			ConditionalAccess: appConfig.ConditionalAccess,
 		},
 		appConfigResponseFields: appConfigResponseFields{
-			UpdateInterval:    updateIntervalConfig,
-			Vulnerabilities:   vulnConfig,
-			License:           license,
-			Logging:           loggingConfig,
-			Email:             emailConfig,
-			SandboxEnabled:    svc.SandboxEnabled(),
-			Partnerships:      partnerships,
-			ConditionalAccess: conditionalAccessSettings,
+			UpdateInterval:  updateIntervalConfig,
+			Vulnerabilities: vulnConfig,
+			License:         license,
+			Logging:         loggingConfig,
+			Email:           emailConfig,
+			SandboxEnabled:  svc.SandboxEnabled(),
+			Partnerships:    partnerships,
 		},
 	}
 	return response, nil
@@ -485,9 +494,126 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
 
+	// Initialize ConditionalAccess if nil (it's a pointer type)
+	if appConfig.ConditionalAccess == nil {
+		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
+	if newAppConfig.ConditionalAccess == nil {
+		newAppConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
+
+	// Trim whitespace from all Okta fields before setting them
+	applyOptString := func(dest *optjson.String, src optjson.String) {
+		if src.Set {
+			if src.Valid {
+				src.Value = strings.TrimSpace(src.Value)
+			}
+			*dest = src
+		}
+	}
+	applyOptString(&appConfig.ConditionalAccess.OktaIDPID, newAppConfig.ConditionalAccess.OktaIDPID)
+	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
+	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, newAppConfig.ConditionalAccess.OktaAudienceURI)
+	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, newAppConfig.ConditionalAccess.OktaCertificate)
+
+	// Handle Okta conditional access fields - only update if Set=true (partial update support)
+	// Check if any Okta fields are being set with valid (non-null) non-empty values
+	isNonEmpty := func(s optjson.String) bool {
+		return s.Set && s.Valid && s.Value != ""
+	}
+	oktaFieldsBeingSet := isNonEmpty(newAppConfig.ConditionalAccess.OktaIDPID) ||
+		isNonEmpty(newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL) ||
+		isNonEmpty(newAppConfig.ConditionalAccess.OktaAudienceURI) ||
+		isNonEmpty(newAppConfig.ConditionalAccess.OktaCertificate)
+
+	if oktaFieldsBeingSet && !license.IsPremium() {
+		invalid.Append("conditional_access", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// Validate Okta configuration - all fields must be set together or all must be empty
+	oktaFieldsSet := 0
+	if appConfig.ConditionalAccess.OktaIDPID.Valid && appConfig.ConditionalAccess.OktaIDPID.Value != "" {
+		oktaFieldsSet++
+	}
+	if appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid &&
+		appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value != "" {
+		oktaFieldsSet++
+	}
+	if appConfig.ConditionalAccess.OktaAudienceURI.Valid &&
+		appConfig.ConditionalAccess.OktaAudienceURI.Value != "" {
+		oktaFieldsSet++
+	}
+	if appConfig.ConditionalAccess.OktaCertificate.Valid &&
+		appConfig.ConditionalAccess.OktaCertificate.Value != "" {
+		oktaFieldsSet++
+	}
+
+	// Either all 4 fields should be set, or none should be set
+	if oktaFieldsSet > 0 && oktaFieldsSet < 4 {
+		invalid.Append("conditional_access",
+			"all Okta fields must be set together (okta_idp_id, okta_assertion_consumer_service_url, okta_audience_uri, okta_certificate) or all must be empty")
+	}
+
+	// If all fields are set, validate them
+	if oktaFieldsSet == 4 {
+		// Validate max lengths for Okta fields
+		const (
+			maxURLLength  = 2048 // Standard max URL length supported by browsers
+			maxCertLength = 8192 // 8KB for PEM certificate (without private key)
+		)
+
+		if len(appConfig.ConditionalAccess.OktaIDPID.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_idp_id",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaAudienceURI.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_audience_uri",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaCertificate.Value) > maxCertLength {
+			invalid.Append("conditional_access.okta_certificate",
+				fmt.Sprintf("must be %d characters or less", maxCertLength))
+		}
+
+		// Validate URL format for ACS URL - must have http or https scheme and a host
+		acsURL, err := url.ParseRequestURI(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+		if err != nil || ((acsURL.Scheme != "http" && acsURL.Scheme != "https") || acsURL.Host == "") {
+			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
+				"must be a valid URL with http or https scheme and a host")
+		}
+
+		// Validate one or more PEM-encoded CERTIFICATE blocks and parse each
+		rest := []byte(appConfig.ConditionalAccess.OktaCertificate.Value)
+		certCount := 0
+		for {
+			block, r := pem.Decode(rest)
+			if block == nil {
+				break
+			}
+			rest = r
+			if block.Type != "CERTIFICATE" {
+				invalid.Append("conditional_access.okta_certificate", "PEM block must be a CERTIFICATE")
+				break
+			}
+			if _, err := x509.ParseCertificate(block.Bytes); err != nil {
+				invalid.Append("conditional_access.okta_certificate", "must be a valid x509 certificate")
+				break
+			}
+			certCount++
+		}
+		if certCount == 0 {
+			invalid.Append("conditional_access.okta_certificate", "must contain at least one PEM-encoded certificate")
+		}
+	}
+
 	var conditionalAccessNoTeamUpdated bool
 	if newAppConfig.Integrations.ConditionalAccessEnabled.Set {
-		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, oldConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, appConfig.ConditionalAccess, oldConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
 			return nil, err
 		}
 		conditionalAccessNoTeamUpdated = oldConditionalAccessEnabled.Value != newAppConfig.Integrations.ConditionalAccessEnabled.Value
@@ -925,6 +1051,40 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
 			}
+		}
+	}
+
+	// Create activity if Okta conditional access configuration was added, edited, or deleted
+	oldOktaConfigured := oldAppConfig.ConditionalAccess != nil && oldAppConfig.ConditionalAccess.OktaConfigured()
+	newOktaConfigured := appConfig.ConditionalAccess != nil && appConfig.ConditionalAccess.OktaConfigured()
+
+	// Check if Okta configuration values changed (for edited case)
+	oktaConfigChanged := false
+	if oldOktaConfigured && newOktaConfigured {
+		// Both old and new are configured - check if any values changed
+		oktaConfigChanged = oldAppConfig.ConditionalAccess.OktaIDPID.Value != appConfig.ConditionalAccess.OktaIDPID.Value ||
+			oldAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value != appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value ||
+			oldAppConfig.ConditionalAccess.OktaAudienceURI.Value != appConfig.ConditionalAccess.OktaAudienceURI.Value ||
+			oldAppConfig.ConditionalAccess.OktaCertificate.Value != appConfig.ConditionalAccess.OktaCertificate.Value
+	}
+
+	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {
+		// Okta configuration was added or edited
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeAddedConditionalAccessOkta{},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for adding/editing Okta conditional access")
+		}
+	} else if oldOktaConfigured && !newOktaConfigured {
+		// Okta configuration was deleted
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedConditionalAccessOkta{},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
 		}
 	}
 

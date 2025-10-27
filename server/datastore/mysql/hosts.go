@@ -733,6 +733,7 @@ SELECT
   COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
   COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
   COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+  hd.gigs_all_disk_space,
   hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
@@ -1024,6 +1025,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+    hd.gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
@@ -2991,6 +2993,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+    hd.gigs_all_disk_space as gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
 	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	` + hostMDMSelect + `
@@ -3552,18 +3555,23 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	// so instead, we get the ids one by one and delete things one by one
 	// it might take longer, but it should lock only the row we need.
 	//
-	// host_seen_time entries are not available for ios/ipados devices, since they're updated on
-	// osquery check-in. Instead we fall back to detail_updated_at, which is updated every time a
-	// full detail refetch happens. For the detail_updated_at value, we consider server.NeverTimestamp
-	// to be nullish because this value is set as the default in some scenarios, in which
-	// case we will fall back to the created_at timestamp.
+	// host_seen_time entries are not available for ios/ipados/android devices, since they're updated on
+	// osquery check-in. Instead we fall back to the MDM protocol last_seen_at, then detail_updated_at,
+	// which is updated every time a full detail refetch happens. For the detail_updated_at value, we
+	// consider server.NeverTimestamp to be nullish because this value is set as the default in some scenarios,
+	// in which case we will fall back to the created_at timestamp.
+	// Additionally, COALESCE(GREATEST(COALESCE...)) with seen_time and last_seen at ensures that we get the greater
+	// value if both are set(GREATEST normally returning NULL if either operand is NULL) but still treat as NULL if
+	// neither is set. This ensures that we cover hosts that for some reason stop checking in via OSQuery but keep
+	// checking in via MDM
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
 	// host_dep_assignments table.
 	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
-		WHERE COALESCE(hst.seen_time, NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
+		LEFT JOIN nano_enrollments ne ON ne.id=h.uuid AND ne.type IN ('Device', 'User Enrollment (Device)')
+		WHERE COALESCE(GREATEST(COALESCE(hst.seen_time, ne.last_seen_at), COALESCE(ne.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
 			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)`
 
 	var allIdsToDelete []uint
@@ -3807,6 +3815,30 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 	}
 
 	return ds.listHostDeviceMappingDB(ctx, ds.writer(ctx), hostID)
+}
+
+func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+	const (
+		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
+		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
+	)
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// First, delete any existing IDP mappings for this host (both sources)
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingIDP); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
+		}
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete existing MDM IDP device mappings")
+		}
+
+		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
+		}
+
+		return nil
+	})
+	return err
 }
 
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
@@ -4326,6 +4358,30 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 	return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
 }
 
+// deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
+func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExecerContext, hostID uint) error {
+	_, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Remove any existing SCIM user mapping for this host
+		if err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			return err
+		}
+
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+	})
+}
+
+func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
+	return deleteHostSCIMUserMapping(ctx, ds.writer(ctx), hostID)
+}
+
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
 	stmt := `
 	SELECT email
@@ -4342,12 +4398,12 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
-func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ? WHERE host_id = ?`,
-		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, host_id) VALUES (?, ?, ?, ?)`,
-		gigsAvailable, percentAvailable, gigsTotal, hostID,
+		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ?, gigs_all_disk_space = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space, host_id) VALUES (?, ?, ?, ?, ?)`,
+		gigsAvailable, percentAvailable, gigsTotal, gigsAll, hostID,
 	)
 }
 

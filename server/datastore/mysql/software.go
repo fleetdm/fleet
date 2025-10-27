@@ -1407,7 +1407,15 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.I("software_cve").As("scv"),
 				goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 			)
-	} else {
+	} else if !opts.WithoutVulnerabilityDetails || opts.IncludeCVEScores || opts.ListOptions.MatchQuery != "" {
+		// LEFT JOIN software_cve if:
+		// 1. We need CVE details in the list (!WithoutVulnerabilityDetails), OR
+		// 2. We need CVE scores for ordering/filtering (IncludeCVEScores), OR
+		// 3. We have a search query (MatchQuery) that might be searching for CVEs
+		//
+		// When WithoutVulnerabilityDetails=true AND IncludeCVEScores=false AND MatchQuery is empty,
+		// we can skip this join entirely in the subquery. The outer query will fetch CVEs only for
+		// the paginated results, which is much more efficient.
 		ds = ds.
 			LeftJoin(
 				goqu.I("software_cve").As("scv"),

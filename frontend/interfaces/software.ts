@@ -205,8 +205,8 @@ export const SOURCE_TYPE_CONVERSION = {
   portage_packages: "Package (Portage)",
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
+  npm_packages: "Package (npm)",
   pacman_packages: "Package (pacman)",
-  npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   tgz_packages: "Package (tar)",
@@ -713,3 +713,15 @@ export interface IFleetMaintainedAppDetails {
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
   categories: SoftwareCategory[];
 }
+
+export const ROLLING_ARCH_LINUX_NAMES = [
+  "Arch Linux",
+  "Arch Linux ARM",
+  "Manjaro Linux",
+  "Manjaro Linux ARM",
+  "Manjaro ARM Linux",
+];
+
+export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(
+  (name) => `${name} rolling`
+);

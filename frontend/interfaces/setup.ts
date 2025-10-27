@@ -20,8 +20,6 @@ export type SetupStepType = typeof SETUP_STEP_TYPES[number];
 export interface ISetupStep {
   name: string | null;
   status: SetupStepStatus;
-}
-
-export interface IEnhancedSetupStep extends ISetupStep {
   type: SetupStepType;
+  error?: string | null;
 }
