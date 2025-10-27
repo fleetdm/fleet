@@ -1089,7 +1089,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			hostUUID:        "no-groups-idp",
 			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_GROUPS</Data></Item></Replace>`,
 			expectError:     true,
-			processingError: "There is no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.",
+			processingError: "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.",
 			setup: func() {
 				scimUser.Groups = []fleet.ScimUserGroup{}
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
