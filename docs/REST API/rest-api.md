@@ -4289,7 +4289,7 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256` is only supported for macOS software from the `apps` source.
+Currently, `hash_sha256` is only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
 #### Example
 
