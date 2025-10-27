@@ -2148,7 +2148,7 @@ func (svc *Service) OSVersions(
 	// Input validation
 	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, count, nil, &fleet.BadRequestError{Message: "max_vulnerabilities must be >= 0"}
+		return nil, count, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
@@ -2324,7 +2324,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	// Input validation
 	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, nil, &fleet.BadRequestError{Message: "max_vulnerabilities must be >= 0"}
+		return nil, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
