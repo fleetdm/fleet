@@ -2,7 +2,12 @@ import React from "react";
 import { PackageType } from "interfaces/package_type";
 import TooltipWrapper from "components/TooltipWrapper";
 
-type IPlatformDisplayName = "macOS" | "Windows" | "Linux" | "iOS/iPadOS";
+type IPlatformDisplayName =
+  | "macOS"
+  | "Windows"
+  | "Linux"
+  | "iOS/iPadOS"
+  | "macOS & Linux";
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   string,
@@ -17,7 +22,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   deb: "Linux",
   rpm: "Linux",
   "tar.gz": "Linux",
-  sh: "Linux",
+  sh: "macOS & Linux",
   ps1: "Windows",
   ipa: "iOS/iPadOS",
 };
@@ -64,8 +69,13 @@ export const getExtensionFromFileName = (fileName: string) => {
   return ext as PackageType | undefined;
 };
 
-/** This gets the platform display name from the file. */
-export const getPlatformDisplayName = (file: File) => {
+/** This gets the platform display name from the file.
+ * Includes nuance for .sh software installers only supported on Linux
+ */
+export const getPlatformDisplayName = (
+  file: File,
+  isSoftwareInstaller = false
+) => {
   const fileExt = getExtensionFromFileName(file.name);
   if (!fileExt) {
     return undefined;
@@ -77,14 +87,20 @@ export const getPlatformDisplayName = (file: File) => {
       </TooltipWrapper>
     );
   }
+
+  if (fileExt === "sh" && isSoftwareInstaller) {
+    // Currently, .sh files for software installers are only supported for Linux
+    return "Linux";
+  }
+
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
 /** This gets the file details from the file. */
-export const getFileDetails = (file: File) => {
+export const getFileDetails = (file: File, isSoftwareInstaller = false) => {
   return {
     name: file.name,
-    description: getPlatformDisplayName(file),
+    description: getPlatformDisplayName(file, isSoftwareInstaller),
   };
 };
 
