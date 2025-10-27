@@ -69,7 +69,7 @@ The first CSE to sign on for the day is responsible for triaging new support iss
 1. Look at all new support requests and immediately respond to any urgent or high-priority issues.
 2. Check the osquery Slack channel/Unthread for support issues.
 3. Check the MacAdmins Slack Channel for support issues.
-   >Note: MacAdmins Slack messages are not populated in Unthread.
+   > FYI: MacAdmins Slack messages are not populated in Unthread.
 4. Check the Unassigned queue in Unthread and re-assign any issues from after hours to the appropriate resource.
 5. Check the All queue in Unthread for potential after hours mis-assigned issues and re-assign them to the appropriate resource.
 6. Look at all customer meetings for the day to check that they can be attended by a CSE/CSA and that there are no scheduling conflicts.
