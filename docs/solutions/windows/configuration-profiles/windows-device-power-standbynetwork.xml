@@ -1,0 +1,23 @@
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_Power/DCConnectivityInStandby_2</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_Power/ACConnectivityInStandby_2</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+

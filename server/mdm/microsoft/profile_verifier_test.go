@@ -3,6 +3,7 @@ package microsoft_mdm
 import (
 	"context"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -825,13 +826,6 @@ type hostProfile struct {
 func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 	ds := new(mock.Store)
 
-	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID, source string) ([]string, error) {
-		if source == fleet.DeviceMappingMDMIdpAccounts && strings.Contains(hostUUID, "end-user-email") {
-			return []string{"test@idp.com"}, nil
-		}
-		return nil, nil
-	}
-
 	tests := []struct {
 		name             string
 		hostUUID         string
@@ -893,12 +887,6 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 			expectedContents: `<Replace><Data>ID1: test-host-1234-uuid, ID2: test-host-1234-uuid</Data></Replace>`,
 		},
 		{
-			name:             "fleet variable with db access",
-			hostUUID:         "test-host-end-user-email",
-			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, Other: $FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data></Replace>`,
-			expectedContents: `<Replace><Data>ID: test-host-end-user-email, Other: test@idp.com</Data></Replace>`,
-		},
-		{
 			name:             "skips scep windows id var",
 			hostUUID:         "test-host-1234-uuid",
 			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, SCEP: $FLEET_VAR_HOST_SCEP_WINDOWS_ID</Data></Replace>`,
@@ -906,9 +894,13 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 		},
 	}
 
+	params := PreprocessingParameters{
+		HostIDForUUIDCache: make(map[string]uint),
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PreprocessWindowsProfileContentsForVerification(t.Context(), log.NewNopLogger(), ds, tt.hostUUID, uuid.NewString(), tt.profileContents)
+			result := PreprocessWindowsProfileContentsForVerification(t.Context(), log.NewNopLogger(), ds, tt.hostUUID, uuid.NewString(), tt.profileContents, params)
 			require.Equal(t, tt.expectedContents, result)
 		})
 	}
@@ -917,13 +909,24 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	ds := new(mock.Store)
 
+	scimUser := &fleet.ScimUser{
+		UserName:   "test@idp.com",
+		GivenName:  ptr.String("First"),
+		FamilyName: ptr.String("Last"),
+		Department: ptr.String("Department"),
+		Groups: []fleet.ScimUserGroup{
+			{
+				ID:          1,
+				DisplayName: "Group One",
+			},
+			{
+				ID:          2,
+				DisplayName: "Group Two",
+			},
+		},
+	}
+
 	baseSetup := func() {
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID, source string) ([]string, error) {
-			if source == fleet.DeviceMappingMDMIdpAccounts && strings.Contains(hostUUID, "end-user-email") {
-				return []string{"test@idp.com"}, nil
-			}
-			return nil, nil
-		}
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			if ds.GetAllCertificateAuthoritiesFunc == nil {
 				return &fleet.GroupedCertificateAuthorities{
@@ -944,6 +947,20 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					ServerURL: "https://test-fleet.com",
 				},
 			}, nil
+		}
+		ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+			return []uint{42}, nil
+		}
+
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			if hostID == 42 {
+				return scimUser, nil
+			}
+
+			return nil, fmt.Errorf("no scim user for host id %d", hostID)
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{}, nil
 		}
 	}
 
@@ -972,19 +989,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			hostUUID:         "test-uuid-456",
 			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-456</Data></Item></Replace>`,
-		},
-		{
-			name:             "host end user email idp",
-			hostUUID:         "test-uuid-end-user-email",
-			profileContents:  `<Replace><Data>Email: $FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data></Replace>`,
-			expectedContents: `<Replace><Data>Email: test@idp.com</Data></Replace>`,
-		},
-		{
-			name:            "no host end user email idp found",
-			hostUUID:        "test-uuid-no-end-user",
-			profileContents: `<Replace><Data>Email: $FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data></Replace>`,
-			expectError:     true,
-			processingError: fleet.HostEndUserEmailIDPVariableReplacementFailedError,
 		},
 		{
 			name:             "scep windows certificate id",
@@ -1073,6 +1077,43 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:             "all idp variables",
+			hostUUID:         "idp-host-uuid",
+			hostCmdUUID:      "cmd-uuid-5678",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last</Data></Item></Replace>`,
+		},
+		{
+			name:            "missing groups on idp user",
+			hostUUID:        "no-groups-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_GROUPS</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.",
+			setup: func() {
+				scimUser.Groups = []fleet.ScimUserGroup{}
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
+		},
+		{
+			name:            "missing department on idp user",
+			hostUUID:        "no-department-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
+			setup: func() {
+				scimUser.Department = nil
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
+		},
+	}
+
+	params := PreprocessingParameters{
+		HostIDForUUIDCache: make(map[string]uint),
 	}
 
 	for _, tt := range tests {
@@ -1100,7 +1141,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 			require.NoError(t, err)
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents)
+			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents, params)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {

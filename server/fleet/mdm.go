@@ -35,6 +35,11 @@ const (
 // It provides clearer semantics when used in function signatures and data structures.
 type FleetVarName string
 
+// Includes $FLEET_VAR prefix
+func (n FleetVarName) WithPrefix() string {
+	return fmt.Sprintf("$FLEET_VAR_%s", n)
+}
+
 const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
@@ -46,7 +51,7 @@ const (
 	// (not doing it now because of time constraints to finish the story for the release).
 
 	// Host variables
-	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP" // legacy variable, avoid to use in new replacements
 	FleetVarHostHardwareSerial              FleetVarName = "HOST_HARDWARE_SERIAL"
 	FleetVarHostEndUserIDPUsername          FleetVarName = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart FleetVarName = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
@@ -73,7 +78,6 @@ const (
 
 var (
 	// Fleet variable regexp patterns
-	FleetVarHostEndUserEmailIDPRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserEmailIDP))
 	FleetVarHostHardwareSerialRegexp              = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostHardwareSerial))
 	FleetVarHostEndUserIDPUsernameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsername))
 	FleetVarHostEndUserIDPDepartmentRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPDepartment))
@@ -90,6 +94,14 @@ var (
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
 		"Fleet couldn't populate $FLEET_VAR_%s. "+
 		"[Learn more](https://fleetdm.com/learn-more-about/idp-email)", FleetVarHostEndUserEmailIDP)
+
+	IDPFleetVariables = []FleetVarName{
+		FleetVarHostEndUserIDPUsername,
+		FleetVarHostEndUserIDPUsernameLocalPart,
+		FleetVarHostEndUserIDPGroups,
+		FleetVarHostEndUserIDPDepartment,
+		FleetVarHostEndUserIDPFullname,
+	}
 )
 
 type AppleMDM struct {
@@ -1123,17 +1135,3 @@ type MDMCommandResults interface {
 }
 
 type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error
-
-// Helper function for variable replacement in MDM profiles
-func GetFirstIDPEmail(ctx context.Context, ds Datastore, hostUUID string) (email *string, err error) {
-	// TODO: Should we check on another type of device mapping? Instead of mdm_idp_accounts source.
-	emails, err := ds.GetHostEmails(ctx, hostUUID, DeviceMappingMDMIdpAccounts)
-	if err != nil {
-		// This is a server error, so we exit.
-		return nil, err
-	}
-	if len(emails) == 0 {
-		return nil, nil
-	}
-	return &emails[0], nil
-}

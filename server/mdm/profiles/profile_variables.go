@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -79,18 +80,109 @@ func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger kitlog.Logger
 	return contents, managedCertificate, true, nil
 }
 
-// ! Important if we add new replacedVariable=false cases, that we verify the caller functions still behave correctly, as some run actions based on whether a variable was replaced or not.
-func ReplaceHostEndUserEmailIDPVariable(ctx context.Context, ds fleet.Datastore, profileContents string, hostUUID string) (contents string, replacedVariable bool, err error) {
-	email, err := fleet.GetFirstIDPEmail(ctx, ds, hostUUID)
+func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
+	fleetVar string, profileContents string, hostUUID string,
+	hostIDForUUIDCache map[string]uint,
+	onError func(errMsg string) error,
+) (replacedContents string, replacedVariable bool, err error) {
+	user, ok, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
 	if err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "getting IDP email")
+		return "", false, err
 	}
-	if email == nil {
+	if !ok {
 		return "", false, nil
 	}
 
-	contents = ReplaceFleetVariableInXML(fleet.FleetVarHostEndUserEmailIDPRegexp, profileContents, *email)
-	return contents, true, nil
+	var rx *regexp.Regexp
+	var value string
+	switch fleetVar {
+	case string(fleet.FleetVarHostEndUserIDPUsername):
+		rx = fleet.FleetVarHostEndUserIDPUsernameRegexp
+		value = user.IdpUserName
+	case string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
+		rx = fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp
+		value = getEmailLocalPart(user.IdpUserName)
+	case string(fleet.FleetVarHostEndUserIDPGroups):
+		rx = fleet.FleetVarHostEndUserIDPGroupsRegexp
+		value = strings.Join(user.IdpGroups, ",")
+	case string(fleet.FleetVarHostEndUserIDPDepartment):
+		rx = fleet.FleetVarHostEndUserIDPDepartmentRegexp
+		value = user.Department
+	case string(fleet.FleetVarHostEndUserIDPFullname):
+		rx = fleet.FleetVarHostEndUserIDPFullnameRegexp
+		value = strings.TrimSpace(user.IdpFullName)
+	}
+	replacedContents = ReplaceFleetVariableInXML(rx, profileContents, value)
+
+	return replacedContents, true, nil
+}
+
+func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
+	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint,
+	onError func(errMsg string) error,
+) (*fleet.HostEndUser, bool, error) {
+	hostID, ok := hostIDForUUIDCache[hostUUID]
+	if !ok {
+		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+		ids, err := ds.HostIDsByIdentifier(ctx, filter, []string{hostUUID})
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get host id from uuid")
+		}
+
+		if len(ids) != 1 {
+			// Something went wrong. Maybe host was deleted, or we have multiple
+			// hosts with the same UUID.
+			return nil, false, onError(fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(ids), hostUUID))
+		}
+		hostID = ids[0]
+		hostIDForUUIDCache[hostUUID] = hostID
+	}
+
+	users, err := fleet.GetEndUsers(ctx, ds, hostID)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "get end users for host")
+	}
+
+	noGroupsErr := fmt.Sprintf("There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
+	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
+	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
+	if len(users) > 0 && users[0].IdpUserName != "" {
+		idpUser := users[0]
+
+		if fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) && len(idpUser.IdpGroups) == 0 {
+			return nil, false, onError(noGroupsErr)
+		}
+		if fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) && idpUser.Department == "" {
+			return nil, false, onError(noDepartmentErr)
+		}
+		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
+			return nil, false, onError(noFullnameErr)
+		}
+
+		return &idpUser, true, nil
+	}
+
+	// otherwise there's no IdP user, mark the profile as failed with the
+	// appropriate detail message.
+	var detail string
+	switch fleetVar {
+	case string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
+		detail = fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+	case string(fleet.FleetVarHostEndUserIDPGroups):
+		detail = noGroupsErr
+	case string(fleet.FleetVarHostEndUserIDPDepartment):
+		detail = noDepartmentErr
+	case string(fleet.FleetVarHostEndUserIDPFullname):
+		detail = noFullnameErr
+	}
+	return nil, false, onError(detail)
+}
+
+func getEmailLocalPart(email string) string {
+	// if there is a "@" in the email, return the part before that "@", otherwise
+	// return the string unchanged.
+	local, _, _ := strings.Cut(email, "@")
+	return local
 }
 
 func ReplaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) (string, error) {

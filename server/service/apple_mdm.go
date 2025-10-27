@@ -70,16 +70,11 @@ const (
 )
 
 var (
-	fleetVarHostEndUserEmailIDPRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
-	fleetVarHostHardwareSerialRegexp              = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostHardwareSerial))
-	fleetVarHostEndUserIDPUsernameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPUsername))
-	fleetVarHostEndUserIDPDepartmentRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPDepartment))
-	fleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPUsernameLocalPart))
-	fleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPGroups))
-	fleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPChallenge))
-	fleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPProxyURL))
-	fleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPFullname))
-	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
+	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
+	fleetVarHostHardwareSerialRegexp  = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostHardwareSerial))
+	fleetVarNDESSCEPChallengeRegexp   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPChallenge))
+	fleetVarNDESSCEPProxyURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPProxyURL))
+	fleetVarSCEPRenewalIDRegexp       = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
 
 	// TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
 	// but that is not the case, digicert, custom scep, hydrant and smallstep are totally supported just in a different way (multiple CA's)
@@ -456,7 +451,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 
 	// Convert profile variable names to FleetVarName type
 	varNames := make([]fleet.FleetVarName, 0, len(profileVars))
-	for varName := range profileVars {
+	for _, varName := range profileVars {
 		varNames = append(varNames, fleet.FleetVarName(varName))
 	}
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, varNames)
@@ -512,7 +507,7 @@ func CheckProfileIsNotSigned(data []byte) error {
 	return nil
 }
 
-func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) (map[string]struct{}, error) {
+func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
 	fleetVars := variables.FindKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
@@ -673,12 +668,8 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			return nil, err
 		}
 	}
-	// Convert slice to map for deduplication
-	result := make(map[string]struct{}, len(fleetVars))
-	for _, v := range fleetVars {
-		result[v] = struct{}{}
-	}
-	return result, nil
+
+	return variables.Dedupe(fleetVars), nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
@@ -5098,7 +5089,7 @@ func preprocessProfileContents(
 		// validation works as expected
 		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
 		// well
-		for fleetVar := range fleetVars {
+		for _, fleetVar := range fleetVars {
 			if fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
 				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
@@ -5111,7 +5102,7 @@ func preprocessProfileContents(
 		}
 
 	initialFleetVarLoop:
-		for fleetVar := range fleetVars {
+		for _, fleetVar := range fleetVars {
 			switch {
 			case fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 				configured, err := isNDESSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
@@ -5234,7 +5225,7 @@ func preprocessProfileContents(
 			hostContents := contentsStr
 			failed := false
 		fleetVarLoop:
-			for fleetVar := range fleetVars {
+			for _, fleetVar := range fleetVars {
 				var err error
 				switch {
 				case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
@@ -5372,26 +5363,15 @@ func preprocessProfileContents(
 					}
 
 				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
-					replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserEmailIDPVariable(ctx, ds, hostContents, hostUUID)
+					email, ok, err := getFirstIDPEmail(ctx, ds, target, hostUUID)
 					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing host end user email IDP variable")
+						return ctxerr.Wrap(ctx, err, "getting IDP email")
 					}
-					if !replacedVariable {
-						// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
-						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:   target.cmdUUID,
-							HostUUID:      hostUUID,
-							Status:        &fleet.MDMDeliveryFailed,
-							Detail:        fleet.HostEndUserEmailIDPVariableReplacementFailedError,
-							OperationType: fleet.MDMOperationTypeInstall,
-						})
-						if err != nil {
-							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for host end user email IDP")
-						}
+					if !ok {
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = replacedContents
+					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
 
 				case fleetVar == string(fleet.FleetVarHostHardwareSerial):
 					hardwareSerial, ok, err := getHostHardwareSerial(ctx, ds, target, hostUUID)
@@ -5407,35 +5387,25 @@ func preprocessProfileContents(
 				case fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
 					fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
 					fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
-					user, ok, err := getHostEndUserIDPUser(ctx, ds, target, hostUUID, fleetVar, hostIDForUUIDCache)
+					replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(ctx, ds, fleetVar, hostContents, hostUUID, hostIDForUUIDCache, func(errMsg string) error {
+						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:   target.cmdUUID,
+							HostUUID:      hostUUID,
+							Status:        &fleet.MDMDeliveryFailed,
+							Detail:        errMsg,
+							OperationType: fleet.MDMOperationTypeInstall,
+						})
+						return err
+					})
 					if err != nil {
-						return ctxerr.Wrap(ctx, err, "getting host end user IDP username")
+						return ctxerr.Wrap(ctx, err, "replacing host end user IDP variables")
 					}
-					if !ok {
+					if !replacedVariable {
 						failed = true
 						break fleetVarLoop
 					}
 
-					var rx *regexp.Regexp
-					var value string
-					switch fleetVar {
-					case string(fleet.FleetVarHostEndUserIDPUsername):
-						rx = fleetVarHostEndUserIDPUsernameRegexp
-						value = user.IdpUserName
-					case string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
-						rx = fleetVarHostEndUserIDPUsernameLocalPartRegexp
-						value = getEmailLocalPart(user.IdpUserName)
-					case string(fleet.FleetVarHostEndUserIDPGroups):
-						rx = fleetVarHostEndUserIDPGroupsRegexp
-						value = strings.Join(user.IdpGroups, ",")
-					case string(fleet.FleetVarHostEndUserIDPDepartment):
-						rx = fleetVarHostEndUserIDPDepartmentRegexp
-						value = user.Department
-					case string(fleet.FleetVarHostEndUserIDPFullname):
-						rx = fleetVarHostEndUserIDPFullnameRegexp
-						value = strings.TrimSpace(user.IdpFullName)
-					}
-					hostContents = profiles.ReplaceFleetVariableInXML(rx, hostContents, value)
+					hostContents = replacedContents
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)):
 					// We will replace the password when we populate the certificate data
@@ -5555,35 +5525,50 @@ func preprocessProfileContents(
 	return nil
 }
 
+func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
+	// Insert the end user email IDP into the profile contents
+	emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
+	if err != nil {
+		// This is a server error, so we exit.
+		return "", false, ctxerr.Wrap(ctx, err, "getting host emails")
+	}
+	if len(emails) == 0 {
+		// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
+		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			CommandUUID: target.cmdUUID,
+			HostUUID:    hostUUID,
+			Status:      &fleet.MDMDeliveryFailed,
+			Detail: fmt.Sprintf("There is no IdP email for this host. "+
+				"Fleet couldn't populate $FLEET_VAR_%s. "+
+				"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
+				fleet.FleetVarHostEndUserEmailIDP),
+			OperationType: fleet.MDMOperationTypeInstall,
+		})
+		if err != nil {
+			return "", false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user email IdP")
+		}
+		return "", false, nil
+	}
+	return emails[0], true, nil
+}
+
 func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
 ) (bool, error) {
 	caFleetVars := variables.Find(*item)
-	for caVar := range caFleetVars {
+	for _, caVar := range caFleetVars {
 		switch caVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP):
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
 			if !ok {
 				var err error
-				foundEmail, err := fleet.GetFirstIDPEmail(ctx, ds, hostUUID)
+				email, ok, err = getFirstIDPEmail(ctx, ds, target, hostUUID)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
 				}
-				if foundEmail == nil {
-					// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
-					err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-						CommandUUID:   target.cmdUUID,
-						HostUUID:      hostUUID,
-						Status:        &fleet.MDMDeliveryFailed,
-						Detail:        fleet.HostEndUserEmailIDPVariableReplacementFailedError,
-						OperationType: fleet.MDMOperationTypeInstall,
-					})
-					if err != nil {
-						return false, err
-					}
+				if !ok {
 					return false, nil
 				}
-				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = *foundEmail
-				email = *foundEmail
+				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = email
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, *item, email)
 		case string(fleet.FleetVarHostHardwareSerial):
@@ -5605,124 +5590,6 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 		}
 	}
 	return true, nil
-}
-
-func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdTarget,
-	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint,
-) (*fleet.HostEndUser, bool, error) {
-	hostID, ok := hostIDForUUIDCache[hostUUID]
-	if !ok {
-		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-		ids, err := ds.HostIDsByIdentifier(ctx, filter, []string{hostUUID})
-		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "get host id from uuid")
-		}
-
-		if len(ids) != 1 {
-			// Something went wrong. Maybe host was deleted, or we have multiple
-			// hosts with the same UUID. Mark the profile as failed with additional
-			// detail.
-			err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryFailed,
-				Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(ids), hostUUID),
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
-			if err != nil {
-				return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP")
-			}
-			return nil, false, nil
-		}
-		hostID = ids[0]
-		hostIDForUUIDCache[hostUUID] = hostID
-	}
-
-	users, err := getEndUsers(ctx, ds, hostID)
-	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "get end users for host")
-	}
-
-	noGroupsErr := fmt.Sprintf("There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
-	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
-	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
-	if len(users) > 0 && users[0].IdpUserName != "" {
-		idpUser := users[0]
-
-		if fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) && len(idpUser.IdpGroups) == 0 {
-			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryFailed,
-				Detail:        noGroupsErr,
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
-			if err != nil {
-				return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP (no groups)")
-			}
-			return nil, false, nil
-		}
-		if fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) && idpUser.Department == "" {
-			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryFailed,
-				Detail:        noDepartmentErr,
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
-			if err != nil {
-				return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP (no department)")
-			}
-			return nil, false, nil
-		}
-		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
-			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-				CommandUUID:   target.cmdUUID,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryFailed,
-				Detail:        noFullnameErr,
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
-			if err != nil {
-				return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP (no fullname)")
-			}
-			return nil, false, nil
-		}
-
-		return &idpUser, true, nil
-	}
-
-	// otherwise there's no IdP user, mark the profile as failed with the
-	// appropriate detail message.
-	var detail string
-	switch fleetVar {
-	case string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
-		detail = fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
-	case string(fleet.FleetVarHostEndUserIDPGroups):
-		detail = noGroupsErr
-	case string(fleet.FleetVarHostEndUserIDPDepartment):
-		detail = noDepartmentErr
-	case string(fleet.FleetVarHostEndUserIDPFullname):
-		detail = noFullnameErr
-	}
-	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-		CommandUUID:   target.cmdUUID,
-		HostUUID:      hostUUID,
-		Status:        &fleet.MDMDeliveryFailed,
-		Detail:        detail,
-		OperationType: fleet.MDMOperationTypeInstall,
-	})
-	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP")
-	}
-	return nil, false, nil
-}
-
-func getEmailLocalPart(email string) string {
-	// if there is a "@" in the email, return the part before that "@", otherwise
-	// return the string unchanged.
-	local, _, _ := strings.Cut(email, "@")
-	return local
 }
 
 func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {

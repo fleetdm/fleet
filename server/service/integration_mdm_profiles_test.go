@@ -7547,13 +7547,13 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
 					Name: "TestMixed",
 					Contents: syncml.ForTestWithData([]syncml.TestCommand{
 						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
-						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Email", Data: "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Email", Data: "$FLEET_VAR_BOGUS"},
 					}),
 				},
 			},
 			teamID:          &tm.ID,
 			wantStatus:      http.StatusUnprocessableEntity,
-			wantErrContains: "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in Windows profiles",
+			wantErrContains: "Fleet variable $FLEET_VAR_BOGUS is not supported in Windows profiles",
 		},
 		{
 			name: "HOST_UUID variable accepted globally",

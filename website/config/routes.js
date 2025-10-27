@@ -555,6 +555,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /try': {
+    action: 'view-fleet-premium-trial-or-redirect',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -574,7 +582,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /customer-stories': '/testimonials',
-  'GET /try': '/get-started',
+  // 'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /handbook/brand': '/handbook/product-design',
@@ -985,6 +993,7 @@ module.exports.routes = {
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
   'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
   'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
+  'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
 
   // Sitemap
   // =============================================================================================================
