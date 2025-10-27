@@ -1948,6 +1948,17 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
 		},
 		{
+			// confirmed that as of Oct. 6 '25 there is no CPE and therefore no CVEs for this software in
+			// the NVD db, so safe to skip checking for one
+			software: fleet.Software{
+				Name:             "Logi Bolt",
+				BundleIdentifier: "com.logi.bolt.app",
+				Source:           "apps",
+				Version:          "1.2",
+			},
+			cpe: "",
+		},
+		{
 			software: fleet.Software{
 				Name:    "Snyk Security - Code, Open Source, Container, IaC Configurations",
 				Source:  "jetbrains_plugins",
