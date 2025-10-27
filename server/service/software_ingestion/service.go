@@ -37,15 +37,17 @@ type Datastore interface {
 }
 
 type service struct {
-	ds     Datastore
-	logger log.Logger
+	ds      Datastore
+	logger  log.Logger
+	tracker *IngestionTracker
 }
 
 // NewService creates a new SoftwareIngestionService
 func NewService(ds Datastore, logger log.Logger) SoftwareIngestionService {
 	return &service{
-		ds:     ds,
-		logger: logger,
+		ds:      ds,
+		logger:  logger,
+		tracker: NewIngestionTracker(logger),
 	}
 }
 
@@ -96,6 +98,9 @@ func (s *service) IngestOsquerySoftware(ctx context.Context, hostID uint, host *
 	if err := s.ds.UpdateHostSoftwareInstalledPaths(ctx, hostID, installedPaths, result); err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installed paths")
 	}
+
+	// Track this ingestion for monitoring
+	s.tracker.RecordIngestion(hostID, len(software), "osquery")
 
 	level.Debug(s.logger).Log(
 		"msg", "ingested software for host",
@@ -149,6 +154,9 @@ func (s *service) IngestMDMSoftware(ctx context.Context, hostID uint, host *flee
 	if err := s.ds.UpdateHostSoftwareInstalledPaths(ctx, hostID, emptyPaths, result); err != nil {
 		return ctxerr.Wrap(ctx, err, "update MDM software installed paths")
 	}
+
+	// Track this ingestion for monitoring
+	s.tracker.RecordIngestion(hostID, len(processedSoftware), "mdm")
 
 	level.Debug(s.logger).Log(
 		"msg", "ingested MDM software for host",

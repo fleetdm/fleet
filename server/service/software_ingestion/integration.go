@@ -104,12 +104,86 @@ func NewInstalledApplicationListResultsHandler(...) fleet.MDMCommandResultsHandl
 	}
 }
 
-// 3. In cmd/fleet/serve.go, inject the software ingestion service:
+// 3. In cmd/fleet/serve.go, inject the software ingestion service with load management:
 
-softwareIngestionService := software_ingestion.NewService(
-	software_ingestion.NewDatastoreAdapter(ds),
-	logger,
-)
+func createSoftwareIngestionService(ds fleet.Datastore, config configpkg.FleetConfig, logger log.Logger) SoftwareIngestionService {
+	// Create base service
+	datastoreAdapter := software_ingestion.NewDatastoreAdapter(ds)
+	baseService := software_ingestion.NewService(datastoreAdapter, logger)
 
-// Pass it to services that need it or use it directly in handlers
+	// Configure load management
+	loadConfig := software_ingestion.LoadManagementConfig{
+		MaxRequestsPerSecond:   float64(config.Osquery.MaxRequestsPerSecond), // Reuse existing config
+		BurstSize:             100,
+		FailureThreshold:      5,
+		RecoveryTimeout:       30 * time.Second,
+		BatchSize:             10,
+		BatchTimeout:          100 * time.Millisecond,
+		MaxBatchDelay:         1 * time.Second,
+		MaxConcurrentHosts:    20,
+		DatabaseTimeout:       10 * time.Second,
+		EnableAsyncProcessing: config.Osquery.EnableAsyncHostProcessing, // Reuse existing config
+		AsyncQueueSize:        1000,
+	}
+
+	// Wrap with load management
+	loadManagedService := software_ingestion.NewLoadManagedService(baseService, loadConfig, logger)
+
+	// Optionally wrap with async processing for high-load environments
+	if loadConfig.EnableAsyncProcessing {
+		return software_ingestion.NewAsyncProcessor(loadManagedService, loadConfig, logger)
+	}
+
+	return loadManagedService
+}
+
+// Usage in serve.go:
+softwareIngestionService := createSoftwareIngestionService(ds, config, logger)
+
+// Start periodic tracking reports
+softwareIngestionService.StartTrackingReports(ctx)
+
+// Add monitoring endpoints
+healthHandler := software_ingestion.NewHealthHandler(softwareIngestionService, logger)
+rootMux.Handle("/api/v1/fleet/software_ingestion/health", healthHandler)
+
+monitoringHandler := software_ingestion.NewMonitoringHandler(softwareIngestionService.GetTracker(), logger)
+rootMux.Handle("/api/v1/fleet/software_ingestion/tracking/", monitoringHandler)
+
+// For Grafana/Prometheus integration
+rootMux.Handle("/api/v1/fleet/software_ingestion/metrics", software_ingestion.NewPrometheusHandler(softwareIngestionService))
+*/
+
+// Example monitoring queries:
+
+/*
+// Check overall ingestion health
+curl http://localhost:8080/api/v1/fleet/software_ingestion/tracking/summary
+
+// Find hosts that haven't updated in > 1.5 hours
+curl http://localhost:8080/api/v1/fleet/software_ingestion/tracking/stale_hosts
+
+// Check specific host status
+curl "http://localhost:8080/api/v1/fleet/software_ingestion/tracking/host_status?host_id=123"
+
+// Get active alerts
+curl http://localhost:8080/api/v1/fleet/software_ingestion/tracking/alerts
+
+// Expected response for healthy state:
+{
+  "total_hosts": 1000,
+  "healthy_hosts": 950,
+  "stale_hosts": 30,
+  "over_active_hosts": 20,
+  "active_hosts": 980,
+  "health_percentage": 95.0,
+  "average_ingestion_rate": 1.2,
+  "max_ingestion_rate": 2.1,
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+
+// For alerting integration (e.g., with Slack, PagerDuty):
+if stale_hosts > 100 OR health_percentage < 90 {
+  send_alert("Software ingestion health degraded")
+}
 */
