@@ -1796,8 +1796,15 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 
 // fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
 // supported in Windows configuration profiles.
+// except prefix variables
 var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
+	fleet.FleetVarSCEPWindowsCertificateID,
+	fleet.FleetVarHostEndUserIDPUsername,
+	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+	fleet.FleetVarHostEndUserIDPFullname,
+	fleet.FleetVarHostEndUserIDPDepartment,
+	fleet.FleetVarHostEndUserIDPGroups,
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) ([]string, error) {
@@ -1813,7 +1820,9 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 
 	// Check if all found variables are supported
 	for _, varName := range foundVars {
-		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
+		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) &&
+			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
+			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
 			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
 		}
 	}
