@@ -425,7 +425,7 @@ module.exports = {
           authorization: `Bearer ${sails.config.custom.renderApiToken}`
         },
       }).tolerate((err)=>{
-        sails.log.warn(`p1: When deleting a MySQL service (id: ${expiringInstance.renderMySqlServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        sails.log.warn(`p1: When deleting a MySQL service (id: ${expiringInstance.renderMySqlServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
         return;
       });
 
@@ -438,7 +438,7 @@ module.exports = {
           authorization: `Bearer ${sails.config.custom.renderApiToken}`
         },
       }).tolerate((err)=>{
-        sails.log.warn(`p1: When deleting a Redis service (id: ${expiringInstance.renderRedisServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        sails.log.warn(`p1: When deleting a Redis service (id: ${expiringInstance.renderRedisServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
         return;
       });
 
@@ -451,7 +451,7 @@ module.exports = {
           authorization: `Bearer ${sails.config.custom.renderApiToken}`
         },
       }).tolerate((err)=>{
-        sails.log.warn(`p1: When deleting a Fleet service (id: ${expiringInstance.renderFleetServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        sails.log.warn(`p1: When deleting a Fleet service (id: ${expiringInstance.renderFleetServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
         return;
       });
 
@@ -463,7 +463,7 @@ module.exports = {
           authorization: `Bearer ${sails.config.custom.renderApiToken}`
         },
       }).tolerate((err)=>{
-        sails.log.warn(`p1: When deleting a Render project (id: ${expiringInstance.renderProjectId}) for a Render POV that expired, the Render API returned an error. This project will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+        sails.log.warn(`p1: When deleting a Render project (id: ${expiringInstance.renderProjectId}) for a Render POV that expired, the Render API returned an error. This project will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
         return;
       });
 
@@ -509,7 +509,7 @@ module.exports = {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
           }).tolerate((err)=>{
-            sails.log.warn(`p1: When deleting a MySQL service (id: ${povRecord.renderMySqlServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+            sails.log.warn(`p1: When deleting a MySQL service (id: ${povRecord.renderMySqlServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
             return;
           });
         }
@@ -522,7 +522,7 @@ module.exports = {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
           }).tolerate((err)=>{
-            sails.log.warn(`p1: When deleting a Redis service (id: ${povRecord.renderRedisServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+            sails.log.warn(`p1: When deleting a Redis service (id: ${povRecord.renderRedisServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
             return;
           });
         }
@@ -535,7 +535,7 @@ module.exports = {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
           }).tolerate((err)=>{
-            sails.log.warn(`p1: When deleting a Fleet service (id: ${povRecord.renderFleetServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+            sails.log.warn(`p1: When deleting a Fleet service (id: ${povRecord.renderFleetServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
             return;
           });
         }
@@ -548,7 +548,7 @@ module.exports = {
               authorization: `Bearer ${sails.config.custom.renderApiToken}`
             },
           }).tolerate((err)=>{
-            sails.log.warn(`p1: When deleting a Render project (id: ${povRecord.renderProjectId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`)
+            sails.log.warn(`p1: When deleting a Render project (id: ${povRecord.renderProjectId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
             return;
           });
         }

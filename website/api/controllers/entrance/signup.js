@@ -158,10 +158,7 @@ the account verification message.)`,
     if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
       fleetPremiumTrialType = 'render trial';
     }
-    // TODO: remove before merging.
-    if(emailDomain === 'feralgoblin.com') {
-      fleetPremiumTrialType = 'render trial';
-    }
+
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
       numberOfHosts: 10,
@@ -184,9 +181,9 @@ the account verification message.)`,
         sort: 'createdAt DESC',
         limit: 1,
       });
-      console.log(renderInstancesThatCanBeAssignedToThisUser);
+
       if(renderInstancesThatCanBeAssignedToThisUser.length < 1){
-        throw new Error(`When a new user (email: ${newEmailAddress}) signed up, no Fleet premium trial instances in Render were available to assign to the user.`)
+        throw new Error(`When a new user (email: ${newEmailAddress}) signed up, no Fleet premium trial instances in Render were available to assign to the user.`);
       } else {
         let instanceToAssign = renderInstancesThatCanBeAssignedToThisUser[0];
 
