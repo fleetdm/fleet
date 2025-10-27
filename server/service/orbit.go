@@ -35,6 +35,10 @@ type EnrollOrbitResponse struct {
 	Err          error  `json:"error,omitempty"`
 }
 
+type SSOURLResponse struct {
+	URL string `json:"url"`
+}
+
 type orbitGetConfigRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 }

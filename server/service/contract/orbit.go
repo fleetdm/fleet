@@ -22,3 +22,8 @@ type EnrollOrbitRequest struct {
 	// HardwareModel is the device's hardware model.
 	HardwareModel string `json:"hardware_model"`
 }
+
+type SSOURLRequest struct {
+	HostUUID  string `json:"host_uuid"`
+	Initiator string `json:"initiator"`
+}
