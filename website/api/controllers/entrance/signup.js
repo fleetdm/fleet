@@ -154,13 +154,13 @@ the account verification message.)`,
     });
 
 
-    let fleetPremiumTrialType = 'local-trial';
+    let fleetPremiumTrialType = 'local trial';
     if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
-        fleetPremiumTrialType = 'render-trial';
+      fleetPremiumTrialType = 'render trial';
     }
     // TODO: remove before merging.
     if(emailDomain === 'feralgoblin.com') {
-      fleetPremiumTrialType = 'render-trial';
+      fleetPremiumTrialType = 'render trial';
     }
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
@@ -177,23 +177,21 @@ the account verification message.)`,
 
 
 
-    if(fleetPremiumTrialType === 'render-trial') {
+    if(fleetPremiumTrialType === 'render trial') {
       // If this user is eligable for a Render POV, we'll
       let renderInstancesThatCanBeAssignedToThisUser = await RenderProofOfValue.find({
         where: {status: 'ready-for-assignment', user: null},
         sort: 'createdAt DESC',
         limit: 1,
       });
-
-      if(!renderInstancesThatCanBeAssignedToThisUser){
-        // If there are no instances available, fallback to a local trial with Docker.We do this because the /try page currently has no state for render-trial users with an ongoing pov (it just redirects users to their Fleet instance.)
-        fleetPremiumTrialType = 'local-trial';// FUTURE: revert this behavior.
-        // FUTURE: run a background helper at this point to provision this user a Render instance, redirect them to the /try page after signup, where they have a message saying that their instance will be available in ~5 minutes.
+      console.log(renderInstancesThatCanBeAssignedToThisUser);
+      if(renderInstancesThatCanBeAssignedToThisUser.length < 1){
+        throw new Error(`When a new user (email: ${newEmailAddress}) signed up, no Fleet premium trial instances in Render were available to assign to the user.`)
       } else {
         let instanceToAssign = renderInstancesThatCanBeAssignedToThisUser[0];
 
         await RenderProofOfValue.updateOne({id: instanceToAssign.id}).set({
-          status: 'in-use',
+          status: 'in use',
           renderTrialEndsAt: thirtyDaysFromNowAt,
           user: newUserRecord.id,
         });
@@ -213,7 +211,7 @@ the account verification message.)`,
     }
 
     // Note: this is not an else to handle cases where no Render POVs are available, and we need to fallback to a local-trial.
-    if(fleetPremiumTrialType === 'local-trial') {
+    if(fleetPremiumTrialType === 'local trial') {
       await sails.helpers.sendTemplateEmail.with({
         to: newEmailAddress,
         from: sails.config.custom.fromEmailAddress,

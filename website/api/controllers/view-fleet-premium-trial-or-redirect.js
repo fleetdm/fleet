@@ -28,7 +28,7 @@ module.exports = {
       return {
         trialIsExpired: true,
         trialExpiredAt: 0,
-        trialType: 'local-trial'
+        trialType: 'local trial'
       };
     }
 
@@ -38,7 +38,7 @@ module.exports = {
     }
 
     // If this user has an active Fleet premium trial instance on Render, redirect them to it.
-    if(this.req.me.fleetPremiumTrialType === 'render-trial' && !trialIsExpired) {
+    if(this.req.me.fleetPremiumTrialType === 'render trial' && !trialIsExpired) {
       // Find the associated database record for this user's Render trial.
       let renderTrialRecord = await RenderProofOfValue.findOne({user: this.req.me.id});
       throw { redirectToLiveFleetInstance: renderTrialRecord.instanceUrl };

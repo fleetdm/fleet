@@ -16,13 +16,13 @@ module.exports = {
       type: 'string',
       description: '',
       isIn: [
-        'record-created',
+        'record created',
         'provisioning',
-        'ready-for-assignment',
-        'in-use',
+        'ready for assignment',
+        'in use',
         'expired',
       ],
-      defaultsTo: 'record-created',
+      defaultsTo: 'record created',
     },
 
     slug: {
@@ -36,6 +36,7 @@ module.exports = {
     instanceUrl: {
       type: 'string',
       description: 'The full URL of this Fleet instance',
+      example: 'https://bumbling-bumblesaur.onrender.com',
     },
 
     renderProjectId: {
@@ -59,7 +60,7 @@ module.exports = {
     },
 
     renderTrialEndsAt: {
-      type: 'string',
+      type: 'number',
       description: 'A JS timestamp representing when the Render isntance associated with this record will be deleted.',
     },
 
@@ -74,8 +75,7 @@ module.exports = {
 
     user: {
       model: 'User',
-      description: 'The ID of the render POV\'s user.',
-      // required: true
+      description: 'The ID of the render POV\'s user. This is not always set because we create a pool oif Render isntances.'
     }
 
   },

@@ -286,8 +286,8 @@ without necessarily having a billing card.`
       type: 'string',
       description: 'The type of Fleet Premium trial this user was given.',
       isIn: [
-        'render-trial',
-        'local-trial',
+        'render trial',
+        'local trial',
       ],
     }
 
