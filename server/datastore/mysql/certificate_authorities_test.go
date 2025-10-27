@@ -524,7 +524,7 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		require.Equal(t, "updated EST", *updatedCA.Name)
-		require.Equal(t, "https://localhost", *updatedCA.URL)
+		require.Equal(t, "https://coolguy.localhost", *updatedCA.URL)
 		require.Equal(t, "updated-username", *updatedCA.Username)
 		require.Equal(t, "updated-password", *updatedCA.Password)
 	})
