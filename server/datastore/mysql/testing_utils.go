@@ -305,16 +305,17 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 	databasesToReplicate = strings.TrimPrefix(databasesToReplicate+fmt.Sprintf(", `%s`", testName), ",")
 	mu.Unlock()
 
-	setSourceStmt := fmt.Sprintf(`
-			CHANGE REPLICATION SOURCE TO
-				GET_SOURCE_PUBLIC_KEY=1,
-				SOURCE_HOST='%s',
-				SOURCE_USER='%s',
-				SOURCE_PASSWORD='%s',
-				SOURCE_LOG_FILE='%s',
-				SOURCE_LOG_POS=%d
+	var setSourceStmt string
+	if strings.Contains(version, "MariaDB") {
+		setSourceStmt = fmt.Sprintf(`
+			CHANGE MASTER TO
+				MASTER_HOST='%s',
+				MASTER_USER='%s',
+				MASTER_PASSWORD='%s',
+				MASTER_LOG_FILE='%s',
+				MASTER_LOG_POS=%d
 		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
-	if strings.HasPrefix(version, "8.0") {
+	} else if strings.HasPrefix(version, "8.0") {
 		setSourceStmt = fmt.Sprintf(`
 			CHANGE MASTER TO
 				GET_MASTER_PUBLIC_KEY=1,
@@ -324,6 +325,24 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 				MASTER_LOG_FILE='%s',
 				MASTER_LOG_POS=%d
 		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
+	} else {
+		// MySQL 8.4+
+		setSourceStmt = fmt.Sprintf(`
+			CHANGE REPLICATION SOURCE TO
+				GET_SOURCE_PUBLIC_KEY=1,
+				SOURCE_HOST='%s',
+				SOURCE_USER='%s',
+				SOURCE_PASSWORD='%s',
+				SOURCE_LOG_FILE='%s',
+				SOURCE_LOG_POS=%d
+		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
+	}
+
+	// MariaDB doesn't support CHANGE REPLICATION FILTER, so we skip it for MariaDB
+	// This means it will replicate all databases
+	filterStmt := ""
+	if !strings.Contains(version, "MariaDB") {
+		filterStmt = fmt.Sprintf("CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );", databasesToReplicate)
 	}
 
 	// Configure replica and start replication
@@ -337,10 +356,10 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 			`
 			STOP REPLICA;
 			RESET REPLICA ALL;
-			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );
+			%s
 			%s;
 			START REPLICA;
-			`, databasesToReplicate, setSourceStmt,
+			`, filterStmt, setSourceStmt,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)
