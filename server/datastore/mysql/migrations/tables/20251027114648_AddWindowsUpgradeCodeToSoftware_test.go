@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251024145618(t *testing.T) {
+func TestUp_20251027114648(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	ms := fleet.SoftwareTitle{
