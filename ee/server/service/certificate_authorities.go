@@ -573,6 +573,16 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, err
 		}
 	}
+	for _, ca := range incoming.EST {
+		if ca.Name == "" {
+			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_est_proxy: CA name cannot be empty.")
+		}
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "custom_est_proxy", "Custom EST Proxy"); err != nil {
+			return nil, err
+		}
+	}
 	// preprocess smallstep
 	for _, ca := range incoming.Smallstep {
 		if ca.Name == "" {
@@ -599,6 +609,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 	if err := svc.processHydrantCAs(ctx, batchOps, incoming.Hydrant, existing.Hydrant); err != nil {
+		return nil, err
+	}
+	if err := svc.processESTCAs(ctx, batchOps, incoming.EST, existing.EST); err != nil {
 		return nil, err
 	}
 	if err := svc.processSmallstepCAs(ctx, batchOps, incoming.Smallstep, existing.Smallstep); err != nil {
@@ -845,6 +858,59 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 	return nil
 }
 
+func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.ESTProxyCA, existingCAs []fleet.ESTProxyCA) error {
+	incomingByName := make(map[string]*fleet.ESTProxyCA)
+	for _, incoming := range incomingCAs {
+		// Note: caller is responsible for ensuring incoming list has no duplicates
+		incomingByName[incoming.Name] = &incoming
+	}
+
+	existingByName := make(map[string]*fleet.ESTProxyCA)
+	for _, existing := range existingCAs {
+		// if existing CA isn't in the incoming list, we should delete it
+		if _, ok := incomingByName[existing.Name]; !ok {
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeHydrant),
+				Name:     &existing.Name,
+				URL:      &existing.URL,
+				Username: &existing.Username,
+				Password: &existing.Password,
+			})
+		}
+		// Note: datastore is responsible for ensuring no existing list has no duplicates
+		existingByName[existing.Name] = &existing
+	}
+
+	for name, incoming := range incomingByName {
+		if err := svc.validateEST(ctx, incoming, "certificate_authorities.hydrant: "); err != nil {
+			return err
+		}
+
+		// create the payload to be added or updated
+		if _, ok := existingByName[name]; ok {
+			// update existing
+			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeHydrant),
+				Name:     &incoming.Name,
+				URL:      &incoming.URL,
+				Username: &incoming.Username,
+				Password: &incoming.Password,
+			})
+		} else {
+			// add new
+			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeHydrant),
+				Name:     &incoming.Name,
+				URL:      &incoming.URL,
+				Username: &incoming.Username,
+				Password: &incoming.Password,
+			})
+		}
+	}
+
+	return nil
+}
+
 func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.SmallstepSCEPProxyCA, existingCAs []fleet.SmallstepSCEPProxyCA) error {
 	incomingByName := make(map[string]*fleet.SmallstepSCEPProxyCA)
 	for _, incoming := range incomingCAs {
@@ -926,6 +992,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added hydrant")
 			}
+		case string(fleet.CATypeCustomESTProxy):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomESTProxy{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for added custom est proxy")
+			}
 		case string(fleet.CATypeSmallstep):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added smallstep SCEP proxy")
@@ -950,6 +1020,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited hydrant")
 			}
+		case string(fleet.CATypeCustomESTProxy):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomESTProxy{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activityu for edited custom EST proxy")
+			}
 		case string(fleet.CATypeSmallstep):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited smallstep SCEP proxy")
@@ -973,6 +1047,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 		case string(fleet.CATypeHydrant):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted hydrant")
+			}
+		case string(fleet.CATypeCustomESTProxy):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomESTProxy{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for deleted custom EST proxy")
 			}
 		case string(fleet.CATypeSmallstep):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedSmallstep{Name: *ca.Name}); err != nil {

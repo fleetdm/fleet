@@ -2535,15 +2535,15 @@ func (a ActivityAddedCustomESTProxy) Documentation() (activity string, details s
 }`
 }
 
-type ActivityDeletedESTProxy struct {
+type ActivityDeletedCustomESTProxy struct {
 	Name string `json:"name"`
 }
 
-func (a ActivityDeletedESTProxy) ActivityName() string {
+func (a ActivityDeletedCustomESTProxy) ActivityName() string {
 	return "deleted_custom_est_proxy"
 }
 
-func (a ActivityDeletedESTProxy) Documentation() (activity string, details string, detailsExample string) {
+func (a ActivityDeletedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when a custom EST certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
 - "name": Name of the certificate authority.`, `{
   "name": "EST_WIFI"

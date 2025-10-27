@@ -109,6 +109,13 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		ClientSecret: "client-secret",
 	}
 
+	goodESTCA := fleet.ESTProxyCA{
+		Name:     "VALID_EST",
+		URL:      mockHydrantServer.URL,
+		Username: "username",
+		Password: "password",
+	}
+
 	// goodSmallstepCA is a base object for testing with a valid Smallstep SCEP CA. Copy it to override specific fields in tests.
 	goodSmallstepCA := fleet.SmallstepSCEPProxyCA{
 		Name:         "VALID_SMALLSTEP_SCEP",
@@ -135,6 +142,12 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					Hydrant: []fleet.HydrantCA{v},
 				},
 				DryRun: dryRun,
+			}, nil
+		case fleet.ESTProxyCA:
+			return batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					EST: []fleet.ESTProxyCA{v},
+				},
 			}, nil
 		case fleet.NDESSCEPProxyCA:
 			return batchApplyCertificateAuthoritiesRequest{
@@ -423,6 +436,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -445,6 +459,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 				},
 				DryRun: false,
 			}
@@ -461,6 +476,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 				},
 				DryRun: false,
 			}
@@ -474,6 +490,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 				},
 				DryRun: false,
 			}
@@ -487,6 +504,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -764,6 +782,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -786,6 +805,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -803,6 +823,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -817,6 +838,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -831,6 +853,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -984,6 +1007,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -1006,6 +1030,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA, testCopy},
 				},
 				DryRun: false,
@@ -1023,6 +1048,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA, testCopy},
 				},
 				DryRun: false,
@@ -1037,6 +1063,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA, testCopy},
 				},
 				DryRun: false,
@@ -1051,6 +1078,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA, testCopy},
 				},
 				DryRun: false,
@@ -1240,6 +1268,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -1262,6 +1291,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -1279,6 +1309,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -1293,6 +1324,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -1307,6 +1339,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
 					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
 				},
 				DryRun: false,
@@ -1315,6 +1348,130 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		})
 
 		// TODO(hca): hydrant happy path and other specific tests
+	})
+
+	t.Run("custom est", func(t *testing.T) {
+		// run common invalid name test cases
+		t.Run("invalid name", func(t *testing.T) {
+			for _, tc := range invalidNameTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodESTCA
+					testCopy.Name = tc.name
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
+					require.Contains(t, errMsg, tc.errMessage)
+				})
+			}
+		})
+		// run common invalid url test cases
+		t.Run("invalid url", func(t *testing.T) {
+			for _, tc := range invalidURLTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodESTCA
+					testCopy.URL = tc.url
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
+					if tc.errMessage == "Invalid URL" {
+						require.Contains(t, errMsg, "Invalid EST URL")
+					} else {
+						require.Contains(t, errMsg, tc.errMessage)
+					}
+				})
+			}
+		})
+
+		// run additional duplicate name scenarios
+		t.Run("duplicate names", func(t *testing.T) {
+			// create one of each CA
+			req := batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA},
+					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
+				},
+				DryRun: false,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			t.Cleanup(func() {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
+			})
+
+			// try to create est ca proxy with same name as another est ca
+			testCopy := goodESTCA
+			testCopy.Username = "some-other-client-id"
+			duplicateReq := batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA, testCopy},
+					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
+				},
+				DryRun: false,
+			}
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
+			require.Contains(t, errMsg, "name is already used by another custom EST certificate authority")
+
+			// try to create a custom est ca with same name as another digicert
+			testCopy = goodESTCA
+			testCopy.Name = goodDigiCertCA.Name
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA, testCopy},
+					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
+				},
+				DryRun: false,
+			}
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
+
+			// try to create est with same name as another custom scep
+			testCopy = goodESTCA
+			testCopy.Name = goodCustomSCEPCA.Name
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA, testCopy},
+					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
+				},
+				DryRun: false,
+			}
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
+
+			// try to create eset ca with same name as another smallstep
+			testCopy = goodESTCA
+			testCopy.Name = goodSmallstepCA.Name
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+					EST:             []fleet.ESTProxyCA{goodESTCA, testCopy},
+					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
+				},
+				DryRun: false,
+			}
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
+		})
 	})
 }
 
