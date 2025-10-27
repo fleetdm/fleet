@@ -3,7 +3,6 @@ package mysql
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"slices"
 	"testing"
 
