@@ -4612,6 +4612,7 @@ Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host
 
 To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
+> For iOS and iPadOS, this enables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/lock`
 
@@ -4648,6 +4649,7 @@ Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or 
 
 To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
+> For iOS and iPadOS, this disables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
