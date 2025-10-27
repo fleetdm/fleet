@@ -4645,9 +4645,7 @@ _Available in Fleet Premium_
 
 Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
 
-To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
-
-> For iOS and iPadOS, this disables Lost Mode.
+To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this disables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
