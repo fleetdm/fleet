@@ -202,7 +202,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		// Insert both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
-			Name:            payload.Title,
+			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
 			Platform:        payload.Platform,

@@ -16,7 +16,7 @@ CREATE TABLE in_house_apps (
   title_id int unsigned DEFAULT NULL,
   team_id int unsigned DEFAULT NULL,
   global_or_team_id int unsigned NOT NULL DEFAULT '0',
-  name VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  filename VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   version VARCHAR(255) NOT NULL DEFAULT '',
   storage_id VARCHAR(64) COLLATE utf8mb4_unicode_ci NOT NULL,
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -24,7 +24,7 @@ CREATE TABLE in_house_apps (
   platform varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   bundle_identifier VARCHAR(255) NOT NULL DEFAULT '',
   PRIMARY KEY (id),
-  UNIQUE KEY (global_or_team_id,name,platform),
+  UNIQUE KEY (global_or_team_id,filename,platform),
   CONSTRAINT fk_in_house_apps_title FOREIGN KEY (title_id) REFERENCES software_titles (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 	`

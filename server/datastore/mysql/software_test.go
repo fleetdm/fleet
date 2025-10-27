@@ -10023,7 +10023,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	// 	DumpTable(t, tx, "hosts", "id", "uuid", "platform", "hostname", "team_id")
 	// 	DumpTable(t, tx, "host_software")
 	// 	DumpTable(t, tx, "software", "id", "title_id")
-	// 	DumpTable(t, tx, "in_house_apps", "id", "title_id", "global_or_team_id", "name", "version", "platform")
+	// 	DumpTable(t, tx, "in_house_apps", "id", "title_id", "global_or_team_id", "filename", "version", "platform")
 	// 	DumpTable(t, tx, "in_house_app_labels")
 	// 	DumpTable(t, tx, "software_titles", "id", "name", "source", "bundle_identifier", "additional_identifier", "application_id", "unique_identifier")
 	// 	return nil

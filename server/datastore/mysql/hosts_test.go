@@ -8450,14 +8450,14 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, _, err = ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
-		Name:            "test",
+		Filename:        "test.ipa",
 		StorageID:       uuid.NewString(),
 		Platform:        string(fleet.MacOSPlatform),
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	var inHouseID uint
-	err = ds.writer(ctx).Get(&inHouseID, "SELECT id FROM in_house_apps WHERE name = ?", "test")
+	err = ds.writer(ctx).Get(&inHouseID, "SELECT id FROM in_house_apps WHERE filename = ?", "test.ipa")
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).Exec("INSERT INTO host_in_house_software_installs (host_id, in_house_app_id, command_uuid, platform) VALUES (?, ?, ?, ?)",
 		host.ID, inHouseID, uuid.NewString(), fleet.MacOSPlatform)

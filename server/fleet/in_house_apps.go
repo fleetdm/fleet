@@ -2,7 +2,7 @@ package fleet
 
 type InHouseAppPayload struct {
 	TeamID          *uint
-	Name            string
+	Filename        string
 	BundleID        string
 	StorageID       string
 	Platform        string
