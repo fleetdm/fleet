@@ -72,19 +72,21 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		// Currently only macOS is supported for self-service. Don't
 		// import vpp apps as self-service for ios or ipados
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-			AppStoreID:       payload.AppStoreID,
-			SelfService:      false,
-			Platform:         fleet.IOSPlatform,
-			LabelsExcludeAny: payload.LabelsExcludeAny,
-			LabelsIncludeAny: payload.LabelsIncludeAny,
-			Categories:       payload.Categories,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        false,
+			InstallDuringSetup: payload.InstallDuringSetup,
+			Platform:           fleet.IOSPlatform,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}, {
-			AppStoreID:       payload.AppStoreID,
-			SelfService:      false,
-			Platform:         fleet.IPadOSPlatform,
-			LabelsExcludeAny: payload.LabelsExcludeAny,
-			LabelsIncludeAny: payload.LabelsIncludeAny,
-			Categories:       payload.Categories,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        false,
+			InstallDuringSetup: payload.InstallDuringSetup,
+			Platform:           fleet.IPadOSPlatform,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -418,7 +420,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		if exists {
 			return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
 				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-					assetMD.TrackName, teamName)}, "vpp app conflicts with existing software installer")
+					assetMD.TrackName, teamName),
+			}, "vpp app conflicts with existing software installer")
 		}
 	}
 

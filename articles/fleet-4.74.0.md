@@ -11,7 +11,7 @@ Fleet 4.74.0 is now available. See the complete [changelog](https://github.com/f
 - Linux setup experience
 - Custom software icons
 - Batch script details
-- Self-service software intrucutions
+- Self-service software instructions
 - AWS IAM authentication for MySQL and Redis
 
 ### Custom software icons

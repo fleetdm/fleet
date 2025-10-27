@@ -2,33 +2,47 @@ locals {
   customer    = "fleet-${terraform.workspace}"
   prefix      = "fleet-${terraform.workspace}"
   fleet_image = "${aws_ecr_repository.fleet.repository_url}:${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
-  extra_environment_variables = {
-    CLOUDWATCH_NAMESPACE = "fleet-loadtest-migration"
-    CLOUDWATCH_REGION    = "us-east-2"
-    # PROMETHEUS_SCRAPE_URL = "http://localhost:8080/metrics"
+  # Tracing configuration - either OTEL or Elastic APM
+  otel_environment_variables = var.enable_otel ? {
+    OTEL_SERVICE_NAME               = terraform.workspace
+    OTEL_EXPORTER_OTLP_ENDPOINT     = "http://${data.terraform_remote_state.signoz[0].outputs.otel_collector_endpoint}"
+    FLEET_LOGGING_TRACING_ENABLED   = "true"
+    FLEET_LOGGING_TRACING_TYPE      = "opentelemetry"
+  } : {}
 
+  elastic_apm_environment_variables = var.enable_otel ? {} : {
     ELASTIC_APM_SERVER_URL              = "https://loadtest.fleetdm.com:8200"
     ELASTIC_APM_SERVICE_NAME            = "fleet"
     ELASTIC_APM_ENVIRONMENT             = "${terraform.workspace}"
     ELASTIC_APM_TRANSACTION_SAMPLE_RATE = "0.004"
     ELASTIC_APM_SERVICE_VERSION         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
-
-    FLEET_VULNERABILITIES_DATABASES_PATH           = "/home/fleet"
-    FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING     = "false"
-    FLEET_LOGGING_JSON                             = "true"
-    FLEET_LOGGING_DEBUG                            = "true"
-    FLEET_LOGGING_TRACING_ENABLED                  = "true"
-    FLEET_LOGGING_TRACING_TYPE                     = "elasticapm"
-    FLEET_MYSQL_MAX_OPEN_CONNS                     = "10"
-    FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS        = "10"
-    FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
-    FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
-    FLEET_REDIS_MAX_IDLE_CONNS                     = "500"
-
-    # Load TLS Certificate for RDS Authentication
-    FLEET_MYSQL_TLS_CA              = local.cert_path
-    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+    FLEET_LOGGING_TRACING_ENABLED       = "true"
+    FLEET_LOGGING_TRACING_TYPE          = "elasticapm"
   }
+
+  extra_environment_variables = merge(
+    {
+      CLOUDWATCH_NAMESPACE = "fleet-loadtest-migration"
+      CLOUDWATCH_REGION    = "us-east-2"
+      # PROMETHEUS_SCRAPE_URL = "http://localhost:8080/metrics"
+
+      FLEET_VULNERABILITIES_DATABASES_PATH           = "/home/fleet"
+      FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING     = "false"
+      FLEET_LOGGING_JSON                             = "true"
+      FLEET_LOGGING_DEBUG                            = "true"
+      FLEET_MYSQL_MAX_OPEN_CONNS                     = "10"
+      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS        = "10"
+      FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
+      FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
+      FLEET_REDIS_MAX_IDLE_CONNS                     = "500"
+
+      # Load TLS Certificate for RDS Authentication
+      FLEET_MYSQL_TLS_CA              = local.cert_path
+      FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+    },
+    local.otel_environment_variables,
+    local.elastic_apm_environment_variables
+  )
   extra_secrets = {
     FLEET_LICENSE_KEY = data.aws_secretsmanager_secret.license.arn
   }

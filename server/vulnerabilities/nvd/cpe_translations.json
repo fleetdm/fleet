@@ -362,6 +362,15 @@
   },
   {
     "software": {
+      "name": ["/golang\\.go/"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["ms-vscode-remote.vscode-remote-extensionpack"],
       "source": ["vscode_extensions"]
     },
@@ -521,6 +530,16 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.now.gg.BlueStacksMIM"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["bluestacks"],
+      "vendor": ["bluestacks"]
+    }
+  },
+  {
+    "software": {
       "name": ["sourcegraph.cody-ai"],
       "source": ["vscode_extensions"]
     },
@@ -537,6 +556,26 @@
     "filter": {
       "product": ["pull_requests_and_issues"],
       "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.oracle.SQLDeveloper"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["sql_developer"],
+      "vendor": ["oracle"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.poly.lens.legacyhost.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lens"],
+      "vendor": ["poly"]
     }
   },
   {
@@ -607,12 +646,30 @@
   },
   {
     "software": {
-      "bundle_identifier": ["/^com\\.googlecode\\.iterm2/"],
+      "bundle_identifier": ["com.googlecode.iterm2"],
       "source": ["apps"]
     },
     "filter": {
       "product": ["iterm2"],
-      "vendor": ["iterm2"]
+      "vendor": ["iterm2"],
+      "skip": false
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.googlecode\\.iterm2\\./"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "source": ["npm_packages"]
+    },
+    "filter": {
+      "target_sw": ["node.js"]
     }
   },
   {
@@ -624,6 +681,25 @@
       "product": ["firefox"],
       "vendor": ["mozilla"],
       "sw_edition": ["esr"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/Snyk/"],
+      "source": ["jetbrains_plugins"]
+    },
+    "filter": {
+      "product": ["snyk_security"],
+      "target_sw": ["intellij"],
+      "vendor": ["snyk"]
+    }
+  },
+  {
+    "software": {
+      "source": ["jetbrains_plugins"]
+    },
+    "filter": {
+      "target_sw": ["intellij"]
     }
   }
 ]

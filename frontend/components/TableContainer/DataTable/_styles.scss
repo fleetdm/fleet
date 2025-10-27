@@ -133,10 +133,9 @@ $shadow-transition-width: 10px;
         }
 
         .column-header {
-          // Filters next to header name
           display: flex;
+          flex-direction: column; // Filters under header name
           min-width: max-content;
-          gap: $pad-small;
 
           span {
             display: flex;
@@ -151,7 +150,13 @@ $shadow-transition-width: 10px;
 
         // Sort arrows change color on hover
         .sortable-header {
-          height: 36px;
+          padding: $pad-xsmall 0;
+
+          .column-header {
+            .header-cell {
+              min-height: 36px;
+            }
+          }
 
           &:hover {
             .header-cell:not(.ascending) {
@@ -295,6 +300,7 @@ $shadow-transition-width: 10px;
         .link-cell,
         .text-cell {
           display: block; // inline-block is not vertically centered
+          overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
           margin: 0;

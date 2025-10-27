@@ -1,0 +1,10 @@
+<% /* Note: This is injected into `views/layouts/layout-nurture-email.ejs` */ %>
+<div style="padding: 0px 0px 0px 0px;">
+  <p style=" font-size: 16px; line-height: 24px; margin-bottom: 24px; margin-top: 0px">Hi <%- firstName %>,</p>
+  <p style=" font-size: 16px; line-height: 24px; margin-bottom: 8px; margin-top: 0px">Your 30-day trial has finished. How was it?</p>
+  <p style=" font-size: 16px; line-height: 24px; margin-bottom: 24px; margin-top: 0px">If you liked Fleet, here’s how you can keep using it:</p>
+  <ul style="padding-inline-start: 16px;">
+    <li style=" font-size: 16px; line-height: 24px; margin-bottom: 8px; margin-top: 0px">Have us host it — <a style="color: #009A7D; line-height: 24px; text-decoration: none;" href="<%= url.resolve(sails.config.custom.baseUrl,'/contact')%>">get in touch</a></li>
+    <li style=" font-size: 16px; line-height: 24px; margin-bottom: 48px; margin-top: 0px">Deploy it yourself — <a style="color: #009A7D; line-height: 24px; text-decoration: none;" href="<%= url.resolve(sails.config.custom.baseUrl,'/docs/deploy')%>">check these guides</a></li>
+  </ul>
+</div>

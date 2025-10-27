@@ -14,7 +14,7 @@ parasails.registerPage('signup', {
     formRules: {
       firstName: {required: true},
       lastName: {required: true},
-      organization: {required: true},
+      // organization: {required: true},
       emailAddress: {required: true, isEmail: true},
       password: {required: true, minLength: 8},
     },
@@ -26,7 +26,7 @@ parasails.registerPage('signup', {
     showFullForm: false,
     // For redirecting users coming from the "Get your license" link to the license dispenser.
     loginSlug: '/login',
-    pageToRedirectToAfterRegistration: '/start#signup',
+    pageToRedirectToAfterRegistration: '/try',
     primaryBuyingSituation: undefined
   },
 
