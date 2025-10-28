@@ -62,7 +62,8 @@ const generateTooltip = (
   tooltipId: string,
   totalCount?: number
 ) => {
-  if (vulnerabilities.length <= 1) {
+  const count = totalCount ?? vulnerabilities.length;
+  if (count <= 1) {
     return null;
   }
 
@@ -101,7 +102,8 @@ const VulnerabilitiesCell = ({
 
   // only one vulnerability, no need for tooltip
   const cell = generateCell(vulnerabilities, vulnerabilitiesCount);
-  if (vulnerabilities === null || vulnerabilities.length <= 1) {
+  const count = vulnerabilitiesCount ?? vulnerabilities?.length ?? 0;
+  if (vulnerabilities === null || count <= 1) {
     return <>{cell}</>;
   }
 
