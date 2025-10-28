@@ -27,7 +27,7 @@ import deviceUserAPI from "services/entities/device_user";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -128,15 +128,14 @@ export const StatusMessage = ({
   };
 
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon
-        name={
-          SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-          "pending-outline"
-        }
-      />
-      {renderStatusCopy()}
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={
+        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ??
+        "pending-outline"
+      }
+      message={renderStatusCopy()}
+    />
   );
 };
 

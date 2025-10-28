@@ -1441,46 +1441,59 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
-			if softwareTitle.SoftwarePackage.InstallScript != "" {
-				script := softwareTitle.SoftwarePackage.InstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["install_script"] = map[string]interface{}{
-					"path": path,
-				}
-				cmd.FilesToWrite[fileName] = script
-			}
 
-			if softwareTitle.SoftwarePackage.PostInstallScript != "" {
-				script := softwareTitle.SoftwarePackage.PostInstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["post_install_script"] = map[string]interface{}{
-					"path": path,
-				}
-				cmd.FilesToWrite[fileName] = script
-			}
+			// Detect if this is a script package (.sh or .ps1 file)
+			// Script packages have the file contents as the install script internally,
+			// but these fields should NOT be exposed in GitOps YAML as they are not
+			// user-configurable for script packages.
+			isScriptPackage := sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" &&
+				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
+					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
-			if softwareTitle.SoftwarePackage.UninstallScript != "" {
-				script := softwareTitle.SoftwarePackage.UninstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["uninstall_script"] = map[string]interface{}{
-					"path": path,
+			// Only output install_script, post_install_script, uninstall_script, and
+			// pre_install_query for non-script packages
+			if !isScriptPackage {
+				if softwareTitle.SoftwarePackage.InstallScript != "" {
+					script := softwareTitle.SoftwarePackage.InstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["install_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
 				}
-				cmd.FilesToWrite[fileName] = script
-			}
 
-			if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
-				query := softwareTitle.SoftwarePackage.PreInstallQuery
-				fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["pre_install_query"] = map[string]interface{}{
-					"path": path,
+				if softwareTitle.SoftwarePackage.PostInstallScript != "" {
+					script := softwareTitle.SoftwarePackage.PostInstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["post_install_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
 				}
-				cmd.FilesToWrite[fileName] = []map[string]interface{}{{
-					"query": query,
-				}}
+
+				if softwareTitle.SoftwarePackage.UninstallScript != "" {
+					script := softwareTitle.SoftwarePackage.UninstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["uninstall_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
+				}
+
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
+					query := softwareTitle.SoftwarePackage.PreInstallQuery
+					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["pre_install_query"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = []map[string]interface{}{{
+						"query": query,
+					}}
+				}
 			}
 
 			if softwareTitle.SoftwarePackage.SelfService {

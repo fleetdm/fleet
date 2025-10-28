@@ -27,7 +27,7 @@ parasails.registerPage('login', {
     showCustomerLogin: true,
     // For redirecting users coming from the "Get your license" link to the license dispenser.
     registerSlug: '/register',
-    pageToRedirectToAfterLogin: '/start#login',
+    pageToRedirectToAfterLogin: '/try',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗

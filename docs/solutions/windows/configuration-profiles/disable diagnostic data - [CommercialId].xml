@@ -1,0 +1,13 @@
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_DataCollection/CommercialIdPolicy</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Data>&lt;Disabled/&gt;</Data>
+  </Item>
+</Replace>
+

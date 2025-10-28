@@ -19,7 +19,7 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -377,10 +377,11 @@ export const VppInstallDetailsModal = ({
     }
     return (
       <div className={`${baseClass}__modal-content`}>
-        <div className={`${baseClass}__status-message`}>
-          {!!iconName && <Icon name={iconName} />}
-          <span>{statusMessage}</span>
-        </div>
+        <IconStatusMessage
+          className={`${baseClass}__status-message`}
+          iconName={iconName}
+          message={<span>{statusMessage}</span>}
+        />
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&

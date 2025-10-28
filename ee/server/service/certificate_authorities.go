@@ -256,7 +256,7 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 		return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sCA Common Name (CN) cannot be empty", errPrefix))
 	}
 	fleetVars := variables.Find(cn)
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
@@ -278,7 +278,7 @@ func validateDigicertSeatID(seatID string, errPrefix string) error {
 		return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sCA Seat ID cannot be empty", errPrefix))
 	}
 	fleetVars := variables.Find(seatID)
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
@@ -302,7 +302,7 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 			fmt.Sprintf("%sDigiCert certificate_user_principal_name cannot be empty if specified", errPrefix))
 	}
 	fleetVars := variables.Find(userPrincipalNames[0])
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
