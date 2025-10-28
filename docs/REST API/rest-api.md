@@ -7211,17 +7211,17 @@ None.
 
 - [List policies](#list-policies)
 - [List team policies](#list-team-policies)
-- [Count policies](#count-policies)
-- [Count team policies](#count-team-policies)
-- [Get policy by ID](#get-policy-by-id)
-- [Get team policy by ID](#get-team-policy-by-id)
+- [Get policies count](#get-policies-count)
+- [Get team policies count](#get-team-policies-count)
+- [Get policy](#get-policy)
+- [Get team policy](#get-team-policy)
 - [Add policy](#add-policy)
 - [Add team policy](#add-team-policy)
 - [Delete policies](#delete-policies)
 - [Delete team policies](#delete-team-policies)
-- [Edit policy](#edit-policy)
-- [Edit team policy](#edit-team-policy)
-- [Reset automations for all hosts failing policies](#reset-automations-for-all-hosts-failing-policies)
+- [Update policy](#update-policy)
+- [Update team policy](#update-team-policy)
+- [Reset policy automations](#reset-policy-automations)
 
 Policies are yes or no questions you can ask about your hosts.
 
@@ -7503,7 +7503,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Count policies
+### Get policies count
 
 `GET /api/v1/fleet/policies/count`
 
@@ -7529,7 +7529,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Count team policies
+### Get team policies count
 
 _Available in Fleet Premium_
 
@@ -7558,7 +7558,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get policy by ID
+### Get policy
 
 `GET /api/v1/fleet/global/policies/:id`
 
@@ -7601,7 +7601,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policy by ID
+### Get team policy
 
 _Available in Fleet Premium_
 
@@ -7660,7 +7660,7 @@ _Available in Fleet Premium_
 ---
 
 
-### Add policy
+### Create policy
 
 `POST /api/v1/fleet/global/policies`
 
@@ -7679,7 +7679,7 @@ _Available in Fleet Premium_
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
 
-#### Example (preferred)
+#### Example
 
 `POST /api/v1/fleet/global/policies`
 
@@ -7726,7 +7726,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Add team policy
+### Create team policy
 
 _Available in Fleet Premium_
 
@@ -7884,7 +7884,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Edit team policy
+### Update team policy
 
 _Available in Fleet Premium_
 
@@ -7969,7 +7969,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Edit policy
+### Update policy
 
 `PATCH /api/v1/fleet/global/policies/:id`
 
@@ -8033,7 +8033,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Reset automations for all hosts failing policies
+### Reset policy automations
 
 Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
@@ -8070,8 +8070,6 @@ Currently, this API endpoint only resets ticket and webhook automations.
 {}
 ```
 
-
-
 ---
 
 ## Queries
@@ -8079,15 +8077,13 @@ Currently, this API endpoint only resets ticket and webhook automations.
 - [List queries](#list-queries)
 - [Get query](#get-query)
 - [Get query report](#get-query-report)
-- [Get query report for one host](#get-query-report-for-one-host)
+- [Get host's query report](#get-hosts-query-report)
 - [Create query](#create-query)
-- [Modify query](#modify-query)
+- [Update query](#update-query)
 - [Delete query by name](#delete-query-by-name)
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
 - [Run live query](#run-live-query)
-
-
 
 ### List queries
 
@@ -8356,7 +8352,7 @@ If a query has no results stored, then `results` will be an empty array:
 
 > Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
 
-### Get query report for one host
+### Get host's query report
 
 Returns a query report for a single host.
 
@@ -8502,7 +8498,7 @@ Creates a global query or team query.
 }
 ```
 
-### Modify query
+### Update query
 
 Modifies the query specified by ID.
 
@@ -8735,460 +8731,9 @@ The live query will stop if the request times out. Timeouts happen if targeted h
 
 ## Schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+The [schedule API endpoints](https://github.com/fleetdm/fleet/blob/f6631e27f56b6704c555adfb7a3bb8c6d1a74d98/docs/REST%20API/rest-api.md#schedule) are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 
-- [Get schedule (deprecated)](#get-schedule)
-- [Add query to schedule (deprecated)](#add-query-to-schedule)
-- [Edit query in schedule (deprecated)](#edit-query-in-schedule)
-- [Remove query from schedule (deprecated)](#remove-query-from-schedule)
-- [Team schedule](#team-schedule)
-
-Scheduling queries in Fleet is the best practice for collecting data from hosts.
-
-These API routes let you control your scheduled queries.
-
-### Get schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`GET /api/v1/fleet/global/schedule`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/global/schedule`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "global_schedule": [
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 4,
-      "pack_id": 1,
-      "name": "arp_cache",
-      "query_id": 2,
-      "query_name": "arp_cache",
-      "query": "select * from arp_cache;",
-      "interval": 120,
-      "snapshot": true,
-      "removed": null,
-      "platform": "",
-      "version": "",
-      "shard": null,
-      "denylist": null,
-      "stats": {
-        "system_time_p50": 1.32,
-        "system_time_p95": 4.02,
-        "user_time_p50": 3.55,
-        "user_time_p95": 3.00,
-        "total_executions": 3920
-      }
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 5,
-      "pack_id": 1,
-      "name": "disk_encryption",
-      "query_id": 7,
-      "query_name": "disk_encryption",
-      "query": "select * from disk_encryption;",
-      "interval": 86400,
-      "snapshot": true,
-      "removed": null,
-      "platform": "",
-      "version": "",
-      "shard": null,
-      "denylist": null,
-      "stats": {
-        "system_time_p50": 1.32,
-        "system_time_p95": 4.02,
-        "user_time_p50": 3.55,
-        "user_time_p95": 3.00,
-        "total_executions": 3920
-      }
-    }
-  ]
-}
-```
-
-### Add query to schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`POST /api/v1/fleet/global/schedule`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                      |
-| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
-| query_id | integer | body | **Required.** The query's ID.                                                                                                    |
-| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                                    |
-| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                                     |
-| removed  | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts. Default is `null`.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
-
-#### Example
-
-`POST /api/v1/fleet/global/schedule`
-
-##### Request body
-
-```json
-{
-  "interval": 86400,
-  "query_id": 2,
-  "snapshot": true
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "pack_id": 5,
-    "name": "arp_cache",
-    "query_id": 2,
-    "query_name": "arp_cache",
-    "query": "select * from arp_cache;",
-    "interval": 86400,
-    "snapshot": true,
-    "removed": null,
-    "platform": "",
-    "version": "",
-    "shard": null,
-    "denylist": null
-  }
-}
-```
-
-> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses [osquery query packs](https://osquery.readthedocs.io/en/stable/deployment/configuration/#query-packs) under the hood.
-
-### Edit query in schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`PATCH /api/v1/fleet/global/schedule/:id`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                   |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
-| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
-| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
-| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`PATCH /api/v1/fleet/global/schedule/5`
-
-##### Request body
-
-```json
-{
-  "interval": 604800
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "2021-07-16T14:40:15Z",
-    "updated_at": "2021-07-16T14:40:15Z",
-    "id": 5,
-    "pack_id": 1,
-    "name": "arp_cache",
-    "query_id": 2,
-    "query_name": "arp_cache",
-    "query": "select * from arp_cache;",
-    "interval": 604800,
-    "snapshot": true,
-    "removed": null,
-    "platform": "",
-    "shard": null,
-    "denylist": null
-  }
-}
-```
-
-### Remove query from schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`DELETE /api/v1/fleet/global/schedule/:id`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`DELETE /api/v1/fleet/global/schedule/5`
-
-##### Default response
-
-`Status: 200`
-
-
----
-
-### Team schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-- [Get team schedule (deprecated)](#get-team-schedule)
-- [Add query to team schedule (deprecated)](#add-query-to-team-schedule)
-- [Edit query in team schedule (deprecated)](#edit-query-in-team-schedule)
-- [Remove query from team schedule (deprecated)](#remove-query-from-team-schedule)
-
-This allows you to easily configure scheduled queries that will impact a whole team of devices.
-
-#### Get team schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`GET /api/v1/fleet/teams/:id/schedule`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| id              | integer | path  | **Required**. The team's ID.                                                                                                  |
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
-| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-
-#### Example
-
-`GET /api/v1/fleet/teams/2/schedule`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": [
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 4,
-      "pack_id": 2,
-      "name": "arp_cache",
-      "query_id": 2,
-      "query_name": "arp_cache",
-      "query": "select * from arp_cache;",
-      "interval": 120,
-      "snapshot": true,
-      "platform": "",
-      "version": "",
-      "removed": null,
-      "shard": null,
-      "denylist": null,
-      "stats": {
-        "system_time_p50": 1.32,
-        "system_time_p95": 4.02,
-        "user_time_p50": 3.55,
-        "user_time_p95": 3.00,
-        "total_executions": 3920
-      }
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 5,
-      "pack_id": 3,
-      "name": "disk_encryption",
-      "query_id": 7,
-      "query_name": "disk_encryption",
-      "query": "select * from disk_encryption;",
-      "interval": 86400,
-      "snapshot": true,
-      "removed": null,
-      "platform": "",
-      "version": "",
-      "shard": null,
-      "denylist": null,
-      "stats": {
-        "system_time_p50": 1.32,
-        "system_time_p95": 4.02,
-        "user_time_p50": 3.55,
-        "user_time_p95": 3.00,
-        "total_executions": 3920
-      }
-    }
-  ]
-}
-```
-
-#### Add query to team schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`POST /api/v1/fleet/teams/:id/schedule`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                      |
-| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
-| id       | integer | path | **Required.** The teams's ID.                                                                                                    |
-| query_id | integer | body | **Required.** The query's ID.                                                                                                    |
-| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                                    |
-| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                                     |
-| removed  | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts. Default is `null`.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
-
-#### Example
-
-`POST /api/v1/fleet/teams/2/schedule`
-
-##### Request body
-
-```json
-{
-  "interval": 86400,
-  "query_id": 2,
-  "snapshot": true
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "pack_id": 5,
-    "name": "arp_cache",
-    "query_id": 2,
-    "query_name": "arp_cache",
-    "query": "select * from arp_cache;",
-    "interval": 86400,
-    "snapshot": true,
-    "removed": null,
-    "shard": null,
-    "denylist": null
-  }
-}
-```
-
-#### Edit query in team schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`PATCH /api/v1/fleet/teams/:team_id/schedule/:scheduled_query_id`
-
-#### Parameters
-
-| Name               | Type    | In   | Description                                                                                                   |
-| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id            | integer | path | **Required.** The team's ID.                                                                                  |
-| scheduled_query_id | integer | path | **Required.** The scheduled query's ID.                                                                       |
-| interval           | integer | body | The amount of time, in seconds, the query waits before running.                                               |
-| snapshot           | boolean | body | Whether the queries logs show everything in its current state.                                                |
-| removed            | boolean | body | Whether "removed" actions should be logged.                                                                   |
-| platform           | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard              | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version            | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`PATCH /api/v1/fleet/teams/2/schedule/5`
-
-##### Request body
-
-```json
-{
-  "interval": 604800
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "2021-07-16T14:40:15Z",
-    "updated_at": "2021-07-16T14:40:15Z",
-    "id": 5,
-    "pack_id": 1,
-    "name": "arp_cache",
-    "query_id": 2,
-    "query_name": "arp_cache",
-    "query": "select * from arp_cache;",
-    "interval": 604800,
-    "snapshot": true,
-    "removed": null,
-    "platform": "",
-    "shard": null,
-    "denylist": null
-  }
-}
-```
-
-#### Remove query from team schedule
-
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
-`DELETE /api/v1/fleet/teams/:team_id/schedule/:scheduled_query_id`
-
-#### Parameters
-
-| Name               | Type    | In   | Description                             |
-| ------------------ | ------- | ---- | --------------------------------------- |
-| team_id            | integer | path | **Required.** The team's ID.            |
-| scheduled_query_id | integer | path | **Required.** The scheduled query's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/teams/2/schedule/5`
-
-##### Default response
-
-`Status: 200`
+Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 ---
 
@@ -9202,12 +8747,11 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script)
 - [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
-- [Modify script](#modify-script)
+- [Update script](#update-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [List host's scripts](#list-hosts-scripts)
 - [Get or download script](#get-or-download-script)
-- [Get script details by host](#get-hosts-scripts)
 
 ### Run script
 
@@ -9565,7 +9109,7 @@ echo "hello"
 }
 ```
 
-### Modify script
+### Update script
 
 Modifies an existing script.
 
@@ -9791,10 +9335,10 @@ echo "hello"
 
 ## Sessions
 
-- [Get session info](#get-session-info)
+- [Get session](#get-session)
 - [Delete session](#delete-session)
 
-### Get session info
+### Get session
 
 Returns the session information for the session specified by ID.
 
@@ -9854,13 +9398,13 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
-- [Modify package](#modify-package)
+- [Update package](#update-package)
 - [Update software icon](#update-software-icon)
 - [Download software icon](#download-software-icon)
 - [Delete software icon](#delete-software-icon)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
-- [Modify App Store app](#modify-app-store-app)
+- [Update App Store app](#update-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -10599,7 +10143,7 @@ Content-Type: application/octet-stream
 }
 ```
 
-### Modify package
+### Update package
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -10906,7 +10450,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Modify App Store app
+### Update App Store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
@@ -11602,8 +11146,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [List teams](#list-teams)
 - [Get team](#get-team)
 - [Create team](#create-team)
-- [Modify team](#modify-team)
-- [Modify team's agent options](#modify-teams-agent-options)
+- [Update team](#update-team)
+- [Update team's agent options](#udpate-teams-agent-options)
 - [Delete team](#delete-team)
 
 ### List teams
@@ -11884,7 +11428,7 @@ _Available in Fleet Premium_
 }
 ```
 
-### Modify team
+### Update team
 
 _Available in Fleet Premium_
 
@@ -12248,7 +11792,7 @@ _Available in Fleet Premium_
 }
 ```
 
-### Add users to a team
+### Add users to team
 
 _Available in Fleet Premium_
 
@@ -12391,7 +11935,7 @@ _Available in Fleet Premium_
 }
 ```
 
-### Modify team's agent options
+### Update team's agent options
 
 _Available in Fleet Premium_
 
@@ -12597,24 +12141,24 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ## Users
 
-- [List all users](#list-all-users)
-- [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
-- [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
-- [Get user information](#get-user-information)
-- [Modify user](#modify-user)
+- [List users](#list-users)
+- [Create user](#create-user)
+- [Create user from invite](#create-user-from-invite)
+- [Get user](#get-user)
+- [Update user](#update-user)
 - [Delete user](#delete-user)
 - [Require password reset](#require-password-reset)
-- [List a user's sessions](#list-a-users-sessions)
-- [Delete a user's sessions](#delete-a-users-sessions)
-- [Create invite](#create-invite)
+- [List sessions](#list-sessions)
+- [Delete sessions](#delete-sessions)
+- [Invite user](#invite-user)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
 - [Verify invite](#verify-invite)
-- [Modify invite](#modify-invite)
+- [Update invite](#update-invite)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
 
-### List all users
+### List users
 
 Returns a list of all enabled users
 
@@ -12689,7 +12233,7 @@ None.
 }
 ```
 
-### Create a user account with an invitation
+### Create user from invite
 
 Creates a user account after an invited user provides registration information and submits the form.
 
@@ -12794,7 +12338,7 @@ The same error will be returned whenever one of the required parameters fails th
 }
 ```
 
-### Create a user account without an invitation
+### Create user
 
 Creates a user account without requiring an invitation, the user is enabled immediately.
 By default, the user will be forced to reset its password upon first login.
@@ -12892,7 +12436,7 @@ By default, the user will be forced to reset its password upon first login.
 }
 ```
 
-### Get user information
+### Get user
 
 Returns all information about a specific user.
 
@@ -12947,7 +12491,7 @@ Returns all information about a specific user.
 }
 ```
 
-### Modify user
+### Update user
 
 `PATCH /api/v1/fleet/users/:id`
 
@@ -13124,7 +12668,7 @@ The selected user is logged out of Fleet and required to reset their password du
 }
 ```
 
-### List a user's sessions
+### List sessions
 
 Returns a list of the user's sessions in Fleet.
 
@@ -13164,7 +12708,7 @@ None.
 }
 ```
 
-### Delete a user's sessions
+### Delete sessions
 
 Deletes the selected user's sessions in Fleet. Also deletes the user's API token.
 
@@ -13184,7 +12728,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 `Status: 200`
 
-### Create invite
+### Invite user
 
 `POST /api/v1/fleet/invites`
 
@@ -13390,7 +12934,7 @@ Verify the specified invite.
 }
 ```
 
-### Modify invite
+### Update invite
 
 `PATCH /api/v1/fleet/invites/:id`
 
@@ -13474,13 +13018,13 @@ Verify the specified invite.
 
 ## Debug
 
-- [Get a summary of errors](#get-a-summary-of-errors)
+- [Get errors](#get-errors)
 - [Get database information](#get-database-information)
 - [Get profiling information](#get-profiling-information)
 
 The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
-### Get a summary of errors
+### Get summary of errors
 
 Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
 
