@@ -3533,7 +3533,7 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 		Name:        *softwareTitleRecord.InHouseAppName,
 		Version:     version,
 		Platform:    platform,
-		SelfService: ptr.Bool(false), // unsupported for in-house apps currently
+		SelfService: softwareTitleRecord.InHouseAppSelfService,
 	}
 
 	// promote the last install info to the proper destination fields
