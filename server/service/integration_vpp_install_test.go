@@ -1264,3 +1264,158 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.NotNil(t, listSw.SoftwareTitles[1].AppStoreApp)
 	require.Equal(t, "2", listSw.SoftwareTitles[1].AppStoreApp.AppStoreID)
 }
+
+func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Enroll iPhone
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+
+	// Create a label
+	clr := createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:    "foo",
+			HostIDs: []uint{iosHost.ID},
+		},
+	}, http.StatusOK, &clr)
+
+	// Upload in-house app for iOS, with the label as "exclude any"
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa", LabelsExcludeAny: []string{"foo"}}, http.StatusOK, "")
+
+	// Get title ID
+	var titleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE name = 'ipa_test'")
+	})
+
+	// TODO: uncomment once this endpoint supports in house apps
+	// var resp listSoftwareTitlesResponse
+	// s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", "0")
+
+	// assert.Len(t, resp.SoftwareTitles, 1)
+	// assert.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
+	// titleID := resp.SoftwareTitles[0].ID
+
+	// Attempt installation on non-scoped app, should fail
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
+		iosHost.ID, titleID), nil, http.StatusBadRequest, &installResp)
+
+	// Update label to be include any, install should succeed
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, Filename: "ipa_test.ipa", LabelsIncludeAny: []string{"foo"}}, http.StatusOK, "")
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
+		iosHost.ID, titleID), nil, http.StatusAccepted, &installResp)
+
+	var installCmdUUID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
+	})
+	require.NotEmpty(t, installCmdUUID)
+
+	// TODO(JVE): check upcoming activity feed for installation
+
+	// Process the InstallApplication command
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		if cmd.Command.RequestType == "InstallApplication" {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
+
+			// Points at the expected manifest URL
+			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, titleID, 0)
+			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	// Install verification command should be sent
+
+	// Simulate a verification command not finding the app (maybe it takes a little while to install)
+	s.runWorker()
+	cmd, err = iosDevice.Idle()
+	var cmd1 string
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd1 = cmd.CommandUUID
+			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	s.runWorker()
+
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	var verificationCmdUUID string
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			assert.NotEqual(t, cmd1, cmd.CommandUUID)
+			verificationCmdUUID = cmd.CommandUUID
+			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					{
+						Name:             "test",
+						BundleIdentifier: "com.ipa-test.ipa-test",
+						Version:          "1.0",
+						Installed:        true,
+					},
+				},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var install struct {
+			CommandUUID         string     `db:"command_uuid"`
+			VerificationCmdUUID string     `db:"verification_command_uuid"`
+			VerificationAt      *time.Time `db:"verification_at"`
+		}
+		err = sqlx.GetContext(
+			context.Background(),
+			q,
+			&install,
+			"SELECT command_uuid, verification_command_uuid, verification_at FROM host_in_house_software_installs WHERE host_id = ?",
+			iosHost.ID,
+		)
+		require.NoError(t, err)
+		assert.Equal(t, installCmdUUID, install.CommandUUID)
+		assert.Equal(t, verificationCmdUUID, install.VerificationCmdUUID)
+		assert.NotNil(t, install.VerificationAt)
+
+		return nil
+	})
+
+}

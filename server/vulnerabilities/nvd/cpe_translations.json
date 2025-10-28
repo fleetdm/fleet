@@ -362,6 +362,15 @@
   },
   {
     "software": {
+      "name": ["/golang\\.go/"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["ms-vscode-remote.vscode-remote-extensionpack"],
       "source": ["vscode_extensions"]
     },
@@ -672,6 +681,15 @@
       "product": ["firefox"],
       "vendor": ["mozilla"],
       "sw_edition": ["esr"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.logi.bolt.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
     }
   },
   {
