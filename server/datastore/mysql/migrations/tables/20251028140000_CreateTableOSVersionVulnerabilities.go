@@ -27,8 +27,12 @@ func Up_20251028140000(tx *sql.Tx) error {
 			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (id),
-			UNIQUE INDEX idx_os_version_vulnerabilities_unq_os_version_team_cve (team_id, os_version_id, cve),
-			INDEX idx_os_version_vulnerabilities_updated_at (updated_at)
+		    -- for inserts
+			UNIQUE KEY idx_os_version_vulnerabilities_unq_os_version_team_cve ((IFNULL(CAST(team_id AS SIGNED), -1)), os_version_id, cve),
+		    -- for reads
+		    KEY idx_os_version_vulnerabilities_os_version_team_cve (team_id, os_version_id, cve),
+		    -- for cleanup
+			KEY idx_os_version_vulnerabilities_updated_at (updated_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`)
 	if err != nil {

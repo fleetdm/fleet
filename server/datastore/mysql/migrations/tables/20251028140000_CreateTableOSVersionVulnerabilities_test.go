@@ -147,4 +147,33 @@ func TestUp_20251028140000(t *testing.T) {
 		require.Contains(t, err.Error(), "Duplicate entry")
 	})
 
+	// Test NULL team_id prevents duplicates
+	t.Run("NULL team_id prevents duplicate entries", func(t *testing.T) {
+		// Insert first row with NULL team_id
+		_, err := db.Exec(`
+			INSERT INTO operating_system_version_vulnerabilities (os_version_id, cve, team_id, source, resolved_in_version, created_at)
+			VALUES (200, 'CVE-2024-9999', NULL, 0, '1.0.0', NOW())
+		`)
+		require.NoError(t, err, "First insert should succeed")
+
+		// Insert duplicate row with same (NULL, os_version_id, cve)
+		// This should now fail because the unique constraint properly handles NULL team_id
+		_, err = db.Exec(`
+			INSERT INTO operating_system_version_vulnerabilities (os_version_id, cve, team_id, source, resolved_in_version, created_at)
+			VALUES (200, 'CVE-2024-9999', NULL, 0, '1.0.1', NOW())
+		`)
+		require.Error(t, err, "Duplicate insert with NULL team_id should fail")
+		require.Contains(t, err.Error(), "Duplicate entry")
+
+		// Verify we only have one row
+		var count int
+		err = db.Get(&count, `
+			SELECT COUNT(*)
+			FROM operating_system_version_vulnerabilities
+			WHERE os_version_id = 200 AND cve = 'CVE-2024-9999' AND team_id IS NULL
+		`)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "Should have only 1 row - duplicate was prevented")
+	})
+
 }
