@@ -539,7 +539,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /microsoft-compliance-partner/remediate': {
+  'GET /remediate': {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
@@ -547,7 +547,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /microsoft-compliance-partner/enroll': {
+  'GET /turn-on-mdm': {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
@@ -896,6 +896,10 @@ module.exports.routes = {
   'GET /it': '/observability?utm_content=eo-it',
   'GET /seceng': '/observability?utm_content=eo-security',
   'GET /vm': '/software-management?utm_content=vm',
+
+  // Microsoft conditional access
+  'GET /microsoft-compliance-partner/remediate': '/remediate',
+  'GET /microsoft-compliance-partner/enroll': '/turn-on-mdm',
 
   // Fleet UI
   // =============================================================================================================
