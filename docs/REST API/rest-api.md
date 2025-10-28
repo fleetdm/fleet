@@ -2476,9 +2476,9 @@ None.
 - [Update custom human-device mapping](#update-custom-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
-- [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
+- [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
-- [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Get hosts mobile device management (MDM) and Munki information](#get-hosts-aggregate-mobile-device-management-mdm-and-munki-information)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -2491,8 +2491,8 @@ None.
 - [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
 - [Add labels to host](#add-labels-to-host)
 - [Remove labels from host](#remove-labels-from-host)
-- [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
-- [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
+- [Run live query on host (ad-hoc)](#run-live-query-on-host-ad-hoc)
+- [Run live query on host by identifier (ad-hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
 
 #### About host timestamps
 
@@ -4029,9 +4029,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 ### Get host's mobile device management (MDM) information
 
-Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
+Currently supports Windows and macOS.
 
 Retrieves a host's MDM enrollment status and MDM server URL.
 
@@ -4064,11 +4062,9 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 ---
 
-### Get mobile device management (MDM) summary
+### Get mobile device management (MDM) status
 
-Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
+Currently supports Windows and macOS.
 
 Retrieves MDM enrollment summary. Windows servers are excluded from the aggregated data.
 
@@ -4172,15 +4168,11 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 ---
 
-### Get aggregated host's macadmin mobile device management (MDM) and Munki information
+### Get hosts aggregate mobile device management (MDM) and Munki information
 
-Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
 Currently supported only on macOS.
 
-
-Retrieves aggregated host's MDM enrollment status and Munki versions.
+Retrieves MDM enrollment status and Munki versions, aggregated across all hosts.
 
 `GET /api/v1/fleet/macadmins`
 
@@ -4563,7 +4555,7 @@ Retrieves the certificates installed on a host.
 }
 ```
 
-### Get configuration profiles assigned to a host
+### Get host's OS settings (configuration profile)
 
 Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
@@ -4973,7 +4965,7 @@ Removes manual labels from a host.
 
 `Status: 200`
 
-### Live query one host (ad-hoc)
+### Run live query on host (ad-hoc)
 
 Runs an ad-hoc live query against the specified host and responds with the results.
 
@@ -5023,7 +5015,7 @@ The live query will stop if the targeted host is offline, or if the query times 
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
 
-### Live query host by identifier (ad-hoc)
+### Run live query on host by identifier (ad-hoc)
 
 Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
 
@@ -5083,8 +5075,8 @@ Note that if the host is online and the query times out, this endpoint will retu
 - [Get label](#get-label)
 - [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
-- [List hosts in a label](#list-hosts-in-a-label)
-- [Delete label](#delete-label)
+- [List label's hosts](#list-hosts-in-a-label)
+- [Delete label by name](#delete-label-by-name)
 - [Delete label by ID](#delete-label-by-id)
 
 ### Add label
@@ -5404,7 +5396,7 @@ Returns a list of all the labels in Fleet.
 }
 ```
 
-### List hosts in a label
+### List label's hosts
 
 Returns a list of the hosts that belong to the specified label.
 
@@ -5500,7 +5492,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
 }
 ```
 
-### Delete label
+### Delete label by name
 
 Deletes the label specified by name.
 
@@ -5546,20 +5538,20 @@ Deletes the label specified by ID.
 
 ## OS settings
 
-- [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
+- [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
-- [Batch-modify custom OS settings (configuration profiles)](#batch-modify-custom-os-settings-configuration-profiles)
-- [Update disk encryption enforcement](#update-disk-encryption-enforcement)
-- [Get disk encryption statistics](#get-disk-encryption-statistics)
-- [Get OS settings summary](#get-os-settings-summary)
+- [Batch-update custom OS settings (configuration profiles)](#batch-update-custom-os-settings-configuration-profiles)
+- [Update disk encryption](#update-disk-encryption)
+- [Get disk encryption status](#get-disk-encryption-status)
+- [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
 - [Batch-resend custom OS setting (configuration profile)](#batch-resend-custom-os-setting-configuration-profile)
 
 
-### Add custom OS setting (configuration profile)
+### Create custom OS setting (configuration profile)
 
 > [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
@@ -5857,7 +5849,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 `Status: 202`
 
-### Batch-modify custom OS settings (configuration profiles)
+### Batch-update custom OS settings (configuration profiles)
 
 Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are not assigned to "No team" (Fleet Premium).
 
@@ -5974,7 +5966,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 `Status: 202`
 
 
-### Update disk encryption enforcement
+### Update disk encryption
 
 > The `PATCH /api/v1/fleet/mdm/apple/settings` API endpoint is deprecated as of Fleet 4.45. It is maintained for backward compatibility. Please use the new API endpoint below. You can view [archived docuementation for the deprecated endpoint](https://github.com/iansltx/fleet/blob/d1791518a43c9d290192dbf992bcea290c8158a3/docs/REST%20API/rest-api.md#update-disk-encryption-enforcement).
 
@@ -5999,7 +5991,7 @@ _Available in Fleet Premium_
 `204`
 
 
-### Get disk encryption statistics
+### Get disk encryption status
 
 _Available in Fleet Premium_
 
@@ -6035,7 +6027,7 @@ The summary can optionally be filtered by team ID.
 ```
 
 
-### Get OS settings summary
+### Get OS settings (configuration profiles) status
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
@@ -6104,30 +6096,30 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 ## Setup experience
 
-- [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
+- [Update custom MDM setup enrollment profile](#update-custom-mdm-setup-enrollment-profile)
 - [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
 - [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
 - [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile)
 - [Get manual enrollment profile](#get-manual-enrollment-profile)
-- [Upload a bootstrap package](#upload-a-bootstrap-package)
-- [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
-- [Delete a bootstrap package](#delete-a-bootstrap-package)
-- [Download a bootstrap package](#download-a-bootstrap-package)
-- [Get a summary of bootstrap package status](#get-a-summary-of-bootstrap-package-status)
-- [Configure setup experience](#configure-setup-experience)
-- [Upload an EULA file](#upload-an-eula-file)
-- [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
-- [Delete an EULA file](#delete-an-eula-file)
-- [Download an EULA file](#download-an-eula-file)
-- [List software (setup experience)](#list-software-setup-experience)
-- [Update software (setup experience)](#update-software-setup-experience)
-- [Add script (setup experience)](#add-script-setup-experience)
-- [Get or download script (setup experience)](#get-or-download-script-setup-experience)
-- [Delete script (setup experience)](#delete-script-setup-experience)
+- [Create bootstrap package](#create-bootstrap-package)
+- [Get bootstrap package metadata](#get-bootstrap-package-metadata)
+- [Delete bootstrap package](#delete-bootstrap-package)
+- [Download bootstrap package](#download-bootstrap-package)
+- [Get bootstrap package status](#get-bootstrap-package-status)
+- [Update setup experience](#update-setup-experience)
+- [Create EULA](#create-eula)
+- [Get EULA metadata](#get-eula-metadata)
+- [Delete EULA](#delete-eula)
+- [Download EULA](#download-eula)
+- [List setup experience software](#list-setup-experience-software)
+- [Update setup experience software (setup experience)](#update-setup-experience-software)
+- [Create setup experience script](#create-setup-experience-script)
+- [Get or download  setup experience script](#get-or-download-setup-experience-script)
+- [Delete setup experience script](#delete-setup-experience-script)
 
 
 
-### Set custom MDM setup enrollment profile
+### Update custom MDM setup enrollment profile
 
 _Available in Fleet Premium_
 
@@ -6317,7 +6309,7 @@ To add [human-device mapping](#get-human-device-mapping), [add the end user's em
 </plist>
 ```
 
-### Upload a bootstrap package
+### Create bootstrap package
 
 _Available in Fleet Premium_
 
@@ -6366,7 +6358,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Get metadata about a bootstrap package
+### Get bootstrap package metadata
 
 _Available in Fleet Premium_
 
@@ -6405,7 +6397,7 @@ In the response above:
 - `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
 
 
-### Delete a bootstrap package
+### Delete bootstrap package
 
 _Available in Fleet Premium_
 
@@ -6429,7 +6421,7 @@ Delete a team's bootstrap package.
 `Status: 200`
 
 
-### Download a bootstrap package
+### Download bootstrap package
 
 _Available in Fleet Premium_
 
@@ -6459,7 +6451,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Get a summary of bootstrap package status
+### Get bootstrap package status
 
 _Available in Fleet Premium_
 
@@ -6491,7 +6483,7 @@ The summary can optionally be filtered by team ID.
 }
 ```
 
-### Configure setup experience
+### Update setup experience
 
 > **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -6527,7 +6519,7 @@ _Available in Fleet Premium_
 `Status: 204`
 
 
-### Upload an EULA file
+### Create EULA
 
 _Available in Fleet Premium_
 
@@ -6567,7 +6559,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Get metadata about an EULA file
+### Get EULA metadate
 
 _Available in Fleet Premium_
 
@@ -6596,7 +6588,7 @@ In the response above:
 - `token` is the value you can use to [download an EULA](#download-an-eula-file)
 
 
-### Delete an EULA file
+### Delete EULA
 
 _Available in Fleet Premium_
 
@@ -6619,7 +6611,7 @@ Delete an EULA file.
 `Status: 200`
 
 
-### Download an EULA file
+### Download EULA
 
 _Available in Fleet Premium_
 
@@ -6649,7 +6641,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### List software (setup experience)
+### List setup experience software
 
 _Available in Fleet Premium_
 
@@ -6722,7 +6714,7 @@ List software that can be automatically installed during setup. If `install_duri
 }
 ```
 
-### Update software (setup experience)
+### Update setup experience software
 
 _Available in Fleet Premium_
 
@@ -6761,7 +6753,7 @@ Set software that will be automatically installed during setup. Software that is
 {}
 ```
 
-### Add script (setup experience)
+### Create setup experience script
 
 _Available in Fleet Premium_
 
@@ -6805,7 +6797,7 @@ echo "hello"
 
 ```
 
-### Get or download script (setup experience)
+### Get or download setup experience script
 
 _Available in Fleet Premium_
 
@@ -6857,7 +6849,7 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 echo "hello"
 ```
 
-### Delete script (setup experience)
+### Delete setp experience script
 
 _Available in Fleet Premium_
 
