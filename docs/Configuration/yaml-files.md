@@ -414,7 +414,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, iOS, iPadOS | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`              | macOS, iOS, iPadOS | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`          | macOS, iOS, iPadOS | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_UUID`                             | macOS, iOS, iPadOS, Windows | Host's hardware UUID. |
+| `$FLEET_VAR_HOST_UUID`                             | Windows | Host's hardware UUID. |
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS, Windows | Host's hardware serial number. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
