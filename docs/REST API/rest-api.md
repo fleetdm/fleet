@@ -5075,7 +5075,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 - [Get label](#get-label)
 - [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
-- [List label's hosts](#list-hosts-in-a-label)
+- [List label's hosts](#list-labels-hosts)
 - [Delete label by name](#delete-label-by-name)
 - [Delete label by ID](#delete-label-by-id)
 
