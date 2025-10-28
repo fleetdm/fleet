@@ -5866,6 +5866,8 @@ For Windows profiles, Fleet applies new profiles or updates when content changes
 
 For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked “Pending,” and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
 
+For requests with 100+ profiles, requests will take 5+ seconds.
+
 `POST /api/v1/fleet/configuration_profiles/batch`
 
 #### Parameters
