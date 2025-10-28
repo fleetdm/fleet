@@ -2478,7 +2478,7 @@ None.
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
-- [Get hosts mobile device management (MDM) and Munki information](#get-hosts-aggregate-mobile-device-management-mdm-and-munki-information)
+- [Get hosts' aggregate mobile device management (MDM) and Munki information](#get-hosts-aggregate-mobile-device-management-mdm-and-munki-information)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
