@@ -1120,6 +1120,8 @@ func main() {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
 
+		// Set the function that will be called to open the SSO window if an enroll
+		// request returns an "end user authentication required" error.
 		orbitClient.SetOpenSSOWindowFunc(func() error {
 			err = open.Browser(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
 			if err != nil {

@@ -9,8 +9,13 @@ type ErrorOutcome int
 
 const (
 	ErrorOutcomeNormalRetry ErrorOutcome = iota
+	// Reset attempts counter and backoff.
+	// Useful for hijacking the retry cycle to retry
+	// indefinitely until a certain condition is met.
 	ErrorOutcomeResetAttempts
+	// Ignore the error and return as if successful.
 	ErrorOutcomeIgnore
+	// Bail out of the retry loop immediately.
 	ErrorOutcomeDoNotRetry
 )
 

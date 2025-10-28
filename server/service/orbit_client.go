@@ -69,7 +69,7 @@ type OrbitClient struct {
 	hostIdentityCertPath string
 
 	// initiatedIdpAuth is a flag indicating whether a window has been opened
-	// to the sign-on page for the organizations Identity Provider.
+	// to the sign-on page for the organization's Identity Provider.
 	initiatedIdpAuth bool
 
 	// openSSOWindow is a function that opens a browser window to the SSO URL.
