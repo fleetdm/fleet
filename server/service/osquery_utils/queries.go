@@ -131,7 +131,7 @@ blocks > 0
 AND blocks_size > 0
 
 -- exclude external storage
-AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+AND path NOT LIKE '/media%'
   
 -- exclude device drivers
 AND path NOT LIKE '/dev%' 
