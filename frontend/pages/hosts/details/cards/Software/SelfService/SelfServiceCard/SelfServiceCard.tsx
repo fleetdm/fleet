@@ -130,7 +130,7 @@ const SelfServiceCard = ({
     );
   };
 
-  if (!isLoading)
+  if (isLoading)
     return <Spinner {...(isMobileView && { variant: "mobile" })} />;
   if (isError)
     return (

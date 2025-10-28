@@ -12,6 +12,7 @@
 
   &__mobile-installers {
     @include flex-column-16px-gap;
+    min-height: 300px; // Prevents category dropdown from being cut off from short software list's UI
   }
 
   &__header-filters {
