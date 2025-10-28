@@ -1026,7 +1026,7 @@ const HostDetailsPage = ({
             <TabPanel>
               {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
-               when we add that feature. */}
+               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
               {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
               isAndroidHost ? (
                 <EmptyTable
@@ -1038,11 +1038,9 @@ const HostDetailsPage = ({
                         newTab
                         text="Learn more"
                         url={
-                          isBYODAccountDrivenUserEnrollment(
-                            host.mdm.enrollment_status
-                          )
-                            ? BYOD_SW_INSTALL_LEARN_MORE_LINK
-                            : ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                          isAndroidHost
+                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
                         }
                       />
                     </>

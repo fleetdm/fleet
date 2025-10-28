@@ -909,6 +909,23 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	ds := new(mock.Store)
 
+	scimUser := &fleet.ScimUser{
+		UserName:   "test@idp.com",
+		GivenName:  ptr.String("First"),
+		FamilyName: ptr.String("Last"),
+		Department: ptr.String("Department"),
+		Groups: []fleet.ScimUserGroup{
+			{
+				ID:          1,
+				DisplayName: "Group One",
+			},
+			{
+				ID:          2,
+				DisplayName: "Group Two",
+			},
+		},
+	}
+
 	baseSetup := func() {
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			if ds.GetAllCertificateAuthoritiesFunc == nil {
@@ -934,24 +951,10 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 			return []uint{42}, nil
 		}
+
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			if hostID == 42 {
-				return &fleet.ScimUser{
-					UserName:   "test@idp.com",
-					GivenName:  ptr.String("First"),
-					FamilyName: ptr.String("Last"),
-					Department: ptr.String("Department"),
-					Groups: []fleet.ScimUserGroup{
-						{
-							ID:          1,
-							DisplayName: "Group One",
-						},
-						{
-							ID:          2,
-							DisplayName: "Group Two",
-						},
-					},
-				}, nil
+				return scimUser, nil
 			}
 
 			return nil, fmt.Errorf("no scim user for host id %d", hostID)
@@ -1080,6 +1083,32 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			hostCmdUUID:      "cmd-uuid-5678",
 			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME</Data></Item></Replace>`,
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last</Data></Item></Replace>`,
+		},
+		{
+			name:            "missing groups on idp user",
+			hostUUID:        "no-groups-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_GROUPS</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.",
+			setup: func() {
+				scimUser.Groups = []fleet.ScimUserGroup{}
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
+		},
+		{
+			name:            "missing department on idp user",
+			hostUUID:        "no-department-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
+			setup: func() {
+				scimUser.Department = nil
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
 		},
 	}
 

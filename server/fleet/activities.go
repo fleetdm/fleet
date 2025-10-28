@@ -267,6 +267,16 @@ type ActivityHostOnly interface {
 	HostOnly() bool
 }
 
+// ActivityActivator is the optional additional interface that can be implemented by activities that
+// may require activating the next upcoming activity when it gets created. Most upcoming activities get
+// activated when the result of the previous one completes (such as scripts and software installs), but
+// some can only be activated when the activity gets recorded (such as VPP and in-house apps).
+type ActivityActivator interface {
+	ActivityDetails
+	MustActivateNextUpcomingActivity() bool
+	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
+}
+
 type ActivityTypeEnabledActivityAutomations struct {
 	WebhookUrl string `json:"webhook_url"`
 }
@@ -1876,6 +1886,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
+	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1888,6 +1899,18 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
+}
+
+func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
+	// for in-house apps, we only activate the next upcoming activity if the
+	// installation failed, because if it succeeded (and in this case, it only
+	// means the command to install succeeded), we only activate the next
+	// activity when we verify the app is actually installed.
+	return a.CommandUUID != "" && a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
 }
 
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
@@ -1903,6 +1926,7 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 `, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
@@ -2317,6 +2341,18 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
+}
+
+func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
+	// for VPP apps, we only activate the next upcoming activity if the installation
+	// failed, because if it succeeded (and in this case, it only means the command to
+	// install succeeded), we only activate the next activity when we verify the
+	// app is actually installed.
+	return a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityInstalledAppStoreApp) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
 }
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {

@@ -566,6 +566,11 @@ var hostRefs = []string{
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
 	"host_identity_scep_certificates",
+	// unlike for host_software_installs, where we use soft-delete so that
+	// existing activities can still access the installation details, this is not
+	// needed for in-house apps as the activity contains the MDM command UUID and
+	// can access the request/response without this table's entry.
+	"host_in_house_software_installs",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1206,29 +1211,14 @@ func (ds *Datastore) applyHostFilters(
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
-			_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+			installerID, vppID, inHouseID, err := ds.installerAvailableForInstallForTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
 			switch {
-			case fleet.IsNotFound(err):
-				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
-				if fleet.IsNotFound(err) {
-					// Neither installer nor VPP app exists → immediately return 0 hosts safelysts
-					softwareFilter = "FALSE"
-					break
-				} else if err != nil {
-					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
-				}
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
-				if err != nil {
-					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
-				}
-				softwareStatusJoin = vppAppJoin
-				joinParams = append(joinParams, vppAppParams...)
-
 			case err != nil:
-				return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
-			default:
-				// TODO(sarah): prior code was joining on installer id but based on how list options are parsed [1] it seems like this should be the title id
-				// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
+				// it does not return an error for not found, only for actual db error
+				return "", nil, ctxerr.Wrap(ctx, err, "get available installer by team and title id")
+
+			case installerID > 0:
+				// found a software installer package
 				installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
@@ -1236,6 +1226,26 @@ func (ds *Datastore) applyHostFilters(
 				softwareStatusJoin = installerJoin
 				joinParams = append(joinParams, installerParams...)
 
+			case vppID != nil:
+				// found a VPP app
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+				}
+				softwareStatusJoin = vppAppJoin
+				joinParams = append(joinParams, vppAppParams...)
+
+			case inHouseID > 0:
+				inHouseJoin, inHouseParams, err := ds.inHouseAppJoin(inHouseID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "in-house app join")
+				}
+				softwareStatusJoin = inHouseJoin
+				joinParams = append(joinParams, inHouseParams...)
+
+			default:
+				// no installer found, return as was done before
+				softwareFilter = "FALSE"
 			}
 		} else {
 			softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
