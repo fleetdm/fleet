@@ -906,3 +906,97 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	return nil, fleet.ErrMissingLicense
 }
+
+type getInHouseAppManifestRequest struct {
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
+}
+
+type getInHouseAppManifestResponse struct {
+	// Manifest field is used in HijackRender for the response.
+	Manifest []byte
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getInHouseAppManifestResponse) Error() error { return r.Err }
+
+func (r getInHouseAppManifestResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// make the browser download the content to a file
+	w.Header().Add("Content-Disposition", `attachment; filename="in-house-app-manifest.plist"`)
+	// explicitly set the content length before the write, so the caller can
+	// detect short writes (if it fails to send the full content properly)
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Manifest)), 10))
+	// this content type will make macos open the profile with the proper application
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
+	// prevent detection of content, obey the provided content-type
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if n, err := w.Write(r.Manifest); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getInHouseAppManifestRequest)
+	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return &getInHouseAppManifestResponse{Err: err}, nil
+	}
+
+	return &getInHouseAppManifestResponse{Manifest: manifest}, nil
+}
+
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getInHouseAppPackageRequest struct {
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
+}
+
+type getInHouseAppPackageResponse struct {
+	payload *fleet.DownloadSoftwareInstallerPayload
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getInHouseAppPackageResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := io.Copy(w, r.payload.Installer); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+	r.payload.Installer.Close()
+}
+
+func (r getInHouseAppPackageResponse) Error() error { return r.Err }
+
+func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getInHouseAppPackageRequest)
+	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return &getInHouseAppPackageResponse{Err: err}, nil
+	}
+
+	return &getInHouseAppPackageResponse{payload: file}, nil
+}
+
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
