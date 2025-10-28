@@ -239,7 +239,8 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 			storage_id = ?,
 			filename = ?,
 			version = ?,
-			self_service = ?
+			-- keep current value if provided arg is nil
+			self_service = COALESCE(?, self_service)
 	 WHERE id = ?`
 
 		args := []any{
