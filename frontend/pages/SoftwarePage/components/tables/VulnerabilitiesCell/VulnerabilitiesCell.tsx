@@ -10,22 +10,25 @@ const NUM_VULNERABILITIES_IN_TOOLTIP = 3;
 const baseClass = "vulnerabilities-cell";
 
 const generateCell = (
-  vulnerabilities: ISoftwareVulnerability[] | string[] | null
+  vulnerabilities: ISoftwareVulnerability[] | string[] | null,
+  vulnerabilitiesCount?: number
 ) => {
   if (vulnerabilities === null || vulnerabilities.length === 0) {
     return <TextCell value="---" grey />;
   }
 
+  const totalCount = vulnerabilitiesCount ?? vulnerabilities.length;
+
   let text = "";
   let italicize = true;
-  if (vulnerabilities.length === 1) {
+  if (totalCount === 1) {
     italicize = false;
     text =
       typeof vulnerabilities[0] === "string"
         ? vulnerabilities[0]
         : vulnerabilities[0].cve;
   } else {
-    text = `${vulnerabilities.length} vulnerabilities`;
+    text = `${totalCount} vulnerabilities`;
   }
 
   return <TextCell value={text} italic={italicize} />;
@@ -36,7 +39,8 @@ const getName = (vulnerabiltiy: ISoftwareVulnerability | string) => {
 };
 
 const condenseVulnerabilities = (
-  vulnerabilities: ISoftwareVulnerability[] | string[]
+  vulnerabilities: ISoftwareVulnerability[] | string[],
+  totalCount?: number
 ) => {
   const condensed =
     (vulnerabilities?.length &&
@@ -46,22 +50,26 @@ const condenseVulnerabilities = (
         .reverse()) ||
     [];
 
-  return vulnerabilities.length > NUM_VULNERABILITIES_IN_TOOLTIP
-    ? condensed.concat(
-        `+${vulnerabilities.length - NUM_VULNERABILITIES_IN_TOOLTIP} more`
-      )
+  const count = totalCount ?? vulnerabilities.length;
+
+  return count > NUM_VULNERABILITIES_IN_TOOLTIP
+    ? condensed.concat(`+${count - NUM_VULNERABILITIES_IN_TOOLTIP} more`)
     : condensed;
 };
 
 const generateTooltip = (
   vulnerabilities: ISoftwareVulnerability[] | string[],
-  tooltipId: string
+  tooltipId: string,
+  totalCount?: number
 ) => {
   if (vulnerabilities.length <= 1) {
     return null;
   }
 
-  const condensedVulnerabilities = condenseVulnerabilities(vulnerabilities);
+  const condensedVulnerabilities = condenseVulnerabilities(
+    vulnerabilities,
+    totalCount
+  );
 
   return (
     <ReactTooltip
@@ -82,20 +90,26 @@ const generateTooltip = (
 };
 interface IVulnerabilitiesCellProps {
   vulnerabilities: ISoftwareVulnerability[] | string[] | null;
+  vulnerabilitiesCount?: number;
 }
 
 const VulnerabilitiesCell = ({
   vulnerabilities,
+  vulnerabilitiesCount,
 }: IVulnerabilitiesCellProps) => {
   const tooltipId = uniqueId();
 
   // only one vulnerability, no need for tooltip
-  const cell = generateCell(vulnerabilities);
+  const cell = generateCell(vulnerabilities, vulnerabilitiesCount);
   if (vulnerabilities === null || vulnerabilities.length <= 1) {
     return <>{cell}</>;
   }
 
-  const vulnerabilityTooltip = generateTooltip(vulnerabilities, tooltipId);
+  const vulnerabilityTooltip = generateTooltip(
+    vulnerabilities,
+    tooltipId,
+    vulnerabilitiesCount
+  );
 
   return (
     <>

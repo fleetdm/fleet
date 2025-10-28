@@ -839,9 +839,13 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				SELECT cve, resolved_in_version, created_at
 				FROM operating_system_version_vulnerabilities
 				WHERE os_version_id = counts.os_version_id` + teamFilter + `
-				ORDER BY cve
+				ORDER BY cve DESC
 				LIMIT ?
 			) v`
+			// teamFilter is used twice in the query above (CTE and LATERAL), so add teamID again if needed
+			if teamID != nil {
+				kargs = append(kargs, *teamID)
+			}
 			kargs = append(kargs, *maxVulnerabilities)
 
 		default:
@@ -1091,7 +1095,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				if keyForOSID == key {
 					if totalCount, exists := totalCountByOSID[osID]; exists {
 						// Use the total count from the database (before limiting)
-						if int(totalCount) > count {
+						if totalCount > uint(count) {
 							count = int(totalCount)
 						}
 					}
@@ -1103,17 +1107,15 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				if keyForOSVersionID == key {
 					if totalCount, exists := totalCountByOSVersionID[osVersionID]; exists {
 						// Use the total count from the database (before limiting)
-						if int(totalCount) > count {
+						if totalCount > uint(count) {
 							count = int(totalCount)
 						}
 					}
 				}
 			}
-		} else {
+		} else if cveSetByKey[key] != nil {
 			// When LIMIT was not used, count deduplicated CVEs
-			if cveSetByKey[key] != nil {
-				count = len(cveSetByKey[key])
-			}
+			count = len(cveSetByKey[key])
 		}
 
 		// Apply per-key limit after deduplication if maxVulnerabilities is specified.
@@ -1123,9 +1125,9 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			// For max=0, return empty array but include the count
 			vulns = make([]fleet.CVE, 0)
 		} else if maxVulnerabilities != nil && *maxVulnerabilities > 0 && len(vulns) > *maxVulnerabilities {
-			// Sort by CVE alphabetically for deterministic results (matches SQL ORDER BY cve)
+			// Sort by CVE in descending order for deterministic results (matches SQL ORDER BY cve DESC)
 			sort.Slice(vulns, func(i, j int) bool {
-				return vulns[i].CVE < vulns[j].CVE
+				return vulns[i].CVE > vulns[j].CVE
 			})
 			vulns = vulns[:*maxVulnerabilities]
 		}
