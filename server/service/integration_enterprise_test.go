@@ -21599,6 +21599,152 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	assert.False(t, foundNonScimInOtherEmails, "Non-SCIM IDP should NOT appear in other_emails")
 }
 
+func (s *integrationEnterpriseTestSuite) TestSCIMUserReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
+	host1 := hosts[0]
+	host2 := hosts[1]
+
+	// Test scenario: Device mappings exist but SCIM users are provisioned later
+	// This simulates the real-world case where hosts get mapped via IDP first,
+	// then SCIM users are created and need to be reconciled
+
+	// Step 1: Create device mappings without SCIM users existing yet
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host1.ID),
+		putHostDeviceMappingRequest{Email: "user1@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
+	require.Equal(t, "user1@example.com", putResp.DeviceMapping[0].Email)
+	require.Equal(t, fleet.DeviceMappingIDP, putResp.DeviceMapping[0].Source)
+
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host2.ID),
+		putHostDeviceMappingRequest{Email: "user2@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
+	require.Equal(t, "user2@example.com", putResp.DeviceMapping[0].Email)
+	require.Equal(t, fleet.DeviceMappingIDP, putResp.DeviceMapping[0].Source)
+
+	// Step 2: Verify IDP device mapping created end users but without SCIM data
+	var getHost1Resp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK, &getHost1Resp)
+	require.Len(t, getHost1Resp.Host.EndUsers, 1, "End user should exist from device mapping")
+	require.Equal(t, "user1@example.com", getHost1Resp.Host.EndUsers[0].IdpUserName, "IDP username should be populated from device mapping")
+	require.Empty(t, getHost1Resp.Host.EndUsers[0].IdpFullName, "No SCIM full name should exist yet")
+	require.Empty(t, getHost1Resp.Host.EndUsers[0].Department, "No SCIM department should exist yet")
+
+	var getHost2Resp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &getHost2Resp)
+	require.Len(t, getHost2Resp.Host.EndUsers, 1, "End user should exist from device mapping")
+	require.Equal(t, "user2@example.com", getHost2Resp.Host.EndUsers[0].IdpUserName, "IDP username should be populated from device mapping")
+	require.Empty(t, getHost2Resp.Host.EndUsers[0].IdpFullName, "No SCIM full name should exist yet")
+	require.Empty(t, getHost2Resp.Host.EndUsers[0].Department, "No SCIM department should exist yet")
+
+	// Step 3: Create SCIM users that match the device mapping emails
+	scimUser1 := &fleet.ScimUser{
+		UserName:   "user1@example.com",
+		GivenName:  ptr.String("User"),
+		FamilyName: ptr.String("One"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user1@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Engineering"),
+	}
+	scimUser1ID, err := s.ds.CreateScimUser(ctx, scimUser1)
+	require.NoError(t, err)
+	scimUser1.ID = scimUser1ID
+
+	scimUser2 := &fleet.ScimUser{
+		UserName:   "user2@example.com",
+		GivenName:  ptr.String("User"),
+		FamilyName: ptr.String("Two"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user2@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Sales"),
+	}
+	scimUser2ID, err := s.ds.CreateScimUser(ctx, scimUser2)
+	require.NoError(t, err)
+	scimUser2.ID = scimUser2ID
+
+	// Step 4: Verify SCIM data still isn't populated (no automatic creation) via API
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK, &getHost1Resp)
+	require.Len(t, getHost1Resp.Host.EndUsers, 1, "End user should still exist from device mapping")
+	require.Equal(t, "user1@example.com", getHost1Resp.Host.EndUsers[0].IdpUserName, "IDP username should remain")
+	require.Empty(t, getHost1Resp.Host.EndUsers[0].IdpFullName, "No SCIM full name should exist yet after SCIM user creation")
+	require.Empty(t, getHost1Resp.Host.EndUsers[0].Department, "No SCIM department should exist yet after SCIM user creation")
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &getHost2Resp)
+	require.Len(t, getHost2Resp.Host.EndUsers, 1, "End user should still exist from device mapping")
+	require.Equal(t, "user2@example.com", getHost2Resp.Host.EndUsers[0].IdpUserName, "IDP username should remain")
+	require.Empty(t, getHost2Resp.Host.EndUsers[0].IdpFullName, "No SCIM full name should exist yet after SCIM user creation")
+	require.Empty(t, getHost2Resp.Host.EndUsers[0].Department, "No SCIM department should exist yet after SCIM user creation")
+
+	// Step 5: Run reconciliation process
+	err = s.ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Step 6: Verify SCIM mappings were created via API
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK, &getHost1Resp)
+	require.Len(t, getHost1Resp.Host.EndUsers, 1, "One end user should exist after reconciliation")
+	require.Equal(t, "User One", getHost1Resp.Host.EndUsers[0].IdpFullName, "SCIM full name should be populated after reconciliation")
+	require.Equal(t, "user1@example.com", getHost1Resp.Host.EndUsers[0].IdpUserName, "IDP username should be populated after reconciliation")
+	require.Equal(t, "Engineering", getHost1Resp.Host.EndUsers[0].Department, "SCIM department should be populated after reconciliation")
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &getHost2Resp)
+	require.Len(t, getHost2Resp.Host.EndUsers, 1, "One end user should exist after reconciliation")
+	require.Equal(t, "User Two", getHost2Resp.Host.EndUsers[0].IdpFullName, "SCIM full name should be populated after reconciliation")
+	require.Equal(t, "user2@example.com", getHost2Resp.Host.EndUsers[0].IdpUserName, "IDP username should be populated after reconciliation")
+	require.Equal(t, "Sales", getHost2Resp.Host.EndUsers[0].Department, "SCIM department should be populated after reconciliation")
+
+	// Step 7: Verify reconciliation is idempotent
+	err = s.ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Verify mappings are still intact via API
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK, &getHost1Resp)
+	require.Len(t, getHost1Resp.Host.EndUsers, 1, "End user should remain after idempotent reconciliation")
+	require.Equal(t, "User One", getHost1Resp.Host.EndUsers[0].IdpFullName, "SCIM mapping should remain after idempotent reconciliation")
+	require.Equal(t, "user1@example.com", getHost1Resp.Host.EndUsers[0].IdpUserName, "IDP username should remain after idempotent reconciliation")
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &getHost2Resp)
+	require.Len(t, getHost2Resp.Host.EndUsers, 1, "End user should remain after idempotent reconciliation")
+	require.Equal(t, "User Two", getHost2Resp.Host.EndUsers[0].IdpFullName, "SCIM mapping should remain after idempotent reconciliation")
+	require.Equal(t, "user2@example.com", getHost2Resp.Host.EndUsers[0].IdpUserName, "IDP username should remain after idempotent reconciliation")
+
+	// Step 8: Test with a host that has device mapping but no matching SCIM user
+	host3 := hosts[2]
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host3.ID),
+		putHostDeviceMappingRequest{Email: "nomatch@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
+
+	// Run reconciliation again
+	err = s.ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Verify no mapping was created for the unmatched host via API
+	var getHost3Resp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host3.ID), nil, http.StatusOK, &getHost3Resp)
+	require.Len(t, getHost3Resp.Host.EndUsers, 1, "One end user should exist for device mapping")
+	require.Empty(t, getHost3Resp.Host.EndUsers[0].IdpFullName, "No SCIM full name should exist for unmatched host")
+	require.Equal(t, "nomatch@example.com", getHost3Resp.Host.EndUsers[0].IdpUserName, "IDP username should be the device mapping email")
+
+	// But existing mappings should remain intact via API
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK, &getHost1Resp)
+	require.Len(t, getHost1Resp.Host.EndUsers, 1, "End user should remain intact")
+	require.Equal(t, "User One", getHost1Resp.Host.EndUsers[0].IdpFullName, "Existing SCIM mapping should remain intact")
+	require.Equal(t, "user1@example.com", getHost1Resp.Host.EndUsers[0].IdpUserName, "Existing IDP username should remain intact")
+}
+
 func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 	t := s.T()
 	t.Cleanup(func() {
