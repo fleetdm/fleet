@@ -796,7 +796,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
 	}
 
-	if !strings.HasPrefix(originalURL, "/enroll?") {
+	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != "setup_experience" {
 		// for flows other than the /enroll BYOD, we have to ensure that Apple MDM
 		// is enabled (this was previously done in a middleware on the route, but
 		// we do it here now so the middleware is disabled for the BYOD flow, which
