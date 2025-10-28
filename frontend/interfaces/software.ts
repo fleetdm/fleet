@@ -35,6 +35,7 @@ export interface IGetSoftwareByIdResponse {
 export interface ISoftware {
   id: number;
   name: string; // e.g., "Figma.app"
+  display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
   application_id?: string | null; // e.g., "us.zoom.videomeetings" for Android apps
@@ -90,6 +91,7 @@ export interface ISoftwareAppStoreAppStatus {
 
 export interface ISoftwarePackage {
   name: string;
+  display_name?: string;
   title_id: number;
   url: string;
   version: string;
@@ -118,6 +120,7 @@ export const isSoftwarePackage = (
 
 export interface IAppStoreApp {
   name: string;
+  display_name?: string;
   app_store_id: string; // API returns this as a string
   latest_version: string;
   created_at: string;
