@@ -363,6 +363,8 @@ func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilitie
 }
 
 func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src fleet.VulnerabilitySource, olderThan time.Time) error {
+	// Note: operating_system_version_vulnerabilities cleanup is handled automatically
+	// by RefreshOSVersionVulnerabilities, which removes stale entries during its refresh
 	deleteStmt := `
 		DELETE FROM operating_system_vulnerabilities
 		WHERE source = ? AND updated_at < ?
@@ -485,6 +487,83 @@ ON DUPLICATE KEY UPDATE
 	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE k FROM kernel_host_counts k LEFT JOIN operating_systems ON k.os_version_id = operating_systems.os_version_id WHERE operating_systems.id IS NULL`)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "clean up orphan kernels by os version id")
+	}
+
+	// Refresh the pre-aggregated OS version vulnerabilities table
+	if err := ds.RefreshOSVersionVulnerabilities(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "refresh os version vulnerabilities after kernel mapping update")
+	}
+
+	return nil
+}
+
+// RefreshOSVersionVulnerabilities refreshes the pre-aggregated operating_system_version_vulnerabilities table
+// with current data from kernel_host_counts and software_cve.
+// This function completely refreshes the table and removes any stale entries.
+// This function should be called after:
+//   - InsertKernelSoftwareMapping (when kernel_host_counts is updated)
+func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error {
+	// Capture timestamp at start - we'll use this to mark all refreshed rows
+	// and clean up any rows that weren't touched (stale data)
+	updatedAt := time.Now()
+
+	// Refresh per-team Linux kernel vulnerabilities
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO operating_system_version_vulnerabilities
+			(os_version_id, cve, team_id, source, resolved_in_version, created_at)
+		SELECT
+			khc.os_version_id,
+			sc.cve,
+			khc.team_id,
+			sc.source,
+			sc.resolved_in_version,
+			MIN(sc.created_at) as created_at
+		FROM kernel_host_counts khc
+		JOIN software_cve sc ON sc.software_id = khc.software_id
+		WHERE khc.hosts_count > 0
+		GROUP BY khc.os_version_id, sc.cve, khc.team_id, sc.source, sc.resolved_in_version
+		ON DUPLICATE KEY UPDATE
+			source = VALUES(source),
+			resolved_in_version = VALUES(resolved_in_version),
+			created_at = VALUES(created_at),
+			updated_at = ?
+	`, updatedAt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "refresh per-team OS version vulnerabilities")
+	}
+
+	// Refresh "all teams" aggregated Linux kernel vulnerabilities (team_id = NULL)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO operating_system_version_vulnerabilities
+			(os_version_id, cve, team_id, source, resolved_in_version, created_at)
+		SELECT
+			khc.os_version_id,
+			sc.cve,
+			NULL as team_id,
+			sc.source,
+			sc.resolved_in_version,
+			MIN(sc.created_at) as created_at
+		FROM kernel_host_counts khc
+		JOIN software_cve sc ON sc.software_id = khc.software_id
+		WHERE khc.hosts_count > 0
+		GROUP BY khc.os_version_id, sc.cve, sc.source, sc.resolved_in_version
+		ON DUPLICATE KEY UPDATE
+			source = VALUES(source),
+			resolved_in_version = VALUES(resolved_in_version),
+			created_at = VALUES(created_at),
+			updated_at = ?
+	`, updatedAt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "refresh all-teams OS version vulnerabilities")
+	}
+
+	// Clean up stale entries - any rows not touched by this refresh are outdated
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM operating_system_version_vulnerabilities
+		WHERE updated_at < ?
+	`, updatedAt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean up stale OS version vulnerabilities")
 	}
 
 	return nil

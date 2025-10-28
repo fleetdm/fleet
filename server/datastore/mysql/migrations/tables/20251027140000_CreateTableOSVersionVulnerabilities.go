@@ -28,7 +28,7 @@ func Up_20251027140000(tx *sql.Tx) error {
 			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (id),
 			UNIQUE INDEX idx_os_version_vulnerabilities_unq_os_version_team_cve (os_version_id, team_id, cve),
-			INDEX idx_os_version_vulnerabilities_source_updated_at (source, updated_at)
+			INDEX idx_os_version_vulnerabilities_updated_at (updated_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`)
 	if err != nil {
