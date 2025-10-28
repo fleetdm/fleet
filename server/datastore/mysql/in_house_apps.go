@@ -414,6 +414,7 @@ INSERT INTO upcoming_activities
 VALUES
 		(?, ?, ?, ?, 'in_house_app_install', ?,
 			JSON_OBJECT(
+				'self_service', ?,
 				'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 			)
 		)`
@@ -450,6 +451,7 @@ VALUES
 			userID,
 			opts.IsFleetInitiated(),
 			commandUUID,
+			opts.SelfService,
 			userID,
 		)
 		if err != nil {
