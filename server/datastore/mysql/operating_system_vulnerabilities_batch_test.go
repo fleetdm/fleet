@@ -380,6 +380,10 @@ func setupKernelVulnsWithTeam(t *testing.T, ds *Datastore, ctx context.Context, 
 		ON DUPLICATE KEY UPDATE hosts_count = VALUES(hosts_count)
 	`, titleID, softwareID, osVersion.OSVersionID)
 	require.NoError(t, err)
+
+	// Refresh the pre-aggregated table
+	err = ds.RefreshOSVersionVulnerabilities(ctx)
+	require.NoError(t, err)
 }
 
 // Test comprehensive scenario: multiple Linux OS versions with multiple kernels and shared vulnerabilities
@@ -488,6 +492,10 @@ func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) 
 			require.NoError(t, err)
 		}
 	}
+
+	// Refresh the pre-aggregated table
+	err = ds.RefreshOSVersionVulnerabilities(ctx)
+	require.NoError(t, err)
 
 	// Now query for vulnerabilities
 	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil, nil)
