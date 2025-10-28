@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251027164003, Down_20251027164003)
+	MigrationClient.AddMigration(Up_20251028140720, Down_20251028140720)
 }
 
-func Up_20251027164003(tx *sql.Tx) error {
+func Up_20251028140720(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE in_house_apps
 	ADD COLUMN self_service tinyint(1) NOT NULL DEFAULT '0'
@@ -29,6 +29,6 @@ ALTER TABLE host_in_house_software_installs
 	return nil
 }
 
-func Down_20251027164003(tx *sql.Tx) error {
+func Down_20251028140720(tx *sql.Tx) error {
 	return nil
 }
