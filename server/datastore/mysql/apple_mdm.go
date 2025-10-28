@@ -6302,9 +6302,8 @@ func (ds *Datastore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Con
 	const stmt = `
 SELECT DISTINCT neq.id
 FROM nano_enrollment_queue neq
-INNER JOIN nano_enrollments ne ON ne.id = neq.id
 LEFT JOIN nano_command_results ncr ON ncr.command_uuid = neq.command_uuid AND ncr.id = neq.id
-WHERE neq.active = 1 AND ne.enabled=1 AND ncr.status IS NULL
+WHERE neq.active = 1 AND ncr.status IS NULL
 AND neq.created_at >= NOW() - INTERVAL 7 DAY
 LIMIT 500
 `
