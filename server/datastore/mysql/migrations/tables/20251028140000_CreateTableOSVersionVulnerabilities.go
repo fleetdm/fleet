@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251027140000, Down_20251027140000)
+	MigrationClient.AddMigration(Up_20251028140000, Down_20251028140000)
 }
 
-func Up_20251027140000(tx *sql.Tx) error {
+func Up_20251028140000(tx *sql.Tx) error {
 	// Create the pre-aggregated OS version vulnerabilities table
 	// This table contains ONLY Linux kernel vulnerabilities
 	// team_id semantics:
@@ -103,6 +103,6 @@ func Up_20251027140000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251027140000(_ *sql.Tx) error {
+func Down_20251028140000(_ *sql.Tx) error {
 	return nil
 }
