@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -99,6 +100,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, payload.Title, installer.SoftwareTitle)
 	require.Equal(t, payload.Version, installer.Version)
+	require.False(t, payload.SelfService)
 
 	// Install on multiple users with pending, success, failure
 	createInHouseAppInstallRequest(t, ds, host1.ID, installerID, titleID, user1)
@@ -132,6 +134,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		Filename:        "ipa_test.ipa",
 		StorageID:       "new_storage_id",
 		ValidatedLabels: &validatedLabels,
+		SelfService:     ptr.Bool(true),
 	}
 
 	err = ds.SaveInHouseAppUpdates(ctx, &updatePayload)
@@ -145,6 +148,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "new_storage_id", newInstaller.StorageID)
 	require.Equal(t, expectedLabels, newInstaller.LabelsIncludeAny)
+	require.True(t, newInstaller.SelfService)
 
 	// Summary is unchanged?
 	summary2, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, installerID)
@@ -194,6 +198,30 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM in_house_apps`)
 	require.NoError(t, err)
 	require.Zero(t, count, "expected in_house_apps to be empty")
+
+	// create one that's self-service at creation time
+	payload2 := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "foo2",
+		Filename:         "foo2.ipa",
+		BundleIdentifier: "com.foo2",
+		StorageID:        "testingtesting1234",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		SelfService:      true,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
+	require.NoError(t, err)
+	require.NotZero(t, installerID)
+	require.NotZero(t, titleID)
+
+	installer2, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID2)
+	require.NoError(t, err)
+	require.Equal(t, payload2.Title, installer2.SoftwareTitle)
+	require.True(t, installer2.SelfService)
 }
 
 func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
@@ -322,7 +350,7 @@ func createInHouseAppInstallResultVerified(t *testing.T, ds *Datastore, host *fl
 		timestampCol = "verification_failed_at"
 	}
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE host_in_house_software_installs SET 
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE host_in_house_software_installs SET
 			%s = NOW(6), verification_command_uuid = ? WHERE host_id = ? AND command_uuid = ?`, timestampCol),
 			uuid.NewString(), host.ID, cmdUUID)
 		return err
