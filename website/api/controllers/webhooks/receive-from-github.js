@@ -91,7 +91,6 @@ module.exports = {
       'harrisonravazzolo',
       'tux234',
       'ksykulev',
-      'onasismunro',
       'jmwatts',
       'mason-buettner',
       'iansltx',

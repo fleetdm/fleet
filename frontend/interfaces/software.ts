@@ -6,6 +6,7 @@ import { IconNames } from "components/icons";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
+import { IMdmCommandResult } from "./mdm";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -205,8 +206,8 @@ export const SOURCE_TYPE_CONVERSION = {
   portage_packages: "Package (Portage)",
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
+  npm_packages: "Package (npm)",
   pacman_packages: "Package (pacman)",
-  npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   tgz_packages: "Package (tar)",
@@ -452,6 +453,11 @@ export interface ISoftwareInstallResults {
   results: ISoftwareInstallResult;
 }
 
+/** For Software .ipa installs, we use the install results API to return MDM command results */
+export interface ISoftwareIpaInstallResults {
+  results: IMdmCommandResult;
+}
+
 // ISoftwareInstallerType defines the supported installer types for
 // software uploaded by the IT admin.
 export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "rpm" | "exe";
@@ -494,6 +500,7 @@ export interface IHostSoftwarePackage {
   last_uninstall: ISoftwareLastUninstall | null;
   categories?: SoftwareCategory[];
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  platform?: Platform;
 }
 
 export interface IHostAppStoreApp {

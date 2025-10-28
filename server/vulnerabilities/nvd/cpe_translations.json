@@ -362,6 +362,15 @@
   },
   {
     "software": {
+      "name": ["/golang\\.go/"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["ms-vscode-remote.vscode-remote-extensionpack"],
       "source": ["vscode_extensions"]
     },
@@ -657,6 +666,14 @@
   },
   {
     "software": {
+      "source": ["npm_packages"]
+    },
+    "filter": {
+      "target_sw": ["node.js"]
+    }
+  },
+  {
+    "software": {
       "name": ["Firefox ESR.app"],
       "source": ["apps"]
     },
@@ -664,6 +681,34 @@
       "product": ["firefox"],
       "vendor": ["mozilla"],
       "sw_edition": ["esr"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.logi.bolt.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["/Snyk/"],
+      "source": ["jetbrains_plugins"]
+    },
+    "filter": {
+      "product": ["snyk_security"],
+      "target_sw": ["intellij"],
+      "vendor": ["snyk"]
+    }
+  },
+  {
+    "software": {
+      "source": ["jetbrains_plugins"]
+    },
+    "filter": {
+      "target_sw": ["intellij"]
     }
   }
 ]

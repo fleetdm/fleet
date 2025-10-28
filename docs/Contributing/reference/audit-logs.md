@@ -1346,6 +1346,7 @@ This activity contains the following fields:
 - "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 
 
 #### Example
@@ -2064,6 +2065,18 @@ This activity does not contain any detail fields.
 ## deleted_conditional_access_integration_microsoft
 
 Generated when Microsoft Entra is integration is disconnected.
+
+This activity does not contain any detail fields.
+
+## added_conditional_access_okta
+
+Generated when Okta is configured or edited for conditional access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_okta
+
+Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 

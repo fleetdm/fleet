@@ -744,6 +744,8 @@ AWS region to use for Identity and Access Management (IAM) authentication. This 
 
 Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the server private key.
 
+Only one of `server_private_key_arn` or `server_private_key` can be set.
+
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
 - Default value: `""`
