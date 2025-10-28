@@ -849,7 +849,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	values := []interface{}{fleet.MDMOperationTypeInstall}
 
 	totalHostCertsToRenew := 0
-	hostCertTypesToRenew := fleet.ListCATypesWithRenewalIDSupport()
+	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
 	for _, hostCertType := range hostCertTypesToRenew {
 		hostCertsToRenew := []struct {
 			HostUUID       string    `db:"host_uuid"`
@@ -4993,17 +4993,17 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 	})
 }
 
-func (ds *Datastore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
 	const stmt = `
 UPDATE host_mdm_actions hma
 JOIN hosts h ON hma.host_id = h.id
 SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
-WHERE h.uuid = ?
-  AND hma.unlock_ref IS NOT NULL
-  AND hma.unlock_pin IS NOT NULL
-  `
+WHERE h.uuid = ? AND (
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin') 
+	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
+)`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up macOS lock")
@@ -7146,4 +7146,31 @@ WHERE
 	}
 
 	return &idp, nil
+}
+
+func (ds *Datastore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error) {
+	const stmt = `
+	SELECT id as host_uuid, command_uuid, request_type FROM nano_view_queue WHERE id = ? AND request_type = ? ORDER BY created_at DESC LIMIT 1
+	`
+
+	var cmd fleet.MDMCommand
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &cmd, stmt, hostUUID, commandType); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("MDMCommand")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get latest apple mdm command of type")
+	}
+
+	return &cmd, nil
+}
+
+func (ds *Datastore) SetLockCommandForLostModeCheckin(ctx context.Context, hostID uint, commandUUID string) error {
+	// We know we can insert here, as this is only called when processing a
+	// a new iphone/ipad checkin with lost mode enabled.
+	const stmt = `
+	INSERT INTO host_mdm_actions (host_id, lock_ref)
+	VALUES (?, ?)
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, commandUUID)
+	return ctxerr.Wrap(ctx, err, "set lock ref for lost mode checkin")
 }

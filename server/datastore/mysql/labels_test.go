@@ -321,9 +321,9 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Platform:        "darwin",
 	})
 	require.Nil(t, err)
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2, nil))
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
@@ -752,8 +752,8 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 			SeenTime:        time.Now(),
 			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
 			NodeKey:         ptr.String(strconv.Itoa(i)),
-			UUID:            strconv.Itoa(i),
-			Hostname:        strconv.Itoa(i),
+			UUID:            fmt.Sprintf("uuid%s", strconv.Itoa(i)),
+			Hostname:        fmt.Sprintf("host%s", strconv.Itoa(i)),
 		})
 		require.Nil(t, err)
 	}
@@ -790,10 +790,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	err := ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
 	require.Nil(t, err)
 
-	// Because `Hosts` for manual labels matches both host name AND host ID,
-	// specifying "1" will match both host with ID 1 (whose name is "0")
-	// and host with name "1".
-	expectedSpecs[4].Hosts = []string{"0", "1", "2", "3", "4"}
+	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"}
 	return expectedSpecs
 }
 
@@ -1870,8 +1867,8 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 2)
-	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
-	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
 
 	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
 	require.NoError(t, err)
@@ -1977,9 +1974,9 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 3)
-	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
-	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
-	require.Equal(t, host3.Hostname, labelSpec.Hosts[2])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2]) //nolint:gosec // dismiss G115
 }
 
 func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {

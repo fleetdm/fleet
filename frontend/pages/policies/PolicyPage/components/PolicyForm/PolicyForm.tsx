@@ -403,10 +403,10 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="inverse" onClick={onOpenSchemaSidebar} size="small">
+          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
             <>
               Schema
-              <Icon name="info" size="small" />
+              <Icon name="info" />
             </>
           </Button>
         )}
@@ -739,7 +739,6 @@ const PolicyForm = ({
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
-            disabled={gitOpsModeEnabled}
           />
           {renderPlatformCompatibility()}
           {isEditMode && platformSelector.render()}
@@ -819,7 +818,7 @@ const PolicyForm = ({
                 }
                 variant="inverse"
               >
-                Run
+                Run <Icon name="run" />
               </Button>
             </span>
             <ReactTooltip

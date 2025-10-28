@@ -35,7 +35,7 @@ describe("formatSoftwareType", () => {
       },
       {
         source: "npm_packages" as const,
-        expected: "Package (NPM)",
+        expected: "Package (npm)",
         description: "NPM packages",
       },
       {
@@ -163,6 +163,12 @@ describe("formatSoftwareType", () => {
         extension_for: "windsurf" as const,
         expected: "IDE extension (Windsurf)",
         description: "Windsurf extensions",
+      },
+      {
+        source: "jetbrains_plugins" as const,
+        extension_for: "intellij_idea" as const,
+        expected: "IDE extension (IntelliJ IDEA)",
+        description: "IntelliJ IDEA plugins",
       },
     ];
 

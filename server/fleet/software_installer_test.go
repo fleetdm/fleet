@@ -132,3 +132,138 @@ func TestForMyDevicePage(t *testing.T) {
 		})
 	}
 }
+
+func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
+	testCases := []struct {
+		ext      string
+		expected string
+		wantErr  bool
+	}{
+		// Existing supported extensions
+		{".pkg", "darwin", false},
+		{"pkg", "darwin", false},
+		{".deb", "linux", false},
+		{"deb", "linux", false},
+		{".rpm", "linux", false},
+		{"rpm", "linux", false},
+		{".tar.gz", "linux", false},
+		{"tar.gz", "linux", false},
+		{".exe", "windows", false},
+		{"exe", "windows", false},
+		{".msi", "windows", false},
+		{"msi", "windows", false},
+
+		// New script extensions
+		{".sh", "linux", false},
+		{"sh", "linux", false},
+		{".ps1", "windows", false},
+		{"ps1", "windows", false},
+
+		// Unsupported extensions
+		{".zip", "", true},
+		{".txt", "", true},
+		{"", "", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ext, func(t *testing.T) {
+			result, err := SoftwareInstallerPlatformFromExtension(tc.ext)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "unsupported file type")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
+	testCases := []struct {
+		ext      string
+		name     string
+		expected string
+		wantErr  bool
+	}{
+		// Existing supported extensions
+		{".deb", "package.deb", "deb_packages", false},
+		{"deb", "package.deb", "deb_packages", false},
+		{".rpm", "package.rpm", "rpm_packages", false},
+		{"rpm", "package.rpm", "rpm_packages", false},
+		{".exe", "installer.exe", "programs", false},
+		{"exe", "installer.exe", "programs", false},
+		{".msi", "installer.msi", "programs", false},
+		{"msi", "installer.msi", "programs", false},
+		{".pkg", "package.pkg", "pkg_packages", false},
+		{"pkg", "package.pkg", "pkg_packages", false},
+		{".pkg", "app.app", "apps", false},
+		{"pkg", "application.app", "apps", false},
+		{".tar.gz", "archive.tar.gz", "tgz_packages", false},
+		{"tar.gz", "archive.tar.gz", "tgz_packages", false},
+
+		// New script extensions
+		{".sh", "script.sh", "sh_packages", false},
+		{"sh", "setup.sh", "sh_packages", false},
+		{".ps1", "script.ps1", "ps1_packages", false},
+		{"ps1", "setup.ps1", "ps1_packages", false},
+
+		// Unsupported extensions
+		{".zip", "archive.zip", "", true},
+		{".txt", "readme.txt", "", true},
+		{"", "noext", "", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%s_%s", tc.ext, tc.name), func(t *testing.T) {
+			result, err := SofwareInstallerSourceFromExtensionAndName(tc.ext, tc.name)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "unsupported file type")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestIsScriptPackage(t *testing.T) {
+	testCases := []struct {
+		ext      string
+		expected bool
+	}{
+		// Script extensions - should return true
+		{".sh", true},
+		{"sh", true},
+		{".ps1", true},
+		{"ps1", true},
+
+		// Non-script extensions - should return false
+		{".pkg", false},
+		{"pkg", false},
+		{".deb", false},
+		{"deb", false},
+		{".rpm", false},
+		{"rpm", false},
+		{".exe", false},
+		{"exe", false},
+		{".msi", false},
+		{"msi", false},
+		{".tar.gz", false},
+		{"tar.gz", false},
+
+		// Edge cases
+		{"", false},
+		{".SH", false},   // Case sensitive
+		{".PS1", false},  // Case sensitive
+		{".bash", false}, // Not recognized
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ext, func(t *testing.T) {
+			result := IsScriptPackage(tc.ext)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}

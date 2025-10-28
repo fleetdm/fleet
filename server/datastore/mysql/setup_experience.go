@@ -14,9 +14,22 @@ import (
 )
 
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, false)
+}
+
+func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, true)
+}
+
+func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
-WHERE host_uuid = ?`
+WHERE host_uuid = ? AND %s`
+	if resetFailedSetupSteps {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "status != 'success'")
+	} else {
+		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
+	}
 
 	// stmtSoftwareInstallers query currently supports installers for macOS and Linux.
 	stmtSoftwareInstallers := `
@@ -45,8 +58,8 @@ AND (
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- tar.gz can be installed on any Linux distribution
-			si.extension = 'tar.gz'
+			-- tar.gz and sh can be installed on any Linux distribution
+			(si.extension = 'tar.gz' OR si.extension = 'sh')
 			OR
 			(
 				-- deb packages can only be installed on Debian-based hosts.
@@ -57,7 +70,14 @@ AND (
 			)
 		)
 	)
-)`
+)
+AND %s ORDER BY st.name ASC	
+`
+	if resetFailedSetupSteps {
+		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+	} else {
+		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "TRUE")
+	}
 
 	stmtVPPApps := `
 INSERT INTO setup_experience_status_results (
@@ -77,7 +97,16 @@ INNER JOIN vpp_apps_teams vat
 INNER JOIN software_titles st
 	ON va.title_id = st.id
 WHERE vat.install_during_setup = true
-AND vat.global_or_team_id = ?`
+AND vat.global_or_team_id = ?
+AND va.platform = ?
+AND %s
+ORDER BY st.name ASC
+`
+	if resetFailedSetupSteps {
+		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
+	} else {
+		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "TRUE")
+	}
 
 	stmtSetupScripts := `
 INSERT INTO setup_experience_status_results (
@@ -95,6 +124,8 @@ WHERE global_or_team_id = ?`
 
 	var totalInsertions uint
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		totalInsertions = 0 // reset for each attempt
+
 		// Clean out old statuses for the host
 		if _, err := tx.ExecContext(ctx, stmtClearSetupStatus, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing stale setup experience entries")
@@ -102,23 +133,33 @@ WHERE global_or_team_id = ?`
 
 		// Software installers
 		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+		args := []any{hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
+		if resetFailedSetupSteps {
+			args = append(args, hostUUID)
 		}
-		inserts, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
+		if fleetPlatform != "ios" && fleetPlatform != "ipados" {
+			res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+			}
+			inserts, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
+			}
+			totalInsertions += uint(inserts) // nolint: gosec
 		}
-		totalInsertions += uint(inserts) // nolint: gosec
 
 		// VPP apps
-		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
+			args := []any{hostUUID, teamID, fleetPlatform}
+			if resetFailedSetupSteps {
+				args = append(args, hostUUID)
+			}
+			res, err := tx.ExecContext(ctx, stmtVPPApps, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
 			}
@@ -127,19 +168,19 @@ WHERE global_or_team_id = ?`
 
 		// Scripts
 		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
+			res, err := tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience scripts")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
 			}
 			totalInsertions += uint(inserts) // nolint: gosec
 		}
 
-		// Set setup experience on darwin hosts only if they have something configured.
-		if fleetPlatform == "darwin" {
+		// Set setup experience on Apple hosts only if they have something configured.
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
 			if totalInsertions > 0 {
 				if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
@@ -408,16 +449,28 @@ SELECT
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
-	sesr.error,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
-	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id
+	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+    CASE
+        WHEN hsi.execution_status = 'failed_install' THEN
+            CASE
+                WHEN post_install_script_exit_code IS NOT NULL AND post_install_script_exit_code != 0 THEN COALESCE(post_install_script_output, 'Unknown error in post-install script')
+                WHEN install_script_exit_code IS NOT NULL AND install_script_exit_code != 0 THEN COALESCE(install_script_output, 'Unknown error in install script')
+                WHEN pre_install_query_output IS NULL OR pre_install_query_output = '' THEN 'Pre-install query failed'
+                ELSE 'Installation failed'
+            END
+        WHEN hsr.exit_code IS NOT NULL AND hsr.exit_code != 0 THEN COALESCE(hsr.output, 'Unknown error in script')
+        ELSE sesr.error
+    END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
 LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
+LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
+LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
-LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id
+LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
 WHERE host_uuid = ?
 	`
 	var results []*fleet.SetupExperienceStatusResult
@@ -440,7 +493,7 @@ SET
 	nano_command_uuid = ?,
 	setup_experience_script_id = ?,
 	script_execution_id = ?,
-	error = ?
+	error = LEFT(?, 255)
 WHERE id = ?
 `
 	if err := status.IsValid(); err != nil {
@@ -696,4 +749,16 @@ func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context,
 	n, _ := res.RowsAffected()
 
 	return n > 0, nil
+}
+
+func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error {
+	cancelStmt := "UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND status NOT IN (?, ?)"
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, cancelStmt, fleet.SetupExperienceStatusCancelled, hostUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure)
+		return err
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
+	}
+	return nil
 }

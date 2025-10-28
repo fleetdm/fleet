@@ -592,7 +592,10 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Add certificate authority (CA)
 
-Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+
 
 `POST /api/v1/fleet/certificate_authorities`
 
@@ -606,6 +609,7 @@ Only one of the objects is allowed in a single request.
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
+| smallstep   | object | body | See [smallstep](#smallstep) |
 
 ##### digicert
 
@@ -653,6 +657,18 @@ Object with the following structure:
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
 
+
+##### smallstep
+
+Object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url       | string  | **Required**. The **SCEP URL** from Smallstep. |
+| challenge_url | string | **Required**. The **Webhook URL** from Smallstep.|
+| username  | string | **Required**. The **Challenge Basic Authentication Username** from Smallstep. |
+| password  | string | **Required**. The **Challenge Basic Authentication Password** from Smallstep. |
+
 #### Example
 
 `POST /api/v1/fleet/certificate_authorities`
@@ -668,7 +684,7 @@ Object with the following structure:
     "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
     "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
     "certificate_user_principal_names": [
-      "$FLEET_VAR_HOST_HARDWARE_SERIAL"
+      "$FLEET_VAR_HOST_HARDWARE_SERIAL",
     ],
     "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
   }
@@ -689,6 +705,8 @@ Object with the following structure:
 
 ### Edit certificate authority (CA)
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 `PATCH /api/v1/fleet/certificate_authorities/:id`
 
 When editing a CA, specify one object and only its fields that you want to update.
@@ -702,6 +720,7 @@ When editing a CA, specify one object and only its fields that you want to updat
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
+| smallstep   | object | body | See [smallstep](#smallstep) |
 
 See [Add certificate authority](#add-certificate-authority-ca) above for the structure of each CA object.
 
@@ -724,6 +743,8 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
 `Status: 200`
 
 ### List certificate authorities (CAs)
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `GET /api/v1/fleet/certificate_authorities`
 
@@ -762,12 +783,19 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
       "id": 4,
       "name": "SCEP_CERTIFICATE_PROD",
       "type": "custom_scep_proxy"
+    },
+    {
+      "id": 5,
+      "name": "SMALLSTEP_WIFI",
+      "type": "smallstep"
     }
   ]
 }
 ```
 
 ### Get certificate authority (CA)
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Get details of the certificate authority.
 
@@ -777,7 +805,7 @@ Get details of the certificate authority.
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| id   | integer | body | **Required**. The ID of the certificate authority. |
+| id   | integer | body | **Required**. The ID of certificate authority. |
 
 #### Example
 
@@ -797,13 +825,15 @@ Get details of the certificate authority.
   "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
   "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   "certificate_user_principal_names": [
-    "$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
 ```
 
 ### Delete certificate authority (CA)
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 When the CA is deleted, the issued certificates will remain on existing hosts.
 
@@ -833,11 +863,11 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
-| id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
+| id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
-| idp_client_id | string | body | Client ID for which the token was isseud from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 
 #### Example
 
@@ -860,7 +890,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 ```json
 {
-  "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
+  "certificate": "c3Viamdlkjfid098)d8f2k34jl;Yy4iLCBPVSA9IE1hbmFnZWQgTGludXgsIENOID0gQ2lzY29Vc2VyTmV0d29ya0FjY2Vzcwppc3N1ZXI9TyA9IENpc2NvLCBPVSA9IEVyaWRhbnVzLCBDTiA9IENpc2NvTmV0d29ya0FjY2VzcwotLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0KTUlJRkpUQ0NCQTJnQXdJQkFnSVVlSjdhYlBKd29QL0tXRlhvOXE4RmVrQlVqN293RFFZSktvWklodmNOQVFFTApCUUF3UURFT01Bd0dBMVVFQ2hNRlEybHpZMjh4RVRBUEJnTlZCQXNUQ0VWeWFXUmhiblZ6TVJzd0dRWURWUVFECkV4SkRhWE5qYjA1bGRIalskdjf098)DFj23lk4jRVMldoY05NalV3TnpJME1UYzAKTlRVMldqQlhNUnd3R2dZRFZRUUtEQk5EYVhOamJ5QlRlWE4wWlcxekxDQkpibU11TVJZd0ZBWURWUVFMREExTgpZVzVoWjJWa0lFeHBiblY0TVI4d0hRWURWUVFEREJaRGFYTmpiMVZ6WlhKT1pYUjNiM0pyUVdOalpYTnpNSUlCCklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF4dFZmWE1xaVMyelRPTEI4WE1ESFBEZmEKMjZIY2ZBdHpmOUVmMk1rQkdrL1VHNVJaTGFrZU0rTDltc0NXaWV0Wllkdf098DSlk23n34,nxo0dfQVdkRHpDbjM0MG1iaUFhS1lIb3JIczVYWW1uSmlrRkYyQgpsQThWWWpTZFZPNGVEN2QvVytwaGo2a2FZQ212dDcwL2tUaDFYL0QzZmM1U0Z4T09OSnZHeVY2MzlvVm9Qd0lECkFRQUJvNElCL2pDQ0Fmb3dEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCUmpwK2lwUENWTHJXWnkKTlIxdnBDc0owd2Y5WURDQmdnWUlLd1lCQlFVSEFRRUVkakIwTUVNR0NDc0dBUVVGQnpBQ2hqZG9kSFJ3T2k4dgpZM0pzTG1sdWRHVnlibUZzYUc5emRHNWhiV1Z6TG1OdmJTOURhWE5qYjA1bGRIZHZjbXRCWTJObGMzTXVZM0owCk1DMEdDQ3NHQVFVRkJ6QUJoaUZvZEhSd09pOHZiMk56Y0M1cGJuUmxjbTVoYkdodmMzUnVZVzFsY3k1amIyMHcKZ1p3R0ExVWRFUVNCbERDQmtZSVdRMmx6WTI5VmMyVnlUbVYwZDI5eWEwRmpZMlZ6YzRJSlkybHpZMjh1WTI5dApnUkp5WVdocGJXWjBaRUJqYVhOamJ5NWpiMjJnSWdZS0t3WUJCQUdDTnhRQ0E2QVVEQkp5WVdocGJXWjBaRUJqCmFYTmpieTVqYjIyR05FbEVPa1pzWldWMFJFMDZSMVZKUkRwa05XVmtOamMwWXkweU5XTXpMVEV4WWpJdFlUZzEKWXkxalpXTm1NVGc1WVRneFpUSXdGd1lEVlIwZ0JCQXdEakFNQmdvckJnRUVBUWtWQVNvQk1CTUdBMVVkSlFRTQpNQW9HQ0NzR0FRVUZCd01DTUVnR0ExVWRId1JCTUQ4d1BhQTdvRG1HTjJoMGRIQTZMeTlqY213dWFXNTBaWEp1CllXeG9iM04wYm1GdFpYTXVZMjl0TDBOcGMyTnZUbVYwZDI5eWEwRmpZMlZ6Y3k1amNtd3dIUVlEVlIwT0JCWUUKRkF0NjBHd0FwbVoyUkUrNFZsbkxEYkZhZGErTE1BNEdBMVVkRHdFQi93UUVBd0lGb0RBTkJna3Foa2lHOXcwQgpBUXNGQUFPQ0FRRUFsdnRseFJUaVlOVEQvWGpldkswT1BsaVhOdUtjVWlRcW5VSDlIZXowa0d6aWpHUkxrZ1VvCnRLbEJDRTB5QjNyOGhJd3dKbDRPS1cvUzdITXFnY2FNanJTaHIwamlsNDQwNXdOaHBGbzZHRkQwSTFzWjE5eFoKL21BMndsUkY0QkZoZ2QraUE5ZnpRNmNxdVFuV3JlemQxcUxNV0hpOGR5QUJ1c1VBQVZ1OUZORFU4N3BZa0Y4MgpsTjJVSTRLSUZlRDJnTDBXeFpzOVlWTGJlZG1MY0FhZk9HcmtuUDZvVlZMNGxzV1VYQlYxR2tydlkxNWUySnVkCkhVSVEvOTVKTWlkbm1EQVZCbjg1MjA2eDkxbXM3S1lYSmI0aW0yOFBtc1BrN1JJVnJNb2w5dkFlU2ppbHQ1eS8KVitacFBwSmtwWWRyNVpEeWI3WDcwMjR0ZU42QUxmZWRjZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KCg=="
 }
 ```
 
@@ -2518,7 +2548,7 @@ the `software` table.
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet. |
 | connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
@@ -2812,7 +2842,7 @@ Response payload with the `munki_issue_id` filter provided:
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.   |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -3498,7 +3528,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
+| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 
 ##### Example
 
@@ -4259,7 +4289,7 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256` is only supported for macOS software from the `apps` source.
+Currently, `hash_sha256` is only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
 #### Example
 
@@ -4360,6 +4390,21 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
         }
       ]
     },
+    {
+      "id": 150,
+      "name": "GitHub Copilot",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "jetbrains_plugins",
+      "extension_for": "goland",
+      "installed_versions": [
+        {
+          "version": "1.2.3",
+          "vulnerabilities": [],
+          "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
+        }
+      ]
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -4396,7 +4441,7 @@ requested by a web browser.
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                 |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.  |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
@@ -5055,11 +5100,13 @@ Add a dynamic or manual label.
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
-| hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
+| hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
 | host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
+
+The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_serial`, or `uuid` instead.
 
 #### criteria
 
@@ -5120,10 +5167,10 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | id          | integer | path | **Required**. The label's id. |
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
-| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
+| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
 | host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
 
-
+The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_serial`, or `uuid` instead.
 
 #### Example
 
@@ -5378,7 +5425,7 @@ Returns a list of the hosts that belong to the specified label.
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
-| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.  |
 | macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
@@ -5790,7 +5837,7 @@ solely on the response status code returned by this endpoint.
 
 ### Resend custom OS setting (configuration profile)
 
-Resends a configuration profile for the specified host.
+Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
 
 `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
@@ -5834,7 +5881,7 @@ For declaration (DDM) profiles, hosts with new, updated, or removed profiles are
 
 | Name                    | Type    | Description   |
 | -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile                | string   | Base64 encoded configuration profiles (.mobileconfig) and declaration (DDM) profiles for Apple (macOS, iOS, iPadOS) hosts or XML profile for Windows hosts. |
+| profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
 | labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
@@ -5865,6 +5912,28 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 ##### Default response
 
 `204`
+
+### Resend custom OS setting (configuration profile) by device token
+
+Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+
+`POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token   | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+
+##### Default response
+
+`Status: 202`
+
 
 ### Batch-resend custom OS setting (configuration profile)
 
@@ -6592,7 +6661,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"` or `"linux"`. Defaults to `"macos"`. |
+| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6665,8 +6734,8 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | body |  Platform to update software for. Either `"macos"` or `"linux"`.  Defaults to `"macos"`. |
-| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| platform | string  | query |  Platform to update software for. Either `"macos"`, `"windows"`, or `"linux"`.  Defaults to `"macos"`. |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
 #### Example
@@ -9231,7 +9300,7 @@ The script will be added to each host's list of upcoming activities.
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
 | host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
-| filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+| filters | object  | body | See [filters](#filters4). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 | not_before       | string  | body | UTC time when the script run is scheduled to begin. If omitted, the batch script will begin right away. |
 
 
@@ -9786,9 +9855,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
 - [Modify package](#modify-package)
-- [Update software icon](#update-sowftware-icon)
-- [Get software icon](#get-sowftware-icon)
-- [Delete software icon](#delete-sowftware-icon)
+- [Update software icon](#update-software-icon)
+- [Download software icon](#download-software-icon)
+- [Delete software icon](#delete-software-icon)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 - [Modify App Store app](#modify-app-store-app)
@@ -9933,6 +10002,28 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
+    },
+    {
+      "id": 77,
+      "name": "Prettier",
+      "software_package": null,
+      "app_store_app": null,
+      "versions_count": 2,
+      "source": "jetbrains_plugin",
+      "extensions_for": "goland",
+      "hosts_count": 19,
+      "versions": [
+        {
+          "id": 6501,
+          "version": "232.1.0",
+          "vulnerabilities": []
+        },
+        {
+          "id": 6502,
+          "version": "241.2.1",
+          "vulnerabilities": []
+        }
+      ]
     }
   ],
   "meta": {
@@ -10014,6 +10105,16 @@ Get a list of all software versions.
         "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
         "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
         "hosts_count": 345,
+        "vulnerabilities": null
+      },
+      {
+        "id": 3,
+        "name": "Prettier",
+        "version": "232.1.0",
+        "source": "jetbrains_plugins",
+        "extensions_for": "goland",
+        "generated_cpe": "cpe:2.3:a:*:prettier:232.1.0:*:*:*:*:node.js:*:*",
+        "hosts_count": 19,
         "vulnerabilities": null
       }
     ],

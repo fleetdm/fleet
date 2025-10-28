@@ -65,9 +65,9 @@ Fleet is successful because of our customers and community, and those relationsh
 | Customer support                     | <sup><sub>_See [🌦️ Customer Success team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Quality assurance (QA)               | <sup><sub>_See [🚀 Engineering team](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Features &amp; product adoption      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Feature prioritization               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Feature prioritization and roadmap   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Design system for the [Fleet product](https://www.figma.com/files/project/15701210) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
@@ -890,12 +890,12 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 ## Writing
 
 Learn how to write as Fleet: 
-- [Writing style](https://fleetdm.com/handbook/company/communication#writing-style)
-- [Writing types](https://fleetdm.com/handbook/company/communication#writing-types)
-- [Editing and publishing](https://fleetdm.com/handbook/company/communication#editing-and-publishing)
-- [Writing assistance](https://fleetdm.com/handbook/company/communication#writing-assistance).
-- [Writing mechanics](https://fleetdm.com/handbook/company/communication#writing-mechanics)
-- [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communication#writing-in-fleet-flavored-markdown)
+- [Writing style](https://fleetdm.com/handbook/company/communications#writing-style)
+- [Writing types](https://fleetdm.com/handbook/company/communications#writing-types)
+- [Editing and publishing](https://fleetdm.com/handbook/company/communications#editing-and-publishing)
+- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance).
+- [Writing mechanics](https://fleetdm.com/handbook/company/communications#writing-mechanics)
+- [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown)
 
 
 ### Writing style
@@ -1072,7 +1072,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - Link to existing pages instead of duplicating content.
 - Favor permalinks and headings that make good anchors (people link to sections).
 
-> > **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
+> **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
 
 
 #### Device vs endpoint

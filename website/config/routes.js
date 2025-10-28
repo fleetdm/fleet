@@ -555,6 +555,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /try': {
+    action: 'view-fleet-premium-trial-or-redirect',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -574,7 +582,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /customer-stories': '/testimonials',
-  'GET /try': '/get-started',
+  // 'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /handbook/brand': '/handbook/product-design',
@@ -835,6 +843,7 @@ module.exports.routes = {
   'GET /announcements/one-agent-fewer-tools-fewer-gaps': '/articles/one-agent-fewer-tools-fewer-gaps',
   'GET /announcements/i-work-in-operations-i-deployed-fleet-in-minutes': '/articles/i-work-in-operations-i-deployed-fleet-in-minutes',
   'GET /announcements/not-everything-runs-in-kubernete': '/articles/not-everything-runs-in-kubernete',
+  'GET /guides/macos-mdm-setup': '/guides/apple-mdm-setup',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -978,7 +987,13 @@ module.exports.routes = {
   'GET /learn-more-about/install-google-play-apps': 'https://github.com/fleetdm/fleet/issues/25595',
   'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
+  'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#partial-failure-android-profiles',
+  'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
+  'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
+  'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
+  'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
+  'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
 
   // Sitemap
   // =============================================================================================================
@@ -1035,6 +1050,9 @@ module.exports.routes = {
   'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device', csrf: false},
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false},
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

@@ -16,7 +16,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
+- To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
   - Any Fleet team member can [view the kanban boards](https://fleetdm.com/handbook/company/product-groups#current-product-groups) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -315,14 +315,15 @@ Ensure the interview process follows these steps in order. This process must fol
 
 1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
 2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role. Check for any existing non-competes that could impact a candidate’s ability to join Fleet.
+3. **Deliver technical assessment**: Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
+4. **Test technical assessment**: Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
+5. **Start the interview process**: Follow the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member) to create a "Why hire" document that will be used to consolidate interview feedback.
+6. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a Software Engineer on your team where the goal is to understand the technical capabilities of the candidate. An additional Software Engineer can optionally join if available. Share the candidate's project with the Software Engineers and ask them to review in advance so they are prepared with questions about the candidate's code.
+7. **Schedule HOP interview**: Send the candidate a calendly link for 30m talk with the Head of People @ireedy.
+8. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
+9. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
-2. **Deliver technical assessment**: Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
-3. **Test technical assessment**: Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
-5. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a Software Engineer on your team where the goal is to understand the technical capabilities of the candidate. An additional Software Engineer can optionally join if available. Share the candidate's project with the Software Engineers and ask them to review in advance so they are prepared with questions about the candidate's code.
-6. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk to the Head of Product Design @noahtalerman.
-7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
-
-If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
+If the candidate passes all of these steps, then continue with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 
 ### Perform an incident postmortem
@@ -334,7 +335,7 @@ Conduct a postmortem meetings for every service or feature outage and every crit
 3. Follow and populate document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
 4. Assign each action item an owner that who is responsible for creating a Github issue promptly and working with with the relevant PM/EM to prioritize.
 
-[Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
+[Example finished document](https://docs.google.com/document/d/1J35KUdhEaayE8Xoytxf6aVVoCXHwk2IPGk2rXHJgRNk/edit?usp=sharing)
 
 
 ### Maintain TUF repo for secure agent updates
@@ -425,13 +426,7 @@ At the end of each week, the Engineering KPIs are recorded by the engineering ou
 
 ### Edit a DNS record
 
-We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
-
-1. Log into your Cloudflare account and select the "Fleet" account.
-2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
-3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
-
-> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Luke Heath](https://fleetdm.com/handbook/engineering#team) in Slack for an invitation.
+All Fleet DNS records are managed via Terraform. Submit a PR to the appropriate Terraform file in the [Cloudflare infrastructure directory](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloudflare).
 
 
 ### Accept new Apple developer account terms

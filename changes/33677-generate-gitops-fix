@@ -1,0 +1,1 @@
+* Fixed `fleetctl generate-gitops` when MDM is not turned on

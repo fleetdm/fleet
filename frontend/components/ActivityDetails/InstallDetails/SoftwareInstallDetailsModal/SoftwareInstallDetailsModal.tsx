@@ -1,3 +1,6 @@
+/** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
+ * we use SoftwareScriptDetailsModal */
+
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -18,7 +21,7 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -53,7 +56,7 @@ export const renderContactOption = (url?: string) => (
 interface IInstallStatusMessage {
   softwareName: string;
   installResult?: ISoftwareInstallResult;
-  isDUP: boolean;
+  isMyDevicePage: boolean;
   contactUrl?: string;
 }
 
@@ -62,18 +65,21 @@ interface IInstallStatusMessage {
 export const StatusMessage = ({
   softwareName,
   installResult,
-  isDUP,
+  isMyDevicePage,
   contactUrl,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
     return (
-      <div className={`${baseClass}__status-message`}>
-        <Icon name="success" />
-        <span>
-          <b>{softwareName}</b> is installed.
-        </span>
-      </div>
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
+          </span>
+        }
+      />
     );
   }
 
@@ -107,22 +113,25 @@ export const StatusMessage = ({
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
       </>
     );
-    let middle = null;
-    if (isDUP) {
-      if (status === "failed_install") {
-        middle = <>. You can retry{renderContactOption(contactUrl)}</>;
-      }
-    } else {
-      // host details page
-      middle = (
-        <>
-          {" "}
-          ({software_package}) on {formattedHost}
-          {status === "pending_install" ? " when it comes online" : ""}
-          {displayTimeStamp}
-        </>
-      );
-    }
+
+    const middle = isMyDevicePage ? (
+      <>
+        {" "}
+        {displayTimeStamp}
+        {status === "failed_install" && (
+          <>. You can retry{renderContactOption(contactUrl)}</>
+        )}
+      </>
+    ) : (
+      <>
+        {" "}
+        ({software_package}) on {formattedHost}
+        {status === "pending_install"
+          ? " when it comes online"
+          : displayTimeStamp}
+      </>
+    );
+
     return (
       <span>
         {prefix}
@@ -133,15 +142,14 @@ export const StatusMessage = ({
   };
 
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon
-        name={
-          INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-          "pending-outline"
-        }
-      />
-      {renderStatusCopy()}
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={
+        INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
+        "pending-outline"
+      }
+      message={renderStatusCopy()}
+    />
   );
 };
 
@@ -162,7 +170,7 @@ export const ModalButtons = ({
 }: IModalButtonsProps) => {
   if (deviceAuthToken && status === "failed_install") {
     const onClickRetry = () => {
-      // on DUP, where this is relevant, both will be defined
+      // on My Device Page, where this is relevant, both will be defined
       if (onRetry && hostSoftwareId) {
         onRetry(hostSoftwareId);
       }
@@ -196,10 +204,10 @@ interface ISoftwareInstallDetailsProps {
   necessary in the details prop */
   details: IPackageInstallDetails;
   hostSoftware?: IHostSoftware; // for inventory versions, and software name when not Fleet installed (not present on activity feeds)
-  deviceAuthToken?: string; // DUP only
+  deviceAuthToken?: string; // My Device Page only
   onCancel: () => void;
-  onRetry?: (id: number) => void; // DUP only
-  contactUrl?: string; // DUP only
+  onRetry?: (id: number) => void; // My Device Page only
+  contactUrl?: string; // My Device Page only
 }
 
 export const SoftwareInstallDetailsModal = ({
@@ -349,7 +357,7 @@ export const SoftwareInstallDetailsModal = ({
         <StatusMessage
           installResult={installResultWithHostDisplayName}
           softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
-          isDUP={!!deviceAuthToken}
+          isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
 

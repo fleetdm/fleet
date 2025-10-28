@@ -91,6 +91,9 @@ const (
 	// CapabilityWebSetupExperience denotes the ability of the server to support installing software
 	// as part of a non-blocking setup experience for Linux and Windows
 	CapabilityWebSetupExperience Capability = "web_setup_experience"
+	// CapabilityMacOSWebSetupExperience denotes the ability of the server to support
+	// a web-based setup experience UI for macOS devices
+	CapabilityMacOSWebSetupExperience Capability = "macos_web_setup_experience"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -102,6 +105,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityLinuxDiskEncryptionEscrow: {},
 		CapabilitySetupExperience:           {},
 		CapabilityWebSetupExperience:        {},
+		CapabilityMacOSWebSetupExperience:   {},
 	}
 }
 
