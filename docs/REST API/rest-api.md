@@ -4168,7 +4168,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 ---
 
-### Get hosts aggregate mobile device management (MDM) and Munki information
+### Get hosts' aggregate mobile device management (MDM) and Munki information
 
 Currently supported only on macOS.
 
