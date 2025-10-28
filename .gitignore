@@ -1,5 +1,6 @@
 # binaries
 *.exe
+tools/bump-migration/main
 
 # output directories
 /build
