@@ -622,7 +622,6 @@ CREATE TABLE `host_in_house_software_installs` (
   UNIQUE KEY `idx_host_in_house_software_installs_command_uuid` (`command_uuid`),
   KEY `fk_host_in_house_software_installs_user_id` (`user_id`),
   KEY `fk_host_in_house_software_installs_in_house_app_id` (`in_house_app_id`),
-  KEY `idx_host_in_house_software_installs_verification` ((((`verification_at` is null) and (`verification_failed_at` is null)))),
   CONSTRAINT `fk_host_in_house_software_installs_in_house_app_id` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_host_in_house_software_installs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
