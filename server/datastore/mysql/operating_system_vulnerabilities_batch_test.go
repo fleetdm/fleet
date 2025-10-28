@@ -241,6 +241,29 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 			assert.Equal(t, fmt.Sprintf("CVE-2024-PLAT-%d", i), vulnData.Vulnerabilities[0].CVE)
 		}
 	}
+
+	// Test with maxVulnerabilities
+	maxVulns := 1
+	vulnsMapWithMax, err := ds.ListVulnsByMultipleOSVersions(ctx, osVersions, false, nil, &maxVulns)
+	require.NoError(t, err)
+
+	for i, osV := range osVersions {
+		key := osV.NameOnly + "-" + osV.Version
+		vulnData, ok := vulnsMapWithMax[key]
+		assert.True(t, ok, "Should have key in map for %s", key)
+
+		if osV.Platform == "linux" {
+			// Linux should have count from kernel vulnerabilities
+			assert.Greater(t, vulnData.Count, 0, "Linux platform count should be > 0 with maxVulnerabilities")
+		} else {
+			// Non-Linux should also have correct count, not 0
+			// BUG REPRODUCTION: This will fail with current code because non-Linux count becomes 0
+			// when len(linuxOSVersionMap) > 0
+			assert.Equal(t, 1, vulnData.Count, "Non-Linux platform %s should have count=1, not 0 (bug: switch on global len(linuxOSVersionMap))", osV.Platform)
+			assert.Len(t, vulnData.Vulnerabilities, 1, "Non-Linux should have 1 limited vulnerability")
+			assert.Equal(t, fmt.Sprintf("CVE-2024-PLAT-%d", i), vulnData.Vulnerabilities[0].CVE)
+		}
+	}
 }
 
 // Helper function to set up test OS versions with vulnerabilities

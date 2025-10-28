@@ -1085,15 +1085,23 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 
 		// Calculate the actual count
 		var count int
+		// Decide per key whether it's Linux or not
+		isLinuxKey := false
+		for _, k := range linuxOSVersionMap {
+			if k == key {
+				isLinuxKey = true
+				break
+			}
+		}
 		// For Linux OSs (using os_version_id), always use total_count when max_vulnerabilities is specified
 		// because the pre-aggregated table already deduplicates across kernels
 		switch {
-		case maxVulnerabilities != nil && len(linuxOSVersionMap) > 0:
-			for osVersionID, keyForOSVersionID := range linuxOSVersionMap {
-				if keyForOSVersionID == key {
-					if totalCount, exists := totalCountByOSVersionID[osVersionID]; exists {
+		case maxVulnerabilities != nil && isLinuxKey:
+			// Prefer max across os_version_ids mapped to this key to avoid undercount
+			for osVersionID, k := range linuxOSVersionMap {
+				if k == key {
+					if totalCount, ok := totalCountByOSVersionID[osVersionID]; ok && int(totalCount) > count { //nolint:gosec,G115
 						count = int(totalCount) //nolint:gosec,G115
-						break                   // All os_version_ids for this key have the same deduplicated count
 					}
 				}
 			}
