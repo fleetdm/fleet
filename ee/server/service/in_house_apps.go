@@ -89,6 +89,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		payload.Version = existingInstaller.Version
 	}
 
+	if payload.SelfService == nil {
+		payload.SelfService = &existingInstaller.SelfService
+	}
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if payloadForNewInstallerFile != nil {
 		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {

@@ -57,6 +57,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			payload.BundleID,
 			titleIDios,
 			"ios",
+			payload.SelfService,
 		}
 		argsIpad := []any{
 			tid,
@@ -67,6 +68,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			payload.BundleID,
 			titleIDipad,
 			"ipados",
+			payload.SelfService,
 		}
 
 		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
@@ -117,9 +119,10 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 		version,
 		bundle_identifier,
 		title_id,
-		platform
+		platform,
+		self_service
 	)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
@@ -181,7 +184,8 @@ SELECT
   iha.platform,
   iha.storage_id,
   st.bundle_identifier AS bundle_identifier,
-  iha.version
+  iha.version,
+	iha.self_service
 FROM
   in_house_apps iha
   JOIN software_titles st ON st.id = iha.title_id
@@ -228,15 +232,17 @@ WHERE
 func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `UPDATE in_house_apps SET
-                    storage_id = ?,
-                    name = ?,
-                    version = ?
-                 WHERE id = ?`
+			storage_id = ?,
+			name = ?,
+			version = ?,
+			self_service = ?
+	 WHERE id = ?`
 
 		args := []any{
 			payload.StorageID,
 			payload.Filename,
 			payload.Version,
+			payload.SelfService,
 			payload.InstallerID,
 		}
 
@@ -566,7 +572,8 @@ SELECT
 	hihsi.host_id AS host_id,
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
-	hihsi.command_uuid AS command_uuid
+	hihsi.command_uuid AS command_uuid,
+	hihsi.self_service AS self_service
 FROM
 	host_in_house_software_installs hihsi
 	LEFT OUTER JOIN users u ON hihsi.user_id = u.id
@@ -586,6 +593,7 @@ WHERE
 		UserName        *string `db:"user_name"`
 		UserID          *uint   `db:"user_id"`
 		UserEmail       *string `db:"user_email"`
+		SelfService     bool    `db:"self_service"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -633,6 +641,7 @@ WHERE
 		SoftwareTitle:   res.SoftwareTitle,
 		CommandUUID:     res.CommandUUID,
 		Status:          status,
+		SelfService:     res.SelfService,
 	}
 
 	return user, act, nil
