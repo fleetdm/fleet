@@ -643,6 +643,9 @@ func (e OrbitError) Error() string {
 
 // StatusCode implements the ErrWithStatusCode interface for the OrbitError.
 func (e OrbitError) StatusCode() int {
+	if e.code == 0 {
+		return http.StatusInternalServerError
+	}
 	return e.code
 }
 
