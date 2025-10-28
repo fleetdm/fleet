@@ -221,7 +221,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		if software.InHouseAppCount > 0 {
 			meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
+				return nil, ctxerr.Wrap(ctx, err, "get in house app metadata")
 			}
 			if meta != nil {
 				summary, err := svc.ds.GetSummaryHostInHouseAppInstalls(ctx, teamID, meta.InstallerID)
