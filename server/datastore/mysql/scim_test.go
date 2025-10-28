@@ -2497,18 +2497,9 @@ func testReconcileHostSCIMUserMappings(t *testing.T, ds *Datastore) {
 	// Create a test host
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	// Create an MDM IdP account and add it to mdm_idp_accounts table
-	idpAccount := &fleet.MDMIdPAccount{
-		UUID:     "test-idp-uuid",
-		Username: "testuser",
-		Email:    "testuser@example.com",
-	}
-	err := ds.InsertMDMIdPAccount(ctx, idpAccount)
-	require.NoError(t, err)
-
 	// Manually insert a host_email with mdm_idp_accounts source
 	// (normally this would be done by the reconciliation process in mdm.go)
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err := ds.writer(ctx).ExecContext(ctx,
 		"INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)",
 		host.ID, "testuser@example.com", fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
