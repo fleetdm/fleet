@@ -6,7 +6,7 @@
 
 Fleet 4.75.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.75.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
-> Fleet added Santa tables: `santa_allowed`, `santa_denied`, `santa_status`. If you already deploy a custom Santa extension (like [Trail of Bits](https://github.com/trailofbits/osquery-extensions/tree/master/santa)) with tables that have the same names (exactly), Fleet's agent will [crash](https://github.com/fleetdm/fleet/issues/34789). To resolve, update variables in [this script](https://github.com/fleetdm/fleet/blob/444c7b5238782c378a42b9d28c05dec8dee827d6/it-and-security/lib/macos/scripts/uninstall-santa-extension.sh) and run it on macOS hosts to uninstall your custom Santa extension.
+> Fleet added Santa tables: `santa_allowed`, `santa_denied`, `santa_status`. If you already deploy a custom Santa extension (like [Trail of Bits](https://github.com/trailofbits/osquery-extensions/tree/master/santa)) with tables that have the same names (exactly), Fleet's agent will [crash](https://github.com/fleetdm/fleet/issues/34789). To resolve, update variables in [this script](https://github.com/fleetdm/fleet/tree/11984cdf6fad6797e0be7d1ce927d6d9c19d51c0/docs/solutions/macOS/scripts/uninstall-santa-extension.sh) and run it on macOS hosts to uninstall your custom Santa extension.
 
 ## Highlights
 
