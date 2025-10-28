@@ -8741,7 +8741,7 @@ Please use the [queries](#queries) endpoints, which as of 4.35 have attributes s
 - [Get batch script](#get-batch-script)
 - [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script)
 - [Cancel batch script](#cancel-batch-script)
-- [Add script](#add-script)
+- [Create script](#create-script)
 - [Update script](#update-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
