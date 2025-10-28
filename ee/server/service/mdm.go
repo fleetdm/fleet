@@ -917,15 +917,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "saving account data from IdP")
 	}
 
-	// If the initiator is "setup_experience", we can insert the host idp account record
-	// right away, as the host uuid is provided in the SSO request data.
-	if ssoRequestData.Initiator == "setup_experience" && ssoRequestData.HostUUID != "" {
-		err = svc.ds.AssociateHostMDMIdPAccountDB(ctx, ssoRequestData.HostUUID, ssoRequestData.HostUUID)
-		if err != nil {
-			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
-		}
-	}
-
 	idpAcc, err := svc.ds.GetMDMIdPAccountByEmail(
 		// use the primary db as the account might have been just
 		// inserted
@@ -934,6 +925,15 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	)
 	if err != nil {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
+	}
+
+	// If the initiator is "setup_experience", we can insert the host idp account record
+	// right away, as the host uuid is provided in the SSO request data.
+	if ssoRequestData.Initiator == "setup_experience" && ssoRequestData.HostUUID != "" {
+		err = svc.ds.AssociateHostMDMIdPAccountDB(ctx, ssoRequestData.HostUUID, idpAcc.UUID)
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
+		}
 	}
 
 	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
