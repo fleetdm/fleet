@@ -19,10 +19,10 @@ const DEPSSOLoginPage = ({
   const [clickedLogin, setClickedLogin] = useState(false);
   localStorage.setItem("deviceinfo", query.deviceinfo || "");
   if (!query.initiator) {
-    query.initiator = "mdm_sso";
-    if (pathname === "/mdm/apple/account_driven_enroll/sso") {
-      query.initiator = "account_driven_enroll";
-    }
+    query.initiator =
+      pathname === "/mdm/apple/account_driven_enroll/sso"
+        ? "account_driven_enroll"
+        : "mdm_sso";
   }
   const { error } = useQuery<IMdmSSOReponse, AxiosError>(
     ["dep_sso"],
