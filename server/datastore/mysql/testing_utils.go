@@ -306,7 +306,9 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 	mu.Unlock()
 
 	var setSourceStmt string
-	if strings.Contains(version, "MariaDB") {
+	switch {
+	case strings.Contains(version, "MariaDB"):
+		// MariaDB doesn't support GET_MASTER_PUBLIC_KEY
 		setSourceStmt = fmt.Sprintf(`
 			CHANGE MASTER TO
 				MASTER_HOST='%s',
@@ -315,7 +317,8 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 				MASTER_LOG_FILE='%s',
 				MASTER_LOG_POS=%d
 		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
-	} else if strings.HasPrefix(version, "8.0") {
+	case strings.HasPrefix(version, "8.0"):
+		// MySQL 8.0
 		setSourceStmt = fmt.Sprintf(`
 			CHANGE MASTER TO
 				GET_MASTER_PUBLIC_KEY=1,
@@ -325,7 +328,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 				MASTER_LOG_FILE='%s',
 				MASTER_LOG_POS=%d
 		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
-	} else {
+	default:
 		// MySQL 8.4+
 		setSourceStmt = fmt.Sprintf(`
 			CHANGE REPLICATION SOURCE TO
