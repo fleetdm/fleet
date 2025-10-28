@@ -10,4 +10,13 @@
   &.form {
    height: auto;
   }
+
+  &__transparency-link {
+    text-align: center;
+
+    .custom-link {
+      font-size: $xxx-small;
+    }
+
+  }
 }

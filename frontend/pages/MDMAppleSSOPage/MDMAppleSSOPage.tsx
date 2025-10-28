@@ -8,6 +8,7 @@ import mdmAPI, { IMDMSSOParams } from "services/entities/mdm";
 import SSOError from "components/MDM/SSOError";
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import { IMdmSSOReponse } from "interfaces/mdm";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 
@@ -42,8 +43,8 @@ const DEPSSOLoginPage = ({
       <AuthenticationFormWrapper header="Authentication required">
         <div className={`${baseClass} form`}>
           <p>
-            Your organization requires you to log in via your Identity Provider
-            (IdP) to continue setting up your device.
+            Your organization requires you to authenticate before setting up
+            your device. Please sign in to continue.
           </p>
           <Button
             className={`${baseClass}__sso-btn`}
@@ -52,8 +53,15 @@ const DEPSSOLoginPage = ({
             onClick={() => setClickedLogin(true)}
             isLoading={clickedLogin}
           >
-            <div>Log in to your Identity Provider</div>
+            <div>Sign in</div>
           </Button>
+          <p className={`${baseClass}__transparency-link`}>
+            <CustomLink
+              text="Why am I seeing this?"
+              url="https://fleetdm.com/transparency"
+              newTab
+            />
+          </p>
         </div>
       </AuthenticationFormWrapper>
     );

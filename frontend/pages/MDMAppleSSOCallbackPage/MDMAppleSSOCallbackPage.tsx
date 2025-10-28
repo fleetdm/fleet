@@ -43,12 +43,7 @@ const EnrollmentGate = ({
     return (
       <AuthenticationFormWrapper header="Authentication complete">
         <div className={`${baseClass} form`}>
-          <p>
-            Thank you for confirming your identity.
-            <br />
-            <br />
-            You may now close this window. Setup will continue in a few moments.
-          </p>
+          <p>You’re done! You may now close this window.</p>
         </div>
       </AuthenticationFormWrapper>
     );
