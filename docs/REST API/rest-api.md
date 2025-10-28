@@ -1354,7 +1354,7 @@ None.
 }
 ```
 
-### Modify configuration
+### Update configuration
 
 Modifies the Fleet's configuration with the supplied information.
 
@@ -2263,7 +2263,7 @@ None.
 }
 ```
 
-### Modify global enroll secrets
+### Update global enroll secrets
 
 Replaces all existing global enroll secrets.
 
@@ -2358,7 +2358,7 @@ None.
 ```
 
 
-### Modify team enroll secrets
+### Update team enroll secrets
 
 Replaces all existing team enroll secrets.
 
