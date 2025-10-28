@@ -583,14 +583,14 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ## Certificates
 
-- [Add certificate authority (CA)](#add-certificate-authority-ca)
-- [Edit certificate authority (CA)](#edit-certificate-authority-ca)
+- [Connect certificate authority (CA)](#create-certificate-authority-ca)
+- [Update certificate authority (CA)](#update-certificate-authority-ca)
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Request certificate](#request-certificate)
 
-### Add certificate authority (CA)
+### Connect certificate authority (CA)
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -703,7 +703,7 @@ Object with the following structure:
 }
 ```
 
-### Edit certificate authority (CA)
+### Update certificate authority (CA)
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -1038,19 +1038,19 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Fleet configuration
 
-- [Get certificate](#get-certificate)
+- [Get Fleet certificate](#get-certificate)
 - [Get configuration](#get-configuration)
-- [Modify configuration](#modify-configuration)
+- [Update configuration](#update-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
-- [Modify global enroll secrets](#modify-global-enroll-secrets)
+- [Update global enroll secrets](#update-global-enroll-secrets)
 - [Get team enroll secrets](#get-team-enroll-secrets)
-- [Modify team enroll secrets](#modify-team-enroll-secrets)
-- [Version](#version)
+- [Update team enroll secrets](#update-team-enroll-secrets)
+- [Get version](#get-version)
 
 The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
 
 
-### Get certificate
+### Get Fleet certificate
 
 Returns the Fleet certificate.
 
@@ -2428,7 +2428,7 @@ Delete all of a team's existing enroll secrets
 }
 ```
 
-### Version
+### Get version
 
 Get version and build information from the Fleet server.
 
@@ -2461,7 +2461,6 @@ None.
 
 ## Hosts
 
-- [On the different timestamps in the host data structure](#on-the-different-timestamps-in-the-host-data-structure)
 - [List hosts](#list-hosts)
 - [Count hosts](#count-hosts)
 - [Get hosts summary](#get-hosts-summary)
@@ -2470,10 +2469,10 @@ None.
 - [Get host by device token](#get-host-by-device-token)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
-- [Transfer hosts to a team](#transfer-hosts-to-a-team)
-- [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
-- [Turn off MDM for a host](#turn-off-mdm-for-a-host)
-- [Batch-delete hosts by filter or ids](#batch-delete-hosts-by-filter-or-ids)
+- [Update hosts' team](#update-hosts-team)
+- [Update hosts' team by filter](#update-hosts-team-by-filter)
+- [Turn off host's MDM](#turn-off-hosts-mdm)
+- [Batch-delete hosts](#batch-delete-hosts)
 - [Update custom human-device mapping](#update-custom-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
@@ -2495,7 +2494,7 @@ None.
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
 - [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
-### On the different timestamps in the host data structure
+#### About host timestamps
 
 Hosts have a set of timestamps usually named with an "_at" suffix, such as created_at, enrolled_at, etc. Before we go
 through each of them and what they mean, we need to understand a bit more about how the host data structure is
@@ -3753,7 +3752,7 @@ Flags the host details, labels and policies to be refetched the next time the ho
 `Status: 200`
 
 
-### Transfer hosts to a team
+### Update hosts' team
 
 _Available in Fleet Premium_
 
@@ -3784,7 +3783,7 @@ _Available in Fleet Premium_
 `Status: 200`
 
 
-### Transfer hosts to a team by filter
+### Update hosts' team by filter
 
 _Available in Fleet Premium_
 
@@ -3831,7 +3830,7 @@ _Available in Fleet Premium_
 `Status: 200`
 
 
-### Turn off MDM for a host
+### Turn off host's MDM
 
 Turns off MDM for the specified macOS, iOS, or iPadOS host.
 
@@ -3852,7 +3851,9 @@ Turns off MDM for the specified macOS, iOS, or iPadOS host.
 `Status: 204`
 
 
-### Batch-delete hosts by filter or ids
+### Batch-delete hosts
+
+Delete hosts selected by filter or ids.
 
 `POST /api/v1/fleet/hosts/delete`
 
