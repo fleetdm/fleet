@@ -40,12 +40,15 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 	}
 
 	var tmID uint
-	var teamFilter string
+	var linuxTeamFilter string
 	baseArgs := []any{name, version, name, version}
 	if teamID != nil {
 		tmID = *teamID
-		teamFilter = "AND kernel_host_counts.team_id = ?"
+		linuxTeamFilter = "AND osvv.team_id = ?"
 		baseArgs = append(baseArgs, tmID)
+	} else {
+		// When no teamID is specified, query the "all teams" aggregated data (team_id = NULL)
+		linuxTeamFilter = "AND osvv.team_id IS NULL"
 	}
 
 	if !includeCVSS {
@@ -63,18 +66,16 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 			UNION
 
 			SELECT DISTINCT
-				software_cve.cve,
-				MIN(software_cve.created_at) created_at
+				osvv.cve,
+				MIN(osvv.created_at) created_at
 			FROM
-				software_cve
-				JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
-				JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
+				operating_system_version_vulnerabilities osvv
+				JOIN operating_systems os ON os.os_version_id = osvv.os_version_id
 			WHERE
-				operating_systems.name = ?
-				AND operating_systems.version = ?
-				AND kernel_host_counts.hosts_count > 0
-				` + teamFilter + `
-			GROUP BY software_cve.cve
+				os.name = ?
+				AND os.version = ?
+				` + linuxTeamFilter + `
+			GROUP BY osvv.cve
 		)
 		`
 
@@ -164,19 +165,17 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 		UNION
 
 		SELECT DISTINCT
-			software_cve.cve,
-			MIN(software_cve.created_at) created_at,
-			GROUP_CONCAT(DISTINCT software_cve.resolved_in_version SEPARATOR ',') resolved_in_version
+			osvv.cve,
+			MIN(osvv.created_at) created_at,
+			GROUP_CONCAT(DISTINCT osvv.resolved_in_version SEPARATOR ',') resolved_in_version
 		FROM
-			software_cve
-			JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
-			JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
+			operating_system_version_vulnerabilities osvv
+			JOIN operating_systems os ON os.os_version_id = osvv.os_version_id
 		WHERE
-			operating_systems.name = ?
-			AND operating_systems.version = ?
-			AND kernel_host_counts.hosts_count > 0
-			` + teamFilter + `
-		GROUP BY software_cve.cve
+			os.name = ?
+			AND os.version = ?
+			` + linuxTeamFilter + `
+		GROUP BY osvv.cve
 	)
 	`
 
