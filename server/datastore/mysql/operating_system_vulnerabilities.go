@@ -1085,36 +1085,42 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 
 		// Calculate the actual count
 		var count int
-		if maxVulnerabilities != nil && *maxVulnerabilities > 0 {
-			// When LIMIT was used, we need to calculate the total from the per-OSID/OSVersionID counts
-			// stored in totalCountByOSID and totalCountByOSVersionID
-			// We need to find all OSIDs/OSVersionIDs for this key and get their total counts
-
-			// For non-Linux OSs, find all OSIDs with this key
-			for osID, keyForOSID := range nonLinuxOSIDMap {
-				if keyForOSID == key {
-					if totalCount, exists := totalCountByOSID[osID]; exists {
-						// Use the total count from the database (before limiting)
-						if totalCount > uint(count) {
-							count = int(totalCount)
-						}
-					}
-				}
-			}
-
-			// For Linux OSs, find all OSVersionIDs with this key
+		// For Linux OSs (using os_version_id), always use total_count when max_vulnerabilities is specified
+		// because the pre-aggregated table already deduplicates across kernels
+		switch {
+		case maxVulnerabilities != nil && len(linuxOSVersionMap) > 0:
 			for osVersionID, keyForOSVersionID := range linuxOSVersionMap {
 				if keyForOSVersionID == key {
 					if totalCount, exists := totalCountByOSVersionID[osVersionID]; exists {
-						// Use the total count from the database (before limiting)
-						if totalCount > uint(count) {
-							count = int(totalCount)
-						}
+						count = int(totalCount) //nolint:gosec,G115
+						break                   // All os_version_ids for this key have the same deduplicated count
 					}
 				}
 			}
-		} else if cveSetByKey[key] != nil {
-			// When LIMIT was not used, count deduplicated CVEs
+		case maxVulnerabilities != nil && *maxVulnerabilities > 0:
+			osIDCount := 0
+			for _, keyForOSID := range nonLinuxOSIDMap {
+				if keyForOSID == key {
+					osIDCount++
+				}
+			}
+			if osIDCount == 1 {
+				// Single OSID: use total_count from SQL
+				for osID, keyForOSID := range nonLinuxOSIDMap {
+					if keyForOSID == key {
+						if totalCount, exists := totalCountByOSID[osID]; exists {
+							count = int(totalCount) //nolint:gosec,G115
+							break
+						}
+					}
+				}
+			} else if osIDCount > 1 {
+				// Multiple OSIDs (e.g., multi-arch): deduplicate across OSIDs using cveSetByKey
+				if cveSetByKey[key] != nil {
+					count = len(cveSetByKey[key])
+				}
+			}
+		case cveSetByKey[key] != nil:
 			count = len(cveSetByKey[key])
 		}
 
