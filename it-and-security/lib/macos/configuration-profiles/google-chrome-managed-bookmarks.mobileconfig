@@ -361,7 +361,7 @@
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>Issue: +New issue</string>
+                            <string>Issue: +New public issue</string>
                             <key>url</key>
                             <string>https://github.com/fleetdm/fleet/issues/new/choose</string>
                         </dict>
