@@ -6114,7 +6114,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 - [List setup experience software](#list-setup-experience-software)
 - [Update setup experience software (setup experience)](#update-setup-experience-software)
 - [Create setup experience script](#create-setup-experience-script)
-- [Get or download  setup experience script](#get-or-download-setup-experience-script)
+- [Get or download setup experience script](#get-or-download-setup-experience-script)
 - [Delete setup experience script](#delete-setup-experience-script)
 
 
@@ -6559,7 +6559,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Get EULA metadate
+### Get EULA metadata
 
 _Available in Fleet Premium_
 
@@ -6849,7 +6849,7 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 echo "hello"
 ```
 
-### Delete setp experience script
+### Delete setup experience script
 
 _Available in Fleet Premium_
 
@@ -7208,8 +7208,8 @@ None.
 - [Get team policies count](#get-team-policies-count)
 - [Get policy](#get-policy)
 - [Get team policy](#get-team-policy)
-- [Add policy](#add-policy)
-- [Add team policy](#add-team-policy)
+- [Create policy](#create-policy)
+- [Create team policy](#create-team-policy)
 - [Delete policies](#delete-policies)
 - [Delete team policies](#delete-team-policies)
 - [Update policy](#update-policy)
@@ -7877,6 +7877,72 @@ _Available in Fleet Premium_
 
 ---
 
+### Update policy
+
+`PATCH /api/v1/fleet/global/policies/:id`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| id          | integer | path | The policy's ID.                     |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
+
+#### Example
+
+`PATCH /api/v1/fleet/global/policies/42`
+
+##### Request body
+
+```json
+{
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "critical": true,
+  "resolution": "Resolution steps",
+  "platform": "darwin"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policy": {
+    "id": 42,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
+    "author_id": 43,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "team_id": null,
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "created_at": "2022-03-17T20:15:55Z",
+    "updated_at": "2022-03-17T20:15:55Z",
+    "passing_host_count": 0,
+    "failing_host_count": 0,
+    "host_count_updated_at": null
+  }
+}
+```
+
+---
+
 ### Update team policy
 
 _Available in Fleet Premium_
@@ -7958,70 +8024,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       "name": "Enable gatekeeper",
       "id": 1337
     }
-  }
-}
-```
-
-### Update policy
-
-`PATCH /api/v1/fleet/global/policies/:id`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                          |
-| ----------  | ------- | ---- | ------------------------------------ |
-| id          | integer | path | The policy's ID.                     |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
-| resolution  | string  | body | The resolution steps for the policy. |
-| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
-
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
-
-#### Example
-
-`PATCH /api/v1/fleet/global/policies/42`
-
-##### Request body
-
-```json
-{
-  "name": "Gatekeeper enabled",
-  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-  "description": "Checks if gatekeeper is enabled on macOS devices",
-  "critical": true,
-  "resolution": "Resolution steps",
-  "platform": "darwin"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policy": {
-    "id": 42,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "critical": true,
-    "author_id": 43,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "team_id": null,
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "created_at": "2022-03-17T20:15:55Z",
-    "updated_at": "2022-03-17T20:15:55Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
-    "host_count_updated_at": null
   }
 }
 ```
@@ -11140,7 +11142,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Get team](#get-team)
 - [Create team](#create-team)
 - [Update team](#update-team)
-- [Update team's agent options](#udpate-teams-agent-options)
+- [Add users to team](#add-users-to-team)
+- [Update team's agent options](#update-teams-agent-options)
 - [Delete team](#delete-team)
 
 ### List teams
@@ -12226,6 +12229,104 @@ None.
 }
 ```
 
+### Create user
+
+Creates a user account without requiring an invitation, the user is enabled immediately.
+By default, the user will be forced to reset its password upon first login.
+
+`POST /api/v1/fleet/users/admin`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                  |
+| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
+| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the user must click a magic link emailed to them to log in, after they successfully enter their username and password. Incompatible with SSO and API-only users. |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
+| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
+| admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
+| teams                          | array   | body | _Available in Fleet Premium_. The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+
+#### Example
+
+`POST /api/v1/fleet/users/admin`
+
+##### Request body
+
+```json
+{
+  "name": "Jane Doe",
+  "email": "janedoe@example.com",
+  "password": "test-123",
+  "api_only": true,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "api_only": true,
+    "global_role": null,
+    "teams": [
+      {
+        "id": 2,
+        "role": "observer"
+      },
+      {
+        "id": 3,
+        "role": "maintainer"
+      }
+    ]
+  },
+  "token": "{API key}"
+}
+```
+
+> Note: The new user's `token` (API key) is only included in the response after creating an api-only user (`api_only: true`).
+
+##### User doesn't exist
+
+`Status: 404 Resource Not Found`
+
+```json
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "User with id=1 was not found in the datastore"
+    }
+  ]
+}
+```
+
 ### Create user from invite
 
 Creates a user account after an invited user provides registration information and submits the form.
@@ -12331,103 +12432,6 @@ The same error will be returned whenever one of the required parameters fails th
 }
 ```
 
-### Create user
-
-Creates a user account without requiring an invitation, the user is enabled immediately.
-By default, the user will be forced to reset its password upon first login.
-
-`POST /api/v1/fleet/users/admin`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
-| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                  |
-| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
-| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
-| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
-| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the user must click a magic link emailed to them to log in, after they successfully enter their username and password. Incompatible with SSO and API-only users. |
-| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
-| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
-| admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
-| teams                          | array   | body | _Available in Fleet Premium_. The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
-
-#### Example
-
-`POST /api/v1/fleet/users/admin`
-
-##### Request body
-
-```json
-{
-  "name": "Jane Doe",
-  "email": "janedoe@example.com",
-  "password": "test-123",
-  "api_only": true,
-  "teams": [
-    {
-      "id": 2,
-      "role": "observer"
-    },
-    {
-      "id": 3,
-      "role": "maintainer"
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "user": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 5,
-    "name": "Jane Doe",
-    "email": "janedoe@example.com",
-    "enabled": true,
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false,
-    "mfa_enabled": false,
-    "api_only": true,
-    "global_role": null,
-    "teams": [
-      {
-        "id": 2,
-        "role": "observer"
-      },
-      {
-        "id": 3,
-        "role": "maintainer"
-      }
-    ]
-  },
-  "token": "{API key}"
-}
-```
-
-> Note: The new user's `token` (API key) is only included in the response after creating an api-only user (`api_only: true`).
-
-##### User doesn't exist
-
-`Status: 404 Resource Not Found`
-
-```json
-{
-  "message": "Resource Not Found",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "User with id=1 was not found in the datastore"
-    }
-  ]
-}
-```
 
 ### Get user
 
@@ -12738,6 +12742,8 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 #### Example
 
+`POST /api/v1/fleet/invites`
+
 ##### Request body
 
 ```json
@@ -12759,8 +12765,6 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
   ]
 }
 ```
-
-`POST /api/v1/fleet/invites`
 
 ##### Default response
 
@@ -13017,7 +13021,7 @@ Verify the specified invite.
 
 The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
-### Get summary of errors
+### Get errors
 
 Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
 
