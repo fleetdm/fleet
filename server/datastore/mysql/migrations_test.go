@@ -165,7 +165,7 @@ func TestMigrations(t *testing.T) {
 
 	// Dump schema to dumpfile
 	cmd := exec.Command( // nolint:gosec // Waive G204 since this is a test file
-		"docker", "compose", "exec", "-T", "mysql_test",
+		"docker", "compose", "exec", "-T", "database_test",
 		// Command run inside container
 		"mysqldump", "-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword, "TestMigrations", "--compact", "--skip-comments",
 	)

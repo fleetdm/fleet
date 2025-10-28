@@ -68,7 +68,11 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
 	// This ensures we catch data truncation errors and other strict behaviors during testing
 	// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
-	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(common_mysql.TestSQLMode), WithFleetConfig(&tc))
+	sqlMode := common_mysql.TestSQLMode
+	if testing_utils.TestDBClient == "mariadb" {
+		sqlMode = common_mysql.TestSQLModeMariaDB
+	}
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(sqlMode), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -79,7 +83,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
 			Logger:              log.NewNopLogger(),
-			SqlMode:             common_mysql.TestSQLMode,
+			SqlMode:             sqlMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
@@ -142,7 +146,8 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
 			_, err := replica.ExecContext(ctx, stmt)
 			// If the FK was already removed do nothing
-			if err != nil && strings.Contains(err.Error(), "check that column/key exists") {
+			// MySQL says "check that column/key exists", MariaDB says "check that it exists"
+			if err != nil && (strings.Contains(err.Error(), "check that column/key exists") || strings.Contains(err.Error(), "check that it exists")) {
 				continue
 			}
 
@@ -263,9 +268,9 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 		func() {
 			// Stop replica
 			if out, err := exec.Command(
-				"docker", "compose", "exec", "-T", "mysql_replica_test",
+				"docker", "compose", "exec", "-T", testing_utils.TestDBReplicaService,
 				// Command run inside container
-				"mysql",
+				testing_utils.TestDBClient,
 				"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 				"-e",
 				"STOP REPLICA; RESET REPLICA ALL;",
@@ -300,42 +305,64 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 	databasesToReplicate = strings.TrimPrefix(databasesToReplicate+fmt.Sprintf(", `%s`", testName), ",")
 	mu.Unlock()
 
-	setSourceStmt := fmt.Sprintf(`
-			CHANGE REPLICATION SOURCE TO
-				GET_SOURCE_PUBLIC_KEY=1,
-				SOURCE_HOST='mysql_test',
-				SOURCE_USER='%s',
-				SOURCE_PASSWORD='%s',
-				SOURCE_LOG_FILE='%s',
-				SOURCE_LOG_POS=%d
-		`, replicaUser, replicaPassword, ms.File, ms.Position)
-	if strings.HasPrefix(version, "8.0") {
+	var setSourceStmt string
+	switch {
+	case strings.Contains(version, "MariaDB"):
+		// MariaDB doesn't support GET_MASTER_PUBLIC_KEY
 		setSourceStmt = fmt.Sprintf(`
 			CHANGE MASTER TO
-				GET_MASTER_PUBLIC_KEY=1,
-				MASTER_HOST='mysql_test',
+				MASTER_HOST='%s',
 				MASTER_USER='%s',
 				MASTER_PASSWORD='%s',
 				MASTER_LOG_FILE='%s',
 				MASTER_LOG_POS=%d
-		`, replicaUser, replicaPassword, ms.File, ms.Position)
+		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
+	case strings.HasPrefix(version, "8.0"):
+		// MySQL 8.0
+		setSourceStmt = fmt.Sprintf(`
+			CHANGE MASTER TO
+				GET_MASTER_PUBLIC_KEY=1,
+				MASTER_HOST='%s',
+				MASTER_USER='%s',
+				MASTER_PASSWORD='%s',
+				MASTER_LOG_FILE='%s',
+				MASTER_LOG_POS=%d
+		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
+	default:
+		// MySQL 8.4+
+		setSourceStmt = fmt.Sprintf(`
+			CHANGE REPLICATION SOURCE TO
+				GET_SOURCE_PUBLIC_KEY=1,
+				SOURCE_HOST='%s',
+				SOURCE_USER='%s',
+				SOURCE_PASSWORD='%s',
+				SOURCE_LOG_FILE='%s',
+				SOURCE_LOG_POS=%d
+		`, testing_utils.TestDBService, replicaUser, replicaPassword, ms.File, ms.Position)
+	}
+
+	// MariaDB doesn't support CHANGE REPLICATION FILTER, so we skip it for MariaDB
+	// This means it will replicate all databases
+	filterStmt := ""
+	if !strings.Contains(version, "MariaDB") {
+		filterStmt = fmt.Sprintf("CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );", databasesToReplicate)
 	}
 
 	// Configure replica and start replication
 	if out, err := exec.Command(
-		"docker", "compose", "exec", "-T", "mysql_replica_test",
+		"docker", "compose", "exec", "-T", testing_utils.TestDBReplicaService,
 		// Command run inside container
-		"mysql",
+		testing_utils.TestDBClient,
 		"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		"-e",
 		fmt.Sprintf(
 			`
 			STOP REPLICA;
 			RESET REPLICA ALL;
-			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );
+			%s
 			%s;
 			START REPLICA;
-			`, databasesToReplicate, setSourceStmt,
+			`, filterStmt, setSourceStmt,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)
@@ -362,7 +389,12 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 // test.
 func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
-	schemaPath := path.Join(path.Dir(filename), "schema.sql")
+	schemaFile := "schema.sql"
+	// Use MariaDB-compatible schema if using MariaDB
+	if testing_utils.TestDBClient == "mariadb" {
+		schemaFile = "schema-mariadb.sql"
+	}
+	schemaPath := path.Join(path.Dir(filename), schemaFile)
 	testing_utils.LoadSchema(t, testName, opts, schemaPath)
 	return connectMySQL(t, testName, opts)
 }
@@ -774,7 +806,8 @@ type MasterStatus struct {
 
 func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (MasterStatus, error) {
 	stmt := "SHOW BINARY LOG STATUS"
-	if strings.HasPrefix(mysqlVersion, "8.0") {
+	// MySQL 8.0 and MariaDB use "SHOW MASTER STATUS"
+	if strings.HasPrefix(mysqlVersion, "8.0") || strings.Contains(mysqlVersion, "MariaDB") {
 		stmt = "SHOW MASTER STATUS"
 	}
 

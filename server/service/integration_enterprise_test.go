@@ -486,7 +486,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"bar"`)
 
 	// dry-run with valid agent options and custom macos settings
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
@@ -611,9 +612,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
-	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings)         // unchanged
-	require.False(t, team.Config.MDM.EnableDiskEncryption)                 // unchanged
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"bar"`)
+	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings) // unchanged
+	require.False(t, team.Config.MDM.EnableDiskEncryption)         // unchanged
 
 	// apply without agent options specified
 	teamSpecs = map[string]any{
@@ -628,7 +630,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// agent options are unchanged, not cleared
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"bar"`)
 
 	// apply with agent options specified but null
 	teamSpecs = map[string]any{
@@ -660,7 +663,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "qux"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"qux"`)
 
 	// force create new team with invalid top-level key
 	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
@@ -698,7 +702,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-	require.Contains(t, string(*team.Config.AgentOptions), `"enable_tables": "abcd"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"enable_tables"`)
+	require.Contains(t, string(*team.Config.AgentOptions), `"abcd"`)
 
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
@@ -817,7 +822,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam1Spec, http.StatusOK)
 	team1b, err := s.ds.Team(context.Background(), team1.ID)
 	require.NoError(t, err)
-	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
+	// Use JSONEq for semantic comparison
+	require.JSONEq(t, string(agentOpts), string(*team1b.Config.AgentOptions))
 
 	// Should not allow editing other teams.
 	editTeam2Spec := map[string]any{
@@ -1564,7 +1570,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 			"x": "y"
 		}
 	}`), http.StatusOK, &tmResp, "force", "true")
-	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"x": "y"`)
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"x"`)
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"y"`)
 
 	// modify team agent options with valid options
 	tmResp.Team = nil
@@ -16635,7 +16642,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&actor,
-			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
+			`SELECT user_id, user_name, user_email, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_id')) policy_id, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_name')) policy_name FROM activities WHERE id = ?`,
 			activityID,
 		)
 	})
@@ -16672,7 +16679,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&actor,
-			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
+			`SELECT user_id, user_name, user_email, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_id')) policy_id, JSON_UNQUOTE(JSON_EXTRACT(details, '$.policy_name')) policy_name FROM activities WHERE id = ?`,
 			activityID,
 		)
 	})

@@ -1809,7 +1809,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	}
 
 	// NOTE: if you change any of the conditions in this query, please
-	// update the `hostMDMSelect` constant too, which has a
+	// update the Datastore.hostMDMSelect() method too, which has a
 	// `connected_to_fleet` condition, any relevant filters, and the
 	// query used in isAppleHostConnectedToFleetMDM.
 	const appleStmt = `
@@ -1827,7 +1827,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	}
 
 	// NOTE: if you change any of the conditions in this query, please
-	// update the `hostMDMSelect` constant too, which has a
+	// update the Datastore.hostMDMSelect() method too, which has a
 	// `connected_to_fleet` condition, and any relevant filters, and the
 	// query used in isWindowsHostConnectedToFleetMDM.
 	const winStmt = `
