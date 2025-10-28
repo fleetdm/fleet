@@ -2,18 +2,25 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
 func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
+	ctx := context.Background()
 	t := s.T()
 
 	appConf, err := s.ds.AppConfig(context.Background())
@@ -65,6 +72,10 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 			Url:  EnterpriseSignupURL,
 			Name: "signupUrls/Cb08124d0999c464f",
 		}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return nil, nil
 	}
 
 	// Create enterprise
@@ -147,5 +158,60 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		http.StatusOK,
 		&addAppResp,
 	)
+
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	deviceID1 := createAndroidDeviceID("test-android")
+	deviceID2 := createAndroidDeviceID("test-android-2")
+
+	enterpriseSpecificID1 := strings.ToUpper(uuid.New().String())
+	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
+	var req android_service.PubSubPushRequest
+	for _, d := range []struct {
+		id  string
+		esi string
+	}{{deviceID1, enterpriseSpecificID1}, {deviceID2, enterpriseSpecificID2}} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
+			t,
+			androidmanagement.Device{
+				Name:                d.id,
+				EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+			},
+			d.esi,
+		)
+
+		req = android_service.PubSubPushRequest{
+			PubSubMessage: *enrollmentMessage,
+		}
+
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
+
+	assert.Len(t, hosts.Hosts, 2)
+
+	host1 := hosts.Hosts[0]
+	assert.Equal(t, host1.Platform, string(fleet.AndroidPlatform))
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "software_titles")
+		mysql.DumpTable(t, q, "vpp_apps")
+		mysql.DumpTable(t, q, "vpp_apps_teams")
+		return nil
+	})
+
+	// Should see it in host software library
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	assert.Len(t, getHostSw.Software, 1)
 
 }

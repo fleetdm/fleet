@@ -178,7 +178,7 @@ type VPPAppResponse struct {
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
-	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+	Platform InstallableDevicePlatform `json:"platform" db:"platform"`
 
 	//// Custom icon fields (blank if not set)
 

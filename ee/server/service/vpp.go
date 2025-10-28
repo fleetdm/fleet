@@ -315,8 +315,8 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 	return apps, nil
 }
 
-func getPlatformsFromSupportedDevices(supportedDevices []string) map[fleet.AppleDevicePlatform]struct{} {
-	platforms := make(map[fleet.AppleDevicePlatform]struct{}, 1)
+func getPlatformsFromSupportedDevices(supportedDevices []string) map[fleet.InstallableDevicePlatform]struct{} {
+	platforms := make(map[fleet.InstallableDevicePlatform]struct{}, 1)
 	if len(supportedDevices) == 0 {
 		platforms[fleet.MacOSPlatform] = struct{}{}
 		return platforms
@@ -353,8 +353,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if appID.Platform == "" {
 		return 0, fleet.NewInvalidArgumentError("platform", "platform is required")
 	}
-	// TODO(JVE): make a helper to check this
-	if appID.Platform != fleet.IOSPlatform && appID.Platform != fleet.IPadOSPlatform && appID.Platform != fleet.MacOSPlatform && appID.Platform != fleet.AndroidPlatform {
+
+	if !appID.Platform.IsValidInstallableDevicePlatform() {
 		return 0, fleet.NewInvalidArgumentError("platform",
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}
@@ -544,10 +544,10 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 
 	// Map of adamID to platform, then to whether it's available as self-service
 	// and installed during setup.
-	adamIDMap := make(map[string]map[fleet.AppleDevicePlatform]fleet.VPPAppTeam)
+	adamIDMap := make(map[string]map[fleet.InstallableDevicePlatform]fleet.VPPAppTeam)
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
-			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]fleet.VPPAppTeam, 1)
+			adamIDMap[id.AdamID] = make(map[fleet.InstallableDevicePlatform]fleet.VPPAppTeam, 1)
 			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{
 				SelfService:        id.SelfService,
 				InstallDuringSetup: id.InstallDuringSetup,

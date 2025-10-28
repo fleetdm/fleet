@@ -2175,7 +2175,7 @@ type ActivityAddedAppStoreApp struct {
 	AppStoreID       string                  `json:"app_store_id"`
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
+	Platform         InstallableDevicePlatform     `json:"platform"`
 	SelfService      bool                    `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
@@ -2221,7 +2221,7 @@ type ActivityDeletedAppStoreApp struct {
 	AppStoreID       string                  `json:"app_store_id"`
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
+	Platform         InstallableDevicePlatform     `json:"platform"`
 	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
@@ -2312,7 +2312,7 @@ type ActivityEditedAppStoreApp struct {
 	AppStoreID       string                  `json:"app_store_id"`
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
-	Platform         AppleDevicePlatform     `json:"platform"`
+	Platform         InstallableDevicePlatform     `json:"platform"`
 	SelfService      bool                    `json:"self_service"`
 	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`

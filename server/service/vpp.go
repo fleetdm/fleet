@@ -52,7 +52,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 type addAppStoreAppRequest struct {
 	TeamID           *uint                     `json:"team_id"`
 	AppStoreID       string                    `json:"app_store_id"`
-	Platform         fleet.AppleDevicePlatform `json:"platform"`
+	Platform         fleet.InstallableDevicePlatform `json:"platform"`
 	SelfService      bool                      `json:"self_service"`
 	AutomaticInstall bool                      `json:"automatic_install"`
 	LabelsIncludeAny []string                  `json:"labels_include_any"`

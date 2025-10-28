@@ -866,6 +866,7 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string, hostUUIDs map[string]struct{}) error {
 
 	// TODO(JVE): I think this should go in a job, since this could be a lot of hosts
+	hostUUIDs["1"] = struct{}{}
 	for uuid := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
 

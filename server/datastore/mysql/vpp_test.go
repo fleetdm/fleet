@@ -458,7 +458,7 @@ func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, a
 
 	err := ds.InsertHostVPPSoftwareInstall(ctx, host.ID, fleet.VPPAppID{
 		AdamID:   adamID,
-		Platform: fleet.AppleDevicePlatform(host.Platform),
+		Platform: fleet.InstallableDevicePlatform(host.Platform),
 	}, cmdUUID, eventID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	return cmdUUID

@@ -1847,13 +1847,17 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
-	if host.Platform == "windows" {
+	switch host.Platform {
+	case "windows":
 		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
-	} else if host.Platform == "darwin" || host.Platform == "ipados" || host.Platform == "ios" {
+	case "darwin", "ipados", "ios":
 		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	case "android":
+		// Android hosts can only enroll via MDM
+		return true, nil
+	default:
+		return false, nil
 	}
-
-	return false, nil
 }
 
 func batchSetProfileVariableAssociationsDB(

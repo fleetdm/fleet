@@ -1022,17 +1022,20 @@ const (
 	IPadOS
 )
 
-// TODO(JVE): rename this since it's not just Apple platforms anymore
-type AppleDevicePlatform string
+type InstallableDevicePlatform string
 
 const (
-	MacOSPlatform   AppleDevicePlatform = "darwin"
-	IOSPlatform     AppleDevicePlatform = "ios"
-	IPadOSPlatform  AppleDevicePlatform = "ipados"
-	AndroidPlatform AppleDevicePlatform = "android"
+	MacOSPlatform   InstallableDevicePlatform = "darwin"
+	IOSPlatform     InstallableDevicePlatform = "ios"
+	IPadOSPlatform  InstallableDevicePlatform = "ipados"
+	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var VPPAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+func (p InstallableDevicePlatform) IsValidInstallableDevicePlatform() bool {
+	return p == IOSPlatform || p == IPadOSPlatform || p == MacOSPlatform || p == AndroidPlatform
+}
+
+var VPPAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
 
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`

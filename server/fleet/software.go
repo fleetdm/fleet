@@ -571,7 +571,7 @@ type VPPBatchPayload struct {
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string              `json:"app_store_id"`
 	SelfService        bool                `json:"self_service"`
-	Platform           AppleDevicePlatform `json:"platform"`
+	Platform           InstallableDevicePlatform `json:"platform"`
 	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string            `json:"labels_include_any"`

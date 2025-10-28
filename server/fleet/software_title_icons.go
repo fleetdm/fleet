@@ -56,7 +56,7 @@ type DetailsForSoftwareIconActivity struct {
 	TeamID              uint                    `db:"team_id"`
 	SelfService         bool                    `db:"self_service"`
 	SoftwareTitleID     uint                    `db:"software_title_id"`
-	Platform            *AppleDevicePlatform    `json:"platform"`
+	Platform            *InstallableDevicePlatform    `json:"platform"`
 	LabelsIncludeAny    []ActivitySoftwareLabel `db:"-"`
 	LabelsExcludeAny    []ActivitySoftwareLabel `db:"-"`
 }
