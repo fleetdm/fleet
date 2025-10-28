@@ -19,20 +19,21 @@ const baseClass = "paginated-list";
 // the list of dirty items.
 export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
-  reload: () => Promise<void>;
 }
 interface IPaginatedListProps<TItem> {
   /** Function to fetch one page of data.
   Parents should memoize this function with useCallback() so that
   it is only called when needed. */
-  fetchPage: (pageNumber: number) => Promise<TItem[]>;
+  data: TItem[];
   /** if the parent already knows the number of items. If `fetchCount` is also defined, it will be
   called and its result used to replace count in local state. */
   count?: number;
-  /** If the parent doens't alreayd know the numberof items, use this function to fetch the total # of items.
-  Parents should memoize this function with useCallback() so that
-  it is only called when needed. */
-  fetchCount?: () => Promise<number>;
+  /** if the parent is currently loading data */
+  isLoading?: boolean;
+  /** index of the currently displayed page */
+  currentPage: number;
+  /** callback when the page index changes */
+  onChangePage: (pageIndex: number) => void;
   /** UID property in an item. Defaults to `id`. */
   idKey?: string;
   /** Property to use as an item's label. Defaults to `name`. */
@@ -70,17 +71,17 @@ interface IPaginatedListProps<TItem> {
   disabled?: boolean;
   /** also requires an `isSelected` function be passed in for correct functionality */
   useCheckBoxes?: boolean;
-  /** Allow the parent to trigger the loading overlay */
-  ancestralUpdating?: boolean;
   /** Help text to display below the list and above the pagination controls */
   helpText?: React.ReactNode;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
   {
-    fetchPage,
+    data,
     count,
-    fetchCount,
+    isLoading = false,
+    currentPage = 0,
+    onChangePage,
     idKey: _idKey,
     labelKey: _labelKey,
     pageSize: _pageSize,
@@ -95,103 +96,18 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     disabled = false,
     heading,
     useCheckBoxes = true,
-    ancestralUpdating = false,
     helpText,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
-  // The # of the page to display.
-  const [currentPage, setCurrentPage] = useState(0);
-  // The set of items fetched via `fetchPage`.
-  const [items, setItems] = useState<TItem[]>([]);
-  // The total # of items passed in from parent or fetched via `fetchCount`.
-  const [totalItems, setTotalItems] = useState(count || 0);
   // The set of items that have been changed in some way.
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
-  const [isLoadingCount, setIsLoadingCount] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
-
-  // When the current page # changes, fetch a new page of data.
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function loadPage() {
-      try {
-        setIsLoadingPage(true);
-        setError(null);
-        const result = await fetchPage(currentPage);
-        if (!isCancelled) {
-          setItems(result);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          setError(err as Error);
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingPage(false);
-        }
-      }
-    }
-
-    loadPage();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [currentPage, fetchPage]);
-
-  // Fetch the total # of items.
-  // This will generally only happen once, assuming the parent
-  // uses useCallback() to memoize the fetchCount function.
-  // To retrigger this (for example, after an item is added or removed),
-  // the parent can add dependencies to the useCallback().
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function loadCount() {
-      try {
-        if (!fetchCount) {
-          return;
-        }
-        setIsLoadingCount(true);
-        const result = await fetchCount();
-        if (!isCancelled) {
-          setTotalItems(result);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          setError(err as Error);
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingCount(false);
-        }
-      }
-    }
-
-    loadCount();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [fetchCount]);
-
-  // If the total items count is passed in, set it.
-  // This is useful if the parent already knows the total count
-  // and doesn't need to fetch it.
-  useEffect(() => {
-    // If the total items count is passed in, set it.
-    if (count !== undefined && count !== null) {
-      setTotalItems(count);
-    }
-  }, [count]);
 
   // Whenever the dirty items list changes, notify the parent.
   useEffect(() => {
@@ -206,23 +122,11 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     getDirtyItems() {
       return Object.values(dirtyItems);
     },
-    reload: async () => {
-      try {
-        setIsLoadingPage(true);
-        setError(null);
-        const result = await fetchPage(currentPage);
-        setItems(result);
-      } catch (e) {
-        setError(e as Error);
-      } finally {
-        setIsLoadingPage(false);
-      }
-    },
   }));
 
-  const disableNext = !totalItems
-    ? items.length < pageSize
-    : currentPage * pageSize + items.length >= totalItems;
+  const disableNext = !count
+    ? data.length < pageSize
+    : currentPage * pageSize + data.length >= count;
 
   // TODO -- better error state?
   if (error) return <p>Error: {error.message}</p>;
@@ -233,7 +137,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   });
   return (
     <div className={classes}>
-      {(ancestralUpdating || isLoadingPage || isLoadingCount) && (
+      {isLoading && (
         <div className="loading-overlay">
           <Spinner />
         </div>
@@ -244,7 +148,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
             {heading}
           </li>
         )}
-        {items.map((_item) => {
+        {data.map((_item) => {
           // If an item has been marked as changed, use the changed version
           // of the item rather than the one from the page fetch.  This allows
           // us to render an item correctly even after we've navigated away
@@ -308,8 +212,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
       <Pagination
         disablePrev={currentPage === 0}
         disableNext={disableNext}
-        onNextPage={() => setCurrentPage(currentPage + 1)}
-        onPrevPage={() => setCurrentPage(currentPage - 1)}
+        onNextPage={() => onChangePage(currentPage + 1)}
+        onPrevPage={() => onChangePage(currentPage - 1)}
         hidePagination={currentPage === 0 && disableNext}
       />
     </div>

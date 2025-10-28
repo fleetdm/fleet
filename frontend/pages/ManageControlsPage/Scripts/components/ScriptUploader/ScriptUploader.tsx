@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React from "react";
 
 import FileUploader from "components/FileUploader";
 import { getFileDetails } from "utilities/file/fileUtils";
