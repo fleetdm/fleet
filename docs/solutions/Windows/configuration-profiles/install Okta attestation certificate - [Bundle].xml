@@ -1,8 +1,9 @@
 <Add>
+  <!-- Okta needs this certificate deployed to the Users cert store. Using the ./Device LocURI will result in the device not being marked as managed -->
   <!-- Name of SCEP node -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">node</Format>
@@ -13,7 +14,7 @@
   <!-- Retry count for SCEP installation -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryCount</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryCount</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -25,7 +26,7 @@
   <!-- Retry delay for SCEP installation -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryDelay</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryDelay</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -37,7 +38,7 @@
   <!-- Key Usage - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyUsage</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyUsage</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -49,7 +50,7 @@
   <!-- Key Length - min 2048 for Okta -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyLength</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyLength</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -61,19 +62,19 @@
   <!-- Hash Algorithm - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/HashAlgorithm</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/HashAlgorithm</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
     </Meta>
-    <Data>SHA-1</Data>
+    <Data>SHA-2</Data>
   </Item>
 </Add>
 <Add>
   <!-- CN - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/SubjectName</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/SubjectName</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -85,7 +86,7 @@
   <!-- Extended Key Usage - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/EKUMapping</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/EKUMapping</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -97,7 +98,7 @@
   <!-- SCEP Server URL -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/ServerURL</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/ServerURL</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -107,9 +108,10 @@
 </Add>
 <Add>
   <!-- SCEP Challenge - Does not need to be b64 -->
+  <!-- Best practice is not to include special characters. Underscores will break deployment. SCEP: Certificate enroll failed. Result: (The string contains a non-printable character.) -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/Challenge</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/Challenge</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -118,10 +120,10 @@
   </Item>
 </Add>
 <Add>
-  <!-- SCEP CA Thumbprint - Download Okta CA (if using) and specify thumbprint here -->
+  <!-- SCEP CA Thumbprint (SHA-256) - Download Okta CA (if using) and specify thumbprint here -->
   <Item>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/CAThumbprint</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/CAThumbprint</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
