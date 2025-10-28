@@ -30,7 +30,7 @@ This page includes a list of available resources and their API routes.
 - [Log in](#log-in)
 - [Log out](#log-out)
 - [Forgot password](#forgot-password)
-- [Change password](#change-password)
+- [Update password](#update-password)
 - [Reset password](#reset-password)
 - [Me](#me)
 - [SSO config](#sso-config)
@@ -213,7 +213,7 @@ Sends a password reset email to the specified email. Requires that SMTP or SES i
 
 ---
 
-### Change password
+### Update password
 
 `POST /api/v1/fleet/change_password`
 
