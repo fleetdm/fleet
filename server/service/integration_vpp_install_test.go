@@ -1289,7 +1289,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	// Get title ID
 	var titleID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE name = 'ipa_test'")
+		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'")
 	})
 
 	// TODO: uncomment once this endpoint supports in house apps

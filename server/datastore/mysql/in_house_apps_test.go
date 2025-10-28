@@ -55,6 +55,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		TeamID:           &team.ID,
 		UserID:           user1.ID,
 		Title:            "foo",
+		Filename:         "foo.ipa",
 		BundleIdentifier: "com.foo",
 		StorageID:        "testingtesting123",
 		Platform:         "ios",
@@ -75,14 +76,22 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 
 	// both ios and ipados apps are created, both installer and title
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		var countI uint
-		var countS uint
+		var countI, countS uint
+		var ihaFilename, titleName string
+
 		errI := sqlx.GetContext(ctx, q, &countI, `SELECT COUNT(*) FROM in_house_apps`)
-		errS := sqlx.GetContext(ctx, q, &countS, `SELECT COUNT(*) FROM software_titles`)
 		require.NoError(t, errI)
-		require.NoError(t, errS)
 		require.Equal(t, uint(2), countI)
+		errS := sqlx.GetContext(ctx, q, &countS, `SELECT COUNT(*) FROM software_titles`)
+		require.NoError(t, errS)
 		require.Equal(t, uint(2), countS)
+
+		errI = sqlx.GetContext(ctx, q, &ihaFilename, `SELECT filename FROM in_house_apps WHERE id = ?`, installerID)
+		require.NoError(t, errI)
+		require.Equal(t, "foo.ipa", ihaFilename)
+		errS = sqlx.GetContext(ctx, q, &titleName, `SELECT name FROM software_titles WHERE id = ?`, titleID)
+		require.NoError(t, errS)
+		require.Equal(t, "foo", titleName)
 		return nil
 	})
 
