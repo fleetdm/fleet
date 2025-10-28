@@ -1,3 +1,7 @@
+/** This modal is only used for VPP apps and their related installations.
+ * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
+ *  we use SoftwareIpaInstallDetailsModal with the command_uuid. */
+
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
