@@ -100,7 +100,6 @@ export const getDeviceVppCommandResultHandler = http.get(
       "notnow-uuid": "NotNow",
       "acknowledged-uuid": "Acknowledged",
       "uuid-failed": "Failed",
-      // Add more cases as needed
     };
     const status =
       statusMap[uuid as "notnow-uuid" | "acknowledged-uuid" | "uuid-failed"] ||
