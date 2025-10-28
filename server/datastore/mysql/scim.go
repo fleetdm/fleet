@@ -1387,15 +1387,15 @@ func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, erro
 	return true, nil
 }
 
-// ReconcileHostSCIMUserMappings finds hosts with mdm_idp_accounts emails but no SCIM user mapping
+// ReconcileHostSCIMUserMappings finds hosts with mdm_idp_accounts or idp emails but no SCIM user mapping
 // and attempts to create the mapping based on email/username matching
 func (ds *Datastore) ReconcileHostSCIMUserMappings(ctx context.Context) error {
-	// Find hosts with mdm_idp_accounts emails but no corresponding host_scim_user records
+	// Find hosts with mdm_idp_accounts or idp emails but no corresponding host_scim_user records
 	const findUnmappedHostsQuery = `
 		SELECT he.host_id, he.email
 		FROM host_emails he
 		LEFT JOIN host_scim_user hsu ON he.host_id = hsu.host_id
-		WHERE he.source = ?
+		WHERE he.source IN (?, ?)
 		  AND hsu.host_id IS NULL
 		LIMIT 100  -- Process in batches to avoid long-running queries
 	`
@@ -1405,8 +1405,8 @@ func (ds *Datastore) ReconcileHostSCIMUserMappings(ctx context.Context) error {
 		Email  string `db:"email"`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &unmappedHosts, findUnmappedHostsQuery, fleet.DeviceMappingMDMIdpAccounts); err != nil {
-		return ctxerr.Wrap(ctx, err, "find hosts with mdm_idp_accounts emails but no SCIM user mapping")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &unmappedHosts, findUnmappedHostsQuery, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP); err != nil {
+		return ctxerr.Wrap(ctx, err, "find hosts with mdm_idp_accounts or idp emails but no SCIM user mapping")
 	}
 
 	if len(unmappedHosts) == 0 {

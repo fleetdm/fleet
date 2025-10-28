@@ -2566,4 +2566,44 @@ func testReconcileHostSCIMUserMappings(t *testing.T, ds *Datastore) {
 	_, err = ds.ScimUserByHostID(ctx, host2.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// Test 5: Test with DeviceMappingIDP source
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)",
+		host3.ID, "idpuser@example.com", fleet.DeviceMappingIDP)
+	require.NoError(t, err)
+
+	// Verify no SCIM user mapping exists yet
+	_, err = ds.ScimUserByHostID(ctx, host3.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Create a SCIM user with matching email for IDP source
+	scimUser2 := &fleet.ScimUser{
+		UserName:   "idpuser@example.com",
+		GivenName:  ptr.String("IDP"),
+		FamilyName: ptr.String("User"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "idpuser@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+	}
+	scimUser2ID, err := ds.CreateScimUser(ctx, scimUser2)
+	require.NoError(t, err)
+	scimUser2.ID = scimUser2ID
+
+	// Run reconciliation - should create mapping for IDP source
+	err = ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Verify mapping was created for host3
+	retrievedUser2, err := ds.ScimUserByHostID(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUser2.ID, retrievedUser2.ID)
+	require.Equal(t, scimUser2.UserName, retrievedUser2.UserName)
 }
