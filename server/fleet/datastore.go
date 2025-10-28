@@ -2327,6 +2327,9 @@ type Datastore interface {
 	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
+	// ReconcileHostSCIMUserMappings finds hosts with mdm_idp_accounts emails but no SCIM user mapping
+	// and attempts to create the mapping based on email/username matching
+	ReconcileHostSCIMUserMappings(ctx context.Context) error
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) error
 	// DeleteScimUser deletes a SCIM user from the database

@@ -1084,6 +1084,12 @@ func newFrequentCleanupsSchedule(
 			err = lq.CleanupInactiveQueries(ctx, completed)
 			return err
 		}),
+		schedule.WithJob("reconcile_host_scim_user_mappings", func(ctx context.Context) error {
+			// Reconcile hosts with mdm_idp_accounts emails but no SCIM user mapping
+			// This helps fill gaps when SCIM users are provisioned after MDM enrollment
+			// or when automatic matching during SCIM user creation fails
+			return ds.ReconcileHostSCIMUserMappings(ctx)
+		}),
 	)
 
 	return s, nil

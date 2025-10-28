@@ -43,6 +43,7 @@ func TestScim(t *testing.T) {
 		{"ListScimGroups", testListScimGroups},
 		{"ScimLastRequest", testScimLastRequest},
 		{"ScimUsersExist", testScimUsersExist},
+		{"ReconcileHostSCIMUserMappings", testReconcileHostSCIMUserMappings},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
@@ -2488,4 +2489,90 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, user1.ID, result.ID)
 	assert.Equal(t, "mapping-test-user1", result.UserName)
+}
+
+func testReconcileHostSCIMUserMappings(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a test host
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Create an MDM IdP account and add it to mdm_idp_accounts table
+	idpAccount := &fleet.MDMIdPAccount{
+		UUID:     "test-idp-uuid",
+		Username: "testuser",
+		Email:    "testuser@example.com",
+	}
+	err := ds.InsertMDMIdPAccount(ctx, idpAccount)
+	require.NoError(t, err)
+
+	// Manually insert a host_email with mdm_idp_accounts source
+	// (normally this would be done by the reconciliation process in mdm.go)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)",
+		host.ID, "testuser@example.com", fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Verify no SCIM user mapping exists yet
+	_, err = ds.ScimUserByHostID(ctx, host.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Test 1: No matching SCIM user - should do nothing
+	err = ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Verify still no mapping
+	_, err = ds.ScimUserByHostID(ctx, host.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Create a SCIM user with matching email
+	scimUser := &fleet.ScimUser{
+		UserName:   "testuser@example.com",
+		GivenName:  ptr.String("Test"),
+		FamilyName: ptr.String("User"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "testuser@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+	}
+
+	scimUserID, err := ds.CreateScimUser(ctx, scimUser)
+	require.NoError(t, err)
+	scimUser.ID = scimUserID
+
+	// Test 2: Matching SCIM user exists - should create mapping
+	err = ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Verify mapping was created
+	retrievedUser, err := ds.ScimUserByHostID(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUser.ID, retrievedUser.ID)
+	require.Equal(t, scimUser.UserName, retrievedUser.UserName)
+
+	// Test 3: Run reconciliation again - should be idempotent (no error, no changes)
+	err = ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Create another host with different email that won't match
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)",
+		host2.ID, "nomatch@example.com", fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Test 4: Host with no matching SCIM user should be skipped
+	err = ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Verify no mapping for host2
+	_, err = ds.ScimUserByHostID(ctx, host2.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }

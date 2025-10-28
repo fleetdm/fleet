@@ -1497,6 +1497,8 @@ type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUse
 
 type ScimUsersExistFunc func(ctx context.Context, ids []uint) (bool, error)
 
+type ReconcileHostSCIMUserMappingsFunc func(ctx context.Context) error
+
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
 
 type DeleteScimUserFunc func(ctx context.Context, id uint) error
@@ -3776,6 +3778,9 @@ type DataStore struct {
 
 	ScimUsersExistFunc        ScimUsersExistFunc
 	ScimUsersExistFuncInvoked bool
+
+	ReconcileHostSCIMUserMappingsFunc        ReconcileHostSCIMUserMappingsFunc
+	ReconcileHostSCIMUserMappingsFuncInvoked bool
 
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
@@ -9039,6 +9044,13 @@ func (s *DataStore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error
 	s.ScimUsersExistFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScimUsersExistFunc(ctx, ids)
+}
+
+func (s *DataStore) ReconcileHostSCIMUserMappings(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileHostSCIMUserMappingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileHostSCIMUserMappingsFunc(ctx)
 }
 
 func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {

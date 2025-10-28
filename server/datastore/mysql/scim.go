@@ -1386,3 +1386,71 @@ func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, erro
 
 	return true, nil
 }
+
+// ReconcileHostSCIMUserMappings finds hosts with mdm_idp_accounts emails but no SCIM user mapping
+// and attempts to create the mapping based on email/username matching
+func (ds *Datastore) ReconcileHostSCIMUserMappings(ctx context.Context) error {
+	// Find hosts with mdm_idp_accounts emails but no corresponding host_scim_user records
+	const findUnmappedHostsQuery = `
+		SELECT he.host_id, he.email
+		FROM host_emails he
+		LEFT JOIN host_scim_user hsu ON he.host_id = hsu.host_id
+		WHERE he.source = ?
+		  AND hsu.host_id IS NULL
+		LIMIT 100  -- Process in batches to avoid long-running queries
+	`
+
+	var unmappedHosts []struct {
+		HostID uint   `db:"host_id"`
+		Email  string `db:"email"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &unmappedHosts, findUnmappedHostsQuery, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return ctxerr.Wrap(ctx, err, "find hosts with mdm_idp_accounts emails but no SCIM user mapping")
+	}
+
+	if len(unmappedHosts) == 0 {
+		return nil // Nothing to reconcile
+	}
+
+	level.Info(ds.logger).Log("msg", "reconciling host SCIM user mappings", "count", len(unmappedHosts))
+
+	var reconciled, failed int
+	for _, host := range unmappedHosts {
+		// Try to find a SCIM user by email (treating email as username or actual email)
+		scimUser, err := scimUserByUserNameOrEmail(ctx, ds.reader(ctx), ds.logger, host.Email, host.Email)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// No matching SCIM user found, skip
+				continue
+			}
+			level.Warn(ds.logger).Log("msg", "error finding SCIM user for reconciliation", "host_id", host.HostID, "email", host.Email, "err", err)
+			failed++
+			continue
+		}
+
+		if scimUser == nil {
+			level.Warn(ds.logger).Log("msg", "no SCIM user found for reconciliation", "host_id", host.HostID, "email", host.Email)
+			continue
+		}
+
+		// Create the host-to-SCIM user mapping
+		err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			return associateHostWithScimUser(ctx, tx, host.HostID, scimUser.ID)
+		})
+		if err != nil {
+			level.Warn(ds.logger).Log("msg", "error creating host-SCIM user mapping", "host_id", host.HostID, "scim_user_id", scimUser.ID, "err", err)
+			failed++
+			continue
+		}
+
+		reconciled++
+		level.Debug(ds.logger).Log("msg", "reconciled host SCIM user mapping", "host_id", host.HostID, "scim_user_id", scimUser.ID, "email", host.Email)
+	}
+
+	if reconciled > 0 || failed > 0 {
+		level.Info(ds.logger).Log("msg", "completed host SCIM user mapping reconciliation", "reconciled", reconciled, "failed", failed)
+	}
+
+	return nil
+}
