@@ -34,9 +34,11 @@ func TestUp_20251027114648(t *testing.T) {
 	// Add Mac and Windows software, no upgrade codes yet. The unique_identifier should be the bundle_identifier for the
 	// macOS software and the name for the Windows software.
 
-	ms.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)`, ms.Name, ms.Source, ms.BundleIdentifier))
-	ws1.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws1.Name, ws1.Source))
-	ws2.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws2.Name, ws2.Source))
+	// these type conversions are safe from integer overflow since they are all sourced from database
+	// auto-incremented ids, which there will only be a small amount of in the context of this test
+	ms.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)`, ms.Name, ms.Source, ms.BundleIdentifier)) //nolint:gosec // dismiss G115
+	ws1.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws1.Name, ws1.Source))                                         //nolint:gosec // dismiss G115
+	ws2.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws2.Name, ws2.Source))                                         //nolint:gosec // dismiss G115
 
 	// // //
 	// Apply current migration.
@@ -61,8 +63,8 @@ func TestUp_20251027114648(t *testing.T) {
 	// Delete the existing Windows software, then them back now with one empty and one non-empty upgrade_code
 	execNoErr(t, db, `DELETE FROM software_titles WHERE id IN (?, ?)`, ws1.ID, ws2.ID)
 
-	ws1.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES (?, ?, ?)`, ws1.Name, ws1.Source, ws1.UpgradeCode))
-	ws2.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES (?, ?, ?)`, ws2.Name, ws2.Source, ws2.UpgradeCode))
+	ws1.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES (?, ?, ?)`, ws1.Name, ws1.Source, ws1.UpgradeCode)) //nolint:gosec // dismiss G115
+	ws2.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES (?, ?, ?)`, ws2.Name, ws2.Source, ws2.UpgradeCode)) //nolint:gosec // dismiss G115
 
 	cases := []struct {
 		name                string
