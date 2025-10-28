@@ -184,23 +184,52 @@ module.exports = {
 
 
 
-
     // Now look up the employer.
     //
     // [?] Either use the matched linkedin company page ID from above,
     //     or if no match, then try to find the linkedin company page ID
     //     by other means.  If nothing works, then give up and don't enrich.
     if (!matchingLinkedinCompanyPageId) {
-      let searchBy = {};
-      if (emailDomain) {
-        searchBy.website = emailDomain;
+      // Create an empty Elasticsearch query. We'll add queries to it based the provided inputs.
+      // [?] https://docs.coresignal.com/company-api/clean-company-api/endpoints/elasticsearch-dsl#elasticsearch-schema-1
+      let baseSearchQuery = {
+        query: {
+          bool: {
+            should: [],
+            minimum_should_match: 1, // eslint-disable-line camelcase
+          }
+        },
+        sort: ['size_employees_count'],// [?] https://docs.coresignal.com/company-api/clean-company-api/endpoints/elasticsearch-dsl
+      };
+
+      if(organization) {
+        // If an organization was provided, add a queries that search by company name.
+        baseSearchQuery.query.bool.should.push({
+          dis_max: {// eslint-disable-line camelcase
+            queries: [
+              { match_phrase: { name: { query: organization } } },// eslint-disable-line camelcase
+              { match: { name: { query: organization, operator: 'and', fuzziness: 'AUTO' } } }
+            ]
+          }
+        });
       }//ﬁ
-      if (organization) {
-        searchBy.name = organization;
+
+      if(emailDomain) {
+        // If an email address was provided, add a query that uses the person's emailDomain to search company websites.
+        baseSearchQuery.query.bool.should.push({
+          dis_max: {// eslint-disable-line camelcase
+            queries: [
+              { match_phrase: { 'websites_resolved': { query: `https://www.${emailDomain}` } } },// eslint-disable-line camelcase
+              { match_phrase: { 'websites_resolved': { query: `https://${emailDomain}` } } },// eslint-disable-line camelcase
+              { match_phrase: { 'websites_resolved.domain_only': { query: `${emailDomain}` } } },// eslint-disable-line camelcase
+            ]
+          }
+        });
       }//ﬁ
-      if (Object.keys(searchBy).length >= 1) {
+
+      if (baseSearchQuery.query.bool.should.length >= 1) {
         // [?] https://dashboard.coresignal.com/get-started
-        let matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_base/search/filter', searchBy, {
+        let matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_clean/search/es_dsl', baseSearchQuery, {
           apikey: `${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
@@ -210,10 +239,27 @@ module.exports = {
 
         // If name and domain were used for searching the org, yet no matches found,
         // try searching again, but this time w/o the org name.
-        if (matchingLinkedinCompanyPageIds.length === 0 && searchBy.name && searchBy.website) {
-          delete searchBy.name;
-          // [?] https://dashboard.coresignal.com/get-started
-          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_base/search/filter', searchBy, {
+        if (matchingLinkedinCompanyPageIds.length === 0 && organization) {
+          baseSearchQuery = {
+            query: {
+              bool: {
+                should: [{
+                  dis_max: {// eslint-disable-line camelcase
+                    tie_breaker: 0.0,// eslint-disable-line camelcase
+                    queries: [
+                      { match_phrase: { 'websites_resolved': { query: `https://www.${emailDomain}`, boost: 14 } } },// eslint-disable-line camelcase
+                      { match_phrase: { 'websites_resolved': { query: `https://${emailDomain}`, boost: 12 } } },// eslint-disable-line camelcase
+                      { match_phrase: { 'websites_resolved.domain_only': { query: `${emailDomain}`, boost: 8 } } },// eslint-disable-line camelcase
+                    ]
+                  }
+                }],
+                minimum_should_match: 1,// eslint-disable-line camelcase
+              }
+            },
+            sort: ['_score'],
+          };
+          // [?] https://docs.coresignal.com/company-api/clean-company-api/endpoints/elasticsearch-dsl
+          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_clean/search/es_dsl', baseSearchQuery, {
             apikey: `${sails.config.custom.iqSecret}`,
             'content-type': 'application/json'
           }).tolerate((err)=>{
@@ -225,6 +271,7 @@ module.exports = {
         matchingLinkedinCompanyPageId = matchingLinkedinCompanyPageIds[0];
       }//ﬁ
     }//ﬁ
+
 
     let employer;
     if (matchingLinkedinCompanyPageId) {
