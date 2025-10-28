@@ -1127,7 +1127,7 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("opening browser: %w", err)
 			}
-			return err
+			return nil
 		})
 
 		// If the server can't be reached, we want to fail quickly on any blocking network calls

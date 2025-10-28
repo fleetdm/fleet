@@ -574,13 +574,17 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				// then keep retrying until they authenticate.
 				log.Debug().Msg("enroll unauthenticated, waiting for end-user to authenticate via SSO")
 				if !oc.initiatedIdpAuth {
-					oc.initiatedIdpAuth = true
+					if oc.openSSOWindow == nil {
+						log.Error().Msg("SSO window open function not set")
+						return retry.ErrorOutcomeNormalRetry
+					}
 					log.Debug().Msg("opening SSO window")
 					openWindowErr := oc.openSSOWindow()
 					if openWindowErr != nil {
 						log.Error().Err(openWindowErr).Msg("opening SSO window")
 						return retry.ErrorOutcomeNormalRetry
 					}
+					oc.initiatedIdpAuth = true
 				}
 				// Sleep for 20 seconds, making the total retry interval 30 seconds
 				time.Sleep(20 * time.Second)

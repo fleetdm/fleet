@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+// ErrorOutcome tells retry.Do how to react to a returned error.
+// Use with WithErrorFilter to control retry behavior.
 type ErrorOutcome int
 
 const (
@@ -52,6 +54,8 @@ func WithMaxAttempts(a int) Option {
 	}
 }
 
+// WithErrorFilter sets a function that maps errors to retry outcomes.
+// The filter is evaluated before max‑attempts/backoff handling.
 func WithErrorFilter(f func(error) ErrorOutcome) Option {
 	return func(c *config) {
 		c.errorFilter = f
