@@ -36,6 +36,10 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payload.TeamID != nil && *payload.TeamID != 0 {
 		actTeamID = payload.TeamID
 	}
+	selfService := existingInstaller.SelfService
+	if payload.SelfService != nil {
+		selfService = *payload.SelfService
+	}
 	activity := fleet.ActivityTypeEditedSoftware{
 		SoftwareTitle:   existingInstaller.SoftwareTitle,
 		TeamName:        teamName,
@@ -43,6 +47,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		SoftwarePackage: &existingInstaller.Name,
 		SoftwareTitleID: payload.TitleID,
 		SoftwareIconURL: existingInstaller.IconUrl,
+		SelfService:     selfService,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
