@@ -2299,7 +2299,7 @@ GROUP BY
 	return counts, nil
 }
 
-func (ds *Datastore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
+func (ds *Datastore) IsHostPendingMDMInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
 	stmt := `
 SELECT EXISTS (
 	SELECT 1

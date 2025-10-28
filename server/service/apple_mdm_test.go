@@ -4584,6 +4584,42 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	require.True(t, ds.UpdateMDMDataFuncInvoked)
 	require.True(t, ds.GetLatestAppleMDMCommandOfTypeFuncInvoked)
 	require.True(t, ds.SetLockCommandForLostModeCheckinFuncInvoked)
+
+	_, err = svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Raw: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>REFETCH-fd23f8ac-1c50-41c7-a5bb-f13633c9ea97</string>
+        <key>QueryResponses</key>
+        <dict>
+                <key>AvailableDeviceCapacity</key>
+                <real>51.260395520000003</real>
+                <key>DeviceCapacity</key>
+                <real>64</real>
+                <key>DeviceName</key>
+                <string>Work iPad</string>
+                <key>OSVersion</key>
+                <string>17.5.1</string>
+                <key>ProductName</key>
+                <string>iPad13,18</string>
+                <key>WiFiMAC</key>
+                <string>ff:ff:ff:ff:ff:ff</string>
+        </dict>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>FFFFFFFF-FFFFFFFFFFFFFFFF</string>
+</dict>
+</plist>`),
+		},
+	)
+	require.NoError(t, err)
 }
 
 func TestUnmarshalAppList(t *testing.T) {
@@ -5180,7 +5216,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+				assert.Contains(t, updatedProfile.Detail, "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
 			},
 		},
 		{
@@ -5197,7 +5233,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -5214,7 +5250,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+				assert.Contains(t, updatedProfile.Detail, "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
 			},
 		},
 		{
@@ -5259,7 +5295,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -5345,7 +5381,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 				}
 			},
 			assert: func(output string) {
-				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
+				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
 				assert.Len(t, targets, 0)
 			},
 		},
@@ -5812,11 +5848,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				assert.Empty(t, vars)
 			} else {
 				assert.NoError(t, err)
-				gotVars := make([]string, 0, len(vars))
-				for v := range vars {
-					gotVars = append(gotVars, v)
-				}
-				assert.ElementsMatch(t, tc.vars, gotVars)
+				assert.ElementsMatch(t, tc.vars, vars)
 			}
 		})
 	}

@@ -83,7 +83,7 @@ const CertificateDetailsModal = ({
         <div className={`${baseClass}__content`}>
           {showSubjectSection && (
             <div className={`${baseClass}__section`}>
-              <h3>Subject Name</h3>
+              <h3>Subject name</h3>
               <dl>
                 {subjectCountry && (
                   <DataSet

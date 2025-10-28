@@ -56,11 +56,9 @@ The following steps need to be configured on the Fleet teams you want to enable 
 
 To enroll macOS devices to Entra for Conditional Access you will need to configure Fleet to automatically install the "Company Portal" macOS application.
 
-The Company Portal macOS application can be downloaded from https://go.microsoft.com/fwlink/?linkid=853070.
+To configure automatic installation on your macOS hosts, head to **Software > Add software > Fleet-maintained**. Select `Company Portal` and check the **Automatic install** option.
 
-To configure automatic installation on your macOS hosts, head to **Software > Add software > Custom package**. Upload the `CompanyPortal-Installer.pkg` and check the **Automatic install** option.
-
-!['Company Portal.app' automatic install](../website/assets/images/articles/company-portal-automatic-734x284@2x.png)
+!['Company Portal.app' automatic install](../website/assets/images/articles/company-portal-automatic-900x450@2x.png)
 
 You should also configure "Company Portal" as a software package to deploy during "Setup Experience" for hosts that automatically enroll (ADE).
 Go to **Controls > Setup experience > Install software > Add software**, select **Company Portal** and select **Save**.
