@@ -101,6 +101,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, payload.Title, installer.SoftwareTitle)
 	require.Equal(t, payload.Version, installer.Version)
 	require.False(t, payload.SelfService)
+	require.WithinDuration(t, time.Now(), installer.UploadedAt, time.Minute)
 
 	// Install on multiple users with pending, success, failure
 	createInHouseAppInstallRequest(t, ds, host1.ID, installerID, titleID, user1)

@@ -186,6 +186,7 @@ SELECT
   iha.platform,
   iha.storage_id,
   iha.version,
+  iha.created_at AS uploaded_at,
   st.bundle_identifier AS bundle_identifier,
   COALESCE(st.name, '') AS software_title,
 	iha.self_service
