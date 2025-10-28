@@ -19,17 +19,24 @@ func TestUp_20251027114648(t *testing.T) {
 		UpgradeCode:      nil,
 	}
 
-	ws := fleet.SoftwareTitle{
+	ws1 := fleet.SoftwareTitle{
 		Name:        "Notepad",
 		Source:      "programs",
 		UpgradeCode: ptr.String("{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}"),
+	}
+
+	ws2 := fleet.SoftwareTitle{
+		Name:        "NoteFad",
+		Source:      "programs",
+		UpgradeCode: ptr.String(""),
 	}
 
 	// Add Mac and Windows software, no upgrade codes yet. The unique_identifier should be the bundle_identifier for the
 	// macOS software and the name for the Windows software.
 
 	ms.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)`, ms.Name, ms.Source, ms.BundleIdentifier))
-	ws.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws.Name, ws.Source))
+	ws1.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws1.Name, ws1.Source))
+	ws2.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, ws2.Name, ws2.Source))
 
 	// // //
 	// Apply current migration.
@@ -38,7 +45,11 @@ func TestUp_20251027114648(t *testing.T) {
 
 	// Check default values are set as expected
 	var winUC *string
-	err := db.Get(&winUC, `SELECT upgrade_code FROM software_titles WHERE id = ?`, ws.ID)
+	err := db.Get(&winUC, `SELECT upgrade_code FROM software_titles WHERE id = ?`, ws1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "", *winUC)
+
+	err = db.Get(&winUC, `SELECT upgrade_code FROM software_titles WHERE id = ?`, ws2.ID)
 	require.NoError(t, err)
 	require.Equal(t, "", *winUC)
 
@@ -47,11 +58,11 @@ func TestUp_20251027114648(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, macUC)
 
-	// Delete the existing Windows software, then add it back now including an upgrade_code
-	// software_titles
-	execNoErr(t, db, `DELETE FROM software_titles WHERE id = ?`, ws.ID)
+	// Delete the existing Windows software, then them back now with one empty and one non-empty upgrade_code
+	execNoErr(t, db, `DELETE FROM software_titles WHERE id IN (?, ?)`, ws1.ID, ws2.ID)
 
-	ws.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES ("Notepad", "programs", ?)`, ws.UpgradeCode))
+	ws1.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES (?, ?, ?)`, ws1.Name, ws1.Source, ws1.UpgradeCode))
+	ws2.ID = uint(execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, upgrade_code) VALUES (?, ?, ?)`, ws2.Name, ws2.Source, ws2.UpgradeCode))
 
 	cases := []struct {
 		name                string
@@ -62,7 +73,7 @@ func TestUp_20251027114648(t *testing.T) {
 		expectedUniqueID    string
 	}{
 		{
-			name:                "macOS software title",
+			name:                "macSW",
 			titleID:             ms.ID,
 			source:              ms.Source,
 			expectedBundleID:    ms.BundleIdentifier,
@@ -70,12 +81,20 @@ func TestUp_20251027114648(t *testing.T) {
 			expectedUniqueID:    *ms.BundleIdentifier, // expect COALESCE to choose populated bundle id
 		},
 		{
-			name:                "windows software title",
-			titleID:             ws.ID,
-			source:              ws.Source,
+			name:                "winSW with UC",
+			titleID:             ws1.ID,
+			source:              ws1.Source,
 			expectedBundleID:    nil,
-			expectedUpgradeCode: ws.UpgradeCode,
-			expectedUniqueID:    *ws.UpgradeCode, // expect COALESCE to choose populated upgrade code
+			expectedUpgradeCode: ws1.UpgradeCode,
+			expectedUniqueID:    *ws1.UpgradeCode, // expect COALESCE to choose populated upgrade code
+		},
+		{
+			name:                "winSW no UC",
+			titleID:             ws2.ID,
+			source:              ws2.Source,
+			expectedBundleID:    nil,
+			expectedUpgradeCode: ws2.UpgradeCode, // ""
+			expectedUniqueID:    ws2.Name,        // expect NULLIF to nullify "" so COALESCE chooses the software name
 		},
 	}
 
@@ -84,13 +103,13 @@ func TestUp_20251027114648(t *testing.T) {
 			var title fleet.SoftwareTitle
 			err := db.Get(&title, `SELECT id, source, bundle_identifier, upgrade_code FROM software_titles WHERE id = ?`, tC.titleID)
 			require.NoError(t, err)
-			if tC.expectedUpgradeCode == nil {
-				// mac sw
+			if title.ID == ms.ID {
+				// mac
 				require.Nil(t, title.UpgradeCode)
 				require.NotNil(t, title.BundleIdentifier)
 				assert.Equal(t, *tC.expectedBundleID, *title.BundleIdentifier)
 			} else {
-				// windows sw
+				// windows
 				require.Nil(t, title.BundleIdentifier)
 				require.NotNil(t, title.UpgradeCode)
 				assert.Equal(t, *tC.expectedUpgradeCode, *title.UpgradeCode)
