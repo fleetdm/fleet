@@ -474,11 +474,11 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending in-house apps
 		`SELECT
 			ua.execution_id AS uuid,
-			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.name')))) AS name,
 			u.id AS user_id,
 			u.api_only as api_only,
-			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
-			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
+			COALESCE(u.gravatar_url, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.gravatar_url'))) as gravatar_url,
+			COALESCE(u.email, JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.user.email'))) as user_email,
 			:installed_software_type as activity_type,
 			ua.created_at AS created_at,
 			JSON_OBJECT(
