@@ -163,12 +163,12 @@ func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage
 // ID.
 func CreateHostInHouseAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, host *fleet.Host, user *fleet.User) (execID string) {
 	ctx := context.Background()
+	rnd := uuid.NewString()
 	ihaID, ihaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Filename:         "inhouse.ipa",
-		Title:            uuid.NewString(),
+		Filename:         rnd + ".ipa",
 		Source:           "ios_apps",
 		Extension:        "ipa",
-		BundleIdentifier: "com.example.inhouseapp",
+		BundleIdentifier: "com.example." + rnd,
 		UserID:           user.ID,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})

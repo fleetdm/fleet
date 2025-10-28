@@ -2012,38 +2012,8 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			desc: "cancel in-house install same after",
 			host: hostIOS,
 			setup: func(t *testing.T) []string {
-				ctx := context.Background()
-				ihaID, ihaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-					Filename:         "inhouse.ipa",
-					Title:            uuid.NewString(),
-					Source:           "ios_apps",
-					Extension:        "ipa",
-					BundleIdentifier: "com.example.inhouseapp",
-					UserID:           u.ID,
-					ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-				})
-				require.NoError(t, err)
-
-				exec1 := uuid.NewString()
-				err = ds.InsertHostInHouseAppInstall(ctx, host.ID, ihaID, ihaTitleID, exec1, fleet.HostSoftwareInstallOptions{})
-				require.NoError(t, err)
-
-				exec2 := uuid.NewString()
-				err = ds.InsertHostInHouseAppInstall(ctx, host.ID, ihaID, ihaTitleID, exec2, fleet.HostSoftwareInstallOptions{})
-				require.NoError(t, err)
-
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					DumpTable(t, q, "upcoming_activities")
-					DumpTable(t, q, "in_house_app_upcoming_activities")
-					DumpTable(t, q, "in_house_apps")
-					// DumpTable(t, q, "nano_commands")
-					// DumpTable(t, q, "nano_command_results")
-					return nil
-				})
-				// fmt.Println("ummmmmmmm 11111111111")
-				// exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
-				// fmt.Println("ummmmmmmm 11111111111")
-				// exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
 					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged")
 				})
@@ -2056,8 +2026,6 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			execIDs := c.setup(t)
 
 			got, _, err := ds.ListHostUpcomingActivities(ctx, c.host.ID, fleet.ListOptions{})
-			fmt.Println("___________ got from ListHostUpcomingActivities __________")
-			fmt.Println(got)
 			require.NoError(t, err)
 			require.Len(t, got, len(execIDs))
 			require.Equal(t, execIDs, pluckExecIDs(got))
