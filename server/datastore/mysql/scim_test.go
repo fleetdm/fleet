@@ -2606,4 +2606,22 @@ func testReconcileHostSCIMUserMappings(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, scimUser2.ID, retrievedUser2.ID)
 	require.Equal(t, scimUser2.UserName, retrievedUser2.UserName)
+
+	// Test 6: Verify idempotent behavior - try to reconcile the same host again
+	err = ds.ReconcileHostSCIMUserMappings(ctx)
+	require.NoError(t, err)
+
+	// Test 7: Verify idempotent behavior by directly calling SetOrUpdateHostSCIMUserMapping twice
+	host4 := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now())
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, host4.ID, scimUser.ID)
+	require.NoError(t, err)
+
+	// This should not fail even though the mapping already exists
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, host4.ID, scimUser.ID)
+	require.NoError(t, err, "Setting the same mapping twice should be idempotent")
+
+	// Verify the mapping still exists and is correct
+	retrievedUser4, err := ds.ScimUserByHostID(ctx, host4.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUser.ID, retrievedUser4.ID)
 }

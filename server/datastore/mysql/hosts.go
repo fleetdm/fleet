@@ -4335,7 +4335,7 @@ func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint,
 func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE scim_user_id = scim_user_id, created_at = created_at`,
 		hostID, scimUserID,
 	)
 	if err != nil {
