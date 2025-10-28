@@ -172,7 +172,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 	err = LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
 		if strings.HasPrefix(locURI, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP") {
 			verified[profile.Name] = struct{}{}
-			// Delete it from missing if it was in there
+			// We delete here if by some accident it was marked as missing before
 			delete(missing, profile.Name)
 			return
 		}
