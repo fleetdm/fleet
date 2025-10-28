@@ -47,7 +47,10 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		0,
-		SSORequestData{},
+		SSORequestData{
+			HostUUID:  "host-uuid-123",
+			Initiator: "test_initiator",
+		},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 300*time.Second, store.sessionLifetime) // check default is used
@@ -68,6 +71,8 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	ssn := store.session
 	require.NotNil(t, ssn)
 	assert.Equal(t, "/redir", ssn.OriginalURL)
+	assert.Equal(t, "host-uuid-123", ssn.RequestData.HostUUID)
+	assert.Equal(t, "test_initiator", ssn.RequestData.Initiator)
 	assert.Equal(t, 5*time.Minute, store.sessionLifetime)
 
 	var meta saml.EntityDescriptor
