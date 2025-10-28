@@ -161,7 +161,7 @@ controls:
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
-    - path: ../lib/macos/scripts/install-santa-extension.sh
+    - path: ../lib/macos/scripts/uninstall-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
 policies:
@@ -175,7 +175,6 @@ policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/install-santa-extension.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
