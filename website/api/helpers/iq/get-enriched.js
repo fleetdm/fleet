@@ -1,4 +1,3 @@
-// eslint-disable-file camelcase
 module.exports = {
 
 
