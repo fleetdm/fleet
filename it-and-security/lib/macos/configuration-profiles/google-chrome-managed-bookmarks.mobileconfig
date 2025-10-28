@@ -367,6 +367,12 @@
                         </dict>
                         <dict>
                             <key>name</key>
+                            <string>Issue: +New confidential issue</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/issues/new/choose</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
                             <string>Issues assigned to me</string>
                             <key>url</key>
                             <string>https://github.com/issues?q=is%3Aopen%20is%3Aissue%20archived%3Afalse%20org%3Afleetdm%20no%3Amilestone%20assignee%3A%40me%20%20sort%3Aupdated-desc</string>
