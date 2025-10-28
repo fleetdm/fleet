@@ -9051,7 +9051,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 `POST /scripts/batch/abc-def/cancel`
 
-### Add script
+### Create script
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
@@ -9392,17 +9392,17 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
-- [Add package](#add-package)
+- [Create package](#create-package)
 - [Update package](#update-package)
 - [Update software icon](#update-software-icon)
 - [Download software icon](#download-software-icon)
 - [Delete software icon](#delete-software-icon)
 - [List App Store apps](#list-app-store-apps)
-- [Add App Store app](#add-app-store-app)
+- [Create App Store app](#create-app-store-app)
 - [Update App Store app](#update-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
-- [Add Fleet-maintained app](#add-fleet-maintained-app)
+- [Create Fleet-maintained app](#create-fleet-maintained-app)
 - [Install software](#install-software)
 - [Uninstall software](#uninstall-software)
 - [Get software install result](#get-software-install-result)
@@ -10394,7 +10394,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 }
 ```
 
-### Add App Store app
+### Create App Store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -10624,7 +10624,7 @@ Returns information about the specified Fleet-maintained app.
 }
 ```
 
-### Add Fleet-maintained app
+### Create Fleet-maintained app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
