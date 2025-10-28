@@ -1832,8 +1832,9 @@ CREATE TABLE `operating_system_version_vulnerabilities` (
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_os_version_vulnerabilities_unq_os_version_team_cve` (`os_version_id`,`team_id`,`cve`),
-  KEY `idx_os_version_vulnerabilities_updated_at` (`updated_at`)
+  UNIQUE KEY `idx_os_version_vulnerabilities_unq_os_version_team_cve` (`team_id`,`os_version_id`,`cve`),
+  KEY `idx_os_version_vulnerabilities_updated_at` (`updated_at`),
+  KEY `idx_os_version_vulnerabilities_query` (`team_id`,`os_version_id`,`cve`,`resolved_in_version`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
