@@ -39,7 +39,22 @@ const EnrollmentGate = ({
     return <SSOError />;
   }
 
-  if (showEULA && eulaToken && initiator !== "setup_experience") {
+  if (initiator === "setup_experience") {
+    return (
+      <AuthenticationFormWrapper header="Authentication complete">
+        <div className={`${baseClass} form`}>
+          <p>
+            Thank you for confirming your identity.
+            <br />
+            <br />
+            You may now close this window. Setup will continue in a few moments.
+          </p>
+        </div>
+      </AuthenticationFormWrapper>
+    );
+  }
+
+  if (showEULA && eulaToken) {
     return (
       <div className={`${baseClass}__eula-wrapper`}>
         <h3>Terms and conditions</h3>
@@ -56,19 +71,6 @@ const EnrollmentGate = ({
           Agree and continue
         </Button>
       </div>
-    );
-  } else if (initiator === "setup_experience") {
-    return (
-      <AuthenticationFormWrapper header="Authentication complete">
-        <div className={`${baseClass} form`}>
-          <p>
-            Thank you for confirming your identity.
-            <br />
-            <br />
-            You may now close this window. Setup will continue in a few moments.
-          </p>
-        </div>
-      </AuthenticationFormWrapper>
     );
   }
 
