@@ -188,6 +188,9 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	}
 
 	if isEndUserAuthRequired {
+		if hostInfo.HardwareUUID == "" {
+			return "", fleet.OrbitError{Message: "failed to get IdP account: hardware uuid is empty"}
+		}
 		// Try to find an IdP account for this host.
 		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
 		if err != nil {
