@@ -3,6 +3,8 @@ import { baseUrl } from "test/test-utils";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import { createMockMdmCommandResult } from "__mocks__/mdmMock";
 
+// ---- Software Install Handlers ----
+
 // Installed with outputs
 export const getDefaultSoftwareInstallHandler = http.get(
   baseUrl("/software/install/:install_uuid/results"),
@@ -48,47 +50,43 @@ export const getSoftwareInstallHandlerOnlyInstallOutput = http.get(
   }
 );
 
-/**
- * Generic handler for /software/install/:install_uuid/results
- * Returns either a 'SoftwareInstallResult' or an MdmCommandResult[]
- * depending on the install_uuid/command_uuid supplied.
- */
-export const getUniversalSoftwareInstallHandler = http.get(
+export const getSoftwareInstallResultHandler = http.get(
   baseUrl("/software/install/:install_uuid/results"),
   ({ params }) => {
-    const installUuid = params.install_uuid as string;
-
-    if (
-      installUuid.startsWith("mdm-") ||
-      installUuid === "notnow-uuid" ||
-      installUuid === "acknowledged-uuid"
-    ) {
-      const statusMap: Record<string, string> = {
-        "notnow-uuid": "NotNow",
-        "acknowledged-uuid": "Acknowledged",
-      };
-
-      const status = statusMap[installUuid] || "Acknowledged";
-
-      const mdmCommand = createMockMdmCommandResult({
-        command_uuid: installUuid,
-        status,
-      });
-
-      // Return what Fleet API actually returns
-      return HttpResponse.json({
-        results: mdmCommand,
-      });
-    }
-
-    // Normal fleet install
     return HttpResponse.json({
       results: createMockSoftwareInstallResult({
-        install_uuid: installUuid,
+        install_uuid: params.install_uuid as string,
         status: "installed",
         output: "Install script ran",
         post_install_script_output: "Post-install success",
       }),
+    });
+  }
+);
+
+// ---- MDM Command Handlers ----
+
+/** This is used for testing command results of IPA custom packages */
+export const getMdmCommandResultHandler = http.get(
+  baseUrl("/commands/results"),
+  ({ request }) => {
+    // Parse query string
+    const url = new URL(request.url);
+    const commandUuid = url.searchParams.get("command_uuid");
+
+    const statusMap: Record<string, string> = {
+      "notnow-uuid": "NotNow",
+      "acknowledged-uuid": "Acknowledged",
+    };
+    const status = statusMap[commandUuid ?? ""] || "Acknowledged";
+
+    const mdmCommand = createMockMdmCommandResult({
+      command_uuid: commandUuid ?? "",
+      status,
+    });
+
+    return HttpResponse.json({
+      results: [mdmCommand],
     });
   }
 );

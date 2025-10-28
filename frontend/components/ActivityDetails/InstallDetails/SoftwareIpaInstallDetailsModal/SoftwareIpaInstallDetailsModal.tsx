@@ -272,6 +272,8 @@ export const SoftwareIpaInstallDetailsModal = ({
     }
   );
 
+  console.log("\n\n\n\nswInstallResult", swInstallResult);
+
   // Fallback to "installed" if no status is provided
   const displayStatus = fleetInstallStatus ?? "installed";
   const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
