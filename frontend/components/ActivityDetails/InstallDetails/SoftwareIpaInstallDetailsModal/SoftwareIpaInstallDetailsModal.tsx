@@ -1,19 +1,18 @@
-/** This modal is only used for VPP apps and their related installations.
- * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
- *  we use SoftwareIpaInstallDetailsModal with the command_uuid. */
+/** Similar look and feel to the VppInstallDetailsModal, but this modal
+ * is rendered instead of the SoftwareInstallDetailsModal when the package is
+ * an .ipa for iOS/iPadOS */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { formatDistanceToNow } from "date-fns";
 
-import mdmApi, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
-import deviceUserAPI, {
-  IGetVppInstallCommandResultsResponse,
-} from "services/entities/device_user";
+import softwareAPI from "services/entities/software";
+import deviceUserAPI from "services/entities/device_user";
 
 import {
   IHostSoftware,
+  ISoftwareIpaInstallResults,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { IMdmCommandResult } from "interfaces/mdm";
@@ -23,7 +22,7 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
+import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -37,9 +36,7 @@ import {
 
 interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
-  /** "pending" is an edge case here where VPP install activities that were added to the feed prior to v4.57
-   * (when we split pending into pending_install/pending_uninstall) will list the status as "pending" rather than "pending_install" */
-  displayStatus: SoftwareInstallUninstallStatus | "pending";
+  displayStatus: SoftwareInstallUninstallStatus;
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
   appName: string;
@@ -66,13 +63,11 @@ export const getStatusMessage = ({
         })})`
       : null;
 
-  // Handles "pending" value prior to 4.57
-  const isPendingInstall = ["pending_install", "pending"].includes(
-    displayStatus
-  );
+  const isPendingInstall = displayStatus === "pending_install";
 
   // Handles the case where software is installed manually by the user and not through Fleet
-  // This app_store_app modal matches software_packages installed manually shown with SoftwareInstallDetailsModal
+  // This IPA software_packages modal matches app_store_app modal and software_packages modal
+  // for software installed manually shown with VppInstallDetailsModal and SoftwareInstallDetailsModal
   if (displayStatus === "installed" && !commandUpdatedAt) {
     return (
       <>
@@ -98,7 +93,7 @@ export const getStatusMessage = ({
     );
   }
 
-  // VPP Verify command pending state
+  // IPA Verify command pending state
   if (isPendingInstall && isMDMStatusAcknowledged) {
     return (
       <>
@@ -199,9 +194,9 @@ export const ModalButtons = ({
   );
 };
 
-const baseClass = "vpp-install-details-modal";
+const baseClass = "software-ipa-install-details-modal";
 
-export type IVppInstallDetails = {
+export type ISoftwareIpaInstallDetails = {
   /** Status: null when a host manually installed not using Fleet */
   fleetInstallStatus: SoftwareInstallUninstallStatus | null;
   hostDisplayName: string;
@@ -209,8 +204,8 @@ export type IVppInstallDetails = {
   commandUuid?: string;
 };
 
-interface IVPPInstallDetailsModalProps {
-  details: IVppInstallDetails;
+interface ISoftwareIpaInstallDetailsModal {
+  details: ISoftwareIpaInstallDetails;
   /** for inventory versions, not present on activity feeds */
   hostSoftware?: IHostSoftware;
   /** My Device Page only */
@@ -219,13 +214,13 @@ interface IVPPInstallDetailsModalProps {
   /** My Device Page only */
   onRetry?: (id: number) => void;
 }
-export const VppInstallDetailsModal = ({
+export const SoftwareIpaInstallDetailsModal = ({
   details,
   onCancel,
   deviceAuthToken,
   hostSoftware,
   onRetry,
-}: IVPPInstallDetailsModalProps) => {
+}: ISoftwareIpaInstallDetailsModal) => {
   const {
     fleetInstallStatus,
     commandUuid = "",
@@ -238,43 +233,22 @@ export const VppInstallDetailsModal = ({
     setShowInstallDetails((prev) => !prev);
   };
 
-  const responseHandler = (
-    response:
-      | IGetVppInstallCommandResultsResponse
-      | IGetMdmCommandResultsResponse
-  ) => {
-    const results = response.results?.[0];
-    if (!results) {
-      // FIXME: It's currently possible that the command results API response is empty for pending
-      // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
-      // display some minimal pending UI. This should be removed once the API response is fixed.
-      return {} as IMdmCommandResult;
-    }
-    return {
-      ...results,
-      payload: atob(results.payload),
-      result: atob(results.result),
-    };
-  };
-
-  const {
-    data: vppCommandResult,
-    isLoading: isLoadingVPPCommandResult,
-    isError: isErrorVPPCommandResult,
-    error: errorVPPCommandResult,
-  } = useQuery<IMdmCommandResult, AxiosError>(
+  const { data: swInstallResult, isLoading, isError, error } = useQuery<
+    ISoftwareIpaInstallResults,
+    AxiosError,
+    IMdmCommandResult
+  >(
     ["mdm_command_results", commandUuid],
     async () => {
       return deviceAuthToken
-        ? deviceUserAPI
-            .getVppCommandResult(deviceAuthToken, commandUuid)
-            .then(responseHandler)
-        : mdmApi.getCommandResults(commandUuid).then(responseHandler);
+        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, commandUuid)
+        : softwareAPI.getSoftwareInstallResult(commandUuid);
     },
     {
       refetchOnWindowFocus: false,
       staleTime: 3000,
       enabled: !!commandUuid,
+      select: (data) => data.results,
     }
   );
 
@@ -294,8 +268,8 @@ export const VppInstallDetailsModal = ({
   // "installed"). From the command results API response, we also receive the raw status
   // from the MDM protocol, e.g., "NotNow" or "Acknowledged". We need to display some special
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
-  const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
-  const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
+  const isMDMStatusNotNow = swInstallResult?.status === "NotNow";
+  const isMDMStatusAcknowledged = swInstallResult?.status === "Acknowledged";
 
   const excludeVersions =
     !deviceAuthToken &&
@@ -312,9 +286,10 @@ export const VppInstallDetailsModal = ({
     isMDMStatusAcknowledged,
     appName,
     hostDisplayName,
-    commandUpdatedAt: vppCommandResult?.updated_at || "",
+    commandUpdatedAt: swInstallResult?.updated_at || "",
   });
 
+  console.log("isMDMStatusNotNow", isMDMStatusNotNow);
   const renderInventoryVersionsSection = () => {
     if (hostSoftware?.installed_versions?.length) {
       return <InventoryVersions hostSoftware={hostSoftware} />;
@@ -334,14 +309,14 @@ export const VppInstallDetailsModal = ({
         />
         {showInstallDetails && (
           <>
-            {vppCommandResult?.result && (
+            {swInstallResult?.result && (
               <Textarea label="MDM command output:" variant="code">
-                {vppCommandResult.result}
+                {swInstallResult.result}
               </Textarea>
             )}
-            {vppCommandResult?.payload && (
+            {swInstallResult?.payload && (
               <Textarea label="MDM command:" variant="code">
-                {vppCommandResult.payload}
+                {swInstallResult.payload}
               </Textarea>
             )}
           </>
@@ -351,12 +326,12 @@ export const VppInstallDetailsModal = ({
   };
 
   const renderContent = () => {
-    if (isLoadingVPPCommandResult) {
+    if (isLoading) {
       return <Spinner />;
     }
 
-    if (isErrorVPPCommandResult && !isPendingInstall) {
-      if (errorVPPCommandResult?.status === 404) {
+    if (isError && !isPendingInstall) {
+      if (error?.status === 404) {
         return deviceAuthToken ? (
           <DeviceUserError />
         ) : (
@@ -367,25 +342,24 @@ export const VppInstallDetailsModal = ({
         );
       }
 
-      if (errorVPPCommandResult?.status === 401) {
+      if (error?.status === 401) {
         return deviceAuthToken ? (
           <DeviceUserError />
         ) : (
           <DataError description="Close this modal and try again." />
         );
       }
-    } else if (!vppCommandResult) {
+    } else if (!swInstallResult) {
       // FIXME: It's currently possible that the command results API response is empty for pending
       // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
       // display some minimal pending UI. This should be updated once the API response is fixed.
     }
     return (
       <div className={`${baseClass}__modal-content`}>
-        <IconStatusMessage
-          className={`${baseClass}__status-message`}
-          iconName={iconName}
-          message={<span>{statusMessage}</span>}
-        />
+        <div className={`${baseClass}__status-message`}>
+          {!!iconName && <Icon name={iconName} />}
+          <span>{statusMessage}</span>
+        </div>
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
@@ -415,4 +389,4 @@ export const VppInstallDetailsModal = ({
   );
 };
 
-export default VppInstallDetailsModal;
+export default SoftwareIpaInstallDetailsModal;
