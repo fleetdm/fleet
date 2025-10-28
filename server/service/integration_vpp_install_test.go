@@ -1533,3 +1533,166 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	require.Equal(t, "ios", st.SoftwareTitle.SoftwarePackage.Platform)
 	require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
 }
+
+func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
+	// TODO(mna): implement this test, check validations (not self-install) and activities
+
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Enroll iPhone
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+
+	// Upload in-house app for iOS, not available in self-service for now
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	// get its title ID
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &resp, "team_id", "0")
+
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
+	titleID := resp.SoftwareTitles[0].ID
+
+	// TODO: until iDevice SCEP-based auth is implemented, cheat by adding a
+	// token associated with the iOS host so we can use the self-install endpoint.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, 'secret')`, iosHost.ID)
+		return err
+	})
+
+	// self-install a non-existing title
+	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/secret/software/install/%d", 999), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available for install.")
+
+	// self-install an existing title not available for self-install
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/secret/software/install/%d", titleID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available through self-service")
+
+	// update the in-house app to make it self-service
+
+	/*
+		var installCmdUUID string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
+		})
+		require.NotEmpty(t, installCmdUUID)
+
+		// TODO(JVE): check upcoming activity feed for installation
+
+		// Process the InstallApplication command
+		s.runWorker()
+		cmd, err := iosDevice.Idle()
+		require.NoError(t, err)
+
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			if cmd.Command.RequestType == "InstallApplication" {
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				assert.Equal(t, installCmdUUID, cmd.CommandUUID)
+
+				// Points at the expected manifest URL
+				expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, titleID, 0)
+				assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+
+				cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			}
+		}
+
+		// Install verification command should be sent
+
+		// Simulate a verification command not finding the app (maybe it takes a little while to install)
+		s.runWorker()
+		cmd, err = iosDevice.Idle()
+		var cmd1 string
+		require.NoError(t, err)
+		assert.NotNil(t, cmd)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				cmd1 = cmd.CommandUUID
+				require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+				cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+					iosDevice.UUID,
+					cmd.CommandUUID,
+					[]fleet.Software{},
+				)
+				require.NoError(t, err)
+			default:
+				require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+			}
+		}
+
+		s.runWorker()
+
+		cmd, err = iosDevice.Idle()
+		require.NoError(t, err)
+		assert.NotNil(t, cmd)
+		var verificationCmdUUID string
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				assert.NotEqual(t, cmd1, cmd.CommandUUID)
+				verificationCmdUUID = cmd.CommandUUID
+				require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+				cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+					iosDevice.UUID,
+					cmd.CommandUUID,
+					[]fleet.Software{
+						{
+							Name:             "test",
+							BundleIdentifier: "com.ipa-test.ipa-test",
+							Version:          "1.0",
+							Installed:        true,
+						},
+					},
+				)
+				require.NoError(t, err)
+			default:
+				require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+			}
+		}
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var install struct {
+				CommandUUID         string     `db:"command_uuid"`
+				VerificationCmdUUID string     `db:"verification_command_uuid"`
+				VerificationAt      *time.Time `db:"verification_at"`
+			}
+			err = sqlx.GetContext(
+				context.Background(),
+				q,
+				&install,
+				"SELECT command_uuid, verification_command_uuid, verification_at FROM host_in_house_software_installs WHERE host_id = ?",
+				iosHost.ID,
+			)
+			require.NoError(t, err)
+			assert.Equal(t, installCmdUUID, install.CommandUUID)
+			assert.Equal(t, verificationCmdUUID, install.VerificationCmdUUID)
+			assert.NotNil(t, install.VerificationAt)
+
+			return nil
+		})
+
+		// Get title and software package details
+		var st getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+			nil, http.StatusOK, &st)
+
+		require.Equal(t, "ipa_test", st.SoftwareTitle.Name)
+		require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.SoftwarePackage.Name)
+		require.Equal(t, "ios", st.SoftwareTitle.SoftwarePackage.Platform)
+		require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
+	*/
+}
