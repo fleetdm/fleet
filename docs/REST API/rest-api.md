@@ -655,10 +655,6 @@ Object with the following structure:
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 ##### smallstep
 
 Object with the following structure:
@@ -6634,15 +6630,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-<<<<<<< HEAD
-<<<<<<< HEAD
 | platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
-=======
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
->>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
-=======
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
->>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6715,11 +6703,7 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-<<<<<<< HEAD
 | platform | string  | query |   Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
-=======
-| platform | string  | query |  Platform to update software for. Either `"macos"`, `"windows"`, or `"linux"`.  Defaults to `"macos"`. |
->>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
@@ -10012,7 +9996,6 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
-<<<<<<< HEAD
     },
     {
       "id": 12,
@@ -10037,8 +10020,6 @@ Get a list of all software.
           "vulnerabilities": null
         }
       ],
-=======
->>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
     }
   ],
   "meta": {

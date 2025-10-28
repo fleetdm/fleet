@@ -744,14 +744,7 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-
 Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
-=======
->>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
-=======
->>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 #### Example
 
@@ -818,11 +811,6 @@ Can only be configured for all teams (`org_settings`). Use API to configure Zend
 ### certificate_authorities
 
 _Available in Fleet Premium._
-<<<<<<< HEAD
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-=======
->>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 
 This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
 
@@ -898,9 +886,6 @@ Can only be configured for all teams (`org_settings`).
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 #### smallstep
 
 - `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
@@ -909,11 +894,8 @@ Can only be configured for all teams (`org_settings`).
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
->>>>>>> 2c8ae8cc78fd95a3b29d34c32524bd90a1623676
 Can only be configured for all teams (`org_settings`).
 
-=======
->>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
 #### smallstep
 
 - `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
@@ -921,11 +903,6 @@ Can only be configured for all teams (`org_settings`).
 - `challenge_url` is the **Webhook URL** from Smallstep.
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
-<<<<<<< HEAD
-=======
-
-Can only be configured for all teams (`org_settings`).
->>>>>>> dfb6a22c1fe4645a2832c95ea570e59a19958d4a
 
 ### webhook_settings
 
