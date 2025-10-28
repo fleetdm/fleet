@@ -270,6 +270,11 @@ The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?
 When target release dates are changed on the calendar, the release ritual DRI also updates the milestone due date.
 
 
+### Discuss release dates
+
+A single Slack thread is created in the #help-releases thread for every release candidate. Any discussions about release dates should be kept within the release candidate's thread.
+
+
 ### Handle process exceptions for non-released code
 
 Some of our code does not go through a scheduled release process and is released immediately via GitHub workflows:
