@@ -36,7 +36,7 @@ type Service struct {
 	scepConfigService      fleet.SCEPConfigService
 	digiCertService        fleet.DigiCertService
 	hydrantService         fleet.HydrantService
-	androidService         android.Service
+	androidModule          android.Service
 }
 
 func NewService(
@@ -85,7 +85,7 @@ func NewService(
 		scepConfigService:      scepConfigService,
 		digiCertService:        digiCertService,
 		hydrantService:         hydrantService,
-		androidService:         androidService,
+		androidModule:          androidService,
 	}
 
 	// Override methods that can't be easily overriden via

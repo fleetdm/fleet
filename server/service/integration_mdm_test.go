@@ -36,6 +36,7 @@ import (
 	"time"
 
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -69,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -195,6 +197,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		wlog = kitlog.NewNopLogger()
 	}
+
+	activityModule := activities.NewActivityModule(s.ds, wlog)
+	androidMockClient := &android_mock.Client{}
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule)
+	if err != nil {
+		panic(err)
+	}
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
 		Log:        wlog,
@@ -207,9 +218,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
-		Datastore: s.ds,
-		Log:       wlog,
-		Commander: mdmCommander,
+		Datastore:     s.ds,
+		Log:           wlog,
+		Commander:     mdmCommander,
+		AndroidModule: androidSvc,
 	}
 	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
@@ -247,7 +259,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
-	androidMockClient := &android_mock.Client{}
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -263,6 +274,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		SoftwareInstallStore:  softwareInstallerStore,
 		BootstrapPackageStore: bootstrapPackageStore,
 		androidMockClient:     androidMockClient,
+		androidModule:         androidSvc,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {

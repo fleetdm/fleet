@@ -55,15 +55,6 @@ func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListActivities
 	return svc.ds.ListActivities(ctx, opt)
 }
 
-type ActivityWebhookPayload struct {
-	Timestamp     time.Time        `json:"timestamp"`
-	ActorFullName *string          `json:"actor_full_name"`
-	ActorID       *uint            `json:"actor_id"`
-	ActorEmail    *string          `json:"actor_email"`
-	Type          string           `json:"type"`
-	Details       *json.RawMessage `json:"details"`
-}
-
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
@@ -108,7 +99,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			err := backoff.Retry(
 				func() error {
 					if err := server.PostJSONWithTimeout(
-						context.Background(), webhookURL, &ActivityWebhookPayload{
+						context.Background(), webhookURL, &fleet.ActivityWebhookPayload{
 							Timestamp:     timestamp,
 							ActorFullName: userName,
 							ActorID:       userID,

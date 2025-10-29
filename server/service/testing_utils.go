@@ -237,15 +237,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore = store
 		}
 
-		var androidSvc android.Service
+		var androidModule android.Service
 		if len(opts) > 0 {
-			androidSvc, err = android_service.NewServiceWithClient(logger, ds, opts[0].androidMockClient, svc, "test-private-key", ds)
-			if err != nil {
-				panic(err)
-			}
-			androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
-
-			opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, androidSvc))
+			androidModule = opts[0].androidModule
 		}
 
 		svc, err = eeservice.NewService(
@@ -267,7 +261,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			scepConfigService,
 			digiCertService,
 			hydrantService,
-			androidSvc,
+			androidModule,
 		)
 		if err != nil {
 			panic(err)
@@ -406,6 +400,7 @@ type TestServerOpts struct {
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity
 	androidMockClient               *android_mock.Client
+	androidModule                   android.Service
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -437,6 +432,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
+
+	if len(opts) > 0 {
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	}
+
 	var mdmPusher nanomdm_push.Pusher
 	if len(opts) > 0 && opts[0].MDMPusher != nil {
 		mdmPusher = opts[0].MDMPusher

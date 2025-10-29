@@ -214,4 +214,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	assert.Len(t, getHostSw.Software, 1)
 
+	// Should have hit the android API endpoint
+	s.runWorker()
+	assert.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
 }

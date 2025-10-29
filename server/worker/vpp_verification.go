@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -17,11 +18,13 @@ const AppleSoftwareJobName = "apple_software"
 type AppleSoftwareTask string
 
 const VerifyVPPTask AppleSoftwareTask = "verify_vpp_installs"
+const MakeAndroidAppsAvailableTask AppleSoftwareTask = "make_android_apps_available"
 
 type AppleSoftware struct {
-	Datastore fleet.Datastore
-	Commander *apple_mdm.MDMAppleCommander
-	Log       kitlog.Logger
+	Datastore     fleet.Datastore
+	Commander     *apple_mdm.MDMAppleCommander
+	AndroidModule android.Service
+	Log           kitlog.Logger
 }
 
 func (v *AppleSoftware) Name() string {
@@ -32,6 +35,9 @@ type appleSoftwareArgs struct {
 	Task                    AppleSoftwareTask `json:"task"`
 	HostUUID                string            `json:"host_uuid"`
 	VerificationCommandUUID string            `json:"verification_command_uuid"`
+	ApplicationID           string            `json:"application_id"`
+	AppTeamID               uint              `json:"app_team_id"`
+	EnterpriseName          string            `json:"enterprise_name"`
 }
 
 func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -44,6 +50,9 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 	case VerifyVPPTask:
 		err := v.verifyVPPInstalls(ctx, args.HostUUID, args.VerificationCommandUUID)
 		return ctxerr.Wrap(ctx, err, "running migrate VPP token task")
+
+	case MakeAndroidAppsAvailableTask:
+		return ctxerr.Wrap(ctx, v.makeAndroidAppsAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName))
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
@@ -84,5 +93,37 @@ func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, log
 	}
 
 	level.Debug(logger).Log("job_id", job.ID, "job_name", appleMDMJobName, "task", task)
+	return nil
+}
+
+func (v *AppleSoftware) makeAndroidAppsAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string) error {
+	hosts, err := v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
+	}
+
+	// Update Android MDM policy to include the app in self service
+	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, applicationID, hosts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+	}
+
+	return nil
+}
+
+func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string) error {
+	args := &appleSoftwareArgs{
+		Task:           MakeAndroidAppsAvailableTask,
+		ApplicationID:  applicationID,
+		AppTeamID:      appTeamID,
+		EnterpriseName: enterpriseName,
+	}
+
+	job, err := QueueJob(ctx, ds, AppleSoftwareJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	level.Debug(logger).Log("job_id", job.ID, "job_name", appleMDMJobName, "task", MakeAndroidAppsAvailableTask)
 	return nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
 
@@ -400,8 +401,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			return 0, ctxerr.Wrap(ctx, err, "add app store app: get android enterprise")
 		}
 
-		// TODO(JVE): is it worth wrapping both of these operations in a single androidService method? they're technically just wrappers around a "datastore"
-		androidApp, err := svc.androidService.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
+		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), appID.AdamID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				return 0, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
@@ -417,15 +417,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			TeamID:           teamID,
 		}
 
-		hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
+		err = worker.QueueMakeAndroidAppAvailableJob(context.Background(), svc.ds, svc.logger, appID.AdamID, app.AppTeamID, enterprise.Name())
 		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
-		}
-
-		// Update Android MDM policy to include the app in self service
-		err = svc.androidService.AddAppToAndroidPolicy(ctx, enterprise.Name(), appID.AdamID, hosts)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
 
 	default:

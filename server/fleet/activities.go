@@ -10,6 +10,15 @@ import (
 
 type ContextKey string
 
+type ActivityWebhookPayload struct {
+	Timestamp     time.Time        `json:"timestamp"`
+	ActorFullName *string          `json:"actor_full_name"`
+	ActorID       *uint            `json:"actor_id"`
+	ActorEmail    *string          `json:"actor_email"`
+	Type          string           `json:"type"`
+	Details       *json.RawMessage `json:"details"`
+}
+
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
@@ -2196,15 +2205,15 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwareTitleId  uint                    `json:"software_title_id"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         InstallableDevicePlatform     `json:"platform"`
-	SelfService      bool                    `json:"self_service"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	SoftwareTitleId  uint                      `json:"software_title_id"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SelfService      bool                      `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -2243,14 +2252,14 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         InstallableDevicePlatform     `json:"platform"`
-	SoftwareIconURL  *string                 `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SoftwareIconURL  *string                   `json:"software_icon_url"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -2345,16 +2354,16 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }
 
 type ActivityEditedAppStoreApp struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwareTitleID  uint                    `json:"software_title_id"`
-	AppStoreID       string                  `json:"app_store_id"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	Platform         InstallableDevicePlatform     `json:"platform"`
-	SelfService      bool                    `json:"self_service"`
-	SoftwareIconURL  *string                 `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle    string                    `json:"software_title"`
+	SoftwareTitleID  uint                      `json:"software_title_id"`
+	AppStoreID       string                    `json:"app_store_id"`
+	TeamName         *string                   `json:"team_name"`
+	TeamID           *uint                     `json:"team_id"`
+	Platform         InstallableDevicePlatform `json:"platform"`
+	SelfService      bool                      `json:"self_service"`
+	SoftwareIconURL  *string                   `json:"software_icon_url"`
+	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {

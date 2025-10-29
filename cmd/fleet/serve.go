@@ -62,6 +62,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -784,14 +785,15 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+			activitiesModule := activities.NewActivityModule(ds, logger)
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
 				ds,
-				svc,
 				config.License.Key,
 				config.Server.PrivateKey,
 				ds,
+				activitiesModule,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -1024,7 +1026,7 @@ the way that the Fleet server works.
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller, androidSvc)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}

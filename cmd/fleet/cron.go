@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -662,6 +663,7 @@ func newWorkerIntegrationsSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -717,9 +719,10 @@ func newWorkerIntegrationsSchedule(
 		VPPInstaller:          vppInstaller,
 	}
 	vppVerify := &worker.AppleSoftware{
-		Datastore: ds,
-		Log:       logger,
-		Commander: commander,
+		Datastore:     ds,
+		Log:           logger,
+		Commander:     commander,
+		AndroidModule: androidModule,
 	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,

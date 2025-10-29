@@ -152,7 +152,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
 			// Use the computed display name from the device payload as lite host may not include it.
 			displayName := svc.getComputerName(&device)
-			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -268,7 +268,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
 			displayName := svc.getComputerName(&device)
-			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
