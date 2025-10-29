@@ -193,6 +193,8 @@ past AS (
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
+			WHEN ncr.status = :mdm_status_acknowledged THEN
+				:software_status_pending
 			ELSE
 				NULL -- either pending or not installed via VPP App
 		END AS status
