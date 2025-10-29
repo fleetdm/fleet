@@ -9113,11 +9113,11 @@ func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	t.Run("valid windows record stays", func(t *testing.T) {
 		t.Cleanup(func() {
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				q.ExecContext(ctx, `
+				_, err := q.ExecContext(ctx, `
 				DELETE FROM host_mdm_managed_certificates;
 				DELETE FROM host_mdm_windows_profiles;
 				`)
-				return nil
+				return err
 			})
 		})
 		windowsProfileUUID := uuid.NewString()
@@ -9150,11 +9150,11 @@ func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	t.Run("valid apple record stays", func(t *testing.T) {
 		t.Cleanup(func() {
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				q.ExecContext(ctx, `
+				_, err := q.ExecContext(ctx, `
 				DELETE FROM host_mdm_managed_certificates;
 				DELETE FROM host_mdm_apple_profiles;
 				`)
-				return nil
+				return err
 			})
 		})
 
