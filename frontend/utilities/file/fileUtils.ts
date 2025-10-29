@@ -62,19 +62,32 @@ export const getExtensionFromFileName = (fileName: string) => {
 };
 
 /** This gets the platform display name from the file. */
-export const getPlatformDisplayName = (file: File) => {
+export const getPlatformDisplayName = (
+  file: File,
+  isSoftwareInstaller = false
+): IPlatformDisplayName | undefined => {
   const fileExt = getExtensionFromFileName(file.name);
   if (!fileExt) {
     return undefined;
   }
+
+  // .sh files are "macOS & Linux" for general scripts,
+  // but "Linux" only for software installers
+  if (isSoftwareInstaller && fileExt === "sh") {
+    return "Linux";
+  }
+
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
 /** This gets the file details from the file. */
-export const getFileDetails = (file: File) => {
+export const getFileDetails = (
+  file: File,
+  isSoftwareInstaller = false
+): IFileDetails => {
   return {
     name: file.name,
-    description: getPlatformDisplayName(file),
+    description: getPlatformDisplayName(file, isSoftwareInstaller),
   };
 };
 
