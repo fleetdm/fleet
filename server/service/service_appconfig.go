@@ -218,6 +218,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					ProxyHost:   conf.KafkaREST.ProxyHost,
 				},
 			}
+		case "nats":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "nats",
+				Config: fleet.NatsConfig{
+					StatusSubject: conf.Nats.StatusSubject,
+					ResultSubject: conf.Nats.ResultSubject,
+					AuditSubject:  conf.Nats.AuditSubject,
+					Server:        conf.Nats.Server,
+				},
+			}
 		default:
 			return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", lp.plugin)
 		}

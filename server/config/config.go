@@ -540,6 +540,21 @@ type KafkaRESTConfig struct {
 	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
+// NatsConfig defines configs for the NATS logging plugin.
+type NatsConfig struct {
+	StatusSubject    string        `json:"status_subject" yaml:"status_subject"`
+	ResultSubject    string        `json:"result_subject" yaml:"result_subject"`
+	AuditSubject     string        `json:"audit_subject" yaml:"audit_subject"`
+	Server           string        `json:"server" yaml:"server"`
+	CredFile         string        `json:"cred_file" yaml:"cred_file"`
+	NKeyFile         string        `json:"nkey_file" yaml:"nkey_file"`
+	TLSClientCrtFile string        `json:"tls_client_crt_file" yaml:"tls_client_crt_file"`
+	TLSClientKeyFile string        `json:"tls_client_key_file" yaml:"tls_client_key_file"`
+	CACrtFile        string        `json:"ca_crt_file" yaml:"ca_crt_file"`
+	JetStream        bool          `json:"jetstream" yaml:"jetstream"`
+	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
+}
+
 // LicenseConfig defines configs related to licensing Fleet.
 type LicenseConfig struct {
 	Key              string `yaml:"key"`
@@ -627,6 +642,7 @@ type FleetConfig struct {
 	Filesystem                 FilesystemConfig
 	Webhook                    WebhookConfig
 	KafkaREST                  KafkaRESTConfig
+	Nats                       NatsConfig
 	License                    LicenseConfig
 	Vulnerabilities            VulnerabilitiesConfig
 	Upgrades                   UpgradesConfig
@@ -1383,6 +1399,19 @@ func (man Manager) addConfigs() {
 		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
 	man.addConfigInt("kafkarest.timeout", 5, "Kafka REST proxy json post timeout")
 
+	// NATS
+	man.addConfigString("nats.status_subject", "", "NATS subject for status logs")
+	man.addConfigString("nats.result_subject", "", "NATS subject for result logs")
+	man.addConfigString("nats.audit_subject", "", "NATS subject for audit logs")
+	man.addConfigString("nats.server", "", "NATS server URL")
+	man.addConfigString("nats.cred_file", "", "NATS credentials file")
+	man.addConfigString("nats.nkey_file", "", "NATS NKey file")
+	man.addConfigString("nats.tls_client_crt_file", "", "NATS TLS client certificate file")
+	man.addConfigString("nats.tls_client_key_file", "", "NATS TLS client key file")
+	man.addConfigString("nats.ca_crt_file", "", "NATS CA certificate file")
+	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
+	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
+
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 	man.addConfigBool("license.enforce_host_limit", false, "Enforce license limit of enrolled hosts")
@@ -1707,6 +1736,19 @@ func (man Manager) LoadConfig() FleetConfig {
 			ProxyHost:        man.getConfigString("kafkarest.proxyhost"),
 			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
 			Timeout:          man.getConfigInt("kafkarest.timeout"),
+		},
+		Nats: NatsConfig{
+			StatusSubject:    man.getConfigString("nats.status_subject"),
+			ResultSubject:    man.getConfigString("nats.result_subject"),
+			AuditSubject:     man.getConfigString("nats.audit_subject"),
+			Server:           man.getConfigString("nats.server"),
+			CredFile:         man.getConfigString("nats.cred_file"),
+			NKeyFile:         man.getConfigString("nats.nkey_file"),
+			TLSClientCrtFile: man.getConfigString("nats.tls_client_crt_file"),
+			TLSClientKeyFile: man.getConfigString("nats.tls_client_key_file"),
+			CACrtFile:        man.getConfigString("nats.ca_crt_file"),
+			JetStream:        man.getConfigBool("nats.jetstream"),
+			Timeout:          man.getConfigDuration("nats.timeout"),
 		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
