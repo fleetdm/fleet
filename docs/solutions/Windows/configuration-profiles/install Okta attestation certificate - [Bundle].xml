@@ -106,7 +106,7 @@
   </Item>
 </Add>
 <Add>
-  <!-- SCEP Challenge - Does not need to be b64, special characters in SCEP challenge strings such as `! @ # $ % ^ & * _ ()` should not be used -->
+  <!-- SCEP challenge strings should not be b64 encoded or contain special characters like ! @ # $ % ^ & * _ () -->
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/Challenge</LocURI>
