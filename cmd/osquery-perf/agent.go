@@ -230,6 +230,7 @@ type mdmAgent struct {
 	softwareCount         softwareEntityCount
 	stats                 *osquery_perf.Stats
 	strings               map[string]string
+	softwareVersionMap    map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
 	mdmProfileFailureProb float64
 }
 
@@ -242,6 +243,39 @@ func (a *mdmAgent) CachedString(key string) string {
 	val := randomString(12)
 	a.strings[key] = val
 	return val
+}
+
+// selectSoftwareVersion returns a consistent version for a software package based on its name.
+// Same implementation as agent.selectSoftwareVersion.
+func (a *mdmAgent) selectSoftwareVersion(softwareName, baseVersion, alternateVersion string) string {
+	if len(softwareName) == 0 {
+		return baseVersion
+	}
+
+	firstChar := rune(softwareName[0])
+	versionOption, exists := a.softwareVersionMap[firstChar]
+	if !exists {
+		r := rand.Float64()
+		switch {
+		case r < 0.99:
+			versionOption = 0
+		case r < 0.999:
+			versionOption = 1
+		default:
+			versionOption = 2 + rand.Intn(30)
+		}
+		a.softwareVersionMap[firstChar] = versionOption
+	}
+
+	switch versionOption {
+	case 0:
+		return baseVersion
+	case 1:
+		return alternateVersion
+	default:
+		patchNum := versionOption - 2
+		return fmt.Sprintf("%s.%d", baseVersion, patchNum)
+	}
 }
 
 // adamIDsToSoftware is the set of VPP apps that we support in our mock VPP install flow.
@@ -345,7 +379,9 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 	mdmProfileFailureProb float64
-	OSPatchLevel          int // For Linux patches
+	OSPatchLevel          int                 // For Linux patches
+	linuxKernels          []map[string]string // Pre-selected kernels for this agent
+	softwareVersionMap    map[rune]int        // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
 
 	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
 	// because we read and write the field itself (not data in the map) from
@@ -538,6 +574,7 @@ func newAgent(
 		loggerTLSMaxLines:        loggerTLSMaxLines,
 		bufferedResults:          make(map[resultLog]int),
 		scheduledQueryData:       new(sync.Map),
+		softwareVersionMap:       make(map[rune]int),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
 
@@ -552,6 +589,11 @@ func newAgent(
 		HostUUID:      hostUUID,
 		AgentIndex:    agentIndex,
 	}, useHTTPSig, httpMessageSignatureP384Prob)
+
+	// Pre-select kernels for Ubuntu agents to ensure consistency across queries
+	if agentOS == "ubuntu" {
+		agent.linuxKernels = selectKernels(ubuntuKernels)
+	}
 
 	return agent
 }
@@ -1635,20 +1677,45 @@ func randomString(n int) string {
 	return sb.String()
 }
 
-// randomizeVersion returns a version string with realistic randomization:
-func randomizeVersion(baseVersion, alternateVersion string) string {
-	r := rand.Float64()
-	switch {
-	case r < 0.99:
-		// 99% - return base version
+// selectSoftwareVersion returns a consistent version for a software package based on its name.
+// Uses a per-agent map that assigns each first character to one of 32 version options:
+// - 0: base version (99% probability)
+// - 1: alternate version (0.9% probability)
+// - 2-31: patch versions (0.1% probability, split among 30 different patch numbers)
+// This ensures each agent consistently reports the same version for software with the same first letter.
+func (a *agent) selectSoftwareVersion(softwareName, baseVersion, alternateVersion string) string {
+	if len(softwareName) == 0 {
 		return baseVersion
-	case r < 0.999:
-		// 0.9% - return alternate version
+	}
+
+	// Get first character as a rune
+	firstChar := rune(softwareName[0])
+
+	// Check if we've already assigned a version option for this character
+	versionOption, exists := a.softwareVersionMap[firstChar]
+	if !exists {
+		// Randomly assign option with distribution matching original randomizeVersion:
+		// 99% base (0), 0.9% alternate (1), 0.1% patch versions (2-31)
+		r := rand.Float64()
+		switch {
+		case r < 0.99:
+			versionOption = 0 // base version
+		case r < 0.999:
+			versionOption = 1 // alternate version
+		default:
+			versionOption = 2 + rand.Intn(30) // patch version: 2-31 maps to patch 0-29
+		}
+		a.softwareVersionMap[firstChar] = versionOption
+	}
+
+	// Return the appropriate version based on the stored option
+	switch versionOption {
+	case 0:
+		return baseVersion
+	case 1:
 		return alternateVersion
-	default:
-		// 0.1% - return one of 30 random patch versions
-		// Generate a random patch version based on the base version
-		patchNum := rand.Intn(30)
+	default: // 2-31
+		patchNum := versionOption - 2 // 0-29
 		return fmt.Sprintf("%s.%d", baseVersion, patchNum)
 	}
 }
@@ -1737,9 +1804,10 @@ func (a *agent) softwareMacOS() []map[string]string {
 		}
 
 		if i < totalCommon {
+			name := fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix)
 			commonSoftware = append(commonSoftware, map[string]string{
-				"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
-				"version":           randomizeVersion("0.0.1", "0.0.2"),
+				"name":              name,
+				"version":           a.selectSoftwareVersion(name, "0.0.1", "0.0.2"),
 				"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 				"source":            "apps",
 				"last_opened_at":    lastOpenedAt,
@@ -1774,9 +1842,10 @@ func (a *agent) softwareMacOS() []map[string]string {
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
+		name := fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)
 		uniqueSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			"version":           randomizeVersion("1.1.1", "1.1.2"),
+			"name":              name,
+			"version":           a.selectSoftwareVersion(name, "1.1.1", "1.1.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
 			"source":            "apps",
 			"last_opened_at":    lastOpenedAt,
@@ -1854,9 +1923,10 @@ func (a *agent) softwareMacOS() []map[string]string {
 func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	commonSoftware := make([]map[string]string, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
+		name := fmt.Sprintf("Common_%d", i)
 		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d", i),
-			"version":           randomizeVersion("0.0.1", "0.0.2"),
+			"name":              name,
+			"version":           a.selectSoftwareVersion(name, "0.0.1", "0.0.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 			"source":            source,
 		}
@@ -1869,9 +1939,10 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	}
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
+		name := fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)
 		uniqueSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			"version":           randomizeVersion("1.1.1", "1.1.2"),
+			"name":              name,
+			"version":           a.selectSoftwareVersion(name, "1.1.1", "1.1.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
 			"source":            source,
 		}
@@ -1902,9 +1973,10 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	commonVSCodeExtensionsSoftware := make([]map[string]string, a.softwareVSCodeExtensionsCount.common)
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
+		name := fmt.Sprintf("common.extension_%d", i)
 		commonVSCodeExtensionsSoftware[i] = map[string]string{
-			"name":    fmt.Sprintf("common.extension_%d", i),
-			"version": randomizeVersion("0.0.1", "0.0.2"),
+			"name":    name,
+			"version": a.selectSoftwareVersion(name, "0.0.1", "0.0.2"),
 			"source":  "vscode_extensions",
 		}
 	}
@@ -1916,9 +1988,10 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	}
 	uniqueVSCodeExtensionsSoftware := make([]map[string]string, a.softwareVSCodeExtensionsCount.unique)
 	for i := 0; i < len(uniqueVSCodeExtensionsSoftware); i++ {
+		name := fmt.Sprintf("unique.extension_%s_%d", a.CachedString("hostname"), i)
 		uniqueVSCodeExtensionsSoftware[i] = map[string]string{
-			"name":    fmt.Sprintf("unique.extension_%s_%d", a.CachedString("hostname"), i),
-			"version": randomizeVersion("1.1.1", "1.1.2"),
+			"name":    name,
+			"version": a.selectSoftwareVersion(name, "1.1.1", "1.1.2"),
 			"source":  "vscode_extensions",
 		}
 	}
@@ -2587,13 +2660,13 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		if ss == fleet.StatusOK {
 			results = make([]map[string]string, 0, len(windowsSoftware))
 			for _, s := range windowsSoftware {
-				// Randomize version for each software item
+				// Use consistent version based on software name's first character
 				baseVersion := s["version"]
 				alternateVersion := baseVersion + ".1"
 				m := map[string]string{
 					"name":    s["name"],
 					"source":  s["source"],
-					"version": randomizeVersion(baseVersion, alternateVersion),
+					"version": a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
 				}
 				results = append(results, m)
 			}
@@ -2621,10 +2694,10 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					if a.linuxUniqueSoftwareVersion {
 						version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
 					} else {
-						// Randomize version for each software item
+						// Use consistent version based on software name's first character
 						baseVersion := s["version"]
 						alternateVersion := baseVersion + ".1"
-						version = randomizeVersion(baseVersion, alternateVersion)
+						version = a.selectSoftwareVersion(softwareName, baseVersion, alternateVersion)
 					}
 					m := map[string]string{
 						"name":    softwareName,
@@ -2634,9 +2707,8 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					results = append(results, m)
 				}
 
-				// Add kernels
-				kernels := selectKernels(ubuntuKernels)
-				results = append(results, kernels...)
+				// Add pre-selected kernels for this agent
+				results = append(results, a.linuxKernels...)
 
 				a.installedSoftware.Range(func(key, value interface{}) bool {
 					results = append(results, value.(map[string]string))
@@ -3205,6 +3277,7 @@ func main() {
 				},
 				stats:                 stats,
 				strings:               make(map[string]string),
+				softwareVersionMap:    make(map[rune]int),
 				mdmProfileFailureProb: *mdmProfileFailureProb,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
