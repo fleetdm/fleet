@@ -41,113 +41,18 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 
 	var tmID uint
 	var linuxTeamFilter string
-	baseArgs := []any{name, version, name, version}
+	args := []any{name, version, name, version}
 	if teamID != nil {
 		tmID = *teamID
 		linuxTeamFilter = "AND osvv.team_id = ?"
-		baseArgs = append(baseArgs, tmID)
+		args = append(args, tmID)
 	} else {
 		// When no teamID is specified, query the "all teams" aggregated data (team_id = NULL)
 		linuxTeamFilter = "AND osvv.team_id IS NULL"
 	}
 
 	if !includeCVSS {
-		// Simple query without CVSS metadata
-		baseCTE := `
-		WITH all_vulns AS (
-			SELECT
-				osv.cve,
-				MIN(osv.created_at) created_at
-			FROM operating_system_vulnerabilities osv
-			JOIN operating_systems os ON os.id = osv.operating_system_id
-				AND os.name = ? AND os.version = ?
-			GROUP BY osv.cve
-
-			UNION
-
-			SELECT DISTINCT
-				osvv.cve,
-				MIN(osvv.created_at) created_at
-			FROM
-				operating_system_version_vulnerabilities osvv
-				JOIN operating_systems os ON os.os_version_id = osvv.os_version_id
-			WHERE
-				os.name = ?
-				AND os.version = ?
-				` + linuxTeamFilter + `
-			GROUP BY osvv.cve
-		)
-		`
-
-		var stmt string
-		args := make([]any, len(baseArgs))
-		copy(args, baseArgs)
-
-		switch {
-		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
-			// Return only count
-			stmt = baseCTE + `
-			SELECT
-				'' as cve,
-				NOW() as created_at,
-				COUNT(*) as total_count
-			FROM all_vulns`
-
-		case maxVulnerabilities != nil:
-			// Limit with ROW_NUMBER()
-			stmt = baseCTE + `
-			SELECT
-				cve,
-				created_at,
-				total_count
-			FROM (
-				SELECT
-					cve,
-					created_at,
-					ROW_NUMBER() OVER (ORDER BY cve) as rn,
-					COUNT(*) OVER () as total_count
-				FROM all_vulns
-			) ranked
-			WHERE rn <= ?`
-			args = append(args, *maxVulnerabilities)
-
-		default:
-			// Return all with count
-			stmt = baseCTE + `
-			SELECT
-				cve,
-				created_at,
-				COUNT(*) OVER () as total_count
-			FROM all_vulns`
-		}
-
-		type simpleResult struct {
-			CVE        string    `db:"cve"`
-			CreatedAt  time.Time `db:"created_at"`
-			TotalCount int       `db:"total_count"`
-		}
-
-		var results []simpleResult
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
-			return fleet.OSVulnerabilitiesWithCount{}, ctxerr.Wrap(ctx, err, "error executing SQL statement")
-		}
-
-		totalCount := 0
-		vulns := make(fleet.Vulnerabilities, 0)
-		for _, r := range results {
-			totalCount = r.TotalCount
-			if r.CVE != "" { // Skip the count-only row when max=0
-				vulns = append(vulns, fleet.CVE{
-					CVE:       r.CVE,
-					CreatedAt: r.CreatedAt,
-				})
-			}
-		}
-
-		return fleet.OSVulnerabilitiesWithCount{
-			Vulnerabilities: vulns,
-			Count:           totalCount,
-		}, nil
+		return ds.listVulnsWithoutCVSS(ctx, linuxTeamFilter, maxVulnerabilities, args)
 	}
 
 	// Query with CVSS metadata
@@ -180,9 +85,6 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 	`
 
 	var stmt string
-	args := make([]any, len(baseArgs))
-	copy(args, baseArgs)
-
 	switch {
 	case maxVulnerabilities != nil && *maxVulnerabilities == 0:
 		// Return only count
@@ -273,6 +175,103 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				CVEPublished:      &r.CVEPublished,
 				Description:       &r.Description,
 				ResolvedInVersion: &r.ResolvedInVersion,
+			})
+		}
+	}
+
+	return fleet.OSVulnerabilitiesWithCount{
+		Vulnerabilities: vulns,
+		Count:           totalCount,
+	}, nil
+}
+
+func (ds *Datastore) listVulnsWithoutCVSS(ctx context.Context, linuxTeamFilter string, maxVulnerabilities *int, args []any) (fleet.OSVulnerabilitiesWithCount,
+	error) {
+	// Simple query without CVSS metadata
+	baseCTE := `
+		WITH all_vulns AS (
+			SELECT
+				osv.cve,
+				MIN(osv.created_at) created_at
+			FROM operating_system_vulnerabilities osv
+			JOIN operating_systems os ON os.id = osv.operating_system_id
+				AND os.name = ? AND os.version = ?
+			GROUP BY osv.cve
+
+			UNION
+
+			SELECT DISTINCT
+				osvv.cve,
+				MIN(osvv.created_at) created_at
+			FROM
+				operating_system_version_vulnerabilities osvv
+				JOIN operating_systems os ON os.os_version_id = osvv.os_version_id
+			WHERE
+				os.name = ?
+				AND os.version = ?
+				` + linuxTeamFilter + `
+			GROUP BY osvv.cve
+		)
+		`
+
+	var stmt string
+	switch {
+	case maxVulnerabilities != nil && *maxVulnerabilities == 0:
+		// Return only count
+		stmt = baseCTE + `
+			SELECT
+				'' as cve,
+				NOW() as created_at,
+				COUNT(*) as total_count
+			FROM all_vulns`
+
+	case maxVulnerabilities != nil:
+		// Limit with ROW_NUMBER()
+		stmt = baseCTE + `
+			SELECT
+				cve,
+				created_at,
+				total_count
+			FROM (
+				SELECT
+					cve,
+					created_at,
+					ROW_NUMBER() OVER (ORDER BY cve) as rn,
+					COUNT(*) OVER () as total_count
+				FROM all_vulns
+			) ranked
+			WHERE rn <= ?`
+		args = append(args, *maxVulnerabilities)
+
+	default:
+		// Return all with count
+		stmt = baseCTE + `
+			SELECT
+				cve,
+				created_at,
+				COUNT(*) OVER () as total_count
+			FROM all_vulns`
+	}
+
+	type simpleResult struct {
+		CVE        string    `db:"cve"`
+		CreatedAt  time.Time `db:"created_at"`
+		TotalCount int       `db:"total_count"`
+	}
+
+	var results []simpleResult
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
+		return fleet.OSVulnerabilitiesWithCount{}, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+
+	totalCount := 0
+	vulns := make(fleet.Vulnerabilities, 0)
+	for _, r := range results {
+		totalCount = r.TotalCount
+		if r.CVE != "" { // Skip the count-only row when max=0
+			vulns = append(vulns, fleet.CVE{
+				CVE:       r.CVE,
+				CreatedAt: r.CreatedAt,
 			})
 		}
 	}
@@ -514,14 +513,14 @@ func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error 
 			khc.os_version_id,
 			sc.cve,
 			khc.team_id,
-			sc.source,
-			sc.resolved_in_version,
+			MIN(sc.source) as source,
+			MIN(sc.resolved_in_version) as resolved_in_version,
 			MIN(sc.created_at) as created_at,
 			? as updated_at
 		FROM kernel_host_counts khc
 		JOIN software_cve sc ON sc.software_id = khc.software_id
 		WHERE khc.hosts_count > 0
-		GROUP BY khc.os_version_id, sc.cve, khc.team_id, sc.source, sc.resolved_in_version
+		GROUP BY khc.team_id, khc.os_version_id, sc.cve
 		ON DUPLICATE KEY UPDATE
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
@@ -540,14 +539,14 @@ func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error 
 			khc.os_version_id,
 			sc.cve,
 			NULL as team_id,
-			sc.source,
-			sc.resolved_in_version,
+			MIN(sc.source),
+			MIN(sc.resolved_in_version),
 			MIN(sc.created_at) as created_at,
 			? as updated_at
 		FROM kernel_host_counts khc
 		JOIN software_cve sc ON sc.software_id = khc.software_id
 		WHERE khc.hosts_count > 0
-		GROUP BY khc.os_version_id, sc.cve, sc.source, sc.resolved_in_version
+		GROUP BY khc.os_version_id, sc.cve
 		ON DUPLICATE KEY UPDATE
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
@@ -669,15 +668,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		return result, nil
 	}
 
-	// Step 2: Execute queries in parallel
-	vulnsByKey := make(map[string][]fleet.CVE)
-	cveSetByKey := make(map[string]map[string]struct{}) // Track unique CVEs per key for accurate counting
-	cveSet := make(map[string]struct{})
-	// Track total counts per key when using LIMIT - this is the count BEFORE limiting
-	// We need to track by OSID/OSVersionID and then aggregate by key
-	totalCountByOSID := make(map[uint]uint)        // For non-Linux: operating_system_id -> total count
-	totalCountByOSVersionID := make(map[uint]uint) // For Linux: os_version_id -> total count
-
+	// Step 2: Execute non-Linux and Linux queries in parallel
 	type vulnResult struct {
 		OSID              uint // For non-Linux: os.id
 		OSVersionID       uint // For Linux: os_version_id
@@ -687,7 +678,6 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		IsLinux           bool  // Flag to distinguish between Linux and non-Linux results
 		TotalCount        *uint // Total count per operating_system_id/os_version_id (only set when using ROW_NUMBER)
 	}
-
 	var osVulnResults, kernelVulnResults []vulnResult
 
 	// Launch goroutines for parallel query execution
@@ -705,12 +695,12 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		}
 
 		// Build query based on maxVulnerabilities parameter
-		var osVulnsQuery string
 		osArgs := make([]any, len(nonLinuxOSIDs))
 		for i, id := range nonLinuxOSIDs {
 			osArgs[i] = id
 		}
 
+		var osVulnsQuery string
 		switch {
 		case maxVulnerabilities != nil && *maxVulnerabilities == 0:
 			// For max=0, only fetch minimal data needed for counting
@@ -905,6 +895,14 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	}
 	osVulnResults = <-osVulnsChan
 	kernelVulnResults = <-kernelVulnsChan
+
+	vulnsByKey := make(map[string][]fleet.CVE)
+	cveSetByKey := make(map[string]map[string]struct{}) // Track unique CVEs per key for accurate counting
+	cveSet := make(map[string]struct{})
+	// Track total counts per key when using LIMIT - this is the count BEFORE limiting
+	// We need to track by OSID/OSVersionID and then aggregate by key
+	totalCountByOSID := make(map[uint]uint)        // For non-Linux: operating_system_id -> total count
+	totalCountByOSVersionID := make(map[uint]uint) // For Linux: os_version_id -> total count
 
 	// Process OS vulnerability results (non-Linux)
 	for _, r := range osVulnResults {

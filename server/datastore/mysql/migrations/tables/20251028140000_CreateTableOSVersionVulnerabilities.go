@@ -54,13 +54,13 @@ func Up_20251028140000(tx *sql.Tx) error {
 			khc.os_version_id,
 			sc.cve,
 			khc.team_id,
-			sc.source,
-			sc.resolved_in_version,
+			MIN(sc.source),
+			MIN(sc.resolved_in_version),
 			MIN(sc.created_at) as created_at
 		FROM kernel_host_counts khc
 		JOIN software_cve sc ON sc.software_id = khc.software_id
 		WHERE khc.hosts_count > 0
-		GROUP BY khc.os_version_id, sc.cve, khc.team_id, sc.source, sc.resolved_in_version
+		GROUP BY khc.team_id, khc.os_version_id, sc.cve, khc.team_id
 		ON DUPLICATE KEY UPDATE
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
@@ -83,13 +83,13 @@ func Up_20251028140000(tx *sql.Tx) error {
 			khc.os_version_id,
 			sc.cve,
 			NULL as team_id,
-			sc.source,
-			sc.resolved_in_version,
+			MIN(sc.source),
+			MIN(sc.resolved_in_version),
 			MIN(sc.created_at) as created_at
 		FROM kernel_host_counts khc
 		JOIN software_cve sc ON sc.software_id = khc.software_id
 		WHERE khc.hosts_count > 0
-		GROUP BY khc.os_version_id, sc.cve, sc.source, sc.resolved_in_version
+		GROUP BY khc.os_version_id, sc.cve
 		ON DUPLICATE KEY UPDATE
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
