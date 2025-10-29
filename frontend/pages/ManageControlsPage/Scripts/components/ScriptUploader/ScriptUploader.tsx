@@ -26,11 +26,13 @@ const ScriptPackageUploader = ({
 
   const buttonType = forModal ? "brand-inverse-icon" : undefined;
   const buttonMessage = forModal ? "Choose file" : "Add script";
+  const extension = selectedFile?.name.match(/(sh|ps1)$/i)?.[1];
+  const graphicName = extension === "ps1" ? "file-ps1" : "file-sh";
 
   return (
     <FileUploader
       className={baseClass}
-      graphicName={["file-sh", "file-ps1"]}
+      graphicName={[graphicName]}
       message="Shell (.sh) for macOS and Linux or PowerShell (.ps1) for Windows"
       title="Upload script"
       accept=".sh,.ps1"
