@@ -179,19 +179,14 @@ const HostHeader = ({
 
     return (
       <>
-        <span className={classNames} data-tip data-for="tag-tooltip">
-          {tag.title}
-        </span>
-        <ReactTooltip
-          place="top"
-          effect="solid"
-          id="tag-tooltip"
-          backgroundColor={COLORS["tooltip-bg"]}
+        <TooltipWrapper
+          tipContent={tag.generateTooltip(platform)}
+          position="top"
+          underline={false}
+          showArrow
         >
-          <span className={`${baseClass}__tooltip-text`}>
-            {tag.generateTooltip(platform)}
-          </span>
-        </ReactTooltip>
+          <span className={classNames}>{tag.title}</span>
+        </TooltipWrapper>
       </>
     );
   };
