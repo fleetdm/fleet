@@ -89,24 +89,14 @@ const CertificateDetailsModal = ({
                 {subjectCountry && (
                   <DataSet
                     title="Country or region"
-                    value={
-                      <TooltipTruncatedText
-                        value={subjectCountry}
-                        tooltip={subjectCountry}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={subjectCountry} />}
                     orientation="horizontal"
                   />
                 )}
                 {subjectOrganization && (
                   <DataSet
                     title="Organization"
-                    value={
-                      <TooltipTruncatedText
-                        value={subjectOrganization}
-                        tooltip={subjectOrganization}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={subjectOrganization} />}
                     orientation="horizontal"
                   />
                 )}
@@ -114,10 +104,7 @@ const CertificateDetailsModal = ({
                   <DataSet
                     title="Organizational unit"
                     value={
-                      <TooltipTruncatedText
-                        value={subjectOrganizationalUnit}
-                        tooltip={subjectOrganizationalUnit}
-                      />
+                      <TooltipTruncatedText value={subjectOrganizationalUnit} />
                     }
                     orientation="horizontal"
                   />
@@ -125,12 +112,7 @@ const CertificateDetailsModal = ({
                 {subjectCommonName && (
                   <DataSet
                     title="Common name"
-                    value={
-                      <TooltipTruncatedText
-                        value={subjectCommonName}
-                        tooltip={subjectCommonName}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={subjectCommonName} />}
                     orientation="horizontal"
                   />
                 )}
@@ -144,24 +126,14 @@ const CertificateDetailsModal = ({
                 {issuerCountry && (
                   <DataSet
                     title="Country or region"
-                    value={
-                      <TooltipTruncatedText
-                        value={issuerCountry}
-                        tooltip={issuerCountry}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={issuerCountry} />}
                     orientation="horizontal"
                   />
                 )}
                 {issuerOrganization && (
                   <DataSet
                     title="Organization"
-                    value={
-                      <TooltipTruncatedText
-                        value={issuerOrganization}
-                        tooltip={issuerOrganization}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={issuerOrganization} />}
                     orientation="horizontal"
                   />
                 )}
@@ -169,10 +141,7 @@ const CertificateDetailsModal = ({
                   <DataSet
                     title="Organizational unit"
                     value={
-                      <TooltipTruncatedText
-                        value={issuerOrganizationalUnit}
-                        tooltip={issuerOrganizationalUnit}
-                      />
+                      <TooltipTruncatedText value={issuerOrganizationalUnit} />
                     }
                     orientation="horizontal"
                   />
@@ -180,12 +149,7 @@ const CertificateDetailsModal = ({
                 {issuerCommonName && (
                   <DataSet
                     title="Common name"
-                    value={
-                      <TooltipTruncatedText
-                        value={issuerCommonName}
-                        tooltip={issuerCommonName}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={issuerCommonName} />}
                     orientation="horizontal"
                   />
                 )}
@@ -202,7 +166,6 @@ const CertificateDetailsModal = ({
                     value={
                       <TooltipTruncatedText
                         value={monthDayYearFormat(not_valid_before)}
-                        tooltip={monthDayYearFormat(not_valid_before)}
                       />
                     }
                     orientation="horizontal"
@@ -214,7 +177,6 @@ const CertificateDetailsModal = ({
                     value={
                       <TooltipTruncatedText
                         value={monthDayYearFormat(not_valid_after)}
-                        tooltip={monthDayYearFormat(not_valid_after)}
                       />
                     }
                     orientation="horizontal"
@@ -230,57 +192,35 @@ const CertificateDetailsModal = ({
                 {key_algorithm && (
                   <DataSet
                     title="Algorithm"
-                    value={
-                      <TooltipTruncatedText
-                        value={key_algorithm}
-                        tooltip={key_algorithm}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={key_algorithm} />}
                     orientation="horizontal"
                   />
                 )}
                 {!!key_strength && (
                   <DataSet
                     title="Key size"
-                    value={
-                      <TooltipTruncatedText
-                        value={key_strength}
-                        tooltip={key_strength}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={key_strength} />}
                     orientation="horizontal"
                   />
                 )}
                 {key_usage && (
                   <DataSet
                     title="Key usage"
-                    value={
-                      <TooltipTruncatedText
-                        value={key_usage}
-                        tooltip={key_usage}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={key_usage} />}
                     orientation="horizontal"
                   />
                 )}
                 {serial && (
                   <DataSet
                     title="Serial number (hex)"
-                    value={
-                      <TooltipTruncatedText value={serial} tooltip={serial} />
-                    }
+                    value={<TooltipTruncatedText value={serial} />}
                     orientation="horizontal"
                   />
                 )}
                 {serialDecimal && (
                   <DataSet
                     title="Serial number (decimal)"
-                    value={
-                      <TooltipTruncatedText
-                        value={serialDecimal}
-                        tooltip={serialDecimal}
-                      />
-                    }
+                    value={<TooltipTruncatedText value={serialDecimal} />}
                     orientation="horizontal"
                   />
                 )}
@@ -296,7 +236,6 @@ const CertificateDetailsModal = ({
                 value={
                   <TooltipTruncatedText
                     value={certificate_authority ? "Yes" : "No"}
-                    tooltip={certificate_authority ? "Yes" : "No"}
                   />
                 }
                 orientation="horizontal"
@@ -309,12 +248,7 @@ const CertificateDetailsModal = ({
               <dl>
                 <DataSet
                   title="Algorithm"
-                  value={
-                    <TooltipTruncatedText
-                      value={signing_algorithm}
-                      tooltip={signing_algorithm}
-                    />
-                  }
+                  value={<TooltipTruncatedText value={signing_algorithm} />}
                   orientation="horizontal"
                 />
               </dl>
