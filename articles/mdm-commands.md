@@ -124,7 +124,7 @@ To deliver the MDM command payload with `fleetctl`, use something like the follo
 - references the MDM command payload file created above, and
 - references the intended host targets, e.g.,
 
-`fleetctl mdm run-command --payload='apple-restart-device.xml' --hosts='someHostname'`
+`fleetctl mdm run-command --payload='windows-restart-device.xml' --hosts='someHostname'`
 
 For targeting multiple hosts, the `--hosts` option can be populated with comma-separated values.
 
@@ -157,7 +157,7 @@ to `base64` encode an `.xml` in PowerShell:
 
 ```
 PS C:\WINDOWS\system32> cd C:\Users\username\Desktop\
-PS C:\Users\username\Desktop> [Convert]::ToBase64String((Get-Content -path "file.xml" -Encoding byte))
+PS C:\Users\username\Desktop> [Convert]::ToBase64String((Get-Content -path "windows-restart-device.xml" -Encoding byte))
 cG9vcXblahblahblah...
 ```
 
