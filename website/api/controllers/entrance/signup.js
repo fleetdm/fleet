@@ -157,7 +157,11 @@ the account verification message.)`,
     let fleetPremiumTrialType = 'local trial';
     if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
       fleetPremiumTrialType = 'render trial';
-    }
+    }//ﬁ
+
+    if(emailDomain === 'fleetdm.com') {
+      fleetPremiumTrialType = 'render trial';
+    }//ﬁ
 
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
@@ -178,7 +182,7 @@ the account verification message.)`,
       // If this user is eligable for a Render POV, we'll
       let renderInstancesThatCanBeAssignedToThisUser = await RenderProofOfValue.find({
         where: {status: 'ready for assignment', user: null},
-        sort: 'createdAt DESC',
+        sort: 'createdAt ASC',
         limit: 1,
       });
 
@@ -205,10 +209,7 @@ the account verification message.)`,
           }
         });
       }
-    }
-
-    // Note: this is not an else to handle cases where no Render POVs are available, and we need to fallback to a local-trial.
-    if(fleetPremiumTrialType === 'local trial') {
+    } else {
       await sails.helpers.sendTemplateEmail.with({
         to: newEmailAddress,
         from: sails.config.custom.fromEmailAddress,
