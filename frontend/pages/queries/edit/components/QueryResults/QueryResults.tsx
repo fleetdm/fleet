@@ -112,10 +112,13 @@ const QueryResults = ({
 
   useEffect(() => {
     if (errorColumnConfigs?.length === 0 && !!errors?.length) {
-      setErrorColumnConfigs(generateColumnConfigsFromRows(errors));
+      setErrorColumnConfigs(generateColumnConfigsFromRows(errors, queryId));
 
       if (errorColumnConfigs && errorColumnConfigs.length > 0) {
-        const newErrorColumnConfigs = generateColumnConfigsFromRows(errors);
+        const newErrorColumnConfigs = generateColumnConfigsFromRows(
+          errors,
+          queryId
+        );
 
         // Update errorTableHeaders if new headers are found
         if (newErrorColumnConfigs !== resultsColumnConfigs) {

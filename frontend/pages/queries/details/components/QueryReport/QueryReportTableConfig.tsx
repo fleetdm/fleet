@@ -15,6 +15,9 @@ import {
 } from "utilities/helpers";
 import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
 
+import PATHS from "router/paths";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+
 type IQueryReportTableColumnConfig = Column<IWebSocketData>;
 type ITableHeaderProps = IHeaderProps<IWebSocketData>;
 type ITableCellProps = CellProps<IWebSocketData, string | unknown>;
@@ -40,7 +43,8 @@ const _unshiftHostname = (headers: IQueryReportTableColumnConfig[]) => {
 };
 
 const generateReportColumnConfigsFromResults = (
-  results: IWebSocketData[]
+  results: IWebSocketData[],
+  queryId: number | null
 ): IQueryReportTableColumnConfig[] => {
   const colsAreNumTypes = getUniqueColsAreNumTypeFromRows(results) as Map<
     string,
@@ -64,6 +68,18 @@ const generateReportColumnConfigsFromResults = (
       accessor: (data) => data[colName],
       Cell: (cellProps: ITableCellProps) => {
         if (typeof cellProps.cell.value !== "string") return null;
+        if (cellProps.column.id === "Host") {
+          const hostID = cellProps.row.original.host_id as number;
+          if (queryId === null) {
+            return cellProps.cell.value;
+          }
+          return (
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.HOST_QUERY_REPORT(hostID, queryId)}
+            />
+          );
+        }
 
         // Sorts chronologically by date, but UI displays readable last fetched
         if (cellProps.column.id === "last_fetched") {
