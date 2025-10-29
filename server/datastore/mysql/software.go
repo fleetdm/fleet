@@ -641,6 +641,8 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		uniqueTitleStrToChecksums[titleStr] = append(uniqueTitleStrToChecksums[titleStr], checksum)
 	}
 
+	// TODO(jacob) - need to get software titles for SW with upgrade_code similarly to below?
+
 	// Get titles for software without bundle_identifier.
 	if len(argsWithoutBundleIdentifier) > 0 {
 		// Build IN clause with composite values for better performance
@@ -651,7 +653,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			valuePlaceholders = append(valuePlaceholders, "(?, ?, ?)")
 		}
 
-		// TODO - need to grab upgrade_code ?
+		// TODO(jacob) - need to grab upgrade_code ?
 		stmt := fmt.Sprintf(
 			"SELECT id, name, source, extension_for FROM software_titles WHERE (name, source, extension_for) IN (%s)",
 			strings.Join(valuePlaceholders, ", "),
@@ -681,7 +683,6 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	if len(argsWithBundleIdentifier) > 0 {
 		// no-op code change
 		incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
-		// TODO - grab upgrade_code ?
 		stmtBundleIdentifier := `SELECT id, name, source, extension_for, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
 		if err != nil {
@@ -941,6 +942,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					return ctxerr.Wrap(ctx, err, "pre-insert software_titles")
 				}
 
+				// TODO(jacob) - incorporate UpgradeCode here?
 				// Retrieve the IDs for the titles we just inserted (or that already existed)
 				var titlesData []struct {
 					ID               uint    `db:"id"`
@@ -1504,6 +1506,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.bundle_identifier",
 		"s.extension_id",
 		"s.extension_for",
+		// TODO ? - "s.upgrade_code",
 		"s.release",
 		"s.vendor",
 		"s.arch",
@@ -1675,10 +1678,11 @@ func (ds *Datastore) AllSoftwareIterator(
 	var err error
 	var args []interface{}
 
+	//  TODO(jacob): add s.upgrade_code?
 	stmt := `SELECT
 		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.extension_for, s.extension_id, s.title_id,
 		COALESCE(sc.cpe, '') AS generated_cpe
-	FROM software s
+		FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 
 	var conditionals []string
@@ -2471,6 +2475,7 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
+// TODO(jacob) SoftwareUpgradeCode ? SoftwareUpgradeCodeList ?
 type hostSoftware struct {
 	fleet.HostSoftwareWithInstaller
 
@@ -2507,6 +2512,7 @@ type hostSoftware struct {
 	SoftwareExtensionForList *string `db:"software_extension_for_list"`
 	VersionList              *string `db:"version_list"`
 	BundleIdentifierList     *string `db:"bundle_identifier_list"`
+	SoftwareUpgradeCodeList  *string `db:"software_upgrade_code_list"`
 	VPPAppSelfServiceList    *string `db:"vpp_app_self_service_list"`
 	VPPAppAdamIDList         *string `db:"vpp_app_adam_id_list"`
 	VPPAppVersionList        *string `db:"vpp_app_version_list"`
@@ -2519,6 +2525,7 @@ type hostSoftware struct {
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	// TODO(jacob)?: software_titles.upgrade_code AS upgrade_code,
 	installedSoftwareStmt := `
 		SELECT
 			software_titles.id AS id,
@@ -3850,6 +3857,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				st.name,
 				st.source,
 				st.extension_for,
+				st.upgrade_code,
 				si.id as installer_id,
 				si.self_service as package_self_service,
 				si.filename as package_name,
@@ -4783,6 +4791,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					GROUP_CONCAT(software.id) AS software_id_list,
 					GROUP_CONCAT(software.source) AS software_source_list,
 					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
+					GROUP_CONCAT(software.upgrade_code) AS software_upgrade_code_list,
 					GROUP_CONCAT(software.version) AS version_list,
 					GROUP_CONCAT(software.bundle_identifier) AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
@@ -4800,6 +4809,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source,
 					software_titles.extension_for,
+					software_titles.upgrade_code,
 					software_installers.id,
 					software_installers.self_service,
 					software_installers.filename,
@@ -4825,6 +4835,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,
+					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
 					NULL AS bundle_identifier_list,
 					GROUP_CONCAT(vpp_apps.adam_id) AS vpp_app_adam_id_list,
@@ -4841,7 +4852,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source,
-					software_titles.extension_for
+					software_titles.extension_for,
+					software_titles.upgrade_code
 			`)
 		}
 
@@ -4854,6 +4866,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
+					software_titles.upgrade_code AS upgrade_code,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -4862,6 +4875,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,
+					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
 					NULL AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
@@ -4878,7 +4892,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source,
-					software_titles.extension_for
+					software_titles.extension_for,
+					software_titles.upgrade_code
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
@@ -5394,6 +5409,7 @@ SELECT
 	st.name,
 	st.source,
 	st.extension_for,
+	st.upgrade_code,
 	st.bundle_identifier,
 	0 as vpp_apps_count
 FROM software_titles st
@@ -5408,6 +5424,7 @@ SELECT
 	st.name,
 	st.source,
 	st.extension_for,
+	st.upgrade_code,
 	st.bundle_identifier,
 	1 as vpp_apps_count
 FROM software_titles st
