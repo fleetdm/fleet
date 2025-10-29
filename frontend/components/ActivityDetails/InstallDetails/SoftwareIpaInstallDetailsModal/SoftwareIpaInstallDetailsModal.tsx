@@ -317,6 +317,11 @@ export const SoftwareIpaInstallDetailsModal = ({
   };
 
   const renderInstallDetailsSection = () => {
+    // Hide section if there's no details to display
+    if (!swInstallResult?.result && !swInstallResult?.payload) {
+      return null;
+    }
+
     return (
       <>
         <RevealButton
