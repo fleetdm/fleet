@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>NotificationSettings</key>
+            <array>
+                <dict>
+                    <key>AlertType</key>
+                    <integer>0</integer>
+                    <key>BundleIdentifier</key>
+                    <string>com.apple.btmnotificationagent</string>
+                    <key>NotificationsEnabled</key>
+                    <false/>
+                    <key>CriticalAlertEnabled</key>
+                    <false/>
+                </dict>
+            </array>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.hideloginandbackgrounditemsnotifications</string>
+            <key>PayloadType</key>
+            <string>com.apple.notificationsettings</string>
+            <key>PayloadUUID</key>
+            <string>8FCD3A79-326C-4829-9977-A1DF02338B4E</string>
+            <key>PayloadVersion</key>
+            <real>1</real>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Hide Login and Background Items Notifications</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.hideloginandbackgrounditemsnotifications</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>CC0735B6-D1AA-470F-BF42-68F7745B44FD</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>
