@@ -35,8 +35,7 @@ const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
 };
 
 const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
-  results: T[], // {col:val, ...} for each row of query results
-  queryId: number | null
+  results: T[] // {col:val, ...} for each row of query results
 ): Column<T>[] => {
   const colsAreNumTypes = getUniqueColsAreNumTypeFromRows(results) as Map<
     string,
@@ -62,13 +61,10 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
           if (cellProps?.cell?.column?.id === "Host") {
             // @ts-ignore
             const hostID = cellProps.row.original.host_id;
-            if (queryId === null) {
-              return cellProps.cell.value;
-            }
             return (
               <LinkCell
                 value={cellProps.cell.value}
-                path={PATHS.HOST_QUERY_REPORT(hostID, queryId)}
+                path={PATHS.HOST_DETAILS(hostID)}
               />
             );
           }

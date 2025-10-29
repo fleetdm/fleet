@@ -217,7 +217,6 @@ const RunQuery = ({
   const { campaign } = campaignState;
   return (
     <QueryResults
-      queryId={queryId}
       campaign={campaign}
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
