@@ -11,10 +11,9 @@
   }
 
   &.mobile-view {
-    position: fixed;
     align-self: center;
     margin: initial;
-    height: 100%;
+    height: 100vh;
   }
 
   &.include-container {

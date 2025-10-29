@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 
 const MOBILE_BREAKPOINT = 768;
 
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
+const useIsMobileWidth = () => {
+  const [isMobileWidth, setIsMobileWidth] = useState(false);
 
   useEffect(() => {
     const query = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const updateMatch = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    const updateMatch = (e: MediaQueryListEvent) => setIsMobileWidth(e.matches);
 
     // Modern browsers
     if (query.addEventListener) {
@@ -17,7 +17,7 @@ const useIsMobile = () => {
       query.addListener(updateMatch);
     }
 
-    setIsMobile(query.matches);
+    setIsMobileWidth(query.matches);
 
     return () => {
       if (query.removeEventListener) {
@@ -28,7 +28,7 @@ const useIsMobile = () => {
     };
   }, []);
 
-  return isMobile;
+  return isMobileWidth;
 };
 
-export default useIsMobile;
+export default useIsMobileWidth;

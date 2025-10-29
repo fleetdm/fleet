@@ -2,7 +2,8 @@ import React, { useState, useContext, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import useIsMobile from "hooks/useIsMobile";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
+import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
@@ -133,7 +134,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
-  const isMobileView = useIsMobile();
+  const isMobileView = useIsMobileWidth();
 
   const { renderFlash, notification, hideFlash } = useContext(
     NotificationContext
@@ -252,7 +253,7 @@ const DeviceUserPage = ({
     isLoading: isLoadingHost,
     error: isDeviceUserError,
     refetch: refetchHostDetails,
-  } = useQuery<IDeviceUserResponse, Error>(
+  } = useQuery<IDeviceUserResponse, AxiosError>(
     ["host", deviceAuthToken],
     () =>
       deviceUserAPI.loadHostDetails({
@@ -316,6 +317,9 @@ const DeviceUserPage = ({
     }
   );
 
+  const isAuthenticationError =
+    isDeviceUserError && isDeviceUserError.status === 401;
+
   const {
     host,
     license,
@@ -344,7 +348,7 @@ const DeviceUserPage = ({
     isError: isErrorSetupSteps,
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
-    Error,
+    AxiosError,
     ISetupStep[] | null | undefined
   >(
     ["software-setup-statuses", deviceAuthToken],
@@ -820,7 +824,10 @@ const DeviceUserPage = ({
         </div>
       </nav>
       {isDeviceUserError ? (
-        <DeviceUserError />
+        <DeviceUserError
+          isMobileView={isMobileView}
+          isAuthenticationError={!!isAuthenticationError}
+        />
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
