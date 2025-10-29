@@ -172,14 +172,6 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 
 > In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
 
-2. **macadmins-extension**: Latest release
-- Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
-- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod#L60).
-- If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
-- Add the `~release blocker` label.
-
->**Note:** Some new versions of the macadmins-extension include updates that require code changes in Fleet. Make sure to note in the bug that the update should be checked for any changes, like new tables, that require code changes in Fleet.
-
 Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
 
 3. **osquery**: Latest release
