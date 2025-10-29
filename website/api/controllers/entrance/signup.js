@@ -177,7 +177,7 @@ the account verification message.)`,
     if(fleetPremiumTrialType === 'render trial') {
       // If this user is eligable for a Render POV, we'll
       let renderInstancesThatCanBeAssignedToThisUser = await RenderProofOfValue.find({
-        where: {status: 'ready-for-assignment', user: null},
+        where: {status: 'ready for assignment', user: null},
         sort: 'createdAt DESC',
         limit: 1,
       });
