@@ -302,7 +302,9 @@ const PackageForm = ({
           buttonType="brand-inverse-icon"
           className={`${baseClass}__file-uploader`}
           fileDetails={
-            formData.software ? getFileDetails(formData.software, true) : undefined
+            formData.software
+              ? getFileDetails(formData.software, true)
+              : undefined
           }
           gitopsCompatible={false}
           gitOpsModeEnabled={gitOpsModeEnabled}
