@@ -58,8 +58,6 @@ var (
 
 	//go:embed ubuntu_2204-software.json.bz2
 	ubuntuSoftwareFS embed.FS
-	//go:embed ubuntu_2204-kernels.json
-	ubuntuKernelsFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
 
@@ -67,7 +65,6 @@ var (
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
-	ubuntuKernels                      []string
 
 	installerMetadataCache installer_cache.Metadata
 
@@ -145,26 +142,11 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 	return softwareRows
 }
 
-func loadKernelList(fs embed.FS, path string) []string {
-	data, err := fs.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
-
-	var kernels []string
-	if err := json.Unmarshal(data, &kernels); err != nil {
-		panic(err)
-	}
-
-	return kernels
-}
-
 func init() {
 	loadMacOSVulnerableSoftware()
 	loadExtraVulnerableSoftware()
 	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2", "programs")
 	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2", "deb_packages")
-	ubuntuKernels = loadKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
 }
 
 type nodeKeyManager struct {
@@ -345,7 +327,6 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 	mdmProfileFailureProb float64
-	OSPatchLevel          int // For Linux patches
 
 	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
 	// because we read and write the field itself (not data in the map) from
@@ -521,7 +502,6 @@ func newAgent(
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
 		defaultSerialProb:             defaultSerialProb,
-		OSPatchLevel:                  rand.Intn(25), // Random patch level 0-24
 
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
@@ -1946,50 +1926,6 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	return software
 }
 
-func selectKernels(kernelList []string) []map[string]string {
-	// Determine number of kernels based on probability distribution
-	r := rand.Float64()
-	var numKernels int
-	switch {
-	case r < 0.05:
-		numKernels = 0 // 5% - rare, fresh install
-	case r < 0.45:
-		numKernels = 1 // 40% - most common, single current kernel
-	case r < 0.75:
-		numKernels = 2 // 30% - common, current + previous
-	case r < 0.90:
-		numKernels = 3 // 15% - a few old kernels
-	case r < 0.95:
-		numKernels = 4 // 5% - rare
-	case r < 0.98:
-		numKernels = 5 // 3% - very rare
-	default:
-		numKernels = 6 // 2% - very rare, many old kernels not cleaned up
-	}
-
-	if numKernels == 0 || len(kernelList) == 0 {
-		return nil
-	}
-
-	// Randomly select unique kernels
-	indices := rand.Perm(len(kernelList))
-	kernels := make([]map[string]string, 0, numKernels)
-
-	for i := 0; i < numKernels && i < len(indices); i++ {
-		kernelName := kernelList[indices[i]]
-		// Extract version from name (remove "linux-image-" prefix)
-		version := strings.TrimPrefix(kernelName, "linux-image-")
-
-		kernels = append(kernels, map[string]string{
-			"name":    kernelName,
-			"version": version,
-			"source":  "deb_packages",
-		})
-	}
-
-	return kernels
-}
-
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
 	if err != nil {
@@ -2633,11 +2569,6 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					}
 					results = append(results, m)
 				}
-
-				// Add kernels
-				kernels := selectKernels(ubuntuKernels)
-				results = append(results, kernels...)
-
 				a.installedSoftware.Range(func(key, value interface{}) bool {
 					results = append(results, value.(map[string]string))
 					return true
