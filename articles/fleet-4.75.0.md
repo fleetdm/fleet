@@ -6,11 +6,14 @@
 
 Fleet 4.75.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.75.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
+> Fleet added Santa tables: `santa_allowed`, `santa_denied`, `santa_status`. If you already deploy a custom Santa extension (like [Trail of Bits](https://github.com/trailofbits/osquery-extensions/tree/master/santa)) with tables that have the same names (exactly), Fleet's agent will [crash](https://github.com/fleetdm/fleet/issues/34789). To resolve, update variables in [this script](https://github.com/fleetdm/fleet/tree/11984cdf6fad6797e0be7d1ce927d6d9c19d51c0/docs/solutions/macOS/scripts/uninstall-santa-extension.sh) and run it on macOS hosts to uninstall your custom Santa extension.
+
 ## Highlights
 
 - Arch Linux / Omarchy Linux
 - Android configuration profiles
 - Smallstep certificates
+- Fleet UI refresh
 - Labels page
 - Easy-to-read MDM commands
 
@@ -29,6 +32,10 @@ Fleet now integrates with [Smallstep](https://smallstep.com/) as a certificate a
 ### Labels page
 
 A new **Labels** page makes it easier to view and edit labels. You can find the new **Labels** page in Fleet by selecting your avatar in the top-right corner and selecting **Labels**.
+
+### Fleet UI refresh
+
+Fleet’s UI just got a refresh. Consistent spacing, colors, and layouts now span every page, from fleetdm.com to the Fleet product. Expect a more polished, accessible experience whether you're managing hosts or running live queries.
 
 ### Easy-to-read MDM commands
 

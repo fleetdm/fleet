@@ -420,12 +420,12 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 3: Create a custom script
 
-To automatically deploy certificates to Linux hosts when they ernoll, we'll create a custom script to write a certificate to a location. This script will be triggered by a policy that checks for the existence of a certificate.
+To automatically deploy certificates to Linux hosts when they enroll, we'll create a custom script to write a certificate to a location. This script will be triggered by a policy that checks for the existence of a certificate.
 
 This custom script will create a certificate signing request (CSR) and make a request to Fleet's "Request certificate" API endpoint.
 
 1. Create an API-only user with the global maintainer role. Learn more how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
-2. In Fleet, head to **Controls > Variables** to and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
+2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
 3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your Hydrant CA. You'll use this `id` in your script.
 4. In Fleet, head to **Controls > Scripts**, and add a script like the one below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
@@ -462,7 +462,8 @@ jq -r .certificate response.json > /opt/company/certificate.pem
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs that the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
-The `userinfo` file in the scripts looks like the below. However, the variables could be loaded from the output of a command or even a separate network request depending on your requirements:
+For simplicity, the scripts use a `userinfo` file (below). However, the best practice is to load variables from the output of a command or even a separate network request:
+
 ```shell
 PASSWORD="<Password-for-the-certificate-private-key>"
 USERNAME="<End-user-email>"
@@ -512,6 +513,7 @@ Custom SCEP proxy:
 
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
+* On Windows, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _ ()` 
 
 ## How to deploy certificates to a user's login keychain
 

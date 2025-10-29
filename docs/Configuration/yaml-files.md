@@ -70,8 +70,8 @@ labels:
     description: Hosts belonging to the C-Suite
     label_membership_type: manual
     hosts:
-      - "ceo-laptop"
-      - "the-CFOs-computer"
+      - "IR7M6ZGQJM"
+      - "JMFWY8VZ09"
   - name: Engineering department
     description: Hosts used by engineers
     label_membership_type: host_vitals
@@ -93,8 +93,8 @@ labels:
   description: Hosts belonging to the C-Suite
   label_membership_type: manual
   hosts:
-    - "ceo-laptop"
-    - "the-CFOs-computer"
+      - "IR7M6ZGQJM"
+      - "JMFWY8VZ09"
   - name: Engineering department
     description: Hosts used by engineers
     label_membership_type: host_vitals
@@ -408,7 +408,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 #### Variables
 
-For macOS configuration profiles, you can use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+For macOS configuration profiles, you can use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) in [Automated Certificate Management Environment (ACME)](https://developer.apple.com/documentation/devicemanagement/acmecertificate), [Simple Certificate Enrolment Protocol (SCEP)](https://developer.apple.com/documentation/devicemanagement/scep), or [VPN](https://developer.apple.com/documentation/devicemanagement/vpn) payloads.
 
 Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format.
 
@@ -447,6 +447,20 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stcuk in Setup Assistant until this command is sent.
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
+
+#### Example
+
+`teams/team-name.yml`, or `teams/no-team.yml`
+
+```yaml
+macos_setup:
+  bootstrap_package: "https://your-storage/package.pkg"
+  manual_agent_install: false
+  enable_end_user_authentication: true
+  enable_release_device_manually: false
+  macos_setup_assistant: "./setup_assistant.json"
+  script: "./post_setup.sh"
+```
 
 ### macos_migration
 

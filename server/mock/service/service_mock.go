@@ -233,7 +233,7 @@ type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint,
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
-type SetCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error)
+type SetHostDeviceMappingFunc func(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
@@ -450,6 +450,10 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
 type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error)
+
+type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+
+type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error)
 
 type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error)
 
@@ -1160,8 +1164,8 @@ type Service struct {
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
 
-	SetCustomHostDeviceMappingFunc        SetCustomHostDeviceMappingFunc
-	SetCustomHostDeviceMappingFuncInvoked bool
+	SetHostDeviceMappingFunc        SetHostDeviceMappingFunc
+	SetHostDeviceMappingFuncInvoked bool
 
 	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
 	HostLiteByIdentifierFuncInvoked bool
@@ -1486,6 +1490,12 @@ type Service struct {
 
 	UpdateAppStoreAppFunc        UpdateAppStoreAppFunc
 	UpdateAppStoreAppFuncInvoked bool
+
+	GetInHouseAppManifestFunc        GetInHouseAppManifestFunc
+	GetInHouseAppManifestFuncInvoked bool
+
+	GetInHouseAppPackageFunc        GetInHouseAppPackageFunc
+	GetInHouseAppPackageFuncInvoked bool
 
 	MDMAppleProcessOTAEnrollmentFunc        MDMAppleProcessOTAEnrollmentFunc
 	MDMAppleProcessOTAEnrollmentFuncInvoked bool
@@ -2822,11 +2832,11 @@ func (s *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
-func (s *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+func (s *Service) SetHostDeviceMapping(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
 	s.mu.Lock()
-	s.SetCustomHostDeviceMappingFuncInvoked = true
+	s.SetHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetCustomHostDeviceMappingFunc(ctx, hostID, email)
+	return s.SetHostDeviceMappingFunc(ctx, id, email, source)
 }
 
 func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
@@ -3583,6 +3593,20 @@ func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *u
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories)
+}
+
+func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetInHouseAppManifestFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppManifestFunc(ctx, titleID, teamID)
+}
+
+func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	s.mu.Lock()
+	s.GetInHouseAppPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppPackageFunc(ctx, titleID, teamID)
 }
 
 func (s *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error) {

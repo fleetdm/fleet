@@ -355,6 +355,24 @@
                         </dict>
                         <dict>
                             <key>name</key>
+                            <string>Issue: 🦟Bug report</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/fleet/issues/new?assignees=&amp;labels=bug%2C%3Areproduce&amp;projects=&amp;template=bug-report.md&amp;title=</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Issue: +New public issue</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/fleet/issues/new/choose</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Issue: +New confidential issue</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/issues/new/choose</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
                             <string>Issues assigned to me</string>
                             <key>url</key>
                             <string>https://github.com/issues?q=is%3Aopen%20is%3Aissue%20archived%3Afalse%20org%3Afleetdm%20no%3Amilestone%20assignee%3A%40me%20%20sort%3Aupdated-desc</string>
@@ -479,12 +497,6 @@
                             <string>🕸️ Kanban board (#g-website)</string>
                             <key>url</key>
                             <string>https://github.com/orgs/fleetdm/projects/92/views/1</string>
-                        </dict>
-                        <dict>
-                            <key>name</key>
-                            <string>Issue: 🦟Bug report</string>
-                            <key>url</key>
-                            <string>https://github.com/fleetdm/fleet/issues/new?assignees=&amp;labels=bug%2C%3Areproduce&amp;projects=&amp;template=bug-report.md&amp;title=</string>
                         </dict>
                         <dict>
                             <key>name</key>

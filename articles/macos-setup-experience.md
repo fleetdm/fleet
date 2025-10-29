@@ -212,7 +212,7 @@ The Fleet setup experience for macOS will exit if any of the following occurs:
 
 When an end user unboxes their new Mac, or starts up a freshly wiped Mac, they're presented with the macOS Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
 
-In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. 
+In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. See all options in the [Apple docs](https://developer.apple.com/documentation/devicemanagement/profile).
 
 To customize the macOS Setup Assistant, we will do the following steps:
 
