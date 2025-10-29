@@ -306,7 +306,7 @@ func PreprocessWindowsProfileContents(hostUUID string, profileContents string) s
 
 	// Process each Fleet variable
 	result := profileContents
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		if fleetVar == string(fleet.FleetVarHostUUID) {
 			// Replace HOST_UUID with the actual host UUID
 			// Use XML escaping for the replacement value to be safe and prevent XML injection
