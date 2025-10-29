@@ -1,7 +1,5 @@
 variable "tag" {
-  description = "The tag to deploy. This would be the same as the branch name"
-  type        = string
-  default     = ""
+  description = "The docker image tag to deploy. The image must exist in fleetdm/fleet docker repository"
 }
 
 variable "git_branch" {

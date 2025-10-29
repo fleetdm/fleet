@@ -1,6 +1,6 @@
 variable "tag" {
   description = "The tag to deploy. This would be the same as the branch name"
-  default     = "v4.72.0"
+  default     = "v4.75.1"
 }
 
 variable "fleet_task_count" {
