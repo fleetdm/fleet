@@ -518,6 +518,12 @@
                         </dict>
                         <dict>
                             <key>name</key>
+                            <string>🛡️ Current sprint (#g-security-compliance)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/97/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
                             <string>Training Videos - 🌈 Fleet - Google Drive</string>
                             <key>url</key>
                             <string>https://drive.google.com/drive/folders/1VO0YLrtq5e3Ju8xqUQOpUE_b4QP0pt5P</string>
