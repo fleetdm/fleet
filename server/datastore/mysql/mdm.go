@@ -2588,8 +2588,13 @@ func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger
 func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 	DELETE hmmc FROM host_mdm_managed_certificates hmmc
-		LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-		WHERE hmap.host_uuid IS NULL`)
+LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid
+    AND hmmc.profile_uuid = hmap.profile_uuid
+LEFT JOIN host_mdm_windows_profiles hwmp ON hmmc.host_uuid = hwmp.host_uuid
+    AND hmmc.profile_uuid = hwmp.profile_uuid
+WHERE
+    hmap.host_uuid IS NULL
+    AND hwmp.host_uuid IS NULL`)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "clean up mdm certificate profiles")
 	}
