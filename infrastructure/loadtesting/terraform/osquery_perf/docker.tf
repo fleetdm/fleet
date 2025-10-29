@@ -9,9 +9,13 @@ data "aws_ecr_repository" "fleet" {
 }
 
 resource "docker_registry_image" "loadtest" {
-  name          = "${data.aws_ecr_repository.fleet.repository_url}:loadtest-${local.loadtest_tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+  name          = docker_image.loadtest.name
   keep_remotely = true
+}
 
+resource "docker_image" "loadtest" {
+  name         = "${data.aws_ecr_repository.fleet.repository_url}:loadtest-${local.loadtest_tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+  keep_locally = true
   build {
     context    = "../docker/"
     dockerfile = "loadtest.Dockerfile"
