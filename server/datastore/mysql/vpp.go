@@ -182,14 +182,19 @@ upcoming AS (
 ),
 
 -- select most recent past activities for each host
+-- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
 		hvsi.host_id,
 		CASE
-			WHEN ncr.status = :mdm_status_acknowledged THEN
+			WHEN hvsi.verification_at IS NOT NULL THEN
 				:software_status_installed
+			WHEN hvsi.verification_failed_at IS NOT NULL THEN
+				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
+			WHEN ncr.status = :mdm_status_acknowledged THEN
+				:software_status_pending
 			ELSE
 				NULL -- either pending or not installed via VPP App
 		END AS status
@@ -277,6 +282,8 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 		colAlias = " AS " + colAlias
 	}
 
+	// NOTE: if you change this logic, make sure to also change
+	// GetSummaryHostVPPAppInstalls accordingly.
 	return fmt.Sprintf(`
 	CASE
 		WHEN %sverification_at IS NOT NULL THEN
