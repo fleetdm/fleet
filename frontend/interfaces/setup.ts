@@ -1,3 +1,5 @@
+import { SoftwareSource } from "./software";
+
 export const SETUP_STEP_STATUSES = [
   "pending",
   "running",
@@ -22,5 +24,5 @@ export interface ISetupStep {
   status: SetupStepStatus;
   type: SetupStepType;
   error?: string | null;
-  source?: string; // Software source (e.g., "sh_packages", "ps1_packages", "apps")
+  source?: SoftwareSource; // Software source (e.g., "sh_packages", "ps1_packages", "apps")
 }
