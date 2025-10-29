@@ -208,7 +208,6 @@ module.exports = {
           dis_max: {// eslint-disable-line camelcase
             queries: [
               { match_phrase: { name: { query: organization } } },// eslint-disable-line camelcase
-              { match: { name: { query: organization, operator: 'and', fuzziness: 'AUTO' } } }
             ]
           }
         });
