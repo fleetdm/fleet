@@ -509,14 +509,15 @@ func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error 
 	// Refresh per-team Linux kernel vulnerabilities
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO operating_system_version_vulnerabilities
-			(os_version_id, cve, team_id, source, resolved_in_version, created_at)
+			(os_version_id, cve, team_id, source, resolved_in_version, created_at, updated_at)
 		SELECT
 			khc.os_version_id,
 			sc.cve,
 			khc.team_id,
 			sc.source,
 			sc.resolved_in_version,
-			MIN(sc.created_at) as created_at
+			MIN(sc.created_at) as created_at,
+			? as updated_at
 		FROM kernel_host_counts khc
 		JOIN software_cve sc ON sc.software_id = khc.software_id
 		WHERE khc.hosts_count > 0
@@ -525,7 +526,7 @@ func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error 
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
 			created_at = VALUES(created_at),
-			updated_at = ?
+			updated_at = VALUES(updated_at)
 	`, updatedAt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "refresh per-team OS version vulnerabilities")
@@ -534,14 +535,15 @@ func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error 
 	// Refresh "all teams" aggregated Linux kernel vulnerabilities (team_id = NULL)
 	_, err = ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO operating_system_version_vulnerabilities
-			(os_version_id, cve, team_id, source, resolved_in_version, created_at)
+			(os_version_id, cve, team_id, source, resolved_in_version, created_at, updated_at)
 		SELECT
 			khc.os_version_id,
 			sc.cve,
 			NULL as team_id,
 			sc.source,
 			sc.resolved_in_version,
-			MIN(sc.created_at) as created_at
+			MIN(sc.created_at) as created_at,
+			? as updated_at
 		FROM kernel_host_counts khc
 		JOIN software_cve sc ON sc.software_id = khc.software_id
 		WHERE khc.hosts_count > 0
@@ -550,7 +552,7 @@ func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error 
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
 			created_at = VALUES(created_at),
-			updated_at = ?
+			updated_at = VALUES(updated_at)
 	`, updatedAt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "refresh all-teams OS version vulnerabilities")
