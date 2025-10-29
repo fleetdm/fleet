@@ -16,7 +16,7 @@ const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
     <div className={`${baseClass}__card--content-wrap`}>
       <ProfileGraphic
         baseClass={baseClass}
-        title="Update configuration profile"
+        title="Upload configuration profile"
         message={
           <>
             .mobileconfig and .json for macOS, iOS, and iPadOS.
