@@ -65,6 +65,10 @@ export default PropTypes.shape({
   additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   percent_disk_space_available: PropTypes.number,
   gigs_disk_space_available: PropTypes.number,
+  // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
+  gigs_total_disk_space: PropTypes.number,
+  // `gigs_all_disk_space` includes disk space from all partitions
+  gigs_all_disk_space: PropTypes.number,
   labels: PropTypes.arrayOf(labelInterface),
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
@@ -85,58 +89,6 @@ export type HostStatus = "online" | "offline" | "new" | "missing";
 export interface IDeviceUser {
   email: string;
   source: string;
-}
-
-const DEVICE_USER_SOURCE_TO_DISPLAY: { [key: string]: string } = {
-  google_chrome_profiles: "Google Chrome",
-  mdm_idp_accounts: "identity provider",
-  custom: "custom",
-} as const;
-
-const getDeviceUserSourceForDisplay = (s: string): string => {
-  return DEVICE_USER_SOURCE_TO_DISPLAY[s] || s;
-};
-
-const getDeviceUserForDisplay = (d: IDeviceUser): IDeviceUser => {
-  return { ...d, source: getDeviceUserSourceForDisplay(d.source) };
-};
-
-/*
- * mapDeviceUsersForDisplay is a helper function that takes an array of device users and returns a
- * new array of device users with the source field mapped to a more user-friendly value. It also
- * ensures that the resulting array is ordered by source as follows: mdm_idp_accounts, if any,
- * custom, if any, then any remaining elements. Note that emails are not deduped.
- */
-export const mapDeviceUsersForDisplay = (
-  deviceMapping: IDeviceUser[]
-): IDeviceUser[] => {
-  const newDeviceMapping: IDeviceUser[] = [];
-  let idpUser: IDeviceUser | undefined;
-  let customUser: IDeviceUser | undefined;
-  deviceMapping.forEach((d) => {
-    switch (d.source) {
-      case "mdm_idp_accounts":
-        idpUser = d;
-        break;
-      case "custom":
-        // exclude custom user without email
-        if (d.email) {
-          customUser = d;
-        }
-        break;
-      default:
-        newDeviceMapping.push(getDeviceUserForDisplay(d));
-    }
-  });
-  // add idpUser and customUser to the front of the array, if they exist
-  customUser && newDeviceMapping.unshift(getDeviceUserForDisplay(customUser));
-  idpUser && newDeviceMapping.unshift(getDeviceUserForDisplay(idpUser));
-
-  return newDeviceMapping;
-};
-
-export interface IDeviceMappingResponse {
-  device_mapping: IDeviceUser[];
 }
 
 export interface IMunkiData {
@@ -168,6 +120,12 @@ export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
+  /**
+   * encryption_key_archived indicates where there is any archived key for the host. It is only
+   * populated for GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints. It is not
+   * populated for list hosts or other hosts endpoints.
+   */
+  encryption_key_archived?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   dep_profile_error?: boolean;
   name?: string;
@@ -245,6 +203,7 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_logo_url_light_background: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
@@ -264,6 +223,18 @@ export interface IHostIssues {
   total_issues_count: number;
   critical_vulnerabilities_count?: number; // Premium
   failing_policies_count: number;
+}
+export interface IHostEndUser {
+  idp_id?: string;
+  idp_username?: string;
+  idp_full_name?: string;
+  idp_info_updated_at: string | null;
+  idp_groups?: string[];
+  idp_department?: string;
+  other_emails?: Array<{
+    email: string;
+    source: string;
+  }>;
 }
 
 export interface IHost {
@@ -313,6 +284,10 @@ export interface IHost {
   additional?: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;
   gigs_disk_space_available: number;
+  // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
+  gigs_total_disk_space?: number;
+  // `gigs_all_disk_space` includes disk space from all partitions
+  gigs_all_disk_space?: number;
   labels: ILabel[];
   packs: IPack[];
   software?: ISoftware[];
@@ -333,6 +308,7 @@ export interface IHost {
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
   device_mapping: IDeviceUser[] | null;
+  end_users?: IHostEndUser[];
 }
 
 /*

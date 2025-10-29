@@ -180,7 +180,7 @@ const AppleOSTargetForm = ({
         <br />
         <br /> If a new or wiped host is below the minimum version and
         <br /> automatically enrolls (ADE), the host is updated to Apple&apos;s
-        <br /> lastest version during Setup Assistant.
+        <br /> latest version during Setup Assistant.
       </>
     );
   };
@@ -214,14 +214,20 @@ const AppleOSTargetForm = ({
         error={deadlineError}
         onChange={handleDeadlineChange}
       />
-      <GitOpsModeTooltipWrapper
-        position="right"
-        renderChildren={(disableChildren) => (
-          <Button disabled={disableChildren} type="submit" isLoading={isSaving}>
-            Save
-          </Button>
-        )}
-      />
+      <div className="button-wrap">
+        <GitOpsModeTooltipWrapper
+          position="right"
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren}
+              type="submit"
+              isLoading={isSaving}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </div>
     </form>
   );
 };

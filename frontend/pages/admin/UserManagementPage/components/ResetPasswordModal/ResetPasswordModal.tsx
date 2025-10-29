@@ -30,11 +30,7 @@ const ResetPasswordModal = ({
           This will revoke all active Fleet API tokens for this user.
         </p>
         <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="brand"
-            onClick={() => onResetConfirm(user)}
-          >
+          <Button type="button" onClick={() => onResetConfirm(user)}>
             Confirm
           </Button>
           <Button onClick={onResetCancel} variant="inverse">

@@ -1,2 +1,0 @@
-- Fixed issue where bootstrap package was incorrectly installed during renewal of Apple MDM
-  enrollment profiles.

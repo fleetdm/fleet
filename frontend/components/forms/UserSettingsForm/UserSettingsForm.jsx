@@ -80,9 +80,7 @@ class UserSettingsForm extends Component {
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
-          <Button type="submit" variant="brand">
-            Update
-          </Button>
+          <Button type="submit">Update</Button>
         </div>
       </form>
     );

@@ -34,7 +34,7 @@ import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
 import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
@@ -245,14 +245,13 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    if (row.original.id) {
-      const path = getPathWithQueryParams(
-        PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString()),
-        { team_id: teamId }
-      );
+    if (!row.original.id) return;
 
-      router.push(path);
-    }
+    const detailsPath = showVersions
+      ? PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString())
+      : PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString());
+
+    router.push(getPathWithQueryParams(detailsPath, { team_id: teamId }));
   };
 
   const renderSoftwareCount = () => {
@@ -282,8 +281,9 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
-    // Hidden when viewing versions table
-    if (showVersions) {
+    // Hidden when viewing versions table or viewing "All teams"
+    // or Fleet Free
+    if (showVersions || teamId === undefined) {
       return null;
     }
 
@@ -317,8 +317,8 @@ const SoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="core-fleet-blue" />
+        <Button variant="inverse" onClick={onAddFiltersClick}>
+          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>

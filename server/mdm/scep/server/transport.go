@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -175,7 +174,7 @@ func message(r *http.Request) ([]byte, error) {
 		}
 		return []byte(msg), nil
 	case "POST":
-		return ioutil.ReadAll(io.LimitReader(r.Body, maxPayloadSize))
+		return io.ReadAll(io.LimitReader(r.Body, maxPayloadSize))
 	default:
 		return nil, errors.New("method not supported")
 	}
@@ -228,13 +227,13 @@ func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response int
 // DecodeSCEPResponse decodes a SCEP response
 func DecodeSCEPResponse(ctx context.Context, r *http.Response) (interface{}, error) {
 	if r.StatusCode != http.StatusOK && r.StatusCode >= 400 {
-		body, _ := ioutil.ReadAll(io.LimitReader(r.Body, 4096))
+		body, _ := io.ReadAll(io.LimitReader(r.Body, 4096))
 		return nil, fmt.Errorf("http request failed with status %s, msg: %s",
 			r.Status,
 			string(body),
 		)
 	}
-	data, err := ioutil.ReadAll(io.LimitReader(r.Body, maxPayloadSize))
+	data, err := io.ReadAll(io.LimitReader(r.Body, maxPayloadSize))
 	if err != nil {
 		return nil, err
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func TestServiceEnterprise(t *testing.T) {
@@ -35,6 +36,10 @@ func (s *enterpriseTestSuite) SetupSuite() {
 func (s *enterpriseTestSuite) SetupTest() {
 	s.AppConfig.MDM.AndroidEnabledAndConfigured = false
 	s.CreateCommonDSMocks()
+	// Override EnterprisesListFunc to return empty list initially (no enterprises exist)
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
 }
 
 func (s *enterpriseTestSuite) TearDownSuite() {
@@ -64,6 +69,13 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	assert.Contains(s.T(), string(body), "If this page does not close automatically, please close it manually.")
 	assert.Contains(s.T(), string(body), "window.close()")
 
+	// Update the LIST mock to return the enterprise after "creation"
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + tests.EnterpriseID},
+		}, nil
+	}
+
 	// Now enterprise exists and we can retrieve it.
 	resp = android.GetEnterpriseResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
@@ -73,6 +85,12 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeDisabledAndroidMDM")).Return(nil)
 	s.Do("DELETE", "/api/v1/fleet/android_enterprise", nil, http.StatusOK)
 	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 2)
+
+	// Reset LIST mock to empty after deletion
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
+
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &resp)
 }
 
@@ -115,4 +133,69 @@ func (s *enterpriseTestSuite) TestEnterpriseSSE() {
 	data, err = io.ReadAll(resp.Body)
 	assert.NoError(s.T(), err)
 	assert.Contains(s.T(), string(data), assert.AnError.Error())
+}
+
+func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
+	s.SetupTest()
+
+	// First, create an enterprise to test with
+	var signupResp android.EnterpriseSignupResponse
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+
+	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
+	const enterpriseToken = "enterpriseToken"
+	s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
+
+	// Update LIST mock to return the enterprise after "creation"
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + tests.EnterpriseID},
+		}, nil
+	}
+
+	// Verify enterprise exists
+	var resp android.GetEnterpriseResponse
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
+	assert.Equal(s.T(), tests.EnterpriseID, resp.EnterpriseID)
+
+	t := s.T()
+
+	t.Run("enterprise deleted detection - 403 from GET, empty LIST", func(t *testing.T) {
+		// Mock EnterprisesListFunc to return empty list (enterprise deleted)
+		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+			return []*androidmanagement.Enterprise{}, nil
+		}
+
+		// Attempt to get enterprise - should return 404 when enterprise is detected as deleted
+		var getResp android.GetEnterpriseResponse
+		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &getResp)
+
+		// Verify LIST API was called
+		assert.True(t, s.AndroidAPIClient.EnterprisesListFuncInvoked)
+	})
+
+	t.Run("enterprise exists but permission issue - 403 from GET, enterprise in LIST", func(t *testing.T) {
+		// Re-create enterprise for this test since the previous test deleted it
+		var signupResp android.EnterpriseSignupResponse
+		s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+		s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
+		s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", "enterpriseToken2")
+
+		// Reset invocation flags for clean test
+		s.AndroidAPIClient.EnterprisesListFuncInvoked = false
+
+		// Mock EnterprisesListFunc to return the enterprise
+		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+			return []*androidmanagement.Enterprise{
+				{Name: "enterprises/" + tests.EnterpriseID},
+			}, nil
+		}
+
+		// Attempt to get enterprise - should succeed since LIST found the enterprise
+		var getResp android.GetEnterpriseResponse
+		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &getResp)
+
+		// Verify LIST API was called
+		assert.True(t, s.AndroidAPIClient.EnterprisesListFuncInvoked)
+	})
 }

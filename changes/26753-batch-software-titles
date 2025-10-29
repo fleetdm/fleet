@@ -1,1 +1,0 @@
-* Fixed an error when requesting /fleet/software/titles endpoint unpaginated with > 33k software titles by batching the policies by software title id query

@@ -48,6 +48,8 @@ jobs:
           go-version-file: 'fleet/go.mod'
 
       - name: Ingest maintained apps
+        env:
+          NETWORK_TEST_GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
         run: |
           cd fleet
           go mod download
@@ -64,14 +66,14 @@ jobs:
               state: 'open',
               per_page: 100
             });
-            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
+            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'fleet-release').map(pr => pr.number);
 
       - name: Get Assignee IDs
         id: get_assignee_ids
         run: |
           # DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
           # :-(
-          DEVS="iansltx,jahzielv,mostlikelee,ksykulev"
+          DEVS="jahzielv,jkatz01,mna,cdcme"
           echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
 
       - name: Log Info
@@ -83,6 +85,7 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e #v7.0.8
         with:
+          token: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           base: main
           path: fleet
           branch: fma-${{ steps.date.outputs.date }}

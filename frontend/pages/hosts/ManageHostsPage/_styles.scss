@@ -1,13 +1,14 @@
 .manage-hosts {
+  @include vertical-page-layout;
+
   &__header-wrap {
     @include normalize-team-header;
-    margin-bottom: $pad-medium;
+  }
 
-    .button-wrap {
-      display: flex;
-      justify-content: flex-end;
-      white-space: nowrap;
-    }
+  &__button-wrap {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
   }
 
   .ace-fleet {
@@ -95,8 +96,6 @@
   }
 
   .table-container {
-    padding-top: $pad-small;
-
     &__header-left {
       .controls {
         display: flex;
@@ -105,7 +104,7 @@
         .manage-hosts__filter-dropdowns {
           display: flex;
           flex-direction: row;
-          margin-left: $pad-medium;
+          margin-left: $gap-table-elements;
           align-items: center;
 
           // Dropdown height matches search bar height
@@ -115,7 +114,7 @@
               height: 33px;
             }
             .Select-value {
-              line-height: 40px;
+              line-height: 36px;
             }
           }
         }
@@ -131,7 +130,6 @@
       .table-container__search {
         order: 1;
         width: 100%;
-        margin-bottom: $pad-small;
 
         .table-container__search-input {
           margin-left: 0;
@@ -158,7 +156,6 @@
 
         .controls {
           order: -2;
-          margin-bottom: $pad-small;
 
           .manage-hosts__filter-dropdowns {
             display: flex;
@@ -222,11 +219,7 @@
   }
 
   &__status-filter {
-    width: 175px;
-
-    @media (min-width: $table-controls-break) {
-      width: 190px;
-    }
+    width: 195px;
 
     .Select-menu-outer {
       width: 364px;
@@ -247,20 +240,11 @@
   }
 
   &__label-filter-dropdown {
-    margin-left: $pad-small;
-  }
-
-  &__enroll-hosts {
-    padding: $pad-small;
-    margin-right: $pad-small;
+    margin-left: $gap-table-elements;
   }
 
   &__info-banners {
     padding-top: $pad-xxlarge;
     padding-bottom: $pad-large;
-  }
-
-  &__export-btn {
-    margin-left: $pad-xsmall;
   }
 }

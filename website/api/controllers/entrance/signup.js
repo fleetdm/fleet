@@ -36,11 +36,10 @@ the account verification message.)`,
     },
 
     organization: {
-      required: true,
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
-      description: 'The organization the user works for'
+      description: 'The organization the user works for',
     },
 
     firstName:  {
@@ -106,6 +105,11 @@ the account verification message.)`,
       throw 'invalidEmailDomain';
     }
 
+    // If organization was not provided (e.g., The user signed up with the signup modal), use their email domain as their organization.
+    if(!organization) {
+      organization = emailDomain;
+    }
+
 
     if (!sails.config.custom.enableBillingFeatures) {
       throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
@@ -138,6 +142,90 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+
+    // Enrich the information provided.
+    let enrichmentInformation = await sails.helpers.iq.getEnriched.with({
+      firstName,
+      lastName,
+      emailAddress: newEmailAddress,
+    }).tolerate((err)=>{
+      sails.log.warn(`When a new user signed up for an account, enrichment information could not be obtained with the information provided. Full error: ${require('util').inspect(err)}`);
+      return { employer: undefined, person: undefined};
+    });
+
+
+    let fleetPremiumTrialType = 'local trial';
+    if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
+      fleetPremiumTrialType = 'render trial';
+    }
+
+    let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
+    let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
+      numberOfHosts: 10,
+      organization,
+      expiresAt: thirtyDaysFromNowAt,
+    });
+
+    await User.updateOne({id: newUserRecord.id}).set({
+      fleetPremiumTrialLicenseKeyExpiresAt: thirtyDaysFromNowAt,
+      fleetPremiumTrialLicenseKey: trialLicenseKeyForThisUser,
+      fleetPremiumTrialType,
+    });
+
+
+
+    if(fleetPremiumTrialType === 'render trial') {
+      // If this user is eligable for a Render POV, we'll
+      let renderInstancesThatCanBeAssignedToThisUser = await RenderProofOfValue.find({
+        where: {status: 'ready for assignment', user: null},
+        sort: 'createdAt DESC',
+        limit: 1,
+      });
+
+      if(renderInstancesThatCanBeAssignedToThisUser.length < 1){
+        throw new Error(`When a new user (email: ${newEmailAddress}) signed up, no Fleet premium trial instances in Render were available to assign to the user.`);
+      } else {
+        let instanceToAssign = renderInstancesThatCanBeAssignedToThisUser[0];
+
+        await RenderProofOfValue.updateOne({id: instanceToAssign.id}).set({
+          status: 'in use',
+          renderTrialEndsAt: thirtyDaysFromNowAt,
+          user: newUserRecord.id,
+        });
+
+        await sails.helpers.sendTemplateEmail.with({
+          to: newEmailAddress,
+          from: sails.config.custom.fromEmailAddress,
+          fromName: sails.config.custom.fromName,
+          subject: 'Your Fleet trial is ready',
+          template: 'email-fleet-premium-pov-trial-started',
+          layout: 'layout-nurture-email',
+          templateData: {
+            firstName,
+          }
+        });
+      }
+    }
+
+    // Note: this is not an else to handle cases where no Render POVs are available, and we need to fallback to a local-trial.
+    if(fleetPremiumTrialType === 'local trial') {
+      await sails.helpers.sendTemplateEmail.with({
+        to: newEmailAddress,
+        from: sails.config.custom.fromEmailAddress,
+        fromName: sails.config.custom.fromName,
+        subject: 'Your 30-day Fleet Premium trial key',
+        template: 'email-fleet-premium-local-trial-started',
+        layout: 'layout-nurture-email',
+        templateData: {
+          firstName,
+        }
+      });
+    }
+
+
+
+
+
     let psychologicalStageChangeReason;
     if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
       let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
@@ -150,7 +238,7 @@ the account verification message.)`,
       emailAddress: newEmailAddress,
       firstName: firstName,
       lastName: lastName,
-      organization: organization,
+      // organization: emailDomain,// Note: organization is not provided because we're relying on the enrichment helper to find the correct account for this person.
       contactSource: 'Website - Sign up',
       psychologicalStageChangeReason,
     }).exec((err)=>{

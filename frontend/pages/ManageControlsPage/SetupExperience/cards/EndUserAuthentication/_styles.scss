@@ -1,15 +1,3 @@
 .end-user-authentication {
-  &__content {
-    max-width: $break-xxl;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    gap: $pad-xxlarge;
-  }
-
-  @media (max-width: $break-md) {
-    &__content {
-      flex-direction: column;
-    }
-  }
+  @include vertical-card-layout;
 }

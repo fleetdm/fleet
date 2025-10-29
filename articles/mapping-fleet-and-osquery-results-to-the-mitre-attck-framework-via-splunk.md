@@ -30,7 +30,7 @@ Now that you have the nice .yaml, you can `apply` to your fleet server:
 fleetctl apply network_connection_listening.yaml
 ```
 There are a bunch to convert and apply:
-![code-convert](../website/assets/images/articles/fleetctl-convert-apply.png)
+![code-convert](../website/assets/images/articles/fleetctl-convert-apply-1788x1094@2x.png)
 
 In the Queries list within fleet, you will now have:
 ![fleet-attck-queries](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-attck-queries-1780x923@2x.png)

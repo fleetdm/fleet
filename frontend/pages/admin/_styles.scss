@@ -4,33 +4,11 @@
   // we turn off overflow on the settings page as it seems to mess with our
   // header and navigation
   overflow: visible;
-
-  h1 {
-    display: flex;
-    align-items: center;
-    height: 38px;
-    position: relative;
-
-    // fake padding for h1 while sticky
-    &::before {
-      content: "";
-      width: 100%;
-      height: $pad-xxlarge;
-      position: absolute;
-      top: -$pad-xxlarge;
-      background-color: $core-white;
-    }
-  }
-
-  .tab-nav {
-    top: $pad-xxlarge; // for sticky
-    z-index: 3;
-    padding-bottom: $pad-xxlarge;
-  }
+  @include vertical-page-layout;
 
   .side-nav__card-container {
     // all side navs in the admin section we want to limit the max width
-    > * {
+    > *:not(.loading-spinner) {
       width: 100%;
       max-width: $settings-form-max-width;
     }

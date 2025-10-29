@@ -13,13 +13,18 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -32,11 +37,111 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+func TestSoftwareIngestionMutations(t *testing.T) {
+	dcvViewer := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024.0.8004", dcvViewer.Version)
+
+	noOp := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024", noOp.Version)
+
+	noMatch := &fleet.Software{
+		BundleIdentifier: "com.google.chrome",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(noMatch, log.NewNopLogger())
+	assert.Equal(t, "2024.0 (r8004)", noMatch.Version)
+
+	for expectedName, s := range map[string]*fleet.Software{
+		"SynologyAssistant": {
+			Name:             "DSAssistant",
+			BundleIdentifier: "com.synology.DSAssistant",
+			Source:           "apps",
+		},
+		"BlueStacksMIM": {
+			Name:             "HD-MultiInstanceManager",
+			BundleIdentifier: "com.now.gg.BlueStacksMIM",
+			Source:           "apps",
+		},
+		"JPKIUninstall": {
+			Name:             "JPKIUninstall.scpt",
+			BundleIdentifier: "jp.go.jpki.JPKIUninstall",
+			Source:           "apps",
+		},
+		"OracleDataModeler": {
+			Name:             "datamodeler.sh",
+			BundleIdentifier: "com.oracle.OracleDataModeler",
+			Source:           "apps",
+		},
+		"EaseUS NTFS Service": {
+			Name:             "euntfsservice",
+			BundleIdentifier: "com.easeus.ntfsformacdaemon",
+			Source:           "apps",
+		},
+		"Poly Lens Desktop (Legacy)": {
+			Name:             "legacyhost",
+			BundleIdentifier: "com.poly.lens.legacyhost.app",
+			Source:           "apps",
+		},
+		"Zen Browser Plugin Container": {
+			Name:             "plugin-container",
+			BundleIdentifier: "app.zen-browser.plugincontainer",
+			Source:           "apps",
+		},
+		"Mozilla Plugin Container": {
+			Name:             "plugin-container",
+			BundleIdentifier: "org.mozilla.plugincontainer",
+			Source:           "apps",
+		},
+		"Chrome Remote Desktop Host Uninstaller": {
+			Name:             "remoting_host_uninstaller",
+			BundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
+			Source:           "apps",
+		},
+		"Android Emulator": {
+			Name:             "runemu",
+			BundleIdentifier: "",
+			Source:           "apps",
+		},
+		"Oracle SQLDeveloper": {
+			Name:             "sqldeveloper.sh/",
+			BundleIdentifier: "com.oracle.SQLDeveloper",
+			Source:           "apps",
+		},
+	} {
+		MutateSoftwareOnIngestion(s, log.NewNopLogger())
+		assert.Equal(t, expectedName, s.Name)
+	}
+
+	// Test customAppSanitizers TNMS case
+	sw := &fleet.Software{
+		Name:             "TNMS 21.10.0.590.1",
+		BundleIdentifier: "TNMS_21.10.0.590.1",
+		Source:           "apps",
+	}
+	MutateSoftwareOnIngestion(sw, log.NewNopLogger())
+	assert.Equal(t, "TNMS", sw.Name)
+	assert.Equal(t, "21.10.0.590.1", sw.Version)
+}
+
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["network_interface_unix"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["network_interface_unix"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -71,7 +176,9 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
+	task := async.NewTask(ds, nil, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{EnableAsyncHostProcessing: "false"},
+	})
 
 	var gotPackStats []fleet.PackStats
 	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
@@ -82,7 +189,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil)["scheduled_query_stats"].DirectTaskIngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil, Integrations{}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
 
 	ctx := context.Background()
 	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil))
@@ -261,7 +368,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)
+	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
 
 	baseQueries := []string{
 		"network_interface_unix",
@@ -296,19 +403,19 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
+	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
 	require.Len(t, queriesWithoutWinOSVuln, 26)
 
-	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
+	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsers, len(qs))
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
-	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
+	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign")
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -325,24 +432,75 @@ func TestGetDetailQueries(t *testing.T) {
 	ac := fleet.AppConfig{}
 	ac.MDM.EnabledAndConfigured = true
 	// windows mdm is disabled by default, windows mdm queries should not be present
-	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil, Integrations{}, nil)
 	wantQueries := baseQueries
 	wantQueries = append(wantQueries, mdmQueriesBase...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
 	// enable windows mdm, windows mdm queries should be present
 	ac.MDM.WindowsEnabledAndConfigured = true
-	gotQueries = GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	gotQueries = GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil, Integrations{}, nil)
 	wantQueries = append(wantQueries, mdmQueriesWindows...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
+
+	// Check that TPM PIN verify queries are only added iff RequireBitLockerPIN is set
+
+	testCases := []struct {
+		name string
+		ac   fleet.AppConfig
+		want []string
+	}{
+		{
+			name: "windows MDM not enabled",
+			ac:   fleet.AppConfig{},
+		},
+		{
+			name: "windows MDM is enabled but disk encryption is not enabled",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption but TPM PIN is not enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption and TPM PIN is enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+					RequireBitLockerPIN:         optjson.SetBool(true),
+				},
+			},
+			want: maps.Keys(tpmPINQueries),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetDetailQueries(context.Background(), config.FleetConfig{}, &tt.ac, nil, Integrations{}, nil)
+			for _, name := range tt.want {
+				_, ok := got[name]
+				require.True(t, ok)
+			}
+		})
+	}
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -416,7 +574,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version_windows"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version_windows"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -471,7 +629,7 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -592,38 +750,35 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
 				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
+				require.False(t, isPersonalEnrollment)
 				return nil
-			}
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-				return nil
-			}
-
-			if c.name == "with invalid enrollment reference" {
-				ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-					return &nfe{}
-				}
 			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
 				require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
-
 			} else {
 				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 				require.NoError(t, err)
-				ds.SetOrUpdateMDMDataFuncInvoked = false
-				if c.name != "with invalid enrollment reference" {
-					require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
-				}
 			}
+			ds.SetOrUpdateMDMDataFuncInvoked = false
 		})
 	}
 }
@@ -644,59 +799,50 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 	}
 
 	type testCase struct {
-		name                 string
-		mdmData              []map[string]string
-		wantServerURL        string
-		wantEnrollRef        string
-		wantHostEmailsCalled bool
+		name          string
+		mdmData       []map[string]string
+		wantServerURL string
+		wantEnrollRef string
 	}
 
 	for _, tc := range []testCase{
 		{
-			name:                 "Fleet enroll_reference",
-			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enroll_reference",
+			mdmData:       generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "Fleet no enroll_reference",
-			mdmData:              generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "",
-			wantHostEmailsCalled: false,
+			name:          "Fleet no enroll_reference",
+			mdmData:       generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "",
 		},
 		{
-			name:                 "Fleet enrollment_reference",
-			mdmData:              generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enrollment_reference",
+			mdmData:       generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "Fleet enroll_reference with other query params",
-			mdmData:              generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enroll_reference with other query params",
+			mdmData:       generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "non-Fleet enroll_reference",
-			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "",
-			wantHostEmailsCalled: false,
+			name:          "non-Fleet enroll_reference",
+			mdmData:       generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
-				return nil
-			}
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.False(t, isServer)
 				require.True(t, enrolled)
 				require.True(t, installedFromDep)
+				require.False(t, isPersonalEnrollment)
 
 				require.Equal(t, tc.wantServerURL, serverURL)
 				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
@@ -711,15 +857,61 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 
 				return nil
 			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, tc.mdmData)
 			require.NoError(t, err)
 			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 			ds.SetOrUpdateMDMDataFuncInvoked = false
-			require.Equal(t, tc.wantHostEmailsCalled, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = false
 		})
 	}
+
+	t.Run("end user authentication disabled", func(t *testing.T) {
+		// Test that email isn't set when end user authentication is disabled
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: false,
+					},
+				},
+			}, nil
+		}
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+			require.False(t, isServer)
+			require.True(t, enrolled)
+			require.True(t, installedFromDep)
+			require.Equal(t, "https://test.example.com", serverURL)
+			require.Equal(t, "test-reference", fleetEnrollmentRef)
+			require.Equal(t, fleet.WellKnownMDMFleet, name)
+			require.False(t, isPersonalEnrollment)
+
+			return nil
+		}
+
+		t.Run("no team", func(t *testing.T) {
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+
+		t.Run("team", func(t *testing.T) {
+			host.TeamID = ptr.Uint(1)
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+	})
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
@@ -932,16 +1124,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, c.wantEnrolled, enrolled)
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
 				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
-				return nil
-			}
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+				require.False(t, isPersonalEnrollment)
 				return nil
 			}
 		})
@@ -949,7 +1139,6 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		ds.SetOrUpdateMDMDataFuncInvoked = false
-		require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 	}
 }
 
@@ -1260,29 +1449,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 }
 
 func TestAppConfigReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true})
+	queries := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	originalQuery := queries["users"].Query
 
 	replacementMap := make(map[string]*string)
 	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 	assert.Equal(t, "select 1 from blah", queries["users"].Query)
 
 	replacementMap["users"] = nil
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	_, exists := queries["users"]
 	assert.False(t, exists)
 
 	// put the query back again
 	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 	assert.Equal(t, "select 1 from blah", queries["users"].Query)
 
 	// empty strings are also ignored
 	replacementMap["users"] = ptr.String("")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	_, exists = queries["users"]
 	assert.False(t, exists)
 }
@@ -1339,7 +1528,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1390,6 +1579,129 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 			ds.UpdateHostSoftwareFuncInvoked = false
 		}
+	})
+
+	t.Run("cdhash_sha256", func(t *testing.T) {
+		data := []map[string]string{
+			{
+				"name":              "Software 1",
+				"version":           "12.5.0",
+				"source":            "apps",
+				"bundle_identifier": "com.bundle.com",
+				"vendor":            "EvilCorp",
+				"installed_path":    "/Applications/Software1.app",
+				"team_identifier":   "corp1",
+				"cdhash_sha256":     "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+			},
+			{
+				"name":              "Software 2",
+				"version":           "0.0.1",
+				"source":            "apps",
+				"bundle_identifier": "coms.widgets.com",
+				"vendor":            "widgets",
+				"team_identifier":   "corp2",
+				"installed_path":    "/Applications/Software2.app",
+			},
+		}
+		var dataAsSoftware []fleet.Software
+		for _, entry := range data {
+			software := fleet.Software{
+				Name:             entry["name"],
+				Version:          entry["version"],
+				Source:           entry["source"],
+				BundleIdentifier: entry["bundle_identifier"],
+				Vendor:           entry["vendor"],
+			}
+			dataAsSoftware = append(dataAsSoftware, software)
+		}
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			require.Len(t, sPaths, 2)
+			require.Contains(t, sPaths,
+				fmt.Sprintf(
+					"%s%s%s%s%s%s%s",
+					data[0]["installed_path"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["team_identifier"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["cdhash_sha256"],
+					fleet.SoftwareFieldSeparator,
+					dataAsSoftware[0].ToUniqueStr(),
+				),
+			)
+			require.Contains(t, sPaths,
+				fmt.Sprintf(
+					"%s%s%s%s%s%s",
+					data[1]["installed_path"],
+					fleet.SoftwareFieldSeparator,
+					data[1]["team_identifier"],
+					fleet.SoftwareFieldSeparator,
+					fleet.SoftwareFieldSeparator,
+					dataAsSoftware[1].ToUniqueStr(),
+				),
+			)
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.UpdateHostSoftwareInstalledPathsFuncInvoked)
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+	})
+
+	t.Run("all software columns are copied properly", func(t *testing.T) {
+		data := []map[string]string{
+			{
+				"name":              "Test Software",
+				"version":           "1.2.3",
+				"source":            "chrome_extensions",
+				"vendor":            "Test Vendor",
+				"installed_path":    "/Applications/TestSoftware.app",
+				"release":           "1.0",
+				"arch":              "x86_64",
+				"bundle_identifier": "com.test.software",
+				"extension_id":      "ext123",
+				"extension_for":     "chrome",
+				"last_opened_at":    "1672574400",
+			},
+		}
+
+		var capturedSoftware []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			capturedSoftware = make([]fleet.Software, len(software))
+			copy(capturedSoftware, software)
+			return nil, nil
+		}
+
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+		require.Len(t, capturedSoftware, 1)
+
+		software := capturedSoftware[0]
+
+		// Verify all columns from lines 1838-1848 are properly copied
+		assert.Equal(t, "Test Software", software.Name)
+		assert.Equal(t, "1.2.3", software.Version)
+		assert.Equal(t, "chrome_extensions", software.Source)
+		assert.Equal(t, "Test Vendor", software.Vendor)
+		assert.Equal(t, "1.0", software.Release)
+		assert.Equal(t, "x86_64", software.Arch)
+		assert.Equal(t, "com.test.software", software.BundleIdentifier)
+		assert.Equal(t, "ext123", software.ExtensionID)
+		assert.Equal(t, "chrome", software.ExtensionFor)
+
+		// Verify last_opened_at is properly parsed and set
+		require.NotNil(t, software.LastOpenedAt)
+		expectedTime := time.Unix(1672574400, 0).UTC()
+		assert.True(t, software.LastOpenedAt.Equal(expectedTime))
+
+		ds.UpdateHostSoftwareFuncInvoked = false
 	})
 }
 
@@ -1532,17 +1844,17 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
 		decryptable *bool,
-	) error {
+	) (bool, error) {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
-			return errors.New("key mismatch")
+			return false, errors.New("key mismatch")
 		}
 		if host.ID != incomingHost.ID {
-			return errors.New("host ID mismatch")
+			return false, errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
-			return errors.New("decryptable should be false if the key is empty")
+			return false, errors.New("decryptable should be false if the key is empty")
 		}
-		return nil
+		return false, nil
 	}
 
 	t.Run("empty key", func(t *testing.T) {
@@ -1728,21 +2040,27 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 		{nil, ""},
 		{
 			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{})},
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{})},
 			},
 			"",
 		},
 		{
 			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
 			},
 			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
 		},
 		{
 			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-				{Name: "N2", RawProfile: syncml.ForTestWithData(map[string]string{"L2": "D2"})},
-				{Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L1", Data: "D1"}})},
+			},
+			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
+		},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+				{Name: "N2", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L2", Data: "D2"}})},
+				{Name: "N3", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}, {Verb: "Add", LocURI: "L3.1", Data: "D3.1"}})},
 			},
 			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get><Get><CmdID>2736786183</CmdID><Item><Target><LocURI>L2</LocURI></Target></Item></Get><Get><CmdID>894211447</CmdID><Item><Target><LocURI>L3</LocURI></Target></Item></Get><Get><CmdID>3410477854</CmdID><Item><Target><LocURI>L3.1</LocURI></Target></Item></Get></SyncBody>';",
 		},
@@ -1759,7 +2077,7 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 			return secret, nil
 		}
 
-		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
+		gotQuery, _ := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
 		if tc.want != "" {
 			require.Contains(t, gotQuery, "SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input =")
 			re := regexp.MustCompile(`'<(.*?)>'`)
@@ -1886,7 +2204,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := log.NewNopLogger()
-	host := &fleet.Host{ID: 1}
+	host := &fleet.Host{ID: 1, UUID: "host-uuid"}
 
 	row1 := map[string]string{
 		"ca":                "0",
@@ -1901,9 +2219,11 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"not_valid_after":   "1822755797",
 		"not_valid_before":  "1770228826",
 		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31",
+		"source":            "user",
+		"path":              "/Users/mna/Library/Keychains/login.keychain-db",
 	}
 
-	// row2 will not be ingeted because of the issue field containing an extra /
+	// row2 will be ingested correctly with the issue field containing a / in the value
 	row2 := map[string]string{
 		"ca":                "1",
 		"common_name":       "Cert 2 Common Name",
@@ -1917,11 +2237,14 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"not_valid_after":   "1822755797",
 		"not_valid_before":  "1770228826",
 		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32",
+		"source":            "system",
+		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
 		require.Equal(t, host.ID, hostID)
-		require.Len(t, certs, 1)
+		require.Equal(t, host.UUID, hostUUID)
+		require.Len(t, certs, 2)
 		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
 		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
 		require.Equal(t, "Subject 1 Common Name", certs[0].SubjectCommonName)
@@ -1940,11 +2263,33 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		require.Equal(t, int64(1822755797), certs[0].NotValidAfter.Unix())
 		require.Equal(t, int64(1770228826), certs[0].NotValidBefore.Unix())
 		require.False(t, certs[0].CertificateAuthority)
+		require.EqualValues(t, "user", certs[0].Source)
+		require.Equal(t, "mna", certs[0].Username)
+
+		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32", hex.EncodeToString(certs[1].SHA1Sum))
+		require.Equal(t, "Cert 2 Common Name", certs[1].CommonName)
+		require.Equal(t, "Subject 1 Common Name", certs[1].SubjectCommonName)
+		require.Equal(t, "Subject 1 Inc.", certs[1].SubjectOrganization)
+		require.Equal(t, "Subject 1 Org Unit", certs[1].SubjectOrganizationalUnit)
+		require.Equal(t, "US", certs[1].SubjectCountry)
+		require.Equal(t, "Issuer 2 Common Name", certs[1].IssuerCommonName)
+		require.Equal(t, "Issuer 2 Inc./foobar", certs[1].IssuerOrganization)
+		require.Empty(t, certs[1].IssuerOrganizationalUnit)
+		require.Equal(t, "US", certs[1].IssuerCountry)
+		require.Equal(t, "rsaEncryption", certs[1].KeyAlgorithm)
+		require.Equal(t, 2048, certs[1].KeyStrength)
+		require.Equal(t, "Data Encipherment, Key Encipherment, Digital Signature", certs[1].KeyUsage)
+		require.Equal(t, "123abcd", certs[1].Serial)
+		require.Equal(t, "sha256WithRSAEncryption", certs[1].SigningAlgorithm)
+		require.Equal(t, int64(1822755797), certs[1].NotValidAfter.Unix())
+		require.Equal(t, int64(1770228826), certs[1].NotValidBefore.Unix())
+		require.True(t, certs[1].CertificateAuthority)
+		require.EqualValues(t, "system", certs[1].Source)
 
 		return nil
 	}
 
-	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row2, row1})
+	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1, row2})
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
@@ -1973,10 +2318,906 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
 }
 
-type nfe struct{}
+func TestLuksVerifyQueryDiscovery(t *testing.T) {
+	lsblkTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'lsblk'"
+	cryptsetupLuksSaltTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'cryptsetup_luks_salt'"
 
-func (e nfe) Error() string {
-	return "foobar"
+	require.Equal(t,
+		fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) AND EXISTS (%s);", lsblkTbl, cryptsetupLuksSaltTbl),
+		luksVerifyQuery.Discovery,
+	)
 }
 
-func (e nfe) IsNotFound() bool { return true }
+func TestLuksVerifyQueryIngester(t *testing.T) {
+	decrypter := func(encrypted string) (string, error) {
+		return encrypted, nil
+	}
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+
+	nonLUKSHost := &fleet.Host{ID: 1, Platform: "skynet"}
+	luksHost := &fleet.Host{ID: 1, Platform: "ubuntu"}
+
+	testCases := []struct {
+		name         string
+		rows         []map[string]string
+		err          error
+		host         *fleet.Host
+		setUp        func(t *testing.T, ds *mock.Store)
+		expectations func(t *testing.T, ds *mock.Store, err error)
+	}{
+		{
+			name: "No results",
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.GetHostDiskEncryptionKeyFuncInvoked)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "host is not LUKS capable",
+			host: nonLUKSHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.GetHostDiskEncryptionKeyFuncInvoked)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "disk encryption entry not found on DB",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return nil, common_mysql.NotFound("HostDiskEncryptionKey")
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "error is thrown while getting the host disk encryption key",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return nil, errors.New("some error")
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.Error(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "stored key matches the one reported",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return &fleet.HostDiskEncryptionKey{
+						KeySlot:             ptr.Uint(0),
+						Base64EncryptedSalt: "some salty bits",
+					}, nil
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "stored key does not match the one reported",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some sour bits",
+				},
+				{
+					"key_slot": "1",
+					"salt":     "some spicy bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return &fleet.HostDiskEncryptionKey{
+						KeySlot:             ptr.Uint(0),
+						Base64EncryptedSalt: base64.StdEncoding.EncodeToString([]byte("some salty bits")),
+					}, nil
+				}
+				ds.DeleteLUKSDataFunc = func(ctx context.Context, hostID uint, keySlot uint) error {
+					require.Equal(t, uint(1), hostID)
+					return nil
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.True(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+	}
+
+	sut := luksVerifyQueryIngester(decrypter)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			if tc.setUp != nil {
+				tc.setUp(t, ds)
+			}
+			tc.expectations(t, ds, sut(ctx, logger, tc.host, ds, tc.rows))
+		})
+	}
+}
+
+func TestUserIngestNoUID(t *testing.T) {
+	ctx := context.Background()
+	host := fleet.Host{ID: 1}
+	ds := new(mock.Store)
+	savedUsers := 0
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		savedUsers = len(users)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh"},
+		// Missing uid
+		{"shell": "/bin/sh"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	// Saved the good user, ignored the one missing a uid
+	require.Equal(t, 1, savedUsers)
+}
+
+func TestUserIngestMacosUpdateManagedUser(t *testing.T) {
+	ctx := context.Background()
+	host := fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+	ds := new(mock.Store)
+	userUUIDForUpdate := "uuid-1234"
+
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+		return "fleetie", userUUIDForUpdate, nil
+	}
+
+	ds.UpdateNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string, userUUID string, username string) error {
+		require.Equal(t, host.UUID, deviceID)
+		require.Equal(t, userUUIDForUpdate, userUUID)
+		require.Equal(t, "new fleetie", username)
+		return nil
+	}
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		require.Len(t, users, 2)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh", "username": "new fleetie", "uuid": userUUIDForUpdate},
+		{"uid": "500", "shell": "/bin/sh", "username": "someone else", "uuid": "some-other-uuid"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	require.True(t, ds.UpdateNanoMDMUserEnrollmentUsernameFuncInvoked)
+	require.True(t, ds.SaveHostUsersFuncInvoked)
+}
+
+func TestMaxString(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		a    string
+		b    string
+		want string
+	}{
+		{a: "", b: "", want: ""},
+		{a: "1", b: "", want: "1"},
+		{a: "", b: "2", want: "2"},
+		{a: "1751737544", b: "1751737555", want: "1751737555"},
+	}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("a=%s,b=%s", tc.a, tc.b), func(t *testing.T) {
+			got := maxString(tc.a, tc.b)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestWindowsLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_last_opened_at"].SoftwareProcessResults
+	prefetchResults := []map[string]string{
+		{"executable_path": "", "last_opened_at": "1751756656"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGECORE\\135.0.3179.73\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1744841906"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEUPDATE\\MICROSOFTEDGEUPDATE.EXE", "last_opened_at": "1751755072"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\135.0.3179.54\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1744305414"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\136.0.3240.64\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1747354446"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\137.0.3296.68\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1751739680"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\137.0.3296.93\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1751755195"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGE\\APPLICATION\\MSEDGE.EXE", "last_opened_at": "1744224613"},
+		{"executable_path": "\\PROGRAM FILES\\WINDOWSAPPS\\MICROSOFT.MSPAINT_6.2410.13017.0_X64__8WEKYB3D8BBWE\\PAINTSTUDIO.VIEW.EXE", "last_opened_at": "1751739848"},
+		{"executable_path": "\\PROGRAM FILES\\WINDOWSAPPS\\MICROSOFT.PAINT_11.2504.531.0_X64__8WEKYB3D8BBWE\\PAINTAPP\\MSPAINT.EXE", "last_opened_at": "1751739842"},
+		{"executable_path": "\\PROGRAM FILES\\CMAKE\\BIN\\CMAKE.EXE", "last_opened_at": "1751756660"},
+		{"executable_path": "\\PROGRAM FILES\\CMAKE\\BIN\\CTEST.EXE", "last_opened_at": "1751756665"},
+		{"executable_path": "\\PROGRAM FILES\\GIT\\CMD\\GIT.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\CRASHHELPER.EXE", "last_opened_at": "1751650445"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\FIREFOX.EXE", "last_opened_at": "1751755087"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\PINGSENDER.EXE", "last_opened_at": "1750358363"},
+		{"executable_path": "\\PROGRAM FILES\\POWERTOYS\\POWERTOYS.EXE", "last_opened_at": "1747935582"},
+		{"executable_path": "\\STRAWBERRY\\PERL\\BIN\\PERL.EXE", "last_opened_at": "1749664524"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.24.5-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1749678210"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.24.5-WIN32-X64\\LLVM\\BIN\\CLANG-FORMAT.EXE", "last_opened_at": "1749678028"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.25.3-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1751739766"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.25.3-WIN32-X64\\BIN\\CPPTOOLS.EXE", "last_opened_at": "1751739736"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.26.3-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1751756684"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.26.3-WIN32-X64\\BIN\\CPPTOOLS.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\APP\\8\\1PASSWORD-BROWSERSUPPORT.EXE", "last_opened_at": "1751650028"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\APP\\8\\1PASSWORD.EXE", "last_opened_at": "1751755191"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\UPDATE\\8\\1PASSWORD.EXE", "last_opened_at": "1751650139"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\BIN\\CODE-TUNNEL.EXE", "last_opened_at": "1751756657"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\CODE.EXE", "last_opened_at": "1751756772"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\RESOURCES\\APP\\NODE_MODULES\\@VSCODE\\RIPGREP\\BIN\\RG.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\RESOURCES\\APP\\NODE_MODULES\\@VSCODE\\VSCE-SIGN\\BIN\\VSCE-SIGN.EXE", "last_opened_at": "1751739739"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\TOOLS\\INNO_UPDATER.EXE", "last_opened_at": "1751739781"},
+	}
+	softwareResults := []map[string]string{
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "", "source": "ie_extensions", "vendor": "", "version": ""},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\System32\\", "name": "", "source": "programs", "vendor": "Microsoft Corporation", "version": ""},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\windows\\System32\\", "name": "", "source": "programs", "vendor": "Microsoft Corporation", "version": ""},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "", "source": "programs", "vendor": "", "version": "1.3.195.61"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.FilePicker_cw5n1h2txyewy", "name": "1527c705-839a-4832-9118-54d4Bd6a0c89", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19640.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\1Password\\app\\8", "name": "1Password", "source": "programs", "vendor": "AgileBits, Inc.", "version": "8.10.82"},
+		{"extension_for": "firefox", "extension_id": "{d634138d-c276-4fc8-924b-40a0ea21d284}", "installed_path": "C:\\Users\\zach\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\0oxsfufm.default-release\\extensions\\{d634138d-c276-4fc8-924b-40a0ea21d284}.xpi", "name": "1Password – Password Manager", "source": "firefox_addons", "vendor": "", "version": "8.10.76.34"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\AppUp.IntelGraphicsExperience_1.100.5688.0_x64__8j3eq9eme6ctt", "name": "AppUp.IntelGraphicsExperience", "source": "programs", "vendor": "INTEL CORP", "version": "1.100.5688.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "Application Verifier x64 External Package", "source": "programs", "vendor": "Microsoft", "version": "10.1.20348.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\CMake\\", "name": "CMake", "source": "programs", "vendor": "Kitware", "version": "3.28.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.CapturePicker_cw5n1h2txyewy", "name": "CapturePicker", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19580.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\STMicroelectronicsMEMS.DellFreeFallDataProtection_1.0.27.0_x64__rp6h1c31mfy1y", "name": "Dell Free Fall Data Protection", "source": "programs", "vendor": "STMICROELECTRONICS S.R.L.", "version": "1.0.27.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\system32\\DellTPad", "name": "Dell PointStick Driver", "source": "programs", "vendor": "ALPS ELECTRIC CO., LTD.", "version": "10.3201.101.326"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AppResolverUX_cw5n1h2txyewy", "name": "E2A4F912-2574-4A75-9BB0-0D023378592B", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19640.1000"},
+		{"extension_for": "edge", "extension_id": "jmjflgjpcpepeafmmgdpfkogkghcpiha", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default\\Extensions\\jmjflgjpcpepeafmmgdpfkogkghcpiha\\1.2.1_0", "name": "Edge relevant text changes", "source": "chrome_extensions", "vendor": "", "version": "1.2.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AddSuggestedFoldersToLibraryDialog_cw5n1h2txyewy", "name": "F46D4000-FD22-4DB4-AC8E-4E1DDDE828FE", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "Fleet osquery", "source": "programs", "vendor": "Fleet Device Management (fleetdm.com)", "version": "1.44.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGamingOverlay_7.325.5191.0_x64__8wekyb3d8bbwe", "name": "Game Bar", "source": "programs", "vendor": "Microsoft Corporation", "version": "7.325.5191.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Git\\", "name": "Git", "source": "programs", "vendor": "The Git Development Community", "version": "2.43.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "GitHub CLI", "source": "programs", "vendor": "GitHub, Inc.", "version": "2.69.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\138.0.3351.65\\BHO\\ie_to_edge_bho_64.dll", "name": "IEToEdge BHO", "source": "ie_extensions", "vendor": "", "version": "138.0.3351.65"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\AppUp.IntelOptaneMemoryandStorageManagement_18.1.1042.0_x64__8j3eq9eme6ctt", "name": "Intel® Optane™ Memory and Storage Management", "source": "programs", "vendor": "INTEL CORP", "version": "18.1.1042.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Framework.1.7_1.7.27413.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Framework Package 1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.7.27413.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Framework.2.2_2.2.29512.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Framework Package 2.2", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.2.29512.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Runtime.1.7_1.7.27422.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Runtime Package 1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.7.27422.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Runtime.2.2_2.2.28604.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Runtime Package 2.2", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.2.28604.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application", "name": "Microsoft Edge", "source": "programs", "vendor": "Microsoft Corporation", "version": "138.0.3351.65"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application", "name": "Microsoft Edge WebView2 Runtime", "source": "programs", "vendor": "Microsoft Corporation", "version": "137.0.3296.93"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Services.Store.Engagement_10.0.23012.0_x64__8wekyb3d8bbwe", "name": "Microsoft Engagement Framework", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.23012.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Microsoft Office", "name": "Microsoft Office Home and Student 2019 - en-us", "source": "programs", "vendor": "Microsoft Corporation", "version": "16.0.18925.20138"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsStore_22505.1401.17.0_x64__8wekyb3d8bbwe", "name": "Microsoft Store", "source": "programs", "vendor": "Microsoft Corporation", "version": "22505.1401.17.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MSTeams_25153.1010.3727.5483_x64__8wekyb3d8bbwe", "name": "Microsoft Teams", "source": "programs", "vendor": "Microsoft", "version": "25153.1010.3727.5483"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\System32\\ieframe.dll", "name": "Microsoft Url Search Hook", "source": "ie_extensions", "vendor": "", "version": "11.0.26100.4343"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33519.0_x64__8wekyb3d8bbwe", "name": "Microsoft Visual C++ 2015 UWP Desktop Runtime Package", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "14.0.33519.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VCLibs.140.00_14.0.33519.0_x64__8wekyb3d8bbwe", "name": "Microsoft Visual C++ 2015 UWP Runtime Package", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "14.0.33519.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Programs\\Microsoft VS Code\\", "name": "Microsoft Visual Studio Code (User)", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.101.2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\"", "name": "Microsoft Visual Studio Installer", "source": "programs", "vendor": "Microsoft Corporation", "version": "3.12.2320.19252"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy", "name": "Microsoft.AAD.BrokerPlugin", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.19580.1000.2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.AV1VideoExtension_1.3.20.0_x64__8wekyb3d8bbwe", "name": "Microsoft.AV1VideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.3.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.AVCEncoderVideoExtension_1.1.17.0_x64__8wekyb3d8bbwe", "name": "Microsoft.AVCEncoderVideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.1.17.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AccountsControl_cw5n1h2txyewy", "name": "Microsoft.AccountsControl", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ApplicationCompatibilityEnhancements_1.2411.16.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ApplicationCompatibilityEnhancements", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2411.16.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AsyncTextService_8wekyb3d8bbwe", "name": "Microsoft.AsyncTextService", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.BingSearch_1.1.34.0_x64__8wekyb3d8bbwe", "name": "Microsoft.BingSearch", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.1.34.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.BioEnrollment_cw5n1h2txyewy", "name": "Microsoft.BioEnrollment", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19587.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.CommandPalette_0.2.1.0_x64__8wekyb3d8bbwe", "name": "Microsoft.CommandPalette", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.2.1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\microsoft.creddialoghost_cw5n1h2txyewy", "name": "Microsoft.CredDialogHost", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19595.1001"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.DesktopAppInstaller_1.26.400.0_x64__8wekyb3d8bbwe", "name": "Microsoft.DesktopAppInstaller", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.26.400.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\Microsoft.ECApp_8wekyb3d8bbwe", "name": "Microsoft.ECApp", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.4061"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Edge.GameAssist_1.0.3336.0_x64__8wekyb3d8bbwe", "name": "Microsoft.Edge.GameAssist", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1.0.3336.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.GetHelp_10.2409.22951.0_x64__8wekyb3d8bbwe", "name": "Microsoft.GetHelp", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.2409.22951.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.HEIFImageExtension_1.2.20.0_x64__8wekyb3d8bbwe", "name": "Microsoft.HEIFImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.LockApp_cw5n1h2txyewy", "name": "Microsoft.LockApp", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.4202"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.MPEG2VideoExtension_1.2.10.0_x64__8wekyb3d8bbwe", "name": "Microsoft.MPEG2VideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.10.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.MSPaint_6.2410.13017.0_x64__8wekyb3d8bbwe", "name": "Microsoft.MSPaint", "source": "programs", "vendor": "Microsoft Corporation", "version": "6.2410.13017.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.MicrosoftEdgeDevToolsClient_8wekyb3d8bbwe", "name": "Microsoft.MicrosoftEdgeDevToolsClient", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Paint_11.2504.531.0_x64__8wekyb3d8bbwe", "name": "Microsoft.Paint", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.531.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.People_10.2202.100.0_x64__8wekyb3d8bbwe", "name": "Microsoft.People", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.2202.100.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.PowerAutomateDesktop_1.0.1420.0_x64__8wekyb3d8bbwe", "name": "Microsoft.PowerAutomateDesktop", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.0.1420.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.RawImageExtension_2.5.5.0_x64__8wekyb3d8bbwe", "name": "Microsoft.RawImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.5.5.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ScreenSketch_11.2504.42.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ScreenSketch", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.42.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.SecHealthUI_1000.27840.1000.0_x64__8wekyb3d8bbwe", "name": "Microsoft.SecHealthUI", "source": "programs", "vendor": "Microsoft Corporation", "version": "1000.27840.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.StorePurchaseApp_22505.1401.0.0_x64__8wekyb3d8bbwe", "name": "Microsoft.StorePurchaseApp", "source": "programs", "vendor": "Microsoft Corporation", "version": "22505.1401.0.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.0_2.1810.18004.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.0", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "2.1810.18004.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.7_7.2409.9001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.7", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "7.2409.9001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.8_8.2310.30001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.8", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "8.2310.30001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\Microsoft.UI.Xaml.CBS_8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.CBS", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "9.2311.10002.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VP9VideoExtensions_1.2.6.0_x64__8wekyb3d8bbwe", "name": "Microsoft.VP9VideoExtensions", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.6.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WebMediaExtensions_1.2.14.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WebMediaExtensions", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.14.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WebpImageExtension_1.2.10.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WebpImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.10.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Win32WebViewHost_cw5n1h2txyewy", "name": "Microsoft.Win32WebViewHost", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AppRep.ChxApp_cw5n1h2txyewy", "name": "Microsoft.Windows.Apprep.ChxApp", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsCalculator_11.2502.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsCalculator", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2502.2.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsCamera_2025.2505.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsCamera", "source": "programs", "vendor": "Microsoft Corporation", "version": "2025.2505.2.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsNotepad_11.2504.62.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsNotepad", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.62.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsTerminal_1.22.11141.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsTerminal", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.22.11141.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.XboxGameCallableUI_cw5n1h2txyewy", "name": "Microsoft.XboxGameCallableUI", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxIdentityProvider_12.115.1001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.XboxIdentityProvider", "source": "programs", "vendor": "Microsoft Corporation", "version": "12.115.1001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxSpeechToTextOverlay_1.97.17002.0_neutral_split.scale-125_8wekyb3d8bbwe", "name": "Microsoft.XboxSpeechToTextOverlay", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.97.17002.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.YourPhone_1.25052.76.0_x64__8wekyb3d8bbwe", "name": "Microsoft.YourPhone", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.25052.76.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ZuneMusic_11.2505.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ZuneMusic", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2505.2.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.54792954.Filons_cw5n1h2txyewy", "name": "MicrosoftWindows.54792954.Filons", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.56978801.Voiess_cw5n1h2txyewy", "name": "MicrosoftWindows.56978801.Voiess", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.57058570.Speion_cw5n1h2txyewy", "name": "MicrosoftWindows.57058570.Speion", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.57074914.Livtop_cw5n1h2txyewy", "name": "MicrosoftWindows.57074914.Livtop", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.CBS", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.107.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.Core_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.Core", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.46.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.CoreAI", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.FileExp_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.FileExp", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.3.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.OOBE_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.OOBE", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.7.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.Photon_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.Photon", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.8.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MicrosoftWindows.CrossDevice_1.25061.25.0_x64__cw5n1h2txyewy", "name": "MicrosoftWindows.CrossDevice", "source": "programs", "vendor": "Microsoft Windows", "version": "1.25061.25.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Mozilla Firefox", "name": "Mozilla Firefox (x64 en-US)", "source": "programs", "vendor": "Mozilla", "version": "139.0.4"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.OutlookForWindows_1.2025.129.300_x64__8wekyb3d8bbwe", "name": "Outlook for Windows", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2025.129.300"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.PinningConfirmationDialog_cw5n1h2txyewy", "name": "PinningConfirmationDialog", "source": "programs", "vendor": "Microsoft Corporation", "version": "1000.25140.1001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\PowerToys\\", "name": "PowerToys (Preview)", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.91.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "PowerToys (Preview) x64", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.91.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Strawberry\\", "name": "Strawberry Perl (64-bit)", "source": "programs", "vendor": "strawberryperl.com project", "version": "5.38.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.UndockedDevKit_cw5n1h2txyewy", "name": "UDK Package", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community", "name": "Visual Studio Community 2022", "source": "programs", "vendor": "Microsoft Corporation", "version": "17.12.4"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WidgetsPlatformRuntime_1.6.9.0_x64__8wekyb3d8bbwe", "name": "Widgets Platform Runtime", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.6.9.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "WinAppDeploy", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.1.20348.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MicrosoftWindows.Client.WebExperience_525.15301.20.0_x64__cw5n1h2txyewy", "name": "Windows Web Experience Pack", "source": "programs", "vendor": "Microsoft Windows", "version": "525.15301.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Windows.CBSPreview_cw5n1h2txyewy", "name": "Windows.CBSPreview", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19580.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Windows.PrintDialog_cw5n1h2txyewy", "name": "Windows.PrintDialog", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "6.2.3.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.3_3000.934.1904.0_x86__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.3", "source": "programs", "vendor": "Microsoft Corporation", "version": "3000.934.1904.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.4_4000.1136.2333.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.4", "source": "programs", "vendor": "Microsoft Corporation", "version": "4000.1136.2333.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.5_5001.373.1736.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.5", "source": "programs", "vendor": "Microsoft Corporation", "version": "5001.373.1736.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.6_6000.486.517.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.6", "source": "programs", "vendor": "Microsoft Corporation", "version": "6000.486.517.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.7_7000.522.1444.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "7000.522.1444.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2506.1001.20.0_x64__8wekyb3d8bbwe", "name": "Xbox", "source": "programs", "vendor": "Microsoft Corporation", "version": "2506.1001.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGameOverlay_1.54.4001.0_x64__8wekyb3d8bbwe", "name": "Xbox Game Bar Plugin", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.54.4001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Xbox.TCUI_1.24.10001.0_x64__8wekyb3d8bbwe", "name": "Xbox TCUI", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.24.10001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_cw5n1h2txyewy", "name": "c5e2524a-ea46-4f67-841f-6a9465d9d515", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\microsoft.windowscommunicationsapps_16005.14326.22342.0_x64__8wekyb3d8bbwe", "name": "microsoft.windowscommunicationsapps", "source": "programs", "vendor": "Microsoft Corporation", "version": "16005.14326.22342.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "vcpp_crt.redist.clickonce", "source": "programs", "vendor": "Microsoft Corporation", "version": "14.29.30157"},
+		{"extension_for": "", "bundle_identifier": "", "extension_id": "99b17261-8f6e-45f0-9ad5-a69c6f509a4f", "installed_path": "/c:/Users/zach/.vscode/extensions/ms-vscode.cpptools-themes-2.0.0", "last_opened_at": "", "name": "ms-vscode.cpptools-themes", "source": "vscode_extensions", "vendor": "Microsoft", "version": "2.0.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\pip-23.2.1.dist-info", "name": "pip", "source": "python_packages", "vendor": "", "version": "23.2.1"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, prefetchResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "programs" {
+			// Last opened at should only be set for programs
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["installed_path"] == "C:\\Windows\\System32\\" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "Strawberry Perl (64-bit)" {
+			assert.Equal(t, "1749664524", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft.MSPaint" {
+			assert.Equal(t, "1751739848", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft.Paint" {
+			assert.Equal(t, "1751739842", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft Visual Studio Code (User)" {
+			assert.Equal(t, "1751756772", software["last_opened_at"])
+		}
+
+		if software["name"] == "CMake" {
+			assert.Equal(t, "1751756665", software["last_opened_at"])
+		}
+
+		if software["name"] == "Mozilla Firefox (x64 en-US)" {
+			assert.Equal(t, "1751755087", software["last_opened_at"])
+		}
+	}
+}
+
+func TestTPMPinSetVerifyIngest(t *testing.T) {
+	tests := []struct {
+		name   string
+		host   *fleet.Host
+		rows   []map[string]string
+		pinSet *bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+			rows: []map[string]string{
+				{"host": "something", "criteria": "1"},
+			},
+		},
+		{
+			name: "empty uuid",
+			host: &fleet.Host{
+				ID: 1,
+			},
+			rows: []map[string]string{{"host": "something", "criteria": "1"}},
+		},
+		{
+			name: "no rows - pin not set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows:   []map[string]string{},
+			pinSet: ptr.Bool(false),
+		},
+		{
+			name: "with rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+		{
+			name: "multiple rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			var setPinCalled bool
+			ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, pinSet bool) error {
+				setPinCalled = true
+				require.Equal(t, *tt.pinSet, pinSet)
+				require.Equal(t, tt.host.ID, hostID)
+				return nil
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_set_verify"].DirectIngestFunc
+
+			require.NoError(t, ingestFunc(context.Background(), log.NewNopLogger(), tt.host, ds, tt.rows))
+			require.Equal(t, setPinCalled, tt.pinSet != nil)
+		})
+	}
+}
+
+func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
+	logger := log.NewNopLogger()
+	ctx := context.Background()
+
+	tests := []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		wantCmd   bool
+		wantError bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+		},
+		{
+			name: "empty UUID host",
+			host: &fleet.Host{UUID: ""},
+		},
+		{
+			name: "too many rows",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+			wantError: true,
+		},
+		{
+			name: "no rows - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows:    []map[string]string{},
+			wantCmd: true,
+		},
+		{
+			name: "disallowed state - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)},
+			},
+			wantCmd: true,
+		},
+		{
+			name: "policy set to optinal",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+		},
+		{
+			name: "policy set to required",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			cmdInserted := false
+			if tt.wantCmd {
+				ds.MDMWindowsInsertCommandForHostsFunc = func(
+					ctx context.Context,
+					hostUUIDs []string,
+					cmd *fleet.MDMWindowsCommand,
+				) error {
+					cmdInserted = true
+					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
+					require.NotNil(t, cmd)
+					return nil
+				}
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
+			require.Equal(t, tt.wantError, err != nil)
+			require.Equal(t, cmdInserted, tt.wantCmd)
+		})
+	}
+}
+
+func TestDebLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["deb_last_opened_at"].SoftwareProcessResults
+	debPackageResults := []map[string]string{
+		{"package": "accountsservice", "last_opened_at": "1753287489"},
+		{"package": "acl", "last_opened_at": "1752178409"},
+		{"package": "adduser", "last_opened_at": "1753287887"},
+		{"package": "alsa-base", "last_opened_at": "1752178572"},
+		{"package": "alsa-utils", "last_opened_at": "1753806108"},
+		{"package": "anacron", "last_opened_at": "1754439481"},
+		{"package": "apg", "last_opened_at": "1752178498"},
+		{"package": "apparmor", "last_opened_at": "1753978475"},
+		{"package": "apport", "last_opened_at": "1754439481"},
+		{"package": "apport-core-dump-handler", "last_opened_at": "1752791628"},
+		{"package": "apport-gtk", "last_opened_at": "1752791824"},
+		{"package": "appstream", "last_opened_at": "1754361022"},
+		{"package": "apt", "last_opened_at": "1754439481"},
+		{"package": "apt-file", "last_opened_at": "1753293736"},
+		{"package": "apt-utils", "last_opened_at": "1753978482"},
+		{"package": "aptdaemon", "last_opened_at": "1752791767"},
+		{"package": "aspell", "last_opened_at": "1752178619"},
+		{"package": "at-spi2-core", "last_opened_at": "1753806242"},
+		{"package": "avahi-daemon", "last_opened_at": "1753806108"},
+		{"package": "baobab", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "accountsservice", "source": "deb_packages", "vendor": "", "version": "23.13.9-2ubuntu6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "acl", "source": "deb_packages", "vendor": "", "version": "2.3.2-1build1.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "adduser", "source": "deb_packages", "vendor": "", "version": "3.137ubuntu1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "adwaita-icon-theme", "source": "deb_packages", "vendor": "", "version": "46.0-1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-base", "source": "deb_packages", "vendor": "", "version": "1.0.25+dfsg-0ubuntu7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-topology-conf", "source": "deb_packages", "vendor": "", "version": "1.2.5.1-2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-ucm-conf", "source": "deb_packages", "vendor": "", "version": "1.2.10-1ubuntu5.7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-utils", "source": "deb_packages", "vendor": "", "version": "1.2.9-1ubuntu5"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "anacron", "source": "deb_packages", "vendor": "", "version": "2.3-39ubuntu2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apg", "source": "deb_packages", "vendor": "", "version": "2.2.3.dfsg.1-5build3"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apparmor", "source": "deb_packages", "vendor": "", "version": "4.0.1really4.0.1-0ubuntu0.24.04.4"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport-core-dump-handler", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport-gtk", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport-symptoms", "source": "deb_packages", "vendor": "", "version": "0.25"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "appstream", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt", "source": "deb_packages", "vendor": "", "version": "2.8.3"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons-hidpi", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt-file", "source": "deb_packages", "vendor": "", "version": "3.3"},
+		// Add some non-deb_packages software to test filtering
+		{"extension_for": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, debPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "deb_packages" {
+			// Last opened at should only be set for deb_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "accountsservice" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "acl" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "adduser" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-base" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-utils" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "anacron" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apg" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "apparmor" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-core-dump-handler" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-gtk" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "appstream" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-file" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "adwaita-icon-theme" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-topology-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-ucm-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-symptoms" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons-hidpi" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}
+
+func TestRpmLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["rpm_last_opened_at"].SoftwareProcessResults
+	rpmPackageResults := []map[string]string{
+		{"package": "bash", "last_opened_at": "1753287489"},
+		{"package": "coreutils", "last_opened_at": "1752178409"},
+		{"package": "curl", "last_opened_at": "1753287887"},
+		{"package": "firewalld", "last_opened_at": "1752178572"},
+		{"package": "git", "last_opened_at": "1753806108"},
+		{"package": "httpd", "last_opened_at": "1754439481"},
+		{"package": "java-11-openjdk", "last_opened_at": "1752178498"},
+		{"package": "kernel", "last_opened_at": "1753978475"},
+		{"package": "libcurl", "last_opened_at": "1754439481"},
+		{"package": "mysql-server", "last_opened_at": "1752791628"},
+		{"package": "nginx", "last_opened_at": "1752791824"},
+		{"package": "nodejs", "last_opened_at": "1754361022"},
+		{"package": "openssh-server", "last_opened_at": "1754439481"},
+		{"package": "postgresql", "last_opened_at": "1753293736"},
+		{"package": "python3", "last_opened_at": "1753978482"},
+		{"package": "redis", "last_opened_at": "1752791767"},
+		{"package": "systemd", "last_opened_at": "1752178619"},
+		{"package": "vim", "last_opened_at": "1753806242"},
+		{"package": "wget", "last_opened_at": "1753806108"},
+		{"package": "yum", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "bash", "source": "rpm_packages", "vendor": "", "version": "4.2.46-35.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "coreutils", "source": "rpm_packages", "vendor": "", "version": "8.22-24.el7_9.2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "curl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "firewalld", "source": "rpm_packages", "vendor": "", "version": "0.6.3-13.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "git", "source": "rpm_packages", "vendor": "", "version": "1.8.3.1-25.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "httpd", "source": "rpm_packages", "vendor": "", "version": "2.4.6-97.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "java-11-openjdk", "source": "rpm_packages", "vendor": "", "version": "11.0.21.0.9-1.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "kernel", "source": "rpm_packages", "vendor": "", "version": "3.10.0-1160.105.1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "libcurl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "mysql-server", "source": "rpm_packages", "vendor": "", "version": "5.7.44-1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "nginx", "source": "rpm_packages", "vendor": "", "version": "1.20.1-9.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "nodejs", "source": "rpm_packages", "vendor": "", "version": "16.20.2-1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "openssh-server", "source": "rpm_packages", "vendor": "", "version": "7.4p1-23.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "postgresql", "source": "rpm_packages", "vendor": "", "version": "13.14-1.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "python3", "source": "rpm_packages", "vendor": "", "version": "3.6.8-18.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "redis", "source": "rpm_packages", "vendor": "", "version": "5.0.3-1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "systemd", "source": "rpm_packages", "vendor": "", "version": "219-78.el7_9.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "vim", "source": "rpm_packages", "vendor": "", "version": "7.4.629-8.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "wget", "source": "rpm_packages", "vendor": "", "version": "1.14-18.el7_6.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "yum", "source": "rpm_packages", "vendor": "", "version": "3.4.3-168.el7_9"},
+		// Add some packages that don't have last_opened_at data
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "glibc", "source": "rpm_packages", "vendor": "", "version": "2.17-325.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "openssl", "source": "rpm_packages", "vendor": "", "version": "1.0.2k-26.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "zlib", "source": "rpm_packages", "vendor": "", "version": "1.2.7-18.el7"},
+		// Add some non-rpm_packages software to test filtering
+		{"extension_for": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "deb-package", "source": "deb_packages", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, rpmPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "rpm_packages" {
+			// Last opened at should only be set for rpm_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "bash" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "coreutils" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "curl" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "firewalld" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "git" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "httpd" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "java-11-openjdk" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "kernel" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "libcurl" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "mysql-server" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "nginx" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "nodejs" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssh-server" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "postgresql" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		if software["name"] == "python3" {
+			assert.Equal(t, "1753978482", software["last_opened_at"])
+		}
+
+		if software["name"] == "redis" {
+			assert.Equal(t, "1752791767", software["last_opened_at"])
+		}
+
+		if software["name"] == "systemd" {
+			assert.Equal(t, "1752178619", software["last_opened_at"])
+		}
+
+		if software["name"] == "vim" {
+			assert.Equal(t, "1753806242", software["last_opened_at"])
+		}
+
+		if software["name"] == "wget" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "yum" {
+			assert.Equal(t, "1753806594", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "glibc" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssl" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "zlib" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}

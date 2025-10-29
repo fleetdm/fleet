@@ -67,10 +67,6 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
-    - name: Install Go Dependencies
-      if: ${{ matrix.build_type ==  'local' }}
-      run: make deps-go
-
     - name: Build fleetdm/wix
       if: ${{ matrix.build_type ==  'local' }}
       run: make wix-docker

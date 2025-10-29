@@ -22,6 +22,11 @@ declare module "*.pdf" {
   export = value;
 }
 
+declare module "*.mp4" {
+  const value: string;
+  export = value;
+}
+
 declare const featureFlags: {
   [key: string]: type;
 };

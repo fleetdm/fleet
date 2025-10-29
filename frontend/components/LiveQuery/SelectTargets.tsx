@@ -27,14 +27,14 @@ import { capitalize } from "lodash";
 import permissions from "utilities/permissions";
 
 import PageError from "components/DataError";
-import TargetsInput from "components/LiveQuery/TargetsInput";
+import TargetsInput from "components/TargetsInput";
+import { generateTableHeaders } from "components/TargetsInput/TargetsInputHostsTableConfig";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import SearchField from "components/forms/fields/SearchField";
 import RevealButton from "components/buttons/RevealButton";
 import TargetPillSelector from "./TargetChipSelector";
-import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
 
 interface ISelectTargetsProps {
   baseClass: string;
@@ -590,19 +590,18 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={handleClickCancel}
-          variant="text-link"
-        >
-          Cancel
-        </Button>
-        <Button
-          className={`${baseClass}__btn`}
           type="button"
-          variant="blue-green"
           disabled={isFetchingCounts || !counts?.targets_count} // TODO: confirm
           onClick={onClickRun}
         >
           Run
+        </Button>
+        <Button
+          className={`${baseClass}__btn`}
+          onClick={handleClickCancel}
+          variant="inverse"
+        >
+          Cancel
         </Button>
         <div className={`${baseClass}__targets-total-count`}>
           {renderTargetsCount()}

@@ -12,6 +12,7 @@ interface IConfirmationPageProps {
   currentPage: boolean;
   formData: IRegistrationFormData;
   handleSubmit: React.FormEventHandler<HTMLFormElement>;
+  isLoading?: boolean;
 }
 
 const ConfirmationPage = ({
@@ -19,6 +20,7 @@ const ConfirmationPage = ({
   currentPage,
   formData,
   handleSubmit,
+  isLoading,
 }: IConfirmationPageProps): JSX.Element => {
   useEffect(() => {
     if (currentPage) {
@@ -29,7 +31,7 @@ const ConfirmationPage = ({
         // wanted to use React ref here instead of class but ref is already used
         // in Button.tsx, which could break other button uses
         const confirmationButton = document.querySelector(
-          `.${baseClass} button.button--brand`
+          `.${baseClass} button.button--default`
         ) as HTMLElement;
         confirmationButton?.focus();
       }, 300);
@@ -97,19 +99,21 @@ const ConfirmationPage = ({
 
         {importOsqueryConfig()}
       </div>
-      <p className="help-text">
+      <p className={`${baseClass}__help-text`}>
         Fleet Device Management Inc. periodically collects information about
         your instance. Sending usage statistics from your Fleet instance is
         optional and can be disabled in settings.
       </p>
-      <Button
-        type="submit"
-        tabIndex={tabIndex}
-        disabled={!currentPage}
-        variant="brand"
-      >
-        Confirm
-      </Button>
+      <div className="button-wrap">
+        <Button
+          type="submit"
+          tabIndex={tabIndex}
+          disabled={!currentPage}
+          isLoading={isLoading}
+        >
+          Confirm
+        </Button>
+      </div>
     </form>
   );
 };

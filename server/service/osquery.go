@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -22,6 +23,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -57,6 +60,15 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
 
+	if *host.HasHostIdentityCert {
+		err = httpsig.VerifyHostIdentity(ctx, svc.ds, host)
+		if err != nil {
+			osqueryError := newOsqueryError("authentication error: " + err.Error())
+			osqueryError.StatusCode = http.StatusUnauthorized
+			return nil, false, osqueryError
+		}
+	}
+
 	// Update the "seen" time used to calculate online status. These updates are
 	// batched for MySQL performance reasons. Because this is done
 	// asynchronously, it is possible for the server to shut down before
@@ -75,29 +87,16 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 // Enroll Agent
 ////////////////////////////////////////////////////////////////////////////////
 
-type enrollAgentRequest struct {
-	EnrollSecret   string                         `json:"enroll_secret"`
-	HostIdentifier string                         `json:"host_identifier"`
-	HostDetails    map[string](map[string]string) `json:"host_details"`
-}
-
-type enrollAgentResponse struct {
-	NodeKey string `json:"node_key,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r enrollAgentResponse) Error() error { return r.Err }
-
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*enrollAgentRequest)
-	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
+	req := request.(*contract.EnrollOsqueryAgentRequest)
+	nodeKey, err := svc.EnrollOsquery(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
-		return enrollAgentResponse{Err: err}, nil
+		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
-	return enrollAgentResponse{NodeKey: nodeKey}, nil
+	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
-func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -106,6 +105,24 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("enroll failed: " + err.Error())
+	}
+
+	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+	}
+
+	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
+	if identityCert != nil {
+		if !httpSigPresent {
+			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
+		}
+		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
+		}
+	} else if httpSigPresent { // but we couldn't find cert in DB
+		return "", fleet.NewAuthFailedError("authentication error: certificate matching HTTP message signature not found")
 	}
 
 	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
@@ -139,7 +156,30 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	host, err := svc.ds.EnrollHost(ctx, appConfig.MDM.EnabledAndConfigured, hostIdentifier, hardwareUUID, hardwareSerial, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	var stickyEnrollment *string
+	if svc.keyValueStore != nil {
+		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
+		// this prevents enrollment-based team changes for a time window to avoid race conditions
+		// with MDM profile delivery.
+		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hardwareUUID)
+		if err != nil {
+			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
+			// enrollment proceeds without sticky behavior rather than blocking.
+			level.Error(svc.logger).Log("msg", "failed to get sticky enrollment", "err", err, "host_uuid", hardwareUUID)
+		}
+	}
+
+	host, err := svc.ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollOsqueryHostID(hostIdentifier),
+		fleet.WithEnrollOsqueryHardwareUUID(hardwareUUID),
+		fleet.WithEnrollOsqueryHardwareSerial(hardwareSerial),
+		fleet.WithEnrollOsqueryNodeKey(nodeKey),
+		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
+		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
+		fleet.WithEnrollOsqueryIdentityCert(identityCert),
+		fleet.WithEnrollOsqueryIgnoreTeamUpdate(stickyEnrollment != nil),
+	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
 	}
@@ -150,7 +190,15 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: false, // here we are just using a few ingestion functions, so no need to set.
+		}, nil, // Ok ... the following queries do not need the Team's MDM config
+	)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -694,10 +742,25 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, nil, ctxerr.Wrap(ctx, err, "read host features")
 	}
 
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")
+		}
+	}
+
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		}, mdmTeamConfig)
 	for name, query := range detailQueries {
 		if criticalQueriesOnly && !criticalDetailQueries[name] {
 			continue
@@ -705,10 +768,17 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
-			queries[queryName] = query.Query
+
 			if query.QueryFunc != nil && query.Query == "" {
-				queries[queryName] = query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				if !ok {
+					continue
+				}
+				queries[queryName] = query
+			} else {
+				queries[queryName] = query.Query
 			}
+
 			discoveryQuery := query.Discovery
 			if discoveryQuery == "" {
 				discoveryQuery = alwaysTrueQuery
@@ -734,6 +804,24 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 
 	return queries, discovery, nil
+}
+
+func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
+	if host.Platform != "darwin" {
+		return false
+	}
+
+	conditionalAccessConfigured, conditionalAccessEnabledForTeam, err := svc.conditionalAccessConfiguredAndEnabledForTeam(ctx, host.TeamID)
+	if err != nil {
+		level.Error(svc.logger).Log(
+			"msg", "load conditional access configured and enabled, skipping ingestion",
+			"host_id", host.ID,
+			"err", err,
+		)
+		return false
+	}
+
+	return conditionalAccessConfigured && conditionalAccessEnabledForTeam
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
@@ -762,12 +850,64 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
+func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	switch {
+	case host.Platform == string(fleet.MacOSPlatform):
+		inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+		}
+		return inSetupExperience, nil
+	case fleet.IsLinux(host.Platform) || host.Platform == "windows":
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
+		}
+		return inSetupExperience, nil
+	default:
+		return false, nil
+	}
+}
+
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
+	}
+
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "invalid row")
+		}
+
+		switch status.Status {
+		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, false, nil
+	}
+	// This must come after the check above to avoid unnecessary queries to the database. Most
+	// requests from live connected hosts will not reach this point
+	hostRunningSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+	}
+	if hostRunningSetupExperience {
+		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
 		return nil, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
@@ -932,7 +1072,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -948,9 +1088,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		failed := ok && status != fleet.StatusOK
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
 			ll := level.Debug(svc.logger)
-			// We'd like to log these as error for troubleshooting and improving of distributed queries.
+			// We'd like to log these as warning for troubleshooting and improving of distributed queries.
+			// We have multiple feature requests filed to expose this information in the UI, including https://github.com/fleetdm/fleet/issues/18004
 			if messages[query] == "distributed query is denylisted" {
-				ll = level.Error(svc.logger)
+				ll = level.Warn(svc.logger)
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
@@ -980,13 +1121,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
-
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
 		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
 			logging.WithErr(ctx, err)
+		}
+
+		if host.Platform == "darwin" {
+			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
@@ -1009,13 +1155,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
+		teamID := uint(0)
 		if host.TeamID != nil {
-			team, err := svc.ds.Team(ctx, *host.TeamID)
-			if err != nil {
-				logging.WithErr(ctx, err)
-			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-			}
+			teamID = *host.TeamID
+		}
+		team, err := svc.ds.TeamWithoutExtras(ctx, teamID)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+			policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)
@@ -1086,6 +1234,22 @@ func (svc *Service) SubmitDistributedQueryResults(
 					logging.WithErr(ctx, err)
 				}
 			}
+		}
+	}
+
+	if host.DiskEncryptionKeyEscrowed {
+		if err := svc.NewActivity(
+			ctx,
+			nil,
+			fleet.ActivityTypeEscrowedDiskEncryptionKey{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			},
+		); err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "record fleet disk encryption key escrowed activity",
+				"err", err,
+			)
 		}
 	}
 
@@ -1220,9 +1384,9 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
 	host *fleet.Host,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
@@ -1231,8 +1395,14 @@ func preProcessSoftwareResults(
 
 	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
 	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-	pythonPakcagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(pythonPakcagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
+	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
+	preProcessSoftwareExtraResults(fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
+	preProcessSoftwareExtraResults(jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
@@ -1241,28 +1411,57 @@ func preProcessSoftwareResults(
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
+
+	updateFleetdVersion(host.Platform, results)
+}
+
+// updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
+// We do this because orbit uses an auto-update mechanism which does not update the host's package manager database.
+func updateFleetdVersion(hostPlatform string, results fleet.OsqueryDistributedQueryResults) {
+	// Just update the versions for Linux.
+	if !fleet.IsLinux(hostPlatform) {
+		return
+	}
+
+	orbitInfoResults := results[hostDetailQueryPrefix+"orbit_info"]
+	if len(orbitInfoResults) != 1 {
+		return
+	}
+	orbitVersion := orbitInfoResults[0]["version"]
+	if orbitVersion == "" {
+		return
+	}
+
+	for _, row := range results[hostDetailQueryPrefix+"software_linux"] {
+		if row["name"] != "fleet-osquery" {
+			continue
+		}
+		row["version"] = orbitVersion
+		break
+	}
 }
 
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
-func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus) {
 	const pythonPrefix = "python3-"
 	const pythonSource = "python_packages"
 	const debSource = "deb_packages"
+	const rpmSource = "rpm_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
-	// Return early if platform is not Ubuntu or Debian
+	// Return early if platform is not Ubuntu, Debian, or RHEL (Inc. Fedora)
 	// We may need to add more platforms in the future
-	if platform != "ubuntu" && platform != "debian" {
+	if platform != "ubuntu" && platform != "debian" && platform != "rhel" {
 		return
 	}
 
 	// Check the 'software_linux' result and status
-	sw, ok := (*results)[linuxSoftware]
+	sw, ok := results[linuxSoftware]
 	if !ok {
 		return
 	}
-	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
+	if status, ok := statuses[linuxSoftware]; !ok || status != fleet.StatusOK {
 		return
 	}
 
@@ -1271,6 +1470,7 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	// a fresh ubuntu 24.04 install
 	pythonPackages := make(map[string]int, 40)
 	debPackages := make(map[string]struct{}, 40)
+	rpmPackages := make(map[string]struct{}, 60)
 
 	// Track indexes of rows to remove
 	indexesToRemove := []int{}
@@ -1285,6 +1485,10 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 			// Only append python3 deb packages
 			if strings.HasPrefix(row["name"], pythonPrefix) {
 				debPackages[row["name"]] = struct{}{}
+			}
+		case rpmSource:
+			if strings.HasPrefix(row["name"], pythonPrefix) {
+				rpmPackages[row["name"]] = struct{}{}
 			}
 		}
 	}
@@ -1301,6 +1505,8 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 		// Filter out Python packages that are also Debian packages
 		if _, found := debPackages[convertedName]; found {
 			indexesToRemove = append(indexesToRemove, index)
+		} else if _, found := rpmPackages[convertedName]; found {
+			indexesToRemove = append(indexesToRemove, index)
 		} else {
 			// Update remaining Python package names to match OVAL definitions
 			sw[index]["name"] = convertedName
@@ -1316,23 +1522,23 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Store the updated software result back in the results map
-	(*results)[linuxSoftware] = sw
+	results[linuxSoftware] = sw
 }
 
 func preProcessSoftwareExtraResults(
 	softwareExtraQuery string,
 	hostID uint,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	override osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
-	defer delete(*results, softwareExtraQuery)
+	defer delete(results, softwareExtraQuery)
 
-	status, ok := (*statuses)[softwareExtraQuery]
+	status, ok := statuses[softwareExtraQuery]
 	if !ok {
 		return // query did not execute, e.g. the table does not exist.
 	}
@@ -1341,14 +1547,14 @@ func preProcessSoftwareExtraResults(
 		// extra query executed but with errors, so we return without changing anything.
 		level.Error(logger).Log(
 			"query", softwareExtraQuery,
-			"message", (*messages)[softwareExtraQuery],
+			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
 		)
 		return
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows := (*results)[softwareExtraQuery]
+	softwareExtraRows := results[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}
@@ -1360,18 +1566,18 @@ func preProcessSoftwareExtraResults(
 		hostDetailQueryPrefix + "software_windows",
 		hostDetailQueryPrefix + "software_linux",
 	} {
-		if _, ok := (*results)[query]; !ok {
+		if _, ok := results[query]; !ok {
 			continue
 		}
-		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+		if status, ok := statuses[query]; ok && status != fleet.StatusOK {
 			// Do not append results if the main query failed to run.
 			continue
 		}
 		if override.SoftwareProcessResults != nil {
-			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+			results[query] = override.SoftwareProcessResults(results[query], softwareExtraRows)
 		} else {
-			(*results)[query] = removeOverrides((*results)[query], override)
-			(*results)[query] = append((*results)[query], softwareExtraRows...)
+			results[query] = removeOverrides(results[query], override)
+			results[query] = append(results[query], softwareExtraRows...)
 		}
 		return
 	}
@@ -1492,7 +1698,24 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return false, newOsqueryError("ingest detail query: " + err.Error())
+		}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		},
+		mdmTeamConfig,
+	)
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
@@ -1634,7 +1857,25 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return newOsqueryError("ingest detail query: " + err.Error())
+		}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		},
+		mdmTeamConfig,
+	)
+
 	query, ok := detailQueries[name]
 	if !ok {
 		return newOsqueryError("unknown detail query " + name)
@@ -2166,6 +2407,238 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	return nil
 }
 
+func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Context, hostTeamID *uint) (configured bool, enabledForTeam bool, err error) {
+	// Check if the needed server configuration for Conditional Access is set.
+	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+		return false, false, nil
+	}
+
+	// Check if the integration is fully configured.
+	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, false, nil
+		}
+		return false, false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	if !integration.SetupDone {
+		return false, false, nil
+	}
+
+	if hostTeamID == nil {
+		// Configuration for "No team" is stored in the main appconfig.
+		cfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, false, ctxerr.Wrap(ctx, err, "failed to load appconfig")
+		}
+		var conditionalAccessEnabled bool
+		if cfg.Integrations.ConditionalAccessEnabled.Set {
+			conditionalAccessEnabled = cfg.Integrations.ConditionalAccessEnabled.Value
+		}
+		return true, conditionalAccessEnabled, nil
+	}
+
+	// Host belongs to a team, thus we load the team configuration.
+	team, err := svc.ds.Team(ctx, *hostTeamID)
+	if err != nil {
+		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
+	}
+	var teamConditionalAccessEnabled bool
+	if team.Config.Integrations.ConditionalAccessEnabled.Set {
+		teamConditionalAccessEnabled = team.Config.Integrations.ConditionalAccessEnabled.Value
+	}
+	return true, teamConditionalAccessEnabled, nil
+}
+
+func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostOrbitNodeKey *string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		// Vanilla osquery hosts cannot do conditional access.
+		return nil
+	}
+
+	configured, enabledForTeam, err := svc.conditionalAccessConfiguredAndEnabledForTeam(ctx, hostTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to check for conditional access configuration")
+	}
+
+	if !configured || !enabledForTeam {
+		// Nothing to do, feature not configured or not enabled for this host's team.
+		return nil
+	}
+
+	hostConditionalAccessStatus, err := svc.ds.LoadHostConditionalAccessStatus(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Nothing to do because Fleet hasn't ingested the Entra's "Device ID" or
+			// "User Principal Name" from the device yet (we cannot perform any actions
+			// for the host on Entra without it).
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "failed to load host conditional access status")
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	var mdmEnrolled bool
+	hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
+	if err != nil {
+		// If GetHostMDM returns not found then it means that
+		// the host may not be MDM enrolled yet.
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "failed to get host mdm")
+		}
+	} else {
+		mdmEnrolled = hostMDM.Enrolled
+	}
+
+	// Get policies configured for conditional access.
+	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
+	}
+
+	hostIsCompliantInFleet := true
+	conditionalAccessPolicyIDsSet := make(map[uint]struct{}, len(conditionalAccessPolicyIDs))
+	for _, policyID := range conditionalAccessPolicyIDs {
+		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
+	}
+	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
+		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
+			// Ignore results for policies that are not for conditional access.
+			continue
+		}
+		if incomingPolicyResult != nil && !*incomingPolicyResult {
+			hostIsCompliantInFleet = false
+			break
+		}
+	}
+
+	if hostConditionalAccessStatus.Managed != nil && mdmEnrolled == *hostConditionalAccessStatus.Managed &&
+		hostConditionalAccessStatus.Compliant != nil && hostIsCompliantInFleet == *hostConditionalAccessStatus.Compliant {
+		// Nothing to do, nothing has changed.
+		return nil
+	}
+
+	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+
+	return nil
+}
+
+func (svc *Service) setHostConditionalAccessAsync(
+	hostID uint,
+	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
+	compliant bool,
+) {
+	go func() {
+		logger := log.With(svc.logger,
+			"msg", "set host conditional access",
+			"host_id", hostID,
+			"managed", managed,
+			"compliant", compliant,
+		)
+		start := time.Now()
+		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, managed, compliant); err != nil {
+			level.Error(logger).Log("took", time.Since(start), "err", err)
+		}
+		level.Debug(logger).Log("took", time.Since(start))
+	}()
+}
+
+// conditionalAccessSetWaitTime is the interval to check for message status.
+// It's a global variable to be set in tests.
+var conditionalAccessSetWaitTime = 10 * time.Second
+
+func (svc *Service) setHostConditionalAccess(
+	hostID uint,
+	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
+	compliant bool,
+) error {
+	ctx := context.Background()
+
+	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get integration")
+	}
+	logger := log.With(svc.logger,
+		"msg", "set compliance status",
+		"host_id", hostID,
+		"managed", managed,
+		"compliant", compliant,
+	)
+	level.Debug(logger).Log()
+	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
+		integration.TenantID,
+		integration.ProxyServerSecret,
+
+		hostConditionalAccessStatus.DeviceID,
+		hostConditionalAccessStatus.UserPrincipalName,
+
+		managed,
+		hostConditionalAccessStatus.DisplayName,
+		"macOS",
+		hostConditionalAccessStatus.OSVersion,
+		compliant,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
+	}
+	const (
+		timeout = 1 * time.Minute
+	)
+	level.Debug(logger).Log("msg", "set compliance status message sent")
+	startTime := time.Now()
+	for range time.Tick(conditionalAccessSetWaitTime) {
+		if time.Since(startTime) > timeout {
+			return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
+		}
+		level.Debug(logger).Log("msg", "get compliance status message wait")
+		messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
+			integration.TenantID, integration.ProxyServerSecret, response.MessageID,
+		)
+		if err != nil {
+			// Retry again in case of network or transient errors.
+			level.Info(logger).Log("msg", "get message status, retrying", "err", err)
+			continue
+		}
+		if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
+			level.Debug(logger).Log(
+				"msg", "set device compliance status completed",
+				"took", time.Since(startTime),
+			)
+			break
+		}
+		detail := ""
+		if messageStatus.Detail != nil {
+			detail = *messageStatus.Detail
+		}
+		level.Info(logger).Log(
+			"msg", "get message status, retrying",
+			"status", messageStatus.Status,
+			"detail", detail,
+		)
+	}
+
+	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, managed, compliant); err != nil {
+		return ctxerr.Wrap(ctx, err, "set conditional access status on datastore")
+	}
+
+	return nil
+}
+
 func (svc *Service) maybeDebugHost(
 	ctx context.Context,
 	host *fleet.Host,
@@ -2277,7 +2750,7 @@ func (svc *Service) preProcessOsqueryResults(
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
-	for _, queryResult := range unmarshaledResults {
+	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
 			// These are results that could not be unmarshaled.
 			continue
@@ -2292,18 +2765,42 @@ func (svc *Service) preProcessOsqueryResults(
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
-		if _, ok := queriesDBData[queryResult.QueryName]; ok {
-			// Already loaded.
-			continue
+
+		existingQuery, foundQuery := queriesDBData[queryResult.QueryName]
+		if !foundQuery {
+			query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+			if err != nil {
+				level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+				continue
+			}
+			queriesDBData[queryResult.QueryName] = query
+			existingQuery = query
 		}
-		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+
+		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+			level.Debug(svc.logger).Log("msg", "inserting query id into query result", "err", err, "query_id", existingQuery.ID)
 			continue
 		}
-		queriesDBData[queryResult.QueryName] = query
+
+		// Set the updated query results if we find query ID. This is used one level up by the logger
+		osqueryResults[i] = updatedResult
 	}
 	return unmarshaledResults, queriesDBData
+}
+
+func addQueryIDToLogResult(ctx context.Context, logResult json.RawMessage, queryID uint) (json.RawMessage, error) {
+	var query map[string]json.RawMessage
+	if err := json.Unmarshal(logResult, &query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to unmarshal query result to insert query id")
+	}
+
+	query["query_id"] = json.RawMessage(strconv.FormatUint(uint64(queryID), 10))
+	newResult, err := json.Marshal(query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to marshal query result with query id")
+	}
+	return newResult, nil
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {

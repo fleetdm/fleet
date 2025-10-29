@@ -333,35 +333,31 @@ func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 		name    string
 		cmdOut  *string
 		cmdErr  error
-		wantOut bool
 		wantErr error
 	}{
 		{
-			"command error",
-			nil,
-			errors.New("some command error"),
-			false,
-			errors.New("some command error"),
+			name:    "command error",
+			cmdOut:  nil,
+			cmdErr:  errors.New("some command error"),
+			wantErr: errors.New("some command error"),
 		},
 		{
-			"empty output",
-			ptr.String(""),
-			nil,
-			false,
-			errors.New("parsing profiles output: expected at least 2 lines but got 1"),
+			name:    "empty output",
+			cmdOut:  ptr.String(""),
+			cmdErr:  nil,
+			wantErr: errors.New("parsing profiles output: expected at least 2 lines but got 1"),
 		},
 		{
-			"null profile",
-			ptr.String(`Device Enrollment configuration:
+			name: "null profile",
+			cmdOut: ptr.String(`Device Enrollment configuration:
 (null)
 		`),
-			nil,
-			false,
-			errors.New("parsing profiles output: received null device enrollment configuration"),
+			cmdErr:  nil,
+			wantErr: errors.New("parsing profiles output: received null device enrollment configuration"),
 		},
 		{
-			"mismatch profile",
-			ptr.String(`Device Enrollment configuration:
+			name: "mismatch profile",
+			cmdOut: ptr.String(`Device Enrollment configuration:
 {
     AllowPairing = 1;
 	AutoAdvanceSetup = 0;
@@ -371,13 +367,12 @@ func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	...
 }
 			`),
-			nil,
-			false,
-			errors.New(`configuration web url: expected 'valid.com' but found 'test.example.com'`),
+			cmdErr:  nil,
+			wantErr: errors.New(`server url: expected 'valid.com' but found 'test.example.com'`),
 		},
 		{
-			"match profile",
-			ptr.String(`Device Enrollment configuration:
+			name: "match profile",
+			cmdOut: ptr.String(`Device Enrollment configuration:
 {
     AllowPairing = 1;
 	AutoAdvanceSetup = 0;
@@ -387,13 +382,12 @@ func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	...
 }
 			`),
-			nil,
-			false,
-			nil,
+			cmdErr:  nil,
+			wantErr: nil,
 		},
 		{
-			"mixed case match",
-			ptr.String(`Device Enrollment configuration:
+			name: "mixed case match configuration web URL",
+			cmdOut: ptr.String(`Device Enrollment configuration:
 {
     AllowPairing = 1;
 	AutoAdvanceSetup = 0;
@@ -403,9 +397,69 @@ func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	...
 }
 			`),
-			nil,
-			false,
-			nil,
+			cmdErr:  nil,
+			wantErr: nil,
+		},
+		{
+			name: "mixed case match configuration URL but wrong configuration web URL",
+			cmdOut: ptr.String(`Device Enrollment configuration:
+{
+	AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "https://vaLiD.com?tOken=1234";
+	ConfigurationWebURL = "https://test.ExaMplE.com/mdm/apple/enroll?token=1234";
+	...
+}
+			`),
+			cmdErr:  nil,
+			wantErr: errors.New(`server url: expected 'valid.com' but found 'test.ExaMplE.com'`),
+		},
+		{
+			name: "match configuration URL and empty configuration web URL",
+			cmdOut: ptr.String(`Device Enrollment configuration:
+{
+	AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "https://valid.com?token=1234";
+	ConfigurationWebURL = "";
+	...
+}
+			`),
+			cmdErr:  nil,
+			wantErr: nil,
+		},
+		{
+			name: "mixed case match configuration web URL and empty configuration URL",
+			cmdOut: ptr.String(`Device Enrollment configuration:
+{
+	AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "";
+	ConfigurationWebURL = "https://vaLiD.com?tOken=1234";
+	...
+}
+			`),
+			cmdErr:  nil,
+			wantErr: nil,
+		},
+
+		{
+			name: "unparseable URL",
+			cmdOut: ptr.String(`Device Enrollment configuration:
+{
+	AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "://invalid-url";
+	ConfigurationWebURL = "";
+	...
+}
+			`),
+			cmdErr:  nil,
+			wantErr: errors.New("parsing profiles output: unable to parse server url"),
 		},
 	}
 

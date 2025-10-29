@@ -1,5 +1,1 @@
-url: https://zoom.us/client/latest/ZoomInstaller.exe?archType=x64
-self_service: true
-labels_include_any:
-  - "x86-based Windows hosts"
- 
+url: https://zoom.us/client/latest/ZoomInstallerFull.msi?archType=x64

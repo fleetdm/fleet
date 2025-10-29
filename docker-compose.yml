@@ -49,7 +49,7 @@ services:
       ]
     environment: *mysql-default-environment
     ports:
-      - "3307:3306"
+      - "${FLEET_MYSQL_TEST_PORT:-3307}:3306"
     tmpfs:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
@@ -151,7 +151,7 @@ services:
       - "4566:4566"
       - "4571:4571"
     environment:
-      - SERVICES=firehose,kinesis
+      - SERVICES=firehose,kinesis,s3,iam,sts,secretsmanager
 
   # s3 compatible object storage (file carving backend)
   minio:

@@ -13,19 +13,25 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { ISoftwareVulnerability } from "interfaces/software";
+import {
+  ISoftwareVulnerability,
+  ROLLING_ARCH_LINUX_NAMES,
+} from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TooltipWrapper from "components/TooltipWrapper";
 
-import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
 import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
+import { isLinuxLike } from "interfaces/platform";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
@@ -65,7 +71,7 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, os_version_id } = cellProps.row.original;
+      const { name_only, os_version_id, platform } = cellProps.row.original;
 
       const softwareOsDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_OS_DETAILS(os_version_id),
@@ -83,12 +89,9 @@ const generateDefaultTableHeaders = (
         <LinkCell
           path={softwareOsDetailsPath}
           customOnClick={onClickSoftware}
-          value={
-            <>
-              <SoftwareIcon name={cellProps.row.original.platform} />
-              <span className="software-name">{name}</span>
-            </>
-          }
+          tooltipTruncate
+          prefix={<OSIcon name={platform} />}
+          value={name_only}
         />
       );
     },
@@ -96,18 +99,48 @@ const generateDefaultTableHeaders = (
   {
     Header: "Version",
     disableSortBy: true,
-    accessor: "version",
-    Cell: (cellProps: IVersionCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IVersionCellProps) => {
+      const { version, name_only } = cellProps.row.original;
+      if (
+        ROLLING_ARCH_LINUX_NAMES.includes(name_only) &&
+        version === "rolling"
+      ) {
+        return (
+          <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
+        );
+      }
+      return <TextCell value={version} />;
+    },
   },
   {
-    Header: "Vulnerabilities",
+    Header: (): JSX.Element => {
+      const titleWithTooltip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              Vulnerabilities on Linux are currently supported <br />
+              for Ubuntu, Debian, and Amazon Linux.
+            </>
+          }
+        >
+          Vulnerabilities
+        </TooltipWrapper>
+      );
+      return (
+        <>
+          <HeaderCell value={titleWithTooltip} disableSortBy />
+        </>
+      );
+    },
     disableSortBy: true,
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps) => {
       const platform = cellProps.row.original.platform;
-      if (platform !== "darwin" && platform !== "windows") {
+      if (
+        platform !== "darwin" &&
+        platform !== "windows" &&
+        !isLinuxLike(platform)
+      ) {
         return <TextCell value="Not supported" grey />;
       }
       return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;

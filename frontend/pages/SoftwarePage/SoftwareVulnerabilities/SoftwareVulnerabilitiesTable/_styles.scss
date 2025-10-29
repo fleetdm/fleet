@@ -1,6 +1,6 @@
 .software-vulnerabilities-table {
   &__exploited-vulnerabilities-filter {
-    min-width: 250px;
+    min-width: 255px;
   }
 
   &__count {
@@ -32,7 +32,7 @@
         .data-table__table {
           tbody {
             .link-cell {
-              display: flex;
+              display: inline-flex; // Inline required for underline
               align-items: center;
               gap: $pad-small;
             }

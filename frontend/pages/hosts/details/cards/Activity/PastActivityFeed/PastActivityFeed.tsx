@@ -29,7 +29,7 @@ const PastActivityFeed = ({
   onPreviousPage,
 }: IPastActivityFeedProps) => {
   if (isError) {
-    return <DataError className={`${baseClass}__error`} />;
+    return <DataError verticalPaddingSize="pad-large" />;
   }
 
   if (!activities) {

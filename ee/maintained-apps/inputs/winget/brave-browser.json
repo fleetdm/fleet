@@ -7,5 +7,6 @@
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/brave_uninstall.ps1",
   "installer_arch": "x64",
   "installer_type": "exe",
-  "installer_scope": "user"
+  "installer_scope": "user",
+  "default_categories": ["Browsers"]
 }

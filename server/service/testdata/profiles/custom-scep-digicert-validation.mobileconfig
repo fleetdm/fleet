@@ -8,9 +8,9 @@
                 <key>PayloadContent</key>
                 <dict>
                     <key>Challenge</key>
-                    <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName</string>
+                    <string>%s</string>
                     <key>URL</key>
-                    <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}</string>
+                    <string>%s</string>
                     <key>Key Type</key>
                     <string>RSA</string>
                     <key>Key Usage</key>
@@ -22,7 +22,7 @@
                         <array>
                             <array>
                                 <string>CN</string>
-                                <string>%SerialNumber% WIFI 1</string>
+                                <string>%SerialNumber% WIFI 1 ${FLEET_VAR_SCEP_RENEWAL_ID}</string>
                             </array>
                         </array>
                         <array>

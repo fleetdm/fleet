@@ -85,34 +85,6 @@ func (z *Zenity) ShowInfo(opts dialog.InfoOptions) error {
 	return nil
 }
 
-// ShowProgress starts a Zenity pulsating progress dialog with the given options.
-// It returns a cancel function that can be used to cancel the dialog.
-func (z *Zenity) ShowProgress(opts dialog.ProgressOptions) (func() error, error) {
-	args := []string{"--progress"}
-	if opts.Title != "" {
-		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
-	}
-	if opts.Text != "" {
-		args = append(args, fmt.Sprintf("--text=%s", opts.Text))
-	}
-
-	// --pulsate shows a pulsating progress bar
-	args = append(args, "--pulsate")
-
-	// --no-cancel disables the cancel button
-	args = append(args, "--no-cancel")
-
-	// --auto-close automatically closes the dialog when stdin is closed
-	args = append(args, "--auto-close")
-
-	cancel, err := z.cmdWithCancel(args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start progress dialog: %w", err)
-	}
-
-	return cancel, nil
-}
-
 func execCmdWithOutput(args ...string) ([]byte, int, error) {
 	var opts []execuser.Option
 	for _, arg := range args {

@@ -54,6 +54,20 @@ var (
 		},
 	}
 
+	WindowsArm64Targets = Targets{
+		constant.OrbitTUFTargetName: TargetInfo{
+			Platform:   "windows-arm64",
+			Channel:    "stable",
+			TargetFile: "orbit.exe",
+		},
+		// NOTE: Currently osquery doesn't fully support ARM64, this is experimental
+		constant.OsqueryTUFTargetName: TargetInfo{
+			Platform:   "windows-arm64",
+			Channel:    "stable",
+			TargetFile: "osqueryd.exe",
+		},
+	}
+
 	WindowsTargets = Targets{
 		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "windows",
@@ -76,6 +90,12 @@ var (
 
 	DesktopWindowsTarget = TargetInfo{
 		Platform:   "windows",
+		Channel:    "stable",
+		TargetFile: constant.DesktopAppExecName + ".exe",
+	}
+
+	DesktopWindowsArm64Target = TargetInfo{
+		Platform:   "windows-arm64",
 		Channel:    "stable",
 		TargetFile: constant.DesktopAppExecName + ".exe",
 	}

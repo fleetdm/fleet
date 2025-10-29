@@ -1,1 +1,0 @@
-- Fixed software installer download and Fleet Maintained App add errors by extending the timeout for the download and FMA add endpoints.

@@ -1,2 +1,0 @@
-- Moved software version transformations for vulnerability matching out of software ingestion to
-  ensure software inventory versions match what osquery reports. 

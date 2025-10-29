@@ -3,23 +3,35 @@ import React from "react";
 import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { baseUrl, createCustomRenderer } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  waitForLoadingToFinish,
+} from "test/test-utils";
 import createMockPolicy from "__mocks__/policyMock";
 import mockServer from "test/mock-server";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PoliciesPaginatedList, { IFormPolicy } from "./PoliciesPaginatedList";
 
-const waitForLoadingToFinish = async (container: HTMLElement) => {
-  await waitFor(() => {
-    expect(container.querySelector(".loading-overlay")).not.toBeInTheDocument();
-  });
-};
-
 const globalPolicies = [
-  createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
-  createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
-  createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
+  createMockPolicy({
+    team_id: null,
+    name: "Inherited policy 1",
+    platform: "darwin",
+  }),
+  createMockPolicy({
+    id: 2,
+    team_id: null,
+    name: "Inherited policy 2",
+    platform: "darwin",
+  }),
+  createMockPolicy({
+    id: 3,
+    team_id: null,
+    name: "Inherited policy 3",
+    platform: "darwin",
+  }),
 ];
 
 const teamPolicies = [
@@ -71,7 +83,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -97,7 +109,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={2}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -123,7 +135,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={2}
-        footer={<div>Hello World!</div>}
+        helpText={<div>Hello World!</div>}
         isUpdating={false}
       />
     );
@@ -148,7 +160,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={onSubmit}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -188,7 +200,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={onCancel}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -224,7 +236,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
         disableSave={disableSave}
       />
@@ -283,7 +295,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );

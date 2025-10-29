@@ -19,11 +19,7 @@ const TurnOnWindowsMdmCard = ({
     <SectionCard
       className={baseClass}
       header="Turn on Windows MDM"
-      cta={
-        <Button variant="brand" onClick={onClickTurnOn}>
-          Turn on
-        </Button>
-      }
+      cta={<Button onClick={onClickTurnOn}>Turn on</Button>}
     >
       Turn MDM on for Windows hosts with fleetd.
     </SectionCard>
@@ -41,7 +37,7 @@ const TurnOffWindowsMdmCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={onClickEdit} variant="text-icon">
+        <Button onClick={onClickEdit} variant="inverse">
           <Icon name="pencil" />
           Edit
         </Button>

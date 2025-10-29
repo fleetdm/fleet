@@ -41,6 +41,11 @@ func TestActivity(t *testing.T) {
 		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
 		{"ActivateNextActivity", testActivateNextActivity},
 		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
+		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
+		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
+		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
+		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
+		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -82,6 +87,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		Name:        "fullname",
 		Email:       "email@asd.com",
 		GravatarURL: "http://asd.com",
+		APIOnly:     true,
 		GlobalRole:  ptr.String(fleet.RoleObserver),
 	}
 	_, err := ds.NewUser(context.Background(), u)
@@ -121,6 +127,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "newname", *activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
 	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
+	assert.Equal(t, true, *activities[0].ActorAPIOnly)
 
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
@@ -566,7 +573,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// create pending install and uninstall requests for h3 that will be deleted
 	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	err = ds.InsertSoftwareUninstallRequest(ctx, "uninstallRun", h3.ID, sw3Meta.InstallerID)
+	err = ds.InsertSoftwareUninstallRequest(ctx, "uninstallRun", h3.ID, sw3Meta.InstallerID, false)
 	require.NoError(t, err)
 
 	// delete installer (should clear pending requests)
@@ -582,6 +589,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// h4Bar, err := ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
+
+	// Set LastEnrolledAt before deleting the host (simulating a DEP enrolled host)
+	h4.LastEnrolledAt = time.Now()
+
 	// Delete the host
 	err = ds.DeleteHost(ctx, h4.ID)
 	require.NoError(t, err)
@@ -625,11 +636,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	}
 	execIDsFromPolicyAutomation := map[string]struct{}{
 		h1Fleet: {},
-	}
-	// to simplify map, false = cancellable, true = NON-cancellable
-	execIDsNonCancellable := map[string]bool{
-		vppCommand1: true,
-		vppCommand2: true,
 	}
 
 	cases := []struct {
@@ -754,8 +760,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 				default:
 					t.Fatalf("unknown activity type %s", a.Type)
 				}
-
-				require.Equal(t, !execIDsNonCancellable[wantExec], a.Cancellable, "result %d", i)
 
 				if _, ok := execIDsFromPolicyAutomation[wantExec]; ok {
 					require.Nil(t, a.ActorID, "result %d", i)
@@ -1136,6 +1140,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
+	hIOS := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now().Add(-1*time.Second), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hIOS, false)
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
@@ -1156,6 +1162,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
 	require.NoError(t, err)
+	vppApp1IOS := &fleet.VPPApp{
+		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.IOSPlatform}},
+		BundleIdentifier: "vpp1",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil)
+	require.NoError(t, err)
 
 	// create a software installer that can be installed later
 	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
@@ -1171,6 +1183,19 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		UserID:          u.ID,
 		UninstallScript: "uninstall foo",
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// create an in-house app that can be installed later
+	ihaID, ihaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        uuid.NewString(),
+		Filename:         "inhouse.ipa",
+		Title:            "inhouse",
+		Source:           "ios_apps",
+		Extension:        "ipa",
+		BundleIdentifier: "inhouse",
+		UserID:           u.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -1200,6 +1225,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	script1_2 := hsr.ExecutionID
 
+	// host 2 is unaffected, activating results in nothing activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h2.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
 	// add a couple install requests for vpp1 and vpp2
 	vpp1_1 := uuid.NewString()
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp1.VPPAppID, vpp1_1, "event-id-1", fleet.HostSoftwareInstallOptions{})
@@ -1218,13 +1248,9 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 4)
 	require.Equal(t, script1_1, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, script1_2, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 	require.Equal(t, vpp1_1, pendingActs[2].UUID)
-	require.True(t, pendingActs[2].Cancellable)
 	require.Equal(t, vpp1_2, pendingActs[3].UUID)
-	require.True(t, pendingActs[3].Cancellable)
 
 	// listing scripts ready to execute returns script1_1
 	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
@@ -1262,14 +1288,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NotNil(t, scriptRes.ExitCode)
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 
-	// pending activities are vpp1_1, vpp1_2, both are non-cancellable because activated
+	// pending activities are vpp1_1, vpp1_2
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 2)
 	require.Equal(t, vpp1_1, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, vpp1_2, pendingActs[1].UUID)
-	require.False(t, pendingActs[1].Cancellable)
 
 	// nano commands have been inserted
 	cmd, err := nanoDB.RetrieveNextCommand(nanoCtx, false)
@@ -1307,7 +1331,6 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, vpp1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 
 	// vpp1_2 is now the next nano command
 	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
@@ -1349,13 +1372,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 2)
 	require.Equal(t, vpp1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, sw1_1, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 
 	// create a pending uninstall request
 	sw1_2 := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1, false)
 	require.NoError(t, err)
 
 	// still hasn't changed the pending queue
@@ -1363,11 +1384,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 3)
 	require.Equal(t, vpp1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, sw1_1, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 	require.Equal(t, sw1_2, pendingActs[2].UUID)
-	require.True(t, pendingActs[2].Cancellable)
 
 	// insert a result for the vpp1_2 command
 	cmdRes = &mdm.CommandResults{
@@ -1395,12 +1413,10 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 2)
 	require.Equal(t, sw1_1, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, sw1_2, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 
 	// set a result for the software install
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
@@ -1420,7 +1436,6 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, sw1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 
 	// set a result for the software uninstall
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
@@ -1444,6 +1459,149 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Empty(t, execIDs)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 0)
+
+	// enqueue a VPP app request for iOS host
+	vpp1_1_ios := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, hIOS.ID, vppApp1IOS.VPPAppID, vpp1_1_ios, "event-id-1-ios", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// enqueue an in-house app request for the iOS host
+	ihaCmd := uuid.NewString()
+	err = ds.InsertHostInHouseAppInstall(ctx, hIOS.ID, ihaID, ihaTitleID, ihaCmd, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+	require.Equal(t, ihaCmd, pendingActs[1].UUID)
+
+	// record a result for the VPP app install, which will activate the in-house app
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: vpp1_1_ios,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      hIOS.ID,
+		AppStoreID:  vppApp1IOS.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_1_ios,
+		Status:      "Error", // using a failure because otherwise it requires verification to activate next
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	// the in-house app is now activated
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	// enqueue a VPP app request for iOS host once more
+	vpp1_1_ios = uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, hIOS.ID, vppApp1IOS.VPPAppID, vpp1_1_ios, "event-id-2-ios", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+	require.Equal(t, vpp1_1_ios, pendingActs[1].UUID)
+
+	// record a result for in-house app and it should activate the next VPP app.
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: ihaCmd,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+		HostID:      hIOS.ID,
+		CommandUUID: ihaCmd,
+		Status:      "Error", // using a failure because otherwise it requires verification to activate next
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+
+	// enqueue the in-house app again
+	ihaCmd = uuid.NewString()
+	err = ds.InsertHostInHouseAppInstall(ctx, hIOS.ID, ihaID, ihaTitleID, ihaCmd, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+	require.Equal(t, ihaCmd, pendingActs[1].UUID)
+
+	// record a successful result for the VPP app, will not activate the next until verification
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: vpp1_1_ios,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+		HostID:      hIOS.ID,
+		CommandUUID: vpp1_1_ios,
+		Status:      string(fleet.SoftwareInstalled),
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	// both are still upcoming...
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
+	require.Equal(t, ihaCmd, pendingActs[1].UUID)
+
+	// mark the VPP app as verified, will activate the next activity
+	err = ds.SetVPPInstallAsVerified(ctx, hIOS.ID, vpp1_1_ios, uuid.NewString())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	// record a successful result for the in-house app, will not become "past" until verification
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: ihaCmd,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+		HostID:      hIOS.ID,
+		CommandUUID: ihaCmd,
+		Status:      string(fleet.SoftwareInstalled),
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	// mark the in-house app as failed, will become "past"
+	err = ds.SetVPPInstallAsFailed(ctx, hIOS.ID, ihaCmd, uuid.NewString())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 0)
 }
@@ -1489,7 +1647,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// set a result for the software install
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
@@ -1512,7 +1670,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 
 	// create a pending uninstall request
 	sw1_2 := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1, false)
 	require.NoError(t, err)
 
 	// set a result for the software uninstall
@@ -1548,4 +1706,687 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	pendingActs, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 0)
+}
+
+func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	hostLeftUntouched := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
+	hostIOS := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now(), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+
+	// enqueue an activity on hostLeftUntouched, must still be there after the tests
+	execIDUntouched := test.CreateHostScriptUpcomingActivity(t, ds, hostLeftUntouched)
+
+	// cancel an activity on a non-existing host
+	_, err = ds.CancelHostUpcomingActivity(ctx, 999, "non-existing")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// cancel a non-existing activity on an existing host
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, "non-existing")
+	require.ErrorAs(t, err, &nfe)
+
+	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
+		var execIDs []string
+		for _, act := range acts {
+			execIDs = append(execIDs, act.UUID)
+		}
+		return execIDs
+	}
+
+	cases := []struct {
+		desc        string
+		host        *fleet.Host
+		setup       func(t *testing.T) []string
+		cancelIndex int
+	}{
+		{
+			desc: "cancel software install",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostScriptResult(t, ds, host, exec1, 0)
+				})
+				return []string{exec1, exec2}
+			},
+			cancelIndex: 1,
+		},
+		{
+			desc: "cancel script exec",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				t.Cleanup(func() {
+					test.SetHostSoftwareInstallResult(t, ds, host, exec1, 0)
+				})
+				return []string{exec1, exec2}
+			},
+			cancelIndex: 1,
+		},
+		{
+			desc: "cancel software uninstall",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				exec2 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostSoftwareInstallResult(t, ds, host, exec1, 0)
+				})
+				return []string{exec1, exec2}
+			},
+			cancelIndex: 1,
+		},
+		{
+			desc: "cancel vpp install",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				exec2, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				t.Cleanup(func() {
+					test.SetHostSoftwareUninstallResult(t, ds, host, exec1, 0)
+				})
+				return []string{exec1, exec2}
+			},
+			cancelIndex: 1,
+		},
+		{
+			desc: "cancel script with another activity after",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				exec3 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostSoftwareInstallResult(t, ds, host, exec3, 0)
+				})
+				return []string{exec1, exec2, exec3}
+			},
+			cancelIndex: 1,
+		},
+		{
+			desc: "cancel software uninstall with a couple activities before",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				exec3 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostSoftwareInstallResult(t, ds, host, exec1, 0)
+					test.SetHostScriptResult(t, ds, host, exec2, 0)
+				})
+				return []string{exec1, exec2, exec3}
+			},
+			cancelIndex: 2,
+		},
+		{
+			desc: "cancel in-house install",
+			host: hostIOS,
+			setup: func(t *testing.T) []string {
+				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
+				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+				t.Cleanup(func() {
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+				})
+				return []string{exec1, exec2}
+			},
+			cancelIndex: 1,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			execIDs := c.setup(t)
+
+			got, _, err := ds.ListHostUpcomingActivities(ctx, c.host.ID, fleet.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, got, len(execIDs))
+			require.Equal(t, execIDs, pluckExecIDs(got))
+
+			cancelExecID := execIDs[c.cancelIndex]
+			expectedExecIDs := append(execIDs[:c.cancelIndex], execIDs[c.cancelIndex+1:]...) // nolint: gocritic
+			_, err = ds.CancelHostUpcomingActivity(ctx, c.host.ID, cancelExecID)
+			require.NoError(t, err)
+
+			got, _, err = ds.ListHostUpcomingActivities(ctx, c.host.ID, fleet.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, got, len(expectedExecIDs))
+			require.Equal(t, expectedExecIDs, pluckExecIDs(got))
+		})
+	}
+
+	// check that hostLeftUntouched was... left untouched
+	got, _, err := ds.ListHostUpcomingActivities(ctx, hostLeftUntouched.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+}
+
+func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	hostLeftUntouched := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
+	hostIOS := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now(), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+
+	// enqueue an activity on hostLeftUntouched, must still be there after the tests
+	execIDUntouched := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, hostLeftUntouched, u)
+
+	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
+		execIDs := []string{}
+		for _, act := range acts {
+			execIDs = append(execIDs, act.UUID)
+		}
+		return execIDs
+	}
+
+	cases := []struct {
+		desc  string
+		host  *fleet.Host
+		setup func(t *testing.T) []string
+	}{
+		{
+			desc: "cancel script",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostSoftwareInstallResult(t, ds, host, exec2, 0)
+				})
+				return []string{exec1, exec2}
+			},
+		},
+		{
+			desc: "cancel sofware install",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				exec2 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostSoftwareUninstallResult(t, ds, host, exec2, 0)
+				})
+				return []string{exec1, exec2}
+			},
+		},
+		{
+			desc: "cancel sofware uninstall",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				t.Cleanup(func() {
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+				})
+				return []string{exec1, exec2}
+			},
+		},
+		{
+			desc: "cancel vpp install",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostSoftwareInstallResult(t, ds, host, exec2, 0)
+				})
+				return []string{exec1, exec2}
+			},
+		},
+		{
+			desc: "cancel script none after",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				return []string{exec1}
+			},
+		},
+		{
+			desc: "cancel sofware install with a couple after",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				exec2 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				exec3 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				t.Cleanup(func() {
+					test.SetHostSoftwareUninstallResult(t, ds, host, exec2, 0)
+					test.SetHostScriptResult(t, ds, host, exec3, 0)
+				})
+				return []string{exec1, exec2, exec3}
+			},
+		},
+		{
+			desc: "cancel sofware uninstall none after",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				return []string{exec1}
+			},
+		},
+		{
+			desc: "cancel vpp install same after",
+			host: host,
+			setup: func(t *testing.T) []string {
+				exec1, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				t.Cleanup(func() {
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+				})
+				return []string{exec1, exec2}
+			},
+		},
+		{
+			desc: "cancel in-house install",
+			host: hostIOS,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
+				t.Cleanup(func() {
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec2, adamID, "Acknowledged")
+				})
+				return []string{exec1, exec2}
+			},
+		},
+		{
+			desc: "cancel in-house install same after",
+			host: hostIOS,
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+				t.Cleanup(func() {
+					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged")
+				})
+				return []string{exec1, exec2}
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			execIDs := c.setup(t)
+
+			got, _, err := ds.ListHostUpcomingActivities(ctx, c.host.ID, fleet.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, got, len(execIDs))
+			require.Equal(t, execIDs, pluckExecIDs(got))
+
+			cancelExecID := execIDs[0]
+			expectedExecIDs := execIDs[1:]
+			_, err = ds.CancelHostUpcomingActivity(ctx, c.host.ID, cancelExecID)
+			require.NoError(t, err)
+
+			got, _, err = ds.ListHostUpcomingActivities(ctx, c.host.ID, fleet.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, got, len(expectedExecIDs))
+			require.Equal(t, expectedExecIDs, pluckExecIDs(got))
+
+			// the next upcoming activity (and only this one) should show up in those
+			// lists of ready-to-process activities.
+			var gotExecIDs []string
+			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID, false)
+			require.NoError(t, err)
+			require.True(t, len(scripts) <= 1)
+			if len(scripts) == 1 {
+				gotExecIDs = append(gotExecIDs, scripts[0].ExecutionID)
+			}
+
+			sws, err := ds.ListReadyToExecuteSoftwareInstalls(ctx, c.host.ID)
+			require.NoError(t, err)
+			require.True(t, len(sws) <= 1)
+			gotExecIDs = append(gotExecIDs, sws...)
+
+			var nanoExecIDs []string
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				err := sqlx.SelectContext(ctx, q, &nanoExecIDs, `SELECT command_uuid FROM nano_view_queue WHERE id = ? AND active = 1 AND status IS NULL`, c.host.UUID)
+				return err
+			})
+			require.True(t, len(nanoExecIDs) <= 1)
+			gotExecIDs = append(gotExecIDs, nanoExecIDs...)
+
+			if len(expectedExecIDs) == 0 {
+				require.Len(t, gotExecIDs, 0)
+			} else {
+				require.Len(t, gotExecIDs, 1)
+				require.Equal(t, expectedExecIDs[0], gotExecIDs[0])
+			}
+		})
+	}
+
+	// check that hostLeftUntouched was... left untouched
+	got, _, err := ds.ListHostUpcomingActivities(ctx, hostLeftUntouched.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+}
+
+func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+
+	// set a script result post-cancel
+	exec := test.CreateHostScriptUpcomingActivity(t, ds, host)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostScriptResult(t, ds, host, exec, 0)
+
+	// set a software install result post-cancel
+	exec = test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostSoftwareInstallResult(t, ds, host, exec, 0)
+
+	// set a software uninstall result post-cancel
+	exec = test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostSoftwareUninstallResult(t, ds, host, exec, 0)
+
+	// set a vpp app install result post-cancel
+	exec, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
+}
+
+func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	host2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	host1.Platform = "linux"
+	host2.Platform = "linux"
+	err := ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	// get meta with unknown host
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, 999, "non-existing")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// get meta with unknown exec ID
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, "non-existing")
+	require.ErrorAs(t, err, &nfe)
+
+	assertActivityMeta := func(want, got *fleet.UpcomingActivityMeta) {
+		require.Equal(t, want.ExecutionID, got.ExecutionID)
+		// we just assert activated vs non-activated
+		require.Equal(t, want.ActivatedAt != nil, got.ActivatedAt != nil)
+		require.Equal(t, want.UpcomingActivityType, got.UpcomingActivityType)
+		require.Equal(t, want.WellKnownAction, got.WellKnownAction)
+	}
+
+	// create an install request that is not any special command
+	swExecID := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host1, u)
+	meta, err := ds.GetHostUpcomingActivityMeta(ctx, host1.ID, swExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          swExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "software_install",
+		WellKnownAction:      fleet.WellKnownActionNone,
+	}, meta)
+
+	// create a lock request on host1
+	err = ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID}, "linux")
+	require.NoError(t, err)
+
+	// create a wipe request on host2
+	err = ds.WipeHostViaScript(ctx, &fleet.HostScriptRequestPayload{HostID: host2.ID}, "linux")
+	require.NoError(t, err)
+
+	// grab the exec ID of the lock
+	activities, _, err := ds.ListHostUpcomingActivities(ctx, host1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 2)
+	require.Equal(t, swExecID, activities[0].UUID)
+	lockExecID := activities[1].UUID
+
+	// grab the exec ID of the wipe
+	activities, _, err = ds.ListHostUpcomingActivities(ctx, host2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	wipeExecID := activities[0].UUID
+
+	// lock meta is as expected
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, lockExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          lockExecID,
+		ActivatedAt:          nil,
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionLock,
+	}, meta)
+
+	// wipe meta is as expected
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          wipeExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionWipe,
+	}, meta)
+
+	// set a result for the software install
+	test.SetHostSoftwareInstallResult(t, ds, host1, swExecID, 0)
+
+	// the lock script is now activated
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, lockExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          lockExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionLock,
+	}, meta)
+
+	// wipe meta on host2 is unchanged
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          wipeExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionWipe,
+	}, meta)
+
+	// enqueue a new script activity
+	scrExecID := test.CreateHostScriptUpcomingActivity(t, ds, host1)
+	// its meta is as expected
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, scrExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          scrExecID,
+		ActivatedAt:          nil,
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionNone,
+	}, meta)
+
+	// set a result for the lock action
+	test.SetHostScriptResult(t, ds, host1, lockExecID, 0)
+	// its meta is now non-existing
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, lockExecID)
+	require.ErrorAs(t, err, &nfe)
+
+	// set a result for the wipe action
+	test.SetHostScriptResult(t, ds, host2, wipeExecID, 0)
+	// its meta is now non-existing
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
+	require.ErrorAs(t, err, &nfe)
+}
+
+func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	// create a few hosts
+	hosts := make([]*fleet.Host, 5)
+	for i := range hosts {
+		host := test.NewHost(t, ds, fmt.Sprintf("h%d.local", i+1), fmt.Sprintf("10.10.10.%d", i+1), fmt.Sprint(i+1), fmt.Sprint(i+1), time.Now())
+		hosts[i] = host
+	}
+
+	// run without anything in any host queue
+	n, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	deleteUpcomingActivityToBlockQueue := func(execID string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, execID)
+			return err
+		})
+	}
+
+	// enqueue some activities on some hosts (the nature of the activity is not relevant)
+	host0ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "A", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host0ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "B", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "A", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "A", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptA.ExecutionID, host0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
+
+	// nothing to unblock
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// block queue for host 0
+	deleteUpcomingActivityToBlockQueue(host0ScriptA.ExecutionID)
+
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
+
+	// enqueue script C for all hosts
+	host0ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host3ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[3].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host4ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptB.ExecutionID, host0ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID, host1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID, host2ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptC.ExecutionID)
+
+	// block queue for all hosts, but since hosts 3 and 4 are now empty, no need
+	// to unblock
+	deleteUpcomingActivityToBlockQueue(host0ScriptB.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host1ScriptA.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host2ScriptA.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host3ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host4ScriptC.ExecutionID)
+
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
+
+	// enqueue script D and E for all hosts
+	host0ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host3ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[3].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host4ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host0ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host3ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[3].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host4ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptC.ExecutionID, host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptC.ExecutionID, host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptC.ExecutionID, host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptD.ExecutionID, host3ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptD.ExecutionID, host4ScriptE.ExecutionID)
+
+	// block queue for all hosts
+	deleteUpcomingActivityToBlockQueue(host0ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host1ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host2ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host3ScriptD.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host4ScriptD.ExecutionID)
+
+	// process max 3 hosts
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+	// run again, should process the next 2 hosts
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	// run again, nothing to unblock
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
 }

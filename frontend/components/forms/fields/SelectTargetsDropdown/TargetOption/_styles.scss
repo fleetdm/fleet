@@ -18,7 +18,7 @@
 
   &__target-content,
   &__add-btn {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     text-transform: none;
     padding: 0;
@@ -45,7 +45,7 @@
   &__count {
     background-color: $core-fleet-black;
     border-radius: $border-radius;
-    color: $core-white;
+    color: $core-fleet-white;
     font-size: $xx-small;
     line-height: 16px;
     font-weight: $bold;
@@ -68,7 +68,7 @@
 
   &__ip {
     color: $core-fleet-black;
-    font-size: $small;
+    font-size: $x-small;
   }
 
   &__label-host {

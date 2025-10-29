@@ -27,10 +27,19 @@
       margin-bottom: 0px;
     }
   }
-
+  .header-hidden { // For scrolling the sidebars with the sticky header
+    transform: translateY(-81px);
+  }
   [purpose='platform-filters'] {
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
+    position: sticky;
+    top: 81px;
+    background: #FFF;
+    z-index: 4;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
     [purpose='platform-filter'] {
       width: 25%;
       display: flex;
@@ -40,9 +49,9 @@
       cursor: pointer;
       img {
         height: 20px;
-        margin-right: 10px;
       }
       h1 {
+        scroll-margin-top: 120px;
         color: #192147;
         text-align: center;
         margin-bottom: 0px;
@@ -58,6 +67,9 @@
         h1 {
           font-weight: 700;
         }
+      }
+      span {
+        margin-left: 10px;
       }
     }
   }
@@ -651,6 +663,7 @@
         top: 32px;
       }
     }
+
   }
 
   @media (max-width: 576px) {
@@ -682,6 +695,16 @@
         }
       }
 
+    }
+    [purpose='platform-filters'] {
+      [purpose='platform-filter'] {
+        max-width: 25%;
+        padding: 16px 24px 24px 24px;
+        &.selected {
+
+          padding: 16px 24px 22px 24px;
+        }
+      }
     }
     [purpose='schema-table'] {
       h2 {

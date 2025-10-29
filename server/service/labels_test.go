@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -430,4 +431,119 @@ func TestBatchValidateLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewManualLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		lbl.LabelMembershipType = fleet.LabelMembershipTypeManual
+		return lbl, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		return []uint{99, 100}, nil
+	}
+
+	t.Run("using hostnames", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{99, 100}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name:  "foo",
+			Hosts: []string{"host1", "host2"},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("using IDs", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{1, 2}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name:    "foo",
+			HostIDs: []uint{1, 2},
+		})
+		require.NoError(t, err)
+	})
+}
+
+func TestModifyManualLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+		return &fleet.Label{
+			ID:                  lid,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		}, nil, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		return []uint{99, 100}, nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+		return nil, nil, nil
+	}
+
+	t.Run("using hostnames", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{99, 100}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
+			Hosts: []string{"host1", "host2"},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("using IDs", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{1, 2}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
+			HostIDs: []uint{1, 2},
+		})
+		require.NoError(t, err)
+	})
+}
+
+func TestNewHostVitalsLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		return lbl, nil
+	}
+
+	t.Run("create host vitals label", func(t *testing.T) {
+		lbl, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "foo",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital: ptr.String("end_user_idp_group"),
+				Value: ptr.String("admin"),
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, fleet.LabelTypeRegular, lbl.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeHostVitals, lbl.LabelMembershipType)
+
+		// Test parsing the criteria
+		query, queryValues, err := lbl.CalculateHostVitalsQuery()
+		require.NoError(t, err)
+		queryValuesJson, err := json.Marshal(queryValues)
+		require.NoError(t, err)
+		assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+		assert.Equal(t, `["admin"]`, string(queryValuesJson))
+	})
 }

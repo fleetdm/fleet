@@ -15,13 +15,55 @@ type Client interface {
 	Supports(capacity string) bool
 }
 
+type clientOpts struct {
+	timeout  *time.Duration
+	rootCA   string
+	insecure bool
+}
+
+// Option is a functional option for configuring a SCEP Client
+type Option func(*clientOpts)
+
+// WithRootCA sets the root CA file to use when connecting to the SCEP server.
+func WithRootCA(rootCA string) Option {
+	return func(c *clientOpts) {
+		c.rootCA = rootCA
+	}
+}
+
+// Insecure configures the client to not verify server certificates.
+// Only used for tests.
+func Insecure() Option {
+	return func(c *clientOpts) {
+		c.insecure = true
+	}
+}
+
+// WithTimeout configures the timeout for SCEP client requests.
+func WithTimeout(timeout *time.Duration) Option {
+	return func(c *clientOpts) {
+		c.timeout = timeout
+	}
+}
+
 // New creates a SCEP Client.
 func New(
 	serverURL string,
 	logger log.Logger,
-	timeout *time.Duration,
+	opts ...Option,
 ) (Client, error) {
-	endpoints, err := scepserver.MakeClientEndpoints(serverURL, timeout)
+	var co clientOpts
+	for _, fn := range opts {
+		fn(&co)
+	}
+	clientOpts := []scepserver.ClientOption{
+		scepserver.WithClientTimeout(co.timeout),
+		scepserver.WithClientRootCA(co.rootCA),
+	}
+	if co.insecure {
+		clientOpts = append(clientOpts, scepserver.ClientInsecure())
+	}
+	endpoints, err := scepserver.MakeClientEndpoints(serverURL, clientOpts...)
 	if err != nil {
 		return nil, err
 	}

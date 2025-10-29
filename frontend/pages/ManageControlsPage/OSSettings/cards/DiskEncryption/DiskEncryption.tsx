@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -19,17 +18,17 @@ import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import RevealButton from "components/buttons/RevealButton";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
-interface IDiskEncryptionProps {
-  currentTeamId: number;
-  onMutation: () => void;
-  router: InjectedRouter;
-}
+
+export type IDiskEncryptionProps = IOSSettingsCommonProps;
 
 const DiskEncryption = ({
   currentTeamId,
@@ -43,12 +42,20 @@ const DiskEncryption = ({
     ? false
     : config?.mdm.enable_disk_encryption ?? false;
 
+  const defaultRequireBitLockerPIN = currentTeamId
+    ? false
+    : config?.mdm.windows_require_bitlocker_pin ?? false;
+
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
 
   const [showAggregate, setShowAggregate] = useState(defaultShowDiskEncryption);
   const [diskEncryptionEnabled, setDiskEncryptionEnabled] = useState(
     defaultShowDiskEncryption
   );
+  const [requireBitLockerPIN, setRequireBitLockerPIN] = useState(
+    defaultRequireBitLockerPIN
+  );
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   // because we pull the default state for no teams from the config,
   // we need to update the config when the user toggles the checkbox
@@ -64,8 +71,12 @@ const DiskEncryption = ({
     }
   };
 
-  const onToggleCheckbox = (value: boolean) => {
+  const onToggleDiskEncryption = (value: boolean) => {
     setDiskEncryptionEnabled(value);
+  };
+
+  const onToggleRequireBitLockerPIN = (value: boolean) => {
+    setRequireBitLockerPIN(value);
   };
 
   useQuery<ILoadTeamResponse, Error, ITeamConfig>(
@@ -79,6 +90,8 @@ const DiskEncryption = ({
       onSuccess: (res) => {
         const enableDiskEncryption = res.mdm?.enable_disk_encryption ?? false;
         setDiskEncryptionEnabled(enableDiskEncryption);
+        const pinRequired = res.mdm?.windows_require_bitlocker_pin ?? false;
+        setRequireBitLockerPIN(pinRequired);
         setShowAggregate(enableDiskEncryption);
         setIsLoadingTeam(false);
       },
@@ -89,6 +102,7 @@ const DiskEncryption = ({
     try {
       await diskEncryptionAPI.updateDiskEncryption(
         diskEncryptionEnabled,
+        requireBitLockerPIN,
         currentTeamId
       );
       renderFlash(
@@ -113,10 +127,10 @@ const DiskEncryption = ({
           </>
         );
       } else {
-        renderFlash(
-          "error",
-          "Could not update the disk encryption enforcement. Please try again."
-        );
+        const errorMsg =
+          getErrorReason(e) ??
+          "Could not update the disk encryption enforcement. Please try again.";
+        renderFlash("error", errorMsg);
       }
     }
   };
@@ -149,37 +163,35 @@ const DiskEncryption = ({
         : ["Apple", "FileVault"];
     return (
       <>
-        {AppleOrWindows} MDM must be turned on in{" "}
-        <a href="/settings/integrations/mdm">
-          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-          <b>Mobile Device Management (MDM)</b>
-        </a>{" "}
-        to enforce disk encryption via {DEMethod}.
+        {AppleOrWindows} MDM must be turned on in <b>Settings</b> &gt;{" "}
+        <b>Integrations</b> &gt; <b>Mobile Device Management (MDM)</b> to
+        enforce disk encryption via {DEMethod}.
       </>
     );
   };
 
-  const subTitle = (
-    <>
-      Disk encryption is available on{" "}
-      <TooltipWrapper tipContent={getTipContent("macOS")}>macOS</TooltipWrapper>
-      ,{" "}
-      <TooltipWrapper tipContent={getTipContent("windows")}>
-        Windows
-      </TooltipWrapper>
-      , and{" "}
-      <TooltipWrapper tipContent={getTipContent("linux")}>Linux</TooltipWrapper>{" "}
-      hosts.
-    </>
-  );
-
   return (
     <div className={baseClass}>
-      <SectionHeader
-        title="Disk encryption"
-        subTitle={subTitle}
-        alignLeftHeaderVertically
-        greySubtitle
+      <SectionHeader title="Disk encryption" alignLeftHeaderVertically />
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Disk encryption is available on{" "}
+            <TooltipWrapper tipContent={getTipContent("macOS")}>
+              macOS
+            </TooltipWrapper>
+            ,{" "}
+            <TooltipWrapper tipContent={getTipContent("windows")}>
+              Windows
+            </TooltipWrapper>
+            , and{" "}
+            <TooltipWrapper tipContent={getTipContent("linux")}>
+              Linux
+            </TooltipWrapper>{" "}
+            hosts.
+          </>
+        }
       />
       {!isPremiumTier ? (
         <PremiumFeatureMessage
@@ -190,7 +202,7 @@ const DiskEncryption = ({
           {isLoadingTeam ? (
             <Spinner />
           ) : (
-            <div className="disk-encryption-content">
+            <div className="form disk-encryption-content">
               {showAggregate && (
                 <DiskEncryptionTable
                   currentTeamId={currentTeamId}
@@ -199,7 +211,7 @@ const DiskEncryption = ({
               )}
               <Checkbox
                 disabled={config?.gitops.gitops_mode_enabled}
-                onChange={onToggleCheckbox}
+                onChange={onToggleDiskEncryption}
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}
               >
@@ -214,18 +226,54 @@ const DiskEncryption = ({
                   newTab
                 />
               </p>
-              <GitOpsModeTooltipWrapper
-                tipOffset={-12}
-                renderChildren={(d) => (
-                  <Button
-                    disabled={d}
-                    className={`${baseClass}__save-button`}
-                    onClick={onUpdateDiskEncryption}
-                  >
-                    Save
-                  </Button>
-                )}
+              <RevealButton
+                className={`${baseClass}__accordion-title`}
+                isShowing={showAdvancedOptions}
+                showText="Advanced options"
+                hideText="Advanced options"
+                caretPosition="after"
+                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
               />
+              {showAdvancedOptions && (
+                <Checkbox
+                  disabled={config?.gitops.gitops_mode_enabled}
+                  onChange={onToggleRequireBitLockerPIN}
+                  value={requireBitLockerPIN}
+                  className={`${baseClass}__checkbox`}
+                >
+                  <TooltipWrapper
+                    tipContent={
+                      <div>
+                        <p>
+                          If enabled, end users on Windows hosts will be
+                          required to set a BitLocker PIN.
+                        </p>
+                        <br />
+                        <p>
+                          When the PIN is set, it&rsquo;s required to unlock
+                          Windows hosts during startup.
+                        </p>
+                      </div>
+                    }
+                  >
+                    Require BitLocker PIN
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+              <div className="button-wrap">
+                <GitOpsModeTooltipWrapper
+                  tipOffset={-12}
+                  renderChildren={(d) => (
+                    <Button
+                      disabled={d}
+                      className={`${baseClass}__save-button`}
+                      onClick={onUpdateDiskEncryption}
+                    >
+                      Save
+                    </Button>
+                  )}
+                />
+              </div>
             </div>
           )}
         </>

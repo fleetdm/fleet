@@ -1,6 +1,6 @@
 //go:build windows
-// +build windows
 
+// nolint:gosec,G103 // Reason: unsafe required for Windows API calls.
 package mdmbridge
 
 import (
@@ -21,6 +21,7 @@ import (
 	"github.com/hillu/go-ntdll"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
+	"github.com/scjalliance/comshim"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -231,7 +232,7 @@ func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 	}
 
 	// grabbing input string length
-	lenPtr, _, err := proclstrlenW.Call(uintptr(unsafe.Pointer(ptr)))
+	lenPtr, _, err := proclstrlenW.Call(uintptr(ptr))
 	if err != windows.ERROR_SUCCESS {
 		return "", err
 	}
@@ -246,7 +247,7 @@ func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 	buf := make([]uint16, strBytesLen)
 
 	// moving the data around
-	_, _, err = procRtlMoveMemory.Call((uintptr)(unsafe.Pointer(&buf[0])), (uintptr)(unsafe.Pointer(ptr)), uintptr(strBytesLen))
+	_, _, err = procRtlMoveMemory.Call((uintptr)(unsafe.Pointer(&buf[0])), uintptr(ptr), uintptr(strBytesLen))
 	if err != windows.ERROR_SUCCESS {
 		return "", err
 	}
@@ -258,13 +259,10 @@ func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 // getEnrollmentInfo returns the MDM enrollment status by calling into OS API IsDeviceRegisteredWithManagement()
 func getEnrollmentInfo() (uint32, string, error) {
 	// variable to hold the MDM enrollment status
-	var isDeviceRegisteredWithMDM uint32 = 0
+	var isDeviceRegisteredWithMDM uint32
 
 	// heap-allocated buffer to hold the URI data
 	buffUriData := make([]uint16, 0, maxBufSize)
-	if buffUriData == nil {
-		return 0, "", errors.New("failed to allocate memory for URI data")
-	}
 
 	// IsDeviceRegisteredWithManagement is going to return the MDM enrollment status
 	// https://learn.microsoft.com/en-us/windows/win32/api/mdmregistration/nf-mdmregistration-isdeviceregisteredwithmanagement
@@ -362,6 +360,9 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
+	comshim.Add(1)
+	defer comshim.Done()
+
 	// checking if input MDM command is valid
 	if validCommand, err := isValidMDMcommand(inputCMD); !validCommand {
 		return "", err
@@ -375,8 +376,10 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	// Close MDM management mutex if neeeded - this is a hack to enable multiple MDM management calls
 	handle, err := windows.OpenMutex(windows.MUTEX_ALL_ACCESS, false, windows.StringToUTF16Ptr(mdmMutexName))
 	if err == nil {
-		windows.CloseHandle(handle) // closing handle just opened due to OpenMutex()
-
+		// closing handle just opened due to OpenMutex()
+		if err := windows.CloseHandle(handle); err != nil {
+			log.Warn().Msgf("error from CloseHandle() on handle returned from OpenMutex() for MDM mutex: (%s)", err)
+		}
 		// then closing previously used handle
 		if err := closeManagementMutex(); err != nil {
 			return "", err
@@ -395,7 +398,7 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	// confusion about the status of the call.
 	var outputStrBuffer *uint16
 	if returnCode, _, _ := procSendSyncMLcommand.Call(uintptr(unsafe.Pointer(&inputCmdPtr[0])), uintptr(unsafe.Pointer(&outputStrBuffer))); returnCode != uintptr(windows.ERROR_SUCCESS) {
-		return "", fmt.Errorf("there was an error calling ApplyLocalManagementSyncML(): (0x%X)", err, returnCode)
+		return "", fmt.Errorf("there was an error calling ApplyLocalManagementSyncML(): (0x%X)", returnCode)
 	}
 
 	// converting Windows MDM UTF16 output string into go string
@@ -425,10 +428,12 @@ func executeMDMcommand(inputCMD string) (string, error) {
 // closeManagementMutex walks the system handles to find and close the MDM management mutexes on
 // current process. This is a hack found after reverse engineering mdmlocalmanagement.dll.
 func closeManagementMutex() error {
-	const bufsize = 2048                     // buffer allocation for native windows syscalls
-	currentProcessPID := uint32(os.Getpid()) // current process PID
+	const bufsize = 2048 // buffer allocation for native windows syscalls
+	// Disabling uint32->int conversion error from gosec below because under the covers os.Getpid() is converting a uint32
+	// returned by kernel32 to an int, so this is safe
+	currentProcessPID := uint32(os.Getpid()) // nolint:gosec
 
-	var handleOccurences uint32 = 0
+	var handleOccurences uint32
 
 	// querying first the list of handles on the kernel using NtQuerySystemInformation() syscall and SystemHandleInformation
 	// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntquerysysteminformation
@@ -438,7 +443,8 @@ func closeManagementMutex() error {
 		return ntdll.NtQuerySystemInformation(
 			ntdll.SystemHandleInformation,
 			&bufQuerySystemSyscall[0],
-			uint32(len(bufQuerySystemSyscall)),
+			// This will never return enough data to cause an overflow so int->uint32 conversion warning disabled
+			uint32(len(bufQuerySystemSyscall)), // nolint:gosec
 			&rlen,
 		)
 	}, &bufQuerySystemSyscall, &rlen); st.IsError() {
@@ -465,7 +471,7 @@ func closeManagementMutex() error {
 		// Calling NtQueryObject syscalls with ObjectTypeInformation to obtain object type information of a given handle. This requires static allocation.
 		// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryobject
 		var handleObjectTypeBuf [bufsize]byte
-		var outputLen uint32 = 0
+		var outputLen uint32
 		st := ntdll.NtQueryObject(ntdll.Handle(systemHandleEntry.HandleValue), ntdll.ObjectTypeInformation, &handleObjectTypeBuf[0], uint32(len(handleObjectTypeBuf)), &outputLen)
 		if st != ntdll.STATUS_SUCCESS || outputLen == 0 {
 			continue
@@ -479,7 +485,7 @@ func closeManagementMutex() error {
 			// Calling NtQueryObject syscalls with ObjectNameInformation to obtain named object information of a given handle. This requires static allocation.
 			// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryobject
 			var handleObjectNameBuf [bufsize]byte
-			var outputLen uint32 = 0
+			var outputLen uint32
 			st := ntdll.NtQueryObject(ntdll.Handle(systemHandleEntry.HandleValue), ntdll.ObjectNameInformation, &handleObjectNameBuf[0], uint32(len(handleObjectNameBuf)), &outputLen)
 			if st != ntdll.STATUS_SUCCESS || outputLen == 0 {
 				continue
@@ -488,7 +494,7 @@ func closeManagementMutex() error {
 			oni := (*ntdll.ObjectNameInformationT)(unsafe.Pointer(&handleObjectNameBuf[0]))
 
 			if strings.Contains(oni.Name.String(), mdmMutexName) {
-				windows.CloseHandle(windows.Handle(systemHandleEntry.HandleValue))
+				_ = windows.CloseHandle(windows.Handle(systemHandleEntry.HandleValue))
 				handleOccurences++
 			}
 		}
@@ -548,16 +554,9 @@ func enableCmdExecution() error {
 	// initialize MDM stack management by generating SHA256 hash of SMBIOS UUID and calling RegisterDeviceWithLocalManagement()
 	// this is wrapped by sync.Once so it only executes once
 	mdmManagementStackInit.Do(func() {
-		// making sure that COM is initialized
-		// this is a best effort call as COM stack could have been initialized already by other components
-		err := windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED)
-		if err != nil {
-			log.Error().Msgf("there was an error calling CoInitializeEx(): (%s)", err)
-		}
-
-		// calling RegisterDeviceWithLocalManagement() to initialize the MDM stack
-		// The code below is just using returnCode to determine if call was successul or not. The err
-		// variable returns status above call dispatching so it not needed and actually introduce
+		// calling RegisterDeviceWithLocalManagement() to initialize the MDM stack,
+		// The code below is just using returnCode to determine if the call was successful or not. The err
+		// variable returns the status above call dispatching, so it is unnecessary and actually introduces
 		// confusion about the status of the call.
 		// This is a best effort call as MDM management stack could have been initialized already by other components
 		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {

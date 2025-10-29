@@ -3,5 +3,6 @@
   "slug": "figma/darwin",
   "unique_identifier": "com.figma.Desktop",
   "token": "figma",
-  "installer_format": "zip"
+  "installer_format": "zip",
+  "default_categories": ["Productivity"]
 }

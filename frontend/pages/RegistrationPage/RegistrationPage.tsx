@@ -9,12 +9,12 @@ import local from "utilities/local";
 
 import FlashMessage from "components/FlashMessage";
 import { INotification } from "interfaces/notification";
+
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import RegistrationForm from "components/forms/RegistrationForm";
 // @ts-ignore
 import Breadcrumbs from "./Breadcrumbs";
-// @ts-ignore
-import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 const ERROR_NOTIFICATION: INotification = {
   alertType: "error",
@@ -39,6 +39,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   const [page, setPage] = useState(1);
   const [pageProgress, setPageProgress] = useState(1);
   const [showSetupError, setShowSetupError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const { DASHBOARD } = paths;
@@ -57,6 +58,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   const onRegistrationFormSubmit = async (formData: any) => {
     const { DASHBOARD } = paths;
 
+    setIsLoading(true);
     try {
       const { token } = await usersAPI.setup(formData);
       local.setItem("auth_token", token);
@@ -68,6 +70,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       router.push(DASHBOARD);
       window.location.reload();
     } catch (error) {
+      setIsLoading(false);
       setPage(1);
       setPageProgress(1);
       setShowSetupError(true);
@@ -82,22 +85,31 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     setPage(pageNum);
   };
 
+  const REGISTRATION_HEADERS: Record<number, string> = {
+    1: "Set up user",
+    2: "Organization details",
+    3: "Set Fleet URL",
+    4: "Confirm Configuration",
+  };
+  const header = REGISTRATION_HEADERS[page];
+
   return (
-    <div className={baseClass}>
-      <img
-        alt="Fleet logo"
-        src={fleetLogoText}
-        className={`${baseClass}__logo`}
-      />
-      <Breadcrumbs
-        currentPage={page}
-        onSetPage={onSetPage}
-        pageProgress={pageProgress}
-      />
+    <AuthenticationFormWrapper
+      className={baseClass}
+      header={header}
+      breadcrumbs={
+        <Breadcrumbs
+          currentPage={page}
+          onSetPage={onSetPage}
+          pageProgress={pageProgress}
+        />
+      }
+    >
       <RegistrationForm
         page={page}
         onNextPage={onNextPage}
         onSubmit={onRegistrationFormSubmit}
+        isLoading={isLoading}
       />
       {showSetupError && (
         <FlashMessage
@@ -107,7 +119,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
           onRemoveFlash={() => setShowSetupError(false)}
         />
       )}
-    </div>
+    </AuthenticationFormWrapper>
   );
 };
 

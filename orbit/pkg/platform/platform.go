@@ -21,26 +21,6 @@ const (
 	UUIDSourceHardware = "UUID_Source_Hardware"
 )
 
-// killProcessByName kills a single process by its name.
-func killProcessByName(name string) error {
-	if name == "" {
-		return errors.New("process name should not be empty")
-	}
-
-	foundProcesses, err := GetProcessesByName(name)
-	if err != nil {
-		return fmt.Errorf("get process: %w", err)
-	}
-
-	for _, foundProcess := range foundProcesses {
-		if err := foundProcess.Kill(); err != nil {
-			return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
-		}
-	}
-
-	return nil
-}
-
 // getProcessesByName returns all the running processes with the given prefix in their name.
 func getProcessesByName(namePrefix string) ([]*gopsutil_process.Process, error) {
 	if namePrefix == "" {

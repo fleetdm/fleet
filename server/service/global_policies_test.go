@@ -257,3 +257,66 @@ func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T)
 	require.ErrorAs(t, err, &badRequestError)
 	require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
 }
+
+func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
+	ds := new(mock.Store)
+	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+		return &fleet.Policy{}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		return nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		labels := make(map[string]*fleet.Label, len(names))
+		for _, name := range names {
+			if name == "foo" {
+				labels["foo"] = &fleet.Label{
+					Name: "foo",
+					ID:   1,
+				}
+			}
+		}
+		return labels, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+
+	// Test that a query spec with a label that exists doesn't return an error
+	err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{
+		{
+			Name:             "test query",
+			Query:            "select 1",
+			LabelsIncludeAny: []string{"foo"},
+			Platform:         "darwin,windows",
+		},
+	})
+	// Check that no error is returned
+	require.NoError(t, err)
+
+	// Test that a query spec with a label that doesn't exist returns an error.
+	err = svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{
+		{
+			Name:             "test query",
+			Query:            "select 1",
+			LabelsIncludeAny: []string{"nope"},
+			Platform:         "darwin,windows",
+		},
+	})
+
+	require.Error(t, err)
+}

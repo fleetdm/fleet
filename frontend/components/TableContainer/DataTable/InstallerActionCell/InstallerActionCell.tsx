@@ -73,7 +73,7 @@ const InstallerActionCell = ({
   }
   return (
     <div className={cellClasses}>
-      <Button variant="label" onClick={onClick}>
+      <Button variant="pill" onClick={onClick}>
         Add
       </Button>
     </div>

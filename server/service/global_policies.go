@@ -81,12 +81,15 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+	globalTeamID := int64(-1)
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
-			ID:   policy.ID,
-			Name: policy.Name,
+			ID:       policy.ID,
+			Name:     policy.Name,
+			TeamID:   &globalTeamID,
+			TeamName: nil,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for global policy creation")
@@ -263,12 +266,15 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
+		globalTeamID := int64(-1)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
-				ID:   id,
-				Name: policiesByID[id].Name,
+				ID:       id,
+				Name:     policiesByID[id].Name,
+				TeamID:   &globalTeamID,
+				TeamName: nil,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
@@ -391,14 +397,29 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		}
 	}
 	for id := range tIDs {
-		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
-			return err
+		var teamConfig fleet.TeamConfig
+		if id == 0 {
+			// Handle "No Team" (team ID 0) - use AppConfig authorization
+			if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+				return err
+			}
+			defaultConfig, err := svc.ds.DefaultTeamConfig(ctx)
+			if err != nil {
+				return err
+			}
+			teamConfig = *defaultConfig
+		} else {
+			// Handle regular teams
+			if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
+				return err
+			}
+			t, err := svc.ds.Team(ctx, id)
+			if err != nil {
+				return err
+			}
+			teamConfig = t.Config
 		}
-		t, err := svc.ds.Team(ctx, id)
-		if err != nil {
-			return err
-		}
-		for pID := range teamAutomationPolicies(t.Config.WebhookSettings.FailingPoliciesWebhook, t.Config.Integrations.Jira, t.Config.Integrations.Zendesk) {
+		for pID := range teamAutomationPolicies(teamConfig.WebhookSettings.FailingPoliciesWebhook, teamConfig.Integrations.Jira, teamConfig.Integrations.Zendesk) {
 			allAutoPolicies[pID] = struct{}{}
 		}
 	}
@@ -533,6 +554,24 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
 			})
 		}
+
+		// Make sure any applied labels exist.
+		labels := policy.LabelsIncludeAny
+		labels = append(labels, policy.LabelsExcludeAny...)
+		if len(labels) > 0 {
+			labelsMap, err := svc.ds.LabelsByName(ctx, labels)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting labels by name")
+			}
+			for _, label := range labels {
+				if _, ok := labelsMap[label]; !ok {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("label %q does not exist", label),
+					})
+				}
+			}
+		}
+
 	}
 
 	// An empty string indicates there are no duplicate names.
@@ -551,6 +590,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			policies[i].Critical = false
 		}
 	}
+
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}

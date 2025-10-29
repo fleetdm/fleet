@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 
 import {
@@ -10,35 +10,41 @@ import {
 import AddInstallSoftware from "./AddInstallSoftware";
 
 describe("AddInstallSoftware", () => {
-  it("should render no software message if there are no software to select from", () => {
+  it("should render the expected message if there are no software titles to select from", () => {
     render(
       <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={null}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
+        platform="macos"
       />
     );
 
-    expect(screen.getByText(/No software available to add/i)).toBeVisible();
-    expect(screen.getByText(/upload software/i)).toBeVisible();
+    expect(screen.getByText(/you can add software on the/i)).toBeVisible();
   });
 
   it("should render the correct messaging when there are software titles but none have been selected to install at setup", () => {
     render(
       <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
+        platform="macos"
       />
     );
 
-    expect(screen.getByText(/No software added/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Add software" })).toBeVisible();
+    expect(screen.getByText(/No software selected/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Add software" })).toBeNull();
   });
 
   it("should render the correct messaging when there are software titles that have been selected to install at setup", () => {
     render(
       <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
@@ -56,17 +62,60 @@ describe("AddInstallSoftware", () => {
           createMockSoftwareTitle(),
         ]}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
+        platform="macos"
       />
     );
 
     expect(
       screen.getByText(
         (_, element) =>
-          element?.textContent === "2 software will be installed during setup."
+          element?.textContent ===
+          "2 software items will be installed during setup."
       )
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Show selected software" })
+      screen.getByRole("button", { name: "Select software" })
     ).toBeVisible();
+  });
+
+  it('should render the "Cancel setup if software install fails" form for macos platform', async () => {
+    render(
+      <AddInstallSoftware
+        savedRequireAllSoftwareMacOS
+        currentTeamId={1}
+        softwareTitles={[
+          createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              install_during_setup: true,
+            }),
+          }),
+          createMockSoftwareTitle(
+            createMockSoftwareTitle({
+              software_package: createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            })
+          ),
+          createMockSoftwareTitle(),
+        ]}
+        onAddSoftware={noop}
+        hasManualAgentInstall={false}
+        platform="macos"
+      />
+    );
+
+    const showAdvancedOptionsButton = screen.getByRole("button", {
+      name: "Show advanced options",
+    });
+    expect(showAdvancedOptionsButton).toBeVisible();
+    showAdvancedOptionsButton.click();
+    await waitFor(() => {
+      const checkbox = screen.getByRole("checkbox", {
+        name: /Cancel setup if software install fails/,
+      });
+      expect(checkbox).toBeVisible();
+      expect(checkbox).toBeChecked();
+    });
   });
 });

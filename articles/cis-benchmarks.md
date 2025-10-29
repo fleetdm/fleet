@@ -14,7 +14,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
 
-These policy queries are intended to assess your organization's security posture against the CIS benchmarks. Because the policy queries alone do not remediate security issues, a host may fail a CIS Benchmark policy if there is no device profile or script in place to enforce the setting. By enabling [automations](https://fleetdm.com/guides/automations#basic-article) in Fleet, these policy queries can used as the basis for managing security compliance and remediation in Fleet.
+These policy queries are intended to assess your organization's security posture against the CIS benchmarks. Because the policy queries alone do not remediate security issues, a host may fail a CIS Benchmark policy if there is no device profile or script in place to enforce the setting. By enabling [automations](https://fleetdm.com/guides/automations#basic-article) in Fleet, these policy queries can be used as the basis for managing security compliance and remediation in Fleet.
 
 For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
 
@@ -52,7 +52,7 @@ If either of these conditions fails, the host is considered to be failing the po
 All CIS policies are stored under our restricted licensed folder `ee/cis/`. To easily convert the [CIS benchmarks YAML raw file](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml) to a YAML array format compatible with Fleet GitOps, follow these steps:
 
 1. Install [yq](https://github.com/mikefarah/yq) if you don't have it already. (yq is a command-line YAML, JSON and XML processor.)
-2. Run this Shell script to transform the policies into [Fleet YAML]([https://fleetdm.com/docs/configuration/yaml-files](https://fleetdm.com/docs/configuration/yaml-files#policies)):
+2. Run this Shell script to transform the policies into [Fleet YAML](https://fleetdm.com/docs/configuration/yaml-files):
 
 ```
 #!/bin/bash
@@ -96,9 +96,6 @@ do
 # trap read debug
 
 done
-
-# /usr/bin/awk '/apiVersion/{flag=1} /^  contributors:/{flag=2} flag')"
-# /usr/bin/sed -n "/$i/,/^----+/p" "$sqlfile"
 ```
 
 3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
@@ -140,14 +137,12 @@ Certain benchmarks cannot be automated by a policy in Fleet. For a list of speci
 
 - [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-13/README.md)
 - [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/README.md)
-- [macos 15.0 Sequoia](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-15/README.md)
+- [macOS 15.0 Sequoia](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-15/README.md)
 - [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-10/README.md)
 - [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
 
 ## Performance testing
-In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.
-
-Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
+In August 2023, we completed [scale testing on 10k Windows hosts and 70k macOS hosts](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing). Ultimately, we validated both server and host performance at that scale.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="lucasmrod">

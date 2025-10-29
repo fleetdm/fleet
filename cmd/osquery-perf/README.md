@@ -72,7 +72,7 @@ In the Policy SQL:
 
 ## Running Locally (Development Environment)
 
-First, ensure your Fleet local development environment is up and running. Refer to [Building Fleet](../../docs/Contributing/Building-Fleet.md) for details. Once this is done:
+First, ensure your Fleet local development environment is up and running. Refer to [Building Fleet](../../docs/Contributing/getting-started/building-fleet.md) for details. Once this is done:
 
 * navigate to the Hosts tab of your Fleet web interface (typically, this would be at https://localhost:8080/hosts/manage).
 * click on "Manage enroll secret" and copy the enroll secret.

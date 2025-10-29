@@ -18,7 +18,7 @@ import {
   convertParamsToSnakeCase,
   getPathWithQueryParams,
 } from "utilities/url";
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
@@ -147,6 +147,7 @@ interface IAddFleetMaintainedAppPostBody {
   automatic_install?: boolean;
   labels_include_any?: string[];
   labels_exclude_any?: string[];
+  categories: string[];
 }
 
 const ORDER_KEY = "name";
@@ -286,6 +287,11 @@ export default {
     data.automaticInstall &&
       formData.append("automatic_install", data.automaticInstall.toString());
     teamId && formData.append("team_id", teamId.toString());
+    if (data.categories) {
+      data.categories.forEach((category) => {
+        formData.append("categories", category);
+      });
+    }
 
     if (data.targetType === "Custom") {
       const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
@@ -338,6 +344,11 @@ export default {
     formData.append("pre_install_query", data.preInstallQuery || "");
     formData.append("post_install_script", data.postInstallScript || "");
     formData.append("uninstall_script", data.uninstallScript || "");
+    if (data.categories) {
+      data.categories.forEach((category) => {
+        formData.append("categories", category);
+      });
+    }
 
     // clear out labels if targetType is "All hosts"
     if (data.targetType === "All hosts") {
@@ -371,6 +382,57 @@ export default {
       onUploadProgress,
       signal,
     });
+  },
+
+  getSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
+    return sendRequest(
+      "GET",
+      path,
+      undefined,
+      "blob",
+      undefined,
+      undefined,
+      true
+    ); // returnRaw is true to get headers
+  },
+
+  // This API call is for both:
+  // "/api/v1/fleet/software/titles/{softwareId}/icon?team_id={teamId}"
+  // "/api/v1/fleet/device/{deviceToken}/software/titles/{softwareId}/icon"
+  getSoftwareIconFromApiUrl: (apiUrl: string) => {
+    // sendRequest prepends "/api" to the path, so we need to remove it
+    // if it's already included in the apiUrl param
+    const result = apiUrl.replace(/^\/api/, "");
+
+    return sendRequest("GET", result, undefined, "blob");
+  },
+
+  deleteSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
+    return sendRequest("DELETE", path);
+  },
+
+  editSoftwareIcon: (
+    softwareId: number,
+    teamId: number,
+    fileObject: { icon: File }
+  ) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
+
+    const formData = new FormData();
+    formData.append("icon", fileObject.icon);
+
+    return sendRequest("PUT", path, formData);
   },
 
   // Endpoint for deleting packages or VPP
@@ -434,6 +496,7 @@ export default {
       uninstall_script: formData.uninstallScript,
       self_service: formData.selfService,
       automatic_install: formData.automaticInstall,
+      categories: formData.categories,
     };
 
     if (formData.targetType === "Custom") {

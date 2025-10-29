@@ -3,9 +3,10 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"time"
 )
 
-//go:generate go run gen_activity_doc.go "../../docs/Contributing/Audit-logs.md"
+//go:generate go run gen_activity_doc.go "../../docs/Contributing/reference/audit-logs.md"
 
 type ContextKey string
 
@@ -29,6 +30,7 @@ type Activity struct {
 	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
 	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
+	ActorAPIOnly   *bool            `json:"actor_api_only,omitempty" db:"api_only"`
 	Type           string           `json:"type" db:"activity_type"`
 	Details        *json.RawMessage `json:"details" db:"details"`
 	Streamed       *bool            `json:"-" db:"streamed"`
@@ -45,7 +47,38 @@ func (*Activity) AuthzType() string {
 type UpcomingActivity struct {
 	Activity
 
-	Cancellable bool `json:"cancellable" db:"cancellable"`
+	// this struct used to have an additional field for upcoming activities, but
+	// it has since been removed. Keeping the distinct struct as a useful type
+	// indication that the value is an upcoming, not past, activity.
+}
+
+// WellKnownActionType defines the special actions that an upcoming activity
+// may correspond to, such as Lock, Wipe, etc.
+type WellKnownActionType int
+
+// List of well-known action types.
+const (
+	WellKnownActionNone WellKnownActionType = iota
+	WellKnownActionLock
+	WellKnownActionUnlock
+	WellKnownActionWipe
+)
+
+// UpcomingActivityMeta is the metadata related to a host's upcoming
+// activity.
+type UpcomingActivityMeta struct {
+	// ExecutionID is the unique identifier of the activity.
+	ExecutionID string `db:"execution_id"`
+	// ActivatedAt is the timestamp when the activity was "activated" (made ready
+	// to process by the host). Nil if not activated yet (still waiting for
+	// previous activities to complete).
+	ActivatedAt *time.Time `db:"activated_at"`
+	// UpcomingActivityType is the string value of the "activity_type" enum
+	// column of the upcoming_activities table.
+	UpcomingActivityType string `db:"activity_type"`
+	// WellKnownAction is the special action that this activity corresponds to,
+	// if any (default is WellKnownActionNone).
+	WellKnownAction WellKnownActionType `db:"well_known_action"`
 }
 
 // ActivityDetailsList is used to generate documentation.
@@ -126,7 +159,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeRanScript{},
 	ActivityTypeAddedScript{},
 	ActivityTypeDeletedScript{},
-	ActivityTypeEditedScript{},
+	ActivityTypeEditedScript{},  // via GitOps
+	ActivityTypeUpdatedScript{}, // via individual script update endpoint
 
 	ActivityTypeCreatedWindowsProfile{},
 	ActivityTypeDeletedWindowsProfile{},
@@ -140,7 +174,12 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedDeclarationProfile{},
 	ActivityTypeEditedDeclarationProfile{},
 
+	ActivityTypeCreatedAndroidProfile{},
+	ActivityTypeDeletedAndroidProfile{},
+	ActivityTypeEditedAndroidProfile{},
+
 	ActivityTypeResentConfigurationProfile{},
+	ActivityTypeResentConfigurationProfileBatch{},
 
 	ActivityTypeInstalledSoftware{},
 	ActivityTypeUninstalledSoftware{},
@@ -163,10 +202,39 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedDigiCert{},
 	ActivityDeletedDigiCert{},
 	ActivityEditedDigiCert{},
+	ActivityAddedHydrant{},
+	ActivityDeletedHydrant{},
+	ActivityEditedHydrant{},
+	ActivityAddedSmallstep{},
+	ActivityDeletedSmallstep{},
+	ActivityEditedSmallstep{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
 	ActivityTypeDisabledActivityAutomations{},
+
+	ActivityTypeCanceledRunScript{},
+	ActivityTypeCanceledInstallSoftware{},
+	ActivityTypeCanceledUninstallSoftware{},
+	ActivityTypeCanceledInstallAppStoreApp{},
+
+	ActivityTypeRanScriptBatch{},
+	ActivityTypeBatchScriptScheduled{},
+	ActivityTypeBatchScriptCanceled{},
+
+	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeAddedConditionalAccessOkta{},
+	ActivityTypeDeletedConditionalAccessOkta{},
+	ActivityTypeEnabledConditionalAccessAutomations{},
+	ActivityTypeDisabledConditionalAccessAutomations{},
+
+	ActivityTypeEscrowedDiskEncryptionKey{},
+
+	ActivityCreatedCustomVariable{},
+	ActivityDeletedCustomVariable{},
+
+	ActivityEditedSetupExperienceSoftware{},
 }
 
 type ActivityDetails interface {
@@ -189,6 +257,23 @@ type ActivityHosts interface {
 type AutomatableActivity interface {
 	ActivityDetails
 	WasFromAutomation() bool
+}
+
+// ActivityHostOnly is the optional additional interface that can be implemented by activities that
+// we want to exclude from the global activity feed, and only show on the Hosts details page
+type ActivityHostOnly interface {
+	ActivityDetails
+	HostOnly() bool
+}
+
+// ActivityActivator is the optional additional interface that can be implemented by activities that
+// may require activating the next upcoming activity when it gets created. Most upcoming activities get
+// activated when the result of the previous one completes (such as scripts and software installs), but
+// some can only be activated when the activity gets recorded (such as VPP and in-house apps).
+type ActivityActivator interface {
+	ActivityDetails
+	MustActivateNextUpcomingActivity() bool
+	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
 }
 
 type ActivityTypeEnabledActivityAutomations struct {
@@ -300,8 +385,10 @@ func (a ActivityTypeAppliedSpecPack) Documentation() (activity string, details s
 }
 
 type ActivityTypeCreatedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *int64  `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedPolicy) ActivityName() string {
@@ -312,15 +399,21 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 	return `Generated when creating policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
-- "policy_name": the name of the created policy.`, `{
+- "policy_name": the name of the created policy.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *int64  `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedPolicy) ActivityName() string {
@@ -331,15 +424,21 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 	return `Generated when editing policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
-- "policy_name": the name of the edited policy.`, `{
+- "policy_name": the name of the edited policy.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *int64  `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedPolicy) ActivityName() string {
@@ -350,9 +449,13 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 	return `Generated when deleting policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
-- "policy_name": the name of the deleted policy.`, `{
+- "policy_name": the name of the deleted policy.
+- "team_id": the ID of the team the policy belonged to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belonged to. null for global policies and "No Team" policies.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
@@ -397,8 +500,10 @@ func (a ActivityTypeAppliedSpecPolicy) Documentation() (activity string, details
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
@@ -409,15 +514,21 @@ func (a ActivityTypeCreatedSavedQuery) Documentation() (activity string, details
 	return `Generated when creating a new query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the created query.
-- "query_name": the name of the created query.`, `{
+- "query_name": the name of the created query.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedSavedQuery) ActivityName() string {
@@ -428,14 +539,20 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 	return `Generated when editing a saved query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the query being edited.
-- "query_name": the name of the query being edited.`, `{
+- "query_name": the name of the query being edited.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name string `json:"query_name"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
@@ -445,13 +562,19 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting a saved query.`,
 		`This activity contains the following fields:
-- "query_name": the name of the query being deleted.`, `{
-	"query_name": "foo"
+- "query_name": the name of the query being deleted.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs []uint `json:"query_ids"`
+	IDs      []uint  `json:"query_ids"`
+	Teamid   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
@@ -461,8 +584,13 @@ func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedMultipleSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting multiple saved queries.`,
 		`This activity contains the following fields:
-- "query_ids": list of IDs of the deleted saved queries.`, `{
-	"query_ids": [1, 42, 100]
+- "query_ids": list of IDs of the deleted saved queries.
+- "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
+- "team_name": the name of the team the queries belonged to. null for global or no team queries.`,
+		`{
+	"query_ids": [1, 42, 100],
+	"team_id": 123,
+	"team_name": "Workstations"
 }`
 }
 
@@ -828,6 +956,7 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 }
 
 type ActivityTypeFleetEnrolled struct {
+	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
 	HostDisplayName string `json:"host_display_name"`
 }
@@ -839,18 +968,23 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).`,
 		`This activity contains the following fields:
+- "host_id": ID of the host.
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.`, `{
-  "host_serial": "B04FL3ALPT21",
-  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+	"host_id": "123",
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }`
 }
 
 type ActivityTypeMDMEnrolled struct {
-	HostSerial       string `json:"host_serial"`
-	HostDisplayName  string `json:"host_display_name"`
-	InstalledFromDEP bool   `json:"installed_from_dep"`
-	MDMPlatform      string `json:"mdm_platform"`
+	HostSerial       *string `json:"host_serial"`
+	HostDisplayName  string  `json:"host_display_name"`
+	InstalledFromDEP bool    `json:"installed_from_dep"`
+	MDMPlatform      string  `json:"mdm_platform"`
+	// EnrollmentID is the unique identifier for the MDM BYOD enrollments. It is nil for other enrollments.
+	EnrollmentID *string `json:"enrollment_id"`
+	Platform     string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
@@ -863,18 +997,25 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 - "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
-- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.`, `{
+- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
+- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
+- "platform": The enrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
-  "mdm_platform": "apple"
+  "mdm_platform": "apple",
+  "enrollment_id": null,
+  "platform": "darwin"
 }`
 }
 
+// TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
-	HostSerial       string `json:"host_serial"`
-	HostDisplayName  string `json:"host_display_name"`
-	InstalledFromDEP bool   `json:"installed_from_dep"`
+	HostSerial       string  `json:"host_serial"`
+	EnrollmentID     *string `json:"enrollment_id"`
+	HostDisplayName  string  `json:"host_display_name"`
+	InstalledFromDEP bool    `json:"installed_from_dep"`
+	Platform         string  `json:"platform"`
 }
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
@@ -885,11 +1026,15 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
 	return `Generated when a host is unenrolled from Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.`, `{
+- "installed_from_dep": Whether the host was enrolled via DEP.
+- "platform": The unenrolled host's platform`, `{
   "host_serial": "C08VQ2AXHT96",
+  "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "installed_from_dep": true
+  "installed_from_dep": true,
+  "platform": "darwin"
 }`
 }
 
@@ -1000,6 +1145,10 @@ type ActivityTypeReadHostDiskEncryptionKey struct {
 
 func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
 	return "read_host_disk_encryption_key"
+}
+
+func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
@@ -1310,13 +1459,15 @@ func (a ActivityTypeDisabledWindowsMDMMigration) Documentation() (activity, deta
 }
 
 type ActivityTypeRanScript struct {
-	HostID            uint    `json:"host_id"`
-	HostDisplayName   string  `json:"host_display_name"`
-	ScriptExecutionID string  `json:"script_execution_id"`
-	ScriptName        string  `json:"script_name"`
-	Async             bool    `json:"async"`
-	PolicyID          *uint   `json:"policy_id"`
-	PolicyName        *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	ScriptExecutionID   string  `json:"script_execution_id"`
+	BatchExecutionID    *string `json:"batch_execution_id"`
+	ScriptName          string  `json:"script_name"`
+	Async               bool    `json:"async"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
@@ -1327,8 +1478,12 @@ func (a ActivityTypeRanScript) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+func (a ActivityTypeRanScript) HostOnly() bool {
+	return a.BatchExecutionID != nil
+}
+
 func (a ActivityTypeRanScript) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
 }
 
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
@@ -1337,6 +1492,7 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "batch_execution_id": Batch execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
 - "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
@@ -1345,6 +1501,7 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
   "async": false,
   "policy_id": 123,
   "policy_name": "Ensure photon torpedoes are primed"
@@ -1560,6 +1717,10 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 	return "wiped_host"
 }
 
+func (a ActivityTypeWipedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user sends a request to wipe a host.`,
 		`This activity contains the following fields:
@@ -1650,7 +1811,7 @@ func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 }
 
 func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when a user resends an MDM configuration profile to a host.`,
+	return `Generated when a user resends a configuration profile to a host.`,
 		`This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
@@ -1661,16 +1822,38 @@ func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string
 }`
 }
 
+type ActivityTypeResentConfigurationProfileBatch struct {
+	ProfileName string `json:"profile_name"`
+	HostCount   int64  `json:"host_count"`
+}
+
+func (a ActivityTypeResentConfigurationProfileBatch) ActivityName() string {
+	return "resent_configuration_profile_batch"
+}
+
+func (a ActivityTypeResentConfigurationProfileBatch) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user resends a configuration profile to a batch of hosts.`,
+		`This activity contains the following fields:
+- "profile_name": The name of the configuration profile.
+- "host_count": Number of hosts in the batch.`, `{
+  "profile_name": "Passcode requirements",
+  "host_count": 3
+}`
+}
+
 type ActivityTypeInstalledSoftware struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage string  `json:"software_package"`
-	SelfService     bool    `json:"self_service"`
-	InstallUUID     string  `json:"install_uuid"`
-	Status          string  `json:"status"`
-	PolicyID        *uint   `json:"policy_id"`
-	PolicyName      *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwarePackage     string  `json:"software_package"`
+	SelfService         bool    `json:"self_service"`
+	InstallUUID         string  `json:"install_uuid"`
+	Status              string  `json:"status"`
+	Source              *string `json:"source,omitempty"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
+	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1682,7 +1865,19 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 }
 
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
+}
+
+func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
+	// for in-house apps, we only activate the next upcoming activity if the
+	// installation failed, because if it succeeded (and in this case, it only
+	// means the command to install succeeded), we only activate the next
+	// activity when we verify the app is actually installed.
+	return a.CommandUUID != "" && a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
 }
 
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
@@ -1695,8 +1890,10 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 `, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
@@ -1705,17 +1902,20 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }`
 }
 
 type ActivityTypeUninstalledSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	ExecutionID     string `json:"script_execution_id"`
-	Status          string `json:"status"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	SoftwareTitle   string  `json:"software_title"`
+	ExecutionID     string  `json:"script_execution_id"`
+	SelfService     bool    `json:"self_service"`
+	Status          string  `json:"status"`
+	Source          *string `json:"source,omitempty"`
 }
 
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
@@ -1733,12 +1933,16 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
 - "script_execution_id": ID of the software uninstall script.
-- "status": Status of the software uninstallation.`, `{
+- "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
+- "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
-  "status": "uninstalled"
+  "self_service": false,
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }`
 }
 
@@ -1797,6 +2001,7 @@ type ActivityTypeEditedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 	SoftwareTitleID  uint                    `json:"software_title_id"`
@@ -1822,6 +2027,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1841,6 +2047,7 @@ type ActivityTypeDeletedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -1863,6 +2070,7 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2040,6 +2248,7 @@ type ActivityDeletedAppStoreApp struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2062,6 +2271,7 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2076,15 +2286,16 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 }
 
 type ActivityInstalledAppStoreApp struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	AppStoreID      string  `json:"app_store_id"`
-	CommandUUID     string  `json:"command_uuid"`
-	Status          string  `json:"status,omitempty"`
-	SelfService     bool    `json:"self_service"`
-	PolicyID        *uint   `json:"policy_id"`
-	PolicyName      *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	AppStoreID          string  `json:"app_store_id"`
+	CommandUUID         string  `json:"command_uuid"`
+	Status              string  `json:"status,omitempty"`
+	SelfService         bool    `json:"self_service"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -2096,7 +2307,19 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
+}
+
+func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
+	// for VPP apps, we only activate the next upcoming activity if the installation
+	// failed, because if it succeeded (and in this case, it only means the command to
+	// install succeeded), we only activate the next activity when we verify the
+	// app is actually installed.
+	return a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityInstalledAppStoreApp) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
 }
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
@@ -2129,6 +2352,7 @@ type ActivityEditedAppStoreApp struct {
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2155,6 +2379,7 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2288,6 +2513,96 @@ func (a ActivityEditedDigiCert) Documentation() (activity string, details string
 }`
 }
 
+type ActivityAddedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedHydrant) ActivityName() string {
+	return "added_hydrant"
+}
+
+func (a ActivityAddedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityDeletedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedHydrant) ActivityName() string {
+	return "deleted_hydrant"
+}
+
+func (a ActivityDeletedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityEditedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedHydrant) ActivityName() string {
+	return "edited_hydrant"
+}
+
+func (a ActivityEditedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityAddedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedSmallstep) ActivityName() string {
+	return "added_smallstep"
+}
+
+func (a ActivityAddedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
+}`
+}
+
+type ActivityDeletedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedSmallstep) ActivityName() string {
+	return "deleted_smallstep"
+}
+
+func (a ActivityDeletedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
+}`
+}
+
+type ActivityEditedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedSmallstep) ActivityName() string {
+	return "edited_smallstep"
+}
+
+func (a ActivityEditedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
+}`
+}
+
 type ActivityTypeEnabledAndroidMDM struct{}
 
 func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }
@@ -2300,4 +2615,418 @@ type ActivityTypeDisabledAndroidMDM struct{}
 func (a ActivityTypeDisabledAndroidMDM) ActivityName() string { return "disabled_android_mdm" }
 func (a ActivityTypeDisabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when a user turns off MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeCanceledRunScript struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	ScriptName      string `json:"script_name"`
+}
+
+func (a ActivityTypeCanceledRunScript) ActivityName() string {
+	return "canceled_run_script"
+}
+
+func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledRunScript) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `ran_script` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_name": Name of the script (empty if it was an anonymous script).`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh"
+}`
+}
+
+type ActivityTypeCanceledInstallSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
+	return "canceled_install_software"
+}
+
+func (a ActivityTypeCanceledInstallSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallSoftware) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `installed_software` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeCanceledUninstallSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) ActivityName() string {
+	return "canceled_uninstall_software"
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `uninstalled_software` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeCanceledInstallAppStoreApp struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) ActivityName() string {
+	return "canceled_install_app_store_app"
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) Documentation() (string, string, string) {
+	return "Generated when upcoming activity `installed_app_store_app` is canceled.", `This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeRanScriptBatch struct {
+	ScriptName       string `json:"script_name"`
+	BatchExecutionID string `json:"batch_execution_id"`
+	HostCount        uint   `json:"host_count"`
+	TeamID           *uint  `json:"team_id"`
+}
+
+func (a ActivityTypeRanScriptBatch) ActivityName() string {
+	return "ran_script_batch"
+}
+
+func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
+	return "Generated when a script is run on a batch of hosts.",
+		`This activity contains the following fields:
+- "script_name": Name of the script.
+- "batch_execution_id": Execution ID of the batch script run.
+- "host_count": Number of hosts in the batch.`, `{
+  "script_name": "set-timezones.sh",
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "host_count": 12
+}`
+}
+
+type ActivityTypeBatchScriptScheduled struct {
+	BatchExecutionID string     `json:"batch_execution_id"`
+	ScriptName       *string    `json:"script_name,omitempty"`
+	HostCount        uint       `json:"host_count"`
+	TeamID           *uint      `json:"team_id"`
+	NotBefore        *time.Time `json:"not_before"`
+}
+
+func (a ActivityTypeBatchScriptScheduled) ActivityName() string {
+	return "scheduled_script_batch"
+}
+
+func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, string) {
+	return "Generated when a batch script is scheduled.",
+		`This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "not_before": Time that the batch activity is scheduled to launch.`, `{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "not_before": "2025-08-06T17:49:21.810204Z"
+}`
+}
+
+type ActivityTypeBatchScriptCanceled struct {
+	BatchExecutionID string `json:"batch_execution_id"`
+	ScriptName       string `json:"script_name"`
+	HostCount        uint   `json:"host_count"`
+	CanceledCount    uint   `json:"canceled_count"`
+}
+
+func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
+	return "canceled_script_batch"
+}
+
+func (a ActivityTypeBatchScriptCanceled) Documentation() (string, string, string) {
+	return "Generated when a batch script is canceled.",
+		`This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "canceled_count": Number of hosts the job was canceled for.`, `{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "canceled_count": 5
+}`
+}
+
+type ActivityTypeAddedConditionalAccessIntegrationMicrosoft struct{}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) ActivityName() string {
+	return "added_conditional_access_integration_microsoft"
+}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
+	return "Generated when Microsoft Entra is connected for conditional access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessIntegrationMicrosoft struct{}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName() string {
+	return "deleted_conditional_access_integration_microsoft"
+}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
+	return "Generated when Microsoft Entra is integration is disconnected.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeAddedConditionalAccessOkta struct{}
+
+func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
+	return "added_conditional_access_okta"
+}
+
+func (a ActivityTypeAddedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta is configured or edited for conditional access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessOkta struct{}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
+	return "deleted_conditional_access_okta"
+}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta conditional access configuration is removed.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeEnabledConditionalAccessAutomations struct {
+	TeamID   *uint  `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledConditionalAccessAutomations) ActivityName() string {
+	return "enabled_conditional_access_automations"
+}
+
+func (a ActivityTypeEnabledConditionalAccessAutomations) Documentation() (string, string, string) {
+	return "Generated when conditional access automations are enabled for a team.",
+		`This activity contains the following field:
+- "team_id": The ID of the team  ("null" for "No team").
+- "team_name": The name of the team (empty for "No team").`, `{
+  "team_id": 5,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledConditionalAccessAutomations struct {
+	TeamID   *uint  `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledConditionalAccessAutomations) ActivityName() string {
+	return "disabled_conditional_access_automations"
+}
+
+func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (string, string, string) {
+	return "Generated when conditional access automations are disabled for a team.",
+		`This activity contains the following field:
+- "team_id": The ID of the team (` + "`null`" + ` for "No team").
+- "team_name": The name of the team (empty for "No team").`, `{
+  "team_id": 5,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEscrowedDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) ActivityName() string {
+	return "escrowed_disk_encryption_key"
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a disk encryption key is escrowed.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+	"host_id": 123,
+	"host_display_name": "PWNED-VM-123"
+}`
+}
+
+type ActivityCreatedCustomVariable struct {
+	CustomVariableID   uint   `json:"custom_variable_id"`
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityCreatedCustomVariable) ActivityName() string {
+	return "created_custom_variable"
+}
+
+func (a ActivityCreatedCustomVariable) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when custom variable is added.`,
+		`This activity contains the following fields:
+- "custom_variable_id": the id of the new custom variable.
+- "custom_variable_name": the name of the new custom variable.`, `{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}`
+}
+
+type ActivityDeletedCustomVariable struct {
+	CustomVariableID   uint   `json:"custom_variable_id"`
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityDeletedCustomVariable) ActivityName() string {
+	return "deleted_custom_variable"
+}
+
+func (a ActivityDeletedCustomVariable) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when custom variable is deleted.`,
+		`This activity contains the following fields:
+- "custom_variable_id": the id of the custom variable.
+- "custom_variable_name": the name of the custom variable.`, `{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}`
+}
+
+type ActivityEditedSetupExperienceSoftware struct {
+	Platform string `json:"platform"`
+	TeamID   uint   `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
+	return "edited_setup_experience_software"
+}
+
+func (a ActivityEditedSetupExperienceSoftware) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits setup experience software.`,
+		`This activity contains the following fields:
+- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").`, `{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
+}`
+}
+
+type ActivityTypeCreatedAndroidProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedAndroidProfile) ActivityName() string {
+	return "created_android_profile"
+}
+
+func (a ActivityTypeCreatedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new Android profile to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedAndroidProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedAndroidProfile) ActivityName() string {
+	return "deleted_android_profile"
+}
+
+func (a ActivityTypeDeletedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes an Android profile from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedAndroidProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedAndroidProfile) ActivityName() string {
+	return "edited_android_profile"
+}
+
+func (a ActivityTypeEditedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
 }

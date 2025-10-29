@@ -82,7 +82,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 			environment: map[string]string{
 				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
 				"FLEET_SECRET_NAME":          "secret_name",
-				"FLEET_SECRET_length":        "10",
+				"FLEET_SECRET_LENGTH":        "10",
 				"FLEET_SECRET_BANANA":        "bread",
 			},
 			filePath: "testdata/global_config_no_paths.yml",
@@ -94,7 +94,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"ORG_NAME":                      "Fleet Device Management",
 				"FLEET_SECRET_FLEET_SECRET_":    "fleet_secret",
 				"FLEET_SECRET_NAME":             "secret_name",
-				"FLEET_SECRET_length":           "10",
+				"FLEET_SECRET_LENGTH":           "10",
 				"FLEET_SECRET_BANANA":           "bread",
 			},
 			filePath: "testdata/global_config.yml",
@@ -103,8 +103,11 @@ func TestValidGitOpsYaml(t *testing.T) {
 			environment: map[string]string{
 				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
 				"FLEET_SECRET_NAME":          "secret_name",
-				"FLEET_SECRET_length":        "10",
+				"FLEET_SECRET_LENGTH":        "10",
 				"FLEET_SECRET_BANANA":        "bread",
+				"FLEET_SECRET_CLEMENTINE":    "not-an-orange",
+				"FLEET_SECRET_DURIAN":        "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":      "parmesan",
 			},
 			filePath: "testdata/team_config_no_paths.yml",
 			isTeam:   true,
@@ -117,10 +120,30 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
 				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
 				"FLEET_SECRET_NAME":               "secret_name",
-				"FLEET_SECRET_length":             "10",
+				"FLEET_SECRET_LENGTH":             "10",
 				"FLEET_SECRET_BANANA":             "bread",
+				"FLEET_SECRET_CLEMENTINE":         "not-an-orange",
+				"FLEET_SECRET_DURIAN":             "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":           "parmesan",
 			},
 			filePath: "testdata/team_config.yml",
+			isTeam:   true,
+		},
+		"team_config_with_paths_and_only_sha256": {
+			environment: map[string]string{
+				"POLICY":                          "policy",
+				"LINUX_OS":                        "linux",
+				"DISTRIBUTED_DENYLIST_DURATION":   "0",
+				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
+				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
+				"FLEET_SECRET_NAME":               "secret_name",
+				"FLEET_SECRET_LENGTH":             "10",
+				"FLEET_SECRET_BANANA":             "bread",
+				"FLEET_SECRET_CLEMENTINE":         "not-an-orange",
+				"FLEET_SECRET_DURIAN":             "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":           "parmesan",
+			},
+			filePath: "testdata/team_config_only_sha256.yml",
 			isTeam:   true,
 		},
 	}
@@ -174,11 +197,36 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
 					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
 					require.Len(t, gitops.Software.Packages, 2)
+					require.Len(t, gitops.FleetSecrets, 6)
 					for _, pkg := range gitops.Software.Packages {
 						if strings.Contains(pkg.URL, "MicrosoftTeams") {
 							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
+							assert.Contains(t, pkg.LabelsIncludeAny, "a")
+							assert.Contains(t, pkg.Categories, "Communication")
+							assert.Empty(t, pkg.LabelsExcludeAny)
 						} else {
 							assert.Empty(t, pkg.UninstallScript.Path)
+							assert.Contains(t, pkg.LabelsExcludeAny, "a")
+							assert.Empty(t, pkg.LabelsIncludeAny)
+						}
+					}
+					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
+					for _, fma := range gitops.Software.FleetMaintainedApps {
+						switch fma.Slug {
+						case "slack/darwin":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.Empty(t, fma.PreInstallQuery)
+							require.Empty(t, fma.PostInstallScript)
+							require.Empty(t, fma.InstallScript)
+							require.Empty(t, fma.UninstallScript)
+						case "box-drive/windows":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.NotEmpty(t, fma.PreInstallQuery)
+							require.NotEmpty(t, fma.PostInstallScript)
+							require.NotEmpty(t, fma.InstallScript)
+							require.NotEmpty(t, fma.UninstallScript)
+						default:
+							assert.FailNow(t, "unexpected slug found in gitops file", "slug: %s", fma.Slug)
 						}
 					}
 				} else {
@@ -215,6 +263,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
+					require.Len(t, gitops.FleetSecrets, 4)
 
 					// Check labels
 					require.Len(t, gitops.Labels, 2)
@@ -223,7 +272,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
 					require.Len(t, gitops.Labels[1].Hosts, 2)
 					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
-					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+					assert.Equal(t, "2", gitops.Labels[1].Hosts[1])
 
 				}
 
@@ -249,10 +298,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
-				require.Len(t, gitops.FleetSecrets, 4)
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
-				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_length"])
+				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_LENGTH"])
 				assert.Equal(t, "bread", gitops.FleetSecrets["FLEET_SECRET_BANANA"])
 
 				// Check agent options
@@ -269,7 +317,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 				// Check software
 				if test.isTeam {
 					require.Len(t, gitops.Software.Packages, 2)
-					require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					if name == "team_config_with_paths_and_only_sha256" {
+						require.Empty(t, gitops.Software.Packages[0].URL)
+						require.True(t, gitops.Software.Packages[0].InstallDuringSetup.Value)
+						require.True(t, gitops.Software.Packages[1].InstallDuringSetup.Value)
+					} else {
+						require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					}
+					require.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Software.Packages[0].SHA256)
 					require.False(t, gitops.Software.Packages[0].SelfService)
 					require.Equal(t, "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg", gitops.Software.Packages[1].URL)
 					require.True(t, gitops.Software.Packages[1].SelfService)
@@ -294,7 +349,13 @@ func TestValidGitOpsYaml(t *testing.T) {
 				if test.isTeam {
 					assert.Equal(t, "Microsoft Teams on macOS installed and up to date", gitops.Policies[5].Name)
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
-					assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+
+					if name == "team_config_with_paths_and_only_sha256" {
+						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.HashSHA256)
+					} else {
+						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+						assert.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Policies[5].InstallSoftwareURL)
+					}
 
 					assert.Equal(t, "Slack on macOS is installed", gitops.Policies[6].Name)
 					assert.NotNil(t, gitops.Policies[6].InstallSoftware)
@@ -328,6 +389,21 @@ policies:
 `
 	_, err := gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "duplicate policy names")
+}
+
+func TestManualLabelEmptyHostList(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
+    hosts:
+    label_membership_type: manual`
+
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	assert.NotNil(t, gitops.Labels[0].Hosts)
 }
 
 func TestDuplicateQueryNames(t *testing.T) {
@@ -479,7 +555,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"name"})
 					config += "name: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal name")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Missing team name
 					config = getConfig([]string{"name"})
@@ -491,7 +567,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"team_settings"})
 					config += "team_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal team_settings")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Invalid team_settings in a separate file
 					tmpFile, err := os.CreateTemp(t.TempDir(), "*team_settings.yml")
@@ -501,7 +577,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"team_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "team_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal team settings file")
+					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"team_settings"})
@@ -520,19 +596,56 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'team_settings' is required when 'name' is provided")
 
-					// team_settings set on a "no-team.yml".
-					config = getConfig([]string{"name"})
+					// team_settings is now allowed on "no-team.yml" for webhook settings
+					config = getConfig([]string{"name", "team_settings"}) // Exclude team_settings with secrets
 					config += "name: No team\n"
 					noTeamPath1, noTeamBasePath1 := createNamedFileOnTempDir(t, "no-team.yml", config)
-					_, err = GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("cannot set 'team_settings' on 'No team' file: %q", noTeamPath1))
+					gitops, err := GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// No team with valid webhook_settings should work
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					gitops, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// No team with invalid team_settings option should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  features:\n    enable_host_users: false\n"
+					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath3, noTeamBasePath3, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported team_settings option 'features' for 'No team' - only 'webhook_settings' is allowed")
+
+					// No team with multiple team_settings options (one valid, one invalid) should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
+					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath4, noTeamBasePath4, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported team_settings option 'secrets' for 'No team' - only 'webhook_settings' is allowed")
+
+					// No team with host_status_webhook in webhook_settings should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
+
+					// No team with vulnerabilities_webhook in webhook_settings should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
+					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "team_settings"})
 					config += "name: No team\n"
-					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "foobar.yml", config)
-					_, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath2))
+					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
+					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath6))
 
 					// Missing secrets
 					config = getConfig([]string{"team_settings"})
@@ -555,7 +668,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal org_settings")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Invalid org_settings in a separate file
 					tmpFile, err := os.CreateTemp(t.TempDir(), "*org_settings.yml")
@@ -565,7 +678,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal org settings file")
+					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"org_settings"})
@@ -584,13 +697,19 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "org_settings:\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+
+					// Bad label spec (float instead of string in hosts)
+					config = getConfig([]string{"labels"})
+					config += "labels:\n  - name: TestLabel\n    description: Label for testing\n    hosts:\n    - 2.5\n    label_membership_type: manual\n"
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "hosts must be strings or integers, got float 2.5")
 				}
 
 				// Invalid agent_options
 				config := getConfig([]string{"agent_options"})
 				config += "agent_options:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal agent_options")
+				assert.ErrorContains(t, err, "expected type string but got array")
 
 				// Invalid agent_options in a separate file
 				tmpFile, err := os.CreateTemp(t.TempDir(), "*agent_options.yml")
@@ -600,13 +719,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"agent_options"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal agent options file")
+				assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 				// Invalid controls
 				config = getConfig([]string{"controls"})
 				config += "controls:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal controls")
+				assert.ErrorContains(t, err, "expected type string but got array")
 
 				// Invalid controls in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*controls.yml")
@@ -616,13 +735,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"controls"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "controls", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal controls file")
+				assert.ErrorContains(t, err, "expected type spec.GitOpsControls but got array")
 
 				// Invalid policies
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal policies")
+				assert.ErrorContains(t, err, "expected type []spec.Policy but got object")
 
 				// Invalid policies in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*policies.yml")
@@ -632,7 +751,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"policies"})
 				config += fmt.Sprintf("%s:\n  - path: %s\n", "policies", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal policies file")
+				assert.ErrorContains(t, err, "expected type spec.Policy but got number")
 
 				// Policy name missing
 				config = getConfig([]string{"policies"})
@@ -650,7 +769,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"queries"})
 				config += "queries:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal queries")
+				assert.ErrorContains(t, err, "expected type []spec.Query but got object")
 
 				// Invalid policies in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*queries.yml")
@@ -660,7 +779,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"queries"})
 				config += fmt.Sprintf("%s:\n  - path: %s\n", "queries", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal queries file")
+				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
 				// Query name missing
 				config = getConfig([]string{"queries"})
@@ -928,7 +1047,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must include either a package path or app store app ID")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
@@ -983,6 +1102,19 @@ software:
 	path, basePath = createTempFile(t, "", config)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, fmt.Sprintf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", exeURL))
+
+	// Software URL refers to a .tar.gz but doesn't have (un)install scripts specified (URL doesn't exist as Firefox is all .tar.xz)
+	config = getTeamConfig([]string{"software"})
+	tgzURL := "https://download-installer.cdn.mozilla.net/pub/firefox/releases/137.0.2/linux-x86_64/en-US/firefox-137.0.2.tar.gz?foo=baz"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, tgzURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", tgzURL))
 
 	// Policy references a VPP app not present on the team
 	config = getTeamConfig([]string{"policies"})
@@ -1053,7 +1185,36 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+	assert.ErrorContains(t, err, "file \"./microsoft-teams.pkg.software.yml\" does not contain a valid software package definition")
+
+	// Policy references a software installer file that has multiple pieces of software specified
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./multipkg.policies.yml
+software:
+  packages:
+    - path: ./multiple-packages.yml
+`
+	path, basePath = createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "multipkg.policies.yml"),
+		filepath.Join(basePath, "multipkg.policies.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = file.Copy(
+		filepath.Join("testdata", "software", "multiple-packages.yml"),
+		filepath.Join(basePath, "multiple-packages.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	appConfig = fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, "contains multiple packages, so cannot be used as a target for policy automation")
 }
 
 func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
@@ -1144,6 +1305,63 @@ func getBaseConfig(options map[string]string, optsToExclude []string) string {
 	return config
 }
 
+func TestSoftwarePackagesUnmarshalMulti(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/multiple-packages.yml
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	for _, f := range []string{"single-package.yml", "multiple-packages.yml"} {
+		err := file.Copy(
+			filepath.Join("testdata", "software", f),
+			filepath.Join(basePath, "software", f),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+	}
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	require.NoError(t, err)
+}
+
+func TestSoftwarePackagesPathWithInline(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/single-package.yml
+      icon:
+        path: ./foo/bar.png
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	err := file.Copy(
+		filepath.Join("testdata", "software", "single-package.yml"),
+		filepath.Join(basePath, "software", "single-package.yml"),
+		os.FileMode(0o755),
+	)
+	require.NoError(t, err)
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the team level")
+}
+
 func TestIllegalFleetSecret(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
@@ -1158,4 +1376,157 @@ policies:
 `
 	_, err := gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "variables with \"FLEET_SECRET_\" prefix are only allowed")
+}
+
+func TestInvalidSoftwareInstallerHash(t *testing.T) {
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
+	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
+}
+
+func TestWebhookPolicyIDsValidation(t *testing.T) {
+	t.Parallel()
+
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("no_team_invalid_policy_ids_as_number", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: 567
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		_, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "policy_ids' must be an array")
+	})
+
+	t.Run("no_team_invalid_policy_ids_as_string", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: "567"
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		_, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "policy_ids' must be an array")
+	})
+
+	t.Run("no_team_valid_policy_ids_as_array", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: [567, 890]
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+		assert.True(t, gitops.IsNoTeam())
+	})
+
+	t.Run("no_team_valid_policy_ids_as_empty_array", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: []
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+	})
+
+	t.Run("no_team_valid_policy_ids_as_yaml_list", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids:
+        - 567
+        - 890
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+	})
+
+	t.Run("regular_team_invalid_policy_ids_as_number", func(t *testing.T) {
+		config := getTeamConfig([]string{"team_settings"})
+		config += `team_settings:
+  secrets:
+    - secret: test123
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: 567
+      host_batch_size: 0
+`
+		_, err := gitOpsFromString(t, config)
+		assert.ErrorContains(t, err, "policy_ids' must be an array")
+	})
+
+	t.Run("regular_team_valid_policy_ids_as_array", func(t *testing.T) {
+		config := getTeamConfig([]string{"team_settings"})
+		config += `team_settings:
+  secrets:
+    - secret: test123
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: [567, 890]
+      host_batch_size: 0
+`
+		gitops, err := gitOpsFromString(t, config)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+		assert.NotNil(t, gitops.TeamSettings["webhook_settings"])
+	})
 }

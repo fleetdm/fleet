@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
@@ -9,6 +10,7 @@ import { HostPlatform } from "interfaces/platform";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 
 import CertificatesTable from "./CertificatesTable";
 
@@ -23,6 +25,7 @@ interface ICertificatesProps {
   sortDirection: string;
   isError: boolean;
   isMyDevicePage?: boolean;
+  className?: string;
   onSelectCertificate: (certificate: IHostCertificate) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -38,13 +41,20 @@ const CertificatesCard = ({
   sortHeader,
   sortDirection,
   isMyDevicePage = false,
+  className,
   onSelectCertificate,
   onNextPage,
   onPreviousPage,
   onSortChange,
 }: ICertificatesProps) => {
   const renderContent = () => {
-    if (isError) return <DataError />;
+    if (isError) {
+      return isMyDevicePage ? (
+        <DeviceUserError />
+      ) : (
+        <DataError verticalPaddingSize="pad-large" />
+      );
+    }
 
     return (
       <CertificatesTable
@@ -62,12 +72,13 @@ const CertificatesCard = ({
     );
   };
 
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
-      className={baseClass}
+      className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <CardHeader header="Certificates" />
       {renderContent()}

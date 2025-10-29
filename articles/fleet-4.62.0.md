@@ -14,15 +14,15 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Custom targets for software installs
 
-IT admins can now install Fleet-maintained apps and custom packages only on macOS, Windows, and Linux hosts within specific labels. This lets you target installations more precisely, tailoring deployments by department, role, or hardware. Learn more about deploying software [here](https://fleetdm.com/guides/deploy-software-packages).
+IT admins can now [install Fleet-maintained apps and custom packages](https://fleetdm.com/guides/deploy-software-packages) on macOS, Windows, and Linux hosts within specific labels. This lets you target installations more precisely, tailoring deployments by department, role, or hardware. Learn more about deploying software.
 
 ### Automatic policies for custom packages
 
-Fleet now creates policies automatically when you add a custom package. This eliminates the need to manually write policies, making it faster and easier to deploy software across all your hosts. Learn more about automatically installing software [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+Fleet now creates [auto-install policies](https://fleetdm.com/guides/automatic-software-install-in-fleet) automatically when you add a custom package. This eliminates the need to manually write policies, making it faster and easier to deploy software across all your hosts. Learn more about automatically installing software.
 
 ### Hide secrets in configuration profiles and scripts
 
-Fleet ensures that GitHub or GitLab secrets, like API tokens and license keys used in scripts (Shell & PowerShell) and configuration profiles (macOS & Windows), are hidden when viewed or downloaded in Fleet. This protects sensitive information, keeping it secure until it’s deployed to the hosts. Learn more about secrets [here](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
+Fleet ensures that GitHub or GitLab [secrets](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), like API tokens and license keys used in scripts (Shell & PowerShell) and configuration profiles (macOS & Windows), are hidden when viewed or downloaded in Fleet. This protects sensitive information, keeping it secure until it’s deployed to the hosts.
 
 ## Changes
 

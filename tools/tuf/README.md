@@ -168,7 +168,7 @@ GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
 2. Smoke test release on staging.
 3. Push to production:
 ```sh
-ACTION=release-to-production ./tools/tuf/releaser.sh
+ACTION=release-to-production COMPONENT=fleetd VERSION=1.23.0 ./tools/tuf/releaser.sh
 ```
 4. Smoke test release on production.
 
@@ -239,19 +239,35 @@ TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
 ACTION=release-to-production ./tools/tuf/releaser.sh
 ```
 4. Smoke test release on production.
+5. Update osquery schema and flags:
+```sh
+ACTION=update-osquery-schema \
+VERSION=5.19.0 \
+./tools/tuf/releaser.sh
+```
 
 #### Releasing `swiftDialog` to `stable`
 
-> `releaser.sh` doesn't support `swiftDialog` yet.
 > macOS only component
 
-The `swiftDialog` executable can be generated from a macOS host by running:
+1. Download `swiftDialog` from the desired run of https://github.com/fleetdm/fleet/actions/workflows/generate-swift-dialog-targets.yml.
+2. Extract the downloaded `.zip` to `/path/to/swiftDialog.app.tar.gz`
+3. Push to staging:  
 ```sh
-make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+ACTION=release-swiftDialog-to-stable \
+VERSION=2.5.6 \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+SWIFT_DIALOG_PATH=/path/to/swiftDialog.app.tar.gz \
+./tools/tuf/releaser.sh
 ```
+4. Push to production:
 ```sh
-fleetctl updates add --target /path/to/macos/swiftDialog.app.tar.gz --platform macos --name swiftDialog --version 2.2.1 -t edge
-```
+ACTION=release-to-production ./tools/tuf/releaser.sh
+``` 
 
 #### Releasing `nudge` to `stable`
 
@@ -293,6 +309,34 @@ TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
 ```sh
 ACTION=release-to-production ./tools/tuf/releaser.sh
 ```
+
+### Doing a patch release of fleetd
+
+Patch releases follow the same process as releasing a minor version, except instead of checking out the `main` branch of Fleet locally, you check out a patch branch of Fleet, e.g.:
+
+```
+git checkout rc-minor-fleetd-v1.41.1
+```
+
+As always, the `VERSION` env var used when running `releaser.sh` should match the version of the fleetd release, e.g.
+
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+COMPONENT=fleetd \
+ACTION=release-to-edge \
+VERSION=1.41.1 # <-- note the patch version \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+GITHUB_USERNAME=foobar \
+GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
+./tools/tuf/releaser.sh
+```
+
+See https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md to find the latest released version.
+
+After following the rest of the "Releasing to edge" steps above, publish your release using the instructions in "Promoting from edge to stable" above as you would for a minor release, again remembering to set the `VERSION` accordingly.
 
 ## Testing and improving the script
 

@@ -6,7 +6,7 @@ import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
@@ -20,49 +20,42 @@ interface IScriptContentProps {
 
 const ScriptContent = ({ content }: IScriptContentProps) => {
   return (
-    <div className={`${baseClass}__script-content`}>
-      <span>Script content:</span>
-      <Textarea className={`${baseClass}__script-content-textarea`}>
-        {content}
-      </Textarea>
-    </div>
+    <Textarea label="Script content:" variant="code">
+      {content}
+    </Textarea>
   );
 };
 
 const StatusMessageRunning = () => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="pending-outline" />
-      Script is running or will run when the host comes online.
-    </p>
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="pending-outline"
+    message="Script is running or will run when the host comes online."
+  />
 );
 
 const StatusMessageSuccess = () => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="success-outline" />
-      Exit code: 0 (Script ran successfully.)
-    </p>
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="success-outline"
+    message="Exit code: 0 (Script ran successfully.)"
+  />
 );
 
 const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="error-outline" />
-      Exit code: {exitCode} (Script failed.)
-    </p>{" "}
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="error-outline"
+    message={`Exit code: ${exitCode} (Script failed.)`}
+  />
 );
 
 const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
-  <div className={`${baseClass}__status-message`}>
-    <p>
-      <Icon name="error-outline" />
-      Error: {message}
-    </p>
-  </div>
+  <IconStatusMessage
+    className={`${baseClass}__status-message`}
+    iconName="error-outline"
+    message={`Error: ${message}`}
+  />
 );
 
 interface IStatusMessageProps {
@@ -122,40 +115,35 @@ const StatusMessage = ({
 interface IScriptOutputProps {
   output: string;
   hostname: string;
+  wasAdHoc: boolean;
 }
 
-const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
-  return (
-    <div className={`${baseClass}__script-output`}>
-      <p>
-        The{" "}
-        <TooltipWrapper
-          tipContent="Fleet records the last 10,000 characters to prevent downtime."
-          tooltipClass={`${baseClass}__output-tooltip`}
-          isDelayed
-        >
-          output recorded
-        </TooltipWrapper>{" "}
-        when <b>{hostname}</b> ran the script above:
-      </p>
-      <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
-    </div>
-  );
-};
-
-interface IScriptResultProps {
-  hostname: string;
-  output: string;
-}
-
-const ScriptResult = ({ hostname, output }: IScriptResultProps) => {
-  return (
-    <div className={`${baseClass}__script-result`}>
-      <ScriptOutput output={output} hostname={hostname} />
-    </div>
-  );
-};
-
+const ScriptOutput = ({
+  output,
+  hostname,
+  wasAdHoc = false,
+}: IScriptOutputProps) => (
+  <div className={`${baseClass}__script-result`}>
+    <Textarea
+      label={
+        <>
+          The{" "}
+          <TooltipWrapper
+            tipContent="Fleet records the last 10,000 characters to prevent downtime."
+            tooltipClass={`${baseClass}__output-tooltip`}
+            delayInMs={500}
+          >
+            output recorded
+          </TooltipWrapper>{" "}
+          when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
+        </>
+      }
+      variant="code"
+    >
+      {output}
+    </Textarea>
+  </div>
+);
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
@@ -208,6 +196,7 @@ const RunScriptDetailsModal = ({
         data.exit_code === null && data.host_timeout === false;
       const showOutputText =
         !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
+      const ranAdHocScript = data.script_id === null;
 
       content = (
         <>
@@ -216,9 +205,13 @@ const RunScriptDetailsModal = ({
             exitCode={data.exit_code}
             message={data.output}
           />
-          <ScriptContent content={data.script_contents} />
+          {ranAdHocScript && <ScriptContent content={data.script_contents} />}
           {showOutputText && (
-            <ScriptResult hostname={data.hostname} output={data.output} />
+            <ScriptOutput
+              hostname={data.hostname}
+              output={data.output}
+              wasAdHoc={ranAdHocScript}
+            />
           )}
         </>
       );
@@ -237,11 +230,7 @@ const RunScriptDetailsModal = ({
   const renderFooter = () => (
     <ModalFooter
       isTopScrolling={isTopScrolling}
-      primaryButtons={
-        <Button onClick={onCancel} variant="brand">
-          Done
-        </Button>
-      }
+      primaryButtons={<Button onClick={onCancel}>Done</Button>}
     />
   );
   return (

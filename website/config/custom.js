@@ -125,14 +125,18 @@ module.exports.custom = {
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
-    // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
+    // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     '/docs/get-started/faq': 'zayhanlon',
+    'docs/Contributing/rituals': 'lukeheath',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
+    // Fleet's internal IT and security (+dogfooding)
+    'it-and-security': 'allenhouchins',
+
     // 🫧 Articles and release notes
-    'articles': 'drew-p-drawers',
+    'articles': 'mike-j-thomas',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -160,9 +164,10 @@ module.exports.custom = {
     'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
 
     // 🫧 Pricing and features
-    // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
+
+    // Dev process
     'handbook/company/product-groups.md': 'lukeheath',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
@@ -175,14 +180,17 @@ module.exports.custom = {
     // 🌐 Repo automation and change control settings
     'CODEOWNERS': 'sampfluger88',
     'website/config/custom.js': 'sampfluger88',
+    '.gitignore': 'sampfluger88',// « what files should not be checked in?
 
     // 🌐 Handbook
-    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
+    //'handbook': 'samfp', Covered in CODEOWNERS (#16972 2024-02-19)
 
 
     // 🌐 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
+    // 💝 Fleet-maintained apps
+    'ee/maintained-apps/inputs': 'mostlikelee',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -217,10 +225,12 @@ module.exports.custom = {
     'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
+    // Fleet's internal IT and security (+dogfooding)
+    'it-and-security': ['allenhouchins'],
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'drew-p-drawers', 'lukeheath'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
     'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
@@ -257,6 +267,8 @@ module.exports.custom = {
     '.github/workflows/deploy-vulnerability-dashboard.yml': ['eashaw','mikermcneil'],// (vulnerabiltiy dashboard deploy script)
     '.github/workflows/test-vulnerability-dashboard-changes.yml': ['eashaw','mikermcneil'],//« vulnerabiltiy dashboard CI test script
     '.github/workflows': ['lukeheath', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
+    '.github/workflows/dogfood-automated-policy-updates.yml': 'allenhouchins',
+    '.github/workflows/dogfood-gitops.yml': 'allenhouchins',
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],// (« for changing who reviews is automatically requested from for given paths)
@@ -265,24 +277,30 @@ module.exports.custom = {
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
-    'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
-    'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
-    'handbook/company/communications.md': ['sampfluger88','mikermcneil'],
-    'handbook/company/leadership.md': ['sampfluger88','mikermcneil'],
-    'handbook/digital-experience': ['sampfluger88','mikermcneil'],
-    'handbook/finance': ['sampfluger88','mikermcneil'],
-    'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
-    'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
-    'handbook/sales': ['sampfluger88','mikermcneil'],
-    'handbook/marketing': ['sampfluger88','mikermcneil'],
-    'handbook/customer-success': ['sampfluger88','mikermcneil'],
-    'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
+    'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/communications.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
+    'handbook/finance': ['sampfluger88', 'mikermcneil'],
+    'handbook/sales': ['sampfluger88', 'mikermcneil'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil'],
+    'handbook/customer-success': ['sampfluger88', ' mikermcneil'],
+
+    // 🫧 Pricing and features and dev process
+    'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],
+    'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'zayhanlon'],
+
+    // Dev process
+    'handbook/company/product-groups.md': ['lukeheath', 'noahtalerman', 'sampfluger88', 'mikermcneil'],
+    'handbook/engineering': ['sampfluger88', 'lukeheath'],
+    'handbook/product-design': ['sampfluger88', 'noahtalerman'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
-    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['lukeheath', 'xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
@@ -290,11 +308,11 @@ module.exports.custom = {
     // Config as code for infrastructure, internal security and IT use cases, and more.
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
-    '.github/workflows': ['mikermcneil', 'lukeheath'],//« CI/CD workflows
+    '.github/workflows': ['sampfluger88', 'lukeheath'],//« CI/CD workflows
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],
-    '.gitignore': ['mikermcneil', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
+    '.gitignore': ['lukeheath', 'rfairburn', 'sampfluger88'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
     // "Secret handbook"
@@ -316,7 +334,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.19.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -365,7 +383,7 @@ module.exports.custom = {
     'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
   ],
 
-  // For website signups & contact form submissions:
+  // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
     'gmail.com',
     'yahoo.com',
@@ -380,19 +398,48 @@ module.exports.custom = {
     'yandex.ru',
     'ymail.com',
     'qq.com',
+    'example.com',
   ],
+
+  // For contact form submissions.
+  // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
+  bannedEmailDomainsForContactFormSubmissions: [
+    'example.com'
+  ],
+
+  /***************************************************************************
+   *                                                                          *
+   * GitHub Projects configuration for engineering metrics                    *
+   *                                                                          *
+   ***************************************************************************/
+  githubProjectsV2: {
+    projects: {
+      orchestration: 71,
+      mdm: 58,
+      software: 70,
+      'security-compliance': 97
+    },
+    excludeWeekends: true
+  },
+
+  // Docsearch search-only public key.
+  algoliaPublicKey: 'f3c02b646222734376a5e94408d6fead',// [?]: https://docsearch.algolia.com/docs/legacy/faq/#can-i-share-the-apikey-in-my-repo
 
   // Zapier:
   // zapierWebhookSecret: '…',
 
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
+  // slackWebhookUrlForNewlyCreatedOppts: '…',
 
   // GitHub bot:
   // githubAccessToken: '…',
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+
+  // Metrics:
+  // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
   // For receive-from-customer-fleet-instance webhook.
@@ -409,6 +456,17 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
-  //…
+
+  // Microsoft compliance proxy
+  // compliancePartnerClientId: '…',
+  // compliancePartnerClientSecret: '…',
+  // cloudCustomerCompliancePartnerSharedSecret: '…',
+
+
+  // Android proxy
+  // androidEnterpriseProjectId: '…',
+  // androidEnterpriseServiceAccountEmailAddress: '…',
+  // androidEnterpriseServiceAccountPrivateKey: '…',
+
 
 };

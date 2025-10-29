@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"io"
 	"os"
+	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/data"
 )
 
@@ -32,6 +35,14 @@ func fileHashes(meta *data.TargetFileMeta, localPath string) (metaHash []byte, l
 
 	f, err := os.Open(localPath)
 	if err != nil {
+		// If tar.gz doesn't exist but a hash file does, use the cached hash file
+		if os.IsNotExist(err) && strings.HasSuffix(localPath, ".tar.gz") {
+			cachedHash, err := readCachedHash(localPath, meta)
+			if err == nil {
+				return metaHash, cachedHash, nil
+			}
+			log.Info().Err(err).Msg("failed to read cached hash file")
+		}
 		return nil, nil, fmt.Errorf("open file for hash: %w", err)
 	}
 	defer f.Close()
@@ -60,4 +71,23 @@ func selectHashFunction(meta *data.TargetFileMeta) (hash.Hash, []byte, error) {
 	}
 
 	return nil, nil, fmt.Errorf("no matching hash function found: %v", meta.HashAlgorithms())
+}
+
+// readCachedHash reads a cached hash from a .sha512 file
+// created during packaging when the tar.gz was removed to save space.
+func readCachedHash(tarGzPath string, meta *data.TargetFileMeta) ([]byte, error) {
+	// Check if TUF metadata has SHA512 (currently the only hash file used)
+	for hashName := range meta.Hashes {
+		if hashName == "sha512" {
+			hashPath := tarGzPath + ".sha512"
+			var hashHex []byte
+			var err error
+			if hashHex, err = os.ReadFile(hashPath); err != nil {
+				return nil, err
+			}
+			return hex.DecodeString(strings.TrimSpace(string(hashHex)))
+		}
+	}
+
+	return nil, fmt.Errorf("no cached hash file found for %s", tarGzPath)
 }

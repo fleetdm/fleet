@@ -58,7 +58,7 @@ func TestCreateVersionInfo(t *testing.T) {
 func TestWriteResourceSyso(t *testing.T) {
 	t.Run("removes intermediary manifest.xml file", func(t *testing.T) {
 		path := t.TempDir()
-		opt := Options{Version: "1.2.3"}
+		opt := Options{Version: "1.2.3", Architecture: ArchAmd64}
 
 		err := writeResourceSyso(opt, path)
 		require.NoError(t, err)

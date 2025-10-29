@@ -33,10 +33,12 @@ func TestVPP(t *testing.T) {
 		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
 		{"VPPTokensCRUD", testVPPTokensCRUD},
 		{"VPPTokenAppTeamAssociations", testVPPTokenAppTeamAssociations},
+		{"VPPTokenReassignTeamsToAllTeams", testVPPTokenReassignTeamsToAllTeams},
 		{"GetOrInsertSoftwareTitleForVPPApp", testGetOrInsertSoftwareTitleForVPPApp},
 		{"DeleteVPPAssignedToPolicy", testDeleteVPPAssignedToPolicy},
 		{"TestVPPTokenTeamAssignment", testVPPTokenTeamAssignment},
 		{"TestGetAllVPPApps", testGetAllVPPApps},
+		{"TestGetUnverifiedVPPInstallsForHost", testGetUnverifiedVPPInstallsForHost},
 	}
 
 	for _, c := range cases {
@@ -360,7 +362,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, h3, false)
 
 	// move h3 to team1
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h3.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h3.ID}))
 	require.NoError(t, err)
 
 	// simulate an install request of vpp1 on h1
@@ -583,8 +585,6 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", BundleIdentifier: "bar"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, h1.ID, software)
-	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	// Insert some VPP apps for the team, "vpp_app_1" should match the existing "foo" title
@@ -1539,6 +1539,46 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 }
 
+func testVPPTokenReassignTeamsToAllTeams(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Set up two teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "All Teams Reassign Team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "All Teams Reassign Team 2"})
+	require.NoError(t, err)
+
+	// Insert token
+	tokenData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Org For Reassign", "Loc For Reassign")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, tokenData)
+	require.NoError(t, err)
+	tokenID := tok.ID
+
+	// Assign token to team1 and team2
+	upTok, err := ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{team1.ID, team2.ID})
+	require.NoError(t, err)
+	require.Len(t, upTok.Teams, 2)
+
+	// Now, reassign to ALL TEAMS (teams = [])
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{})
+	require.NoError(t, err)
+	require.NotNil(t, upTok.Teams)
+	require.Len(t, upTok.Teams, 0, "After reassigning to all teams, Teams should be zero-length (all teams)")
+
+	// Confirm that the assignment is present as "All teams"
+	gotTok, err := ds.GetVPPToken(ctx, tokenID)
+	require.NoError(t, err)
+	require.NotNil(t, gotTok.Teams)
+	require.Len(t, gotTok.Teams, 0, "After reassigning to all teams, Teams should be zero-length (all teams)")
+
+	// Now, assign back to just team1
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{team1.ID})
+	require.NoError(t, err)
+	require.Len(t, upTok.Teams, 1)
+	require.Equal(t, team1.ID, upTok.Teams[0].ID)
+}
+
 func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1560,7 +1600,6 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// get the ID of the windows title so we can validate that it is not re-used
@@ -1958,4 +1997,73 @@ func testGetAllVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Equal(t, apps, []*fleet.VPPApp{app1, app2, app3})
+}
+
+func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	vpp1 := va1.VPPAppID
+
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	vpp2 := va2.VPPAppID
+
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	vpp3 := va3.VPPAppID
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-1",
+		OsqueryHostID:  ptr.String("osquery-macos-1"),
+		NodeKey:        ptr.String("node-key-macos-1"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321a",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, h1, false)
+
+	cmdUUID1 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, nil)
+	createVPPAppInstallResult(t, ds, h1, cmdUUID1, "Acknowledged")
+
+	cmdUUID2 := createVPPAppInstallRequest(t, ds, h1, vpp2.AdamID, nil)
+	createVPPAppInstallResult(t, ds, h1, cmdUUID2, "Acknowledged")
+
+	cmdUUID3 := createVPPAppInstallRequest(t, ds, h1, vpp3.AdamID, nil)
+	createVPPAppInstallResult(t, ds, h1, cmdUUID3, "Acknowledged")
+
+	for _, step := range []struct {
+		installUUID string
+		before      int
+		after       int
+	}{
+		{installUUID: cmdUUID1, before: 3, after: 2},
+		{installUUID: cmdUUID2, before: 2, after: 1},
+		{installUUID: cmdUUID3, before: 1, after: 0},
+	} {
+
+		x, err := ds.GetUnverifiedVPPInstallsForHost(ctx, h1.UUID)
+		require.NoError(t, err)
+		assert.Len(t, x, step.before)
+
+		err = ds.SetVPPInstallAsVerified(ctx, h1.ID, step.installUUID, fleet.VerifySoftwareInstallCommandUUID())
+		require.NoError(t, err)
+
+		x, err = ds.GetUnverifiedVPPInstallsForHost(ctx, h1.UUID)
+		require.NoError(t, err)
+		assert.Len(t, x, step.after)
+	}
 }

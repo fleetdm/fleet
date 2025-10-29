@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,9 @@ func TestConfigRoundtrip(t *testing.T) {
 
 	// viper tries to load config from the environment too, clear it in case
 	// any config values are set in the environment.
+
+	// save the current env before clearing it.
+	testutils.SaveEnv(t)
 	os.Clearenv()
 
 	cmd := &cobra.Command{}
@@ -69,6 +73,9 @@ func TestConfigRoundtrip(t *testing.T) {
 					key_v.SetString("30s")
 				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "Bucket", "Prefix", "Region", "EndpointURL", "AccessKeyID", "SecretAccessKey", "StsAssumeRoleArn", "StsExternalID":
+					key_v.SetString("")
+				// This is a deprecated config for "Fleet Sandbox" that doesn't exist anymore.
+				case "GlobalEnrollSecret":
 					key_v.SetString("")
 				default:
 					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
@@ -133,42 +140,6 @@ func TestConfigOsqueryAsync(t *testing.T) {
 			yaml: `
 osquery:
   enable_async_host_processing: true`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled yes",
-			yaml: `
-osquery:
-  enable_async_host_processing: yes`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled on",
-			yaml: `
-osquery:
-  enable_async_host_processing: on`,
 			wantLabelCfg: AsyncProcessingConfig{
 				Enabled:                 true,
 				CollectInterval:         30 * time.Second,
@@ -335,7 +306,9 @@ osquery:
 			// test-case values, but that didn't seem to work, not sure how it can
 			// be done in our particular setup.
 
-			// set the environment variables
+			// save the current env before clearing it.
+			testutils.SaveEnv(t)
+
 			os.Clearenv()
 			for _, env := range c.envVars {
 				kv := strings.SplitN(env, "=", 2)
@@ -716,12 +689,18 @@ func TestValidateCloudfrontURL(t *testing.T) {
 		{"bad URL", "bozo!://example.com", "public", "private", "parse"},
 		{"non-HTTPS URL", "http://example.com", "public", "private", "cloudfront url scheme must be https"},
 		{"missing URL", "", "public", "private", "`s3_software_installers_cloudfront_url` must be set"},
-		{"missing public key", "https://example.com", "", "private",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing private key", "https://example.com", "public", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing keys", "https://example.com", "", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
+		{
+			"missing public key", "https://example.com", "", "private",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing private key", "https://example.com", "public", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing keys", "https://example.com", "", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
 	}
 
 	for _, c := range cases {

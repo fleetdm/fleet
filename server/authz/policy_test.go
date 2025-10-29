@@ -2398,3 +2398,120 @@ func TestHostHealth(t *testing.T) {
 		{user: test.UserTeamMaintainerTeam2, object: hostHealth, action: read, allow: false},
 	})
 }
+
+func TestMDMAppleEULA(t *testing.T) {
+	t.Parallel()
+
+	eula := &fleet.MDMEULA{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: eula, action: read, allow: false},
+		{user: test.UserGitOps, object: eula, action: read, allow: true},
+		{user: test.UserGitOps, object: eula, action: write, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserAdmin, object: eula, action: read, allow: true},
+		{user: test.UserAdmin, object: eula, action: write, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserObserver, object: eula, action: read, allow: false},
+		{user: test.UserObserver, object: eula, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserMaintainer, object: eula, action: read, allow: false},
+		{user: test.UserMaintainer, object: eula, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: eula, action: write, allow: false},
+	})
+}
+
+func TestCertificateAuthorities(t *testing.T) {
+	t.Parallel()
+	certificateAuthority := &fleet.CertificateAuthority{}
+
+	runTestCases(t, []authTestCase{
+		{user: nil, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserGitOps, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: write, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserAdmin, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserAdmin, object: certificateAuthority, action: write, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserObserver, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserObserver, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserMaintainer, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeSecretVariables(t *testing.T) {
+	t.Parallel()
+
+	secretVariable := &fleet.SecretVariable{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: secretVariable, action: read, allow: false},
+
+		{user: test.UserNoRoles, object: secretVariable, action: read, allow: false},
+
+		// Global admins, maintainers, and gitops can read/write.
+		{user: test.UserAdmin, object: secretVariable, action: read, allow: true},
+		{user: test.UserAdmin, object: secretVariable, action: write, allow: true},
+		{user: test.UserMaintainer, object: secretVariable, action: read, allow: true},
+		{user: test.UserMaintainer, object: secretVariable, action: write, allow: true},
+		{user: test.UserGitOps, object: secretVariable, action: read, allow: true},
+		{user: test.UserGitOps, object: secretVariable, action: write, allow: true},
+
+		// Global observers and observer_plus can read but cannot write.
+		{user: test.UserObserver, object: secretVariable, action: read, allow: true},
+		{user: test.UserObserver, object: secretVariable, action: write, allow: false},
+		{user: test.UserObserverPlus, object: secretVariable, action: read, allow: true},
+		{user: test.UserObserverPlus, object: secretVariable, action: write, allow: false},
+
+		// Team users can read but cannot write.
+		{user: test.UserTeamAdminTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: secretVariable, action: write, allow: false},
+	})
+}

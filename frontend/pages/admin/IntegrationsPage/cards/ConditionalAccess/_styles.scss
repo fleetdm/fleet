@@ -1,0 +1,22 @@
+.conditional-access {
+  &__success {
+    .info-banner__info {
+      display: flex;
+      gap: $pad-xsmall;
+      white-space: nowrap;
+      overflow: hidden;
+      width: 100%;
+      justify-content: space-between;
+      padding: 0 $pad-medium;
+      .tenant-id {
+        display: flex;
+        align-items: center;
+        gap: $pad-xsmall;
+        max-width: 88%;
+        .tooltip-truncated-text {
+          max-width: 66%;
+        }
+      }
+    }
+  }
+}

@@ -6,14 +6,12 @@ import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 import { IHostSummary } from "interfaces/host_summary";
 import { PlatformValueOptions } from "utilities/constants";
-import DataError from "components/DataError";
 
 import HostCountCard from "../../cards/HostCountCard";
 
 const baseClass = "platform-host-counts";
 
 interface IPlatformHostCountsProps {
-  androidDevEnabled: boolean; // TODO(android): remove when feature flag is removed
   currentTeamId: number | undefined;
   macCount: number;
   windowsCount: number;
@@ -23,13 +21,11 @@ interface IPlatformHostCountsProps {
   ipadosCount: number;
   androidCount: number;
   builtInLabels?: IHostSummary["builtin_labels"];
-  errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
   totalHostCount?: number;
 }
 
 const PlatformHostCounts = ({
-  androidDevEnabled,
   currentTeamId,
   macCount,
   windowsCount,
@@ -39,7 +35,6 @@ const PlatformHostCounts = ({
   ipadosCount,
   androidCount,
   builtInLabels,
-  errorHosts,
   selectedPlatform,
   totalHostCount,
 }: IPlatformHostCountsProps): JSX.Element => {
@@ -193,11 +188,6 @@ const PlatformHostCounts = ({
   };
 
   const renderAndroidCount = (teamId?: number) => {
-    if (!androidDevEnabled) {
-      // TODO(android): remove when feature flag is removed
-      return null;
-    }
-
     const androidLabelId = getBuiltinLabelId("android");
 
     if (hidePlatformCard(androidCount)) {
@@ -251,10 +241,6 @@ const PlatformHostCounts = ({
         );
     }
   };
-
-  if (errorHosts) {
-    return <DataError card />;
-  }
 
   return <div className={baseClass}>{renderCounts(currentTeamId)}</div>;
 };

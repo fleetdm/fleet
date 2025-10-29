@@ -180,13 +180,14 @@ const SaveNewPolicyModal = ({
             className="autofill-tooltip-wrapper"
           >
             <Button
-              variant="text-icon"
+              variant="inverse"
               disabled={aiFeaturesDisabled || disableForm}
               onClick={
                 labelName === "Description"
                   ? onClickAutofillDescription
                   : onClickAutofillResolution
               }
+              size="small"
             >
               {isFetchingButton ? (
                 "Thinking..."
@@ -298,6 +299,7 @@ const SaveNewPolicyModal = ({
                 </span>
               }
               suppressTitle
+              disableOptions={disableForm}
             />
           )}
           {isPremiumTier && (
@@ -331,7 +333,6 @@ const SaveNewPolicyModal = ({
             >
               <Button
                 type="submit"
-                variant="brand"
                 onClick={handleSavePolicy}
                 disabled={disableSave}
                 className="save-policy-loading"

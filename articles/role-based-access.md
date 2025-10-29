@@ -36,6 +36,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | **Action**                                                                                                                                 | Observer | Observer+* | Maintainer | Admin | GitOps* |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | :------: | :--------: | :--------: | :---: | :-----: |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| Cancel [hosts' upcoming activity](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity)                                |          |            | ✅        | ✅    |         |
 | Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                 |               |                |                 | ✅         | ✅          |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
 | View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅    | ✅      |
@@ -44,6 +45,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
+| Add user information from IdP to hosts\*                                                                                                   |          |            | ✅          | ✅    |        |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Add, edit, and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
@@ -67,6 +69,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit global ("All teams") policy automations                  |          |            |            | ✅    | ✅      |
 | Edit team policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
 | Edit team policy automations: other workflows (tickets and webhooks)\*                 |          |            |            | ✅    | ✅      |
+| Edit "No team" policy automations                  |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
 | Add and remove team users\*                                                                                                                |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
@@ -87,20 +90,22 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                                               |          |            |            | ✅    |         |
 | Connect Android Enterprise                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
-| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
-| Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
+| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
+| Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    | ✅      |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
-| Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
-| View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
-| Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
+| Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                               |          |            | ✅          | ✅    | ✅      |
+| View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                           |          |            | ✅          | ✅    | ✅      |
+| Edit [macOS and Linux setup experience](https://fleetdm.com/guides/macos-setup-experience)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*                                                                                         |          |            |              | ✅    |         |
-| Add and edit Simple Certificate Enrollment Protocol (SCEP) server\*                                                                        |          |            |            | ✅    | ✅      |
+| Add and edit certificate authorities (CA)\*                                                                        |          |            |            | ✅    | ✅      |
+| Request certificates (CA)\*                                             |          |            |            | ✅    | ✅      |
 | Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
+| Turn off MDM                                                                                                                               |          |            | ✅         | ✅    |         |
+| Configure Microsoft Entra conditional access integration                                                                                   |          |            |           | ✅    |       |
 
 \* Applies only to Fleet Premium
 
@@ -129,10 +134,13 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
+| View hosts' [past](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-past-activity) and [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
+| Cancel hosts' [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity                                                |            |              | ✅              | ✅         |             |
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅         | ✅          |
+| Create and edit self-authored labels                                                                                                           |          |            |          |     | ✅      |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
-| Add and delete software                                                                                                          |               |                | ✅              | ✅         | ✅            |
+| Add, edit, and delete software                                                                                                    |               |                | ✅              | ✅         | ✅            |
 | Download added software                                                                                                          |               |                | ✅              | ✅         |              |
 | Install/uninstall software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |
@@ -140,7 +148,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅         |             |
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
-| Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
+| Create, edit, and delete self-authored queries                                                                          |               |                | ✅              | ✅         | ✅          |
 | View team queries and their reports                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) queries and their reports\**                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                | ✅              | ✅         | ✅          |
@@ -155,22 +163,23 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Add and remove team users                                                                                                        |               |                |                 | ✅         | ✅          |
 | Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
-| Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         |             |
+| Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Read agent options\*                                                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Edit agent options                                    |               |                |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
-| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
-| Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                        |               |                | ✅              | ✅         | ✅          |
+| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
+| Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
-| Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅         | ✅          |
-| Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience#basic-article))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
+| Edit [team OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
+| Edit [macOS]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience#basic-article)) and Linux setup experience\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
+| Turn off MDM                                                                                                                     |               |                | ✅              | ✅         |             |
 
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)

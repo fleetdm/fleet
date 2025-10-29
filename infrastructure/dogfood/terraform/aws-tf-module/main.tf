@@ -19,7 +19,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = ">= 5.68.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -44,6 +44,9 @@ variable "android_service_credentials" {}
 variable "dogfood_sidecar_enroll_secret" {}
 variable "cloudfront_public_key" {}
 variable "cloudfront_private_key" {}
+variable "webhook_url" {
+  description = "Webhook URL used for Webhook Logging Destination"
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -52,37 +55,91 @@ locals {
   fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
   geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
-    FLEET_LICENSE_KEY                          = var.fleet_license
-    FLEET_LOGGING_DEBUG                        = "true"
-    FLEET_LOGGING_JSON                         = "true"
-    FLEET_LOGGING_TRACING_ENABLED              = "true"
-    FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
-    FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
+    FLEET_LICENSE_KEY   = var.fleet_license
+    FLEET_LOGGING_DEBUG = "true"
+    FLEET_LOGGING_JSON  = "true"
+    # FLEET_LOGGING_TRACING_ENABLED              = "true"
+    # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
+    FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
-    ELASTIC_APM_SERVER_URL                     = var.elastic_url
-    ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
-    ELASTIC_APM_SERVICE_NAME                   = "dogfood"
-    FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
-    FLEET_DEV_ANDROID_ENABLED                  = "1"
-    FLEET_DEV_ANDROID_SERVICE_CREDENTIALS      = var.android_service_credentials
+    # ELASTIC_APM_SERVER_URL                     = var.elastic_url
+    # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
+    # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
+    FLEET_CALENDAR_PERIODICITY = var.fleet_calendar_periodicity
+    # Webhook Results & Status Logging Destination
+    FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
+    FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
+    FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
+
+
+    # Load TLS Certificate for RDS Authentication
+    FLEET_MYSQL_TLS_CA              = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+  }
+  entra_conditional_access_secrets = {
+    # Entra Conditional Access Proxy API Key
+    FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY = aws_secretsmanager_secret.entra_conditional_access.arn
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
   }
-  idp_metadata_file = "${path.module}/files/idp-metadata.xml"
+  # idp_metadata_file = "${path.module}/files/idp-metadata.xml"
+
+  /* 
+    configurations below are necessary for MySQL TLS authentication
+    MySQL TLS Settings to download and store TLS Certificate
+
+    ca_thumbprint is maintained in the infrastructure/cloud/shared/
+    ca_thumbprint is the sha1 thumbprint value of the following certificate: aws rds describe-db-instances --filters='Name=db-cluster-id,Values='${cluster_name}'' | jq '.DBInstances.[0].CACertificateIdentifier' | sed 's/\"//g'
+    You can retrieve the value with the following command: aws rds describe-certificates --certificate-identifier=${ca_cert_val} | jq '.Certificates.[].Thumbprint' | sed 's/\"//g'
+  */
+  ca_cert_thumbprint = "8cf85e3e2bdbcbe2c4a34c1e85828fb29833e87f"
+  rds_container_path = "/tmp/rds-tls"
+  cert_path          = "${local.rds_container_path}/${data.aws_region.current.region}.pem"
+
+  # load the certificate with a side car into a volume mount
+  sidecars = [
+    {
+      name       = "rds-tls-ca-retriever"
+      image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
+      entrypoint = ["/bin/sh", "-c"]
+      command = [templatefile("./templates/mysql_ca_tls_retrieval.sh.tpl", {
+        aws_region         = data.aws_region.current.region
+        container_path     = local.rds_container_path
+        ca_cert_thumbprint = local.ca_cert_thumbprint
+      })]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = local.customer
+          "awslogs-region"        = data.aws_region.current.region
+          "awslogs-stream-prefix" = "rds-tls-ca-retriever"
+        }
+      }
+      mountPoints = [
+        {
+          sourceVolume  = "rds-tls-certs",
+          containerPath = local.rds_container_path
+        }
+      ]
+      essential = false
+    }
+  ]
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.13.0"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.17.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
   }
   rds_config = {
-    name                = local.customer
-    engine_version      = "8.0.mysql_aurora.3.07.1"
-    snapshot_identifier = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
+    preferred_maintenance_window = "fri:04:00-fri:05:00"
+    name                         = local.customer
+    engine_version               = "8.0.mysql_aurora.3.08.2"
+    snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
@@ -90,6 +147,9 @@ module "main" {
     # VPN
     allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
     backup_retention_period = 30
+    cluster_tags = {
+      backup = "true"
+    }
   }
   redis_config = {
     name = local.customer
@@ -129,9 +189,8 @@ module "main" {
         policy_name = "${local.customer}-iam-policy-execution"
       }
     }
-    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
+    extra_iam_policies = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_environment_variables = merge(
-      module.firehose-logging.fleet_extra_environment_variables,
       module.osquery-carve.fleet_extra_environment_variables,
       module.ses.fleet_extra_environment_variables,
       local.extra_environment_variables,
@@ -140,10 +199,11 @@ module "main" {
     )
     extra_execution_iam_policies = concat(
       module.mdm.extra_execution_iam_policies,
-      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn],
+      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn, aws_iam_policy.entra_conditional_access.arn],
       module.cloudfront-software-installers.extra_execution_iam_policies,
     ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
-    extra_secrets           = merge(
+    extra_secrets = merge(
+      local.entra_conditional_access_secrets,
       module.mdm.extra_secrets,
       local.sentry_secrets,
       module.cloudfront-software-installers.extra_secrets
@@ -155,10 +215,34 @@ module "main" {
     #   container_port   = 8080
     # }]
     software_installers = {
-      bucket_prefix = "${local.customer}-software-installers-"
-      create_kms_key = true
-      kms_alias      = "${local.customer}-software-installers"
+      bucket_prefix                      = "${local.customer}-software-installers-"
+      create_kms_key                     = true
+      kms_alias                          = "${local.customer}-software-installers"
+      enable_bucket_versioning           = true
+      expire_noncurrent_versions         = true
+      noncurrent_version_expiration_days = 30
+      tags = {
+        backup = "true"
+      }
     }
+    volumes = [
+      {
+        name = "rds-tls-certs"
+      }
+    ]
+    mount_points = [
+      {
+        sourceVolume  = "rds-tls-certs",
+        containerPath = local.rds_container_path
+      }
+    ]
+    depends_on = [
+      {
+        containerName = "rds-tls-ca-retriever"
+        condition     = "SUCCESS"
+      }
+    ]
+    sidecars = local.sidecars
     # sidecars = [
     #   {
     #     name        = "osquery"
@@ -345,7 +429,7 @@ module "migrations" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.0"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -366,17 +450,18 @@ module "mdm" {
   abm_secret_name    = null
 }
 
+# can deprecate once we get webhooks rolling
 module "firehose-logging" {
   source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
   firehose_results_name = "osquery_results"
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
   iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
-  region                = data.aws_region.current.name
+  region                = data.aws_region.current.region
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.0"
+  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.1"
   osquery_carve_s3_bucket = {
     name = "fleet-${local.customer}-osquery-carve"
   }
@@ -431,7 +516,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.3.0"
+  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.4.0"
   prefix        = local.customer
   enable_athena = true
 }
@@ -514,9 +599,14 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.2.0"
+  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
   zone_id = aws_route53_zone.main.zone_id
   domain  = "dogfood.fleetdm.com"
+  extra_txt_records = []
+  custom_mail_from = {
+    enabled       = true
+    domain_prefix = "mail"
+  }
 }
 
 # module "saml_auth_proxy" {
@@ -537,29 +627,29 @@ module "ses" {
 # }
 
 # This is intended to be public
-module "dogfood_idp_metadata_bucket" {
-  source                                = "terraform-aws-modules/s3-bucket/aws"
-  version                               = "3.15.1"
-  bucket                                = "fleet-dogfood-idp-metadata"
-  attach_deny_insecure_transport_policy = true
-  attach_require_latest_tls_policy      = true
-  attach_public_policy                  = true
-  block_public_acls                     = false
-  block_public_policy                   = false
-  ignore_public_acls                    = false
-  restrict_public_buckets               = false
-  acl                                   = "public-read"
-  control_object_ownership              = true
-  object_ownership                      = "BucketOwnerPreferred"
-}
+# module "dogfood_idp_metadata_bucket" {
+#   source                                = "terraform-aws-modules/s3-bucket/aws"
+#   version                               = "3.15.1"
+#   bucket                                = "fleet-dogfood-idp-metadata"
+#   attach_deny_insecure_transport_policy = true
+#   attach_require_latest_tls_policy      = true
+#   attach_public_policy                  = true
+#   block_public_acls                     = false
+#   block_public_policy                   = false
+#   ignore_public_acls                    = false
+#   restrict_public_buckets               = false
+#   acl                                   = "public-read"
+#   control_object_ownership              = true
+#   object_ownership                      = "BucketOwnerPreferred"
+# }
 
-resource "aws_s3_object" "idp_metadata" {
-  bucket = module.dogfood_idp_metadata_bucket.s3_bucket_id
-  key    = "idp-metadata.xml"
-  source = local.idp_metadata_file
-  etag   = filemd5(local.idp_metadata_file)
-  acl    = "public-read"
-}
+# resource "aws_s3_object" "idp_metadata" {
+#   bucket = module.dogfood_idp_metadata_bucket.s3_bucket_id
+#   key    = "idp-metadata.xml"
+#   source = local.idp_metadata_file
+#   etag   = filemd5(local.idp_metadata_file)
+#   acl    = "public-read"
+# }
 
 module "geolite2" {
   source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
@@ -569,7 +659,7 @@ module "geolite2" {
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.2.0"
+  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.3.0"
   ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets

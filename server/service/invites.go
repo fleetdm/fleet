@@ -129,7 +129,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		},
 	}
 
-	err = svc.mailService.SendEmail(inviteEmail)
+	err = svc.mailService.SendEmail(ctx, inviteEmail)
 	if err != nil {
 		return nil, err
 	}

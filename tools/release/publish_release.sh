@@ -309,29 +309,7 @@ build_changelog() {
         make changelog
 
         git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
-        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. All items have correct spelling and punctuation.\n2. All items use sentence casing.\n3. All items are past tense.\n4. Each list item is designated with a dash.\n5. Output in markdown format.'
-
-        content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
-        question="${prompt}\n\n${content}"
-
-        # API endpoint for ChatGPT
-        api_endpoint="https://api.openai.com/v1/chat/completions"
-        output="null"
-
-        while [[ "$output" == "null" ]]; do
-            data_payload=$(jq -n \
-                              --arg prompt "$question" \
-                              --arg model "gpt-3.5-turbo" \
-                              '{model: $model, messages: [{"role": "user", "content": $prompt}]}')
-
-            response=$(curl -s -X POST $api_endpoint \
-               -H "Content-Type: application/json" \
-               -H "Authorization: Bearer $open_api_key" \
-               --data "$data_payload")
-
-            output=$(echo $response | jq -r .choices[0].message.content)
-            echo "${output}"
-        done
+        output=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
 
         git checkout CHANGELOG.md
         if [[ "$target_date" == "" ]]; then
@@ -523,6 +501,10 @@ tag() {
         git tag $next_tag
         git push origin $next_tag
 
+        # The v4.XX.YY tag is used for publishing Fleet's Go module (https://go.dev/doc/modules/publishing).
+        git tag $next_ver
+        git push origin $next_ver
+
         # This lets us wait for github actions to trigger
         # we are specifically waiting for goreleaser to start
         # off the `tag` branch ie: fleet-v4.47.2 to watch until it completes
@@ -553,10 +535,22 @@ publish() {
             gh release edit --draft=false --latest $next_tag
 
             if [ "$skip_deploy_dogfood" = "false" ]; then
-                gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+                if [ "$force" = "false" ]; then
+                    read -r -p "Are you ABSOLUTELY SURE you want to deploy to Dogfood right now?? Check for demo's: [y/n]" response
+                        case "$response" in
+                                [yY][eE][sS]|[yY])
+                                        gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+                                        show_spinner 200
+                                        dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
+                                        echo
+                                        ;;
+                                *)
+                                        dogfood_deploy="skipped"
+                                        echo
+                                        ;;
+                        esac
+                fi
             fi
-            show_spinner 200
-            dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
             latest_npm=$(npm view fleetctl --json | jq -r '.version' | sed -e 's/^v//')
             latest_local=$(jq -r '.version' tools/fleetctl-npm/package.json | sed -e 's/^v//')
 
@@ -569,7 +563,7 @@ publish() {
             fi
 
 
-            issues=$(gh issue list -m $target_milestone --json number | jq -r '.[] | .number')
+            issues=$(gh issue list -L 500 -m $target_milestone --json number | jq -r '.[] | .number')
             for iss in $issues; do
                 is_story=$(gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story)
                 # close all non-stories
@@ -687,7 +681,6 @@ if [[ "$minor" == "true" ]]; then
     target_branch="rc-minor-fleet-$next_ver"
 fi
 update_changelog_prepare_branch="update-changelog-prepare-$target_milestone"
-update_changelog_branch="update-changelog-$target_milestone"
 
 # fleet-v4.48.0
 next_tag="fleet-$next_ver"
@@ -758,7 +751,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 
     total_prs=()
 
-    issue_list=$(gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
+    issue_list=$(gh issue list -L 500 --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
 
     if [[ "$issue_list" == "" && "$dry_run" == "false" ]]; then
         echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
@@ -772,7 +765,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         prs_for_issue=$(gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)")
         echo -n "https://github.com/fleetdm/fleet/issues/$issue"
         if [[ "$prs_for_issue" == "" ]]; then
-            echo -n " - No PRs found, please verify they are not missing in the issue."
+            echo -n " - No PRs found."
         fi
         for val in $prs_for_issue; do
             echo -n " $val"
@@ -875,23 +868,11 @@ if [[ "$failed" == "false" ]]; then
         git checkout main 
         git pull origin main
         ask "Are you on main? [y/n]"
+        changelog_and_versions "$update_changelog_prepare_branch"-main main
+        git checkout $target_branch
     else
         echo "DRYRUN: Would have switched to main and pulled latest"
     fi
-
-    
-    changelog_and_versions $update_changelog_branch main
-
-
-    if [ "$dry_run" = "false" ]; then
-        # Back on patch / prepare
-        ask "Did changelog for main work? [y/n]"
-        git checkout $target_branch
-        ask "Are you back on the rc branch? [y/n]"
-    else
-        echo "DRYRUN: Would have switched back to branch $target_branch"
-    fi
-
 
     # Check for QA issue
     create_qa_issue

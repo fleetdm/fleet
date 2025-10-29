@@ -4,17 +4,7 @@
   }
 
   &__nav-list {
-    position: -webkit-sticky;
-    position: sticky;
-    // this is the spacing needed to make the sticky form nav position correctly when scrolling
-    // TODO: find a way to calculate these sticky positions this and use variables.
-    //  will be tedious to update otherwise.
-    top: 217px;
-    width: 178px;
-    margin: 0;
-    padding: 0 110px 0 0;
-    list-style: none;
-    font-size: $x-small;
+    @include side-nav-list;
   }
 
   &__card-container {

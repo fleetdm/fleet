@@ -13,6 +13,27 @@ func TestUp_20250326161930(t *testing.T) {
 
 	notValidAfter := time.Now().Add(time.Hour).Truncate(time.Second).UTC()
 
+	authMsg := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BuildVersion</key>
+	<string>20H350</string>
+	<key>MessageType</key>
+	<string>Authenticate</string>
+	<key>OSVersion</key>
+	<string>16.7.10</string>
+	<key>ProductName</key>
+	<string>iPhone10,6</string>
+	<key>SerialNumber</key>
+	<string>AAABBBCCCDDD</string>
+	<key>Topic</key>
+	<string>com.apple.mgmt.External.aaabbbcccdddeee</string>
+	<key>UDID</key>
+	<string>device-%d</string>
+</dict>
+</plist>`
+
 	// create a few commands
 	for i := 0; i < 3; i++ {
 		execNoErr(t, db, `INSERT INTO nano_commands (command_uuid, request_type, command)
@@ -22,7 +43,7 @@ func TestUp_20250326161930(t *testing.T) {
 	// create a few devices/enrollments:
 	for i := 0; i < 3; i++ {
 		execNoErr(t, db, `INSERT INTO nano_devices (id, authenticate)
-		VALUES (?, ?)`, fmt.Sprintf("device-%d", i), validAuthenticateMessage(fmt.Sprintf("device-%d", i)))
+		VALUES (?, ?)`, fmt.Sprintf("device-%d", i), fmt.Sprintf(authMsg, i))
 		execNoErr(t, db, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled, last_seen_at)
 		VALUES (?, ?, ?, ?, ?, ?, 1, NOW())`, fmt.Sprintf("device-%d", i), fmt.Sprintf("device-%d", i), "Device", "topic", "push_magic", "token_hex")
 	}

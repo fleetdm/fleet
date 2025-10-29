@@ -7,28 +7,40 @@ import classnames from "classnames";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import { LABEL_DISPLAY_MAP } from "utilities/constants";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
-const baseClass = "labels-card";
+const baseClass = "host-labels-card";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
   labels: ILabel[];
+  className?: string;
 }
 
-const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
-  const classNames = classnames(baseClass, "card", "labels");
+const Labels = ({
+  onLabelClick,
+  labels,
+  className,
+}: ILabelsProps): JSX.Element => {
+  const classNames = classnames(baseClass, className);
 
   const labelItems = labels.map((label: ILabel) => {
     return (
       <li className="list__item" key={label.id}>
         <Button
           onClick={() => onLabelClick(label)}
-          variant="label"
+          variant="pill"
           className="list__button"
         >
-          {label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
-            ? LABEL_DISPLAY_MAP[label.name as keyof typeof LABEL_DISPLAY_MAP]
-            : label.name}
+          <TooltipTruncatedText
+            value={
+              label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
+                ? LABEL_DISPLAY_MAP[
+                    label.name as keyof typeof LABEL_DISPLAY_MAP
+                  ]
+                : label.name
+            }
+          />
         </Button>
       </li>
     );
@@ -38,7 +50,6 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       <CardHeader header="Labels" />

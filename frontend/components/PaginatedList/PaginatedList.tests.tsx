@@ -5,6 +5,11 @@ import { renderWithSetup } from "test/test-utils";
 
 import PaginatedList, { IPaginatedListHandle } from "./PaginatedList";
 
+// to test:
+// setDirtyOnClickRow?: boolean;
+// useCheckBoxes?: boolean;
+// isLoading?: boolean;
+
 describe("PaginatedList", () => {
   interface ITestItem {
     id: number;
@@ -44,23 +49,23 @@ describe("PaginatedList", () => {
 
   const fetchTinyPage = (pageNumber: number) => {
     if (pageNumber <= 2) {
-      return Promise.resolve([items[pageNumber]]);
+      return [items[pageNumber]];
     }
     throw new Error("Invalid page number");
   };
 
   const fetchSmallPage = (pageNumber: number) => {
     if (pageNumber === 0) {
-      return Promise.resolve([items[0], items[1]]);
+      return [items[0], items[1]];
     } else if (pageNumber === 1) {
-      return Promise.resolve([items[2]]);
+      return [items[2]];
     }
     throw new Error("Invalid page number");
   };
 
   const fetchLargePage = (pageNumber: number) => {
     if (pageNumber === 0) {
-      return Promise.resolve(items);
+      return items;
     }
     throw new Error("Invalid page number");
   };
@@ -81,11 +86,14 @@ describe("PaginatedList", () => {
   };
 
   it("Renders a list of items with checkboxes", async () => {
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
-        fetchPage={fetchLargePage}
+        currentPage={0}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
       />
@@ -102,13 +110,16 @@ describe("PaginatedList", () => {
   });
 
   it("Supports custom id and label properties", async () => {
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
-        fetchPage={fetchLargePage}
+        currentPage={0}
+        data={data}
+        onChangePage={jest.fn()}
         idKey="key"
         labelKey="val"
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
       />
@@ -128,11 +139,14 @@ describe("PaginatedList", () => {
   });
 
   it("Supports setting selected items based on a property", async () => {
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
-        fetchPage={fetchLargePage}
+        currentPage={0}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected="checkMeBruh"
       />
@@ -153,11 +167,14 @@ describe("PaginatedList", () => {
   });
 
   it("Supports setting selected items based on a function", async () => {
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
-        fetchPage={fetchLargePage}
+        currentPage={0}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={(item) => item.favoriteIceCreamFlavor === "Dirt"}
       />
@@ -177,16 +194,24 @@ describe("PaginatedList", () => {
     checkPaginationIsHidden();
   });
 
-  it("Adds pagination when > page size items are returned (without fetchCount provided)", async () => {
-    const { container } = renderWithSetup(
-      <PaginatedList<ITestItem>
-        fetchPage={fetchSmallPage}
-        pageSize={2}
-        onToggleItem={jest.fn()}
-        onUpdate={jest.fn()}
-        isSelected={jest.fn()}
-      />
-    );
+  it("Adds pagination when > page size items are returned", async () => {
+    const TestWrapper = () => {
+      const [pageIndex, setPageIndex] = React.useState(0);
+      const data = fetchSmallPage(pageIndex);
+
+      return (
+        <PaginatedList<ITestItem>
+          data={data}
+          currentPage={pageIndex}
+          onChangePage={setPageIndex}
+          pageSize={2}
+          onClickRow={jest.fn()}
+          onUpdate={jest.fn()}
+          isSelected={jest.fn()}
+        />
+      );
+    };
+    const { container } = renderWithSetup(<TestWrapper />);
     await waitForLoadingToFinish(container);
 
     // Check the first page.
@@ -235,61 +260,15 @@ describe("PaginatedList", () => {
     expect(previousButton).toBeDisabled();
   });
 
-  it("Adds pagination when > page size items are returned (with fetchCount provided)", async () => {
-    const { container } = renderWithSetup(
-      <PaginatedList<ITestItem>
-        fetchPage={fetchTinyPage}
-        fetchCount={() => Promise.resolve(3)}
-        pageSize={1}
-        onToggleItem={jest.fn()}
-        onUpdate={jest.fn()}
-        isSelected={jest.fn()}
-      />
-    );
-    await waitForLoadingToFinish(container);
-
-    const nextButton = screen.getByRole("button", { name: /next/i });
-    const previousButton = screen.getByRole("button", { name: /previous/i });
-
-    // Check the first page.
-    let checkboxes = screen.getAllByRole("checkbox");
-    expect(checkboxes).toHaveLength(1);
-    expect(checkboxes[0]).toHaveTextContent(items[0].name);
-    expect(checkboxes[0]).not.toBeChecked();
-    expect(nextButton).toBeEnabled();
-    expect(previousButton).toBeDisabled();
-
-    // Move to second page.
-    await userEvent.click(nextButton);
-    await waitForLoadingToFinish(container);
-
-    // Check the second page.
-    checkboxes = screen.getAllByRole("checkbox");
-    expect(checkboxes).toHaveLength(1);
-    expect(checkboxes[0]).toHaveTextContent(items[1].name);
-    expect(checkboxes[0]).not.toBeChecked();
-    expect(nextButton).toBeEnabled();
-    expect(previousButton).toBeEnabled();
-
-    // Move to third page.
-    await userEvent.click(nextButton);
-    await waitForLoadingToFinish(container);
-
-    // Check the third page.
-    checkboxes = screen.getAllByRole("checkbox");
-    expect(checkboxes).toHaveLength(1);
-    expect(checkboxes[0]).toHaveTextContent(items[2].name);
-    expect(checkboxes[0]).not.toBeChecked();
-    expect(nextButton).toBeDisabled();
-    expect(previousButton).toBeEnabled();
-  });
-
   it("Allows for custom markup in item rows", async () => {
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
-        fetchPage={fetchLargePage}
+        currentPage={0}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         renderItemRow={(item) => <span>{item.favoriteIceCreamFlavor}</span>}
@@ -308,11 +287,14 @@ describe("PaginatedList", () => {
   });
 
   it("Allows for custom markup for item labels", async () => {
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
-        fetchPage={fetchLargePage}
+        currentPage={0}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         renderItemLabel={(item) => <span>{item.favoriteIceCreamFlavor}</span>}
@@ -328,6 +310,7 @@ describe("PaginatedList", () => {
   });
 
   it("Notifies the parent when an item is toggled and marks the item as dirty", async () => {
+    const data = fetchLargePage(0);
     const onToggleItem = jest.fn((item) => {
       return {
         ...item,
@@ -337,10 +320,12 @@ describe("PaginatedList", () => {
     const paginatedListRef = createRef<IPaginatedListHandle<ITestItem>>();
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
+        currentPage={0}
         ref={paginatedListRef}
-        fetchPage={fetchLargePage}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={onToggleItem}
+        onClickRow={onToggleItem}
         onUpdate={jest.fn()}
         isSelected="checkMeBruh"
       />
@@ -363,12 +348,15 @@ describe("PaginatedList", () => {
 
   it("Can update the set of dirty items when a change is made in custom markup", async () => {
     const paginatedListRef = createRef<IPaginatedListHandle<ITestItem>>();
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
+        currentPage={0}
         ref={paginatedListRef}
-        fetchPage={fetchLargePage}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         renderItemRow={(item, onChange) => (
@@ -401,14 +389,17 @@ describe("PaginatedList", () => {
   });
 
   it("Notifies the parent when a change is made to the set of dirty items", async () => {
+    const data = fetchLargePage(0);
     const onUpdate = jest.fn();
     const paginatedListRef = createRef<IPaginatedListHandle<ITestItem>>();
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
+        currentPage={0}
         ref={paginatedListRef}
-        fetchPage={fetchLargePage}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn((item) => item)}
+        onClickRow={jest.fn((item) => item)}
         onUpdate={onUpdate}
         isSelected={jest.fn()}
       />
@@ -427,11 +418,14 @@ describe("PaginatedList", () => {
   });
 
   it("Allows for disabling the list", async () => {
+    const data = fetchLargePage(0);
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
-        fetchPage={fetchLargePage}
+        currentPage={0}
+        data={data}
+        onChangePage={jest.fn()}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         disabled

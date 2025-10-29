@@ -1,13 +1,21 @@
 .install-software-preview {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
+  p {
+    margin: 0;
+  }
+
   h3 {
     margin: 0;
     font-size: $small;
     font-weight: normal;
   }
 
-  &__preview-img {
-    margin-top: $pad-xxlarge;
+  &__preview-video {
     width: 100%;
     display: block;
+    border-radius: $border-radius-large;
   }
 }

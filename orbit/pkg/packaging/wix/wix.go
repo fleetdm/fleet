@@ -101,7 +101,7 @@ func darwinWineExecutable() (string, error) {
 //
 // See
 // https://wixtoolset.org/documentation/manual/v3/overview/candle.html.
-func Candle(path string, native bool, localWixDir string) error {
+func Candle(path string, native bool, localWixDir string, arch string) error {
 	var args []string
 
 	if !native && localWixDir == "" {
@@ -124,10 +124,16 @@ func Candle(path string, native bool, localWixDir string) error {
 			args = append(args, wineExec)
 		}
 	}
+
+	wixArch := "x64"
+	if arch == "arm64" {
+		wixArch = "arm64"
+	}
+
 	args = append(args,
 		candlePath, "heat.wxs", "main.wxs", // command
 		"-ext", "WixUtilExtension",
-		"-arch", "x64",
+		"-arch", wixArch,
 	)
 
 	cmd := exec.Command(args[0], args[1:]...)

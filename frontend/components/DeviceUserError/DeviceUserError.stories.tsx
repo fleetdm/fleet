@@ -3,7 +3,7 @@ import { Meta, StoryObj } from "@storybook/react";
 import DeviceUserError from "./DeviceUserError";
 
 const meta: Meta<typeof DeviceUserError> = {
-  title: "Components/DeviceUserError",
+  title: "Components/Error messages/Device user error",
   component: DeviceUserError,
 };
 

@@ -18,6 +18,8 @@ interface ITooltipTruncatedTextCellProps {
   classes?: string;
   className?: string;
   /** Content does not get truncated */
+  prefix?: React.ReactNode;
+  /** Content does not get truncated */
   suffix?: React.ReactNode;
 }
 
@@ -29,6 +31,7 @@ const TooltipTruncatedTextCell = ({
   tooltipBreakOnWord = false,
   classes = "w250",
   className,
+  prefix,
   suffix,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, classes, className, {
@@ -49,10 +52,15 @@ const TooltipTruncatedTextCell = ({
   // End
 
   const tooltipId = uniqueId();
+  value =
+    value === null || value === undefined || value === ""
+      ? DEFAULT_EMPTY_CELL_VALUE
+      : value;
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
 
   return (
     <div className={classNames}>
+      {prefix && <span className="data-table__prefix">{prefix}</span>}
       <div
         className="data-table__tooltip-truncated-text-container"
         data-tip

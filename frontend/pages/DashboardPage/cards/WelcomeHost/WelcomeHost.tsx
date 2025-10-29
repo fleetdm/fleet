@@ -147,7 +147,6 @@ const WelcomeHost = ({
           <Button
             onClick={toggleAddHostsModal}
             className={`${baseClass}__add-host`}
-            variant="brand"
           >
             <span>Add hosts</span>
           </Button>
@@ -242,7 +241,7 @@ const WelcomeHost = ({
                     <span className="info">{p.name}</span>
                     <Icon
                       name="chevron-right"
-                      color="core-fleet-blue"
+                      color="ui-fleet-black-75"
                       className="policy-arrow"
                     />
                   </div>
@@ -264,7 +263,6 @@ const WelcomeHost = ({
         </div>
         <div className={`${baseClass}__refetch`}>
           <Button
-            variant="blue-green"
             className={`refetch-spinner ${
               showRefetchLoadingSpinner ? "spin" : ""
             }`}
@@ -295,12 +293,7 @@ const WelcomeHost = ({
                 </p>
               )}
               <div className="modal-cta-wrap">
-                <Button
-                  variant="brand"
-                  onClick={() => setShowPolicyModal(false)}
-                >
-                  Done
-                </Button>
+                <Button onClick={() => setShowPolicyModal(false)}>Done</Button>
               </div>
             </>
           </Modal>

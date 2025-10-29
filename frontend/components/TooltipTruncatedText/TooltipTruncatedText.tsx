@@ -1,9 +1,10 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useRef } from "react";
 import { uniqueId } from "lodash";
 import classnames from "classnames";
 
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;
@@ -14,6 +15,7 @@ interface ITooltipTruncatedTextCellProps {
    * By default the tooltip text breaks on any character. Default: false */
   tooltipBreakOnWord?: boolean;
   className?: string;
+  tooltipPosition?: "top" | "bottom" | "left" | "right";
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -23,6 +25,7 @@ const TooltipTruncatedText = ({
   tooltip,
   tooltipBreakOnWord = false,
   className,
+  tooltipPosition = "top",
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
@@ -30,25 +33,18 @@ const TooltipTruncatedText = ({
 
   // Tooltip visibility logic: Enable only when text is truncated
   const ref = useRef<HTMLInputElement>(null);
-  const [tooltipDisabled, setTooltipDisabled] = useState(true);
-
-  useLayoutEffect(() => {
-    if (ref?.current !== null) {
-      const scrollWidth = ref.current.scrollWidth;
-      const offsetWidth = ref.current.offsetWidth;
-      setTooltipDisabled(scrollWidth <= offsetWidth);
-    }
-  }, [ref]);
-  // End
+  const isTruncated = useCheckTruncatedElement(ref);
 
   const tooltipId = uniqueId();
   return (
-    <div ref={ref} className={classNames}>
+    <div className={classNames}>
       <div className="tooltip-truncated" data-tip data-for={tooltipId}>
-        <span className={tooltipDisabled ? "" : "truncated"}>{value}</span>
+        <div ref={ref} className={isTruncated ? "truncated" : undefined}>
+          {value}
+        </div>
       </div>
       <ReactTooltip
-        place="top"
+        place={tooltipPosition}
         effect="solid"
         backgroundColor={COLORS["tooltip-bg"]}
         id={tooltipId}
@@ -56,7 +52,7 @@ const TooltipTruncatedText = ({
         className="truncated-tooltip" // responsive widths
         clickable
         delayHide={200} // need delay set to hover using clickable
-        disable={tooltipDisabled}
+        disable={!isTruncated}
       >
         <>
           {tooltip ?? value}

@@ -48,11 +48,16 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		password, email                  string
 		isAdmin, passwordReset, sso, mfa bool
 		resultingPasswordReset           bool
+		inviteID                         *uint
+		errorMsg                         *string
 	}{
-		{"foobar", "mike@fleet.co", true, false, true, false, false},
-		{"foobar", "jason@fleet.co", true, false, false, true, false},
-		{"foobar", "jason2@fleet.co", true, true, true, false, false},
-		{"foobar", "jason3@fleet.co", true, true, false, false, true},
+		{"foobar", "mike@fleet.co", true, false, true, false, false, nil, nil},
+		{"foobar", "jason@fleet.co", true, false, false, true, false, nil, nil},
+		{"foobar", "jason2@fleet.co", true, true, true, false, false, nil, nil},
+		{"foobar", "jason3@fleet.co", true, true, false, false, true, nil, nil},
+		{"foobar", "jason4@fleet.co", true, true, false, false, true, ptr.Uint(1), nil},
+		// Simulating a race condition where two users accept the same invite
+		{"foobar", "jason5@fleet.co", true, true, false, false, true, ptr.Uint(1), ptr.String("users.invite_id")},
 	}
 
 	for _, tt := range createTests {
@@ -63,12 +68,17 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 			SSOEnabled:               tt.sso,
 			MFAEnabled:               tt.mfa,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
+			InviteID:                 tt.inviteID,
 		}
 
 		// truncating because we're truncating under the hood to match the DB
 		beforeUserCreate := time.Now().Truncate(time.Second)
 		user, err := ds.NewUser(context.Background(), u)
 		afterUserCreate := time.Now().Truncate(time.Second)
+		if tt.errorMsg != nil {
+			assert.ErrorContains(t, err, *tt.errorMsg)
+			continue
+		}
 		assert.Nil(t, err)
 
 		assert.LessOrEqual(t, beforeUserCreate, user.CreatedAt)
@@ -85,6 +95,7 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
 		assert.Equal(t, tt.mfa, verify.MFAEnabled)
 		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
+		assert.Equal(t, tt.inviteID, verify.InviteID)
 
 		assert.LessOrEqual(t, beforeUserCreate, verify.CreatedAt)
 		assert.LessOrEqual(t, beforeUserCreate, verify.UpdatedAt)

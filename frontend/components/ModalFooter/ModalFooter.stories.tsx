@@ -31,9 +31,7 @@ export const Default: Story = {
           ]}
           menuPlacement="top"
         />
-        <Button onClick={() => alert("Done clicked")} variant="brand">
-          Done
-        </Button>
+        <Button onClick={() => alert("Done clicked")}>Done</Button>
       </>
     ),
     secondaryButtons: (

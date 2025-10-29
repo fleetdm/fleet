@@ -14,17 +14,19 @@ module.exports = {
     botSignature: { type: 'string', },
     action: { type: 'string', example: 'opened', defaultsTo: 'ping', moreInfoUrl: 'https://developer.github.com/v3/activity/events/types' },
     sender: { required: true, type: {}, example: {login: 'johnabrams7'} },
-    repository: { required: true, type: {}, example: {name: 'fleet', owner: {login: 'fleetdm'}} },
+    // Org-level webhooks may not include a `repository` object.
+    repository: { type: {}, example: {name: 'fleet', owner: {login: 'fleetdm'}} },
     changes: { type: {}, description: 'Only present when webhook request is related to an edit on GitHub.' },
     issue: { type: {} },
     comment: { type: {} },
     pull_request: { type: {} },//eslint-disable-line camelcase
     label: { type: {} },
     release: { type: {} },
+    projects_v2_item: { type: {} }, //eslint-disable-line camelcase
   },
 
 
-  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release}) {
+  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release, projects_v2_item: projectsV2Item}) {
 
     // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
     // If there is more than one platform record, or it is missing, we'll throw an error.
@@ -65,7 +67,6 @@ module.exports = {
       'mna',
       'edwardsb',
       'eashaw',
-      'drew-d-drawers',
       'lucasmrod',
       'ksatter',
       'hollidayn',
@@ -88,10 +89,8 @@ module.exports = {
       'ddribeiro',
       'allenhouchins',
       'harrisonravazzolo',
-      'KendraAtFleet',
+      'tux234',
       'ksykulev',
-      'onasismunro',
-      'eugkuo',
       'jmwatts',
       'mason-buettner',
       'iansltx',
@@ -100,6 +99,22 @@ module.exports = {
       'kc9wwh',
       'JordanMontgomery',
       'ds0x',
+      'bettapizza',
+      'irenareedy',
+      'jakestenger',
+      'AndreyKizimenko',
+      'MagnusHJensen',
+      'MunkiMind',
+      'spalmesano0',
+      'escomeau',
+      'cdcme',
+      'kevinmalkin12',
+      'karmine05',
+      'ericswenson0',
+      'kitzy',
+      'Seedity',
+      'NickBlee',
+      'GrayW',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -107,7 +122,7 @@ module.exports = {
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
 
     if (!sails.config.custom.mergeFreezeAccessToken) {
-      throw new Error('An access token for the MergeFreeze API (sails.config.custom.mergeFreezeAccessToken) is required to enable automated unfreezing/freezing of changes based on the files they change.  Please ask for help in #g-digital-experience, whether you are testing locally or using this as a live webhook.');
+      throw new Error('An access token for the MergeFreeze API (sails.config.custom.mergeFreezeAccessToken) is required to enable automated unfreezing/freezing of changes based on the files they change.  Please ask for help in #g-website, whether you are testing locally or using this as a live webhook.');
     }
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
@@ -125,7 +140,12 @@ module.exports = {
       throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
     }//•
 
+    if(!sails.config.custom.engMetricsGcpServiceAccountKey) {
+      throw new Error('No GCP service account key configured!  (Please set `sails.config.custom.engMetricsGcpServiceAccountKey`.)');
+    }//•
+
     let issueOrPr = (pr || issue || undefined);
+
 
     let ghNoun = this.req.get('X-GitHub-Event');// See https://developer.github.com/v3/activity/events/types/
     sails.log.verbose(`Received GitHub webhook request: ${ghNoun} :: ${action}: ${require('util').inspect({sender, repository: _.isObject(repository) ? repository.full_name : undefined, comment, label, issueOrPr}, {depth:null})}`);
@@ -194,7 +214,7 @@ module.exports = {
       //     `\n`+
       //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
       //     `\n`+
-      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //     `For help with questions about Sails, see the [Sails support page](http://sailsjs.com/support).\n`;
       //   }
       // }
       // // Now that we know what to say, add our comment.
@@ -268,7 +288,9 @@ module.exports = {
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
         {'body': newBotComment},
         baseHeadersForGithubApiRequests
-      );
+      ).tolerate((err)=>{
+        sails.log.warn(`When the receive-from-github webhook sent a request to post a Haiku on a closed issue (${owner}/${repo} #${issueNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
+      });
 
     } else if (
       (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize', 'ready_for_review'].includes(action))
@@ -306,7 +328,7 @@ module.exports = {
       //     `\n`+
       //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
       //     `\n`+
-      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //     `For help with questions about Sails, see [Sails support](http://sailsjs.com/support).\n`;
       // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
       if (action === 'edited' && pr.state !== 'open') {// PR edited ‡
@@ -356,11 +378,18 @@ module.exports = {
           per_page: 100,//eslint-disable-line camelcase
         }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
+        // Create an array of paths that will determine if the "~ga4-annotation" label will be automatically added to this PR.
+        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/partials/primary-tagline.partial.ejs'];
+        let prShouldCreateGoogleAnalyticsAnnotation = false;
+
         // For each changed file, decide what reviewer to request, if any…
         for (let changedPath of changedPaths) {
           changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
           sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-
+          // If any of the changed paths are included in the CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS array, set the prShouldCreateGoogleAnalyticsAnnotation flag to true.
+          if(CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS.includes(changedPath)) {
+            prShouldCreateGoogleAnalyticsAnnotation = true;
+          }
           let reviewer = undefined;//« whether to request review for this change
           let exactMatchDri = DRI_BY_PATH[changedPath];
           if (exactMatchDri) {// « If we've found our DRI, then we'll stop looking (for *this* changed path, anyway)
@@ -401,7 +430,10 @@ module.exports = {
             // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
             await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
               reviewers: newReviewers,
-            }, baseHeaders);
+            }, baseHeaders)
+            .tolerate((err)=>{
+              sails.log.warn(`When the receive-from-github webhook sent a request to add reviewers to an open pull request (${owner}/${repo} #${prNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
+            });
           }//ﬁ
         }//ﬁ
 
@@ -426,7 +458,7 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#handbook')}`, {}, baseHeaders)
           .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
-            sails.log.warn(`When trying to send a request to remove the #handbook label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
+            sails.log.warn(`When trying to send a request to remove the #handbook label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. full error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
 
@@ -442,7 +474,18 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('~ceo')}`, {}, baseHeaders)
           .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
-            sails.log.warn(`When trying to send a request to remove the ~ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
+            sails.log.warn(`When trying to send a request to remove the ~ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. full error: ${require('util').inspect(err)}`);
+          });
+        }//ﬁ
+
+        // If the prShouldCreateGoogleAnalyticsAnnotation was set to true, and this PR does not already have the ~ga4-annotation label, add it.
+        // Note: unlike the #handbook and ~ceo labels, we don't automatically remove this label if it is added to a pull request, because it may have been added manually.
+        if(prShouldCreateGoogleAnalyticsAnnotation && !existingLabels.includes('~ga4-annotation')) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['~ga4-annotation']
+          }, baseHeaders).tolerate((err)=>{
+            sails.log.warn(`When the receive-from-github webhook sent a request to add the "~ga4-annotation" label on an open pull request (${owner}/${repo} #${prNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
 
@@ -478,7 +521,11 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
-          }, baseHeaders);
+          }, baseHeaders)
+          .retry()
+          .tolerate((err)=>{
+            return new Error(`When the receive-from-github webhook sent a request to approve a pull request (${owner}/${repo} #${prNumber}) an error occured. Full error: ${require('util').inspect(err)}`);
+          });
         }//ﬁ
         //   // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
         //   // (or maybe never did contain) changes to freezeworthy files.
@@ -538,6 +585,37 @@ module.exports = {
         //   // }//ﬁ
         //   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // }
+
+      }
+    } else if (ghNoun === 'pull_request' && ['closed'].includes(action)) {
+      //
+      //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██████╗ ███████╗
+      //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██╔════╝
+      //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██████╔╝███████╗
+      //  ██║     ██║     ██║   ██║╚════██║██╔══╝  ██║  ██║    ██╔═══╝ ██╔══██╗╚════██║
+      //  ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝    ██║     ██║  ██║███████║
+      //   ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝     ╚═╝     ╚═╝  ╚═╝╚══════╝
+      //
+      // Check the labels of merged PRs when they are closed.
+      if(issueOrPr.merged) {
+        let labelsWhenPrWasClosed = _.isArray(issueOrPr.labels) ? _.pluck(issueOrPr.labels, 'name') : [];
+        // If the PR has the ~ga4-annotation label, send a POST request to a Zapier webhook.
+        if(labelsWhenPrWasClosed.includes('~ga4-annotation')) {
+          // Send a POST request to Zapier with the pull request
+          await sails.helpers.http.post.with({
+            url: 'https://hooks.zapier.com/hooks/catch/3627242/2x2uq4c/',
+            data: {
+              'pullRequest': issueOrPr,
+              'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
+            }
+          })
+          .timeout(5000)
+          .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+            // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+            sails.log.warn(`When trying to send information about a merged pull request to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
+            return;
+          });
+        }
 
       }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
@@ -653,6 +731,714 @@ module.exports = {
           });
         }
       }//ﬁ
+    } else if(ghNoun === 'projects_v2_item') {
+      //
+      //  ██████╗ ██████╗  ██████╗      ██╗███████╗ ██████╗████████╗███████╗    ██╗   ██╗██████╗
+      //  ██╔══██╗██╔══██╗██╔═══██╗     ██║██╔════╝██╔════╝╚══██╔══╝██╔════╝    ██║   ██║╚════██╗
+      //  ██████╔╝██████╔╝██║   ██║     ██║█████╗  ██║        ██║   ███████╗    ██║   ██║ █████╔╝
+      //  ██╔═══╝ ██╔══██╗██║   ██║██   ██║██╔══╝  ██║        ██║   ╚════██║    ╚██╗ ██╔╝██╔═══╝
+      //  ██║     ██║  ██║╚██████╔╝╚█████╔╝███████╗╚██████╗   ██║   ███████║     ╚████╔╝ ███████╗
+      //  ╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚════╝ ╚══════╝ ╚═════╝   ╚═╝   ╚══════╝      ╚═══╝  ╚══════╝
+      //
+      /**
+       * GitHub Projects v2 status change tracking
+       *
+       * This webhook event handler tracks issue status changes in GitHub Projects v2 for engineering metrics.
+       *
+       * Tracked projects:
+       * - Orchestration
+       * - MDM
+       * - Software
+       * - Security & compliance
+       *
+       * Status transitions tracked:
+       *
+       * 1. "In progress" status:
+       *    - Triggers when: Status changes TO "in progress"
+       *    - From states: "ready" or null (first time) OR any other state (if not already tracked)
+       *    - Saves to: github_metrics.issue_status_change
+       *    - Data: timestamp, repo, issue_number, status = 'in_progress'
+       *
+       * 2. "Awaiting QA" status:
+       *    - Triggers when: Status changes TO "awaiting qa"
+       *    - From states:
+       *      - "in progress" or "review" → Always creates new row
+       *      - Any other state → Creates row only if no QA ready row exists
+       *    - Saves to: github_metrics.issue_qa_ready
+       *    - Data: qa_ready time, assignee, issue details, time from in_progress to qa_ready
+       *    - Note: Requires an existing in_progress record to calculate time
+       *
+       * 3. "Release" status:
+       *    - Triggers when: Status changes TO "release"
+       *    - From states:
+       *      - "awaiting qa" → Always creates new row
+       *      - Any other state → Creates row only if issue has been in QA (exists in issue_qa_ready)
+       *    - Saves to: github_metrics.issue_release_ready
+       *    - Data: release_ready time, assignee, issue details, time from in_progress to release_ready
+       *    - Note: Requires an existing in_progress record to calculate time
+       *
+       * Time calculations:
+       * - All time calculations can optionally exclude weekends (controlled by excludeWeekends flag)
+       * - Weekend exclusion adjusts start/end times and subtracts weekend days from duration
+       * - Times are calculated from the webhook's updated_at timestamp for accuracy
+       *
+       * Issue type classification:
+       * - Based on GitHub issue labels:
+       *   - "bug" → type: "bug"
+       *   - "story" → type: "story"
+       *   - "~sub-task" → type: "sub-task"
+       *   - Otherwise → type: "other"
+       */
+
+      // Check and parse GCP service account key
+      let gcpServiceAccountKey = await sails.helpers.flow.build(()=>{
+        let parsedKey;
+
+        // Check if it's already an object or needs parsing
+        if (typeof sails.config.custom.engMetricsGcpServiceAccountKey === 'object') {
+          parsedKey = sails.config.custom.engMetricsGcpServiceAccountKey;
+        } else if (typeof sails.config.custom.engMetricsGcpServiceAccountKey === 'string') {
+          // Fix common JSON formatting issues before parsing
+          let jsonString = sails.config.custom.engMetricsGcpServiceAccountKey;
+
+          // This handles cases where the private key has literal newlines
+          jsonString = jsonString.replace(/"private_key":\s*"([^"]+)"/g, (match, key) => {
+            // Replace actual newlines with escaped newlines only within the private key value
+            const fixedKey = key.replace(/\n/g, '\\n');
+            return `"private_key": "${fixedKey}"`;
+          });
+
+          // Parse the cleaned JSON
+          parsedKey = JSON.parse(jsonString);
+        } else {
+          throw new Error('Invalid GCP service account key type');
+        }
+
+        // Validate that it has the expected structure
+        if (!parsedKey.type || !parsedKey.project_id || !parsedKey.private_key) {
+          throw new Error('Invalid GCP service account key structure');
+        }
+
+        return parsedKey;
+      }).intercept((err)=>{
+        return new Error(`An error occured when parsing the set 'sails.config.custom.engMetricsGcpServiceAccountKey' value. `, err);
+      });
+
+
+      // Process the status change inline
+      let statusChange = null;
+
+      // Check if this is a project item update with status change
+      if (!changes || !changes.field_value) {
+        // Not a status change we care about
+        return;
+      }
+
+      const fieldValue = changes.field_value;
+      // Check if this is a status field change
+      if (fieldValue.field_name !== 'Status') {
+        // Not a status field change
+        return;
+      }
+
+      // Check if this is one of our tracked projects
+      const projectNumber = fieldValue.project_number;
+      const validProjects = Object.values(sails.config.custom.githubProjectsV2.projects);
+
+      if (!validProjects.includes(projectNumber)) {
+        sails.log.verbose(`Ignoring status change for project ${projectNumber} - not a tracked project`);
+        return;
+      }
+
+      // Check if status changed to "in progress" from "ready" or null
+      // from and to are either objects with a name property or null
+      const fromStatus = fieldValue.from ? fieldValue.from.name.toLowerCase() : '';
+      const toStatus = fieldValue.to ? fieldValue.to.name.toLowerCase() : '';
+
+      // Log the status change for debugging
+      sails.log.verbose(`Status change detected: "${fromStatus || '(null)'}" -> "${toStatus}"`);
+
+      // Check if the "to" status includes "in progress", "awaiting qa", or "release"
+      const isToInProgress = toStatus.includes('in progress');
+      const isToAwaitingQa = toStatus.includes('awaiting qa');
+      const isToRelease = toStatus.includes('release');
+
+      if (!isToInProgress && !isToAwaitingQa && !isToRelease) {
+        sails.log.verbose(`Ignoring status change - "to" status doesn't include "in progress", "awaiting qa", or "release": ${toStatus}`);
+        return;
+      }
+
+      // Get issue details from the payload
+      if (!projectsV2Item || !projectsV2Item.content_node_id) {
+        sails.log.error('Missing projects_v2_item or content_node_id in payload');
+        return;
+      }
+
+      // Fetch issue details from GitHub API
+      // GitHub GraphQL API query to get issue details from node ID
+      const queryToFindThisIssueOnGithub = `
+        query($nodeId: ID!) {
+          node(id: $nodeId) {
+            ... on Issue {
+              number
+              repository {
+                nameWithOwner
+              }
+              assignees(first: 1) {
+                nodes {
+                  login
+                }
+              }
+              labels(first: 20) {
+                nodes {
+                  name
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const graphqlQueryResponse = await sails.helpers.http.post('https://api.github.com/graphql',
+        {
+          query: queryToFindThisIssueOnGithub,
+          variables: { nodeId: projectsV2Item.content_node_id }
+        },
+        {
+          'Authorization': `Bearer ${sails.config.custom.githubAccessToken}`,
+          'Accept': 'application/vnd.github.v4+json',
+          'User-Agent': 'Fleet-Engineering-Metrics'
+        }
+      );
+
+      if (!graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
+        return;
+      }
+
+      const node = graphqlQueryResponse.data.node;
+      const assignee = node.assignees.nodes.length > 0 ? node.assignees.nodes[0].login : '';
+
+      // Extract label names
+      const labels = node.labels.nodes.map(label => label.name.toLowerCase());
+
+      // Determine issue type based on labels
+      let issueType = 'other';
+      if (labels.includes('bug')) {
+        issueType = 'bug';
+      } else if (labels.includes('story')) {
+        issueType = 'story';
+      } else if (labels.includes('~sub-task')) {
+        issueType = 'sub-task';
+      }
+
+      let issueDetails = {
+        repo: node.repository.nameWithOwner,
+        issueNumber: node.number,
+        assignee: assignee,
+        type: issueType
+      };
+
+      // Handle "in progress" status changes
+      if (isToInProgress) {
+        // Check if the "from" status is null or includes "ready"
+        const isFromNullOrReady = fieldValue.from === null || fromStatus.includes('ready');
+
+        if (!isFromNullOrReady) {
+          sails.log.verbose(`Status change from "${fromStatus}" to "in progress" - will check if already tracked`);
+          const exists = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_status_change',
+            additionalCondition: 'AND status = \'in_progress\''
+          });
+          if (exists) {
+            sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} already tracked as in_progress, skipping`);
+            return;
+          }
+          sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} not yet tracked, will save as in_progress`);
+          // Prepare data for BigQuery
+          const statusChangeData = {
+            date: projectsV2Item.updated_at,  // Use the actual update time from webhook
+            repo: issueDetails.repo,
+            issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+            status: 'in_progress'
+          };
+
+          // Save to BigQuery
+          await sails.helpers.engineeringMetrics.saveToBigquery.with({
+            data: statusChangeData,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_status_change'
+          });
+          statusChange = statusChangeData;
+        } else {
+          // Prepare data for BigQuery
+          const statusChangeData = {
+            date: projectsV2Item.updated_at,  // Use the actual update time from webhook
+            repo: issueDetails.repo,
+            issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+            status: 'in_progress'
+          };
+
+          // Save to BigQuery
+          await sails.helpers.engineeringMetrics.saveToBigquery.with({
+            data: statusChangeData,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_status_change'
+          });
+          statusChange = statusChangeData;
+        }
+      }//ﬁ
+
+      // Handle "awaiting qa" status changes
+      if (isToAwaitingQa) {
+        // Check if from status is "in progress" or "review"
+        const isFromInProgressOrReview = fromStatus.includes('in progress') || fromStatus.includes('review');
+
+        // Check if we should create a new QA ready row
+        let shouldCreateQaRow = false;
+
+        if (isFromInProgressOrReview) {
+          // Always create if transitioning from in progress or review
+          shouldCreateQaRow = true;
+        } else {
+          // Check if row already exists
+          const qaRowExists = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_qa_ready'
+          });
+          if (!qaRowExists) {
+            shouldCreateQaRow = true;
+          } else {
+            sails.log.verbose(`QA ready row already exists for ${issueDetails.repo}#${issueDetails.issueNumber}, skipping`);
+          }
+        }
+
+        if (shouldCreateQaRow) {
+          // Get the latest in_progress status from BigQuery
+          let inProgressData = await sails.helpers.flow.build(async ()=>{
+            const {BigQuery} = require('@google-cloud/bigquery');
+            const bigquery = new BigQuery({
+              projectId: gcpServiceAccountKey.project_id,
+              credentials: gcpServiceAccountKey
+            });
+            // Configure dataset and table names
+            const datasetId = 'github_metrics';
+            const tableId = 'issue_status_change';
+
+            // Query to get the latest in_progress status
+            const query = `
+              SELECT date, repo, issue_number
+              FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+              WHERE repo = @repo
+                AND issue_number = @issueNumber
+                AND status = 'in_progress'
+              ORDER BY date DESC
+              LIMIT 1
+            `;
+
+            const options = {
+              query: query,
+              params: {
+                repo: issueDetails.repo,
+                issueNumber: issueDetails.issueNumber
+              }
+            };
+
+            // Run the query
+            const [rows] = await bigquery.query(options);
+
+            if (rows.length === 0) {
+              return null;
+            }
+
+            // Convert BigQueryTimestamp to string if needed
+            const result = rows[0];
+            if (result.date && result.date.value) {
+              result.date = result.date.value;
+            }
+
+            return result;
+          }).tolerate((err)=>{
+            // Handle specific BigQuery errors
+            if (err.name === 'PartialFailureError') {
+              // Log the specific rows that failed
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, there was a partial failure when getting latest in_progress status from BigQuery:`, err.errors);
+            } else if (err.code === 404) {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, in progress data could not be found. BigQuery table or dataset not found. Please ensure the table exists:`, {
+                dataset: 'github_metrics',
+                table: 'issue_status_change',
+                fullError: err.message
+              });
+            } else if (err.code === 403) {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, in progress data could not be found. Permission denied when accessing BigQuery. Check service account permissions.`);
+            } else {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, There was an error getting latest in_progress status from BigQuery:`, err);
+            }
+            return null;
+          });
+
+          if (inProgressData) {
+            // Calculate time to QA ready
+            const qaReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
+            const inProgressTime = new Date(inProgressData.date);
+
+            let timeToQaReadySeconds = await sails.helpers.flow.build(async ()=>{
+              if (!sails.config.custom.githubProjectsV2.excludeWeekends) {
+                // If weekend exclusion is disabled, return simple time difference
+                return Math.floor((qaReadyTime - inProgressTime) / 1000);
+              }
+
+              // Use the provided weekend exclusion logic
+              const startDay = inProgressTime.getUTCDay();
+              const endDay = qaReadyTime.getUTCDay();
+
+              // Case: Both start time and end time are on the same weekend
+              if (
+                (startDay === 0 || startDay === 6) &&
+                (endDay === 0 || endDay === 6) &&
+                Math.floor(qaReadyTime / (24 * 60 * 60 * 1000)) -
+                Math.floor(inProgressTime / (24 * 60 * 60 * 1000)) <=
+                2
+              ) {
+                // Return 0 seconds
+                return 0;
+              }
+
+              // Make copies to avoid modifying original dates
+              const adjustedStartTime = new Date(inProgressTime);
+              const adjustedEndTime = new Date(qaReadyTime);
+
+              // Set to start of Monday if start time is on weekend
+              if (startDay === 0) {
+                // Sunday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 1);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              } else if (startDay === 6) {
+                // Saturday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 2);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Set to start of Saturday if end time is on Sunday
+              if (endDay === 0) {
+                // Sunday
+                adjustedEndTime.setUTCDate(adjustedEndTime.getUTCDate() - 1);
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              } else if (endDay === 6) {
+                // Saturday
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Count weekend days between adjusted dates
+              // Make local copies for weekend counting
+              let weekendStartDate = new Date(adjustedStartTime);
+              let weekendEndDate = new Date(adjustedEndTime);
+
+              // Ensure weekendStartDate is before weekendEndDate
+              if (weekendStartDate > weekendEndDate) {
+                [weekendStartDate, weekendEndDate] = [weekendEndDate, weekendStartDate];
+              }
+
+              // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
+              if (weekendStartDate.getUTCDay() === 0) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 1);
+              } else if (weekendStartDate.getUTCDay() === 6) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 2);
+              }
+              if (weekendEndDate.getUTCDay() === 0) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 2);
+              } else if (weekendEndDate.getUTCDay() === 6) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 1);
+              }
+
+              let weekendDays = 0;
+              const current = new Date(weekendStartDate);
+
+              while (current <= weekendEndDate) {
+                const day = current.getUTCDay();
+                if (day === 0 || day === 6) {
+                  // Sunday (0) or Saturday (6)
+                  weekendDays++;
+                }
+                current.setUTCDate(current.getUTCDate() + 1);
+              }
+
+              // Calculate raw time difference in milliseconds
+              const diffMs = adjustedEndTime - adjustedStartTime - weekendDays * 24 * 60 * 60 * 1000;
+
+              // Ensure we don't return negative values
+              return Math.max(0, Math.floor(diffMs / 1000));
+            });
+
+            // Determine project name by reverse lookup
+            const projectName = Object.keys(sails.config.custom.githubProjectsV2.projects).find(
+              key => sails.config.custom.githubProjectsV2.projects[key] === projectNumber
+            ) || '';
+
+            // Prepare QA ready data
+            const qaReadyData = {
+              qa_ready: qaReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
+              assignee: issueDetails.assignee || '',  // Get assignee from issue details
+              issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
+              time_to_qa_ready_seconds: timeToQaReadySeconds,  // eslint-disable-line camelcase
+              repo: issueDetails.repo,
+              issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+              qa_ready_time: qaReadyTime.toISOString(),  // eslint-disable-line camelcase
+              in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
+              project: projectName,
+              type: issueDetails.type  // Issue type based on labels
+            };
+
+            // Save to BigQuery
+            await sails.helpers.engineeringMetrics.saveToBigquery.with({
+              data: qaReadyData,
+              gcpServiceAccountKey: gcpServiceAccountKey,
+              tableId: 'issue_qa_ready'
+            });
+
+            sails.log.info('Saved QA ready metrics:', {
+              repo: issueDetails.repo,
+              issueNumber: issueDetails.issueNumber,
+              timeToQaReadySeconds,
+              project: projectName
+            });
+
+            statusChange = qaReadyData;
+          } else {
+            sails.log.info(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate QA ready time`);
+          }
+        }
+      }//ﬁ
+
+      // Handle "release" status changes
+      if (isToRelease) {
+        // Check if from status is "awaiting qa"
+        const isFromAwaitingQa = fromStatus.includes('awaiting qa');
+
+        // Check if we should save this release transition
+        let shouldSaveRelease = false;
+        if (!isFromAwaitingQa) {
+          // Not directly from "awaiting qa", check if issue has ever been in QA
+          const hasBeenInQa = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_qa_ready'
+          });
+          if (hasBeenInQa) {
+            sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} transitioning to release (previously was in QA)`);
+            shouldSaveRelease = true;
+          } else {
+            sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} has never been in "awaiting qa", skipping release tracking`);
+          }
+        } else {
+          shouldSaveRelease = true;
+        }
+
+        if (shouldSaveRelease) {
+          // Get the latest in_progress status from BigQuery
+          let inProgressData = await sails.helpers.flow.build(async ()=>{
+            const {BigQuery} = require('@google-cloud/bigquery');
+            const bigquery = new BigQuery({
+              projectId: gcpServiceAccountKey.project_id,
+              credentials: gcpServiceAccountKey
+            });
+            // Configure dataset and table names
+            const datasetId = 'github_metrics';
+            const tableId = 'issue_status_change';
+
+            // Query to get the latest in_progress status
+            const query = `
+              SELECT date, repo, issue_number
+              FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+              WHERE repo = @repo
+                AND issue_number = @issueNumber
+                AND status = 'in_progress'
+              ORDER BY date DESC
+              LIMIT 1
+            `;
+
+            const options = {
+              query: query,
+              params: {
+                repo: issueDetails.repo,
+                issueNumber: issueDetails.issueNumber
+              }
+            };
+
+            // Run the query
+            const [rows] = await bigquery.query(options);
+
+            if (rows.length === 0) {
+              return null;
+            }
+
+            // Convert BigQueryTimestamp to string if needed
+            const result = rows[0];
+            if (result.date && result.date.value) {
+              result.date = result.date.value;
+            }
+
+            return result;
+          }).tolerate((err)=>{
+            // Handle specific BigQuery errors
+            if (err.name === 'PartialFailureError') {
+              // Log the specific rows that failed
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, there was a partial failure when getting latest in_progress status from BigQuery:`, err.errors);
+            } else if (err.code === 404) {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, in progress data could not be found. BigQuery table or dataset not found. Please ensure the table exists:`, {
+                dataset: 'github_metrics',
+                table: 'issue_status_change',
+                fullError: err.message
+              });
+            } else if (err.code === 403) {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, in progress data could not be found. Permission denied when accessing BigQuery. Check service account permissions.`);
+            } else {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, There was an error getting latest in_progress status from BigQuery:`, err);
+            }
+            return null;
+          });
+
+          if (inProgressData) {
+            // Calculate time to release ready (from in_progress to release)
+            const releaseReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
+            const inProgressTime = new Date(inProgressData.date);
+
+            let timeToReleaseReadySeconds = await sails.helpers.flow.build(async ()=>{
+              if (!sails.config.custom.githubProjectsV2.excludeWeekends) {
+                // If weekend exclusion is disabled, return simple time difference
+                return Math.floor((releaseReadyTime - inProgressTime) / 1000);
+              }
+
+              // Use the provided weekend exclusion logic
+              const startDay = inProgressTime.getUTCDay();
+              const endDay = releaseReadyTime.getUTCDay();
+
+              // Case: Both start time and end time are on the same weekend
+              if (
+                (startDay === 0 || startDay === 6) &&
+                (endDay === 0 || endDay === 6) &&
+                Math.floor(releaseReadyTime / (24 * 60 * 60 * 1000)) -
+                Math.floor(inProgressTime / (24 * 60 * 60 * 1000)) <=
+                2
+              ) {
+                // Return 0 seconds
+                return 0;
+              }
+
+              // Make copies to avoid modifying original dates
+              const adjustedStartTime = new Date(inProgressTime);
+              const adjustedEndTime = new Date(releaseReadyTime);
+
+              // Set to start of Monday if start time is on weekend
+              if (startDay === 0) {
+                // Sunday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 1);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              } else if (startDay === 6) {
+                // Saturday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 2);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Set to start of Saturday if end time is on Sunday
+              if (endDay === 0) {
+                // Sunday
+                adjustedEndTime.setUTCDate(adjustedEndTime.getUTCDate() - 1);
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              } else if (endDay === 6) {
+                // Saturday
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Count weekend days between adjusted dates
+              // Make local copies for weekend counting
+              let weekendStartDate = new Date(adjustedStartTime);
+              let weekendEndDate = new Date(adjustedEndTime);
+
+              // Ensure weekendStartDate is before weekendEndDate
+              if (weekendStartDate > weekendEndDate) {
+                [weekendStartDate, weekendEndDate] = [weekendEndDate, weekendStartDate];
+              }
+
+              // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
+              if (weekendStartDate.getUTCDay() === 0) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 1);
+              } else if (weekendStartDate.getUTCDay() === 6) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 2);
+              }
+              if (weekendEndDate.getUTCDay() === 0) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 2);
+              } else if (weekendEndDate.getUTCDay() === 6) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 1);
+              }
+
+              let weekendDays = 0;
+              const current = new Date(weekendStartDate);
+
+              while (current <= weekendEndDate) {
+                const day = current.getUTCDay();
+                if (day === 0 || day === 6) {
+                  // Sunday (0) or Saturday (6)
+                  weekendDays++;
+                }
+                current.setUTCDate(current.getUTCDate() + 1);
+              }
+
+              // Calculate raw time difference in milliseconds
+              const diffMs = adjustedEndTime - adjustedStartTime - weekendDays * 24 * 60 * 60 * 1000;
+
+              // Ensure we don't return negative values
+              return Math.max(0, Math.floor(diffMs / 1000));
+            });
+
+            // Determine project name by reverse lookup
+            const projectName = Object.keys(sails.config.custom.githubProjectsV2.projects).find(
+              key => sails.config.custom.githubProjectsV2.projects[key] === projectNumber
+            ) || '';
+
+            // Prepare release ready data
+            const releaseReadyData = {
+              release_ready: releaseReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
+              assignee: issueDetails.assignee || '',  // Get assignee from issue details
+              issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
+              time_to_release_ready_seconds: timeToReleaseReadySeconds,  // eslint-disable-line camelcase
+              repo: issueDetails.repo,
+              issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+              release_ready_time: releaseReadyTime.toISOString(),  // eslint-disable-line camelcase
+              in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
+              project: projectName,
+              type: issueDetails.type  // Issue type based on labels
+            };
+
+            // Save to BigQuery
+            await sails.helpers.engineeringMetrics.saveToBigquery.with({
+              data: releaseReadyData,
+              gcpServiceAccountKey: gcpServiceAccountKey,
+              tableId: 'issue_release_ready'
+            });
+
+            sails.log.verbose('Saved release ready metrics:', {
+              repo: issueDetails.repo,
+              issueNumber: issueDetails.issueNumber,
+              timeToReleaseReadySeconds,
+              project: projectName
+            });
+
+            statusChange = releaseReadyData;
+          } else {
+            sails.log.info(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate release ready time`);
+          }
+        }
+      }//ﬁ
+
+      if (statusChange) {
+        sails.log.verbose('Processed issue status change:', statusChange);
+      }
     } else {
       //  ███╗   ███╗██╗███████╗ ██████╗
       //  ████╗ ████║██║██╔════╝██╔════╝

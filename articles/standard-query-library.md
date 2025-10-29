@@ -36,7 +36,7 @@ Do you want to add your own query?
 3. If you want to contribute multiple queries, please open one pull request that includes all your queries.
 
 For instructions on submitting pull requests to Fleet, check out [the Committing Changes
-section](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes) in the Contributors
+section](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/committing-changes.md#committing-changes) in the Contributors
 documentation.
 
 

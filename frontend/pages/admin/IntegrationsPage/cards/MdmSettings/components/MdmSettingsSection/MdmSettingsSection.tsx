@@ -56,7 +56,7 @@ const MdmSettingsSection = ({
     }
 
     return (
-      <div className={`${baseClass}__content`}>
+      <>
         <AppleMdmCard
           appleAPNSInfo={appleAPNSInfo}
           errorData={appleAPNSError}
@@ -67,14 +67,11 @@ const MdmSettingsSection = ({
           turnOnWindowsMdm={navigateToWindowsMdm}
           editWindowsMdm={navigateToWindowsMdm}
         />
-        {/* TODO: feature flag check, remove when feature releases */}
-        {config?.android_enabled && (
-          <AndroidMdmCard
-            turnOffAndroidMdm={navigateToAndroidMdm}
-            editAndroidMdm={navigateToAndroidMdm}
-          />
-        )}
-      </div>
+        <AndroidMdmCard
+          turnOffAndroidMdm={navigateToAndroidMdm}
+          editAndroidMdm={navigateToAndroidMdm}
+        />
+      </>
     );
   };
 

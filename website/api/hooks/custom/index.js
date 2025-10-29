@@ -70,10 +70,10 @@ will be disabled and/or hidden in the UI.
       // This will determine whether or not to enable various billing features.
       sails.config.custom.enableBillingFeatures = !isMissingStripeConfig;
 
-      // After "sails-hook-organics" finishes initializing, configure Stripe
-      // and Sendgrid packs with any available credentials.
+      // After "sails-hook-organics" finishes initializing…
       sails.after('hook:organics:loaded', ()=>{
 
+        // Configure Stripe and Sendgrid packs with any available credentials.
         sails.helpers.stripe.configure({
           secret: sails.config.custom.stripeSecret
         });
@@ -108,7 +108,32 @@ will be disabled and/or hidden in the UI.
               sails.log.warn('When trying to send a request to Algolia to refresh the Fleet website search index, an error occurred: '+err);
             }
           });//_∏_
-        }
+        }//ﬁ
+
+        // Expose `ƒ`, for convenience.
+        global.ƒ = {};
+        global.ƒ[require('util').inspect.custom] = (unusedDepth, unusedInspectOptions, unusedInspect)=>{// https://nodejs.org/api/util.html#utilinspectcustom
+          return `[ƒ (derived from sails.helpers)]`;
+        };//ƒ
+        for (let keyName of Object.keys(sails.helpers)) {
+          if (['mailgun'].includes(keyName)) {
+            continue;
+          }//•
+          if (_.isFunction(sails.helpers[keyName])) {
+            if (global.ƒ.hasOwnProperty(keyName)) {
+              sails.log.warn(`Overwriting ƒ.${keyName}…`);
+            }
+            global.ƒ[keyName] = sails.helpers[keyName];
+          } else {
+            for (let helperMethodName of Object.keys(sails.helpers[keyName])) {
+              if (global.ƒ.hasOwnProperty(helperMethodName)) {
+                sails.log.warn(`Overwriting ƒ.${helperMethodName}…`);
+              }
+              global.ƒ[helperMethodName] = sails.helpers[keyName][helperMethodName];
+            }//∞
+          }
+        }//∞
+
       });//_∏_
 
       // ... Any other app-specific setup code that needs to run on lift,
@@ -170,8 +195,8 @@ will be disabled and/or hidden in the UI.
             // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
             // e.g.
-            //   https://fleetdm.com/device-management?utm_content=mdm
-            if (['clear','eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
+            //   https://fleetdm.com/device-management?utm_content=it-major-mdm
+            if (['clear', 'security-misc', 'security-vm', 'it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(req.param('utm_content'))) {
               req.session.primaryBuyingSituation = req.param('utm_content') === 'clear' ? undefined : req.param('utm_content');
               // FUTURE: reimplement the following (auto-redirect without querystring to make it prettier in the URL bar), but do it in the client-side JS
               // using whatever that poppushstateblah thing is that makes it so you can change the URL bar from the browser-side code without screwing up
@@ -316,16 +341,8 @@ will be disabled and/or hidden in the UI.
                       organization: sanitizedUser.organization,
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                     });
-                    let jsforce = require('jsforce');
-                    // login to Salesforce
-                    let salesforceConnection = new jsforce.Connection({
-                      loginUrl : 'https://fleetdm.my.salesforce.com'
-                    });
-                    await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
-                    let today = new Date();
-                    let nowOn = today.toISOString().replace('Z', '+0000');
                     let websiteVisitReason;
-                    if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+                    if(req.session.adAttributionString && req.session.visitedSiteFromAdAt) {
                       let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
                       // If this user visited the website from an ad, set the websiteVisitReason to be the adAttributionString stored in their session.
                       if(req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
@@ -333,15 +350,12 @@ will be disabled and/or hidden in the UI.
                       }
                     }
                     // Create the new Fleet website page view record.
-                    return await sails.helpers.flow.build(async ()=>{
-                      return await salesforceConnection.sobject('fleet_website_page_views__c')
-                      .create({
-                        Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
-                        Account__c: recordIds.salesforceAccountId,// eslint-disable-line camelcase
-                        Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
-                        Visited_on__c: nowOn,// eslint-disable-line camelcase
-                        Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
-                      });
+                    await sails.helpers.salesforce.createHistoricalEvent.with({
+                      salesforceContactId: recordIds.salesforceContactId,
+                      salesforceAccountId: recordIds.salesforceAccountId,
+                      fleetWebsitePageUrl: `https://fleetdm.com${req.url}`,
+                      eventType: 'Website page view',
+                      websiteVisitReason: websiteVisitReason
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });

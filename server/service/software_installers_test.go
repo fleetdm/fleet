@@ -2,16 +2,19 @@ package service
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -75,6 +78,15 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScripts bool) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
+			}
+			ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+				if tt.teamID == nil {
+					return &fleet.VPPAppStoreApp{VPPAppsTeamsID: 0}, nil
+				}
+				return &fleet.VPPAppStoreApp{VPPAppsTeamsID: *tt.teamID}, nil
+			}
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
 
@@ -146,7 +158,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				checkAuthErr(t, true, err)
 			}
 
-			err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else if tt.shouldFailWrite {
@@ -156,6 +168,35 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			// TODO: configure test with mock software installer store and add tests to check upload auth
 		})
 	}
+}
+
+func TestUpgradeCodeMigration(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license})
+
+	dir := t.TempDir()
+	softwareInstallStore, err := filesystem.NewSoftwareInstallerStore(dir)
+	require.NoError(t, err)
+	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", "fleet-osquery.msi"))
+	require.NoError(t, err)
+	defer tfr.Close()
+	require.NoError(t, softwareInstallStore.Put(ctx, "deadbeef", tfr))
+
+	ds.GetMSIInstallersWithoutUpgradeCodeFunc = func(ctx context.Context) (map[uint]string, error) {
+		return map[uint]string{uint(1): "deadbeef", uint(2): "deadbeef", uint(3): "noexist", uint(4): "noexist"}, nil
+	}
+
+	var updatedInstallerIDs = map[uint]struct{}{}
+	ds.UpdateInstallerUpgradeCodeFunc = func(ctx context.Context, installerID uint, upgradeCode string) error {
+		updatedInstallerIDs[installerID] = struct{}{}
+		require.Equal(t, "{B681CB20-107E-428A-9B14-2D3C1AFED244}", upgradeCode)
+		return nil
+	}
+
+	require.NoError(t, eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, kitlog.NewNopLogger()))
+	require.True(t, ds.UpdateInstallerUpgradeCodeFuncInvoked)
+	require.Len(t, updatedInstallerIDs, 2)
 }
 
 // TestValidateSoftwareLabels tests logic for validating labels associated with software (VPP apps,

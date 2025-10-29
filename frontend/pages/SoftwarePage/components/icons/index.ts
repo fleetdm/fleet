@@ -1,7 +1,11 @@
+// Note: if parts of a icon have a clip path, mask, or gradient, the IDs must be unique
+// across all icons to avoid conflicts in the DOM. See uniqueId usage within icon components.
+
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
 import AcrobatReader from "./AcrobatReader";
+import CreativeCloud from "./AdobeCreativeCloud";
 import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
 import Extension from "./Extension";
@@ -23,6 +27,7 @@ import Falcon from "./Falcon";
 import AppStore from "./AppStore";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import AndroidApp from "./AndroidApp";
 import TeamViewer from "./TeamViewer";
 import Box from "./Box";
 import Brave from "./Brave";
@@ -33,14 +38,18 @@ import Figma from "./Figma";
 import Notion from "./Notion";
 import WindowsDefender from "./WindowsDefender";
 import WhatsApp from "./WhatsApp";
+import P4V from "./P4V";
 import Postman from "./Postman";
 import OnePassword from "./OnePassword";
-
-// Maps all known Linux platforms to the LinuxOS icon
-const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
-  (a, platform) => ({ ...a, [platform]: LinuxOS }),
-  {}
-);
+import OmnissaHorizonClient from "./OmnissaHorizonClient";
+import AmazonDCV from "./AmazonDCV";
+import IntuneCompanyPortal from "./IntuneCompanyPortal";
+import Santa from "./Santa";
+import YubikeyManager from "./YubikeyManager";
+import BeyondCompare from "./BeyondCompare";
+import ITerm from "./ITerm";
+import VncViewer from "./VncViewer";
+import WindowsAppRemote from "./WindowsAppRemote";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -48,6 +57,8 @@ const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
+  "adobe creative cloud": CreativeCloud,
+  code: VisualStudioCode,
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
@@ -60,11 +71,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   "google chrome": ChromeApp,
-  darwin: MacOS,
-  windows: WindowsOS,
-  chrome: ChromeOS,
-  ios: iOS,
-  ipados: iPadOS,
   whatsapp: WhatsApp,
   notion: Notion,
   figma: Figma,
@@ -76,8 +82,32 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teamviewer: TeamViewer,
   "windows defender": WindowsDefender,
   postman: Postman,
+  p4v: P4V,
   "1password": OnePassword,
+  "amazon dcv": AmazonDCV,
+  "company portal": IntuneCompanyPortal,
+  santa: Santa,
+  "yubikey manager": YubikeyManager,
+  "beyond compare": BeyondCompare,
+  iterm2: ITerm,
+  "vnc viewer": VncViewer,
+  "windows app": WindowsAppRemote,
+  "omnissa horizon client": OmnissaHorizonClient,
+} as const;
+
+// Maps all known Linux platforms to the LinuxOS icon
+const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
+  (a, platform) => ({ ...a, [platform]: LinuxOS }),
+  {}
+);
+
+export const PLATFORM_NAME_TO_ICON_MAP = {
   ...LINUX_OS_NAME_TO_ICON_MAP,
+  darwin: MacOS,
+  windows: WindowsOS,
+  chrome: ChromeOS,
+  ios: iOS,
+  ipados: iPadOS,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
@@ -96,6 +126,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   ios_apps: AppleApp,
   ipados_apps: AppleApp,
   programs: WindowsApp,
+  android_apps: AndroidApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,
   firefox_addons: Extension,
@@ -103,6 +134,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   chocolatey_packages: Package,
   pkg_packages: Package,
   vscode_extensions: Extension,
+  jetbrains_plugins: Extension,
 } as const;
 
 /**
@@ -150,10 +182,12 @@ const matchStrictNameSourceToIcon = ({
  * it will be returned, otherwise it will fall back to loose matching on name and source prefixes.
  * If no match is found, the default package icon will be returned.
  */
-const getMatchedSoftwareIcon = ({
+export const getMatchedSoftwareIcon = ({
   name = "",
   source = "",
 }: Pick<ISoftware, "name" | "source">) => {
+  // Strip non-ascii, and non-printable characters
+  name = name.replace(/[^\x20-\x7E]/g, "");
   // first, try strict matching on name and source
   let Icon = matchStrictNameSourceToIcon({
     name,
@@ -187,4 +221,13 @@ const getMatchedSoftwareIcon = ({
   return Icon;
 };
 
-export default getMatchedSoftwareIcon;
+export const getMatchedOsIcon = ({ name = "" }) => {
+  // Match only against platform names (never software/app maps)
+  const matchedPlatform = matchLoosePrefixToKey(
+    PLATFORM_NAME_TO_ICON_MAP,
+    name
+  );
+  return matchedPlatform
+    ? PLATFORM_NAME_TO_ICON_MAP[matchedPlatform]
+    : SOFTWARE_SOURCE_TO_ICON_MAP.package; // TODO: Update default icon to something other than package icon >.<
+};

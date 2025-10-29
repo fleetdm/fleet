@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 import InstallerActionCell from "./InstallerActionCell";
 
-describe("Issue cell", () => {
+describe("InstallerAction cell", () => {
   it("renders add button if installer is available", async () => {
     render(<InstallerActionCell value={{ id: 1, platform: "darwin" }} />);
 
@@ -21,7 +21,6 @@ describe("Issue cell", () => {
       />
     );
 
-    const icon = screen.getByTestId("success-icon");
-    expect(icon).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
   });
 });

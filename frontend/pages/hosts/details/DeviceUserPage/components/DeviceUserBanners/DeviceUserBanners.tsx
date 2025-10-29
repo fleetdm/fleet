@@ -13,6 +13,7 @@ interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   onTurnOnMdm: () => void;
+  onClickCreatePIN: () => void;
   onTriggerEscrowLinuxKey: () => void;
 }
 
@@ -25,6 +26,7 @@ const DeviceUserBanners = ({
   macDiskEncryptionStatus,
   diskEncryptionActionRequired,
   onTurnOnMdm,
+  onClickCreatePIN,
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
@@ -44,8 +46,8 @@ const DeviceUserBanners = ({
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
-    <Button variant="unstyled" onClick={onTurnOnMdm}>
-      <b>Turn on MDM</b>
+    <Button variant="text-link-dark" onClick={onTurnOnMdm}>
+      Turn on MDM
     </Button>
   );
 
@@ -106,7 +108,7 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <Button
-                variant="unstyled"
+                variant="inverse"
                 onClick={onTriggerEscrowLinuxKey}
                 className="create-key-button"
               >
@@ -123,10 +125,31 @@ const DeviceUserBanners = ({
       }
     }
 
+    if (
+      hostPlatform === "windows" &&
+      diskEncryptionOSSetting?.status === "action_required"
+    ) {
+      return (
+        <InfoBanner
+          color="yellow"
+          cta={
+            <Button variant="text-link-dark" onClick={onClickCreatePIN}>
+              Create PIN
+            </Button>
+          }
+        >
+          Disk encryption: Create a BitLocker PIN to safeguard your data in case
+          your device is lost or stolen. After, select <strong>Refetch</strong>{" "}
+          to clear this banner.
+        </InfoBanner>
+      );
+    }
+
     return null;
   };
 
-  return <div className={baseClass}>{renderBanner()}</div>;
+  const banner = renderBanner();
+  return banner ? <div className={baseClass}>{banner}</div> : null;
 };
 
 export default DeviceUserBanners;

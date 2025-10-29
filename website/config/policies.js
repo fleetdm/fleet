@@ -13,8 +13,9 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
   'query-generator/*': 'has-query-generator-access',
-
+  'microsoft-proxy/*': 'is-cloud-customer',
   // Bypass the `is-logged-in` policy for:
+
   'entrance/*': true,
   'webhooks/*': true,
   'account/logout': true,
@@ -41,6 +42,7 @@ module.exports.policies = {
   'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
+  'unsubscribe-from-marketing-emails': true,
   'view-osquery-table-details': true,
   'view-connect-vanta': true,
   'view-vanta-authorization': true,
@@ -66,6 +68,16 @@ module.exports.policies = {
   'view-app-details': true,
   'view-meetups': true,
   'view-os-settings': true,
+  'view-scripts': true,
+  'view-script-details': true,
+  'view-command-details': true,
+  'view-mdm-commands': true,
+  'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
   'account/update-start-cta-visibility': true,
+  'microsoft-proxy/receive-redirect-from-microsoft': true,
+  'view-configuration-builder': true,
+  'android-proxy/*': true,
+  'microsoft-proxy/view-remediate': true,
+  'microsoft-proxy/view-turn-on-mdm': true,
 };

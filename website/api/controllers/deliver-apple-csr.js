@@ -37,6 +37,10 @@ module.exports = {
       responseType: 'badRequest'
     },
 
+    csrMissingRequiredValue: {
+      description: 'The provided unsigned CSR did not contain a required value',
+    },
+
     badRequest: {
       responseType: 'badRequest'
     }
@@ -83,17 +87,18 @@ module.exports = {
 
     // Parse the JSON result from the mdm-gen-cert command
     let generateCertificateResult = JSON.parse(generateCertificateCommand.stdout);
-    // Throw an error if the result from the mdm-gen-cert command is missing an email value.
+
+    // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an email value.
     if(!generateCertificateResult.email) {
-      throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain a email.');
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR data is missing an "email" value'};
     }
-    // Throw an error if the result from the mdm-gen-cert command is missing an org value.
+    // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an org value.
     if(!generateCertificateResult.org) {
-      throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain an organization name');
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR data is missing an "org" value'};
     }
-    // Throw an error if the result from the mdm-gen-cert command is missing an request value.
+    // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an request value.
     if(!generateCertificateResult.request) {
-      throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain a certificate');
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR data is missing a "request" value'};
     }
 
     // Check to make sure that the email included in the result is a valid email address.

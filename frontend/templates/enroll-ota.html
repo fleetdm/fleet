@@ -22,7 +22,9 @@
       html {
         box-sizing: border-box;
         font-family: "Inter", sans-serif;
-        color: #192147;
+        color: #515774;
+        line-height: 1.5;
+        font-size: 1.25rem;
       }
 
       *,
@@ -41,7 +43,7 @@
       .enroll-link {
         display: inline-block;
         color: #fff;
-        background-color: #6a67fe;
+        background-color: #009a7d;
         padding: 8px 16px;
         border-radius: 4px;
         text-decoration: none;
@@ -52,8 +54,8 @@
       }
 
       header {
-        background-color: #192147;
         padding: 13px 20px;
+        border-bottom: 1px solid #e2e4ea;
       }
 
       h1 {
@@ -147,7 +149,7 @@
   <body>
     <!-- unsupported platform content -->
     <template id="unsupported-template">
-      <h1>Enroll your device to Fleet</h1>
+      <h1>Enroll your device in Fleet</h1>
       <p class="page-description">
         To enroll your iPhone, iPad, or Android device, please open this page on
         your mobile device.
@@ -156,11 +158,9 @@
 
     <!-- android content -->
     <template id="android-template">
-      <h1>Enroll your Android device to Fleet</h1>
+      <h1>Enroll your Android device in Fleet</h1>
       <div class="android-content">
-        <p>
-          Select <b>Enroll</b> and follow the steps.
-        </p>
+        <p>Select <b>Enroll</b> and follow the steps.</p>
         <a class="enroll-link" href="" target="_blank">Enroll</a>
       </div>
     </template>
@@ -169,7 +169,7 @@
     <template id="ios-ipad-template">
       <h1>
         Enroll your
-        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+        <span data-attribute="dynamic-device-type">iPhone or iPad</span> in
         Fleet
       </h1>
       <p class="page-description">
@@ -260,8 +260,7 @@
       // using string comparison to satisfy the linter.
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
-      // TODO: remove android feature flag
-      const ANDROID_FEATURE_ENABLED = "{{.AndroidFeatureEnabled}}" === "true";
+      const ERROR_MESSAGE = "{{.ErrorMessage}}";
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
@@ -375,11 +374,16 @@
         const platform = getPlatform();
 
         // quick exit if platform is unsupported
-        if (
-          platform === "unsupported" ||
-          (!ANDROID_FEATURE_ENABLED && platform === "android") // TODO: remove android feature flag
-        ) {
+        if (platform === "unsupported") {
           renderContent("unsupported-template");
+          return;
+        }
+
+        // if there is an error message, render it
+        if (ERROR_MESSAGE) {
+          // format of error message is expected to use colon as separator character, e.g., "An error occurred. : Failed to parse original URL."
+          const [title, description] = ERROR_MESSAGE.split(":");
+          renderError(title.trim(), description.trim());
           return;
         }
 

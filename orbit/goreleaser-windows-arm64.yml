@@ -1,0 +1,44 @@
+version: 2
+
+project_name: orbit
+
+#################################################################################################
+# If this is updated make sure to update the "How to build from source" section in the README.md.
+#################################################################################################
+
+builds:
+  - id: orbit
+    dir: ./orbit/cmd/orbit/
+    binary: orbit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
+    hooks:
+      pre: "go run ./orbit/tools/build/build-windows.go -version {{.Version}} -input ./orbit/cmd/orbit -resource=true -arch arm64"
+
+archives:
+  - id: orbit
+    builds:
+      - orbit
+    name_template: orbit_{{.Version}}_{{.Os}}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ .Tag }}-untagged"
+
+changelog:
+  disable: true

@@ -11,6 +11,7 @@ module.exports = {
 
     emailAddress: {
       required: true,
+      isEmail: true,
       type: 'string',
       description: 'A return email address where we can respond.',
       example: 'hermione@hogwarts.edu'
@@ -43,13 +44,21 @@ module.exports = {
 
     success: {
       description: 'The message was sent successfully.'
-    }
+    },
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
+    },
 
   },
 
 
   fn: async function({emailAddress, firstName, lastName, message}) {
 
+    let emailDomain = emailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForContactFormSubmissions, emailDomain.toLowerCase())){
+      throw 'invalidEmailDomain';
+    }
 
     let userHasPremiumSubscription = false;
     let thisSubscription;
@@ -66,7 +75,9 @@ module.exports = {
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
-    if(userHasPremiumSubscription){
+
+    let subject = 'New contact form message';
+    if(userHasPremiumSubscription) {
       // If the user has a Fleet Premium subscription, prepend the message with details about their subscription.
       let subscriptionDetails =`
 Fleet Premium subscription details:
@@ -78,27 +89,24 @@ Fleet Premium subscription details:
 
       `;
       message = subscriptionDetails + message;
-      await sails.helpers.sendTemplateEmail.with({
-        to: sails.config.custom.fromEmailAddress,
-        replyTo: {
-          name: firstName + ' '+ lastName,
-          emailAddress: emailAddress,
-        },
-        subject: 'New contact form message',
-        layout: false,
-        template: 'email-contact-form',
-        templateData: {
-          emailAddress,
-          firstName,
-          lastName,
-          message,
-        },
-      });
+      subject = 'New Fleet Premium customer message';
     }
 
-    await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (cc: <@U05CS07KASK>) (Remember: we have to email back; can't just reply to this thread.)`+
-      `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
+    await sails.helpers.sendTemplateEmail.with({
+      to: sails.config.custom.fromEmailAddress,
+      replyTo: {
+        name: firstName + ' '+ lastName,
+        emailAddress: emailAddress,
+      },
+      subject,
+      layout: false,
+      template: 'email-contact-form',
+      templateData: {
+        emailAddress,
+        firstName,
+        lastName,
+        message,
+      },
     });
 
 

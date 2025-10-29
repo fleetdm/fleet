@@ -62,6 +62,12 @@ $config = array(
             'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
             'FLEET_JIT_USER_ROLE_TEAM_1' => 'null',
         ),
+        // sso_user_no_displayname does not have a displayName/fullName
+        'sso_user_no_displayname:user123#' => array(
+            'uid' => array('7'),
+            'eduPersonAffiliation' => array('group1'),
+            'email' => 'sso_user_no_displayname@example.com',
+        ),
     ),
 
 );

@@ -25,7 +25,7 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id
+	p.vpp_apps_teams_id, p.conditional_access_enabled
 `
 
 var (
@@ -298,7 +298,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return savePolicy(ctx, tx, ds.logger, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -325,11 +325,14 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 	p.Name = norm.NFC.String(p.Name)
 	updateStmt := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			SET name = ?, query = ?, description = ?, resolution = ?,
+			platforms = ?, critical = ?, calendar_events_enabled = ?,
+			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
+			conditional_access_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -349,13 +352,16 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 	return cleanupPolicy(
 		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
-
 }
 
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
-		err := sqlx.GetContext(ctx, db, &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
+		// Use FOR UPDATE to acquire an exclusive lock on the software_installer row early in the transaction.
+		// This prevents deadlocks by ensuring consistent lock ordering - all transactions that need
+		// to validate and update policies with the same software installer will wait in line
+		// rather than creating circular dependencies.
+		err := sqlx.GetContext(ctx, db, &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ? FOR UPDATE", softwareInstallerID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -373,7 +379,8 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 	if vppAppsTeamsID != nil {
 		var vppAppTeamID uint
-		err := sqlx.GetContext(ctx, db, &vppAppTeamID, "SELECT global_or_team_id FROM vpp_apps_teams WHERE id = ?", vppAppsTeamsID)
+		// Similarly, lock VPP apps to prevent deadlocks
+		err := sqlx.GetContext(ctx, db, &vppAppTeamID, "SELECT global_or_team_id FROM vpp_apps_teams WHERE id = ? FOR UPDATE", vppAppsTeamsID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -391,7 +398,8 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 	if scriptID != nil {
 		var scriptTeamID uint
-		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
+		// Lock scripts as well to maintain consistent ordering
+		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ? FOR UPDATE", scriptID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -581,10 +589,10 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		return err
 	}
 
-	// ds.UpdateHostIssuesFailingPolicies should be executed even if len(results) == 0
+	// ds.UpdateHostIssuesFailingPoliciesForSingleHost should be executed even if len(results) == 0
 	// because this means the host is configured to run no policies and we would like
 	// to cleanup the counts (if any).
-	if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
+	if err := ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
 		return err
 	}
 
@@ -966,11 +974,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, script_id, vpp_apps_teams_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (
+				name, query, description, team_id, resolution, author_id,
+				platforms, critical, calendar_events_enabled, software_installer_id,
+				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ConditionalAccessEnabled,
 	)
 	switch {
 	case err == nil:
@@ -1217,8 +1229,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			software_installer_id,
 		    vpp_apps_teams_id,
 		    script_id,
+			conditional_access_enabled,
 			checksum
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1229,7 +1242,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			calendar_events_enabled = VALUES(calendar_events_enabled),
 			software_installer_id = VALUES(software_installer_id),
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
-			script_id = VALUES(script_id)
+			script_id = VALUES(script_id),
+			conditional_access_enabled = VALUES(conditional_access_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1253,57 +1267,96 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
-					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID,
+					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 				}
 
+				// Get the last inserted ID -- this will be 0 if it was an update.
+				var lastID int64
+				lastID, _ = res.LastInsertId()
+
+				// If something was actually inserted or updated, perform any necessary cleanup.
 				if insertOnDuplicateDidInsertOrUpdate(res) {
-					// when the upsert results in an UPDATE that *did* change some values,
-					// it returns the updated ID as last inserted id.
-					if lastID, _ := res.LastInsertId(); lastID > 0 {
-						var (
-							shouldRemoveAllPolicyMemberships bool
-							removePolicyStats                bool
-						)
-						// Figure out if the query, platform, software installer, or VPP app changed.
-						var softwareInstallerID *uint
-						if spec.SoftwareTitleID != nil {
-							softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
-						}
-						if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
-							switch {
-							case prev.Query != spec.Query:
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case teamID != nil &&
-								((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
-									(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case teamID != nil &&
-								((prev.VPPAppsTeamsID == nil && spec.SoftwareTitleID != nil) ||
-									(prev.VPPAppsTeamsID != nil && vppAppsTeamsID != nil && *prev.VPPAppsTeamsID != *vppAppsTeamsID)):
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case teamID != nil &&
-								((prev.ScriptID == nil && spec.ScriptID != nil) ||
-									(prev.ScriptID != nil && spec.ScriptID != nil && *prev.ScriptID != *spec.ScriptID)):
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case prev.Platforms != spec.Platform:
-								removePolicyStats = true
-							}
-						}
-						if err = cleanupPolicy(
-							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
-							removePolicyStats, ds.logger,
-						); err != nil {
-							return err
+					var (
+						shouldRemoveAllPolicyMemberships bool
+						removePolicyStats                bool
+					)
+					// Figure out if the query, platform, software installer, or VPP app changed.
+					var softwareInstallerID *uint
+					if spec.SoftwareTitleID != nil {
+						softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
+					}
+					if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
+						switch {
+						case prev.Query != spec.Query:
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil &&
+							((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
+								(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil &&
+							((prev.VPPAppsTeamsID == nil && spec.SoftwareTitleID != nil) ||
+								(prev.VPPAppsTeamsID != nil && vppAppsTeamsID != nil && *prev.VPPAppsTeamsID != *vppAppsTeamsID)):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil &&
+							((prev.ScriptID == nil && spec.ScriptID != nil) ||
+								(prev.ScriptID != nil && spec.ScriptID != nil && *prev.ScriptID != *spec.ScriptID)):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case prev.Platforms != spec.Platform:
+							removePolicyStats = true
 						}
 					}
+					if err = cleanupPolicy(
+						ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
+						removePolicyStats, ds.logger,
+					); err != nil {
+						return err
+					}
 				}
+
+				// Even if the policy record itself wasn't updated, we still may need to update labels.
+				// So we'll get the ID of the policy that was just updated.
+				if lastID == 0 {
+					var err error
+					// Get the policy that was updated.
+					if teamID == nil {
+						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id is NULL", spec.Name)
+					} else {
+						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
+					}
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "select policies id")
+					}
+				}
+
+				// Create LabelIdents to send to updatePolicyLabelsTx.
+				// Right now we only need the names.
+				// @future: use IDs instead of names.
+				labelsIncludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsIncludeAny))
+				for _, labelInclude := range spec.LabelsIncludeAny {
+					labelsIncludeAnyIdents = append(labelsIncludeAnyIdents, fleet.LabelIdent{LabelName: labelInclude})
+				}
+				labelsExcludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsExcludeAny))
+				for _, labelExclude := range spec.LabelsExcludeAny {
+					labelsExcludeAnyIdents = append(labelsExcludeAnyIdents, fleet.LabelIdent{LabelName: labelExclude})
+				}
+				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
+					PolicyData: fleet.PolicyData{
+						ID:               uint(lastID), //nolint:gosec // dismiss G115
+						LabelsIncludeAny: labelsIncludeAnyIdents,
+						LabelsExcludeAny: labelsExcludeAnyIdents,
+					},
+				})
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "exec policies update labels")
+				}
+
 			}
 		}
 		return nil
@@ -1374,16 +1427,13 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	})
 }
 
-func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	query, args, err := sqlx.In(`DELETE FROM policy_membership WHERE host_id IN (?)`, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query to delete policies")
-	}
-	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	query := `DELETE FROM policy_membership WHERE host_id = ?`
+	if _, err := tx.ExecContext(ctx, query, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec delete policies")
 	}
-	// This method is currently only called for 1 host at a time, so it is not a performance concern.
-	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
+	// Use the single host method for better performance and no unnecessary locking
+	if err := updateHostIssuesFailingPoliciesForSingleHost(ctx, tx, hostID); err != nil {
 		return err
 	}
 	return nil
@@ -1420,6 +1470,18 @@ func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, ho
 	}
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec cleanup query results query")
+	}
+	return nil
+}
+
+func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	const cleanupQuery = `DELETE FROM microsoft_compliance_partner_host_statuses WHERE host_id IN (?)`
+	query, args, err := sqlx.In(cleanupQuery, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build cleanup conditional access")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec cleanup query conditional access")
 	}
 	return nil
 }
@@ -1948,6 +2010,17 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 	return policies, nil
 }
 
+func (ds *Datastore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error) {
+	// Currently, the "Conditional access" feature is for macOS hosts only.
+	query := `SELECT id FROM policies WHERE team_id = ? AND conditional_access_enabled AND (platforms LIKE '%darwin%' OR platforms = '');`
+	var policyIDs []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyIDs, query, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies for conditional access")
+	}
+	return policyIDs, nil
+}
+
 func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
 	if len(policyIDs) == 0 {
 		return nil, nil
@@ -2046,11 +2119,14 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	return hosts, nil
 }
 
-// GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
+// getPoliciesBySoftwareTitleIDs returns the policies that are associated with a set of software titles.
+//
+// Takes a uint teamID (and not a *uint) because it should only be used when querying team and "No team"
+// policies ("All teams" cannot be associated to packages/VPP-apps).
 func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	ctx context.Context,
 	softwareTitleIDs []uint,
-	teamID *uint,
+	teamID uint,
 ) ([]fleet.AutomaticInstallPolicy, error) {
 	if len(softwareTitleIDs) == 0 {
 		return nil, nil
@@ -2068,15 +2144,10 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	WHERE (va.title_id IN (?) OR si.title_id IN (?)) AND p.team_id = ?
 `
 
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
 	batchSize := 32000 // see https://github.com/fleetdm/fleet/issues/26753 on the math behind this number
 	var policies []fleet.AutomaticInstallPolicy
 	err := common_mysql.BatchProcessSimple(softwareTitleIDs, batchSize, func(softwareTitleIDsToProcess []uint) error {
-		query, args, err := sqlx.In(baseQuery, softwareTitleIDsToProcess, softwareTitleIDsToProcess, tmID)
+		query, args, err := sqlx.In(baseQuery, softwareTitleIDsToProcess, softwareTitleIDsToProcess, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build select get policies by software id query")
 		}

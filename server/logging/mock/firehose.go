@@ -1,29 +1,29 @@
 package mock
 
 import (
-	"github.com/aws/aws-sdk-go/service/firehose"
-	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
 )
 
-var _ firehoseiface.FirehoseAPI = (*FirehoseMock)(nil)
+type (
+	PutRecordBatchFunc         func(context.Context, *firehose.PutRecordBatchInput, ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error)
+	DescribeDeliveryStreamFunc func(context.Context, *firehose.DescribeDeliveryStreamInput, ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error)
 
-type PutRecordBatchFunc func(*firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error)
-type DescribeDeliveryStreamFunc func(input *firehose.DescribeDeliveryStreamInput) (*firehose.DescribeDeliveryStreamOutput, error)
-type FirehoseMock struct {
-	firehoseiface.FirehoseAPI
+	FirehoseMock struct {
+		PutRecordBatchFunc                PutRecordBatchFunc
+		PutRecordBatchFuncInvoked         bool
+		DescribeDeliveryStreamFunc        DescribeDeliveryStreamFunc
+		DescribeDeliveryStreamFuncInvoked bool
+	}
+)
 
-	PutRecordBatchFunc                PutRecordBatchFunc
-	PutRecordBatchFuncInvoked         bool
-	DescribeDeliveryStreamFunc        DescribeDeliveryStreamFunc
-	DescribeDeliveryStreamFuncInvoked bool
-}
-
-func (f *FirehoseMock) PutRecordBatch(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+func (f *FirehoseMock) PutRecordBatch(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 	f.PutRecordBatchFuncInvoked = true
-	return f.PutRecordBatchFunc(input)
+	return f.PutRecordBatchFunc(ctx, input, optFns...)
 }
 
-func (f *FirehoseMock) DescribeDeliveryStream(input *firehose.DescribeDeliveryStreamInput) (*firehose.DescribeDeliveryStreamOutput, error) {
+func (f *FirehoseMock) DescribeDeliveryStream(ctx context.Context, input *firehose.DescribeDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error) {
 	f.DescribeDeliveryStreamFuncInvoked = true
-	return f.DescribeDeliveryStreamFunc(input)
+	return f.DescribeDeliveryStreamFunc(ctx, input, optFns...)
 }

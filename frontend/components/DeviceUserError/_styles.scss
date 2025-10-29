@@ -10,8 +10,14 @@
   }
 
   .info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    max-width: 333px;
+
     &__header {
       display: block;
+      gap: $pad-large;
       color: $core-fleet-black;
       font-weight: $bold;
       font-size: $x-small;
@@ -30,7 +36,7 @@
       font-weight: normal;
       font-size: $x-small;
       text-align: center;
-      margin-top: 10px;
+      line-height: 21px; // Matches design
     }
   }
 }

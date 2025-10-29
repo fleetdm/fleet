@@ -1,1 +1,0 @@
-* Added gzip compression for static CSS and JS assets to decrease bundle download times

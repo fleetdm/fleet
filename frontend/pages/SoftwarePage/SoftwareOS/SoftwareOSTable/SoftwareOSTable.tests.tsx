@@ -1,22 +1,12 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import { createMockRouter } from "test/test-utils";
 
 import { createMockOSVersionsResponse } from "__mocks__/softwareMock";
 
 import SoftwareOSTable from "./SoftwareOSTable";
 
-// TODO: figure out how to mock the router properly.
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
 
 describe("Software operating systems table", () => {
   it("Renders the page-wide disabled state when software inventory is disabled", async () => {

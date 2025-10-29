@@ -176,7 +176,7 @@ const (
 )
 
 // Supported MS-MDE2 enrollment versions
-var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0"}
+var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0", "7.0"}
 
 // MS-MDE2 Message constants
 const (
@@ -317,18 +317,24 @@ const (
 	SyncMLVerProto = "DM/" + SyncMLSupportedVersion
 )
 
-func ForTestWithData(locURIs map[string]string) []byte {
+type TestCommand struct {
+	Verb   string
+	LocURI string
+	Data   string
+}
+
+func ForTestWithData(commands []TestCommand) []byte {
 	var syncMLBuf bytes.Buffer
-	for locURI, data := range locURIs {
+	for _, command := range commands {
 		syncMLBuf.WriteString(fmt.Sprintf(`
-<Replace>
+<%s>
   <Item>
     <Target>
       <LocURI>%s</LocURI>
     </Target>
     <Data>%s</Data>
   </Item>
-</Replace>`, locURI, data))
+</%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
 	}
 	return syncMLBuf.Bytes()
 }

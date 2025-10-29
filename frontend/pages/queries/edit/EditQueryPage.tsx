@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import { Location } from "history";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
@@ -31,20 +32,17 @@ import { getErrorReason } from "interfaces/errors";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
+import SidePanelPage from "components/SidePanelPage";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import InfoBanner from "components/InfoBanner";
 import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
-  location: {
-    pathname: string;
-    query: { host_id: string; team_id?: string };
-    search: string;
-  };
+  location: Location<{ host_id: string; team_id?: string }>;
 }
 
 const baseClass = "edit-query-page";
@@ -364,6 +362,7 @@ const EditQueryPage = ({
           url="https://github.com/fleetdm/fleet/issues/new/choose"
           text="file an issue"
           newTab
+          variant="banner-link"
         />
       </InfoBanner>
     );
@@ -390,51 +389,53 @@ const EditQueryPage = ({
       isAnyTeamObserverPlus);
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>
-          <div className={`${baseClass}__header-links`}>
-            <BackLink
-              text={queryId ? "Back to report" : "Back to queries"}
-              path={backToQueriesPath()}
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <>
+            <div className={`${baseClass}__header-links`}>
+              <BackButton
+                text={queryId ? "Back to report" : "Back to queries"}
+                path={backToQueriesPath()}
+              />
+            </div>
+            <EditQueryForm
+              router={router}
+              location={location}
+              onSubmitNewQuery={onSubmitNewQuery}
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              onUpdate={onUpdateQuery}
+              storedQuery={storedQuery}
+              queryIdForEdit={queryId}
+              apiTeamIdForQuery={apiTeamIdForQuery}
+              currentTeamId={currentTeamId}
+              isStoredQueryLoading={isStoredQueryLoading}
+              showOpenSchemaActionText={showOpenSchemaActionText}
+              onOpenSchemaSidebar={onOpenSchemaSidebar}
+              renderLiveQueryWarning={renderLiveQueryWarning}
+              backendValidators={backendValidators}
+              isQuerySaving={isQuerySaving}
+              isQueryUpdating={isQueryUpdating}
+              hostId={hostId}
+              queryReportsDisabled={
+                appConfig?.server_settings.query_reports_disabled
+              }
+              showConfirmSaveChangesModal={showConfirmSaveChangesModal}
+              setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
             />
-          </div>
-          <EditQueryForm
-            router={router}
-            onSubmitNewQuery={onSubmitNewQuery}
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            onUpdate={onUpdateQuery}
-            storedQuery={storedQuery}
-            queryIdForEdit={queryId}
-            apiTeamIdForQuery={apiTeamIdForQuery}
-            currentTeamId={currentTeamId}
-            teamNameForQuery={teamNameForQuery}
-            isStoredQueryLoading={isStoredQueryLoading}
-            showOpenSchemaActionText={showOpenSchemaActionText}
-            onOpenSchemaSidebar={onOpenSchemaSidebar}
-            renderLiveQueryWarning={renderLiveQueryWarning}
-            backendValidators={backendValidators}
-            isQuerySaving={isQuerySaving}
-            isQueryUpdating={isQueryUpdating}
-            hostId={hostId}
-            queryReportsDisabled={
-              appConfig?.server_settings.query_reports_disabled
-            }
-            showConfirmSaveChangesModal={showConfirmSaveChangesModal}
-            setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
-          />
-        </>
-      </MainContent>
-      {showSidebar && (
-        <SidePanelContent>
-          <QuerySidePanel
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSchemaSidebar}
-          />
-        </SidePanelContent>
-      )}
-    </>
+          </>
+        </MainContent>
+        {showSidebar && (
+          <SidePanelContent>
+            <QuerySidePanel
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={onCloseSchemaSidebar}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

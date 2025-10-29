@@ -32,13 +32,17 @@ func (a *asyncLastSeen) markHostSeen(ctx context.Context, id string) {
 }
 
 func (a *asyncLastSeen) runFlushLoop(ctx context.Context) {
-	tickCh := time.Tick(a.flushInterval)
+	ticker := time.NewTicker(a.flushInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-tickCh:
+		case <-ticker.C:
 			ids := a.set.getAndClear()
 			if len(ids) > 0 {
 				a.fn(ctx, ids)
+				// Reset the ticker to ensure consistent timing
+				ticker.Reset(a.flushInterval)
 			}
 
 		case <-ctx.Done():

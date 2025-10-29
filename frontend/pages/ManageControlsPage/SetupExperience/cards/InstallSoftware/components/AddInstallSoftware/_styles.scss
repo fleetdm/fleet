@@ -3,15 +3,23 @@
   flex-direction: column;
   gap: $pad-large;
 
+  &__description-container {
+    line-height: $pad-medium;
+  }
   &__description {
     margin: 0;
   }
 
   &__added-text {
     font-size: $x-small;
+    line-height: 20px;
   }
 
   &__added-text {
     font-weight: $bold;
+  }
+
+  &__manual-install-tooltip {
+    text-align: center;
   }
 }

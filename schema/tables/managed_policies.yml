@@ -1,7 +1,9 @@
 name: managed_policies
 columns:
   - name: username
-    description: policy only applies to the listed user. Blank if global.
+    description: Policy only applies to the listed user. Blank if global.
+  - name: domain
+    description: "System or manager-chosen domain key. Equivalent to a configuration profile's `PayloadType`"
 examples: |-
   Check if critical software update installation is enabled via a profile (1 =
   enabled)

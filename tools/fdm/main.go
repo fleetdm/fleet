@@ -67,6 +67,7 @@ func main() {
 func splitArgs(args []string) (map[string]string, []string) {
 	options := make(map[string]string)
 	var makeArgs []string
+	cliArgs := " "
 	positionalArgsIndex := 1
 	isMakeArgs := false
 	skipNext := false
@@ -96,13 +97,16 @@ func splitArgs(args []string) (map[string]string, []string) {
 			// Handle options like --name=foo
 			case len(parts) == 2:
 				options[parts[0]] = parts[1]
+				cliArgs += arg + " "
 			// Handle options like --name foo
 			case idx+1 < len(args) && !strings.HasPrefix(args[idx+1], "--"):
 				options[arg[2:]] = args[idx+1]
+				cliArgs += arg + " " + args[idx+1] + " "
 				skipNext = true
 			// Handle options like --useturbocharge by assuming they're booleans.
 			default:
 				options[parts[0]] = "true"
+				cliArgs += arg + " "
 			}
 		// Otherwise assume we're dealing with a positional argument.
 		default:
@@ -110,7 +114,7 @@ func splitArgs(args []string) (map[string]string, []string) {
 			positionalArgsIndex++
 		}
 	}
-
+	options["CLI_ARGS"] = cliArgs
 	return options, makeArgs
 }
 

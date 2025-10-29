@@ -47,10 +47,12 @@ type updateSoftwareInstallerRequest struct {
 	SelfService       *bool
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
+	Categories        []string
 }
 
 type uploadSoftwareInstallerResponse struct {
-	Err error `json:"error,omitempty"`
+	SoftwarePackage *fleet.SoftwareInstaller `json:"software_package,omitempty"`
+	Err             error                    `json:"error,omitempty"`
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
@@ -137,9 +139,9 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.SelfService = &parsed
 	}
 
-	// decode labels
-	var inclAny, exclAny []string
-	var existsInclAny, existsExclAny bool
+	// decode labels and categories
+	var inclAny, exclAny, categories []string
+	var existsInclAny, existsExclAny, existsCategories bool
 
 	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
 	switch {
@@ -161,6 +163,16 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.LabelsExcludeAny = exclAny
 	}
 
+	categories, existsCategories = r.MultipartForm.Value["categories"]
+	switch {
+	case !existsCategories:
+		decoded.Categories = nil
+	case len(categories) == 1 && categories[0] == "":
+		decoded.Categories = []string{}
+	default:
+		decoded.Categories = categories
+	}
+
 	return &decoded, nil
 }
 
@@ -177,6 +189,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		SelfService:       req.SelfService,
 		LabelsIncludeAny:  req.LabelsIncludeAny,
 		LabelsExcludeAny:  req.LabelsExcludeAny,
+		Categories:        req.Categories,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -359,18 +372,20 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		AutomaticInstall:  req.AutomaticInstall,
 	}
 
-	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {
+	installer, err := svc.UploadSoftwareInstaller(ctx, payload)
+	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil
 	}
-	return &uploadSoftwareInstallerResponse{}, nil
+
+	return &uploadSoftwareInstallerResponse{SoftwarePackage: installer}, nil
 }
 
-func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 type deleteSoftwareInstallerRequest struct {
@@ -568,6 +583,10 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Uninstall software
+////////////////////////////////////////////////////////////////////////////////
+
 type uninstallSoftwareRequest struct {
 	HostID          uint `url:"host_id"`
 	SoftwareTitleID uint `url:"software_title_id"`
@@ -590,8 +609,21 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, _ uint, _ uint) 
 	return fleet.ErrMissingLicense
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Get software uninstall results (host details and self service)
+////////////////////////////////////////////////////////////////////////////////
+
 type getSoftwareInstallResultsRequest struct {
 	InstallUUID string `url:"install_uuid"`
+}
+
+type getDeviceSoftwareInstallResultsRequest struct {
+	Token       string `url:"token"`
+	InstallUUID string `url:"install_uuid"`
+}
+
+func (r *getDeviceSoftwareInstallResultsRequest) deviceAuthToken() string {
+	return r.Token
 }
 
 type getSoftwareInstallResultsResponse struct {
@@ -600,6 +632,22 @@ type getSoftwareInstallResultsResponse struct {
 }
 
 func (r getSoftwareInstallResultsResponse) Error() error { return r.Err }
+
+func getDeviceSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	_, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareInstallResultsRequest)
+	results, err := svc.GetSoftwareInstallResults(ctx, req.InstallUUID)
+	if err != nil {
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	return &getSoftwareInstallResultsResponse{Results: results}, nil
+}
 
 func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallResultsRequest)
@@ -613,6 +661,43 @@ func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{},
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get software uninstall results from My device page
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceSoftwareUninstallResultsRequest struct {
+	Token       string `url:"token"`
+	ExecutionID string `url:"execution_id"`
+}
+
+func (r *getDeviceSoftwareUninstallResultsRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func getDeviceSoftwareUninstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareUninstallResultsRequest)
+	scriptResult, err := svc.GetSelfServiceUninstallScriptResult(ctx, host, req.ExecutionID)
+	if err != nil {
+		return getScriptResultResponse{Err: err}, nil
+	}
+
+	return setUpGetScriptResultResponse(scriptResult), nil
+}
+
+func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, host *fleet.Host, execID string) (*fleet.HostScriptResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -735,6 +820,37 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return fleet.ErrMissingLicense
 }
 
+type fleetDeviceSoftwareUninstallRequest struct {
+	Token           string `url:"token"`
+	SoftwareTitleID uint   `url:"software_title_id"`
+}
+
+func (r *fleetDeviceSoftwareUninstallRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type submitDeviceSoftwareUninstallResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r submitDeviceSoftwareUninstallResponse) Error() error { return r.Err }
+func (r submitDeviceSoftwareUninstallResponse) Status() int  { return http.StatusAccepted }
+
+func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return submitDeviceSoftwareUninstallResponse{Err: err}, nil
+	}
+
+	req := request.(*fleetDeviceSoftwareUninstallRequest)
+	if err := svc.UninstallSoftwareTitle(ctx, host.ID, req.SoftwareTitleID); err != nil {
+		return submitDeviceSoftwareUninstallResponse{Err: err}, nil
+	}
+
+	return submitDeviceSoftwareUninstallResponse{}, nil
+}
+
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
 	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
 	if !alreadyAuthenticated {
@@ -784,6 +900,100 @@ func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fl
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getInHouseAppManifestRequest struct {
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
+}
+
+type getInHouseAppManifestResponse struct {
+	// Manifest field is used in HijackRender for the response.
+	Manifest []byte
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getInHouseAppManifestResponse) Error() error { return r.Err }
+
+func (r getInHouseAppManifestResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// make the browser download the content to a file
+	w.Header().Add("Content-Disposition", `attachment; filename="in-house-app-manifest.plist"`)
+	// explicitly set the content length before the write, so the caller can
+	// detect short writes (if it fails to send the full content properly)
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Manifest)), 10))
+	// this content type will make macos open the profile with the proper application
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
+	// prevent detection of content, obey the provided content-type
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if n, err := w.Write(r.Manifest); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getInHouseAppManifestRequest)
+	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return &getInHouseAppManifestResponse{Err: err}, nil
+	}
+
+	return &getInHouseAppManifestResponse{Manifest: manifest}, nil
+}
+
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getInHouseAppPackageRequest struct {
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
+}
+
+type getInHouseAppPackageResponse struct {
+	payload *fleet.DownloadSoftwareInstallerPayload
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getInHouseAppPackageResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := io.Copy(w, r.payload.Installer); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+	r.payload.Installer.Close()
+}
+
+func (r getInHouseAppPackageResponse) Error() error { return r.Err }
+
+func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getInHouseAppPackageRequest)
+	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return &getInHouseAppPackageResponse{Err: err}, nil
+	}
+
+	return &getInHouseAppPackageResponse{payload: file}, nil
+}
+
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

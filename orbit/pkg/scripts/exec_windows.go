@@ -33,7 +33,7 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 		// to a -1 to match our expectations, and fit in our db column.
 		//
 		// https://en.wikipedia.org/wiki/Exit_status#Windows
-		exitCode = int(int32(cmd.ProcessState.ExitCode()))
+		exitCode = int(int32(cmd.ProcessState.ExitCode())) // nolint:gosec
 	}
 	return output, exitCode, err
 }

@@ -1,3 +1,0 @@
-- Return more granular data for live query and policy runs so it can be displayed to users.
-- Clarify meanings of various types and fields involved in live query/policy infrastructure,
-  document, and refactor for improved code clarity.

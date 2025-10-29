@@ -369,7 +369,7 @@ const OtherWorkflowsModal = ({
                 setNewPolicyIds(updatedPolicyIds);
                 return item;
               }}
-              footer={
+              helpText={
                 <>
                   The workflow will be triggered when hosts fail these policies.{" "}
                   <CustomLink
@@ -384,7 +384,7 @@ const OtherWorkflowsModal = ({
               onSubmit={onUpdateOtherWorkflows}
               onCancel={onExit}
               teamId={teamId}
-              disabled={!isPolicyAutomationsEnabled}
+              disableList={!isPolicyAutomationsEnabled}
             />
           ) : (
             <>

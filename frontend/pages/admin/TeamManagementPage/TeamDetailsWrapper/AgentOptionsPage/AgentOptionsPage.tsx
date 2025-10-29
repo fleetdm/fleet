@@ -21,6 +21,7 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
@@ -147,18 +148,23 @@ const AgentOptionsPage = ({
 
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Agent options configure Fleet&apos;s agent (fleetd). When you update
-        agent options, they will be applied the next time a host checks in to
-        Fleet.
-        <br />
-        <CustomLink
-          url="https://fleetdm.com/learn-more-about/agent-options"
-          text="Learn more about agent options"
-          newTab
-          multiline
-        />
-      </p>
+      <PageDescription
+        content={
+          <>
+            Agent options configure Fleet&apos;s agent (fleetd). When you update
+            agent options, they will be applied the next time a host checks in
+            to Fleet.
+            <br />
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/agent-options"
+              text="Learn more about agent options"
+              newTab
+              multiline
+            />
+          </>
+        }
+      />
+
       {isFetchingTeamOptions ? (
         <Spinner />
       ) : (
@@ -181,7 +187,6 @@ const AgentOptionsPage = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
                 disabled={disableChildren}
                 className="save-loading"
                 isLoading={isUpdatingAgentOptions}

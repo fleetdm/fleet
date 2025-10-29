@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import createMockActivity from "__mocks__/activityMock";
+import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ActivityType } from "interfaces/activity";
@@ -172,6 +172,17 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders an applied_spec_software type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AppliedSpecSoftware,
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited software using fleetctl.")
+    ).toBeInTheDocument();
+  });
+
   it("renders an applied_spec_team type activity for a single team", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecTeam,
@@ -265,7 +276,21 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("foo@example.com", { exact: false })
+      screen.getByText("foo@example.com", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a user_failed_login without an email", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserFailedLogin,
+      details: { email: "", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("Somebody failed", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -990,7 +1015,7 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a 'mdm_enrolled' type for apple with all details provided", () => {
+  it("renders a 'mdm_enrolled' type for apple with host serial provided and automatic enrollment provided", () => {
     const activity = createMockActivity({
       type: ActivityType.MdmEnrolled,
       details: {
@@ -1007,6 +1032,24 @@ describe("Activity Feed", () => {
           node?.innerHTML ===
           "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
         );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for android or apple personal devices with actor full name provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_display_name: "Test Host",
+        enrollment_id: "test-enrollment-id",
+        platform: "android",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return node?.innerHTML === "<b>Test Host</b> enrolled to Fleet.";
       })
     ).toBeInTheDocument();
   });
@@ -1355,6 +1398,60 @@ describe("Activity Feed", () => {
     expect(screen.getByText("An end user")).toBeInTheDocument();
   });
 
+  it("renders script package ran status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "sh_packages",
+        status: "installed",
+        software_package: "myscript.sh",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/ran/i)).toBeInTheDocument(); // For status: "installed"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+  });
+
+  it("renders script package pending run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "sh_packages",
+        status: "pending_install",
+        software_package: "myscript.sh",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/told Fleet to run/i)).toBeInTheDocument(); // For status: "pending_install"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+  });
+
+  it("renders script package failed run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "ps1_packages", // Other script package source
+        status: "failed_install",
+        software_package: "myscript.ps1",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to run/i)).toBeInTheDocument(); // For status: "failed_install"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+  });
+
   it("renders addedNdesScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedNdesScepProxy,
@@ -1488,5 +1585,84 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders addedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders editedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/edited a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders deletedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/deleted a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders an mdm unenroll activity with an actor name for ios, ipados, and android devices", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmUnenrolled,
+      actor_full_name: "Test User",
+      details: {
+        platform: "ios",
+        host_display_name: "Test Host",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(/told Fleet to unenroll/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
+  });
+
+  it("renders an mdm unenroll activity with no actor name for ios, ipados, and android devices", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmUnenrolled,
+      actor_full_name: undefined,
+      details: {
+        platform: "ios",
+        host_display_name: "Test Host",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
+    expect(screen.getByText(/is unenrolled from Fleet/)).toBeInTheDocument();
   });
 });

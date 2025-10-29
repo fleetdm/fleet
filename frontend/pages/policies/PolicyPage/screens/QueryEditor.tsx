@@ -13,7 +13,7 @@ import deepDifference from "utilities/deep_difference";
 import { getPathWithQueryParams } from "utilities/url";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import PolicyForm from "pages/policies/PolicyPage/components/PolicyForm";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
@@ -254,7 +254,7 @@ const QueryEditor = ({
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
-        <BackLink text="Back to policies" path={backToPoliciesPath()} />
+        <BackButton text="Back to policies" path={backToPoliciesPath()} />
       </div>
       <PolicyForm
         onCreatePolicy={onCreatePolicy}

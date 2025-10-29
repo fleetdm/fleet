@@ -23,6 +23,13 @@
     }
   }
 
+  &__disabled {
+    @include disabled;
+  }
+  .component__tooltip-wrapper__tip-text {
+    text-align: center;
+  }
+
   .premium-icon-tip {
     position: relative;
     top: 3px;

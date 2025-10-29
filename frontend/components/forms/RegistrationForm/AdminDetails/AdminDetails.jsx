@@ -62,7 +62,7 @@ class AdminDetails extends Component {
           label="Password"
           type="password"
           tabIndex={tabIndex}
-          helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+          helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
         />
         <InputField
           {...fields.password_confirmation}
@@ -70,14 +70,11 @@ class AdminDetails extends Component {
           tabIndex={tabIndex}
           label="Confirm password"
         />
-        <Button
-          type="submit"
-          tabIndex={tabIndex}
-          disabled={!currentPage}
-          variant="brand"
-        >
-          Next
-        </Button>
+        <div className="button-wrap">
+          <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+            Next
+          </Button>
+        </div>
       </form>
     );
   }

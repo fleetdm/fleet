@@ -33,19 +33,36 @@ type Service interface {
 }
 
 // ServiceWithIdentifier is the interface for all supported SCEP server operations.
+// It extends the core SCEP server with ad hoc, polymorphic "identifier" functionality.
+//
+// FIXME: This seems to have been introduced as workaround to support Fleet-specific features
+// but its usage in practice is non-intuitive. In the context of Fleet's SCEP proxy,
+// the identifier has been implemented as comma-separated string that corresponds to various
+// values used when processing SCEP requests, which vary based on the specific implementation
+// (e.g., NDES vs. custom SCEP proxy). This functionality has been used to support
+// ad hoc validation schemes.
 type ServiceWithIdentifier interface {
 	// GetCACaps returns a list of options
 	// which are supported by the server.
+	//
+	// NOTE: See type definition of ServiceWithIdentifier
+	// for additional context on identifier usage.
 	GetCACaps(ctx context.Context, identifier string) ([]byte, error)
 
 	// GetCACert returns CA certificate or
 	// a CA certificate chain with intermediates
 	// in a PKCS#7 Degenerate Certificates format
 	// message is an optional string for the CA
+	//
+	// NOTE: See type definition of ServiceWithIdentifier
+	// for additional context on identifier usage.
 	GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error)
 
 	// PKIOperation handles incoming SCEP messages such as PKCSReq and
 	// sends back a CertRep PKIMessag.
+	//
+	// NOTE: See type definition of ServiceWithIdentifier
+	// for additional context on identifier usage.
 	PKIOperation(ctx context.Context, msg []byte, identifier string) ([]byte, error)
 
 	// GetNextCACert returns a replacement certificate or certificate chain

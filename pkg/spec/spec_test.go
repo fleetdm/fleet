@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -161,8 +162,11 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "", "bar": "", "zoo": ""}, `$foo${bar}$zoo`, ``, nil},
 		{map[string]string{}, `$foo`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
 		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors(t, "environment variable \"bar\" not set")},
-		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``,
-			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set")},
+		{
+			map[string]string{"bar": "1"},
+			`$foo $bar $zoo`, ``,
+			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set"),
+		},
 		{map[string]string{"foo": "4", "bar": "2"}, `$foo$bar`, `42`, nil},
 		{map[string]string{"foo": "42", "bar": ""}, `$foo$bar`, `42`, nil},
 		{map[string]string{}, `$$`, ``, checkMultiErrors(t, "environment variable \"$\" not set")},
@@ -180,9 +184,14 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
 		{map[string]string{}, `${foo}var`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
 		{map[string]string{}, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, nil}, // nothing to replace
-		{map[string]string{"foo": "BAR"}, `\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
-			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil}, // nested variables
+		{
+			map[string]string{"foo": "BAR"},
+			`\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
+			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil,
+		}, // nested variables
 	} {
+		// save the current env before clearing it.
+		testutils.SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -206,9 +215,15 @@ func TestLookupEnvSecrets(t *testing.T) {
 	}{
 		{map[string]string{"foo": "1"}, `$foo`, map[string]string{}, nil},
 		{map[string]string{"FLEET_SECRET_foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{"FLEET_SECRET_foo": "1"}, nil},
-		{map[string]string{"foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{},
-			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set")},
+		{
+			map[string]string{"foo": "1"},
+			`$FLEET_SECRET_foo`,
+			map[string]string{},
+			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
+		},
 	} {
+		// save the current env before clearing it.
+		testutils.SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -221,5 +236,86 @@ func TestLookupEnvSecrets(t *testing.T) {
 			tc.checkErr(err)
 		}
 		require.Equal(t, tc.expResult, secretsMap)
+	}
+}
+
+// TestExpandEnvBytesIncludingSecrets tests that FLEET_SECRET_ variables are expanded when using ExpandEnvBytesIncludingSecrets
+func TestExpandEnvBytesIncludingSecrets(t *testing.T) {
+	t.Setenv("FLEET_SECRET_API_KEY", "secret123")
+	t.Setenv("NORMAL_VAR", "normalvalue")
+	t.Setenv("FLEET_VAR_HOST", "hostname")
+
+	input := []byte(`API Key: $FLEET_SECRET_API_KEY
+Normal: $NORMAL_VAR  
+Fleet Var: $FLEET_VAR_HOST
+Missing: $FLEET_SECRET_MISSING`)
+
+	result, err := ExpandEnvBytesIncludingSecrets(input)
+	require.NoError(t, err)
+
+	expected := `API Key: secret123
+Normal: normalvalue  
+Fleet Var: $FLEET_VAR_HOST
+Missing: $FLEET_SECRET_MISSING`
+
+	assert.Equal(t, expected, string(result))
+
+	// Verify that FLEET_VAR_ is not expanded (reserved for server)
+	assert.Contains(t, string(result), "$FLEET_VAR_HOST")
+	// Verify that FLEET_SECRET_ is expanded
+	assert.Contains(t, string(result), "secret123")
+	assert.NotContains(t, string(result), "$FLEET_SECRET_API_KEY")
+	// Verify that missing secrets are left as-is
+	assert.Contains(t, string(result), "$FLEET_SECRET_MISSING")
+}
+
+func TestGetExclusionZones(t *testing.T) {
+	testCases := []struct {
+		fixturePath []string
+		expected    map[[2]int]string
+	}{
+		{
+			[]string{"testdata", "policies", "policies.yml"},
+			map[[2]int]string{
+				{46, 106}:  "  description: This policy should always fail.\n  resolution:",
+				{93, 155}:  "  resolution: There is no resolution for this policy.\n  query:",
+				{268, 328}: "  description: This policy should always pass.\n  resolution:",
+				{315, 678}: "  resolution: |\n    Automated method:\n    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n  query:",
+			},
+		},
+		{
+			[]string{"testdata", "global_config_no_paths.yml"},
+			map[[2]int]string{
+				{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
+				{1754, 1818}: "    description: This policy should always fail.\n    resolution:",                    //
+				{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{1986, 2050}: "    description: This policy should always pass.\n    resolution:",                    //
+				{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2394, 2458}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2613, 2677}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2662, 3035}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
+				{6102, 6149}: "    description: A cool global label\n    query:", //
+				{6246, 6292}: "    description: A fly global label\n    hosts:",  //
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		fPath := filepath.Join(tC.fixturePath...)
+
+		t.Run(fPath, func(t *testing.T) {
+			fContents, err := os.ReadFile(fPath)
+			require.NoError(t, err)
+
+			contents := string(fContents)
+			actual := getExclusionZones(contents)
+			require.Equal(t, len(tC.expected), len(actual))
+
+			for pos, text := range tC.expected {
+				require.Contains(t, actual, pos)
+				require.Equal(t, contents[pos[0]:pos[1]], text, pos)
+			}
+		})
 	}
 }

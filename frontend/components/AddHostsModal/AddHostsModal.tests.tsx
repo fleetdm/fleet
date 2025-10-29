@@ -2,7 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
 import { createCustomRenderer } from "test/test-utils";
-import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import createMockConfig from "__mocks__/configMock";
 
 import AddHostsModal from "./AddHostsModal";
 
@@ -61,9 +61,7 @@ describe("AddHostsModal", () => {
     const linuxDebText = screen.getByText(/--type=deb/i);
     expect(linuxDebText).toBeInTheDocument();
     expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/CentOS, Red Hat, and Fedora Linux, use --type=rpm/i)
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/--type=rpm/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "ChromeOS" }));
     const extensionId = screen.getByDisplayValue(

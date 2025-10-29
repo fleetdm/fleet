@@ -1,5 +1,4 @@
 import React from "react";
-import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { useQuery } from "react-query";
 
@@ -10,10 +9,13 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
 import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 const baseClass = "end-user-authentication";
 
@@ -44,15 +46,10 @@ const isIdPConfigured = ({
   );
 };
 
-interface IEndUserAuthenticationProps {
-  currentTeamId: number;
-  router: InjectedRouter;
-}
-
 const EndUserAuthentication = ({
   currentTeamId,
   router,
-}: IEndUserAuthenticationProps) => {
+}: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
@@ -79,28 +76,49 @@ const EndUserAuthentication = ({
   );
 
   const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+    router.push(PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER);
+  };
+
+  const renderContent = () => {
+    if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
+      return <Spinner />;
+    }
+    const mdmConfig = globalConfig.mdm;
+    if (
+      !(
+        mdmConfig.enabled_and_configured ||
+        mdmConfig.android_enabled_and_configured
+      )
+    ) {
+      return (
+        <TurnOnMdmMessage
+          header="Additional configuration required"
+          info="Supported on macOS, iOS, iPadOS, and Android. To customize, first turn on MDM."
+          buttonText="Turn on"
+          router={router}
+        />
+      );
+    }
+    return (
+      <SetupExperienceContentContainer>
+        {!isIdPConfigured(mdmConfig) ? (
+          <RequireEndUserAuth onClickConnect={onClickConnect} />
+        ) : (
+          <EndUserAuthForm
+            currentTeamId={currentTeamId}
+            defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+          />
+        )}
+        <EndUserExperiencePreview />
+      </SetupExperienceContentContainer>
+    );
   };
 
   return (
-    <div className={baseClass}>
+    <section className={baseClass}>
       <SectionHeader title="End user authentication" />
-      {isLoadingGlobalConfig || isLoadingTeamConfig ? (
-        <Spinner />
-      ) : (
-        <div className={`${baseClass}__content`}>
-          {!globalConfig || !isIdPConfigured(globalConfig.mdm) ? (
-            <RequireEndUserAuth onClickConnect={onClickConnect} />
-          ) : (
-            <EndUserAuthForm
-              currentTeamId={currentTeamId}
-              defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-            />
-          )}
-          <EndUserExperiencePreview />
-        </div>
-      )}
-    </div>
+      {renderContent()}
+    </section>
   );
 };
 

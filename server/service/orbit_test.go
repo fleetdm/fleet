@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -18,6 +19,67 @@ import (
 )
 
 func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
+	setupEscrowContext := func() (*mock.Store, fleet.Service, context.Context, *fleet.Host, fleet.Team) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		os := &fleet.OperatingSystem{
+			Platform: "ubuntu",
+			Version:  "20.04",
+		}
+		host := &fleet.Host{
+			OsqueryHostID:         ptr.String("test"),
+			ID:                    1,
+			OSVersion:             "Ubuntu 20.04",
+			Platform:              "ubuntu",
+			DiskEncryptionEnabled: ptr.Bool(true),
+		}
+
+		team := fleet.Team{ID: 1}
+		teamMDM := fleet.TeamMDM{EnableDiskEncryption: true}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, team.ID, teamID)
+			return &teamMDM, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return ptr.RawMessage(json.RawMessage(`{}`)), nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return true
+		}
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
+
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+
+		return ds, svc, ctx, host, team
+	}
+
 	t.Run("don't check for pending escrow if unsupported platform or encryption is not enabled", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -80,62 +142,7 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 	})
 
 	t.Run("pending escrow sets config flag and clears in DB", func(t *testing.T) {
-		ds := new(mock.Store)
-		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
-		os := &fleet.OperatingSystem{
-			Platform: "ubuntu",
-			Version:  "20.04",
-		}
-		host := &fleet.Host{
-			OsqueryHostID:         ptr.String("test"),
-			ID:                    1,
-			OSVersion:             "Ubuntu 20.04",
-			Platform:              "ubuntu",
-			DiskEncryptionEnabled: ptr.Bool(true),
-		}
-
-		team := fleet.Team{ID: 1}
-		teamMDM := fleet.TeamMDM{EnableDiskEncryption: true}
-		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
-			require.Equal(t, team.ID, teamID)
-			return &teamMDM, nil
-		}
-		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
-			return ptr.RawMessage(json.RawMessage(`{}`)), nil
-		}
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-			return nil, nil
-		}
-		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
-			return nil, nil
-		}
-		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
-			return true, nil
-		}
-		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, nil
-		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return true
-		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
-			return nil
-		}
-
-		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return appCfg, nil
-		}
-		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
-			return os, nil
-		}
-
-		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
-			return false, nil
-		}
-
-		ctx = test.HostContext(ctx, host)
+		ds, svc, ctx, host, team := setupEscrowContext()
 
 		// no-team
 		cfg, err := svc.GetOrbitConfig(ctx)
@@ -173,6 +180,23 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.NewActivityFunc = func(
+			ctx context.Context,
+			user *fleet.User,
+			activity fleet.ActivityDetails,
+			details []byte,
+			createdAt time.Time,
+		) error {
+			require.Equal(t, activity.ActivityName(), fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+			require.NotEmpty(t, details)
+			return nil
+		}
+
 		expectedErrorMessage := "There was an error."
 		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
 			require.Equal(t, expectedErrorMessage, err)
@@ -195,7 +219,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		passphrase, salt := "foo", ""
 		var keySlot *uint
 		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
-			encryptedBase64Salt string, keySlotToPersist uint) error {
+			encryptedBase64Salt string, keySlotToPersist uint) (bool, error) {
 			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
 
@@ -209,7 +233,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 
 			require.Equal(t, *keySlot, keySlotToPersist)
 
-			return nil
+			return true, nil
 		}
 
 		// with no salt

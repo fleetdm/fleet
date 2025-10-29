@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -45,7 +46,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return "", err
 	}
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lite")
 	}
@@ -59,9 +60,18 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
-	case "ios", "ipados":
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock iOS or iPadOS hosts. Use wipe instead."))
-	case "darwin":
+	case "darwin", "ios", "ipados":
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+			return "", &fleet.BadRequestError{
+				Message: fleet.CantLockPersonalHostsMessage,
+			}
+		}
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" &&
+			(host.FleetPlatform() == "ios" || host.FleetPlatform() == "ipados") {
+			return "", &fleet.BadRequestError{
+				Message: fleet.CantLockManualIOSIpadOSHostsMessage,
+			}
+		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
@@ -75,11 +85,9 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 		}
 		if !connected {
-			if fleet.IsNotFound(err) {
-				return "", ctxerr.Wrap(
-					ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
-				)
-			}
+			return "", ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
+			)
 		}
 
 	case "windows", "linux":
@@ -116,10 +124,13 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
+
 	switch {
 	case lockWipe.IsPendingLock():
 		return "", ctxerr.Wrap(
-			ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. The host will lock when it comes online."),
+			ctx, fleet.NewInvalidArgumentError(
+				"host_id", "Host has pending lock request. Host cannot be locked again until lock is complete.",
+			),
 		)
 	case lockWipe.IsPendingUnlock():
 		return "", ctxerr.Wrap(
@@ -225,13 +236,13 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	return svc.enqueueUnlockHostRequest(ctx, host, lockWipe)
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
+func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lite")
 	}
@@ -249,6 +260,11 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+			return &fleet.BadRequestError{
+				Message: fleet.CantWipePersonalHostsMessage,
+			}
+		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
@@ -317,7 +333,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	}
 
 	// all good, go ahead with queuing the wipe request.
-	return svc.enqueueWipeHostRequest(ctx, host, lockWipe)
+	return svc.enqueueWipeHostRequest(ctx, host, lockWipe, metadata)
 }
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus, viewPIN bool) (
@@ -328,69 +344,76 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		return "", fleet.ErrNoContext
 	}
 
-	if lockStatus.HostFleetPlatform == "darwin" {
+	activity := fleet.ActivityTypeLockedHost{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}
+
+	switch lockStatus.HostFleetPlatform {
+	case "darwin":
 		lockCommandUUID := uuid.NewString()
 		if unlockPIN, err = svc.mdmAppleCommander.DeviceLock(ctx, host, lockCommandUUID); err != nil {
-			return "", ctxerr.Wrap(ctx, err, "enqueuing lock request for darwin")
+			return "", ctxerr.Wrap(ctx, err, "enqueuing lock request for macOS")
 		}
-
-		if err = svc.NewActivity(
-			ctx,
-			vc.User,
-			fleet.ActivityTypeLockedHost{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				ViewPIN:         viewPIN,
-			},
-		); err != nil {
-			return "", ctxerr.Wrap(ctx, err, "create activity for darwin lock host request")
+		activity.ViewPIN = viewPIN
+	case "ios", "ipados":
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "get app config")
 		}
-
-		return unlockPIN, nil
-	}
-
-	script := windowsLockScript
-	if lockStatus.HostFleetPlatform == "linux" {
-		script = linuxLockScript
-	}
-
-	// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
-	// part starting with the validation of the script (just in case), the checks
-	// that we don't enqueue over the limit, etc. for any other important
-	// validation we may add over there and that we bypass here by enqueueing the
-	// script directly in the datastore layer.
-
-	if err := svc.ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         host.ID,
-		ScriptContents: string(script),
-		UserID:         &vc.User.ID,
-		SyncRequest:    false,
-	}, host.FleetPlatform()); err != nil {
-		return "", err
+		lockCommandUUID := uuid.NewString()
+		if err := svc.mdmAppleCommander.EnableLostMode(ctx, host, lockCommandUUID, appCfg.OrgInfo.OrgName); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "enabling lost mode for iOS/iPadOS")
+		}
+	case "windows":
+		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+		// part starting with the validation of the script (just in case), the checks
+		// that we don't enqueue over the limit, etc. for any other important
+		// validation we may add over there and that we bypass here by enqueueing the
+		// script directly in the datastore layer.
+		if err := svc.ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+			HostID:         host.ID,
+			ScriptContents: string(windowsLockScript),
+			UserID:         &vc.User.ID,
+			SyncRequest:    false,
+		}, host.FleetPlatform()); err != nil {
+			return "", err
+		}
+	case "linux":
+		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+		// part starting with the validation of the script (just in case), the checks
+		// that we don't enqueue over the limit, etc. for any other important
+		// validation we may add over there and that we bypass here by enqueueing the
+		// script directly in the datastore layer.
+		if err := svc.ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+			HostID:         host.ID,
+			ScriptContents: string(linuxLockScript),
+			UserID:         &vc.User.ID,
+			SyncRequest:    false,
+		}, host.FleetPlatform()); err != nil {
+			return "", err
+		}
 	}
 
 	if err := svc.NewActivity(
 		ctx,
 		vc.User,
-		fleet.ActivityTypeLockedHost{
-			HostID:          host.ID,
-			HostDisplayName: host.DisplayName(),
-		},
+		activity,
 	); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "create activity for lock host request")
 	}
 
-	return "", nil
+	return unlockPIN, nil
 }
 
-func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (string, error) {
+func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (unlockPIN string, err error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return "", fleet.ErrNoContext
 	}
 
-	var unlockPIN string
-	if lockStatus.HostFleetPlatform == "darwin" {
+	switch lockStatus.HostFleetPlatform {
+	case "darwin":
 		// Record the unlock request time if it was not already recorded.
 		// It should be always recorded, since the UnlockRequestedAt time is created after the lock command is acknowledged.
 		// This code is left here to catch potential issues.
@@ -400,12 +423,12 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 			}
 		}
 		unlockPIN = lockStatus.UnlockPIN
-	} else {
-		script := windowsUnlockScript
-		if lockStatus.HostFleetPlatform == "linux" {
-			script = linuxUnlockScript
+	case "ios", "ipados":
+		err := svc.mdmAppleCommander.DisableLostMode(ctx, host, uuid.NewString())
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "disabling lost mode for iOS/iPadOS")
 		}
-
+	case "windows":
 		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
 		// part starting with the validation of the script (just in case), the checks
 		// that we don't enqueue over the limit, etc. for any other important
@@ -413,12 +436,28 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 		// script directly in the datastore layer.
 		if err := svc.ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
 			HostID:         host.ID,
-			ScriptContents: string(script),
+			ScriptContents: string(windowsUnlockScript),
 			UserID:         &vc.User.ID,
 			SyncRequest:    false,
 		}, host.FleetPlatform()); err != nil {
 			return "", err
 		}
+	case "linux":
+		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+		// part starting with the validation of the script (just in case), the checks
+		// that we don't enqueue over the limit, etc. for any other important
+		// validation we may add over there and that we bypass here by enqueueing the
+		// script directly in the datastore layer.
+		if err := svc.ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+			HostID:         host.ID,
+			ScriptContents: string(linuxUnlockScript),
+			UserID:         &vc.User.ID,
+			SyncRequest:    false,
+		}, host.FleetPlatform()); err != nil {
+			return "", err
+		}
+	default:
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
 	if err := svc.NewActivity(
@@ -436,7 +475,12 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	return unlockPIN, nil
 }
 
-func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host, wipeStatus *fleet.HostLockWipeStatus) error {
+func (svc *Service) enqueueWipeHostRequest(
+	ctx context.Context,
+	host *fleet.Host,
+	wipeStatus *fleet.HostLockWipeStatus,
+	metadata *fleet.MDMWipeMetadata,
+) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
@@ -450,11 +494,17 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 		}
 
 	case "windows":
+		// default wipe type
+		wipeType := fleet.MDMWindowsWipeTypeDoWipeProtected
+		if metadata != nil && metadata.Windows != nil {
+			wipeType = metadata.Windows.WipeType
+			level.Debug(svc.logger).Log("msg", "Windows host wipe request", "wipe_type", wipeType.String())
+		}
 		wipeCmdUUID := uuid.NewString()
 		wipeCmd := &fleet.MDMWindowsCommand{
 			CommandUUID:  wipeCmdUUID,
-			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID)),
-			TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID, wipeType.String())),
+			TargetLocURI: fmt.Sprintf("./Device/Vendor/MSFT/RemoteWipe/%s", wipeType.String()),
 		}
 		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for windows")
@@ -506,7 +556,7 @@ var (
 			<CmdID>%s</CmdID>
 			<Item>
 				<Target>
-					<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
+					<LocURI>./Device/Vendor/MSFT/RemoteWipe/%s</LocURI>
 				</Target>
 				<Meta>
 					<Format xmlns="syncml:metinf">chr</Format>

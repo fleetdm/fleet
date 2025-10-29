@@ -23,6 +23,8 @@ periodically.
 
 For the address of the MySQL server that Fleet should connect to, include the hostname and port.
 
+If an Amazon Relational Database Service (RDS) endpoint is specified and `mysql_region` is set instead of `mysql_password` or `mysql_password_path`, Identity and Access Management (IAM) authentication is automatically used.
+
 - Default value: `localhost:3306`
 - Environment variable: `FLEET_MYSQL_ADDRESS`
 - Config file format:
@@ -196,6 +198,45 @@ This setting should not usually be used.
     sql_mode: ANSI
   ```
 
+### mysql_region
+
+AWS region to use for Identity and Access Management (IAM) authentication of an Amazon Relational Database Service (RDS) MySQL connection. This flag only has effect if all of the following are true:
+
+- `mysql_password` is not set
+- `mysql_password_path` is not set
+
+- Default value: none
+- Environment variable: `FLEET_MYSQL_REGION`
+- Config file format:
+  ```yaml
+  mysql:
+    region: ca-central-1
+  ```
+
+### mysql_sts_assume_role_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  mysql:
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/rds-auth-role
+  ```
+
+### mysql_sts_external_id
+
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `mysql_sts_assume_role_arn`.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  mysql:
+    sts_external_id: your_unique_id
+  ```
+
 ## Redis
 
 Note that to test a TLS connection to a Redis instance, run the
@@ -213,12 +254,14 @@ By default, this will set up a Redis pool for that configuration and execute a
 
 For the address of the Redis server that Fleet should connect to, include the hostname and port.
 
+If an AWS ElastiCache endpoint is specified and no `redis_password` is provided, Fleet will attempt IAM authentication only if both `redis_region` and `redis_cluster` are also set. Otherwise, it falls back to authentication without a password.
+
 - Default value: `localhost:6379`
 - Environment variable: `FLEET_REDIS_ADDRESS`
 - Config file format:
   ```yaml
   redis:
-    address: 127.0.0.1:7369
+    address: 127.0.0.1:6379
   ```
 
 ### redis_username
@@ -267,6 +310,60 @@ Use a TLS connection to the Redis server.
   ```yaml
   redis:
     use_tls: true
+  ```
+
+### redis_region
+
+AWS region to use for IAM authentication of an Elasticache connection. This flag only has effect if all of the following are true:
+
+- `redis_password` is not set
+- `redis_cache_name` is set
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_REGION`
+- Config file format:
+  ```yaml
+  redis:
+    region: ca-central-1
+  ```
+
+### redis_cache_name
+
+Cache name to use for IAM authentication of an Elasticache connection. This flag only has effect if all of the following are true:
+
+- `redis_password` is not set
+- `redis_region` is set
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_CACHE_NAME`
+- Config file format:
+  ```yaml
+  redis:
+    cache_name: my-elasticache-instance
+  ```
+
+### redis_sts_assume_role_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+- Default value: `""`
+- Environment variable: `FLEET_REDIS_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  redis:
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/elasticache-auth-role
+  ```
+
+### redis_sts_external_id
+
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `redis_sts_assume_role_arn`.
+
+- Default value: `""`
+- Environment variable: `FLEET_REDIS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  redis:
+    sts_external_id: your_unique_id
   ```
 
 ### redis_duplicate_results
@@ -619,7 +716,7 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 ### server_private_key
 
-This key is required for enabling macOS MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+This key is required for enabling Apple, Windows, and Android MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
@@ -631,7 +728,73 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
     private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
+### server_private_key_region
+
+AWS region to use for Identity and Access Management (IAM) authentication. This flag only has effect if `server_private_key` is not set.
+
+- Default value: none
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_REGION`
+- Config file format:
+  ```yaml
+  server:
+    private_key_region: ca-central-1
+  ```
+
+### server_private_key_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the server private key.
+
+Only one of `server_private_key_arn` or `server_private_key` can be set.
+
+If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  server:
+    server_private_key_arn: arn:aws:secretsmanager:us-east-1:123456789012:secret:SecretName-473945
+  ```
+
+### server_private_key_sts_assume_role_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  server:
+    private_key_sts_assume_role_arn: arn:aws:iam::1234567890:role/rds-auth-role
+  ```
+
+### server_private_key_sts_external_id
+
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  server:
+    private_key_sts_external_id: your_unique_id
+  ```
+
 ## Auth
+
+### auth_sso_session_validity_period
+
+How long an SSO authentication process can take between initiation and callback. Applies to both users logging into the Fleet web UI and end users during MDM enrollment.
+
+> Note: Once logged in, `session_duration` determines how long a user stays logged into Fleet.
+
+- Default value: `5m` (5 minutes)
+- Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
+- Config file format:
+  ```yaml
+  auth:
+    sso_session_validity_period: 10m
+  ```
 
 ### auth_bcrypt_cost
 
@@ -663,6 +826,20 @@ The key size of the salt which is generated when hashing user passwords.
     salt_key_size: 36
   ```
 
+### auth_require_http_message_signature
+
+*Available in Fleet Premium.*
+
+When enabled, Fleet server will require HTTP message signatures for all incoming fleetd (orbit and osquery) requests to verify request authenticity and integrity. The fleetd agents must run with `--fleet-managed-client-certificate` flag so they can request a host identity certificate from Fleet server and then use it to create HTTP message signatures (requires orbit 1.46.0 or higher).
+
+- Default value: `false`
+- Environment variable: `FLEET_AUTH_REQUIRE_HTTP_MESSAGE_SIGNATURE`
+- Config file format:
+  ```yaml
+  auth:
+    require_http_message_signature: true
+  ```
+
 ## App
 
 ### app_token_key_size
@@ -681,7 +858,7 @@ Size of generated app tokens.
 
 How long invite tokens should be valid for.
 
-- Default value: `5 days`
+- Default value: `5d` (5 days)
 - Environment variable: `FLEET_APP_INVITE_TOKEN_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
@@ -899,7 +1076,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asyncronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1251,6 +1428,30 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
      max_backups: 0
   ```
 
+## Webhook
+
+To use webhook logging for query results, the following two Fleet config values must *both* be set:
+
+### Set log method to 'webhook' by
+- Command line flag: `--osquery_result_log_plugin="webhook"`,
+- Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"`, or
+- Config file:
+  ```yaml
+  osquery:
+    result_log_plugin: "webhook"
+  ```
+
+and
+
+### Set the desired result URL by
+- Command line flag: `--webhook_result_url="<target_result_url>"`,
+- Environment variable: `FLEET_WEBHOOK_RESULT_URL="<target_result_url>"`, or
+- Config file:
+  ```yaml
+  webhook:
+    result_url: "<target_result_url>"
+  ```
+
 ## Firehose
 
 ### firehose_region
@@ -1309,7 +1510,9 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
 - `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS role ARN to use for Firehose authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+If set, Fleet uses IAM authentication instead of basic authentication set by `firehose_access_key_id` and `firehose_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN`
@@ -1325,8 +1528,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
 - `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS External ID to use for Firehose authentication. This is typically used in 
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `firehose_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_STS_EXTERNAL_ID`
@@ -1457,7 +1659,9 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
 - `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS role ARN to use for Kinesis authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+If set, Fleet uses AWS IAM authentication instead of basic authentication set by `kinesis_access_key_id` and `kinesis_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_KINESIS_STS_ASSUME_ROLE_ARN`
@@ -1473,8 +1677,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
 - `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS External ID to use for Kinesis authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `kinesis_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_KINESIS_STS_EXTERNAL_ID`
@@ -1605,7 +1808,10 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
 - `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS role ARN to use for Lambda authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+
+If set, Fleet uses AWS IAM authentication instead of basic authentication set by `lambda_access_key_id` and `lambda_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_STS_ASSUME_ROLE_ARN`
@@ -1621,8 +1827,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
 - `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS External ID to use for Lambda authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `lambda_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_STS_EXTERNAL_ID`
@@ -1856,8 +2061,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
 - `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
-The value of the Content-Type header to use in Kafka REST Proxy API calls. More information about available versions
-can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_
+The value of the Content-Type header to use in [Kafka REST Proxy API calls](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_
 
 - Default value: application/vnd.kafka.json.v1+json
 - Environment variable: `FLEET_KAFKAREST_CONTENT_TYPE_VALUE`
@@ -1941,11 +2145,28 @@ AWS secret access key to use for SES authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
+### ses_source_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
+required** when using the SES email backend.
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter of SendRawEmail.
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `ses_access_key_id` and `ses_secret_access_key`.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SOURCE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+    ses_source_arn: arn:aws:ses:us-east-1:123456789012:identity/example.com
+  ```
+
 ### ses_sts_assume_role_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-AWS STS role ARN to use for SES authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
 
 - Default value: none
 - Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
@@ -1959,8 +2180,7 @@ AWS STS role ARN to use for SES authentication.
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-AWS STS External ID to use for SES authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `ses_source_arn` and `ses_sts_assume_role_arn`.
 
 
 - Default value: none
@@ -1969,22 +2189,6 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
   ```yaml
   ses:
     sts_external_id: your_unique_id
-  ```
-
-### ses_source_arn
-
-This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
-required** when using the SES email backend.
-
-The ARN of the identity that is associated with the sending authorization policy that permits you to send
-for the email address specified in the Source parameter of SendRawEmail.
-
-- Default value: none
-- Environment variable: `FLEET_SES_SOURCE_ARN`
-- Config file format:
-  ```yaml
-  ses:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
 ## S3
@@ -2054,7 +2258,9 @@ AWS secret access key to use for S3 authentication.
 
 *Available in Fleet Premium.*
 
-AWS STS role ARN to use for S3 authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
@@ -2068,8 +2274,7 @@ AWS STS role ARN to use for S3 authentication.
 
 *Available in Fleet Premium.*
 
-AWS STS External ID to use for S3 authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `s3_software_installers_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_EXTERNAL_ID`
@@ -2100,10 +2305,8 @@ or running S3 locally with localstack. Leave this blank to use the default S3 se
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
-will use virtual hosted bucket addressing when possible
+will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) when possible
 (`http://BUCKET.s3.amazonaws.com/KEY`).
-
-See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
 - Default value: false
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE`
@@ -2356,6 +2559,22 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
   ```yaml
   vulnerabilities:
     cve_feed_prefix_url: ""
+  ```
+
+### cisa_known_exploits_url
+
+The CISA known exploited vulnerabilities catalog is downloaded from this URL. This catalog contains
+vulnerabilities that are known to be actively exploited in the wild and is used to enhance vulnerability
+reporting with exploit status information. When this value is defined, it will download the file from
+the specified URL. If this value is not defined, Fleet uses the default CISA catalog URL. Fleet expects this
+path to be a JSON file. For a specification on the catalog you can view https://www.cisa.gov/known-exploited-vulnerabilities-catalog.
+
+- Default value: `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`
+- Environment variable: `FLEET_VULNERABILITIES_CISA_KNOWN_EXPLOITS_URL`
+- Config file format:
+  ```yaml
+  vulnerabilities:
+    cisa_known_exploits_url: https://custom-cisa-path.gov/main/known_exploited_vulnerabilities.json
   ```
 
 ### disable_schedule
@@ -2705,7 +2924,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and ABM token](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -2771,6 +2990,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+## Partnerships
+
+### partnerships_enable_secureframe
+
+When enabled, end user's who select **Fleet Desktop > About Fleet** will be navigated to the fleetdm.com/better page with [Secureframe](https://secureframe.com/) branding. See the page here: https://fleetdm.com/better?utm_content=secureframe
+
+- Default value: `false`
+- Environment variable: `FLEET_PARTNERSHIPS_ENABLE_SECUREFRAME`
+- Config file format:
+  ```
+  partnerships:
+    enable_secureframe: true
   ```
 
 <h2 id="running-with-systemd">Running with systemd</h2>

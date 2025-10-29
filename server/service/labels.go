@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -53,6 +54,11 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	if !ok {
 		return nil, nil, fleet.ErrNoContext
 	}
+
+	if len(p.Hosts) > 0 && len(p.HostIDs) > 0 {
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", `Only one of either "hosts" or "host_ids" can be included in the request.`)
+	}
+
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	label := &fleet.Label{
@@ -66,12 +72,29 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	}
 	label.Name = p.Name
 
-	if p.Query != "" && len(p.Hosts) > 0 {
-		return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of either "query" or "hosts" can be included in the request.`)
-	}
-	label.Query = p.Query
-	if p.Query == "" {
-		label.LabelMembershipType = fleet.LabelMembershipTypeManual
+	if p.Criteria != nil {
+		if p.Query != "" || (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
+			return nil, nil, fleet.NewInvalidArgumentError("criteria", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
+		}
+		label.LabelMembershipType = fleet.LabelMembershipTypeHostVitals
+		labelCriteriaJson, err := json.Marshal(p.Criteria)
+		if err != nil {
+			return nil, nil, fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
+		}
+		label.HostVitalsCriteria = ptr.RawMessage(json.RawMessage(labelCriteriaJson))
+		// Attempt to calculate a query from the criteria.
+		_, _, err = label.CalculateHostVitalsQuery()
+		if err != nil {
+			return nil, nil, fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
+		}
+	} else {
+		if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
+			return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
+		}
+		label.Query = p.Query
+		if p.Query == "" {
+			label.LabelMembershipType = fleet.LabelMembershipTypeManual
+		}
 	}
 
 	label.Platform = p.Platform
@@ -90,11 +113,13 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, err
 	}
 
-	var hostIDs []uint
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
-		if err != nil {
-			return nil, nil, err
+		hostIDs := p.HostIDs
+		if len(p.Hosts) > 0 {
+			hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIDs, filter)
 	}
@@ -140,6 +165,11 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if !ok {
 		return nil, nil, fleet.ErrNoContext
 	}
+
+	if len(payload.Hosts) > 0 && len(payload.HostIDs) > 0 {
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", `Only one of either "hosts" or "host_ids" can be included in the request.`)
+	}
+
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	label, _, err := svc.ds.Label(ctx, id, filter)
@@ -161,25 +191,30 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if payload.Description != nil {
 		label.Description = *payload.Description
 	}
-	if len(payload.Hosts) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
-		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
-	}
 
-	// use SaveLabel to update label info, and UpdateLabelMembershipByHostIDs to update membership. Approach using label
-	// names and ApplyLabelSpecs doesn't work for multiple hosts with the same name.
-
-	if payload.Hosts != nil {
-		// get host ids for valid hosts. since this endpoint will contain hosts identified by serial
-		// number, there should be no duplicates
-
-		hostIds, err := svc.ds.HostIDsByIdentifier(ctx, filter, payload.Hosts)
+	hostIDs := payload.HostIDs
+	if len(payload.Hosts) > 0 {
+		// If hosts were provided, convert them to IDs.
+		hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, payload.Hosts)
 		if err != nil {
 			return nil, nil, err
 		}
-		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIds, filter); err != nil {
+	} else if payload.Hosts != nil {
+		// If an empry list was provided, create an empty list of IDs
+		// so that we can remove all hosts from the label.
+		hostIDs = make([]uint, 0)
+	}
+
+	if len(hostIDs) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
+	}
+
+	if hostIDs != nil {
+		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIDs, filter); err != nil {
 			return nil, nil, err
 		}
 	}
+
 	return svc.ds.SaveLabel(ctx, label, filter)
 }
 
@@ -513,6 +548,12 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			// Hosts list doesn't need to contain anything, but it should at least not be nil.
 			return fleet.NewUserMessageError(
 				ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name), http.StatusUnprocessableEntity,
+			)
+		}
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals && spec.HostVitalsCriteria == nil {
+			// Criteria is required for host vitals labels.
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "label %s is declared as host vitals but contains no `criteria` key", spec.Name), http.StatusUnprocessableEntity,
 			)
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {

@@ -1,10 +1,10 @@
-# Large gaming company enhances server observability with Fleet
+# Top gaming company enhances server observability with Fleet
 
 <div purpose="attribution-quote">
 
 Fleet's extremely wide and diverse set of data allows us to answer questions that we didn't even know we had. On top of that, the experience is near instantaneous. Seconds to sort through billions of data points and return the exact handful that we need, with complete auditing and transparency. We're able to address reliability and compliance concerns without sacrificing a single point-of-a-percent of performance for our servers. All of this done consistently and continuously.
 
-**— Principal Infrastructure Engineer**
+**— Principal Infrastructure Engineer at top gaming company**
 </div>
 
 ## Challenge

@@ -3,7 +3,6 @@ module.exports = {
 
   friendlyName: 'Get a device certificate via EST protocol',
 
-
   description: 'Take a certificate signing request and authentication token, then use the EST protocol to request a certificate to be issued.',
 
   extendedDescription: 'This action is the result of a customer hackathon working on issuing device certificates to Linux devices.',
@@ -21,6 +20,31 @@ module.exports = {
       required: true,
       type: 'string',
       description: 'Authorization token provided by IdP',
+    },
+    introspectEndpoint: {
+      required: true,
+      type: 'string',
+      description: 'IdP introspect endpoint URL'
+    },
+    idpClientId: {
+      required: true,
+      type: 'string',
+      description: 'IdP client ID'
+    },
+    estEndpoint: {
+      required: true,
+      type: 'string',
+      description: 'EST protocol endpoint URL'
+    },
+    estClientId: {
+      required: true,
+      type: 'string',
+      description: 'EST client ID'
+    },
+    estClientKey: {
+      required: true,
+      type: 'string',
+      description: 'EST client key'
     }
   },
 
@@ -46,35 +70,15 @@ module.exports = {
 
   },
 
-  fn: async function ({ csrData, authToken }) {
-    const INTROSPECT_ENDPOINT = sails.config.custom.certIssueIdpIntrospectEndpoint;
-    if (!INTROSPECT_ENDPOINT) {
-      throw new Error('sails.config.custom.certIssueIdpIntrospectEndpoint is required');
-    }
-    const IDP_CLIENT_ID = sails.config.custom.certIssueIdpClientId;
-    if (!IDP_CLIENT_ID) {
-      throw new Error('sails.config.custom.certIssueIdpClientId is required');
-    }
-    const EST_ENDPOINT = sails.config.custom.certIssueEstEndpoint;
-    if (!EST_ENDPOINT) {
-      throw new Error('sails.config.custom.certIssueEstEndpoint is required');
-    }
-    const EST_CLIENT_ID = sails.config.custom.certIssueEstClientId;
-    if (!EST_CLIENT_ID) {
-      throw new Error('sails.config.custom.certIssueEstClientId is required');
-    }
-    const EST_CLIENT_KEY = sails.config.custom.certIssueEstClientKey;
-    if (!EST_CLIENT_KEY) {
-      throw new Error('sails.config.custom.certIssueEstClientKey is required');
-    }
+  fn: async function ({ csrData, authToken, introspectEndpoint, idpClientId, estEndpoint, estClientId, estClientKey }) {
 
     // Ask the IdP to introspect the auth token (ensure it's valid and extract the values).
     const introspectResponse = await sails.helpers.http.sendHttpRequest.with({
-      url: INTROSPECT_ENDPOINT,
+      url: introspectEndpoint,
       method: 'POST',
       enctype: 'application/x-www-form-urlencoded',
       body: {
-        'client_id': IDP_CLIENT_ID,
+        'client_id': idpClientId,
         'token': authToken,
       },
     });
@@ -126,17 +130,18 @@ module.exports = {
     const request = require('@sailshq/request');
     const estResponse = await new Promise((resolve, reject) => {
       request({
-        url: EST_ENDPOINT,
+        url: estEndpoint,
         method: 'POST',
         body: csrData.replace(/(-----(BEGIN|END) CERTIFICATE REQUEST-----|\n)/g, ''),
         headers: {
           'Content-Type': 'application/pkcs10',
-          'Authorization': `Basic ${Buffer.from(`${EST_CLIENT_ID}:${EST_CLIENT_KEY}`).toString('base64')}`,
+          'Authorization': `Basic ${Buffer.from(`${estClientId}:${estClientKey}`).toString('base64')}`,
         },
       }, (err, response)=>{
         if (err) {
           reject(err);
         } else {
+          response.body = '-----BEGIN CERTIFICATE-----\n' + response.body + '\n-----END CERTIFICATE-----';
           resolve(response);
         }
       });

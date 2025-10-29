@@ -1,0 +1,19 @@
+name: cryptsetup_luks_salt
+description: Given an LUKS encrypted device path, returns all the LUKS2 key slots and their respective salts.
+evented: false
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+platforms:
+  - linux
+columns:
+  - name: device
+    description: The device path used for querying the LUKS metadata, e.g. `/dev/vda3`
+    type: text
+    required: true
+  - name: key_slot
+    description: A 'key slot' that indicates where in the LUKS metadata header the user key is stored.
+    type: text
+    required: false
+  - name: salt
+    description: Salt used during the encryption process of the LUKS user key.
+    type: text
+    required: false

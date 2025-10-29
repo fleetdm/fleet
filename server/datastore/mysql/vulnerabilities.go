@@ -20,7 +20,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	eeSelectStmt := `
 		SELECT DISTINCT
 			cm.cve,
-			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
+			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			cm.cvss_score,
 			cm.epss_probability,
@@ -34,9 +34,9 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve
 			FROM software_cve
 			WHERE cve = ?
-			
+
 			UNION
-			
+
 			SELECT cve
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
@@ -49,7 +49,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	freeSelectStmt := `
 		SELECT DISTINCT
 			union_cve.cve,
-			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
+			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			COALESCE(vhc.host_count, 0) as hosts_count,
 			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
@@ -57,9 +57,9 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve, created_at, source
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
-			
+
 			UNION
-			
+
 			SELECT cve, created_at, source
 			FROM software_cve
 			WHERE cve = ?
@@ -184,7 +184,7 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 			s.name,
 			s.version,
 			s.source,
-			s.browser,
+			s.extension_for,
 			COALESCE(scpe.cpe, '') as generated_cpe,
 			COALESCE(shc.hosts_count, 0) as hosts_count,
 			COALESCE(sc.resolved_in_version, '') as resolved_in_version
@@ -219,11 +219,27 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	// Define base select statements for EE and Free versions
+	//
+	// created_at: Use MIN() to get earliest discovery date across both tables.
+	// This is important because users can sort by this field, and in production (Dogfood)
+	// data shows significant differences (>1 year) between tables.
+	// Note: created_at can be NULL in schema but never is in practice.
+	//
+	// source: Pick first match, prioritizing software_cve.
+	// This field is not exposed in the API (json:"-").
+	// Note: source can be NULL in schema but never is in practice.
 	eeSelectStmt := `
 		SELECT
-			combined.cve as cve,
-			MIN(combined.created_at) as created_at,
-			MIN(combined.source) as source,
+			vhc.cve as cve,
+			(SELECT MIN(created_at) FROM (
+				SELECT created_at FROM software_cve WHERE cve = vhc.cve
+				UNION ALL
+				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
+			) AS combined_dates) as created_at,
+			COALESCE(
+				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
+				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)
+			) as source,
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,
@@ -231,29 +247,34 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.description,
 			vhc.host_count as hosts_count,
 			vhc.updated_at as hosts_count_updated_at
-		FROM (
-			SELECT cve, created_at, source FROM software_cve
-			UNION
-			SELECT cve, created_at, source FROM operating_system_vulnerabilities
-		) AS combined
-		INNER JOIN vulnerability_host_counts vhc ON vhc.cve = combined.cve
-		LEFT JOIN cve_meta cm ON cm.cve = combined.cve
+		FROM vulnerability_host_counts vhc
+		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
 		WHERE vhc.host_count > 0
+		AND (
+			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
+		)
 		`
 	freeSelectStmt := `
 		SELECT
-			combined.cve as cve,
-			MIN(combined.created_at) as created_at,
-			MIN(combined.source) as source,
+			vhc.cve as cve,
+			(SELECT MIN(created_at) FROM (
+				SELECT created_at FROM software_cve WHERE cve = vhc.cve
+				UNION ALL
+				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
+			) AS combined_dates) as created_at,
+			COALESCE(
+				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
+				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)
+			) as source,
 			vhc.host_count as hosts_count,
 			vhc.updated_at as hosts_count_updated_at
-		FROM (
-			SELECT cve, created_at, source FROM software_cve
-			UNION
-			SELECT cve, created_at, source FROM operating_system_vulnerabilities
-		) AS combined
-		INNER JOIN vulnerability_host_counts vhc ON vhc.cve = combined.cve
+		FROM vulnerability_host_counts vhc
 		WHERE vhc.host_count > 0
+		AND (
+			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
+		)
 		`
 
 	// Choose the appropriate select statement based on EE or Free
@@ -281,9 +302,6 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	// Append group by statement
-	selectStmt += " GROUP BY cve, host_count, updated_at"
-
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 	selectStmt, args = appendListOptionsWithCursorToSQL(selectStmt, args, &opt.ListOptions)
 
@@ -309,21 +327,20 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
 	selectStmt := `
 		SELECT
-			COUNT(*)
-		FROM (
-			SELECT cve, created_at, source FROM software_cve
-			UNION
-			SELECT cve, created_at, source FROM operating_system_vulnerabilities
-		) AS combined
-		INNER JOIN vulnerability_host_counts vhc ON vhc.cve = combined.cve
-		LEFT JOIN cve_meta cm ON cm.cve = combined.cve
+			COUNT(DISTINCT vhc.cve)
+		FROM vulnerability_host_counts vhc
+		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
 		WHERE vhc.host_count > 0
+		AND (
+			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
+		)
 	`
 	var args []interface{}
 	if opt.TeamID == nil {
-		selectStmt += " AND global_stats = 1"
+		selectStmt += " AND vhc.global_stats = 1"
 	} else {
-		selectStmt += " AND global_stats = 0 AND vhc.team_id = ?"
+		selectStmt += " AND vhc.global_stats = 0 AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
 

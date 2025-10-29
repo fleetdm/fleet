@@ -63,8 +63,12 @@ jobs:
         sudo sysctl -w net.core.rmem_max=2500000
 
         # Install cloudflared
-        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        #
+        # We pin to version 2025.5.0 because something broke with 2025.6.1.
+        # 2025.6.1 fails with "failed to create tunnel: Unknown output format 'default'"
+        wget https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared-linux-amd64.deb
+
         # Add secret
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
@@ -85,20 +89,44 @@ jobs:
         check_artifacts: true
 
     - name: Run Fleet server
-      timeout-minutes: 10
+      timeout-minutes: 15
       run: |
         chmod +x ./build/fleetctl
-        ./build/fleetctl preview --no-hosts
+        ./build/fleetctl preview --no-hosts --disable-open-browser
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
         docker compose -f ~/.fleet/preview/docker-compose.yml logs --follow fleet01 fleet02 &
+        
+        # Ensure Fleet server is responding before waiting for enrollments
+        echo "Checking Fleet server health..."
+        HEALTH_CHECK_COUNT=0
+        until curl -s -o /dev/null -w "%{http_code}" http://localhost:1337/healthz | grep -q "200"; do
+          HEALTH_CHECK_COUNT=$((HEALTH_CHECK_COUNT + 1))
+          if [ $HEALTH_CHECK_COUNT -ge 30 ]; then
+            echo "ERROR: Fleet server not responding after 150 seconds"
+            docker ps -a --filter "name=fleet"
+            exit 1
+          fi
+          sleep 5
+        done
+        echo "Fleet server is responding"
+        
         # Wait for all of the hosts to be enrolled
         EXPECTED=3
-        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
-          echo -n "Waiting for hosts to enroll: "
+        ENROLLMENT_START=$(date +%s)
+        until [ $(./build/fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
+          echo -n "Waiting for hosts to enroll (${ELAPSED}s): "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
-          sleep 20
+          
+          # Show diagnostic info every 60 seconds
+          if [ $((ELAPSED % 60)) -lt 10 ]; then
+            ./build/fleetctl get hosts --json || true
+          fi
+          
+          sleep 10
         done
         echo "Success! $EXPECTED hosts enrolled."
 
@@ -167,9 +195,29 @@ jobs:
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password preview1337#
-        do
-          echo "Retrying in 5s..."
+        
+        # Wait for Fleet server to be reachable first
+        echo "Waiting for Fleet server to be ready..."
+        ATTEMPT=0
+        until curl -s -o /dev/null -w "%{http_code}" ${{ needs.gen.outputs.address }}/healthz | grep -q "200"; do
+          ATTEMPT=$((ATTEMPT + 1))
+          if [ $ATTEMPT -ge 60 ]; then
+            echo "ERROR: Fleet server not reachable after 5 minutes"
+            exit 1
+          fi
+          echo "Waiting for server... attempt $ATTEMPT/60"
+          sleep 5
+        done
+        echo "Fleet server is responding, attempting login..."
+        
+        ATTEMPT=0
+        until ./build/fleetctl login --email admin@example.com --password preview1337#; do
+          ATTEMPT=$((ATTEMPT + 1))
+          if [ $ATTEMPT -ge 30 ]; then
+            echo "ERROR: Failed to login after $ATTEMPT attempts"
+            exit 1
+          fi
+          echo "Login attempt $ATTEMPT failed, retrying in 5s..."
           sleep 5
         done
         TOKEN=$(cat ~/.fleet/config| grep token | awk '{ print $2 }')
@@ -206,6 +254,14 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
+
     - name: Install Orbit
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
@@ -216,9 +272,12 @@ jobs:
         echo "Hostname: $(hostname -s)"
         fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug
         sudo installer -pkg fleet-osquery.pkg -target /
+        ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
-          echo "Awaiting enrollment..."
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
+          echo "Awaiting enrollment... (${ELAPSED}s)"
           sleep 10
         done
 
@@ -275,6 +334,13 @@ jobs:
     - name: Build Fleetctl
       run: make fleetctl
 
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
+
     - name: Install Orbit
       run: |
         sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
@@ -286,9 +352,11 @@ jobs:
         echo "Hostname: $(hostname -s)"
         ./build/fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug
         sudo dpkg -i fleet-osquery*
-        until fleetctl get hosts | grep -iF $(hostname -s);
-        do
-          echo "Awaiting enrollment..."
+        ENROLLMENT_START=$(date +%s)
+        until fleetctl get hosts | grep -iF $(hostname -s); do
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
+          echo "Awaiting enrollment... (${ELAPSED}s)"
           sudo systemctl status orbit.service || true
           sleep 10
         done
@@ -334,6 +402,14 @@ jobs:
         docker pull fleetdm/wix:latest &
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
 
     - name: Build Orbit
       run: |
@@ -386,7 +462,7 @@ jobs:
       shell: cmd
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
-        sleep 30
+        sleep 120
 
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job

@@ -1,1 +1,0 @@
-* Added download url for fleet maintained apps as `url` property on `fleet/software/fleet_maintained_apps/:id`

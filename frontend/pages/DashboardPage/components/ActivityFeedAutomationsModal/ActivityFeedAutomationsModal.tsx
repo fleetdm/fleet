@@ -174,7 +174,6 @@ const ActivityFeedAutomationsModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="brand"
             onClick={onModalSubmit}
             className="save-loading"
             isLoading={isUpdating}

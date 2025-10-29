@@ -2,25 +2,24 @@ import React, { useState, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 
 import { IConfig } from "interfaces/config";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
-// @ts-ignore
-import { stringToClipboard } from "utilities/copy_text";
 import paths from "router/paths";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import Icon from "components/Icon";
+import PageDescription from "components/PageDescription";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -46,11 +45,6 @@ const API_KEY_JSON_PLACEHOLDER = `{
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fleet-calendar-events%40fleet-in-your-calendar.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
 }`;
-
-interface IFormField {
-  name: string;
-  value: string | boolean | number;
-}
 
 interface ICalendarsFormErrors {
   domain?: string | null;
@@ -84,7 +78,6 @@ const Calendars = (): JSX.Element => {
   });
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
-  const [copyMessage, setCopyMessage] = useState<string>("");
 
   const {
     data: config,
@@ -107,6 +100,7 @@ const Calendars = (): JSX.Element => {
       }
     },
   });
+
   const gomEnabled = config?.gitops.gitops_mode_enabled;
 
   const { apiKeyJson, domain } = formData;
@@ -136,13 +130,20 @@ const Calendars = (): JSX.Element => {
   };
 
   const onInputChange = useCallback(
-    ({ name, value }: IFormField) => {
+    ({ name, value }: IInputFieldParseTarget) => {
       const newFormData = { ...formData, [name]: value };
       setFormData(newFormData);
       setFormErrors(validateForm(newFormData));
     },
     [formData]
   );
+
+  if (!isPremiumTier)
+    return (
+      <SettingsSection title="Calendars">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
@@ -181,45 +182,9 @@ const Calendars = (): JSX.Element => {
     }
   };
 
-  const renderOauthLabel = () => {
-    const onCopyOauthScopes = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(OAUTH_SCOPES)
-        .then(() => setCopyMessage(() => "Copied!"))
-        .catch(() => setCopyMessage(() => "Copy failed"));
-
-      // Clear message after 1 second
-      setTimeout(() => setCopyMessage(() => ""), 1000);
-
-      return false;
-    };
-
-    return (
-      <span className={`${baseClass}__oauth-scopes-copy-icon-wrapper`}>
-        <Button
-          variant="unstyled"
-          className={`${baseClass}__oauth-scopes-copy-icon`}
-          onClick={onCopyOauthScopes}
-        >
-          <Icon name="copy" />
-        </Button>
-        {copyMessage && (
-          <span className={`${baseClass}__copy-message`}>{copyMessage}</span>
-        )}
-      </span>
-    );
-  };
-
   const renderForm = () => {
     return (
       <>
-        <SectionHeader title="Calendars" />
-        <p className={`${baseClass}__page-description`}>
-          To create calendar events for end users with failing policies,
-          you&apos;ll need to configure a dedicated Google Workspace service
-          account.
-        </p>
         <div className={`${baseClass}__section-instructions`}>
           <p>
             1. Go to the <b>Service Accounts</b> page in Google Cloud Platform.{" "}
@@ -338,20 +303,21 @@ const Calendars = (): JSX.Element => {
                       error={formErrors.domain}
                       disabled={gomEnabled}
                     />
-                    <GitOpsModeTooltipWrapper
-                      tipOffset={8}
-                      renderChildren={(dC) => (
-                        <Button
-                          type="submit"
-                          variant="brand"
-                          disabled={Object.keys(formErrors).length > 0 || dC}
-                          className="save-loading"
-                          isLoading={isUpdatingSettings}
-                        >
-                          Save
-                        </Button>
-                      )}
-                    />
+                    <div className="button-wrap">
+                      <GitOpsModeTooltipWrapper
+                        tipOffset={8}
+                        renderChildren={(dC) => (
+                          <Button
+                            type="submit"
+                            disabled={Object.keys(formErrors).length > 0 || dC}
+                            className="save-loading"
+                            isLoading={isUpdatingSettings}
+                          >
+                            Save
+                          </Button>
+                        )}
+                      />
+                    </div>
                   </form>
                 </Card>
               </li>
@@ -389,7 +355,7 @@ const Calendars = (): JSX.Element => {
                   readOnly
                   inputWrapperClass={`${baseClass}__oauth-scopes`}
                   name="oauth-scopes"
-                  label={renderOauthLabel()}
+                  enableCopy
                   type="textarea"
                   value={OAUTH_SCOPES}
                 />
@@ -435,8 +401,6 @@ const Calendars = (): JSX.Element => {
     );
   };
 
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
-
   if (isLoadingAppConfig) {
     <div className={baseClass}>
       <Spinner includeContainer={false} />
@@ -447,7 +411,21 @@ const Calendars = (): JSX.Element => {
     return <DataError />;
   }
 
-  return <div className={baseClass}>{renderForm()}</div>;
+  return (
+    <SettingsSection title="Calendars">
+      <PageDescription
+        content={
+          <>
+            To create calendar events for end users with failing policies,
+            you&apos;ll need to configure a dedicated Google Workspace service
+            account.
+          </>
+        }
+        variant="right-panel"
+      />
+      {renderForm()}
+    </SettingsSection>
+  );
 };
 
 export default Calendars;

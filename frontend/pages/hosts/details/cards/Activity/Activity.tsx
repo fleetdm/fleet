@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
@@ -18,7 +19,7 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 
-const baseClass = "activity-card";
+const baseClass = "host-activity-card";
 
 const UpcomingTooltip = () => {
   return (
@@ -36,7 +37,9 @@ interface IActivityProps {
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
+  className?: string;
   upcomingCount: number;
+  canCancelActivities: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -49,27 +52,33 @@ const Activity = ({
   activities,
   isLoading,
   isError,
+  className,
   upcomingCount,
+  canCancelActivities,
   onChangeTab,
   onNextPage,
   onPreviousPage,
   onShowDetails,
   onCancel,
 }: IActivityProps) => {
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
-      className={baseClass}
+      className={classNames}
     >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
-          <Spinner />
+          <Spinner centered />
         </div>
       )}
-      <CardHeader header="Activity" />
-      <TabNav>
+      <div className={`${baseClass}__header`}>
+        <CardHeader header="Activity" />
+        <UpcomingTooltip />
+      </div>
+      <TabNav secondary>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}
@@ -92,7 +101,6 @@ const Activity = ({
             />
           </TabPanel>
           <TabPanel>
-            <UpcomingTooltip />
             <UpcomingActivityFeed
               activities={
                 activities as IHostUpcomingActivitiesResponse | undefined
@@ -102,6 +110,7 @@ const Activity = ({
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
+              canCancelActivities={canCancelActivities}
             />
           </TabPanel>
         </Tabs>

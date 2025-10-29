@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import SectionHeader from "components/SectionHeader";
-
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
 
@@ -27,7 +29,7 @@ const Statistics = ({
 
   const { enableUsageStatistics } = formData;
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     setFormData({ ...formData, [name]: value });
   };
 
@@ -48,11 +50,14 @@ const Statistics = ({
     handleSubmit(formDataToSubmit);
   };
 
+  const telemetryAlwaysEnabled =
+    isPremiumTier && !appConfig.license.allow_disable_telemetry;
+
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__section`}>
-        <SectionHeader title="Usage statistics" />
-        <form onSubmit={onFormSubmit} autoComplete="off">
+    <SettingsSection title="Usage statistics">
+      <PageDescription
+        variant="right-panel"
+        content={
           <p className={`${baseClass}__section-description`}>
             Help us improve Fleet by sending us anonymous usage statistics.
             <br />
@@ -69,32 +74,33 @@ const Statistics = ({
               newTab
             />
           </p>
-          <Checkbox
-            onChange={onInputChange}
-            name="enableUsageStatistics"
-            value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
-            parseTarget
-            disabled={isPremiumTier}
-          >
-            Enable usage statistics
-          </Checkbox>
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                variant="brand"
-                disabled={disableChildren}
-                className="button-wrap"
-                isLoading={isUpdatingSettings}
-              >
-                Save
-              </Button>
-            )}
-          />
-        </form>
-      </div>
-    </div>
+        }
+      />
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        <Checkbox
+          onChange={onInputChange}
+          name="enableUsageStatistics"
+          value={telemetryAlwaysEnabled ? true : enableUsageStatistics} // Set to true for all premium customers
+          parseTarget
+          disabled={telemetryAlwaysEnabled}
+        >
+          Enable usage statistics
+        </Checkbox>
+        <GitOpsModeTooltipWrapper
+          tipOffset={-8}
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              disabled={disableChildren}
+              className="button-wrap"
+              isLoading={isUpdatingSettings}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </form>
+    </SettingsSection>
   );
 };
 

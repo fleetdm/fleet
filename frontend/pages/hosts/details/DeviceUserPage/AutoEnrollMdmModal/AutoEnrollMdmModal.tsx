@@ -49,9 +49,7 @@ const AutoEnrollMdmModal = ({
             </div>
             <InputField
               enableCopy
-              copyButtonPosition="inside"
               readOnly
-              inputWrapperClass
               name="profiles-renew-command"
               value="sudo profiles renew -type enrollment"
             />
@@ -90,9 +88,7 @@ const AutoEnrollMdmModal = ({
             </div>
             <InputField
               enableCopy
-              copyButtonPosition="inside"
               readOnly
-              inputWrapperClass
               name="profiles-renew-command"
               value="sudo profiles renew -type enrollment"
             />
@@ -120,7 +116,7 @@ const AutoEnrollMdmModal = ({
       <div>
         {isMacOsSonomaOrLater ? sonomaAndAboveBody : preSonomaBody}
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="brand">
+          <Button type="button" onClick={onCancel}>
             Done
           </Button>
         </div>

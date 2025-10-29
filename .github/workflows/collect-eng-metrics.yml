@@ -1,0 +1,76 @@
+name: Collect engineering metrics
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Run at 4am CDT (9am UTC)
+  workflow_dispatch:      # Allow manual triggering
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+permissions:
+  contents: read          # fetch repo metadata
+  pull-requests: read     # read PR timelines
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # 4.4.0
+        with:
+          node-version: '20.18.1'
+          cache: 'npm'
+          cache-dependency-path: .github/actions/eng-metrics/package-lock.json
+
+      - name: Install dependencies
+        working-directory: .github/actions/eng-metrics
+        run: npm ci
+
+      - name: Create service account key file
+        working-directory: .github/actions/eng-metrics
+        run: |
+          echo '${{ secrets.ENG_METRICS_GCP_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
+          # Verify the file is valid JSON and is a top-level object
+          if ! jq 'type == "object"' service-account-key.json | grep -q true; then
+            echo "Error: service-account-key.json is either invalid JSON or not a JSON object"
+            echo "Is ENG_METRICS_GCP_SERVICE_ACCOUNT_KEY secret properly set?"
+            exit 1
+          fi
+
+      - name: Collect and upload engineering metrics
+        uses: ./.github/actions/eng-metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVICE_ACCOUNT_KEY_PATH: './service-account-key.json'
+
+      - name: Slack notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Collect engineering metrics result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

@@ -1,1 +1,0 @@
-Improved error messages when Fleet admin tries to upload a FileVault(macOS) or a BitLocker(Windows) configuration profile.

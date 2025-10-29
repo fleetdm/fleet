@@ -1,21 +1,9 @@
 .dashboard-page {
-  background-color: $ui-off-white;
   overflow: initial; // auto causes double scroll bar  but still needed for other pages .main-content div
-  padding-bottom: 60px; // replaces white padding on off-white page
-
-  .data-error {
-    &__inner {
-      margin: $pad-xxxlarge 0;
-    }
-  }
-
-  &__wrapper {
-    background-color: $ui-off-white;
-  }
+  @include vertical-page-layout;
 
   h2 {
     font-size: $small;
-    font-weight: $regular;
     margin: 0;
   }
 
@@ -25,8 +13,6 @@
 
   &__header {
     @include normalize-team-header;
-    margin-bottom: $pad-large;
-
     .Select-control {
       background-color: $ui-off-white !important;
     }
@@ -56,7 +42,7 @@
     }
     .Select-control,
     .Select-value {
-      background-color: $core-white !important;
+      background-color: $core-fleet-white !important;
     }
   }
 
@@ -65,14 +51,13 @@
   }
 
   &__section {
-    margin-top: $pad-medium;
     width: 100%;
     display: grid;
-    row-gap: $pad-medium;
+    row-gap: $gap-page-component;
 
     @media screen and (min-width: $break-md) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      column-gap: $pad-medium;
+      column-gap: $gap-page-component;
 
       // if we have an odd number of elements, take
       // the last one and stretch it across the grid
@@ -85,20 +70,19 @@
   &__host-sections {
     display: flex;
     flex-direction: column;
-    margin-top: $pad-medium;
   }
 
   // >= 320px 12 pt gap
   @media (min-width: $break-mobile-xs) {
     .dashboard-page__host-sections {
-      gap: $pad-smedium;
+      gap: $gap-page-component-responsiveness;
     }
   }
 
   // >= 880px 16pt gap
   @media (min-width: $break-sm) {
     .dashboard-page__host-sections {
-      gap: $pad-medium;
+      gap: $gap-page-component;
     }
   }
 

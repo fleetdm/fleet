@@ -61,6 +61,7 @@ The `osquery_schedule` table will list all scheduled queries and recent informat
 * The `--verbose` flag will generate more logs with troubleshooting information.
 
 ## How do I turn on an evented table?
+
 To turn on osquery's eventing system, set the flag `--disable_events=false`. Eventing is disabled by default. 
 
 Each evented table is turned on by its own flag. For most evented tables, when you turn them on in osquery, osquery will use the default configuration of the utility. The defaults are good enough for most situations.
@@ -121,7 +122,13 @@ On macOS, there are two utilities that enable osquery process auditing: [OpenBSM
 To use the `es_process_events` tables, use the flag `--disable_endpointsecurity=false`. See the [EndpointSecurity instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-endpointsecurity) for more information. To use `process_events` and `socket_events` with OpenBSM, see the [OpenBSM instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-openbsm). 
 
 #### Windows
-Fleet supports auditing process events on Windows via the `process_etw_events` table. To learn more about process auditing on Windows, visit [Microsoft's security auditing overview](https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/security-auditing-overview). Fleet is tracking work to add file auditing for Windows in osquery. [Stay up to date on GitHub](https://github.com/fleetdm/fleet/issues/20946).
+
+Fleet supports auditing process events on Windows via the `process_etw_events` table. 
+To use the `process_etw_events` table you will need to set the following flags in osquery:
+- `--disable_events` set to `false`.
+- `--enable_process_etw_events` set to `true`.
+
+To learn more about process auditing on Windows, visit [Microsoft's security auditing overview](https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/security-auditing-overview). Fleet is tracking work to add file auditing for Windows in osquery. [Stay up to date on GitHub](https://github.com/fleetdm/fleet/issues/20946).
 
 ### YARA scanning
 [YARA](https://virustotal.github.io/yara/) is a malware research and detection tool available on Linux and macOS that allows users to create descriptions of malware families based on patterns of text or binary code. Each potential piece of malware is matched against a YARA rule and triggers if the specified conditions are met. 

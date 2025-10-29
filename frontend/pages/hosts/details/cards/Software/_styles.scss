@@ -1,4 +1,6 @@
-.software-card {
+.host-software-card {
+  @include vertical-page-tab-panel-layout;
+
   .table-container {
     .stackable-header {
       min-width: initial; // Fix card overflow on low widths
@@ -17,10 +19,20 @@
     width: 100%;
   }
 
+  .table-container__data-table-block {
+    .data-table-block {
+      .data-table {
+        &__wrapper {
+          overflow-x: auto;
+        }
+      }
+    }
+  }
+
   .host-software-table {
     &__software-filter {
-      min-width: 215px;
-      width: 215px; // Override .form-field 100%
+      min-width: 240px;
+      width: 240px; // Override .form-field 100%
     }
 
     &__filters {
@@ -32,93 +44,16 @@
       }
     }
 
+    .table-container__search-input .input-with-icon {
+      min-width: 305px; // Fit placeholder text
+    }
+
     .data-table-block {
       .data-table__table {
         thead {
-          .name__header {
-            display: table-cell;
-            width: auto;
-          }
-          .status__header {
-            display: table-cell;
-            width: auto;
-          }
-          .Version__header {
-            display: table-cell;
-            width: auto;
-          }
-          .source__header {
-            display: table-cell;
-          }
           .Vulnerabilities__header {
             display: table-cell;
             max-width: px-to-rem(140);
-          }
-          // this is called `id` only due to typing concerns in the table config – it is for the
-          // "Actions" column
-          .id__header {
-            width: px-to-rem(72);
-          }
-          @media (max-width: ($break-xl - 1)) {
-            .source__header {
-              display: none;
-              width: 0;
-            }
-          }
-          @media (max-width: ($break-lg - 1)) {
-            .status__header {
-              display: none;
-              width: 0;
-            }
-          }
-        }
-        tbody {
-          tr {
-            .name__cell {
-              display: table-cell;
-              width: auto;
-            }
-            .status__cell {
-              display: table-cell;
-              width: auto;
-            }
-            .Version__cell {
-              display: table-cell;
-              width: auto;
-            }
-            .source__cell {
-              display: table-cell;
-            }
-            .Vulnerabilities__cell {
-              display: table-cell;
-            }
-            @media (max-width: ($break-xl - 1)) {
-              .source__cell {
-                display: none;
-                width: 0;
-              }
-            }
-            @media (max-width: ($break-lg - 1)) {
-              .status__cell {
-                display: none;
-                width: 0;
-              }
-            }
-
-            // Very little real estate at 768px
-            @media (max-width: ($break-sm - 1)) {
-              .name__cell {
-                .software-name {
-                  max-width: 190px;
-                }
-              }
-
-              .Version__cell {
-                .text-cell {
-                  max-width: 95px;
-                }
-              }
-            }
           }
         }
       }

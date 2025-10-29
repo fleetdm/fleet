@@ -21,144 +21,93 @@ export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
 }
 interface IPaginatedListProps<TItem> {
-  // Function to fetch one page of data.
-  // Parents should memoize this function with useCallback() so that
-  // it is only called when needed.
-  fetchPage: (pageNumber: number) => Promise<TItem[]>;
-  // Function to fetch the total # of items.
-  // Parents should memoize this function with useCallback() so that
-  // it is only called when needed.
-  fetchCount?: () => Promise<number>;
-  // UID property in an item. Defaults to `id`.
+  /** Function to fetch one page of data.
+  Parents should memoize this function with useCallback() so that
+  it is only called when needed. */
+  data: TItem[];
+  /** if the parent already knows the number of items. If `fetchCount` is also defined, it will be
+  called and its result used to replace count in local state. */
+  count?: number;
+  /** if the parent is currently loading data */
+  isLoading?: boolean;
+  /** index of the currently displayed page */
+  currentPage: number;
+  /** callback when the page index changes */
+  onChangePage: (pageIndex: number) => void;
+  /** UID property in an item. Defaults to `id`. */
   idKey?: string;
-  // Property to use as an item's label. Defaults to `name`.
+  /** Property to use as an item's label. Defaults to `name`. */
   labelKey?: string;
-  // How to determine whether to check an item's checkbox.
-  // If string, a key in an item whose truthiness will be checked.
-  // if function, a function that given an item, returns a boolean.
-  isSelected: string | ((item: TItem) => boolean);
-  // Custom function to render the label for an item.
+  /** How to determine whether an item is selected.
+   If string, a key in an item whose truthiness will be checked.
+   if function, a function that given an item, returns a boolean.
+   *required in conjunction with `useCheckBoxes` */
+  isSelected?: string | ((item: TItem) => boolean); // TODO - rename as `isItemSelected
+  /** How to determine whether an item is disabled */
+  isItemDisabled?: (item: TItem) => boolean;
+  /** How to determine the tooltip to show on hover over the item's checkbox */
+  getItemTooltipContent?: (item: TItem) => React.ReactNode;
+  /** Custom function to render the label for an item. Only considered if !!useCheckboxes */
   renderItemLabel?: (item: TItem) => ReactElement | null;
-  // Custom function to render extra markup (besides the label) in an item row.
+  /** Custom function to render extra markup (besides the label) in an item row. */
   renderItemRow?: (
     item: TItem,
-    // A callback function that the extra markup logic can call to indicate a change
-    // to the item, for example if a dropdown is changed.
+    /** A callback function that the extra markup logic can call to indicate a change
+    to the item, for example if a dropdown is changed. */
     onChange: (item: TItem) => void
   ) => ReactElement | false | null | undefined;
-  // A function to call when an item's checkbox is toggled.
-  // Parents can use this to change whatever item metadata is needed to toggle
-  // the value indicated by `isSelected`.
-  onToggleItem: (item: TItem) => TItem;
-  // The size of the page to fetch and show.
+  /** Parents can use this to change whatever item metadata is needed to toggle
+  the value indicated by `isSelected`. */
+  onClickRow?: (item: TItem) => TItem;
+  /** whether clicking a row should set the item as dirty. Default true. */
+  setDirtyOnClickRow?: boolean;
+  /** The size of the page to fetch and show. */
   pageSize?: number;
-  // An optional header component.
+  /** An optional header component. */
   heading?: JSX.Element;
-  // A function to call when the list of dirty items changes.
+  /** A function to call when the list of dirty items changes. */
   onUpdate?: (changedItems: TItem[]) => void;
-  // Whether the list should be disabled.
+  /** Whether the list should be disabled. */
   disabled?: boolean;
+  /** also requires an `isSelected` function be passed in for correct functionality */
+  useCheckBoxes?: boolean;
+  /** Help text to display below the list and above the pagination controls */
+  helpText?: React.ReactNode;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
   {
-    fetchPage,
-    fetchCount,
+    data,
+    count,
+    isLoading = false,
+    currentPage = 0,
+    onChangePage,
     idKey: _idKey,
     labelKey: _labelKey,
     pageSize: _pageSize,
     renderItemLabel,
     renderItemRow,
-    onToggleItem,
+    onClickRow,
+    setDirtyOnClickRow = true,
     onUpdate,
     isSelected,
+    isItemDisabled,
+    getItemTooltipContent,
     disabled = false,
     heading,
+    useCheckBoxes = true,
+    helpText,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
-  // The # of the page to display.
-  const [currentPage, setCurrentPage] = useState(0);
-  // The set of items fetched via `fetchPage`.
-  const [items, setItems] = useState<TItem[]>([]);
-  // The total # of items fetched via `fetchCount`.
-  const [totalItems, setTotalItems] = useState(0);
   // The set of items that have been changed in some way.
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
-  const [isLoadingCount, setIsLoadingCount] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
-
-  // When the current page # changes, fetch a new page of data.
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function loadPage() {
-      try {
-        setIsLoadingPage(true);
-        setError(null);
-        const result = await fetchPage(currentPage);
-        if (!isCancelled) {
-          setItems(result);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          setError(err as Error);
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingPage(false);
-        }
-      }
-    }
-
-    loadPage();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [currentPage, fetchPage]);
-
-  // Fetch the total # of items.
-  // This will generally only happen once, assuming the parent
-  // uses useCallback() to memoize the fetchCount function.
-  // To retrigger this (for example, after an item is added or removed),
-  // the parent can add dependencies to the useCallback().
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function loadCount() {
-      try {
-        if (!fetchCount) {
-          return;
-        }
-        setIsLoadingCount(true);
-        const result = await fetchCount();
-        if (!isCancelled) {
-          setTotalItems(result);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          setError(err as Error);
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingCount(false);
-        }
-      }
-    }
-
-    loadCount();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [fetchCount]);
 
   // Whenever the dirty items list changes, notify the parent.
   useEffect(() => {
@@ -175,12 +124,9 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     },
   }));
 
-  const disableNext = () => {
-    if (!totalItems) {
-      return items.length < pageSize;
-    }
-    return currentPage * pageSize + items.length >= totalItems;
-  };
+  const disableNext = !count
+    ? data.length < pageSize
+    : currentPage * pageSize + data.length >= count;
 
   // TODO -- better error state?
   if (error) return <p>Error: {error.message}</p>;
@@ -191,40 +137,50 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   });
   return (
     <div className={classes}>
-      {(isLoadingPage || isLoadingCount) && (
+      {isLoading && (
         <div className="loading-overlay">
           <Spinner />
         </div>
       )}
-      <div>
-        <ul className={`${baseClass}__list`}>
-          {heading && (
-            <li className={`${baseClass}__row ${baseClass}__header`}>
-              {heading}
-            </li>
-          )}
-          {items.map((_item) => {
-            // If an item has been marked as changed, use the changed version
-            // of the item rather than the one from the page fetch.  This allows
-            // us to render an item correctly even after we've navigated away
-            // from its page and then back again.
-            const item = dirtyItems[_item[idKey]] ?? _item;
-            return (
-              // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-              <li
-                className={`${baseClass}__row`}
-                key={item[idKey]}
-                onClick={() => {
-                  // When checkbox is toggled, set item as dirty.
-                  // The parent is responsible for actually updating item properties via onToggleItem().
+      <ul className={`${baseClass}__list`}>
+        {heading && (
+          <li className={`${baseClass}__row ${baseClass}__header`}>
+            {heading}
+          </li>
+        )}
+        {data.map((_item) => {
+          // If an item has been marked as changed, use the changed version
+          // of the item rather than the one from the page fetch.  This allows
+          // us to render an item correctly even after we've navigated away
+          // from its page and then back again.
+          const item = dirtyItems[_item[idKey]] ?? _item;
+
+          const itemDisabled = isItemDisabled && isItemDisabled(item);
+
+          const rowClasses = classnames(`${baseClass}__row`, {
+            [`${baseClass}__row--disabled`]: itemDisabled,
+          });
+          return (
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+            <li
+              className={rowClasses}
+              key={item[idKey]}
+              onClick={() => {
+                if (itemDisabled) return;
+                const clickedItem = onClickRow ? onClickRow(item) : item;
+                if (setDirtyOnClickRow)
                   setDirtyItems({
                     ...dirtyItems,
-                    [item[idKey]]: onToggleItem(item),
+                    [item[idKey]]: clickedItem,
                   });
-                }}
-              >
+              }}
+            >
+              {useCheckBoxes && isSelected && (
                 <Checkbox
-                  disabled={disabled}
+                  disabled={disabled || itemDisabled}
+                  iconTooltipContent={
+                    getItemTooltipContent && getItemTooltipContent(item)
+                  }
                   value={
                     typeof isSelected === "function"
                       ? isSelected(item)
@@ -238,27 +194,28 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                     <TooltipTruncatedText value={<>{item[labelKey]}</>} />
                   )}
                 </Checkbox>
-                {renderItemRow &&
-                  // If a custom row renderer was supplied, call it with the item value
-                  // as well as the callback the parent can use to indicate changes to an item.
-                  renderItemRow(item, (changedItem) => {
-                    setDirtyItems({
-                      ...dirtyItems,
-                      [changedItem[idKey]]: changedItem,
-                    });
-                  })}
-              </li>
-            );
-          })}
-        </ul>
-        <Pagination
-          disablePrev={currentPage === 0}
-          disableNext={disableNext()}
-          onNextPage={() => setCurrentPage(currentPage + 1)}
-          onPrevPage={() => setCurrentPage(currentPage - 1)}
-          hidePagination={currentPage === 0 && disableNext()}
-        />
-      </div>
+              )}
+              {renderItemRow &&
+                // If a custom row renderer was supplied, call it with the item value
+                // as well as the callback the parent can use to indicate changes to an item.
+                renderItemRow(item, (changedItem) => {
+                  setDirtyItems({
+                    ...dirtyItems,
+                    [changedItem[idKey]]: changedItem,
+                  });
+                })}
+            </li>
+          );
+        })}
+      </ul>
+      {helpText && <div className="form-field__help-text">{helpText}</div>}
+      <Pagination
+        disablePrev={currentPage === 0}
+        disableNext={disableNext}
+        onNextPage={() => onChangePage(currentPage + 1)}
+        onPrevPage={() => onChangePage(currentPage - 1)}
+        hidePagination={currentPage === 0 && disableNext}
+      />
     </div>
   );
 }

@@ -35,7 +35,7 @@ func Up_20161128234849(tx *sql.Tx) error {
 			"ON DELETE CASCADE, " +
 			"FULLTEXT KEY `ip_address_search` (`ip_address`)," +
 			"UNIQUE KEY `idx_network_interfaces_unique_ip_host_intf` (`ip_address`, `host_id`, `interface`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }

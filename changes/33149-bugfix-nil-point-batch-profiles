@@ -1,0 +1,2 @@
+- Fixed bug where batch setting MDM profiles could cause a nil pointer dereference when processing
+  an invalid profile (e.g., cannot parse mobileconfig because it is bad xml).

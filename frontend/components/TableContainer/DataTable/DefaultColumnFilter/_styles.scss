@@ -1,10 +1,8 @@
 .filter-cell {
-  .input-icon-field__input-wrapper {
-    margin-top: $pad-xsmall;
-  }
+  max-width: 100%;
 
   input {
-    height: 40px;
+    height: 36px;
     width: 100%;
     font-size: $x-small;
     background-color: transparent;

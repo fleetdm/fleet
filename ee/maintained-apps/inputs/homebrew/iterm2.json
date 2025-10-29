@@ -1,0 +1,8 @@
+{
+  "name": "iTerm2",
+  "slug": "iterm2/darwin",
+  "unique_identifier": "com.googlecode.iterm2",
+  "token": "iterm2",
+  "installer_format": "zip",
+  "default_categories": ["Developer tools"]
+} 

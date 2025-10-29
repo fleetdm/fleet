@@ -3,10 +3,12 @@ package mail
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net"
 	"net/smtp"
 	"strings"
@@ -36,7 +38,7 @@ func NewService(config config.FleetConfig) (fleet.MailService, error) {
 type mailService struct{}
 
 type sender interface {
-	sendMail(e fleet.Email, msg []byte) error
+	sendMail(ctx context.Context, e fleet.Email, msg []byte) error
 }
 
 func Test(mailer fleet.MailService, e fleet.Email) error {
@@ -50,7 +52,7 @@ func Test(mailer fleet.MailService, e fleet.Email) error {
 		return nil
 	}
 
-	err = svc.sendMail(e, mailBody)
+	err = svc.sendMail(context.Background(), e, mailBody)
 	if err != nil {
 		return fmt.Errorf("sending mail: %w", err)
 	}
@@ -77,7 +79,13 @@ func getMessageBody(e fleet.Email, f fromFunc) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain from address: %w", err)
 	}
-	msg := []byte(subject + from + mime + content + "\r\n" + string(body) + "\r\n")
+	to := ""
+	if len(e.To) == 1 {
+		to = "To: " + e.To[0] + "\r\n"
+	} else if len(e.To) > 1 {
+		to = "To: undisclosed-recipients\r\n"
+	}
+	msg := []byte(subject + from + to + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
 }
 
@@ -85,7 +93,7 @@ func getFrom(e fleet.Email) (string, error) {
 	return "From: " + e.SMTPSettings.SMTPSenderAddress + "\r\n", nil
 }
 
-func (m mailService) SendEmail(e fleet.Email) error {
+func (m mailService) SendEmail(ctx context.Context, e fleet.Email) error {
 	if !e.SMTPSettings.SMTPConfigured {
 		return errors.New("email not configured")
 	}
@@ -93,7 +101,7 @@ func (m mailService) SendEmail(e fleet.Email) error {
 	if err != nil {
 		return err
 	}
-	return m.sendMail(e, msg)
+	return m.sendMail(ctx, e, msg)
 }
 
 func (m mailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
@@ -166,7 +174,7 @@ func smtpAuth(e fleet.Email) (smtp.Auth, error) {
 	return auth, nil
 }
 
-func (m mailService) sendMail(e fleet.Email, msg []byte) error {
+func (m mailService) sendMail(ctx context.Context, e fleet.Email, msg []byte) error {
 	smtpHost := fmt.Sprintf(
 		"%s:%d", e.SMTPSettings.SMTPServer, e.SMTPSettings.SMTPPort)
 	auth, err := smtpAuth(e)
@@ -238,7 +246,11 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	}
 
 	if err := client.Quit(); err != nil {
-		return fmt.Errorf("error on client quit: %w", err)
+		// Ignore EOF errors on quit, which can happen if the server
+		// closes the connection after the message is sent.
+		if !errors.Is(err, io.EOF) {
+			return fmt.Errorf("error on client quit: %w", err)
+		}
 	}
 	return nil
 }

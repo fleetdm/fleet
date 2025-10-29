@@ -8,6 +8,7 @@ import { AppContext } from "context/app";
 import versionAPI from "services/entities/version";
 
 import Avatar from "components/Avatar";
+import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
@@ -75,56 +76,44 @@ const AccountSidePanel = ({
         </a>
       </div>
       {isPremiumTier && (
-        <div className={`${baseClass}__more-info-detail`}>
-          <p className={`${baseClass}__header`}>Teams</p>
-          <p
-            className={`${baseClass}__description ${baseClass}__teams ${greyCell(
-              teamsText
-            )}`}
-          >
-            {teamsText}
-          </p>
-        </div>
+        <DataSet
+          title="Teams"
+          value={
+            <span
+              className={`${
+                greyCell(teamsText) ? `${baseClass}__grey-text` : ""
+              }`}
+            >
+              {teamsText}
+            </span>
+          }
+        />
       )}
-      <div className={`${baseClass}__more-info-detail`}>
-        <p className={`${baseClass}__header`}>Role</p>
-        <p
-          className={`${baseClass}__description ${baseClass}__role ${greyCell(
-            roleText
-          )}`}
-        >
-          {roleText}
-        </p>
-      </div>
+      <DataSet title="Role" value={roleText} />
       {isPremiumTier && config && (
-        <div className={`${baseClass}__more-info-detail`}>
-          <p className={`${baseClass}__header`}>License expiration date</p>
-          <p
-            className={`${baseClass}__description ${baseClass}__license-expiration`}
-          >
-            {readableDate(config.license.expiration)}
-          </p>
-        </div>
+        <DataSet
+          title="License expiration date"
+          value={readableDate(config.license.expiration)}
+        />
       )}
-      <div className={`${baseClass}__more-info-detail`}>
-        <p className={`${baseClass}__header`}>Password</p>
-      </div>
-      <Button
-        onClick={onChangePassword}
-        disabled={ssoEnabled}
-        className={`${baseClass}__button`}
-        variant="brand"
-      >
-        Change password
-      </Button>
-      <p className={`${baseClass}__last-updated`}>
-        Last changed: {lastUpdatedAt}
-      </p>
-      <Button
-        onClick={onGetApiToken}
-        className={`${baseClass}__button`}
-        variant="brand"
-      >
+      <DataSet
+        title="Password"
+        value={
+          <div className={`${baseClass}__password-info`}>
+            <Button
+              onClick={onChangePassword}
+              disabled={ssoEnabled}
+              className={`${baseClass}__button`}
+            >
+              Change password
+            </Button>
+            <div className={`${baseClass}__last-updated`}>
+              Last changed: {lastUpdatedAt}
+            </div>
+          </div>
+        }
+      />
+      <Button onClick={onGetApiToken} className={`${baseClass}__button`}>
         Get API token
       </Button>
       <span

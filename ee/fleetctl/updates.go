@@ -284,7 +284,7 @@ func updatesAddFunc(c *cli.Context) error {
 			dstPath = filepath.Join(name, platform, tag, name)
 		}
 		switch {
-		case name == constant.DesktopTUFTargetName && platform == "windows":
+		case name == constant.DesktopTUFTargetName && (platform == "windows" || platform == "windows-arm64"):
 			// This is a special case for the desktop target on Windows.
 			dstPath = filepath.Join(filepath.Dir(dstPath), constant.DesktopAppExecName+".exe")
 		case name == constant.DesktopTUFTargetName && (platform == "linux" || platform == "linux-arm64"):
@@ -781,16 +781,15 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 			// error as we do currently.
 			if ctxerr.Cause(err).Error() != decryptionFailedError {
 				return err
-			} else if err != nil {
-				if p.getPassphraseFromEnv(role) != nil {
-					// Fatal error if environment variable passphrase is
-					// incorrect
-					return fmt.Errorf("%s passphrase from %s is invalid", role, p.passphraseEnvName(role))
-				}
-
-				fmt.Printf("Failed to decrypt %s key. Try again.\n", role)
-				delete(p.cache, role)
 			}
+			if p.getPassphraseFromEnv(role) != nil {
+				// Fatal error if environment variable passphrase is
+				// incorrect
+				return fmt.Errorf("%s passphrase from %s is invalid", role, p.passphraseEnvName(role))
+			}
+
+			fmt.Printf("Failed to decrypt %s key. Try again.\n", role)
+			delete(p.cache, role)
 			continue
 		} else if len(keys) == 0 {
 			return fmt.Errorf("%s key not found", role)

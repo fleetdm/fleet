@@ -8,7 +8,7 @@ import DataSet from "components/DataSet";
 import {
   TargetTitle,
   TargetValue,
-} from "../SoftwareDetailsModal/SoftwareDetailsModal";
+} from "../LibrarySoftwareDetailsModal/LibrarySoftwareDetailsModal";
 
 const baseClass = "vpp-details-modal";
 
@@ -52,9 +52,7 @@ const VppDetailsModal = ({ details, onCancel }: IVppDetailsModalProps) => {
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

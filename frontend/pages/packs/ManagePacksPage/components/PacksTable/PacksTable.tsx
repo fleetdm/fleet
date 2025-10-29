@@ -64,7 +64,6 @@ const PacksTable = ({
         "Query packs allow you to schedule recurring queries for your hosts.",
       primaryButton: (
         <Button
-          variant="brand"
           className={`${baseClass}__create-button`}
           onClick={onCreatePackClick}
         >
@@ -87,16 +86,16 @@ const PacksTable = ({
   const secondarySelectActions: IActionButtonProps[] = [
     {
       name: "enable",
-      onActionButtonClick: onEnablePackClick,
+      onClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "text-icon",
+      variant: "inverse",
       iconSvg: "check",
     },
     {
       name: "disable",
-      onActionButtonClick: onDisablePackClick,
+      onClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "text-icon",
+      variant: "inverse",
       iconSvg: "disable",
     },
   ];
@@ -119,8 +118,8 @@ const PacksTable = ({
           name: "delete pack",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
-          onActionButtonClick: onDeletePackClick,
+          variant: "inverse",
+          onClick: onDeletePackClick,
         }}
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() =>

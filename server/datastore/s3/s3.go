@@ -2,23 +2,31 @@ package s3
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
+	"reflect"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 const awsRegionHint = "us-east-1"
 
 type s3store struct {
-	s3client         *s3.S3
+	s3Client         *s3.Client
 	bucket           string
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
@@ -36,76 +44,195 @@ func (p installerNotFoundError) IsNotFound() bool {
 	return true
 }
 
-// newS3store initializes an S3 Datastore
-func newS3store(config config.S3ConfigInternal) (*s3store, error) {
-	conf := &aws.Config{}
+// newS3Store initializes an S3 Datastore.
+func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
+	var opts []func(*aws_config.LoadOptions) error
 
-	// Use default auth provire if no static credentials were provided
-	if config.AccessKeyID != "" && config.SecretAccessKey != "" {
-		conf.Credentials = credentials.NewStaticCredentials(
-			config.AccessKeyID,
-			config.SecretAccessKey,
-			"",
+	// The service endpoint is deprecated, but we still set it
+	// in case users are using it.
+	// It is also used when testing with minio.
+	if cfg.EndpointURL != "" {
+		opts = append(opts, aws_config.WithEndpointResolver(aws.EndpointResolverFunc(
+			func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL: cfg.EndpointURL,
+				}, nil
+			})),
 		)
 	}
 
-	if config.EndpointURL != "" {
-		conf.Endpoint = &config.EndpointURL
+	// DisableSSL is only used for testing.
+	if cfg.DisableSSL {
+		// Ignoring "G402: TLS InsecureSkipVerify set true", this is only used for automated testing.
+		c := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{ //nolint:gosec
+			InsecureSkipVerify: false,
+		}))
+		opts = append(opts, aws_config.WithHTTPClient(c))
 	}
 
-	conf.DisableSSL = &config.DisableSSL
-	conf.S3ForcePathStyle = &config.ForceS3PathStyle
+	// Use default auth provider if no static credentials were provided.
+	if cfg.AccessKeyID != "" && cfg.SecretAccessKey != "" {
+		opts = append(opts, aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			cfg.AccessKeyID,
+			cfg.SecretAccessKey,
+			"",
+		)))
+	}
 
-	sess, err := session.NewSession(conf)
+	if cfg.Region == "" {
+		// Attempt to deduce region from bucket.
+		conf, err := aws_config.LoadDefaultConfig(context.Background(),
+			append(opts, aws_config.WithRegion(awsRegionHint))...,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create default config to get bucket region: %w", err)
+		}
+		bucketRegion, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(conf), cfg.Bucket)
+		if err != nil {
+			return nil, fmt.Errorf("get bucket region: %w", err)
+		}
+		cfg.Region = bucketRegion
+	}
+
+	opts = append(opts, aws_config.WithRegion(cfg.Region))
+	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
 	if err != nil {
-		return nil, fmt.Errorf("create S3 client: %w", err)
+		return nil, fmt.Errorf("failed to create default config: %w", err)
 	}
 
-	// Assume role if configured
-	if config.StsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, config.StsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
-			if config.StsExternalID != "" {
-				provider.ExternalID = &config.StsExternalID
-			}
-		})
-		conf.Credentials = creds
-		sess, err = session.NewSession(conf)
+	if cfg.StsAssumeRoleArn != "" {
+		conf, err = aws_common.ConfigureAssumeRoleProvider(conf, opts, cfg.StsAssumeRoleArn, cfg.StsExternalID)
 		if err != nil {
-			return nil, fmt.Errorf("create S3 client: %w", err)
+			return nil, fmt.Errorf("failed to configure assume role provider: %w", err)
 		}
 	}
 
-	if len(config.Region) == 0 {
-		region, err := s3manager.GetBucketRegion(context.TODO(), sess, config.Bucket, awsRegionHint)
-		if err != nil {
-			return nil, fmt.Errorf("create S3 client: %w", err)
+	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
+		o.UsePathStyle = cfg.ForceS3PathStyle
+
+		// Apply workaround if using Google Cloud Storage (GCS) endpoint
+		// This fixes signature issues with AWS SDK v2 when using GCS
+		// See: https://github.com/aws/aws-sdk-go-v2/issues/1816#issuecomment-1927281540
+		if cfg.EndpointURL != "" && isGCS(cfg.EndpointURL) {
+			// GCS alters the Accept-Encoding header which breaks the request signature
+			ignoreSigningHeaders(o, []string{"Accept-Encoding"})
+			// GCS also has issues with trailing checksums in UploadPart and PutObject operations
+			disableTrailingChecksumForGCS(o)
 		}
-		config.Region = region
-	}
+	})
 
 	return &s3store{
-		s3client:         s3.New(sess, &aws.Config{Region: &config.Region}),
-		bucket:           config.Bucket,
-		prefix:           config.Prefix,
-		cloudFrontConfig: config.CloudFrontConfig,
+		s3Client:         s3Client,
+		bucket:           cfg.Bucket,
+		prefix:           cfg.Prefix,
+		cloudFrontConfig: cfg.CloudFrontConfig,
 	}, nil
 }
 
 // CreateTestBucket creates a bucket with the provided name and a default
 // bucket config. Only recommended for local testing.
-func (s *s3store) CreateTestBucket(name string) error {
-	_, err := s.s3client.CreateBucket(&s3.CreateBucketInput{
+func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
+	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket:                    &name,
-		CreateBucketConfiguration: &s3.CreateBucketConfiguration{},
+		CreateBucketConfiguration: &types.CreateBucketConfiguration{},
 	})
 
 	// Don't error if the bucket already exists
-	if aerr, ok := err.(awserr.Error); ok {
-		switch aerr.Code() {
-		case s3.ErrCodeBucketAlreadyExists, s3.ErrCodeBucketAlreadyOwnedByYou:
-			return nil
-		}
+	var (
+		bucketAlreadyExists     *types.BucketAlreadyExists
+		bucketAlreadyOwnedByYou *types.BucketAlreadyOwnedByYou
+	)
+	if errors.As(err, &bucketAlreadyExists) || errors.As(err, &bucketAlreadyOwnedByYou) {
+		return nil
 	}
-
 	return err
+}
+
+// GCS workaround middleware functions to fix signature issues
+// See: https://github.com/aws/aws-sdk-go-v2/issues/1816#issuecomment-1927281540
+
+type ignoredHeadersKey struct{}
+
+// ignoreSigningHeaders excludes the listed headers from the request signature
+// because some providers (like GCS) may alter them, causing signature mismatches.
+func ignoreSigningHeaders(o *s3.Options, headers []string) {
+	o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
+		if err := stack.Finalize.Insert(ignoreHeaders(headers), "Signing", middleware.Before); err != nil {
+			return err
+		}
+
+		if err := stack.Finalize.Insert(restoreIgnored(), "Signing", middleware.After); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func ignoreHeaders(headers []string) middleware.FinalizeMiddleware {
+	return middleware.FinalizeMiddlewareFunc(
+		"IgnoreHeaders",
+		func(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (out middleware.FinalizeOutput, metadata middleware.Metadata, err error) {
+			req, ok := in.Request.(*smithyhttp.Request)
+			if !ok {
+				return out, metadata, &v4.SigningError{Err: fmt.Errorf("(ignoreHeaders) unexpected request middleware type %T", in.Request)}
+			}
+
+			ignored := make(map[string]string, len(headers))
+			for _, h := range headers {
+				ignored[h] = req.Header.Get(h)
+				req.Header.Del(h)
+			}
+
+			ctx = middleware.WithStackValue(ctx, ignoredHeadersKey{}, ignored)
+
+			return next.HandleFinalize(ctx, in)
+		},
+	)
+}
+
+func restoreIgnored() middleware.FinalizeMiddleware {
+	return middleware.FinalizeMiddlewareFunc(
+		"RestoreIgnored",
+		func(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (out middleware.FinalizeOutput, metadata middleware.Metadata, err error) {
+			req, ok := in.Request.(*smithyhttp.Request)
+			if !ok {
+				return out, metadata, &v4.SigningError{Err: fmt.Errorf("(restoreIgnored) unexpected request middleware type %T", in.Request)}
+			}
+
+			ignored, _ := middleware.GetStackValue(ctx, ignoredHeadersKey{}).(map[string]string)
+			for k, v := range ignored {
+				req.Header.Set(k, v)
+			}
+
+			return next.HandleFinalize(ctx, in)
+		},
+	)
+}
+
+// disableTrailingChecksumForGCS disables trailing checksums for UploadPart and PutObject operations using reflection
+// This is part of the GCS compatibility workaround as GCS doesn't support trailing checksums
+func disableTrailingChecksumForGCS(o *s3.Options) {
+	o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
+		return stack.Initialize.Add(middleware.InitializeMiddlewareFunc(
+			"DisableTrailingChecksum",
+			func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (out middleware.InitializeOutput, metadata middleware.Metadata, err error) {
+				// Check if this is an UploadPart or PutObject operation
+				if opName := middleware.GetOperationName(ctx); opName == "UploadPart" || opName == "PutObject" {
+					// Use reflection to disable trailing checksums in the checksum middleware
+					// This is a hack, but it's the only way to disable trailing checksums currently
+					if checksumMiddleware, ok := stack.Finalize.Get("AWSChecksum:ComputeInputPayloadChecksum"); ok {
+						if v := reflect.ValueOf(checksumMiddleware).Elem(); v.IsValid() {
+							if field := v.FieldByName("EnableTrailingChecksum"); field.IsValid() && field.CanSet() && field.Kind() == reflect.Bool {
+								field.SetBool(false)
+							}
+						}
+					}
+					// Remove the trailing checksum middleware entirely
+					_, _ = stack.Finalize.Remove("addInputChecksumTrailer")
+				}
+				return next.HandleInitialize(ctx, in)
+			},
+		), middleware.Before)
+	})
 }

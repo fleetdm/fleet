@@ -27,8 +27,6 @@ controls:
     deadline_days: null
     grace_period_days: null
   scripts:
-    - path: ../lib/linux/scripts/fedora-debian-enable-fleet-desktop.sh
 policies:
-  - path: ../lib/linux/policies/fedora-debian-check-fleet-desktop.yml
 queries:
 software:

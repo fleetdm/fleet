@@ -1,19 +1,20 @@
 import React from "react";
 
-import { screen, render, fireEvent } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import IssuesIndicator from "./IssuesIndicator";
 
 describe("Issues indicator", () => {
   it("renders total issues count, critical vulnerabilities count, and failing policies count", async () => {
-    render(
+    const { user } = renderWithSetup(
       <IssuesIndicator
         totalIssuesCount={5}
         criticalVulnerabilitiesCount={3}
         failingPoliciesCount={2}
       />
     );
-    await fireEvent.mouseOver(screen.getByText("5"));
+    await user.hover(screen.getByText("5"));
 
     const vulnerabilitiesTooltip = screen.getByText(
       /Critical vulnerabilities/i

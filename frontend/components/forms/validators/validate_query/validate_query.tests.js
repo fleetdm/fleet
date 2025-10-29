@@ -22,7 +22,9 @@ describe("validateQuery", () => {
       const { error, valid } = validateQuery(query);
 
       expect(valid).toEqual(false);
-      expect(error).toMatch(/Syntax error found near .+/);
+      expect(error).toMatch(
+        "There is a syntax error in your query; please resolve in order to save."
+      );
     });
   });
 

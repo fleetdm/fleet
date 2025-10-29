@@ -1,5 +1,7 @@
 # Contributing to the fleetdm module
 
+> The Puppet module is deprecated as of Fleet 4.66. It is maintained for backwards compatibility.
+
 ## Setup
 
 For a simple local environment setup where your computer acts as the server and client, you'll need to install the following:

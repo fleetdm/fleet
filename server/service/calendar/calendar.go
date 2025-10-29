@@ -83,7 +83,7 @@ Please leave your device on and connected to power.
 <b>Why it matters</b>
 %s
 
-<b>What we'll do</b>
+<b>Maintenance required</b>
 %s
 `, orgName, fleet.CalendarBodyStaticHeader, conflictStr, host.HostDisplayName, description, resolution), tag
 }

@@ -17,14 +17,14 @@ import (
 
 func TestUrlGeneration(t *testing.T) {
 	t.Run("without prefix", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+		bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/test/path", bc.url("test/path", "").String())
 		require.Equal(t, "https://test.com/test/path?raw=query", bc.url("test/path", "raw=query").String())
 	})
 
 	t.Run("with prefix", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "prefix/", nil, fleet.CapabilityMap{})
+		bc, err := newBaseClient("https://test.com", true, "", "prefix/", nil, fleet.CapabilityMap{}, nil)
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/prefix/test/path", bc.url("test/path", "").String())
 		require.Equal(t, "https://test.com/prefix/test/path?raw=query", bc.url("test/path", "raw=query").String())
@@ -44,7 +44,7 @@ func TestParseResponseKnownErrors(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.message, func(t *testing.T) {
-			bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+			bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
 			require.NoError(t, err)
 			response := &http.Response{
 				StatusCode: c.code,
@@ -57,7 +57,7 @@ func TestParseResponseKnownErrors(t *testing.T) {
 }
 
 func TestParseResponseOK(t *testing.T) {
-	bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+	bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
 	require.NoError(t, err)
 	response := &http.Response{
 		StatusCode: http.StatusOK,
@@ -71,7 +71,7 @@ func TestParseResponseOK(t *testing.T) {
 }
 
 func TestParseResponseOKNoContent(t *testing.T) {
-	bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+	bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
 	require.NoError(t, err)
 	response := &http.Response{
 		StatusCode: http.StatusNoContent,
@@ -86,7 +86,7 @@ func TestParseResponseOKNoContent(t *testing.T) {
 
 func TestParseResponseGeneralErrors(t *testing.T) {
 	t.Run("general HTTP errors", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+		bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
 		require.NoError(t, err)
 		response := &http.Response{
 			StatusCode: http.StatusBadRequest,
@@ -97,7 +97,7 @@ func TestParseResponseGeneralErrors(t *testing.T) {
 	})
 
 	t.Run("parse errors", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+		bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
 		require.NoError(t, err)
 		response := &http.Response{
 			StatusCode: http.StatusBadRequest,
@@ -110,7 +110,7 @@ func TestParseResponseGeneralErrors(t *testing.T) {
 
 func TestNewBaseClient(t *testing.T) {
 	t.Run("invalid addresses are an error", func(t *testing.T) {
-		_, err := newBaseClient("http://foo\x7f.com/", true, "", "", nil, fleet.CapabilityMap{})
+		_, err := newBaseClient("http://foo\x7f.com/", true, "", "", nil, fleet.CapabilityMap{}, nil)
 		require.Error(t, err)
 	})
 
@@ -131,7 +131,7 @@ func TestNewBaseClient(t *testing.T) {
 		}
 
 		for _, c := range cases {
-			_, err := newBaseClient(c.address, c.insecureSkipVerify, "", "", nil, fleet.CapabilityMap{})
+			_, err := newBaseClient(c.address, c.insecureSkipVerify, "", "", nil, fleet.CapabilityMap{}, nil)
 			require.Equal(t, c.expectedErr, err, c.name)
 		}
 	})
@@ -157,7 +157,7 @@ func TestClientCapabilities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			bc, err := newBaseClient("https://test.com", true, "", "", nil, c.capabilities)
+			bc, err := newBaseClient("https://test.com", true, "", "", nil, c.capabilities, nil)
 			require.NoError(t, err)
 
 			var req http.Request
@@ -174,7 +174,7 @@ func TestServerCapabilities(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 		Header:     http.Header{fleet.CapabilitiesHeader: []string{"test_capability"}},
 	}
-	bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+	bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
 	require.NoError(t, err)
 	testCapability := fleet.Capability("test_capability")
 
@@ -230,7 +230,7 @@ func TestClientCertificateAuth(t *testing.T) {
 	})
 
 	// Try connecting without setting TLS client certificates.
-	bc, err := newBaseClient(ts.URL, true, "", "", nil, fleet.CapabilityMap{})
+	bc, err := newBaseClient(ts.URL, true, "", "", nil, fleet.CapabilityMap{}, nil)
 	require.NoError(t, err)
 	request, err := http.NewRequest("GET", ts.URL, nil)
 	require.NoError(t, err)
@@ -242,7 +242,7 @@ func TestClientCertificateAuth(t *testing.T) {
 	clientCrt, err := certificate.LoadClientCertificateFromFiles(filepath.Join("testdata", "client.crt"), filepath.Join("testdata", "client.key"))
 	require.NoError(t, err)
 	require.NotNil(t, clientCrt)
-	bc, err = newBaseClient(ts.URL, true, "", "", &clientCrt.Crt, fleet.CapabilityMap{})
+	bc, err = newBaseClient(ts.URL, true, "", "", &clientCrt.Crt, fleet.CapabilityMap{}, nil)
 	require.NoError(t, err)
 	request, err = http.NewRequest("GET", ts.URL, nil)
 	require.NoError(t, err)

@@ -131,3 +131,65 @@ func TestReleaseNote(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildNumber(t *testing.T) {
+	testCases := []struct {
+		Date     time.Time
+		Version  string
+		Expected string
+	}{
+		{
+			Date:     time.Date(2025, 3, 11, 0, 0, 0, 0, time.UTC),
+			Version:  "Version 16.95 (Build 25030928)",
+			Expected: "25030928",
+		},
+		{
+			Date:     time.Date(2025, 3, 18, 0, 0, 0, 0, time.UTC),
+			Version:  "Version 16.95.1 (Build 25031528)",
+			Expected: "25031528",
+		},
+		{
+			Date:     time.Date(2025, 3, 18, 0, 0, 0, 0, time.UTC),
+			Version:  "Version 16.95.1",
+			Expected: "",
+		},
+	}
+	for _, tCase := range testCases {
+		releaseNote := macoffice.ReleaseNote{
+			Date:    tCase.Date,
+			Version: tCase.Version,
+		}
+		require.Equal(t, tCase.Expected, releaseNote.BuildNumber(), "Expected %q for %q", tCase.Expected, tCase.Version)
+	}
+}
+
+func TestShortVersionFormat(t *testing.T) {
+	testCases := []struct {
+		Date     time.Time
+		Version  string
+		Expected string
+	}{
+		{
+			Date:     time.Date(2025, 3, 11, 0, 0, 0, 0, time.UTC),
+			Version:  "Version 16.95 (Build 25030928)",
+			Expected: "16.95",
+		},
+		{
+			Date:     time.Date(2025, 3, 18, 0, 0, 0, 0, time.UTC),
+			Version:  "Version 16.95.1 (Build 25031528)",
+			Expected: "16.95.1",
+		},
+		{
+			Date:     time.Date(2025, 3, 18, 0, 0, 0, 0, time.UTC),
+			Version:  "Version 16.95.1",
+			Expected: "",
+		},
+	}
+	for _, tCase := range testCases {
+		releaseNote := macoffice.ReleaseNote{
+			Date:    tCase.Date,
+			Version: tCase.Version,
+		}
+		require.Equal(t, tCase.Expected, releaseNote.ShortVersionFormat(), "Expected %q for %q", tCase.Expected, tCase.Version)
+	}
+}

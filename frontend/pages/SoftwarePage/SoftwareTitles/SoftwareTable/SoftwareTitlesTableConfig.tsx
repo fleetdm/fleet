@@ -4,12 +4,14 @@ import { InjectedRouter } from "react-router";
 
 import {
   ISoftwareTitle,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -17,8 +19,9 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
-import VersionCell from "../../components/VersionCell";
-import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
+import VersionCell from "../../components/tables/VersionCell";
+import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
+import { getVulnerabilities } from "./helpers";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -35,26 +38,6 @@ type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
 
 type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 
-export const getVulnerabilities = <
-  T extends { vulnerabilities: string[] | null }
->(
-  versions: T[]
-) => {
-  if (!versions) {
-    return [];
-  }
-  const vulnerabilities = versions.reduce((acc: string[], currentVersion) => {
-    if (
-      currentVersion.vulnerabilities &&
-      currentVersion.vulnerabilities.length !== 0
-    ) {
-      acc.push(...currentVersion.vulnerabilities);
-    }
-    return acc;
-  }, []);
-  return vulnerabilities;
-};
-
 /**
  * Gets the data needed to render the software name cell.
  */
@@ -68,12 +51,12 @@ const getSoftwareNameCellData = (
   );
 
   const { software_package, app_store_app } = softwareTitle;
-  let hasPackage = false;
+  let hasInstaller = false;
   let isSelfService = false;
   let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
   if (software_package) {
-    hasPackage = true;
+    hasInstaller = true;
     isSelfService = software_package.self_service;
     installType =
       software_package.automatic_install_policies &&
@@ -81,7 +64,7 @@ const getSoftwareNameCellData = (
         ? "automatic"
         : "manual";
   } else if (app_store_app) {
-    hasPackage = true;
+    hasInstaller = true;
     isSelfService = app_store_app.self_service;
     iconUrl = app_store_app.icon_url;
     installType =
@@ -90,6 +73,13 @@ const getSoftwareNameCellData = (
         ? "automatic"
         : "manual";
   }
+  if (softwareTitle.icon_url) {
+    iconUrl = softwareTitle.icon_url;
+  }
+
+  const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
+    softwareTitle
+  );
 
   const isAllTeams = teamId === undefined;
 
@@ -97,10 +87,11 @@ const getSoftwareNameCellData = (
     name: softwareTitle.name,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
-    hasPackage: hasPackage && !isAllTeams,
+    hasInstaller: hasInstaller && !isAllTeams,
     isSelfService,
     installType,
     iconUrl,
+    automaticInstallPoliciesCount,
   };
 };
 
@@ -127,10 +118,12 @@ const generateTableHeaders = (
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}
-            hasPackage={nameCellData.hasPackage}
+            hasInstaller={nameCellData.hasInstaller}
             isSelfService={nameCellData.isSelfService}
-            installType={nameCellData.installType}
             iconUrl={nameCellData.iconUrl ?? undefined}
+            automaticInstallPoliciesCount={
+              nameCellData.automaticInstallPoliciesCount
+            }
           />
         );
       },
@@ -162,7 +155,11 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
-        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+        const vulnDetectionNotSupported =
+          isIpadOrIphoneSoftwareSource(cellProps.row.original.source) ||
+          cellProps.row.original.source === "tgz_packages";
+
+        if (vulnDetectionNotSupported) {
           return <TextCell value="Not supported" grey />;
         }
         const vulnerabilities = getVulnerabilities(
@@ -190,6 +187,14 @@ const generateTableHeaders = (
       id: "view-all-hosts",
       disableSortBy: true,
       Cell: (cellProps: IViewAllHostsLinkProps) => {
+        const { source } = cellProps.row.original;
+
+        const hostCountNotSupported = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+          source
+        );
+
+        if (hostCountNotSupported) return null;
+
         return (
           <ViewAllHostsLink
             queryParams={{

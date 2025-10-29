@@ -91,7 +91,8 @@ const generateTableHeaders = (
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
-  isPremiumTier?: boolean
+  isPremiumTier?: boolean,
+  isPrimoMode?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
@@ -110,10 +111,11 @@ const generateTableHeaders = (
         const { critical, id, team_id } = cellProps.row.original;
         return (
           <LinkCell
-            className="w250 policy-name-cell"
-            value={
+            className="w250"
+            tooltipTruncate
+            value={cellProps.cell.value}
+            suffix={
               <>
-                <div className="policy-name-text">{cellProps.cell.value}</div>
                 {isPremiumTier && critical && (
                   <div className="critical-badge">
                     <span
@@ -124,7 +126,7 @@ const generateTableHeaders = (
                         className="critical-policy-icon"
                         name="policy"
                         size="small"
-                        color="core-fleet-blue"
+                        color="ui-fleet-black-75"
                       />
                     </span>
                     <ReactTooltip5
@@ -154,7 +156,7 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      title: "Yes",
+      title: "Pass",
       Header: (cellProps) => (
         <HeaderCell
           value={<PassingColumnHeader isPassing />}
@@ -198,7 +200,7 @@ const generateTableHeaders = (
       },
     },
     {
-      title: "No",
+      title: "Fail",
       Header: (cellProps) => (
         <HeaderCell
           value={<PassingColumnHeader isPassing={false} />}
@@ -251,7 +253,9 @@ const generateTableHeaders = (
         // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
-          checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+          checkIfRowIsSelectable: (row) =>
+            // allow selecting inherited policies in primo mode
+            isPrimoMode || row.original.team_id !== null,
         });
 
         // Regular table selection logic
@@ -296,7 +300,7 @@ const generateTableHeaders = (
         };
 
         // When viewing team policies and a row is an inherited policy, do not render checkbox
-        if (viewingTeamPolicies && inheritedPolicy) {
+        if (viewingTeamPolicies && inheritedPolicy && !isPrimoMode) {
           return <></>;
         }
 

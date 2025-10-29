@@ -10,7 +10,7 @@
     grid-template-rows: repeat(3, auto);
   }
 
-  // >= 576px and < 880px
+  // >= 576px and < 768px
   @media (min-width: $break-mobile-md) {
     display: grid;
 
@@ -42,10 +42,10 @@
     }
   }
 
-  // >= 880px
+  // >= 768px
   // Up to 3 cards are in a single row.
   // 16pt gap
-  @media (min-width: $break-sm) {
+  @media (min-width: $break-xs) {
     grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     grid-template-rows: 1fr;
     gap: $pad-medium;

@@ -125,30 +125,6 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNewAppConfigWithGlobalEnrollConfig(t *testing.T) {
-	ds := new(mock.Store)
-	cfg := config.TestConfig()
-	cfg.Packaging.GlobalEnrollSecret = "xyz"
-	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
-
-	ds.NewAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) (*fleet.AppConfig, error) {
-		return config, nil
-	}
-
-	var gotSecrets []*fleet.EnrollSecret
-	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-		gotSecrets = secrets
-		return nil
-	}
-
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	_, err := svc.NewAppConfig(ctx, fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://acme.co"}})
-	require.NoError(t, err)
-	require.NotNil(t, gotSecrets)
-	require.Len(t, gotSecrets, 1)
-	require.Equal(t, gotSecrets[0].Secret, "xyz")
-}
-
 func TestService_LoggingConfig(t *testing.T) {
 	logFile := "/dev/null"
 	if runtime.GOOS == "windows" {

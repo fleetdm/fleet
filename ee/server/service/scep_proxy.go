@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,18 +21,22 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
+	"github.com/google/uuid"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
 
-var _ scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
-var challengeRegex = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
+var (
+	_              scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
+	challengeRegex                                  = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
+)
 
 const (
-	fullPasswordCache             = "The password cache is full."
-	ndesInsufficientPermissions   = "You do not have sufficient permission to enroll with SCEP."
-	MessageSCEPProxyNotConfigured = "SCEP proxy is not configured"
-	NDESChallengeInvalidAfter     = 57 * time.Minute
+	fullPasswordCache              = "The password cache is full."
+	ndesInsufficientPermissions    = "You do not have sufficient permission to enroll with SCEP."
+	MessageSCEPProxyNotConfigured  = "SCEP proxy is not configured"
+	NDESChallengeInvalidAfter      = 57 * time.Minute
+	SmallstepChallengeInvalidAfter = 57 * time.Minute // TODO(sca): confirm expected expiration time for smallstep
 )
 
 type scepProxyService struct {
@@ -60,7 +66,7 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) (
 		return nil, err
 	}
 
-	client, err := scepclient.New(scepURL, svc.debugLogger, svc.Timeout)
+	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -79,7 +85,7 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 		return nil, 0, err
 	}
 
-	client, err := scepclient.New(scepURL, svc.debugLogger, svc.Timeout)
+	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -90,14 +96,16 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	return res, num, nil
 }
 
+// NOTE: Any changes to this method must ensure that the challenge portion of the identifer is
+// properly validated using the before proceeding with the PKIOperation.
 func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, identifier string) ([]byte, error) {
 	// We only check for expired NDES challenge during this (the last) SCEP request to account for previous requests having large network delays
-	scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+	scepURL, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge must be true to validate the challenge portion of the identifier
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := scepclient.New(scepURL, svc.debugLogger, svc.Timeout)
+	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -110,10 +118,11 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 }
 
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
-	error) {
-	appConfig, err := svc.ds.AppConfig(ctx)
+	error,
+) {
+	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, false)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting app config")
+		return "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
 	parsedID, err := url.PathUnescape(identifier)
@@ -131,6 +140,10 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	caName := "NDES" // default
 	if len(parsedIDs) > 2 {
 		caName = parsedIDs[2]
+	}
+	var fleetChallenge string
+	if len(parsedIDs) > 3 {
+		fleetChallenge = parsedIDs[3]
 	}
 	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
 		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
@@ -155,9 +168,10 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			hostUUID, profileUUID)}
 	}
 	var scepURL string
+
 	switch profile.Type {
 	case fleet.CAConfigNDES:
-		if !appConfig.Integrations.NDESSCEPProxy.Valid {
+		if groupedCAs.NDESSCEP == nil {
 			// Return error that implements kithttp.StatusCoder interface
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
@@ -170,12 +184,53 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
-		scepURL = appConfig.Integrations.NDESSCEPProxy.Value.URL
-	case fleet.CAConfigCustomSCEPProxy:
-		if !appConfig.Integrations.CustomSCEPProxy.Valid {
+		scepURL = groupedCAs.NDESSCEP.URL
+
+	case fleet.CAConfigSmallstep:
+		if len(groupedCAs.Smallstep) < 1 {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
-		for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
+		for _, ca := range groupedCAs.Smallstep {
+			if ca.Name == profile.CAName {
+				scepURL = ca.URL
+				break
+			}
+		}
+		// TODO(sca): confirm if this resend method works for smallstep or if we need to use
+		// something like the approach taken for custom SCEP profiles (where we blank the command uuid
+		// to force a regeneration of the command bytes)
+		// Also confirm the expected expiration time for smallstep challenges
+		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
+			// The challenge password was retrieved for this profile, and is now invalid.
+			// We need to resend the profile with a new challenge password.
+			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
+			if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+			}
+			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
+		}
+
+	case fleet.CAConfigCustomSCEPProxy:
+		if len(groupedCAs.CustomScepProxy) < 1 {
+			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
+		}
+		if checkChallenge {
+			if err := svc.handleFleetChallenge(ctx, fleetChallenge, hostUUID, profileUUID); err != nil {
+				// FIXME: The layered logging implementation of the scepProxyService not
+				// intuitive. Can we make it so that we return fleet.ErrWithInternal to
+				// better capture/log the context errors here?
+				svc.debugLogger.Log(
+					"msg", "custom scep proxy: failed to handle fleet challenge",
+					"host_uuid", hostUUID,
+					"profile_uuid", profileUUID,
+					"err", err.Error(),
+				)
+				return "", &scepserver.BadRequestError{
+					Message: "custom scep challenge failed",
+				}
+			}
+		}
+		for _, ca := range groupedCAs.CustomScepProxy {
 			if ca.Name == profile.CAName {
 				scepURL = ca.URL
 				break
@@ -191,6 +246,37 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 	// NDES on Windows Server 2022 does not support this, as advertised via GetCACaps
 	return nil, errors.New("GetNextCACert is not implemented for SCEP proxy")
+}
+
+// handleFleetChallenge handles the validation of the fleet challenge for custom SCEP profiles as
+// well as resending the profile if the challenge cannot be validated. If it is valid, it returns
+// nil. If it cannot be validated or if any errors occur while validating or resending the profile,
+// it returns a concatenated error.
+//
+// TODO: Consider refactoring to differentiate between invalid challenge and other errors. As it
+// stands, we're resending the profile in both cases.
+func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChallenge string, hostUUID string, profileUUID string) error {
+	var errs []error
+
+	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
+		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
+		// FIXME: We really should have a more generic function to handle this, but our existing methods
+		// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
+		// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
+		// the existing flow and the implementation below is that we need to blank the command uuid in order
+		// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
+		// it just sends the old bytes again. It feels like we some leaky abstrations somewhere that we need
+		// to clean up.
+		if err := svc.ds.ResendHostCustomSCEPProfile(ctx, hostUUID, profileUUID); err != nil {
+			errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile"))
+		}
+	}
+
+	if len(errs) > 0 {
+		return ctxerr.Wrap(ctx, errors.Join(errs...), "custom scep proxy: failed to handle fleet challenge")
+	}
+
+	return nil
 }
 
 type SCEPConfigService struct {
@@ -212,12 +298,12 @@ func NewSCEPConfigService(logger log.Logger, timeout *time.Duration) fleet.SCEPC
 // Compile check that SCEPConfigService implements the interface.
 var _ fleet.SCEPConfigService = (*SCEPConfigService)(nil)
 
-func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
+func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyCA) error {
 	_, err := s.GetNDESSCEPChallenge(ctx, proxy)
 	return err
 }
 
-func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
@@ -239,9 +325,9 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			resp.StatusCode)})
 	}
 	// Make a transformer that converts MS-Win default to UTF8:
-	win16be := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)
-	// Make a transformer that is like win16be, but abides by BOM:
-	utf16bom := unicode.BOMOverride(win16be.NewDecoder())
+	win16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+	// Make a transformer that is like win16le, but abides by BOM:
+	utf16bom := unicode.BOMOverride(win16le.NewDecoder())
 
 	// Make a Reader that uses utf16bom:
 	unicodeReader := transform.NewReader(resp.Body, utf16bom)
@@ -272,7 +358,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 }
 
 func (s *SCEPConfigService) ValidateSCEPURL(ctx context.Context, url string) error {
-	client, err := scepclient.New(url, s.logger, s.Timeout)
+	client, err := scepclient.New(url, s.logger, scepclient.WithTimeout(s.Timeout))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating SCEP client; invalid SCEP URL; please correct and try again")
 	}
@@ -285,4 +371,53 @@ func (s *SCEPConfigService) ValidateSCEPURL(ctx context.Context, url string) err
 		return ctxerr.New(ctx, "SCEP URL did not return a CA certificate")
 	}
 	return nil
+}
+
+func (s *SCEPConfigService) ValidateSmallstepChallengeURL(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) error {
+	_, err := s.GetSmallstepSCEPChallenge(ctx, ca)
+	return err
+}
+
+func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
+	// Get the challenge from Smallstep
+	client := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second))
+	client.Transport = ntlmssp.Negotiator{
+		RoundTripper: fleethttp.NewTransport(),
+	}
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(fleet.SmallstepChallengeRequestBody{
+		Webhook: fleet.SmallstepChallengeWebhook{
+			ID:             1,
+			WebhookEvent:   "SCEPChallenge",
+			EventTimestamp: time.Now().Unix(),
+			Name:           "SCEPChallenge",
+		},
+		Event: fleet.SmallstepChallengeEvent{
+			SCEPServerURL:     ca.URL,
+			PayloadIdentifier: uuid.New().String(),
+			PayloadTypes:      []string{"com.apple.security.scep"},
+		},
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "encoding params as JSON")
+	}
+	req, err := http.NewRequest(http.MethodPost, ca.ChallengeURL, &reqBody)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating request")
+	}
+	req.SetBasicAuth(ca.Username, ca.Password)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "sending request")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", ctxerr.Wrap(ctx, fmt.Errorf("status code %d", resp.StatusCode), "getting Smallstep SCEP challenge")
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "reading response body")
+	}
+
+	return string(b), nil
 }

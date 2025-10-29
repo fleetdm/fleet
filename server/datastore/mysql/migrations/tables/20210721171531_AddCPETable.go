@@ -20,7 +20,7 @@ func Up_20210721171531(tx *sql.Tx) error {
 			cpe varchar(255) NOT NULL,
 			PRIMARY KEY (id),
 			FOREIGN KEY fk_software_cpe_software_id (software_id) REFERENCES software(id) ON DELETE CASCADE
-		)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(sql); err != nil {
 		return errors.Wrap(err, "create cpe")

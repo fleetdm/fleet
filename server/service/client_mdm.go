@@ -67,18 +67,17 @@ func (c *Client) RequestAppleABM() ([]byte, error) {
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d/metadata", teamID)
-	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
 	var err error
 	if forUpdate {
-		err = c.authenticatedRequestWithQuery(request, verb, path, &responseBody, "for_update=true")
+		err = c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "for_update=true")
 	} else {
-		err = c.authenticatedRequest(request, verb, path, &responseBody)
+		err = c.authenticatedRequest(nil, verb, path, &responseBody)
 	}
 	return responseBody.MDMAppleBootstrapPackage, err
 }
 
-func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint) error {
+func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint, dryRun bool) error {
 	_, err := c.GetBootstrapPackageMetadata(teamID, true)
 	switch {
 	case errors.As(err, &notFoundErr{}):
@@ -88,23 +87,22 @@ func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint) error {
 		return fmt.Errorf("getting bootstrap package metadata: %w", err)
 	}
 
-	err = c.DeleteBootstrapPackage(teamID)
+	err = c.DeleteBootstrapPackage(teamID, dryRun)
 	if err != nil {
 		return fmt.Errorf("deleting bootstrap package: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) DeleteBootstrapPackage(teamID uint) error {
+func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
 	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d", teamID)
-	request := deleteBootstrapPackageRequest{}
 	var responseBody deleteBootstrapPackageResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
 }
 
-func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/bootstrap"
+func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dryRun bool) error {
+	verb, path := "POST", "/api/latest/fleet/bootstrap"
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -125,7 +123,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 
 	w.Close()
 
-	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, "",
+	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),
@@ -146,7 +144,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	return nil
 }
 
-func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
+func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint, dryRun bool) error {
 	isFirstTime := false
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
@@ -164,14 +162,14 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 		}
 
 		// similar to the expected UI experience, delete the bootstrap package first
-		err = c.DeleteBootstrapPackage(teamID)
+		err = c.DeleteBootstrapPackage(teamID, dryRun)
 		if err != nil {
 			return fmt.Errorf("deleting old bootstrap package: %w", err)
 		}
 	}
 
 	bp.TeamID = teamID
-	if err := c.UploadBootstrapPackage(bp); err != nil {
+	if err := c.UploadBootstrapPackage(bp, dryRun); err != nil {
 		return err
 	}
 
@@ -408,5 +406,141 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
 		return fmt.Errorf("wipe host request: %w", err)
 	}
+	return nil
+}
+
+type eulaContent struct {
+	Bytes []byte
+}
+
+// eulaContent implements the bodyHandler interface so that we can read the
+// response body directly into a byte slice which represents the EULA file content.
+// This handler will be called in the Client.parseResponse method.
+func (ec *eulaContent) Handle(res *http.Response) error {
+	b, err := io.ReadAll(res.Body)
+	ec.Bytes = b
+	return err
+}
+
+func (c *Client) GetEULAContent(token string) ([]byte, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
+	var responseBody eulaContent
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.Bytes, err
+}
+
+func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	verb, path := "GET", "/api/latest/fleet/setup_experience/eula/metadata"
+	var responseBody getMDMEULAMetadataResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.MDMEULA, err
+}
+
+func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
+	eula, err := c.GetEULAMetadata()
+	switch {
+	case errors.As(err, &notFoundErr{}):
+		// not found is OK, it means there is nothing to delete
+		return nil
+	case err != nil:
+		return fmt.Errorf("getting eula metadata: %w", err)
+	}
+
+	err = c.DeleteEULA(eula.Token, dryRun)
+	if err != nil {
+		return fmt.Errorf("deleting eula: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteEULA(token string, dryRun bool) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
+	var responseBody deleteMDMEULAResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
+	return err
+}
+
+func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
+	isFirstTime := false
+	oldMeta, err := c.GetEULAMetadata()
+	if err != nil {
+		// not found is OK, it means this is our first time uploading a eula
+		if !errors.As(err, &notFoundErr{}) {
+			return fmt.Errorf("getting eula metadata: %w", err)
+		}
+		isFirstTime = true
+	}
+
+	// read file to get the new file bytes
+	eulaBytes, err := os.ReadFile(eulaPath)
+	if err != nil {
+		return fmt.Errorf("reading eula file: %w", err)
+	}
+
+	if !isFirstTime {
+		newChecksum := sha256.Sum256(eulaBytes)
+
+		// compare checksums, if they're equal then we can skip the eula upload
+		if bytes.Equal(oldMeta.Sha256, newChecksum[:]) && oldMeta.Name == filepath.Base(eulaPath) {
+			return nil
+		}
+
+		// similar to the expected UI experience, delete the old eula first
+		err = c.DeleteEULA(oldMeta.Token, dryRun)
+		if err != nil {
+			return fmt.Errorf("deleting old eula: %w", err)
+		}
+	}
+
+	if err := c.UploadEULA(eulaPath, dryRun); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
+	verb, path := "POST", "/api/latest/fleet/setup_experience/eula"
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the eula field
+	fw, err := w.CreateFormFile("eula", filepath.Base(eulaPath))
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(eulaPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(fw, file); err != nil {
+		return err
+	}
+	err = w.Close()
+	if err != nil {
+		return fmt.Errorf("closing writer: %w", err)
+	}
+
+	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
+		b.Bytes(),
+		map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", c.token),
+		})
+	if err != nil {
+		return fmt.Errorf("do multipart request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var eulaResponse createMDMEULAResponse
+	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
+		return fmt.Errorf("parse response: %w", err)
+	}
+
 	return nil
 }

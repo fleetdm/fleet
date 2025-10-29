@@ -9,10 +9,13 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"fyne.io/systray"
+	"github.com/fleetdm/fleet/v4/orbit/cmd/desktop/menu"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
@@ -86,6 +89,10 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
+	if permanentError := os.Getenv("FLEET_DESKTOP_PERMANENT_ERROR"); permanentError != "" {
+		runWithPermanentError(permanentError)
+	}
+
 	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
 	if identifierPath == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
@@ -135,12 +142,32 @@ func main() {
 	var swiftDialogCh chan struct{}
 	var offlineWatcher useraction.MDMOfflineWatcher
 
-	// This ticker is used for fetching the desktop summary. It is initialized here because it is
+	// We will execute the summary API every 5 minutes (to refresh policy state).
+	const desktopSummaryInterval = 5 * time.Minute
+
+	// This ticker is used for checking connectivity. It is initialized here because it is
 	// stopped in `OnExit.`
-	const checkInterval = 5 * time.Minute
-	summaryTicker := time.NewTicker(checkInterval)
+	const pingInterval = 10 * time.Second // same value as default distributed/read
+	pingTicker := time.NewTicker(pingInterval)
+
+	// Used to trigger a policy check when clicking on "My device" or "About Fleet".
+	var fleetDesktopCheckTrigger atomic.Bool
+
+	// we have seen some cases where systray.Run() does not call onReady seemingly due to early
+	// initialization states with the GUI such as Windows Autopilot first time setup. This ensures
+	// we don't just hang forever waiting for the GUI to be ready.
+	trayAppDisplayed := make(chan struct{})
+	go func() {
+		select {
+		case <-trayAppDisplayed:
+			// The tray app is ready and displayed so there is nothing to do
+		case <-time.After(1 * time.Minute):
+			log.Fatal().Msg("onReady was never called - the GUI may not yet be ready")
+		}
+	}()
 
 	onReady := func() {
+		close(trayAppDisplayed)
 		log.Info().Msg("ready")
 
 		systray.SetTooltip("Fleet Desktop")
@@ -149,26 +176,8 @@ func main() {
 		// least). On macOS this is used as a template icon anyway.
 		systray.SetTemplateIcon(iconDark, iconDark)
 
-		// Add a disabled menu item with the current version
-		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
-		versionItem.Disable()
-		systray.AddSeparator()
-
-		migrateMDMItem := systray.AddMenuItem("Migrate to Fleet", "")
-		migrateMDMItem.Disable()
-		// this item is only shown if certain conditions are met below.
-		migrateMDMItem.Hide()
-
-		myDeviceItem := systray.AddMenuItem("Connecting...", "")
-		myDeviceItem.Disable()
-
-		selfServiceItem := systray.AddMenuItem("Self-service", "")
-		selfServiceItem.Disable()
-		selfServiceItem.Hide()
-		systray.AddSeparator()
-
-		transparencyItem := systray.AddMenuItem("About Fleet", "")
-		transparencyItem.Disable()
+		// Initialize menu manager with systray factory
+		menuManager := menu.NewManager(version, menu.NewSystrayFactory())
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -202,17 +211,6 @@ func main() {
 			log.Debug().Msg("successfully refetched the token from disk for API retry")
 			return newToken
 		})
-
-		disableTray := func() {
-			log.Debug().Msg("disabling tray items")
-			myDeviceItem.SetTitle("Connecting...")
-			myDeviceItem.Disable()
-			transparencyItem.Disable()
-			selfServiceItem.Disable()
-			selfServiceItem.Hide()
-			migrateMDMItem.Disable()
-			migrateMDMItem.Hide()
-		}
 
 		reportError := func(err error, info map[string]any) {
 			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
@@ -255,6 +253,7 @@ func main() {
 		// checkToken performs API test calls to enable the "My device" item as
 		// soon as the device auth token is registered by Fleet.
 		checkToken := func() <-chan interface{} {
+			menuManager.SetConnecting()
 			done := make(chan interface{})
 
 			go func() {
@@ -268,18 +267,12 @@ func main() {
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
-						myDeviceItem.SetTitle("My device")
-						myDeviceItem.Enable()
-						transparencyItem.Enable()
-
-						// Hide Self-Service for Free tier
-						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
-							selfServiceItem.Disable()
-							selfServiceItem.Hide()
-						} else {
-							selfServiceItem.Enable()
-							selfServiceItem.Show()
+						isFreeTier := errors.Is(err, service.ErrMissingLicense)
+						var desktopSummary *fleet.DesktopSummary
+						if summary != nil {
+							desktopSummary = &summary.DesktopSummary
 						}
+						menuManager.SetConnected(desktopSummary, isFreeTier)
 
 						return
 					}
@@ -312,40 +305,78 @@ func main() {
 				case err != nil:
 					log.Error().Err(err).Msg("check token file")
 				case expired:
-					log.Info().Msg("token file changed, rechecking")
-					disableTray()
+					log.Info().Msg("token file expired or invalid, rechecking")
 					<-checkToken()
 				}
 			}
 		}()
 
 		// poll the server to check the policy status of the host and update the
-		// tray icon accordingly
+		// tray icon accordingly.
+		// We first ping the server to check for connectivity, then get the policy status (every 5 minutes to
+		// not cause performance issues on the server).
 		go func() {
 			<-deviceEnabledChan
 
+			var (
+				pingErrCount            = 0
+				lastDesktopSummaryCheck time.Time
+			)
+
 			for {
-				<-summaryTicker.C
-				// Reset the ticker to the intended interval, in case we reset it to 1ms
-				summaryTicker.Reset(checkInterval)
-				sum, err := client.DesktopSummary(tokenReader.GetCached())
-				switch {
-				case err == nil:
-					// OK
-				case errors.Is(err, service.ErrMissingLicense):
-					myDeviceItem.SetTitle("My device")
-					continue
-				case errors.Is(err, service.ErrUnauthenticated):
-					disableTray()
-					<-checkToken()
-					continue
-				default:
-					log.Error().Err(err).Msg("get desktop summary")
+				<-pingTicker.C
+
+				// Reset the ticker to the intended interval,
+				// in case we reset it to 1ms (when clicking on "My device").
+				pingTicker.Reset(pingInterval)
+
+				if err := client.Ping(); err != nil {
+					log.Error().Err(err).Int("count", pingErrCount).Msg("ping failed")
+					pingErrCount++
+					// We try 5 more times to make sure one bad request doesn't trigger the offline indicator.
+					// So it might take up to ~1m (6 * 10s) for Fleet Desktop to show the offline indicator.
+					if pingErrCount >= 6 {
+						menuManager.SetOffline()
+					}
 					continue
 				}
 
-				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
-				myDeviceItem.Enable()
+				// Successfully connected to Fleet.
+				pingErrCount = 0
+
+				// Check if we need to fetch the "Fleet desktop" summary from Fleet.
+				if !menuManager.IsOfflineIndicatorDisplayed() &&
+					!fleetDesktopCheckTrigger.Load() &&
+					(!lastDesktopSummaryCheck.IsZero() && time.Since(lastDesktopSummaryCheck) < desktopSummaryInterval) {
+					continue
+				}
+
+				lastDesktopSummaryCheck = time.Now()
+				fleetDesktopCheckTrigger.Store(false)
+				// We set offlineIndicatorDisplayed to false because we do not want to retry the
+				// Fleet Desktop summary every 10s if Ping works but DesktopSummary doesn't
+				// (to avoid server load issues).
+				menuManager.SetOfflineIndicatorDisplayed(false)
+
+				sum, err := client.DesktopSummary(tokenReader.GetCached())
+				if err != nil {
+					switch {
+					case errors.Is(err, service.ErrMissingLicense):
+						// Policy reporting in Fleet Desktop requires a license,
+						// so we just show the "My device" item as usual.
+						menuManager.SetConnected(&fleet.DesktopSummary{}, true)
+					case errors.Is(err, service.ErrUnauthenticated):
+						log.Debug().Err(err).Msg("get desktop summary auth failure")
+						// This usually happens every ~1 hour when the token expires.
+						<-checkToken()
+					default:
+						log.Error().Err(err).Msg("get desktop summary failed")
+					}
+					continue
+				}
+
+				menuManager.SetConnected(&sum.DesktopSummary, false)
+				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
 
 				// Check our file to see if we should migrate
 				var migrationType string
@@ -395,8 +426,9 @@ func main() {
 
 						// enable tray items
 						if migrationType != constant.MDMMigrationTypeADE {
-							migrateMDMItem.Enable()
-							migrateMDMItem.Show()
+							menuManager.SetMDMMigratorVisibility(true)
+						} else {
+							menuManager.SetMDMMigratorVisibility(false)
 						}
 
 						// if the device is unmanaged or we're in force mode and the device needs
@@ -414,12 +446,10 @@ func main() {
 							go reportError(err, nil)
 							log.Error().Err(err).Msg("failed to mark MDM migration as completed")
 						}
-						migrateMDMItem.Disable()
-						migrateMDMItem.Hide()
+						menuManager.SetMDMMigratorVisibility(false)
 					}
 				} else {
-					migrateMDMItem.Disable()
-					migrateMDMItem.Hide()
+					menuManager.SetMDMMigratorVisibility(false)
 				}
 			}
 		}()
@@ -427,26 +457,28 @@ func main() {
 		go func() {
 			for {
 				select {
-				case <-myDeviceItem.ClickedCh:
-					openURL := client.BrowserDeviceURL(tokenReader.GetCached())
+				case <-menuManager.Items.MyDevice.ClickedCh():
+					openURL := client.BrowserPoliciesURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
-						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
+						log.Error().Err(err).Str("url", openURL).Msg("open browser policies")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
-					summaryTicker.Reset(1 * time.Millisecond)
-				case <-transparencyItem.ClickedCh:
+					fleetDesktopCheckTrigger.Store(true)
+					pingTicker.Reset(1 * time.Millisecond)
+				case <-menuManager.Items.Transparency.ClickedCh():
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser transparency")
 					}
-				case <-selfServiceItem.ClickedCh:
+				case <-menuManager.Items.SelfService.ClickedCh():
 					openURL := client.BrowserSelfServiceURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
-					summaryTicker.Reset(1 * time.Millisecond)
-				case <-migrateMDMItem.ClickedCh:
+					fleetDesktopCheckTrigger.Store(true)
+					pingTicker.Reset(1 * time.Millisecond)
+				case <-menuManager.Items.MigrateMDM.ClickedCh():
 					if offline := offlineWatcher.ShowIfOffline(offlineWatcherCtx); offline {
 						continue
 					}
@@ -472,8 +504,8 @@ func main() {
 			log.Debug().Err(err).Msg("exiting swiftDialogCh")
 			close(swiftDialogCh)
 		}
-		log.Debug().Msg("stopping ticker")
-		summaryTicker.Stop()
+		log.Debug().Msg("stopping ping ticker")
+		pingTicker.Stop()
 		log.Debug().Msg("canceling offline watcher ctx")
 		cancelOfflineWatcherCtx()
 	}
@@ -515,42 +547,6 @@ func main() {
 	}
 
 	systray.Run(onReady, onExit)
-}
-
-func refreshMenuItems(sum fleet.DesktopSummary, selfServiceItem *systray.MenuItem, myDeviceItem *systray.MenuItem) {
-	// Check for null for backward compatibility with an old Fleet server
-	if sum.SelfService != nil && !*sum.SelfService {
-		selfServiceItem.Disable()
-		selfServiceItem.Hide()
-	} else {
-		selfServiceItem.Enable()
-		selfServiceItem.Show()
-	}
-
-	failingPolicies := 0
-	if sum.FailingPolicies != nil {
-		failingPolicies = int(*sum.FailingPolicies) //nolint:gosec // dismiss G115
-	}
-
-	if failingPolicies > 0 {
-		if runtime.GOOS == "windows" {
-			// Windows (or maybe just the systray library?) doesn't support color emoji
-			// in the system tray menu, so we use text as an alternative.
-			if failingPolicies == 1 {
-				myDeviceItem.SetTitle("My device (1 issue)")
-			} else {
-				myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failingPolicies))
-			}
-		} else {
-			myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failingPolicies))
-		}
-	} else {
-		if runtime.GOOS == "windows" {
-			myDeviceItem.SetTitle("My device")
-		} else {
-			myDeviceItem.SetTitle("🟢 My device")
-		}
-	}
 }
 
 type mdmMigrationHandler struct {
@@ -650,7 +646,7 @@ func setupStderr() {
 		return
 	}
 
-	stderrFile, err := os.OpenFile(filepath.Join(dir, "Fleet", "fleet-desktop.err"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
+	stderrFile, err := os.OpenFile(filepath.Join(dir, "Fleet", "fleet-desktop.err"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) // nolint:gosec // G302
 	if err != nil {
 		log.Error().Err(err).Msg("create file to redirect stderr")
 		return
@@ -741,4 +737,32 @@ func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, clie
 	offlineWatcher := useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
 
 	return mdmMigrator, swiftDialogCh, offlineWatcher, nil
+}
+
+func runWithPermanentError(errorMessage string) {
+	onReady := func() {
+		log.Info().Msg("ready")
+
+		systray.SetTooltip("Fleet Desktop")
+
+		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
+		// least). On macOS this is used as a template icon anyway.
+		systray.SetTemplateIcon(iconDark, iconDark)
+
+		// Add a disabled menu item with the current version
+		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
+		versionItem.Disable()
+		systray.AddSeparator()
+
+		// We are doing this using two menu items because line breaks
+		// are not rendered correctly on Windows and MacOS.
+		for errorMessageLine := range strings.SplitSeq(errorMessage, "\n") {
+			item := systray.AddMenuItem(strings.TrimSpace(errorMessageLine), "")
+			item.Disable()
+		}
+	}
+
+	systray.Run(onReady, func() {
+		log.Info().Msg("exit")
+	})
 }

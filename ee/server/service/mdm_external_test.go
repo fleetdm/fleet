@@ -97,6 +97,8 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -109,6 +111,10 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		clock.C,
 		depStorage,
+		nil,
+		nil,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -129,7 +135,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 	ssoSettings := fleet.SSOProviderSettings{
 		EntityID:    "foo",
 		MetadataURL: "https://example.com/metadata.xml",
-		IssuerURI:   "https://example.com",
 	}
 	appConfig := &fleet.AppConfig{MDM: fleet.MDM{
 		EnabledAndConfigured:  true,
@@ -208,7 +213,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return nil, errors.New("not implemented")
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 			return nil, errors.New("not implemented")
 		}
 		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
@@ -265,6 +270,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
+		}
+		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return nil, &eeservice.NotFoundError{}
 		}
 	}
 
@@ -325,7 +333,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			teamStore[tm.ID] = team
 			return team, nil
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, lastTeamID, *profile.TeamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profile.Identifier)
 			return &profile, nil

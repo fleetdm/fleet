@@ -13,10 +13,7 @@
     gap: $small;
 
     button {
-      height: auto;
-      padding: 0px;
-      border: none;
-      margin-left: 0;
+      margin: -$pad-small; // Keep button padding from affecting parent padding
     }
 
     .premium-icon-tip {
@@ -25,5 +22,9 @@
         margin-right: 6px;
       }
     }
+  }
+
+  &__tooltip-text {
+    @include ellipse-text(166px);
   }
 }

@@ -65,6 +65,12 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return appCfg, nil
 	}
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return nil, &notFoundError{}
+	}
+	ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+		return nil, nil
+	}
 
 	svc, _ := newTestService(t, ds, nil, nil)
 
@@ -72,11 +78,6 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 		t.Run(fmt.Sprintf("MDM enabled: %t", enabled), func(t *testing.T) {
 			appCfg.MDM.EnabledAndConfigured = enabled
 			appCfg.MDM.AndroidEnabledAndConfigured = enabled
-			if enabled {
-				t.Setenv("FLEET_DEV_ANDROID_ENABLED", "1")
-			} else {
-				t.Setenv("FLEET_DEV_ANDROID_ENABLED", "0")
-			}
 
 			logger := log.NewLogfmtLogger(os.Stdout)
 			h := ServeEndUserEnrollOTA(svc, "", ds, logger)
@@ -101,7 +102,6 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 			require.Contains(t, bodyString, "/api/v1/fleet/android_enterprise/enrollment_token")
 			require.Contains(t, bodyString, fmt.Sprintf(`const ANDROID_MDM_ENABLED = "%t" === "true";`, enabled))
 			require.Contains(t, bodyString, fmt.Sprintf(`const MAC_MDM_ENABLED = "%t" == "true";`, enabled))
-			require.Contains(t, bodyString, fmt.Sprintf(`const ANDROID_FEATURE_ENABLED = "%t" === "true";`, enabled))
 		})
 	}
 }

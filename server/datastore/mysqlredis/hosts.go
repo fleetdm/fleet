@@ -134,8 +134,8 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 	return h, err
 }
 
-func (d *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-	h, err := d.Datastore.EnrollHost(ctx, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
+func (d *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+	h, err := d.Datastore.EnrollOsquery(ctx, opts...)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)

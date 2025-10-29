@@ -29,6 +29,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/hostidentity"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -39,7 +40,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/uuid"
+	"github.com/micromdm/plist"
+	"github.com/remitly-oss/httpsig-go"
 )
 
 var (
@@ -201,13 +205,14 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
-	agentIndex         int
-	MDMCheckInInterval time.Duration
-	model              string
-	serverAddress      string
-	softwareCount      softwareEntityCount
-	stats              *osquery_perf.Stats
-	strings            map[string]string
+	agentIndex            int
+	MDMCheckInInterval    time.Duration
+	model                 string
+	serverAddress         string
+	softwareCount         softwareEntityCount
+	stats                 *osquery_perf.Stats
+	strings               map[string]string
+	mdmProfileFailureProb float64
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -221,8 +226,39 @@ func (a *mdmAgent) CachedString(key string) string {
 	return val
 }
 
+// adamIDsToSoftware is the set of VPP apps that we support in our mock VPP install flow.
+var adamIDsToSoftware = map[int]*fleet.Software{
+	406056744: {
+		Name:             "Evernote",
+		BundleIdentifier: "com.evernote.Evernote",
+		Version:          "10.147.1",
+		Installed:        false,
+	},
+	1091189122: {
+		Name:             "Bear: Markdown Notes",
+		BundleIdentifier: "net.shinyfrog.bear",
+		Version:          "2.4.5",
+		Installed:        false,
+	},
+	1487937127: {
+		Name:             "Craft: Write docs, AI editing",
+		BundleIdentifier: "com.lukilabs.lukiapp",
+		Version:          "3.1.7",
+		Installed:        false,
+	},
+	1444383602: {
+		Name:             "Goodnotes 6: AI Notes & Docs",
+		BundleIdentifier: "com.goodnotesapp.x",
+		Version:          "6.7.2",
+		Installed:        false,
+	},
+}
+
 type agent struct {
 	agentIndex                    int
+	hostCount                     int
+	totalHostCount                int
+	hostIndexOffset               int
 	softwareCount                 softwareEntityCount
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	userCount                     entityCount
@@ -274,6 +310,9 @@ type agent struct {
 	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
 	installedSoftware sync.Map
 
+	// Host identity client for HTTP message signatures
+	hostIdentityClient *hostidentity.Client
+
 	//
 	// The following are exported to be used by the templates.
 	//
@@ -287,6 +326,7 @@ type agent struct {
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
+	mdmProfileFailureProb float64
 
 	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
 	// because we read and write the field itself (not data in the map) from
@@ -305,8 +345,13 @@ type agent struct {
 	// a mutex even though only used in a.processQuery, that's because both
 	// the runLoop and the live query goroutines may call DistributedWrite
 	// (which calls processQuery).
-	certificatesMutex sync.RWMutex
-	certificatesCache []map[string]string
+	certificatesMutex        sync.RWMutex
+	certificatesCache        []map[string]string
+	commonSoftwareNameSuffix string
+
+	entraIDDeviceID          string
+	entraIDUserPrincipalName string
+	installedAdamIDs         []int
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -323,13 +368,15 @@ type entityCount struct {
 
 type softwareEntityCount struct {
 	entityCount
-	vulnerable                   int
-	withLastOpened               int
-	lastOpenedProb               float64
-	commonSoftwareUninstallCount int
-	commonSoftwareUninstallProb  float64
-	uniqueSoftwareUninstallCount int
-	uniqueSoftwareUninstallProb  float64
+	vulnerable                        int
+	withLastOpened                    int
+	lastOpenedProb                    float64
+	commonSoftwareUninstallCount      int
+	commonSoftwareUninstallProb       float64
+	uniqueSoftwareUninstallCount      int
+	uniqueSoftwareUninstallProb       float64
+	duplicateBundleIdentifiersPercent int
+	softwareRenaming                  bool
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -347,6 +394,9 @@ type softwareInstaller struct {
 
 func newAgent(
 	agentIndex int,
+	hostCount int,
+	totalHostCount int,
+	hostIndexOffset int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
 	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
@@ -370,6 +420,10 @@ func newAgent(
 	loggerTLSMaxLines int,
 	linuxUniqueSoftwareVersion bool,
 	linuxUniqueSoftwareTitle bool,
+	commonSoftwareNameSuffix string,
+	mdmProfileFailureProb float64,
+	httpMessageSignatureProb float64,
+	httpMessageSignatureP384Prob float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -419,8 +473,14 @@ func newAgent(
 		}
 	}
 
-	return &agent{
+	// Determine if this agent should use HTTP message signatures
+	useHTTPSig := rand.Float64() < httpMessageSignatureProb // nolint:gosec // ignore weak randomizer
+
+	agent := &agent{
 		agentIndex:                    agentIndex,
+		hostCount:                     hostCount,
+		totalHostCount:                totalHostCount,
+		hostIndexOffset:               hostIndexOffset,
 		serverAddress:                 serverAddress,
 		softwareCount:                 softwareCount,
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
@@ -453,12 +513,27 @@ func newAgent(
 		macMDMClient: macMDMClient,
 		winMDMClient: winMDMClient,
 
-		disableScriptExec:   disableScriptExec,
-		disableFleetDesktop: disableFleetDesktop,
-		loggerTLSMaxLines:   loggerTLSMaxLines,
-		bufferedResults:     make(map[resultLog]int),
-		scheduledQueryData:  new(sync.Map),
+		disableScriptExec:        disableScriptExec,
+		disableFleetDesktop:      disableFleetDesktop,
+		loggerTLSMaxLines:        loggerTLSMaxLines,
+		bufferedResults:          make(map[resultLog]int),
+		scheduledQueryData:       new(sync.Map),
+		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
+		mdmProfileFailureProb:    mdmProfileFailureProb,
+
+		entraIDDeviceID:          uuid.NewString(),
+		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 	}
+
+	// Initialize host identity client
+	agent.hostIdentityClient = hostidentity.NewClient(hostidentity.Config{
+		ServerAddress: serverAddress,
+		EnrollSecret:  enrollSecret,
+		HostUUID:      hostUUID,
+		AgentIndex:    agentIndex,
+	}, useHTTPSig, httpMessageSignatureP384Prob)
+
+	return agent
 }
 
 type enrollResponse struct {
@@ -487,6 +562,14 @@ func (a *agent) isOrbit() bool {
 }
 
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
+	// Request host identity certificate if this agent uses HTTP message signatures
+	if a.hostIdentityClient.IsEnabled() && !onlyAlreadyEnrolled {
+		if err := a.hostIdentityClient.RequestCertificate(); err != nil {
+			log.Printf("Agent %d: Failed to request host identity certificate: %v", a.agentIndex, err)
+			return
+		}
+	}
+
 	if a.isOrbit() {
 		if err := a.orbitEnroll(); err != nil {
 			// clean-up any placeholder mdm client that depended on orbit enrollment
@@ -680,6 +763,15 @@ func (a *agent) removeBuffered(batchSize int) {
 }
 
 func (a *agent) runOrbitLoop() {
+	// Create signerWrapper if HTTP signatures are enabled
+	var signerWrapper func(*http.Client) *http.Client
+	if a.hostIdentityClient.IsEnabled() && a.hostIdentityClient.HasSigner() {
+		signer := a.hostIdentityClient.GetSigner()
+		signerWrapper = func(client *http.Client) *http.Client {
+			return httpsig.NewHTTPClient(client, signer, nil)
+		}
+	}
+
 	orbitClient, err := service.NewOrbitClient(
 		"",
 		a.serverAddress,
@@ -693,6 +785,8 @@ func (a *agent) runOrbitLoop() {
 			Hostname:       a.CachedString("hostname"),
 		},
 		nil,
+		signerWrapper,
+		"",
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
@@ -770,6 +864,8 @@ func (a *agent) runOrbitLoop() {
 	capabilitiesCheckerTicker := time.Tick(5 * time.Minute)
 	// fleet desktop polls for policy compliance every 5 minutes
 	fleetDesktopPolicyTicker := time.Tick(5 * time.Minute)
+	// fleet desktop pings every 10s for connectivity check.
+	fleetDesktopConnectivityCheck := time.Tick(10 * time.Second)
 
 	const windowsMDMEnrollmentAttemptFrequency = time.Hour
 	var lastEnrollAttempt time.Time
@@ -839,6 +935,14 @@ func (a *agent) runOrbitLoop() {
 					continue
 				}
 			}
+		case <-fleetDesktopConnectivityCheck:
+			if !a.disableFleetDesktop {
+				if err := deviceClient.Ping(); err != nil {
+					a.stats.IncrementDesktopErrors()
+					log.Println("deviceClient.Ping: ", err)
+					continue
+				}
+			}
 		}
 	}
 }
@@ -858,14 +962,100 @@ func (a *agent) runMacosMDMLoop() {
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
-			mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
-			if err != nil {
-				log.Printf("MDM Acknowledge request failed: %s", err)
-				a.stats.IncrementMDMErrors()
-				break INNER_FOR_LOOP
-			}
-			if mdmCommandPayload != nil && mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+
+			switch mdmCommandPayload.Command.RequestType {
+			case "InstallProfile":
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
+					}
+					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, errChain)
+					if err != nil {
+						log.Printf("MDM Error request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
+				} else {
+					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+					if err != nil {
+						log.Printf("MDM Acknowledge request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
+				}
+			case "DeclarativeManagement":
+				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
+				nextMdmCommandPayload, err := a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
 				a.doDeclarativeManagement(mdmCommandPayload)
+				mdmCommandPayload = nextMdmCommandPayload
+			case "InstalledApplicationList":
+				var installedVPPSoftware []fleet.Software
+				// Our mock VPP apps start off as "not installed".
+				// The first time we get a verification command, we flip the flag to "installed",
+				// but don't include the software in the response.
+				// This ensures that 2 verification commands will be sent per VPP install.
+				for _, adamID := range a.installedAdamIDs {
+					if sw, ok := adamIDsToSoftware[adamID]; ok && sw != nil {
+						if sw.Installed {
+							installedVPPSoftware = append(installedVPPSoftware, *sw)
+						}
+
+						sw.Installed = true
+					}
+				}
+				nextMdmCommandPayload, err := a.macMDMClient.AcknowledgeInstalledApplicationList(
+					a.macMDMClient.UUID,
+					mdmCommandPayload.CommandUUID,
+					installedVPPSoftware,
+				)
+				if err != nil {
+					log.Printf("MDM Acknowledge InstalledApplicationList request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+
+				mdmCommandPayload = nextMdmCommandPayload
+			case "InstallApplication":
+				var appRequest struct {
+					Command map[string]any `plist:"Command"`
+				}
+
+				err = plist.Unmarshal(mdmCommandPayload.Raw, &appRequest)
+				if err != nil {
+					log.Printf("parsing InstallApplication request: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+				log.Printf("got install application command for %d", appRequest.Command["iTunesStoreID"])
+
+				if adamID, ok := appRequest.Command["iTunesStoreID"].(uint64); ok {
+					a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+				}
+
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+
+			default:
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
 			}
 		}
 	}
@@ -997,6 +1187,9 @@ func (a *agent) runWindowsMDMLoop() {
 			a.stats.IncrementMDMCommandsReceived()
 
 			status := syncml.CmdStatusOK
+			if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+				status = syncml.CmdStatusBadRequest
+			}
 			a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
@@ -1201,8 +1394,35 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 	}
 }
 
+// shouldSignRequest determines if a request should be signed based on its path
+func (a *agent) shouldSignRequest(req *http.Request) bool {
+	// Don't sign if HTTP signatures are not enabled
+	if !a.hostIdentityClient.IsEnabled() || !a.hostIdentityClient.HasSigner() {
+		return false
+	}
+
+	// Exclude ping endpoint from signing
+	if strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {
+		return false
+	}
+
+	// Only sign specific API paths
+	return strings.Contains(req.URL.Path, "/api/fleet/orbit/") || strings.Contains(req.URL.Path, "/osquery/")
+}
+
+// sign applies HTTP message signature to a request if needed
+func (a *agent) sign(req *http.Request) *http.Request {
+	// Apply HTTP message signature if this request should be signed
+	if a.shouldSignRequest(req) {
+		if err := a.hostIdentityClient.SignRequest(req); err != nil {
+			log.Printf("Agent %d: Failed to sign HTTP request: %v", a.agentIndex, err)
+		}
+	}
+	return req
+}
+
 func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
-	response, err := http.DefaultClient.Do(fn())
+	response, err := http.DefaultClient.Do(a.sign(fn()))
 	for err != nil || response.StatusCode != http.StatusOK {
 		if err != nil {
 			log.Printf("failed to run request: %s", err)
@@ -1212,7 +1432,7 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 		}
 		a.stats.IncrementErrors(1)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
-		response, err = http.DefaultClient.Do(fn())
+		response, err = http.DefaultClient.Do(a.sign(fn()))
 	}
 	return response
 }
@@ -1221,7 +1441,7 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	params := service.EnrollOrbitRequest{
+	params := contract.EnrollOrbitRequest{
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
@@ -1306,7 +1526,7 @@ func (a *agent) config() error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("config request failed to run: %w", err)
 	}
@@ -1395,6 +1615,24 @@ func randomString(n int) string {
 	return sb.String()
 }
 
+// randomizeVersion returns a version string with realistic randomization:
+func randomizeVersion(baseVersion, alternateVersion string) string {
+	r := rand.Float64()
+	switch {
+	case r < 0.99:
+		// 99% - return base version
+		return baseVersion
+	case r < 0.999:
+		// 0.9% - return alternate version
+		return alternateVersion
+	default:
+		// 0.1% - return one of 30 random patch versions
+		// Generate a random patch version based on the base version
+		patchNum := rand.Intn(30)
+		return fmt.Sprintf("%s.%d", baseVersion, patchNum)
+	}
+}
+
 func (a *agent) CachedString(key string) string {
 	if val, ok := a.strings[key]; ok {
 		return val
@@ -1436,31 +1674,80 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
-	// Common Software
 	var lastOpenedCount int
-	commonSoftware := make([]map[string]string, a.softwareCount.common)
-	for i := 0; i < len(commonSoftware); i++ {
-		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
-			lastOpenedAt = l.Format(time.UnixDate)
+
+	totalCommon := a.softwareCount.common
+	totalDuplicates := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
+	totalSoftware := totalCommon + totalDuplicates
+
+	var startIdx, endIdx int
+
+	if a.totalHostCount == 0 {
+		// non-distributed mode, all hosts get the same software count
+		startIdx = 0
+		endIdx = totalSoftware
+	} else {
+		// distributed mode, distribute software across hosts
+		globalAgentIndex := a.hostIndexOffset + (a.agentIndex - 1)
+
+		perHostCount := totalSoftware / a.totalHostCount
+		remainder := totalSoftware % a.totalHostCount
+
+		startIdx = globalAgentIndex * perHostCount
+		if globalAgentIndex < remainder {
+			startIdx += globalAgentIndex
+		} else {
+			startIdx += remainder
 		}
-		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d.app", i),
-			"version":           "0.0.1",
-			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
-			"source":            "apps",
-			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
+
+		endIdx = startIdx + perHostCount
+		if globalAgentIndex < remainder {
+			endIdx++
 		}
-	}
-	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
-		rand.Shuffle(len(commonSoftware), func(i, j int) {
-			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
-		})
-		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
 	}
 
-	// Unique Software
+	commonSoftware := make([]map[string]string, 0)
+	duplicateBundleSoftware := make([]map[string]string, 0)
+	groupSize := 4
+
+	for i := startIdx; i < endIdx; i++ {
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = fmt.Sprint(l.Unix())
+		}
+
+		if i < totalCommon {
+			commonSoftware = append(commonSoftware, map[string]string{
+				"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
+				"version":           randomizeVersion("0.0.1", "0.0.2"),
+				"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
+				"source":            "apps",
+				"last_opened_at":    lastOpenedAt,
+				"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
+			})
+		} else {
+			duplicateIdx := i - totalCommon
+			bundleIDIndex := duplicateIdx / groupSize
+			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%totalCommon)
+
+			var name string
+			if a.softwareCount.softwareRenaming {
+				name = fmt.Sprintf("RENAMED_DuplicateBundle_%d", duplicateIdx)
+			} else {
+				name = fmt.Sprintf("DuplicateBundle_%d", duplicateIdx)
+			}
+
+			duplicateBundleSoftware = append(duplicateBundleSoftware, map[string]string{
+				"name":              name,
+				"version":           fmt.Sprintf("0.0.1%d", duplicateIdx),
+				"bundle_identifier": bundleID,
+				"source":            "apps",
+				"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx),
+			})
+		}
+	}
+
+	// Unique Software (always per-host, not distributed)
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -1468,8 +1755,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
 		uniqueSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Unique_%s_%d.app", a.CachedString("hostname"), i),
-			"version":           "1.1.1",
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"version":           randomizeVersion("1.1.1", "1.1.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
 			"source":            "apps",
 			"last_opened_at":    lastOpenedAt,
@@ -1532,6 +1819,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
 	software = append(software, vulnerableSoftware...)
+	software = append(software, duplicateBundleSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
 		return true
@@ -1548,7 +1836,7 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	for i := 0; i < len(commonSoftware); i++ {
 		commonSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Common_%d", i),
-			"version":           "0.0.1",
+			"version":           randomizeVersion("0.0.1", "0.0.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 			"source":            source,
 		}
@@ -1563,7 +1851,7 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	for i := 0; i < len(uniqueSoftware); i++ {
 		uniqueSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			"version":           "1.1.1",
+			"version":           randomizeVersion("1.1.1", "1.1.2"),
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
 			"source":            source,
 		}
@@ -1596,7 +1884,7 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
 		commonVSCodeExtensionsSoftware[i] = map[string]string{
 			"name":    fmt.Sprintf("common.extension_%d", i),
-			"version": "0.0.1",
+			"version": randomizeVersion("0.0.1", "0.0.2"),
 			"source":  "vscode_extensions",
 		}
 	}
@@ -1610,7 +1898,7 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	for i := 0; i < len(uniqueVSCodeExtensionsSoftware); i++ {
 		uniqueVSCodeExtensionsSoftware[i] = map[string]string{
 			"name":    fmt.Sprintf("unique.extension_%s_%d", a.CachedString("hostname"), i),
-			"version": "1.1.1",
+			"version": randomizeVersion("1.1.1", "1.1.2"),
 			"source":  "vscode_extensions",
 		}
 	}
@@ -1645,7 +1933,7 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return nil, fmt.Errorf("distributed/read request failed to run: %w", err)
 	}
@@ -1757,6 +2045,25 @@ func (a *agent) mdmMac() []map[string]string {
 			"server_url":         a.macMDMClient.EnrollInfo.MDMURL,
 			"installed_from_dep": "false",
 			"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+		},
+	}
+}
+
+func (a *agent) mdmConfigProfilesMac() []map[string]string {
+	return []map[string]string{
+		{
+			"identifier":   "osquery-perf",
+			"display_name": "OSQuery Perf Agent",
+			"install_date": "2006-01-02 15:04:05 -0700",
+		},
+	}
+}
+
+func (a *agent) entraConditionalAccess() []map[string]string {
+	return []map[string]string{
+		{
+			"device_id":           a.entraIDDeviceID,
+			"user_principal_name": a.entraIDUserPrincipalName,
 		},
 	}
 }
@@ -1919,7 +2226,10 @@ func (a *agent) certificates() []map[string]string {
 	// on dogfood gives between 4-7)
 	count := rand.Intn(9) + 2
 
+	sources := []string{"system", "user"}
+	users := a.hostUsers()
 	const day = 24 * time.Hour
+
 	results := make([]map[string]string, count)
 	for i := range count {
 		m := make(map[string]string, 12)
@@ -1939,6 +2249,13 @@ func (a *agent) certificates() []map[string]string {
 		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
 		hash := hex.EncodeToString(rawHash[:])
 		m["sha1"] = hash
+		m["source"] = sources[rand.Intn(2)]
+
+		if m["source"] == "user" {
+			// Set username for user keychain certificates
+			user := users[rand.Intn(len(users))]
+			m["path"] = fmt.Sprintf(`/Users/%s/Library/Keychains/login.keychain-db`, user["username"])
+		}
 
 		results[i] = m
 	}
@@ -2025,7 +2342,7 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	request.Header.Add("Content-type", "application/json")
 
 	// Make the request.
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		ss := fleet.OsqueryStatus(1)
 		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("yara request failed to run: %v", err)), nil
@@ -2114,6 +2431,22 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = statusNotOK
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user", name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
+			results = a.mdmConfigProfilesMac()
+		} else {
+			ss = statusNotOK
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"conditional_access_microsoft_device_id":
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
+			results = a.entraConditionalAccess()
+		} else {
+			ss = statusNotOK
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"mdm_windows":
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
@@ -2188,7 +2521,18 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			results = windowsSoftware
+			results = make([]map[string]string, 0, len(windowsSoftware))
+			for _, s := range windowsSoftware {
+				// Randomize version for each software item
+				baseVersion := s["version"]
+				alternateVersion := baseVersion + ".1"
+				m := map[string]string{
+					"name":    s["name"],
+					"source":  s["source"],
+					"version": randomizeVersion(baseVersion, alternateVersion),
+				}
+				results = append(results, m)
+			}
 			a.installedSoftware.Range(func(key, value interface{}) bool {
 				results = append(results, value.(map[string]string))
 				return true
@@ -2209,9 +2553,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					if a.linuxUniqueSoftwareTitle {
 						softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
 					}
-					version := s["version"]
+					var version string
 					if a.linuxUniqueSoftwareVersion {
 						version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
+					} else {
+						// Randomize version for each software item
+						baseVersion := s["version"]
+						alternateVersion := baseVersion + ".1"
+						version = randomizeVersion(baseVersion, alternateVersion)
 					}
 					m := map[string]string{
 						"name":    softwareName,
@@ -2352,7 +2701,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("distributed/write request failed to run: %w", err)
 	}
@@ -2426,7 +2775,7 @@ func (a *agent) submitLogs(results []resultLog) error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("log request failed to run: %w", err)
 	}
@@ -2488,6 +2837,20 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
+			case "InstallProfile":
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
+					}
+					mdmCommandPayload, err = mdmClient.Err(mdmCommandPayload.CommandUUID, errChain)
+				} else {
+					mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				}
+
 			default:
 				mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			}
@@ -2556,12 +2919,14 @@ func main() {
 	}
 
 	var (
-		serverURL      = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret   = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount      = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		serverURL       = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret    = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount       = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		totalHostCount  = flag.Int("total_host_count", 0, "Total number of hosts across all containers (if 0, uses host_count)")
+		hostIndexOffset = flag.Int("host_index_offset", 0, "Starting index offset for this container's hosts (default 0)")
+		randSeed        = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod     = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval  = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
@@ -2569,6 +2934,10 @@ func main() {
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
+
+		httpMessageSignatureProb     = flag.Float64("http_message_signature_prob", 0.1, "Probability of hosts using HTTP message signatures")
+		httpMessageSignatureP384Prob = flag.Float64("http_message_signature_p384_prob", 0.5,
+			"Probability of hosts using P384 elliptic curve (as opposed to P256) for HTTP message signatures")
 
 		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
 		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
@@ -2597,6 +2966,8 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
+		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
+		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
 		// WARNING: This will generate massive amounts of entries in the software table,
 		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
 		//
@@ -2627,8 +2998,9 @@ func main() {
 		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
 			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
-		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
-		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
+		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
@@ -2639,10 +3011,25 @@ func main() {
 		// logger_tls_max_lines is simulating the osquery setting with the same name.
 		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
 			"Maximum number of buffered result log lines to send on every log request")
+		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
 	)
 
 	flag.Parse()
 	rand.Seed(*randSeed)
+
+	// There are two modes for osquery-perf:
+	// 1. Non distributed mode (old behavior). All agents get all software specified. This is done when specifying --host_count and --common_software_count
+	// Example --host_count 500 --common_software_count 1000 -> means 500 hosts each with 1000 pieces of software
+	// 2. Distributed mode. All agents get a subset of the total software specified. This is done when specifying --total_host_count and --host_index_offset along with other params.
+	// Example --host_count 500 --common_software_count 1000 --total_host_count 5000 --host_index_offset [0...N...1000]
+	// This example means that each container will run 500 hosts, but each host will only get a subset of the total 5000 software requested.
+	if *totalHostCount > 0 && *totalHostCount > *hostCount {
+		log.Printf("WARNING: total_host_count (%d) > host_count (%d). You are trying to use distributed mode, ensure you have --host_index_offset specified for each container", *totalHostCount, *hostCount)
+		log.Printf("         Container 0 should use: --host_index_offset 0")
+		log.Printf("         Container 1 should use: --host_index_offset %d", *hostCount)
+		log.Printf("         Container 2 should use: --host_index_offset %d", *hostCount*2)
+		log.Printf("         Container N should use: --host_index_offset Y")
+	}
 
 	if *onlyAlreadyEnrolled {
 		// Orbit enrollment does not support the "already enrolled" mode at the
@@ -2747,8 +3134,9 @@ func main() {
 					uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
 					uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
 				},
-				stats:   stats,
-				strings: make(map[string]string),
+				stats:                 stats,
+				strings:               make(map[string]string),
+				mdmProfileFailureProb: *mdmProfileFailureProb,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -2756,6 +3144,9 @@ func main() {
 		}
 
 		a := newAgent(i+1,
+			*hostCount,
+			*totalHostCount,
+			*hostIndexOffset,
 			*serverURL,
 			*enrollSecret,
 			tmpl,
@@ -2776,13 +3167,15 @@ func main() {
 					common: *commonSoftwareCount,
 					unique: *uniqueSoftwareCount,
 				},
-				vulnerable:                   *vulnerableSoftwareCount,
-				withLastOpened:               *withLastOpenedSoftwareCount,
-				lastOpenedProb:               *lastOpenedChangeProb,
-				commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
-				commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
-				uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
-				uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
+				vulnerable:                        *vulnerableSoftwareCount,
+				withLastOpened:                    *withLastOpenedSoftwareCount,
+				lastOpenedProb:                    *lastOpenedChangeProb,
+				commonSoftwareUninstallCount:      *commonSoftwareUninstallCount,
+				commonSoftwareUninstallProb:       *commonSoftwareUninstallProb,
+				uniqueSoftwareUninstallCount:      *uniqueSoftwareUninstallCount,
+				uniqueSoftwareUninstallProb:       *uniqueSoftwareUninstallProb,
+				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
+				softwareRenaming:                  *softwareRenaming,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{
@@ -2813,6 +3206,10 @@ func main() {
 			*loggerTLSMaxLines,
 			*linuxUniqueSoftwareVersion,
 			*linuxUniqueSoftwareTitle,
+			*commonSoftwareNameSuffix,
+			*mdmProfileFailureProb,
+			*httpMessageSignatureProb,
+			*httpMessageSignatureP384Prob,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

@@ -1,7 +1,5 @@
 .activity-feed {
-  margin-top: $pad-large;
-  display: flex;
-  flex-direction: column;
+  @include vertical-card-layout;
   position: relative;
   min-height: 500px;
 
@@ -40,7 +38,7 @@
 
     &:hover:not(.button--disabled),
     &:focus {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-10;
     }
   }
 
@@ -52,36 +50,6 @@
     font-size: $x-small;
     p {
       margin-top: 0;
-    }
-  }
-
-  &__error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: $pad-xlarge 0;
-
-    &__inner {
-      display: flex;
-      flex-direction: row;
-    }
-
-    .info {
-      &__header {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        text-align: left;
-      }
-      &__data {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: normal;
-        font-size: $x-small;
-        text-align: left;
-        margin-top: 10px;
-      }
     }
   }
 

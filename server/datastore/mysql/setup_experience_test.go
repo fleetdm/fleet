@@ -24,6 +24,7 @@ func TestSetupExperience(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"EnqueueSetupExperienceItems", testEnqueueSetupExperienceItems},
+		{"EnqueueSetupExperienceLinuxScriptPackages", testEnqueueSetupExperienceLinuxScriptPackages},
 		{"GetSetupExperienceTitles", testGetSetupExperienceTitles},
 		{"SetSetupExperienceTitles", testSetSetupExperienceTitles},
 		{"ListSetupExperienceStatusResults", testSetupExperienceStatusResults},
@@ -41,6 +42,193 @@ func TestSetupExperience(t *testing.T) {
 }
 
 // TODO(JVE): this test could probably be simplified and most of the ad-hoc SQL removed.
+// testEnqueueSetupExperienceLinuxScriptPackages tests that Linux script packages (.sh)
+// are properly enqueued for setup experience. This is a regression test for bug #34654.
+func testEnqueueSetupExperienceLinuxScriptPackages(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create a .sh script package installer for Linux
+	tfrSh, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/bash\necho hello"), t.TempDir)
+	require.NoError(t, err)
+	installerIDSh, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "#!/bin/bash\necho installing",
+		InstallerFile:   tfrSh,
+		StorageID:       "storage-sh-1",
+		Filename:        "install.sh",
+		Title:           "Script Package",
+		Version:         "1.0",
+		Source:          "sh_packages",
+		UserID:          user1.ID,
+		TeamID:          &team1.ID,
+		Platform:        "linux",
+		Extension:       "sh",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Create a .deb package installer for Linux (debian-specific)
+	tfrDeb, err := fleet.NewTempFileReader(strings.NewReader("deb package"), t.TempDir)
+	require.NoError(t, err)
+	installerIDDeb, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "dpkg -i test.deb",
+		InstallerFile:   tfrDeb,
+		StorageID:       "storage-deb-1",
+		Filename:        "test.deb",
+		Title:           "Deb Package",
+		Version:         "1.0",
+		Source:          "deb_packages",
+		UserID:          user1.ID,
+		TeamID:          &team1.ID,
+		Platform:        "linux",
+		Extension:       "deb",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Create a .tar.gz package installer for Linux (distribution-agnostic like .sh)
+	tfrTarGz, err := fleet.NewTempFileReader(strings.NewReader("tarball"), t.TempDir)
+	require.NoError(t, err)
+	installerIDTarGz, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "tar -xzf test.tar.gz",
+		InstallerFile:   tfrTarGz,
+		StorageID:       "storage-tar-1",
+		Filename:        "test.tar.gz",
+		Title:           "TarGz Package",
+		Version:         "1.0",
+		Source:          "tgz_packages",
+		UserID:          user1.ID,
+		TeamID:          &team1.ID,
+		Platform:        "linux",
+		Extension:       "tar.gz",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Mark all installers for setup experience
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?)",
+			installerIDSh, installerIDDeb, installerIDTarGz)
+		return err
+	})
+
+	// Test 1: Script package ONLY on Debian host - should enqueue and return true
+	t.Run("sh_only_debian", func(t *testing.T) {
+		hostDebianShOnly := "debian-sh-only-" + uuid.NewString()
+
+		// Mark only .sh for setup experience, disable others temporarily
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 0 WHERE id IN (?, ?)", installerIDDeb, installerIDTarGz)
+			require.NoError(t, err)
+			_, err = q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", installerIDSh)
+			return err
+		})
+
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "debian", hostDebianShOnly, team1.ID)
+		require.NoError(t, err)
+		require.True(t, anythingEnqueued, "BUG #34654: .sh package alone should trigger setup experience")
+
+		// Verify the .sh package was enqueued
+		var rows []setupExperienceInsertTestRows
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				"SELECT host_uuid, name, status, software_installer_id FROM setup_experience_status_results WHERE host_uuid = ?",
+				hostDebianShOnly)
+		})
+		require.Len(t, rows, 1, "BUG #34654: .sh package should be enqueued")
+		require.Equal(t, "Script Package", rows[0].Name)
+		require.Equal(t, nullableUint(installerIDSh), rows[0].SoftwareInstallerID)
+
+		// Re-enable all for next tests
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?)",
+				installerIDSh, installerIDDeb, installerIDTarGz)
+			return err
+		})
+	})
+
+	// Test 2: Script package on RHEL host - should enqueue (sh is distribution-agnostic)
+	t.Run("sh_only_rhel", func(t *testing.T) {
+		hostRhelShOnly := "rhel-sh-only-" + uuid.NewString()
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 0 WHERE id IN (?, ?)", installerIDDeb, installerIDTarGz)
+			require.NoError(t, err)
+			_, err = q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", installerIDSh)
+			return err
+		})
+
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "rhel", hostRhelShOnly, team1.ID)
+		require.NoError(t, err)
+		require.True(t, anythingEnqueued, "BUG #34654: .sh package should work on RHEL too")
+
+		var rows []setupExperienceInsertTestRows
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				"SELECT host_uuid, name, status, software_installer_id FROM setup_experience_status_results WHERE host_uuid = ?",
+				hostRhelShOnly)
+		})
+		require.Len(t, rows, 1)
+		require.Equal(t, "Script Package", rows[0].Name)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?)",
+				installerIDSh, installerIDDeb, installerIDTarGz)
+			return err
+		})
+	})
+
+	// Test 3: Mixed .sh and .deb on Debian host - both should enqueue
+	t.Run("mixed_sh_deb_debian", func(t *testing.T) {
+		hostDebianMixed := "debian-mixed-" + uuid.NewString()
+
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "debian", hostDebianMixed, team1.ID)
+		require.NoError(t, err)
+		require.True(t, anythingEnqueued)
+
+		var rows []setupExperienceInsertTestRows
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				"SELECT host_uuid, name, status, software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? ORDER BY name",
+				hostDebianMixed)
+		})
+		require.Len(t, rows, 3, "All three packages should be enqueued on debian")
+
+		// Verify all expected packages are there
+		names := []string{rows[0].Name, rows[1].Name, rows[2].Name}
+		require.Contains(t, names, "Deb Package")
+		require.Contains(t, names, "Script Package", "BUG #34654: .sh should be enqueued even when mixed with other packages")
+		require.Contains(t, names, "TarGz Package")
+	})
+
+	// Test 4: Mixed .sh and .deb on RHEL host - only .sh and .tar.gz should enqueue (not .deb)
+	t.Run("mixed_sh_deb_rhel", func(t *testing.T) {
+		hostRhelMixed := "rhel-mixed-" + uuid.NewString()
+
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "rhel", hostRhelMixed, team1.ID)
+		require.NoError(t, err)
+		require.True(t, anythingEnqueued)
+
+		var rows []setupExperienceInsertTestRows
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				"SELECT host_uuid, name, status, software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? ORDER BY name",
+				hostRhelMixed)
+		})
+		require.Len(t, rows, 2, "Only .sh and .tar.gz should be enqueued on RHEL (not .deb)")
+
+		names := []string{rows[0].Name, rows[1].Name}
+		require.Contains(t, names, "Script Package", "BUG #34654: .sh should be enqueued on RHEL")
+		require.Contains(t, names, "TarGz Package")
+		require.NotContains(t, names, "Deb Package", ".deb should not be enqueued on RHEL")
+	})
+}
+
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -131,21 +319,21 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	hostTeam2 := "456"
 	hostTeam3 := "789"
 
-	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 	// Nothing is configured for setup experience in team 3, so we do not set
@@ -227,19 +415,19 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
 
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, []uint{})
 	require.NoError(t, err)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
 	// team2 now has nothing enqueued
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
@@ -376,25 +564,45 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	tfr5, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
+	require.NoError(t, err)
+	installerID5, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "orange",
+		PreInstallQuery:   "SELECT 5",
+		PostInstallScript: "grape",
+		InstallerFile:     tfr5,
+		StorageID:         "storage4",
+		Filename:          "file5",
+		Title:             "file5",
+		Version:           "5.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          "linux",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 1)
 	assert.Equal(t, 1, count)
 	assert.NotNil(t, meta)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?)", installerID1, installerID3, installerID4)
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?, ?)", installerID1, installerID3, installerID4, installerID5)
 		return err
 	})
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 1)
 	assert.Equal(t, installerID1, titles[0].ID)
 	assert.Equal(t, 1, count)
 	assert.NotNil(t, meta)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 1)
 	assert.Equal(t, installerID3, titles[0].ID)
@@ -427,19 +635,50 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 2)
 	assert.Equal(t, vpp1.AdamID, titles[1].AppStoreApp.AppStoreID)
 	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 2)
 	assert.Equal(t, vpp3.AdamID, titles[1].AppStoreApp.AppStoreID)
 	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
+
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		TeamID:         &team1.ID,
+		Name:           "the script.sh",
+		ScriptContents: "hello",
+	})
+	require.NoError(t, err)
+
+	sec, err := ds.GetSetupExperienceCount(ctx, "darwin", &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(1), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "linux", &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
+
+	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
@@ -536,7 +775,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID4
 	require.NoError(t, err)
 
-	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 2)
 	assert.Equal(t, 2, count)
@@ -554,16 +793,9 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
 	require.NoError(t, err)
 
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
-	_ = vpp1
-	require.NoError(t, err)
-
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
-	_ = vpp2
-	require.NoError(t, err)
-
-	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
-	_ = vpp3
+	// iOS version of app1, has the same adam ID
+	app4 := &fleet.VPPApp{Name: "vpp_app_1: iOS", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, &team1.ID)
 	require.NoError(t, err)
 
 	titleSoftware := make(map[string]uint)
@@ -574,7 +806,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	for _, title := range softwareTitles {
 		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+			titleVPP[title.AppStoreApp.AppStoreID+":"+title.AppStoreApp.Platform] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}
@@ -592,10 +824,10 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	}
 
 	// Single installer
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleSoftware["file1"]})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleSoftware["file1"]})
 	require.NoError(t, err)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 3)
 	assert.Equal(t, 3, count)
@@ -609,10 +841,11 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
 
 	// Single vpp app replaces installer
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
+	// This VPP app has darwin and ios versions, which shouldn't keep users from adding the darwin one.
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["1:darwin"]})
 	require.NoError(t, err)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, titles, 3)
 	require.Equal(t, 3, count)
@@ -626,7 +859,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.True(t, *titles[2].AppStoreApp.InstallDuringSetup)
 
 	// Team 2 unaffected
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, titles, 2)
 	require.Equal(t, 2, count)
@@ -637,38 +870,60 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].AppStoreApp.InstallDuringSetup)
 
-	// iOS software
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
-	require.ErrorContains(t, err, "unsupported")
+	// VPP app can be added for iOS
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, []uint{titleVPP["2:ios"]})
+	require.NoError(t, err)
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	require.NotNil(t, meta)
+	installDuringSetupApps := 0
+	for _, title := range titles {
+		// iOS should only have vpp apps
+		require.NotNil(t, title.AppStoreApp)
+		if title.ID == titleVPP["2:ios"] {
+			require.True(t, *title.AppStoreApp.InstallDuringSetup)
+			installDuringSetupApps++
+		} else {
+			require.False(t, *title.AppStoreApp.InstallDuringSetup)
+		}
+	}
+	require.Equal(t, 1, installDuringSetupApps)
 
-	// ios vpp app
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["2"]})
-	require.ErrorContains(t, err, "unsupported")
+	// iOS software. iOS only supports VPP apps so should not check installers
+	// even if one somehow exists
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team2.ID, []uint{titleSoftware["file4"]})
+	require.ErrorContains(t, err, "not available")
+
+	// ios vpp app is invalid for darwin platform
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["2:ios"]})
+	require.ErrorContains(t, err, "invalid platform for requested AppStoreApp")
 
 	// wrong team
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["3"]})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["3"]})
 	require.ErrorContains(t, err, "not available")
 
 	// good other team assignment
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleVPP["3"]})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, []uint{titleVPP["3"]})
 	require.NoError(t, err)
 
 	// non-existent title ID
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{999})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{999})
 	require.ErrorContains(t, err, "not available")
 
 	// Failures and other team assignments didn't affected the number of apps on team 1
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 3)
 	assert.Equal(t, 3, count)
 	assert.NotNil(t, meta)
 
 	// Empty slice removes all tiles
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{})
 	require.NoError(t, err)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, titles, 3)
 	assert.Equal(t, 3, count)

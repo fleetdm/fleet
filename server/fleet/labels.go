@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -14,7 +16,26 @@ type ModifyLabelPayload struct {
 	// valid for manual labels. If it is nil (not just len() == 0, but == nil),
 	// then the list of hosts is not modified. If it is not nil and len == 0,
 	// then all members are removed.
-	Hosts []string `json:"hosts"`
+	Hosts   []string `json:"hosts"`
+	HostIDs []uint   `json:"host_ids"`
+}
+
+type HostVitalOperator string
+
+const (
+	HostVitalOperatorEqual    HostVitalOperator = "="
+	HostVitalOperatorNotEqual HostVitalOperator = "!="
+	HostVitalOperatorGreater  HostVitalOperator = ">"
+	HostVitalOperatorLess     HostVitalOperator = "<"
+	HostVitalOperatorLike     HostVitalOperator = "LIKE"
+)
+
+type HostVitalCriteria struct {
+	Vital    *string             `json:"vital,omitempty"`
+	Value    *string             `json:"value,omitempty"`
+	Operator *HostVitalOperator  `json:"operator,omitempty"`
+	And      []HostVitalCriteria `json:"and,omitempty"`
+	Or       []HostVitalCriteria `json:"or,omitempty"`
 }
 
 type LabelPayload struct {
@@ -30,7 +51,10 @@ type LabelPayload struct {
 	// supported by HostByIdentifier) that are part of the label. This defines a
 	// manual label. Can be empty for a manual label that doesn't target any
 	// host. Must be empty for a dynamic label.
-	Hosts []string `json:"hosts"`
+	Hosts   []string `json:"hosts"`
+	HostIDs []uint   `json:"host_ids"`
+	// Criteria is the set of criteria that defines a host vitals label.
+	Criteria *HostVitalCriteria `json:"criteria,omitempty"`
 }
 
 // LabelType is used to catagorize the kind of label
@@ -76,6 +100,9 @@ const (
 	LabelMembershipTypeDynamic LabelMembershipType = iota
 	// LabelTypeManual indicates that the label is populated manually.
 	LabelMembershipTypeManual
+	// LabelMembershipTypeHostVitals indicates that the label is populated
+	// dynamically based on host vitals data.
+	LabelMembershipTypeHostVitals
 )
 
 func (t LabelMembershipType) MarshalJSON() ([]byte, error) {
@@ -84,6 +111,8 @@ func (t LabelMembershipType) MarshalJSON() ([]byte, error) {
 		return []byte(`"dynamic"`), nil
 	case LabelMembershipTypeManual:
 		return []byte(`"manual"`), nil
+	case LabelMembershipTypeHostVitals:
+		return []byte(`"host_vitals"`), nil
 	default:
 		return nil, fmt.Errorf("invalid LabelMembershipType: %d", t)
 	}
@@ -95,10 +124,19 @@ func (t *LabelMembershipType) UnmarshalJSON(b []byte) error {
 		*t = LabelMembershipTypeDynamic
 	case `"manual"`:
 		*t = LabelMembershipTypeManual
+	case `"host_vitals"`:
+		*t = LabelMembershipTypeHostVitals
 	default:
 		return fmt.Errorf("invalid LabelMembershipType: %s", string(b))
 	}
 	return nil
+}
+
+// Create a separate interface for host vitals labels to allow for
+// different query generation logic in tests.
+type HostVitalsLabel interface {
+	CalculateHostVitalsQuery() (query string, values []any, err error)
+	GetLabel() *Label
 }
 
 type Label struct {
@@ -108,10 +146,16 @@ type Label struct {
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`
+	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
 	Platform            string              `json:"platform"`
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
+}
+
+// Implement the HostVitalsLabel interface.
+func (l *Label) GetLabel() *Label {
+	return l
 }
 
 type LabelSummary struct {
@@ -137,15 +181,48 @@ type LabelQueryExecution struct {
 	HostID    uint
 }
 
+type HostsSlice []string
+
+// Custom unmarshaler to handle both string and integer host identifiers.
+func (s *HostsSlice) UnmarshalJSON(data []byte) error {
+	var raw []interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw == nil {
+		// Differentiate between nil and empty array.
+		return nil
+	}
+	result := make([]string, 0, len(raw))
+	for _, v := range raw {
+		switch val := v.(type) {
+		case string:
+			result = append(result, val)
+		case float64:
+			// Check if the float64 is actually an integer.
+			if val != float64(int64(val)) {
+				return fmt.Errorf("hosts must be strings or integers, got float %g", val)
+			}
+			// Convert to string.
+			result = append(result, fmt.Sprintf("%.0f", val))
+		default:
+			return fmt.Errorf("hosts must be strings or integers, got %T", v)
+		}
+	}
+	*s = result
+	return nil
+}
+
 type LabelSpec struct {
-	ID                  uint                `json:"id"`
+	ID                  uint                `json:"id" db:"id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`
 	Platform            string              `json:"platform,omitempty"`
 	LabelType           LabelType           `json:"label_type,omitempty" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
-	Hosts               []string            `json:"hosts"`
+	Hosts               HostsSlice          `json:"hosts"`
+	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
 }
 
 const (
@@ -255,4 +332,81 @@ func (l *LabelIdentsWithScope) Equal(other *LabelIdentsWithScope) bool {
 	}
 
 	return true
+}
+
+// Translate label host vitals crteria into a query.
+// TODO -- add caching support for this query?
+func (l *Label) CalculateHostVitalsQuery() (query string, values []any, err error) {
+	var criteria *HostVitalCriteria
+	if l.HostVitalsCriteria == nil {
+		return "", nil, errors.New("label has no host vitals criteria")
+	}
+	// Unmarshal the criteria from JSON.
+	if err := json.Unmarshal(*l.HostVitalsCriteria, &criteria); err != nil {
+		return "", nil, fmt.Errorf("unmarshalling host vitals criteria: %w", err)
+	}
+
+	// We'll use a set to gather the foreign vitals groups we need to join on,
+	// so that we can avoid duplicates.
+	foreignVitalsGroups := make(map[*HostForeignVitalGroup]struct{})
+	// Hold values to be substituted in the paramerized query.
+	values = make([]any, 0)
+	// Recursively parse the criteria to build the WHERE clause.
+	whereClause, err := parseHostVitalCriteria(criteria, foreignVitalsGroups, &values)
+	if err != nil {
+		return "", nil, fmt.Errorf("parsing host vitals criteria: %w", err)
+	}
+	// If there are foreign vitals groups, concatenate all their joins.
+	joins := make([]string, 0, len(foreignVitalsGroups))
+	if len(foreignVitalsGroups) > 0 {
+		for group := range foreignVitalsGroups {
+			joins = append(joins, group.Query)
+		}
+	}
+
+	// Leave SELECT and FROM to be filled in later for flexibility.
+	query = "SELECT %s FROM %s " + strings.Join(joins, " ") + " WHERE " + whereClause + " GROUP BY hosts.id"
+	return
+}
+
+// Translates a HostVitalCriteria into part of a SQL WHERE clause
+// TODO: add support for And/Or criteria
+func parseHostVitalCriteria(criteria *HostVitalCriteria, foreignVitalsGroups map[*HostForeignVitalGroup]struct{}, values *[]any) (string, error) {
+	// We don't support anything other than vital/value right now.
+	if criteria.And != nil || criteria.Or != nil {
+		return "", errors.New("And/Or criteria not supported in host vitals labels yet")
+	}
+	if criteria.Vital == nil {
+		return "", errors.New("vital criteria must have a vital")
+	}
+	if criteria.Value == nil {
+		return "", fmt.Errorf("vital %s must have a value", *criteria.Vital)
+	}
+	// Look up the vital in the map.
+	vital, ok := hostVitals[*criteria.Vital]
+	if !ok {
+		return "", fmt.Errorf("unknown vital %s", *criteria.Vital)
+	}
+	// If the vital is a foreign vitals group, add it to the list of foreign vitals groups.
+	if vital.VitalType == HostVitalTypeForeign {
+		foreignVitalsGroup, ok := hostForeignVitalGroups[*vital.ForeignVitalGroup]
+		if !ok {
+			return "", fmt.Errorf("unknown foreign vital group %s", *vital.ForeignVitalGroup)
+		}
+		foreignVitalsGroups[&foreignVitalsGroup] = struct{}{}
+	}
+	*values = append(*values, *criteria.Value)
+
+	operator := criteria.Operator
+	if operator == nil {
+		// Default to equality if no operator is specified.
+		op := HostVitalOperatorEqual
+		operator = &op
+	}
+	// TODO - handle different vital data types and operator types.
+	// For now, we only support equality checks.
+	if *operator != HostVitalOperatorEqual {
+		return "", fmt.Errorf("operator %s not supported for vital %s", *operator, *criteria.Vital)
+	}
+	return fmt.Sprintf("%s = ?", vital.Path), nil
 }

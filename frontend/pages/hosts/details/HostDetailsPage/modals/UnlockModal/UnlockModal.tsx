@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import { isIPadOrIPhone } from "interfaces/platform";
 import hostAPI, { IUnlockHostResponse } from "services/entities/hosts";
 
 import Modal from "components/Modal";
@@ -83,6 +84,14 @@ const UnlockModal = ({
       );
     }
 
+    if (isIPadOrIPhone(platform)) {
+      return (
+        <p>
+          This will disable Lost Mode. End users will be able to use the host.
+        </p>
+      );
+    }
+
     return (
       <>
         <p>
@@ -96,7 +105,7 @@ const UnlockModal = ({
     if (platform === "darwin") {
       return (
         <>
-          <Button type="button" onClick={onClose} variant="brand">
+          <Button type="button" onClick={onClose}>
             Done
           </Button>
         </>
@@ -108,7 +117,6 @@ const UnlockModal = ({
         <Button
           type="button"
           onClick={onUnlock}
-          variant="brand"
           className="delete-loading"
           isLoading={isUnlocking}
         >

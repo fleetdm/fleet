@@ -186,7 +186,7 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			if optional {
 				return nil
 			}
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Param %s is required", fp.Sf.Name)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Param %s is required", queryTagValue)}
 		}
 		field := fp.V
 		if field.Kind() == reflect.Ptr {
@@ -250,11 +250,31 @@ func ExtractIP(r *http.Request) string {
 		ip = ip[:i]
 	}
 
+	// Prefer True-Client-IP and X-Real-IP headers before X-Forwarded-For:
+	// - True-Client-IP: set by some CDNs (e.g., Akamai) to indicate the real client IP early in the chain
+	// - X-Real-IP: set by Nginx or similar proxies as a simpler alternative to X-Forwarded-For
+	// These headers are less likely to be spoofed or malformed compared to X-Forwarded-For.
 	if tcip := r.Header.Get(trueClientIP); tcip != "" {
 		ip = tcip
 	} else if xrip := r.Header.Get(xRealIP); xrip != "" {
 		ip = xrip
 	} else if xff := r.Header.Get(xForwardedFor); xff != "" {
+		// X-Forwarded-For is a comma-separated list of IP addresses representing the chain of proxies
+		// that a request has passed through. This is not a standard, but a convention.
+		// The convention is to treat the left-most IP address as the original client IP.
+		// For example:
+		//     X-Forwarded-For: 198.51.100.1, 203.0.113.5, 127.0.0.1
+		// Means:
+		//     - 198.51.100.1 is the client IP
+		//     - 127.0.0.1 is the last proxy (likely this server or a local proxy)
+		//
+		// If the left-most IP is a private or loopback address (e.g., 127.0.0.1 or 10.x.x.x), it may indicate:
+		//   - The request originated from a local proxy, or
+		//   - The header was spoofed by a client (untrusted source)
+		//
+		// Having multiple X-Forwarded-For headers is non-standard, so we do not handle it here.
+		//
+		// Here, we grab the left-most IP address by convention.
 		i := strings.Index(xff, ",")
 		if i == -1 {
 			i = len(xff)
@@ -296,7 +316,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()
-		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
+		if res.RetryAfter > 0 {
+			logger = log.With(logger, "retry_after", res.RetryAfter)
+		}
+		logger.Log("err", "limit exceeded")
 	} else {
 		logger.Log("err", err)
 	}
@@ -422,6 +445,12 @@ func MakeDecoder(
 				return nil, &fleet.BadRequestError{Message: "Expected JSON Body"}
 			}
 
+			isContentJson := r.Header.Get("Content-Type") == "application/json"
+			isCrossSite := r.Header.Get("Origin") != "" || r.Header.Get("Referer") != ""
+			if jsonExpected && isCrossSite && !isContentJson {
+				return nil, fleet.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
+			}
+
 			err = DecodeQueryTagValue(r, fp)
 			if err != nil {
 				return nil, err
@@ -485,15 +514,19 @@ type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Servic
 type AndroidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
 
 type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
-	EP               Endpointer[H]
-	MakeDecoderFn    func(iface interface{}) kithttp.DecodeRequestFunc
-	EncodeFn         kithttp.EncodeResponseFunc
-	Opts             []kithttp.ServerOption
-	AuthFunc         func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
-	FleetService     fleet.Service
-	Router           *mux.Router
+	EP            Endpointer[H]
+	MakeDecoderFn func(iface interface{}) kithttp.DecodeRequestFunc
+	EncodeFn      kithttp.EncodeResponseFunc
+	Opts          []kithttp.ServerOption
+	AuthFunc      func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
+	FleetService  fleet.Service
+	Router        *mux.Router
+	Versions      []string
+
+	// CustomMiddleware are middlewares that run before AuthFunc.
 	CustomMiddleware []endpoint.Middleware
-	Versions         []string
+	// CustomMiddlewareAfterAuth are middlewares that run after AuthFunc.
+	CustomMiddlewareAfterAuth []endpoint.Middleware
 
 	startingAtVersion string
 	endingAtVersion   string
@@ -539,10 +572,20 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
 	}
-	endp := e.AuthFunc(e.FleetService, next)
 
-	// apply middleware in reverse order so that the first wraps the second
-	// wraps the third etc.
+	// Apply "after auth" middleware (in reverse order so that the first wraps
+	// the second wraps the third etc.)
+	endp := next
+	if len(e.CustomMiddlewareAfterAuth) > 0 {
+		for i := len(e.CustomMiddlewareAfterAuth) - 1; i >= 0; i-- {
+			mw := e.CustomMiddlewareAfterAuth[i]
+			endp = mw(endp)
+		}
+	}
+	endp = e.AuthFunc(e.FleetService, endp)
+
+	// Apply "before auth" middleware (in reverse order so that the first wraps
+	// the second wraps the third etc.)
 	for i := len(e.CustomMiddleware) - 1; i >= 0; i-- {
 		mw := e.CustomMiddleware[i]
 		endp = mw(endp)
@@ -583,6 +626,18 @@ func (e *CommonEndpointer[H]) WithAltPaths(paths ...string) *CommonEndpointer[H]
 func (e *CommonEndpointer[H]) WithCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
 	ae.CustomMiddleware = mws
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) AppendCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddleware = append(ae.CustomMiddleware, mws...)
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddlewareAfterAuth = mws
 	return &ae
 }
 
@@ -678,6 +733,10 @@ func EncodeCommonResponse(
 	response interface{},
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
 ) error {
+	if cs, ok := response.(cookieSetter); ok {
+		cs.SetCookies(ctx, w)
+	}
+
 	// The has to happen first, if an error happens we'll redirect to an error
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
@@ -726,4 +785,9 @@ type htmlPage interface {
 // their own rendering.
 type renderHijacker interface {
 	HijackRender(ctx context.Context, w http.ResponseWriter)
+}
+
+// cookieSetter can be implemented by response values to set cookies on the response.
+type cookieSetter interface {
+	SetCookies(ctx context.Context, w http.ResponseWriter)
 }

@@ -4,11 +4,11 @@ This is where the code for the public https://fleetdm.com website lives.
 
 
 ## Bugs
-To report a bug or make a suggestion for the website, [click here](https://github.com/fleetdm/fleet/issues).
+To report a bug or make a suggestion for the website, [create an issue in the `fleet` GitHub repository](https://github.com/fleetdm/fleet/issues).
 
 ## Testing locally
 
-See https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally
+See https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally
 
 ## Deploying the website
 To deploy changes to the website to production, merge changes to the `main` branch.  If the changes affect the website's code, or touch any files that the website relies on to build content, such as the query library, osquery schema, docs, handbook, articles, etc., then the website will be redeployed.

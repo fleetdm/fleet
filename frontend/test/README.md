@@ -40,6 +40,6 @@ Testing stubs are still being used in a handful of old tests. We are no longer f
 
 Check out how we [mock data](../__mocks__/README.md) used for unit and integration tests.
 
-Follow [this guide](../../docs/Contributing/Testing-and-local-development.md) to run tests locally.
+Follow [this guide](../../docs/Contributing/getting-started/testing-and-local-development.md) to run tests locally.
 
-Visit the frontend [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.md) for more information on our testing strategy, philosophies, and tools.
+Visit the frontend [overview of Fleet UI testing](../docs/Contributing/guides/ui/fleet-ui-testing.md) for more information on our testing strategy, philosophies, and tools.

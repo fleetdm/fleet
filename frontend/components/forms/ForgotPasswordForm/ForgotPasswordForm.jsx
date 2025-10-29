@@ -17,10 +17,11 @@ class ForgotPasswordForm extends Component {
       email: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func,
+    isLoading: PropTypes.bool,
   };
 
   render() {
-    const { baseError, fields, handleSubmit } = this.props;
+    const { baseError, fields, handleSubmit, isLoading } = this.props;
 
     return (
       <form onSubmit={handleSubmit} className={baseClass} autoComplete="off">
@@ -38,8 +39,8 @@ class ForgotPasswordForm extends Component {
         <div className="button-wrap">
           <Button
             className={`${baseClass}__submit-btn`}
-            variant="brand"
             type="submit"
+            isLoading={isLoading}
           >
             Get instructions
           </Button>

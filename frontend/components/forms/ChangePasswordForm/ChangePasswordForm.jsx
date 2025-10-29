@@ -48,9 +48,7 @@ class ChangePasswordForm extends Component {
           type="password"
         />
         <div className="modal-cta-wrap">
-          <Button type="submit" variant="brand">
-            Change password
-          </Button>
+          <Button type="submit">Change password</Button>
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

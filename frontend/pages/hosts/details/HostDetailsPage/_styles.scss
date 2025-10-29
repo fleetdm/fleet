@@ -3,68 +3,41 @@
   &__details-panel {
     display: grid;
     gap: $pad-medium;
+    // this gives a single column grid layout for the details panel content
+    // at smaller screen widths
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__header-summary {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 
   @media screen and (min-width: $break-md) {
-    // default grid to show for non macos, ios, or ipados hosts.
-    &__details-panel.react-tabs__tab-panel--selected {
-      // Must be selected to show grid
-      grid-template-columns: 1fr 1fr;
-      grid-template-areas:
-        "about about"
-        "activity agent-options"
-        "activity labels"
-        "users users";
+    // This details tab must be selected to use these grid stylings. They are
+    // irrelevant for the other tabs.
+    &__details-panel {
+      // We want the grid to be 2 columns on medium and larger screens and for
+      // those two columns to always be equal width and take up half the
+      // available space. We use 50% here instead of 1fr as there were some
+      // issue with the tooltips in some of the cards forcing the card to be
+      // wider then half the available space.
+      grid-template-columns: repeat(2, minmax(0, 50%));
     }
 
-    // No agent options card for i(Pad)OS, so extend Labels card vertically.
-    // We also add the certs card to the grid layout on mac hosts
-    &__details-panel--ios-grid.react-tabs__tab-panel--selected {
-      grid-template-areas:
-        "about about"
-        "activity labels"
-        "certs certs";
-    }
+    // these are used for positiong the cards in the grid. place these classes
+    // on the cards depending on the layout needed.
+    &__card {
+      grid-column: span 1; // card will be 1 column x 1 row
 
-    // No agent options card for Android, so extend Labels card vertically.
-    &__details-panel--android-grid.react-tabs__tab-panel--selected {
-      grid-template-areas:
-        "about about"
-        "labels labels";
-    }
+      &--full-width {
+        grid-column: span 2; // card will fill the whole row
+      }
 
-    // We add the certs card to the grid layout on mac hosts
-    &__details-panel--macos-grid.react-tabs__tab-panel--selected {
-      grid-template-areas:
-        "about about"
-        "activity agent-options"
-        "activity labels"
-        "users users"
-        "certs certs";
-    }
-
-    .about-card {
-      grid-area: about;
-    }
-
-    .activity-card {
-      grid-area: activity;
-    }
-
-    .agent-options-card {
-      grid-area: agent-options;
-    }
-
-    .labels-card {
-      grid-area: labels;
-    }
-
-    .users-card {
-      grid-area: users;
-    }
-
-    .certificates-card {
-      grid-area: certs;
+      &--double-height {
+        grid-row: span 2; // card will be 1 column x 2 rows
+      }
     }
   }
 
@@ -87,10 +60,6 @@
     }
   }
 
-  .munki-issues-card {
-    margin-top: $pad-medium;
-  }
-
   .button img {
     transform: scale(0.5);
   }
@@ -99,14 +68,6 @@
     display: flex;
     justify-content: flex-end;
     margin: $pad-xxlarge 0 0;
-  }
-
-  &__device_mapping {
-    .device_mapping--tooltip {
-      flex-direction: column;
-      justify-content: start;
-      text-align: left;
-    }
   }
 
   .tooltip__tooltip-icon {

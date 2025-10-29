@@ -3,7 +3,7 @@
     <div purpose="page-content" class="mx-auto">
     <div purpose="hero">
       <div purpose="page-headline">
-        <h4>Orchestration</h4>
+        <h4>Open orchestration</h4>
         <h1><%= pagePersonalization==='eo-security'? 'Deeper, faster visibility for every OS' : 'Talk to your computers'%></h1>
       </div>
       <div purpose="hero-content" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
@@ -27,7 +27,7 @@
             <p>Ship data to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <% }%>
           <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-start align-items-center">
-            <a purpose="cta-button" href="/contact">Take a tour</a>
+            <a purpose="cta-button" href="/contact">Get a demo</a>
             <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
           </div>
         </div>
@@ -87,6 +87,7 @@
           <img alt="Software and asset inventory" src="/images/icon-software-and-asset-inventory-48x48@2x.png" class="mx-auto mx-sm-0">
           <h5>Software and asset inventory</h5>
           <p>Get visibility into all endpoints across any operating system*, including support for servers and containers in every cloud infrastructure.</p>
+          <p><a href="/software-management">More about software management</a></p>
         </div>
 
         <div purpose="feature-item" class="pl-0 pl-lg-4 pr-lg-0 col-12 col-sm-6 col-lg-4">
@@ -266,12 +267,12 @@
     <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
     <div purpose="page-container" class="pb-0">
 
-      <div purpose="section-heading" class="text-center">
-        <h4>Orchestration</h4>
-        <h3><%= pagePersonalization==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h3>
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Open orchestration</h4>
+        <h2><%= pagePersonalization==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/register">Start now</a>
-          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
+          <a purpose="cta-button" href="/contact">Get a demo</a>
+          <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
     </div>
@@ -290,5 +291,6 @@
   <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
+  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

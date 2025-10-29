@@ -19,6 +19,10 @@ type FilesystemConfig struct {
 	MaxBackups           int
 }
 
+type WebhookConfig struct {
+	URL string
+}
+
 type FirehoseConfig struct {
 	StreamName string
 
@@ -70,6 +74,7 @@ type Config struct {
 	Plugin string
 
 	Filesystem FilesystemConfig
+	Webhook    WebhookConfig
 	Firehose   FirehoseConfig
 	Kinesis    KinesisConfig
 	Lambda     LambdaConfig
@@ -98,6 +103,12 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create filesystem %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
+	case "webhook":
+		writer, err := NewWebhookLogWriter(config.Webhook.URL, logger)
+		if err != nil {
+			return nil, fmt.Errorf("create webhook %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
 	case "firehose":

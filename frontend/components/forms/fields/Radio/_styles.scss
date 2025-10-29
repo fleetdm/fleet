@@ -10,6 +10,18 @@
     align-items: center;
   }
 
+  &:hover:not(.radio__disabled) {
+    .radio__control-button {
+      border-color: $core-fleet-green-over;
+    }
+  }
+
+  &__input,
+  &__label {
+    &:hover {
+      cursor: pointer;
+    }
+  }
   &__input {
     display: flex;
 
@@ -24,8 +36,8 @@
         content: "";
         width: 10px;
         height: 10px;
-        box-shadow: inset 1em 1em $core-vibrant-blue;
-        background-color: $core-vibrant-blue;
+        box-shadow: inset 1em 1em $core-fleet-green;
+        background-color: $core-fleet-green;
         border-radius: 50%;
         top: 3px;
         left: 3px;
@@ -38,7 +50,7 @@
       }
 
       &:focus + .radio__control-button {
-        border-color: $core-vibrant-blue;
+        border-color: $core-fleet-green;
       }
     }
   }
@@ -71,6 +83,13 @@
 
     .radio__help-text {
       color: $ui-fleet-black-50;
+    }
+
+    .radio__input,
+    .radio__label {
+      &:hover {
+        cursor: not-allowed;
+      }
     }
   }
 }

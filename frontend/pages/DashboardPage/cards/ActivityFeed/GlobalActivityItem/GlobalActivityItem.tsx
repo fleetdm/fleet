@@ -1,12 +1,17 @@
-import { find, lowerCase, noop, trimEnd } from "lodash";
+import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
 import {
   AppleDisplayPlatform,
+  isAndroid,
+  isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -14,24 +19,9 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
-
-const PREMIUM_ACTIVITIES = new Set([
-  "created_team",
-  "deleted_team",
-  "applied_spec_team",
-  "changed_user_team_role",
-  "deleted_user_team_role",
-  "read_host_disk_encryption_key",
-  "enabled_macos_disk_encryption",
-  "disabled_macos_disk_encryption",
-  "enabled_macos_setup_end_user_auth",
-  "disabled_macos_setup_end_user_auth",
-  "tranferred_hosts",
-  "enabled_windows_mdm_migration",
-  "disabled_windows_mdm_migration",
-]);
 
 const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScript,
@@ -47,15 +37,32 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.EditedActivityAutomations,
   ActivityType.LiveQuery,
   ActivityType.InstalledAppStoreApp,
+  ActivityType.RanScriptBatch,
+  ActivityType.CanceledScriptBatch,
 ]);
+
+const getProfilesPlatformDisplayName = (
+  platform: "apple" | "windows" | "android"
+) => {
+  switch (platform) {
+    case "apple":
+      return "macOS, iOS, and iPadOS";
+    case "android":
+      return "Android";
+    case "windows":
+      return "Windows";
+    default:
+      // this should not happen but just in case
+      return platform;
+  }
+};
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "apple" | "windows",
+  platform: "apple" | "windows" | "android",
   teamName?: string | null
 ) => {
-  const platformDisplayName =
-    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
+  const platformDisplayName = getProfilesPlatformDisplayName(platform);
   let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
@@ -151,6 +158,9 @@ const TAGGED_TEMPLATES = {
       ? "edited a query using fleetctl."
       : "edited queries using fleetctl.";
   },
+  editSoftwareCtlActivityTemplate: () => {
+    return "edited software using fleetctl.";
+  },
   editTeamCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
@@ -184,10 +194,19 @@ const TAGGED_TEMPLATES = {
     );
   },
   userFailedLogin: (activity: IActivity) => {
+    const { email, public_ip } = activity.details || {};
+
+    const actor = email ? (
+      <>
+        Somebody using <b>{email}</b>
+      </>
+    ) : (
+      <>Somebody</>
+    );
+
     return (
       <>
-        Somebody using <b>{activity.details?.email}</b> failed to log in from
-        public IP {activity.details?.public_ip}.
+        {actor} failed to log in from public IP {public_ip}.
       </>
     );
   },
@@ -273,39 +292,86 @@ const TAGGED_TEMPLATES = {
     );
     return <>{hostDisplayName} enrolled in Fleet.</>;
   },
+
   mdmEnrolled: (activity: IActivity) => {
-    if (activity.details?.mdm_platform === "microsoft") {
+    const { mdm_platform, platform = "", host_display_name, host_serial } =
+      activity.details || {};
+
+    if (mdm_platform === "microsoft") {
       return (
         <>
-          Mobile device management (MDM) was turned on for{" "}
-          <b>{activity.details?.host_display_name} (manual)</b>.
+          <b>{activity.actor_full_name} </b>Mobile device management (MDM) was
+          turned on for <b>{activity.details?.host_display_name} (manual)</b>.
+        </>
+      );
+    }
+
+    if (isAndroid(platform) || isIPadOrIPhone(platform)) {
+      return (
+        <>
+          <b>{host_display_name}</b> enrolled to Fleet.
         </>
       );
     }
 
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
+    let enrollmentTypeText = "";
+    if (activity.details?.installed_from_dep) {
+      enrollmentTypeText = "automatic";
+    } else {
+      enrollmentTypeText = "manual";
+    }
+
+    const hostDisplayText = host_display_name || host_serial;
+    const hostDisplayPrefixText = host_display_name
+      ? ""
+      : "a host with serial number ";
+
     return (
       <>
-        An end user turned on MDM features for a host with serial number{" "}
+        <b>{activity.actor_full_name} </b>An end user turned on MDM features for{" "}
+        {hostDisplayPrefixText}
         <b>
-          {activity.details?.host_serial} (
-          {activity.details?.installed_from_dep ? "automatic" : "manual"})
+          {hostDisplayText} ({enrollmentTypeText})
         </b>
         .
       </>
     );
   },
+
   mdmUnenrolled: (activity: IActivity) => {
+    const { actor_full_name } = activity;
+    const { platform = "", host_display_name } = activity.details || {};
+
+    if (isAndroid(platform) || isIPadOrIPhone(platform)) {
+      return actor_full_name ? (
+        <>
+          <b>{actor_full_name}</b> told Fleet to unenroll{" "}
+          <b>{host_display_name}.</b>
+        </>
+      ) : (
+        <>
+          <b>{host_display_name}</b> is unenrolled from Fleet.
+        </>
+      );
+    }
+
     return (
       <>
-        {activity.actor_full_name
-          ? " told Fleet to turn off mobile device management (MDM) for"
-          : "Mobile device management (MDM) was turned off for"}{" "}
-        <b>{activity.details?.host_display_name}</b>.
+        {actor_full_name ? (
+          <>
+            <b>{actor_full_name}</b> told Fleet to turn off mobile device
+            management (MDM) for
+          </>
+        ) : (
+          "Mobile device management (MDM) was turned off for"
+        )}{" "}
+        <b>{host_display_name}</b>.
       </>
     );
   },
+
   editedAppleosMinVersion: (
     applePlatform: AppleDisplayPlatform,
     activity: IActivity
@@ -402,6 +468,66 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  createdAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -682,6 +808,46 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  ranScriptBatch: (activity: IActivity) => {
+    const { script_name, host_count } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatScriptNameForActivityItem(script_name)} on {host_count} host
+        {host_count !== 1 ? "s" : ""}.
+      </>
+    );
+  },
+  scheduledScriptBatch: (activity: IActivity) => {
+    const { script_name, host_count } = activity.details || {};
+    return (
+      <>
+        {" "}
+        scheduled {formatScriptNameForActivityItem(script_name)} to run on{" "}
+        {host_count} host{host_count !== 1 ? "s" : ""}.
+      </>
+    );
+  },
+  canceledScriptBatch: (activity: IActivity) => {
+    const { script_name, host_count, canceled_count } = activity.details || {};
+    const numHostsMsg =
+      host_count === canceled_count ? (
+        <>
+          {host_count} host{host_count !== 1 ? "s" : ""}
+        </>
+      ) : (
+        <>
+          {canceled_count} of {host_count} host{host_count !== 1 ? "s" : ""}
+        </>
+      );
+    return (
+      <>
+        {" "}
+        canceled {formatScriptNameForActivityItem(script_name)} on {numHostsMsg}
+        .
+      </>
+    );
+  },
   addedScript: (activity: IActivity) => {
     const scriptName = activity.details?.script_name;
     return (
@@ -794,8 +960,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deletedMultipleSavedQuery: () => {
-    return <> deleted multiple queries.</>;
+  deletedMultipleSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+    return (
+      <>
+        {" "}
+        deleted multiple queries
+        {teamText}.
+      </>
+    );
   },
   lockedHost: (activity: IActivity) => {
     return (
@@ -879,11 +1064,23 @@ const TAGGED_TEMPLATES = {
   },
 
   resentConfigProfile: (activity: IActivity) => {
+    const actor = activity.actor_full_name
+      ? activity.actor_full_name
+      : "An end user";
+    return (
+      <>
+        <b>{actor}</b> resent {activity.details?.profile_name} configuration
+        profile to {activity.details?.host_display_name}.
+      </>
+    );
+  },
+  resentConfigProfileBatch: (activity: IActivity) => {
     return (
       <>
         {" "}
-        resent {activity.details?.profile_name} configuration profile to{" "}
-        {activity.details?.host_display_name}.
+        resent the <b>{activity.details?.profile_name}</b> configuration profile{" "}
+        to {activity.details?.host_count}{" "}
+        {(activity.details?.host_count ?? 0) > 1 ? "hosts." : "host."}
       </>
     );
   },
@@ -942,16 +1139,18 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
+      source,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
-
+    const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
+        <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.
       </>
@@ -974,7 +1173,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
         <b>{hostName}</b>.
       </>
@@ -1086,6 +1285,298 @@ const TAGGED_TEMPLATES = {
   disabledAndroidMdm: () => {
     return <> turned off Android MDM.</>;
   },
+  configuredMSEntraConditionalAccess: () => (
+    <> configured Microsoft Entra conditional access.</>
+  ),
+  deletedMSEntraConditionalAccess: () => (
+    <> deleted Microsoft Entra conditional access configuration.</>
+  ),
+  addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
+  deletedConditionalAccessOkta: () => (
+    <> deleted Okta conditional access configuration.</>
+  ),
+  enabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        enabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  disabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        disabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  canceledRunScript: (activity: IActivity) => {
+    const { script_name: scriptName, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled {formatScriptNameForActivityItem(scriptName)} on{" "}
+        <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledInstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> install on <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledUninstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> uninstall on <b>{hostName}</b>.
+      </>
+    );
+  },
+  createdSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = ""; // in case any previous activity has no team metadata but not global as well, log no team information
+    }
+    return (
+      <>
+        {" "}
+        created a query <b>{activity.details?.query_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  editedSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+    return (
+      <>
+        {" "}
+        edited the query <b>{activity.details?.query_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  deletedSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+    return (
+      <>
+        {" "}
+        deleted the query <b>{activity.details?.query_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  createdPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          {" "}
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        created a policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  editedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          {" "}
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        edited the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  deletedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          {" "}
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        deleted the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  escrowedDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        escrowed a disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+
+  createdCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        created custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+
+  deletedCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        deleted custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+  editedSetupExperienceSoftware: (activity: IActivity) => {
+    const { platform, team_name, team_id } = activity.details || {};
+
+    let platformText = "";
+    switch (platform) {
+      case "darwin":
+        platformText = "macOS";
+        break;
+      case "ios":
+        platformText = "iOS";
+        break;
+      case "ipados":
+        platformText = "iPadOS";
+        break;
+      default:
+        platformText = capitalize(platform);
+    }
+
+    return (
+      <>
+        {" "}
+        edited setup experience software for {platformText} hosts that enroll to{" "}
+        {team_id === API_NO_TEAM_ID ? (
+          "no team"
+        ) : (
+          <>
+            the <b>{team_name}</b> team
+          </>
+        )}
+        .
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1101,6 +1592,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AppliedSpecSavedQuery: {
       return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
+    }
+    case ActivityType.AppliedSpecSoftware: {
+      return TAGGED_TEMPLATES.editSoftwareCtlActivityTemplate();
     }
     case ActivityType.AppliedSpecTeam: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
@@ -1165,6 +1659,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
+    case ActivityType.CreatedAndroidProfile: {
+      return TAGGED_TEMPLATES.createdAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedAndroidProfile: {
+      return TAGGED_TEMPLATES.deletedAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedAndroidProfile: {
+      return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
+    }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
     }
@@ -1175,17 +1678,23 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedCertificateAuthority("NDES");
     }
     case ActivityType.AddedCustomScepProxy:
-    case ActivityType.AddedDigicert: {
+    case ActivityType.AddedDigicert:
+    case ActivityType.AddedHydrant:
+    case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
-    case ActivityType.DeletedDigicert: {
+    case ActivityType.DeletedDigicert:
+    case ActivityType.DeletedHydrant:
+    case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
-    case ActivityType.EditedDigicert: {
+    case ActivityType.EditedDigicert:
+    case ActivityType.EditedHydrant:
+    case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );
@@ -1253,6 +1762,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
     }
+    case ActivityType.RanScriptBatch: {
+      return TAGGED_TEMPLATES.ranScriptBatch(activity);
+    }
+    case ActivityType.ScheduledScriptBatch: {
+      return TAGGED_TEMPLATES.scheduledScriptBatch(activity);
+    }
+    case ActivityType.CanceledScriptBatch: {
+      return TAGGED_TEMPLATES.canceledScriptBatch(activity);
+    }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
     }
@@ -1269,7 +1787,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
     case ActivityType.DeletedMultipleSavedQuery: {
-      return TAGGED_TEMPLATES.deletedMultipleSavedQuery();
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
     }
     case ActivityType.LockedHost: {
       return TAGGED_TEMPLATES.lockedHost(activity);
@@ -1297,6 +1815,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.ResentConfigurationProfileBatch: {
+      return TAGGED_TEMPLATES.resentConfigProfileBatch(activity);
     }
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);
@@ -1346,6 +1867,68 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledAndroidMdm: {
       return TAGGED_TEMPLATES.disabledAndroidMdm();
     }
+    case ActivityType.ConfiguredMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.configuredMSEntraConditionalAccess();
+    }
+    case ActivityType.DeletedMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.AddedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.addedConditionalAccessOkta();
+    }
+    case ActivityType.DeletedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
+    }
+    case ActivityType.EnabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.DisabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.CanceledRunScript: {
+      return TAGGED_TEMPLATES.canceledRunScript(activity);
+    }
+    case ActivityType.CanceledInstallSoftware:
+    case ActivityType.CanceledInstallAppStoreApp: {
+      return TAGGED_TEMPLATES.canceledInstallSoftware(activity);
+    }
+    case ActivityType.CanceledUninstallSoftware: {
+      return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
+    }
+    case ActivityType.CreatedSavedQuery: {
+      return TAGGED_TEMPLATES.createdSavedQuery(activity);
+    }
+    case ActivityType.EditedSavedQuery: {
+      return TAGGED_TEMPLATES.editedSavedQuery(activity);
+    }
+    case ActivityType.DeletedSavedQuery: {
+      return TAGGED_TEMPLATES.deletedSavedQuery(activity);
+    }
+    case ActivityType.CreatedPolicy: {
+      return TAGGED_TEMPLATES.createdPolicy(activity);
+    }
+    case ActivityType.EditedPolicy: {
+      return TAGGED_TEMPLATES.editedPolicy(activity);
+    }
+    case ActivityType.DeletedPolicy: {
+      return TAGGED_TEMPLATES.deletedPolicy(activity);
+    }
+
+    case ActivityType.EscrowedDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
+    }
+
+    case ActivityType.CreatedCustomVariable: {
+      return TAGGED_TEMPLATES.createdCustomVariable(activity);
+    }
+
+    case ActivityType.DeletedCustomVariable: {
+      return TAGGED_TEMPLATES.deletedCustomVariable(activity);
+    }
+
+    case ActivityType.EditedSetupExperienceSoftware: {
+      return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
+    }
 
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1377,8 +1960,6 @@ const GlobalActivityItem = ({
     );
 
     switch (activity.type) {
-      case ActivityType.UserLoggedIn:
-        return <b>{activity.actor_email} </b>;
       case ActivityType.UserChangedGlobalRole:
       case ActivityType.UserChangedTeamRole:
         return activity.actor_id === activity.details?.user_id ? (
@@ -1394,7 +1975,13 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
-
+      // these activities have more complicated logic to
+      // determine if we display the actor name so we will handle that in the
+      // template function
+      case ActivityType.MdmUnenrolled:
+      case ActivityType.MdmEnrolled:
+      case ActivityType.ResentConfigurationProfile:
+        return null;
       default:
         return DEFAULT_ACTOR_DISPLAY;
     }

@@ -9,7 +9,7 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import { COLORS } from "styles/var/colors";
 
@@ -31,8 +31,9 @@ interface IRowProps extends Row {
   };
 }
 
+// TODO - there are 2 `IActionButtonProps` - reconcile
 interface ITableContainerActionButtonProps extends IActionButtonProps {
-  gitOpsModeCompatible?: boolean;
+  disabledTooltipContent?: React.ReactNode;
 }
 
 interface ITableContainerProps<T = any> {
@@ -43,6 +44,8 @@ interface ITableContainerProps<T = any> {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
+  /**  Used for client-side filtering with a search query controlled outside TableContainer */
+  searchQuery?: string;
   /**  When page index is externally managed like from the URL, this prop must be set to control currentPageIndex */
   pageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
@@ -79,6 +82,8 @@ interface ITableContainerProps<T = any> {
   // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
+  /** Only used on self-service page client side pagination because clicking on a action re-orders the data and we don't want that to trigger reset to page 0 */
+  disableAutoResetPage?: boolean;
   /** Used to set URL to correct path and include page query param */
   onClientSidePaginationChange?: (pageIndex: number) => void;
   /** Sets the table to filter the data on the client */
@@ -114,13 +119,17 @@ interface ITableContainerProps<T = any> {
   disableTableHeader?: boolean;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
+  /** Set to `true` to not display the footer section of the table */
+  hideFooter?: boolean;
   /** handler called when the  `clear selection` button is called */
   onClearSelection?: () => void;
+  /** don't show the Clear selection button and selected item count when items are selected */
+  suppressHeaderActions?: boolean;
 }
 
 const baseClass = "table-container";
 
-const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = <T,>({
@@ -130,6 +139,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
+  searchQuery: controlledSearchQuery,
   pageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
@@ -154,6 +164,7 @@ const TableContainer = <T,>({
   secondarySelectActions,
   searchToolTipText,
   isClientSidePagination,
+  disableAutoResetPage = false,
   onClientSidePaginationChange,
   isClientSideFilter,
   isMultiColumnFilter,
@@ -161,6 +172,7 @@ const TableContainer = <T,>({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
+  hideFooter,
   onQueryChange,
   customControl,
   customFiltersButton,
@@ -174,7 +186,9 @@ const TableContainer = <T,>({
   disableTableHeader,
   persistSelectedRows,
   onClearSelection = noop,
+  suppressHeaderActions,
 }: ITableContainerProps<T>) => {
+  const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -183,12 +197,24 @@ const TableContainer = <T,>({
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(pageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
+  // If using a clientside search query outside of TableContainer,
+  // we need to set the searchQuery state to the controlledSearchQuery prop anytime it changes
+  useEffect(() => {
+    if (isControlledSearchQuery) {
+      setSearchQuery(controlledSearchQuery);
+    }
+  }, [controlledSearchQuery, isControlledSearchQuery]);
+
   // Client side pagination is being overridden to previous page without this
   useEffect(() => {
-    if (isClientSidePagination && currentPageIndex !== DEFAULT_PAGE_INDEX) {
+    if (
+      isClientSidePagination &&
+      currentPageIndex !== DEFAULT_PAGE_INDEX &&
+      !disableAutoResetPage
+    ) {
       setCurrentPageIndex(DEFAULT_PAGE_INDEX);
     }
-  }, [currentPageIndex, isClientSidePagination]);
+  }, [currentPageIndex, isClientSidePagination, disableAutoResetPage]);
 
   // pageIndex must update currentPageIndex anytime it's changed or else it causes bugs
   // e.g. bug of filter dd not reverting table to page 0
@@ -294,42 +320,37 @@ const TableContainer = <T,>({
   const renderFilterActionButton = () => {
     // always !!actionButton here, this is for type checker
     if (actionButton) {
-      if (actionButton.gitOpsModeCompatible) {
-        return (
-          <GitOpsModeTooltipWrapper
-            tipOffset={8}
-            renderChildren={(disableChildren) => (
-              <Button
-                disabled={disableActionButton || disableChildren}
-                onClick={actionButton.onActionButtonClick}
-                variant={actionButton.variant || "brand"}
-                className={`${baseClass}__table-action-button`}
-              >
-                <>
-                  {actionButton.buttonText}
-                  {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
-                </>
-              </Button>
-            )}
-          />
-        );
-      }
-      return (
+      const button = (
         <Button
-          disabled={disableActionButton}
-          onClick={actionButton.onActionButtonClick}
-          variant={actionButton.variant || "brand"}
+          disabled={
+            !!actionButton.disabledTooltipContent || disableActionButton
+          }
+          onClick={actionButton.onClick}
+          variant={actionButton.variant || "default"}
           className={`${baseClass}__table-action-button`}
         >
           <>
             {actionButton.buttonText}
-            {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+            {actionButton.iconSvg && (
+              <Icon name={actionButton.iconSvg} color="ui-fleet-black-75" />
+            )}
           </>
         </Button>
       );
+      return actionButton.disabledTooltipContent ? (
+        <TooltipWrapper
+          tipContent={actionButton.disabledTooltipContent}
+          position="top"
+          underline={false}
+          showArrow
+          tipOffset={8}
+        >
+          {button}
+        </TooltipWrapper>
+      ) : (
+        button
+      );
     }
-    // should never reach here
-    return null;
   };
 
   const renderFilters = useCallback(() => {
@@ -414,7 +435,7 @@ const TableContainer = <T,>({
             >
               {renderCount && !disableCount && (
                 <div
-                  className={`${baseClass}__results-count ${
+                  className={`${baseClass}__results-count  ${
                     stackControls ? "stack-table-controls" : ""
                   }`}
                   style={opacity}
@@ -536,6 +557,7 @@ const TableContainer = <T,>({
                 defaultPageSize={pageSize}
                 defaultPageIndex={pageIndex}
                 defaultSelectedRows={defaultSelectedRows}
+                autoResetPage={!disableAutoResetPage}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
@@ -557,7 +579,9 @@ const TableContainer = <T,>({
                 }
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
+                suppressHeaderActions={suppressHeaderActions}
                 persistSelectedRows={persistSelectedRows}
+                hideFooter={hideFooter}
               />
             </div>
           </>

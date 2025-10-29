@@ -37,7 +37,11 @@ const TeamHostExpiryToggle = ({
           >
             <>
               Add custom expiry window
-              <Icon name="chevron-right" color="core-fleet-blue" size="small" />
+              <Icon
+                name="chevron-right"
+                color="ui-fleet-black-75"
+                size="small"
+              />
             </>
           </Link>
         )}
@@ -53,7 +57,7 @@ const TeamHostExpiryToggle = ({
         value={teamExpiryEnabled || globalHostExpiryEnabled} // Still shows checkmark if global expiry is enabled though the checkbox will be disabled.
         disabled={globalHostExpiryEnabled || gitopsModeEnabled}
         helpText={renderHelpText()}
-        tooltipContent={
+        labelTooltipContent={
           <>
             When enabled, allows automatic cleanup of
             <br />

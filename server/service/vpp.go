@@ -57,36 +57,39 @@ type addAppStoreAppRequest struct {
 	AutomaticInstall bool                      `json:"automatic_install"`
 	LabelsIncludeAny []string                  `json:"labels_include_any"`
 	LabelsExcludeAny []string                  `json:"labels_exclude_any"`
+	Categories       []string                  `json:"categories"`
 }
 
 type addAppStoreAppResponse struct {
-	Err error `json:"error,omitempty"`
+	TitleID uint  `json:"software_title_id,omitempty"`
+	Err     error `json:"error,omitempty"`
 }
 
 func (r addAppStoreAppResponse) Error() error { return r.Err }
 
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
-	err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
+	titleID, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
 		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
 		SelfService:          req.SelfService,
 		LabelsIncludeAny:     req.LabelsIncludeAny,
 		LabelsExcludeAny:     req.LabelsExcludeAny,
 		AddAutoInstallPolicy: req.AutomaticInstall,
+		Categories:           req.Categories,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
 	}
 
-	return &addAppStoreAppResponse{}, nil
+	return &addAppStoreAppResponse{TitleID: titleID}, nil
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) error {
+func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) (uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return 0, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -99,6 +102,7 @@ type updateAppStoreAppRequest struct {
 	SelfService      bool     `json:"self_service"`
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	Categories       []string `json:"categories"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -111,7 +115,7 @@ func (r updateAppStoreAppResponse) Error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
-	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny)
+	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny, req.Categories)
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
@@ -119,7 +123,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*fleet.VPPAppStoreApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

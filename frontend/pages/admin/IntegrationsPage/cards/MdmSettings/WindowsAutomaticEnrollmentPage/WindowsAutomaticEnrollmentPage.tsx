@@ -5,11 +5,12 @@ import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon";
+import PageDescription from "components/PageDescription";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
@@ -27,26 +28,33 @@ const WindowsAutomaticEnrollmentPage = () => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-automatic-enrollment`}
-        />
-        <h1>Azure Active Directory</h1>
-        <p className={`${baseClass}__description`}>
-          The end user will see Microsoft&apos;s default initial setup. You can
-          further simplify the initial device setup with Autopilot, which is
-          similar to Apple&apos;s Automated Device Enrollment (DEP).{" "}
-          <CustomLink
-            newTab
-            text="Learn more"
-            url="https://fleetdm.com/learn-more-about/setup-windows-mdm"
+        <div className={`${baseClass}__header-links`}>
+          <BackButton
+            text="Back to MDM"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            className={`${baseClass}__back-to-automatic-enrollment`}
           />
-        </p>
+        </div>
+        <h1>Azure Active Directory</h1>
+        <PageDescription
+          content={
+            <>
+              The end user will see Microsoft&apos;s default initial setup. You
+              can further simplify the initial device setup with Autopilot,
+              which is similar to Apple&apos;s Automated Device Enrollment
+              (DEP).{" "}
+              <CustomLink
+                newTab
+                text="Learn more"
+                url="https://fleetdm.com/learn-more-about/setup-windows-mdm"
+              />
+            </>
+          }
+        />
         <p>
-          Some Intune/Entra deployments enable automatic enrollement into
-          Intune. Check to ensure <b>Automatic Enrollment</b> is not enabled, or
-          your devices will not appear in Fleet.{" "}
+          Some Intune/Entra deployments enable automatic enrollment into Intune.
+          Check to ensure <b>Automatic Enrollment</b> is not enabled, or your
+          devices will not appear in Fleet.{" "}
         </p>
         <p>
           In your Intune settings, select <b>Devices</b>, and under{" "}
@@ -89,7 +97,7 @@ const WindowsAutomaticEnrollmentPage = () => {
                 icon="warning"
               >
                 <div className={`${baseClass}__banner-content`}>
-                  <Icon name="error-outline" color="core-fleet-blue" />
+                  <Icon name="error-outline" color="ui-fleet-black-75" />
                   <p>
                     If you&apos;re a managed-cloud customer, please reach out to
                     Fleet to create a TXT/MX record for you.

@@ -1,12 +1,13 @@
 # Automations
 
-You can configure Fleet to trigger automations that reserve time in your end users' calendars (maintenance windows), send webhooks, or to create tickets.
+You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
+windows), trigger or send query results to webhooks, or create tickets.
 
 To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
 
 ## Activity automations
 
-Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See a list of all activities [here](https://fleetdm.com/docs/using-fleet/audit-logs).
+Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See our [Audit logs documentation](https://fleetdm.com/docs/using-fleet/audit-logs) for a list of all activity types.
 
 You can automatically send activites to a webhook URL or a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
@@ -20,7 +21,32 @@ Fleet checks whether to trigger policy automations once per day by default.
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
-For tickets, a single ticket is created per newly failed policy (i.e., multiple tickets are not created if a policy is newly failing on more than one host during the same period).
+For tickets, a single ticket is created per newly failed policy (i.e., multiple tickets are not
+created if a policy is newly failing on more than one host during the same period).
+
+## Query automations
+
+Query automations let you send data gathered from macOS, Windows, and Linux hosts to a log
+destination. Data is sent according to a query's interval.
+
+### Webhook
+
+Results from scheduled queries can be written to an arbitrary external webhook of your choosing.
+First, follow the [configuration docs](https://fleetdm.com/docs/deploying/configuration#webhook).
+Then in the UI:
+
+1. Navigate to the **Queries** page, select the relevant team, and click **Manage automations**
+2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
+   "Webhook", you see "Each time a query runs, the data is sent via webhook to:
+   <target_result_url>"
+3. Select the queries that you want to send data to this webhook
+4. Click **Save**
+
+Results from the selected scheduled queries will be sent to the configured results URL. *Not configurable per-query.*
+
+### Amazon Kinesis Data Firehose
+
+See [the log destination guide](https://fleetdm.com/guides/log-destinations#amazon-kinesis-data-firehose)
 
 ## Vulnerability automations
 

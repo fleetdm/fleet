@@ -1,1 +1,0 @@
-Added Apple Root Certificate for HTTP requests to https://gdmf.apple.com/v2/pmv. This solves the issue of minimum macOS version not being enforced at enrollment.

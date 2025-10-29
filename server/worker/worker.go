@@ -12,17 +12,11 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type ctxKey int
-
 const (
 	maxRetries = 5
 	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
 	// needs to be appended to make it a valid link.
 	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
-
-	// context key for the retry number of a job, made available via the context
-	// to the job processor.
-	retryNumberCtxKey = ctxKey(0)
 )
 
 const (
@@ -133,14 +127,29 @@ var delayPerRetry = []time.Duration{
 	5: 2 * time.Hour,
 }
 
+func (w *Worker) jobNames() []string {
+	// Get the names of the jobs in the registry
+	jobNames := make([]string, 0, len(w.registry))
+	for name := range w.registry {
+		jobNames = append(jobNames, name)
+	}
+	return jobNames
+}
+
 // ProcessJobs processes all queued jobs.
 func (w *Worker) ProcessJobs(ctx context.Context) error {
 	const maxNumJobs = 100
 
+	jobNames := w.jobNames()
+	if len(jobNames) == 0 {
+		level.Info(w.log).Log("msg", "no jobs registered, nothing to process")
+		return nil
+	}
+
 	// process jobs until there are none left or the context is cancelled
 	seen := make(map[uint]struct{})
 	for {
-		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs, time.Time{})
+		jobs, err := w.ds.GetFilteredQueuedJobs(ctx, maxNumJobs, time.Time{}, jobNames)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get queued jobs")
 		}
@@ -209,7 +218,6 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 		args = *job.Args
 	}
 
-	ctx = context.WithValue(ctx, retryNumberCtxKey, job.Retries)
 	return j.Run(ctx, args)
 }
 

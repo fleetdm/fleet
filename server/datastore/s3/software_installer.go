@@ -12,7 +12,7 @@ type SoftwareInstallerStore struct {
 
 // NewSoftwareInstallerStore creates a new instance with the given S3 config.
 func NewSoftwareInstallerStore(config config.S3Config) (*SoftwareInstallerStore, error) {
-	s3store, err := newS3store(config.SoftwareInstallersToInternalCfg())
+	s3store, err := newS3Store(config.SoftwareInstallersToInternalCfg())
 	if err != nil {
 		return nil, err
 	}
@@ -21,6 +21,8 @@ func NewSoftwareInstallerStore(config config.S3Config) (*SoftwareInstallerStore,
 			s3store:    s3store,
 			pathPrefix: softwareInstallersPrefix,
 			fileLabel:  "software installer",
+
+			gcs: isGCS(config.EndpointURL),
 		},
 	}, nil
 }
@@ -40,6 +42,8 @@ func NewTestSoftwareInstallerStore(conf config.S3Config) (*SoftwareInstallerStor
 			s3store:    store,
 			pathPrefix: softwareInstallersPrefix,
 			fileLabel:  "software installer",
+
+			gcs: isGCS(conf.EndpointURL),
 		},
 	}, nil
 }

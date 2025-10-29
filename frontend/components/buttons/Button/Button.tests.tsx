@@ -8,13 +8,9 @@ describe("Button component", () => {
     expect(screen.getByText("Click me")).toBeInTheDocument();
   });
   it("applies correct class names", () => {
-    const { container } = render(
-      <Button variant="brand" size="large">
-        Test
-      </Button>
-    );
+    const { container } = render(<Button disabled>Test</Button>);
     expect(container.firstChild).toHaveClass(
-      "button button--brand button--large"
+      "button button--default button--disabled"
     );
   });
   it("calls onClick when clicked", () => {

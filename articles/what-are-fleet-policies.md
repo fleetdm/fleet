@@ -18,6 +18,18 @@ To reduce the barrier of entry with Fleet, we’ve introduced our [standard temp
 
 5. By default, policies are evaluated on an hourly interval, which is controlled by this [server setting](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval). Please see [this article](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies) for more information.
 
+## Targeting hosts using platforms
+
+When creating or editing a policy, you can restrict the set of hosts it will run on by selecting one or more _platforms_ listed in the **Target** section. The policy will only be applied to hosts that run one of the selected platforms. For example, if only MacOS and Linux are selected, then the policy will not run on Windows or ChromeOS hosts.  When you first create a policy, Fleet will attempt to automatically select all of the platforms that have the ability to run the related query.
+
+## Targeting hosts using labels 
+
+_Available in Fleet Premium._
+
+You can further restrict the set of hosts that a policy runs on by using [labels](https://fleetdm.com/guides/managing-labels-in-fleet).  By default, a new policy will target all hosts of the selected platforms (see [Targeting hosts using platforms](https://fleetdm.com/docs/configuration/what-are-fleet-policies#targeting-hosts-using-labels) above), indicated by the **All Hosts** option being selected beneath the **Target** setting.  If you select **Custom** instead, you will be able to select one or more labels for the policy to target. You can elect to have the policy run on hosts that match any of the selected labels by selecting "Include Any" from the provided dropdown. To instead _exclude_ hosts from running the policy if they match any of the selected labels, switch the dropdown to "Exclude any".  
+
+To learn more about labels, see [Managing labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet).
+
 ## Identifying out-of-policy devices
 
 The policies page makes it easy to see which devices on each team are passing and failing with distinct “yes” or “no” responses. Although checking devices manually is relatively easy, we’ve made it even easier for endpoint detection and response security. We now have automation.

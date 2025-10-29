@@ -24,19 +24,19 @@ module.exports = {
     }
     let policies = _.where(sails.config.builtStaticContent.policies, {kind: 'policy'});
     let macOsPolicies = _.filter(policies, (policy)=>{
-      let platformsForThisPolicy = policy.platform.split(',');
+      let platformsForThisPolicy = policy.platform.split(', ');
       return _.includes(platformsForThisPolicy, 'darwin');
     });
     let windowsPolicies = _.filter(policies, (policy)=>{
-      let platformsForThisPolicy = policy.platform.split(',');
+      let platformsForThisPolicy = policy.platform.split(', ');
       return _.includes(platformsForThisPolicy, 'windows');
     });
     let linuxPolicies = _.filter(policies, (policy)=>{
-      let platformsForThisPolicy = policy.platform.split(',');
+      let platformsForThisPolicy = policy.platform.split(', ');
       return _.includes(platformsForThisPolicy, 'linux');
     });
     let chromePolicies = _.filter(policies, (policy)=>{
-      let platformsForThisPolicy = policy.platform.split(',');
+      let platformsForThisPolicy = policy.platform.split(', ');
       return _.includes(platformsForThisPolicy, 'chrome');
     });
     // Respond with view.

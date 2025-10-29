@@ -1,0 +1,16 @@
+.run-script {
+  @include vertical-card-layout;
+
+  &__description {
+    margin: 0;
+  }
+
+  &__learn-how-link, &__learn-how-link:hover {
+    margin-bottom: $pad-large;
+  }
+
+  &__run-message {
+    margin: 0 0 $pad-small;
+    font-weight: $bold;
+  }
+}

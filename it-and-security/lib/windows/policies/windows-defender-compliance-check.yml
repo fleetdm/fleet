@@ -1,0 +1,66 @@
+- name: Windows - Windows Defender compliance check
+  query: |
+    WITH defender_service AS (
+        SELECT 
+            CASE 
+                WHEN COUNT(CASE WHEN name = 'IsServiceRunning' AND data = 1 THEN 1 END) > 0 THEN 1
+                ELSE 0
+            END as service_running
+        FROM registry 
+        WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender'
+    ),
+    defender_realtime AS (
+        SELECT 
+            CASE 
+                WHEN COUNT(CASE WHEN name = 'DisableRealtimeMonitoring' THEN 1 END) = 0 THEN 1
+                WHEN MAX(CASE WHEN name = 'DisableRealtimeMonitoring' AND data = 0 THEN 1 ELSE 0 END) = 1 THEN 1
+                ELSE 0
+            END as realtime_enabled
+        FROM registry 
+        WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection'
+    ),
+    defender_behavior AS (
+        SELECT 
+            CASE 
+                WHEN COUNT(CASE WHEN name = 'DisableBehaviorMonitoring' THEN 1 END) = 0 THEN 1
+                WHEN MAX(CASE WHEN name = 'DisableBehaviorMonitoring' AND data = 0 THEN 1 ELSE 0 END) = 1 THEN 1
+                ELSE 0
+            END as behavior_enabled
+        FROM registry 
+        WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection'
+    ),
+    defender_cloud AS (
+        SELECT 
+            CASE 
+                WHEN COUNT(CASE WHEN name = 'SpyNetReporting' THEN 1 END) = 0 THEN 1
+                WHEN MAX(CASE WHEN name = 'SpyNetReporting' AND data > 0 THEN 1 ELSE 0 END) = 1 THEN 1
+                ELSE 0
+            END as cloud_enabled
+        FROM registry 
+        WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
+    ),
+    defender_script AS (
+        SELECT 
+            CASE 
+                WHEN COUNT(CASE WHEN name = 'DisableScriptScanning' THEN 1 END) = 0 THEN 1
+                WHEN MAX(CASE WHEN name = 'DisableScriptScanning' AND data = 0 THEN 1 ELSE 0 END) = 1 THEN 1
+                ELSE 0
+            END as script_enabled
+        FROM registry 
+        WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection'
+    )
+    SELECT 
+        CASE 
+            WHEN (SELECT service_running FROM defender_service) = 1 
+             AND (SELECT realtime_enabled FROM defender_realtime) = 1 
+             AND (SELECT behavior_enabled FROM defender_behavior) = 1 
+             AND (SELECT cloud_enabled FROM defender_cloud) = 1 
+             AND (SELECT script_enabled FROM defender_script) = 1 
+            THEN 1
+            ELSE 0
+        END as policy_compliance;
+
+  critical: true
+  description: "Failing this policy indicates that Windows Defender service is not running, or one or more of the following features are disabled: real-time protection, behavior monitoring, cloud protection (MAPS), or script scanning. This could leave your device vulnerable to malware, spyware, and other security threats."
+  resolution: "Corrective actions include ensuring the Windows Defender service is running and that real-time protection, behavior monitoring, cloud protection, and script scanning are all enabled. Check that the MDM configuration profile has been applied successfully. If these actions are not successful, try rebooting before sending a message to #help-dogfooding in Slack."
+  platform: windows

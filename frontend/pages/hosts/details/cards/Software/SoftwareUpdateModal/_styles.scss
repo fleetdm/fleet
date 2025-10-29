@@ -1,0 +1,7 @@
+.software-update-modal {
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+}

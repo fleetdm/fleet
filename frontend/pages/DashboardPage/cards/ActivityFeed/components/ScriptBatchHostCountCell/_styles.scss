@@ -1,0 +1,16 @@
+.script-batch-host-count-cell {
+  &__cancel-button {
+    transition: opacity 250ms;
+    opacity: 0;
+  }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .children-wrapper {
+    .icon {
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+  }
+}

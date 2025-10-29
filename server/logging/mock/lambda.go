@@ -1,17 +1,17 @@
 package mock
 
 import (
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/stretchr/testify/mock"
 )
 
 type LambdaMock struct {
 	mock.Mock
-	lambdaiface.LambdaAPI
 }
 
-func (l *LambdaMock) Invoke(input *lambda.InvokeInput) (*lambda.InvokeOutput, error) {
+func (l *LambdaMock) Invoke(ctx context.Context, input *lambda.InvokeInput, optFns ...func(*lambda.Options)) (*lambda.InvokeOutput, error) {
 	args := l.Called(input)
 	out, err := args.Get(0), args.Error(1)
 	if out == nil {

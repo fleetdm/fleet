@@ -15,11 +15,7 @@ const RequireEndUserAuth = ({ onClickConnect }: IRequireEndUserAuthProps) => {
       <EmptyTable
         header="Require end user authentication during setup"
         info="Connect Fleet to your identity provider (IdP) to get started."
-        primaryButton={
-          <Button variant="brand" onClick={onClickConnect}>
-            Connect
-          </Button>
-        }
+        primaryButton={<Button onClick={onClickConnect}>Connect</Button>}
         className={`${baseClass}__required-message`}
       />
     </div>

@@ -2,12 +2,12 @@ package winget
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -83,8 +83,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			level.Warn(logger).Log("msg", "failed to ingest app", "err", err, "name", input.Name)
-			continue
+			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
 		}
 
 		manifestApps = append(manifestApps, outApp)
@@ -251,6 +250,25 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
+		var upgradeCode string
+		for _, fe := range m.AppsAndFeaturesEntries {
+			if fe.UpgradeCode != "" {
+				upgradeCode = fe.UpgradeCode
+				break
+			}
+		}
+		if upgradeCode == "" {
+			for _, fe := range selectedInstaller.AppsAndFeaturesEntries {
+				if fe.UpgradeCode != "" {
+					upgradeCode = fe.UpgradeCode
+					break
+				}
+			}
+		}
+		if uninstallScript == "" && upgradeCode != "" {
+			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+		}
+
 		if uninstallScript == "" {
 			uninstallScript = file.GetUninstallScript(installerTypeMSI)
 		}
@@ -267,13 +285,13 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-
 	productCode = strings.Split(productCode, ".")[0]
 
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
+	out.DefaultCategories = input.DefaultCategories
 	out.SHA256 = "no_check"
 	if !input.IgnoreHash {
 		out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
@@ -298,15 +316,18 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
+	out.Frozen = input.Frozen
 
 	return &out, nil
 }
 
-var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
+}
 
 func preProcessUninstallScript(uninstallScript, productCode string) string {
 	code := fmt.Sprintf("\"%s\"", productCode)
-	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type
@@ -351,7 +372,9 @@ type inputApp struct {
 	UninstallType       string `json:"uninstall_type"`
 	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
-	IgnoreHash bool `json:"ignore_hash"`
+	IgnoreHash        bool     `json:"ignore_hash"`
+	DefaultCategories []string `json:"default_categories"`
+	Frozen            bool     `json:"frozen"`
 }
 
 type installerManifest struct {

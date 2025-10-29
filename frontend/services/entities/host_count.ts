@@ -54,6 +54,10 @@ export interface IHostCountLoadOptions {
   vulnerability?: string;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
+  scriptBatchExecutionStatus?: string;
+  scriptBatchExecutionId?: string;
 }
 
 export default {
@@ -83,6 +87,10 @@ export default {
     const vulnerability = options?.vulnerability;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const bootstrapPackageStatus = options?.bootstrapPackageStatus;
+    const configProfileStatus = options?.configProfileStatus;
+    const configProfileUUID = options?.configProfileUUID;
+    const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
+    const scriptBatchExecutionId = options?.scriptBatchExecutionId;
 
     const queryParams = {
       query: globalFilter,
@@ -113,6 +121,10 @@ export default {
         vulnerability,
         diskEncryptionStatus,
         bootstrapPackageStatus,
+        configProfileStatus,
+        configProfileUUID,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       }),
       label_id: label,
       status,

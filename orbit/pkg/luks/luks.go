@@ -7,6 +7,18 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 )
 
+type LuksDump struct {
+	Keyslots map[string]Keyslot `json:"keyslots"` // keyslot -> salt
+}
+
+type Keyslot struct {
+	KDF KDF `json:"kdf"`
+}
+
+type KDF struct {
+	Salt string `json:"salt"`
+}
+
 type KeyEscrower interface {
 	SendLinuxKeyEscrowResponse(LuksResponse) error
 }

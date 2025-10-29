@@ -8,7 +8,7 @@ import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent/MainContent";
 import Button from "components/buttons/Button";
-import BackLink from "components/BackLink/BackLink";
+import BackButton from "components/BackButton";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -97,11 +97,13 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-mdm`}
-        />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton
+            text="Back to MDM"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            className={`${baseClass}__back-to-mdm`}
+          />
+        </div>
         <h1>Manage Windows MDM</h1>
         <form>
           <Slider
@@ -116,7 +118,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
             value={autoMigration}
             onChange={onChangeAutoMigration}
-            tooltipContent={
+            labelTooltipContent={
               isPremiumTier ? "" : "This feature is included in Fleet Premium."
             }
           >
@@ -125,11 +127,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           <GitOpsModeTooltipWrapper
             tipOffset={8}
             renderChildren={(disableChildren) => (
-              <Button
-                variant="brand"
-                onClick={onSaveMdm}
-                disabled={disableChildren}
-              >
+              <Button onClick={onSaveMdm} disabled={disableChildren}>
                 Save
               </Button>
             )}

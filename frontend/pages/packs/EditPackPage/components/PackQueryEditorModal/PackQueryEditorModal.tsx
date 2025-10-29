@@ -246,7 +246,6 @@ const PackQueryEditorModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="button"
-            variant="brand"
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
             className={`${editQuery?.name ? "save" : "add-query"}-loading`}

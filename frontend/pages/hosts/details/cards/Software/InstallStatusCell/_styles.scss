@@ -1,20 +1,24 @@
 .install-status-cell {
-  &__status-content {
-    display: flex;
-    align-items: center;
-    gap: $pad-small;
+  width: 142px; // Prevent status change from installer action from changing cell width while maintaining tooltip centering
+
+  .react-tooltip {
+    /* Move every tooltip 12px right to center over text only but tooltip still shows on both icon + text hover */
+    transform: translateX(12px);
   }
 
-  &__status-with-tooltip {
-    display: flex;
-    gap: $pad-small;
+  &__tooltip-wrapper {
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+
+    .component__tooltip-wrapper__tip-text {
+      max-width: 250px;
+    }
   }
 
-  &__status-tooltip {
-    text-align: center;
-  }
-
-  &__status-tooltip-text {
-    font-size: $xx-small;
+  &__item-status-button {
+    font-weight: $regular;
   }
 }

@@ -1,1 +1,0 @@
-- Fixed osquery flag parsing when the argument contained `=`

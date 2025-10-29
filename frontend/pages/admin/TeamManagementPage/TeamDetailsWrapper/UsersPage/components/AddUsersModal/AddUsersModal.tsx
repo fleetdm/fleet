@@ -76,7 +76,6 @@ const AddUsersModal = ({
           <Button
             disabled={selectedUsers.length === 0}
             type="button"
-            variant="brand"
             onClick={onFormSubmit}
           >
             Add users

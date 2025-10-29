@@ -1,6 +1,7 @@
 import React from "react";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import QueryReport from "./QueryReport";
 
@@ -88,14 +89,18 @@ describe("QueryReport", () => {
         report_clipped: true,
       },
     ];
-    render(<QueryReport {...{ isClipped, queryReport }} />);
+    const { user } = renderWithSetup(
+      <QueryReport {...{ isClipped, queryReport }} />
+    );
 
-    await fireEvent.mouseEnter(screen.getByText(/\d+ result/));
+    await user.hover(screen.getByText(/\d+ result/));
 
-    expect(
-      screen.getByText(
-        /Fleet has retained a sample of early results for reference/
-      )
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Fleet has retained a sample of early results for reference/
+        )
+      ).toBeInTheDocument();
+    });
   });
 });

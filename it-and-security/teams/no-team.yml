@@ -1,3 +1,5 @@
 name: No team
 policies:
 software:
+controls:
+  macos_settings:

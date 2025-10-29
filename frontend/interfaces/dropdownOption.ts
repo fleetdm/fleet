@@ -7,7 +7,7 @@ export default PropTypes.shape({
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 });
 
-export type TooltipContent = string | JSX.Element | undefined;
+export type TooltipContent = ReactNode;
 
 export interface IDropdownOption {
   disabled?: boolean;

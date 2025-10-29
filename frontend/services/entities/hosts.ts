@@ -13,6 +13,7 @@ import {
   IHostSoftware,
   ISoftware,
   SoftwareAggregateStatus,
+  SoftwareSource,
 } from "interfaces/software";
 import {
   DiskEncryptionStatus,
@@ -26,6 +27,8 @@ import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
 import { IHostCertificate } from "interfaces/certificates";
 import { IListOptions } from "interfaces/list_options";
 
+import { ScriptBatchHostCountV1 } from "./scripts";
+
 export interface ISortOption {
   key: string;
   direction: string;
@@ -33,8 +36,12 @@ export interface ISortOption {
 
 export interface ILoadHostsResponse {
   hosts: IHost[];
-  software: ISoftware | undefined;
-  software_title: { name: string; version?: string } | null | undefined; // TODO: confirm type
+  software?: ISoftware;
+  software_title?: {
+    name: string;
+    version?: string;
+    source?: SoftwareSource;
+  } | null;
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
@@ -53,6 +60,8 @@ export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
   SOFTWARE_STATUS: "software_status",
+  SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
+  SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
@@ -90,6 +99,10 @@ export interface ILoadHostsOptions {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
+  scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
+  scriptBatchExecutionId?: string;
 }
 
 export interface IExportHostsOptions {
@@ -122,6 +135,10 @@ export interface IExportHostsOptions {
   bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
+  configProfileUUID?: string;
+  configProfileStatus?: string;
+  scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
+  scriptBatchExecutionId?: string;
 }
 
 export interface IActionByFilter {
@@ -148,6 +165,8 @@ export interface IActionByFilter {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   vulnerability?: string;
+  scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
+  scriptBatchExecutionId?: string;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -179,6 +198,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   order_key: string;
   order_direction: "asc" | "desc";
   available_for_install?: boolean;
+  include_available_for_install?: boolean;
   vulnerable?: boolean;
   min_cvss_score?: number;
   max_cvss_score?: number;
@@ -201,9 +221,10 @@ export interface IGetHostCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export type ILoadHostDetailsExtension = "macadmins";
 
 const LABEL_PREFIX = "labels/";
 
@@ -335,6 +356,10 @@ export default {
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const vulnerability = options?.vulnerability;
+    const configProfileUUID = options?.configProfileUUID;
+    const configProfileStatus = options?.configProfileStatus;
+    const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
+    const scriptBatchExecutionId = options?.scriptBatchExecutionId;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -370,6 +395,10 @@ export default {
         bootstrapPackageStatus,
         diskEncryptionStatus,
         vulnerability,
+        configProfileUUID,
+        configProfileStatus,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       }),
       status,
       label_id: label,
@@ -411,6 +440,10 @@ export default {
     osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
+    configProfileStatus,
+    configProfileUUID,
+    scriptBatchExecutionStatus,
+    scriptBatchExecutionId,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -449,6 +482,10 @@ export default {
         diskEncryptionStatus,
         osSettings,
         bootstrapPackageStatus,
+        configProfileStatus,
+        configProfileUUID,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       }),
     };
 
@@ -587,7 +624,7 @@ export default {
     return sendRequest("POST", HOST_WIPE(id));
   },
 
-  resendProfile: (hostId: number, profileUUID: string) => {
+  resendProfile: (hostId: number, profileUUID: string): Promise<void> => {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));

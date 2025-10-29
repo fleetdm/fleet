@@ -14,6 +14,9 @@
           </div>
           <cloud-error v-if="cloudError">An error occurred while generating your queries. Please <a href="/query-generator">reload this page and try again</a>.</cloud-error>
 
+          <div purpose="ai-note" v-if="!showGeneratedQuery">
+            <p>Fleet’s public query robot uses OpenAI <a href="https://github.com/fleetdm/fleet/blob/main/website/api/helpers/ai/prompt.js" target="_blank">under the hood</a>. Think before entering sensitive or confidential data in your prompts, as some data may not fall under your organization’s specific AI or data governance policies.</p>
+          </div>
           <div purpose="note" v-if="!showGeneratedQuery">
             <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
             <div>

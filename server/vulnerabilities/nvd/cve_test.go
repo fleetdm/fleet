@@ -172,6 +172,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs: []cve{
 				{ID: "CVE-2019-20916", resolvedInVersion: "19.2"},
 				{ID: "CVE-2021-3572", resolvedInVersion: "21.1"},
+				{ID: "CVE-2025-8869", resolvedInVersion: "25.3"},
 				{ID: "CVE-2023-5752", resolvedInVersion: "23.3"},
 			},
 			continuesToUpdate: false,
@@ -229,6 +230,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:apple:garageband:10.4.11:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-54559"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:o:apple:macos:15.1.1:*:*:*:*:*:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2024-54559", resolvedInVersion: "15.2"}},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:avira:password_manager:2.18.4.38471:*:*:*:*:firefox:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2022-28795"},
@@ -276,13 +285,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
+		/*"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
-		},
+		},*/
 		"cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-36018", resolvedInVersion: "2023.10.1100000000"},
@@ -293,13 +302,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs:      []cve{},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:visual_studio_code_eslint_extension:2.0.0:*:*:*:*:visual_studio_code:*:*": {
+		"cpe:2.3:a:microsoft:eslint:2.0.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1481", resolvedInVersion: "2.1.7"},
 			},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
+		/*"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
@@ -307,7 +316,34 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
+		},*/
+		// #34323
+		"cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2020-7949",
+				"CVE-2020-7950",
+				"CVE-2020-7951",
+				"CVE-2020-7952",
+				"CVE-2020-9005",
+			},
 		},
+		"cpe:2.3:a:valvesoftware:dota_2:1.0.0:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2020-7949",
+				"CVE-2020-7950",
+				"CVE-2020-7951",
+				"CVE-2020-7952",
+				"CVE-2020-9005",
+			},
+		},
+		"cpe:2.3:a:valvesoftware:dota_2:1.337:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2020-9005" /*resolvedInVersion: "2020-02-17"*/}, // we don't do non-semver resolved-in
+				{ID: "CVE-2020-7950", resolvedInVersion: "7.23f"},
+			},
+			continuesToUpdate: true,
+		},
+		// end of #34323
 		"cpe:2.3:a:adobe:animate:*:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-44325"},
@@ -343,12 +379,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-6286"},
 			continuesToUpdate: true,
 		},
-		"cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
-			includedCVEs: []cve{
-				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
-			},
-			continuesToUpdate: true,
-		},
+		// FIXME: https://github.com/fleetdm/fleet/issues/31303
+		// "cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
+		// 	includedCVEs: []cve{
+		// 		{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+		// 	},
+		// 	continuesToUpdate: true,
+		// },
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,
@@ -392,11 +429,26 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		// end of CVE-2023-48795 checks
 		// CVE-2025-21171 handling
+		// https://github.com/fleetdm/fleet/pull/30767
+		// NVD lists this CVE for version 7.5 and not 7.5.0
 		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2025-21171"},
 			continuesToUpdate: true,
 		},
-		"cpe:2.3:a:microsoft:powershell:7.5.0:rc.1:*:*:*:macos:*:*": {
+		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2025-21171"},
+			includedCVEs:      []cve{{ID: "CVE-2025-30399"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5.2:*:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2025-21171", "CVE-2025-30399"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5:*:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5:*:*:*:*:windows:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
 			continuesToUpdate: true,
 		},
@@ -409,8 +461,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-37051"},
 			continuesToUpdate: true,
 		},
-		"cpe:2.3:a:iterm2:iterm2:3.5.2:*:*:*:*:*:*:*": {
-			includedCVEs: []cve{{ID: "CVE-2024-38395", resolvedInVersion: ""}},
+		"cpe:2.3:a:iterm2:iterm2:3.5.1:*:*:*:*:*:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-38395", resolvedInVersion: "3.5.2"},
+				// NVD is being flakey so may not show this // {ID: "CVE-2024-38396", resolvedInVersion: "3.5.2"},
+			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},
@@ -536,6 +592,22 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					resolvedInVersion: "3.14.0a5",
 				},
 			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:google:chrome:138.0.7204.91:*:*:*:*:linux:*:*": {
+			excludedCVEs:      []string{"CVE-2025-6554"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:google:chrome:138.0.7204.92:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2025-6554"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:docker:desktop:4.43.2:*:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:docker:desktop:4.39.0:*:*:*:*:windows:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
 			continuesToUpdate: true,
 		},
 	}
@@ -681,14 +753,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return false, nil
 		}
 
-		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			return nil
 		}
-		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			return nil
 		}
 
-		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, 1*time.Hour)
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -735,7 +807,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
 			{CPE: "cpe:2.3:a:haxx:curl:*:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
 		}
-		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			return nil
 		}
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
@@ -747,11 +819,11 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
 			return nil, nil
 		}
-		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			return nil
 		}
 
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour)
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().Add(-time.Hour))
 		require.NoError(t, err)
 
 		byCPE := make(map[uint]int)
@@ -771,7 +843,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
 			return false, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour)
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported

@@ -22,6 +22,8 @@ By adopting Fleet, they were able to unify their [device management](https://fle
 
 <div purpose="checklist">
 
+Reduced the time to request a certificate from 15 minutes to 3 seconds. 
+
 Fleet enabled Linux device management and replaced legacy tools for telemetry and system configuration. This reduced their previously typical compliance woes and lack of standard MDM features.
 
 Employees are free to work with their preferred operating systems of choice.

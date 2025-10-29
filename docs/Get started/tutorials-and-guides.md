@@ -34,7 +34,7 @@ A collection of guides to help you with Fleet.
 [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script)
 
 <!--Installing software-->
-[Fleet-maintained apps](https://fleetdm.com/guides/install-fleet-maintained-apps-on-macos-hosts)
+[Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
 
 [Deploy software](https://fleetdm.com/guides/deploy-software-packages)
 

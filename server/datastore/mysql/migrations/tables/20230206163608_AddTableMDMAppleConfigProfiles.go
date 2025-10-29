@@ -25,7 +25,7 @@ CREATE TABLE mdm_apple_configuration_profiles (
 	PRIMARY KEY (profile_id),
 	UNIQUE KEY idx_mdm_apple_config_prof_team_identifier (team_id, identifier),
 	UNIQUE KEY idx_mdm_apple_config_prof_team_name (team_id, name)
-);`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")
 	}

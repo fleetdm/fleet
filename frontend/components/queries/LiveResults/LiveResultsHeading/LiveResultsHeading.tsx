@@ -22,17 +22,13 @@ const FinishedButtons = ({
   onClickRunAgain,
 }: IFinishButtonsProps) => (
   <div className={`${baseClass}__btn-wrapper`}>
-    <Button
-      className={`${baseClass}__done-btn`}
-      onClick={onClickDone}
-      variant="brand"
-    >
+    <Button className={`${baseClass}__done-btn`} onClick={onClickDone}>
       Done
     </Button>
     <Button
       className={`${baseClass}__run-btn`}
       onClick={onClickRunAgain}
-      variant="blue-green"
+      variant="brand-inverse-icon"
     >
       Run again
     </Button>

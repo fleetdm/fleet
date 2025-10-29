@@ -1,1 +1,0 @@
-* Fixed a bug where only the first of multiple software titles with the same name and source but different bundle IDs would be successfully inserted into the database.

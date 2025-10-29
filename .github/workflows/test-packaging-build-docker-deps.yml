@@ -57,9 +57,6 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Install Go Dependencies
-        run: make deps-go
-
       - name: Build fleetctl
         run: make fleetctl
 
@@ -69,17 +66,9 @@ jobs:
       - name: Build fleetdm/bomutils
         run: make bomutils-docker
 
-      - name: Build DEB
-        run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
-
-      - name: Build DEB with Fleet Desktop
-        run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
-
-      - name: Build RPM
-        run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
-
-      - name: Build RPM with Fleet Desktop
-        run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      #
+      # Only testing MSI and PKG because RPM/DEB have no docker dependency.
+      #
 
       - name: Build MSI
         run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080

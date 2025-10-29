@@ -174,7 +174,7 @@ const SoftwareTitles = ({
   }
 
   if (isTitlesError || isVersionsError || isTitlesAFIError) {
-    return <TableDataError className={`${baseClass}__table-error`} />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (

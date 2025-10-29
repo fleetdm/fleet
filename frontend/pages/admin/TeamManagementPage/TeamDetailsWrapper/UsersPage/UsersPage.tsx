@@ -17,6 +17,7 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import PageDescription from "components/PageDescription";
 import TableCount from "components/TableContainer/TableCount";
 import AddUserModal from "pages/admin/UserManagementPage/components/AddUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
@@ -386,18 +387,22 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__page-description`}>
-        Manage users with access to this team.{" "}
-        {isGlobalAdmin && (
-          <Link to={PATHS.ADMIN_USERS}>
-            Manage users with global access here
-          </Link>
-        )}
-      </p>
+      <PageDescription
+        content={
+          <>
+            Manage users with access to this team.{" "}
+            {isGlobalAdmin && (
+              <Link to={PATHS.ADMIN_USERS}>
+                Manage users with global access here
+              </Link>
+            )}
+          </>
+        }
+      />
       {loadingUsersError ||
       loadingTeamsError ||
       (!currentTeamDetails && !isLoadingTeams && !isLoadingUsers) ? (
-        <TableDataError />
+        <TableDataError verticalPaddingSize="pad-xxxlarge" />
       ) : (
         <TableContainer
           resultsTitle="users"
@@ -409,10 +414,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           actionButton={{
             name: isGlobalAdmin ? "add user" : "create user",
             buttonText: isGlobalAdmin ? "Add users" : "Create user",
-            variant: "brand",
-            onActionButtonClick: isGlobalAdmin
-              ? toggleAddUserModal
-              : toggleCreateUserModal,
+            variant: "default",
+            onClick: isGlobalAdmin ? toggleAddUserModal : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}

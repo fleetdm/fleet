@@ -6,7 +6,7 @@
       "slug": "1password/darwin",
       "platform": "darwin",
       "unique_identifier": "com.1password.1password",
-      "description": "Password manager that keeps all passwords secure behind one password"
+      "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
       "name": "Adobe Acrobat Reader",
@@ -14,6 +14,20 @@
       "platform": "darwin",
       "unique_identifier": "com.adobe.Reader",
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
+    },
+    {
+      "name": "Adobe Creative Cloud",
+      "slug": "adobe-creative-cloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+    },
+    {
+      "name": "Beyond Compare",
+      "slug": "beyond-compare/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.scootersoftware.BeyondCompare",
+      "description": ""
     },
     {
       "name": "Box Drive",
@@ -58,6 +72,27 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Cursor",
+      "slug": "cursor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.todesktop.230313mzl4w4u92",
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+    },
+    {
+      "name": "Cursor",
+      "slug": "cursor/windows",
+      "platform": "windows",
+      "unique_identifier": "Cursor",
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+    },
+    {
+      "name": "Amazon DCV",
+      "slug": "dcv-viewer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nicesoftware.dcvviewer",
+      "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
@@ -83,14 +118,28 @@
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
-      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Chrome",
       "slug": "google-chrome/windows",
       "platform": "windows",
       "unique_identifier": "Google Chrome",
-      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "Company Portal",
+      "slug": "intune-company-portal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.CompanyPortalMac",
+      "description": "Microsoft Intune Company Portal is the app for accessing company resources and managing devices in a secure environment."
+    },
+    {
+      "name": "iTerm2",
+      "slug": "iterm2/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.iterm2",
+      "description": ""
     },
     {
       "name": "Microsoft Edge",
@@ -128,6 +177,20 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Omnissa Horizon Client",
+      "slug": "omnissa-horizon-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnissa.horizon.client.mac",
+      "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
+    },
+    {
+      "name": "P4V",
+      "slug": "p4v/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.perforce.p4v",
+      "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -135,11 +198,18 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Santa",
+      "slug": "santa/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.northpolesec.santa",
+      "description": ""
+    },
+    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tinyspeck.slackmacgap",
-      "description": "Slack is a team communication and collaboration software for modern workplaces"
+      "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
       "name": "TeamViewer",
@@ -170,11 +240,25 @@
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
+      "name": "VNC Viewer",
+      "slug": "vnc-viewer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realvnc.vncviewer",
+      "description": ""
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
+    },
+    {
+      "name": "Yubikey Manager",
+      "slug": "yubico-yubikey-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.yubico.ykman",
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
       "name": "Zoom",

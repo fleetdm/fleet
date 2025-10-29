@@ -5,51 +5,51 @@ This page covers the journey from prospect to customer and details what contribu
 
 ## Why cross-functional GTM groups?
 
-When communicating with future or current customers, hand offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
+When communicating with future or current customers, hand-offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand-offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
 
 
-> - Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
-> - Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), [🌐 Digital Experience](https://fleetdm.com/handbook/digital-experience), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
+> Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
+> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
 
 
 ## Current GTM groups
 
-| GTM group                            | Goal _(value for customers and/or community)_ |
+| GTM group                            | Goal |
 |:-------------------------------------|:------------------------------------|
-| [🦄<br>Unicorns](https://fleetdm.com/handbook/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 300+ hosts. 
-| [🌐<br>Buy<br>online](https://fleetdm.com/handbook/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+| [🦄Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns-group)             | Provide the best possible customer experience for organizations with 700+ hosts. 
+| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online-group)         | Provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 
-### 🦄 Unicorns
+### 🦄 Unicorns group
 
-The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 300+ hosts.
+The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 700+ hosts.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_
-| Pipeline DRI                      | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@Drew-P-drawers](https://github.com/Drew-P-drawers))_
-| Account Development Rep (ADR)     | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@Drew-P-drawers](https://github.com/Drew-P-drawers))_ <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
+| Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_ <br> [Eric Swenson](https://www.linkedin.com/in/eswenson1/) _([@ericswenson0](https://github.com/ericswenson0))_ <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_
+| Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/Seedity/) _([@Seedity](https://github.com/Seedity))_
+| Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Rebecca Cowart](https://www.linkedin.com/in/rebeccaui/) _([@rebeccaui](https://github.com/rebeccaui))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ 
+| Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ <br> [Raiven Williams](https://www.linkedin.com/in/raivenwilliams/) _([@bettapizza](https://github.com/bettapizza))_
+| Customer Support Engineer (CSE)       | <sup><sub> _See [Customer_Success](https://fleetdm.com/handbook/customer-success)_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
 
 
-### 🌐 Buy online
+### 🌐 Buy online group
 
-The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 | Pipeline DRI                      | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Customer Success DRI              | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
-| Customer Support Engineer (CSE)   | [Rebecca Cowart](https://www.linkedin.com/in/rebeccaui/) _([@rebeccaui](https://github.com/rebeccaui))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
+| Customer Support Engineer (CSE)   | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://github.com/orgs/fleetdm/projects/65), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
 
 
 ## Customer support service level agreements (SLAs)
@@ -69,7 +69,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
 | High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
-| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
+| Low (P3) | Questions or clarifications around features, documentation, deployments, or "how to's". | Standard email/chat support | 1-2 business days | 
 
 > **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Refer to your welcome email for contact and support info. 
 
@@ -91,7 +91,7 @@ At Fleet, our GTM strategy consists of:
 
 ### Competition
 
-We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (private document).
+We track competitors' capabilities and adjacent (or commonly integrated) products in [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (private document).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
 
@@ -112,28 +112,32 @@ When you reach out to a prospect or customer, make sure you're the right person:
 
 ### Programs
 
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
+Fleet's community programs are rooted in several areas created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
 
 
 #### Social media
 
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) Conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
 
 Here are some topics for social media posts:
 - Fleet the product
 - Internal progress
 - Highlighting community contributions
-- Highlighting Fleet and osquery accomplishments
-- Industry news about osquery
+- Highlighting Fleet, osquery, and Mac Admins open-source accomplishments
+- Industry news about osquery 
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
+
+> **Is there a post that you would like to see on the company page?**
+>
+> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Marketing team will request permission to use the post in a promoted post.   
 
 
 ##### Fleet on LinkedIn
 
-Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/marketing#contact-us) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
+> **Warning:** Do NOT buy LinkedIn Recruiter. AEs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail.
 
 
 #### Ads
@@ -145,19 +149,24 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+##### Creating contacts in the wild
 
-##### Event follow-up
+Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM quickly. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
+1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
+2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
+  - LinkedIn profile URL (this is the best option)
+  - Company name
+  - Company website
+  - Email
 
-Event-goers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/marketing#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
+> Please use the following guidelines when posting in the channel:
+>   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
+>   - Add as much context as possible to help the team find the right info. At least a full name + one other piece of information is required, but more is preferred.
 
-1. Once a list of badge scans is available, fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
 
+#### SWAG
 
-#### Podcast
-
-Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
-
+Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
 
 #### Video
 
@@ -174,7 +183,7 @@ Intent signals help measure an individual's/organization's current level of enga
 - Identify accounts/contacts that would benefit from a POV conversation.
 
 When processing intent signals, prioritize accounts in the following order:
-1. Sales-ready: Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs).
+1. Sales-ready: Accounts currently assigned to reps.
 2. Ads running: Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point).
 3. Researched: Key accounts that fleeties have suggested to prioritize.
 
@@ -197,10 +206,19 @@ When the prospect is ready to "kick the tires/do a POC", the opportunity is move
 
 ### Spin up a POV
 
-You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
+You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
 
 - **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
 - **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/start, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
+
+
+### NFR instances
+
+NFR (Not For Resale) instances are Fleet environments deployed for partners and resellers who need to demo Fleet functionality or test integrations. Solutions Consulting sets up these instances to support partner enablement and evaluation activities outside of the standard sales process.
+
+#### Deploy an NFR instance
+
+**To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
 ## Signatures
@@ -208,11 +226,11 @@ You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts,
 
 ### Getting a contract reviewed
 
-The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) will review all contracts within **2 business days**. 
+The [Finance team](https://fleetdm.com/handbook/finance#team) will review all contracts within **2 business days**. 
 
-> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to 💸 [Finance](https://fleetdm.com/handbook/finance#contact-us).
 
-To get a contract reviewed, complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________). Upload the docx version whenever possible and be sure to include the link to the document in the issue. Follow-up comments should be made in the GitHub issue and in the document itself to avoid losing context.
+To get a contract reviewed, complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%3Ahelp-finance&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________). Upload the docx version whenever possible and be sure to include the link to the document in the issue. Follow-up comments should be made in the GitHub issue and in the document itself to avoid losing context.
 
 If an agreement requires additional review during the negotiation process, the requestor will need to upload the new draft agreement and repeat the process. When no further review or action is required, the requestor is responsible for [routing the document](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed) for signature.
 
@@ -221,21 +239,27 @@ If an agreement requires additional review during the negotiation process, the r
 
 The SLA for contract signature is **2 business days**. Please do not follow up on signatures unless this time has elapsed. If a contract is ready for signature and **DOES NOT** require [review or revision](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) (i.e. no contract review issue necessary), follow the steps below:
 
-First, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
+First, log into DocuSign (credentials in 1Password) and route the agreement to the CFO for signature via [Fleet's Sales email address](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit?tab=t.0). 
 
-Then, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the appropriate internal Slack channel (e.g. op channel, #g-digital-experience) with the following template:
+> When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed correctly. Please use [Fleet's Sales email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, remove them before routing the agreement to the CFO for signature.
 
-```
-@Sam Pfluger - :writing_hand Signature request
-The following contract is ready to sign and has been routed to the CEO for signature: CONTRACT_DOC_URL_FROM_GOOGLE_DRIVE
-```
+Once the signature SLA has expired you can [contact Finance](https://fleetdm.com/handbook/finance#contact-us) to follow up. 
 
-Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, please remove them before routing the agreement to the CEO for signature.
+
+### Fleet's vendor collateral
+
+Use the following steps to send Fleet's vendor collateral to a prospect or customer:
+1. Be sure that there's a signed NDA between Fleet and the requesting organization [saved in Google Drive](https://drive.google.com/drive/folders/1ee6E2wwhUL8F5qTRGUleJ9HeWjSRj5xm?usp=drive_link). If not, [send an NDA](https://fleetdm.com/handbook/sales#send-an-nda).
+2. Navigate to the ["🗃️ Vendor collateral" folder (confidential)](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive and to download the neccesary documents.
+
+> 🧑‍🚀 Attention Fleeties:
+>
+> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
 
 
 ### Vendor questionnaires 
 
-Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience//security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
+Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/finance/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/finance/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/finance/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
 

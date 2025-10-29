@@ -50,23 +50,6 @@ func (k *KDialog) ShowEntry(opts dialog.EntryOptions) ([]byte, error) {
 	return output, nil
 }
 
-func (k *KDialog) ShowProgress(opts dialog.ProgressOptions) (func() error, error) {
-	args := []string{"--msgbox"}
-	if opts.Text != "" {
-		args = append(args, opts.Text)
-	}
-	if opts.Title != "" {
-		args = append(args, "--title", opts.Title)
-	}
-
-	cancel, err := k.cmdWithCancel(args...)
-	if err != nil {
-		return nil, err
-	}
-
-	return cancel, nil
-}
-
 func (k *KDialog) ShowInfo(opts dialog.InfoOptions) error {
 	args := []string{"--msgbox"}
 	if opts.Text != "" {
