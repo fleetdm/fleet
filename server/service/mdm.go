@@ -1812,7 +1812,7 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	}
 
 	// Check if all found variables are supported
-	for varName := range foundVars {
+	for _, varName := range foundVars {
 		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
 			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
 		}
@@ -2081,7 +2081,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
 		varNames := make([]fleet.FleetVarName, 0, len(variables))
-		for varName := range variables {
+		for _, varName := range variables {
 			varNames = append(varNames, fleet.FleetVarName(varName))
 		}
 		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{

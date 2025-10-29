@@ -456,7 +456,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 
 	// Convert profile variable names to FleetVarName type
 	varNames := make([]fleet.FleetVarName, 0, len(profileVars))
-	for varName := range profileVars {
+	for _, varName := range profileVars {
 		varNames = append(varNames, fleet.FleetVarName(varName))
 	}
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, varNames)
