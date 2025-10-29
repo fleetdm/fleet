@@ -168,6 +168,8 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 		cols = append(cols, *s.ApplicationID)
 	}
 
+	// TODO - consider UpgradeCode here?
+
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {
 		return nil, err
