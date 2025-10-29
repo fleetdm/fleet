@@ -29,6 +29,7 @@ import CustomLink from "components/CustomLink";
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
+  queryId: number | null;
   campaign: ICampaign;
   isQueryFinished: boolean;
   isQueryClipped: boolean;
@@ -49,6 +50,7 @@ const NAV_TITLES = {
 };
 
 const QueryResults = ({
+  queryId,
   campaign,
   isQueryFinished,
   isQueryClipped,
@@ -98,7 +100,8 @@ const QueryResults = ({
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults
+        queryResults,
+        queryId
       );
       // Update tableHeaders if new headers are found
       if (newResultsColumnConfigs !== resultsColumnConfigs) {
