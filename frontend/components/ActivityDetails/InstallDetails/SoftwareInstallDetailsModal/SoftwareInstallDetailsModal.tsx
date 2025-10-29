@@ -266,15 +266,23 @@ export const SoftwareInstallDetailsModal = ({
       },
     ];
 
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!swInstallResult?.post_install_script_output ||
+        !!swInstallResult?.output) &&
+      swInstallResult?.status !== "pending_install";
+
     return (
       <>
-        <RevealButton
-          isShowing={showInstallDetails}
-          showText="Details"
-          hideText="Details"
-          caretPosition="after"
-          onClick={toggleInstallDetails}
-        />
+        {showDetailsButton && (
+          <RevealButton
+            isShowing={showInstallDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleInstallDetails}
+          />
+        )}
         {showInstallDetails &&
           outputs.map(
             ({ label, value }) =>
@@ -360,10 +368,7 @@ export const SoftwareInstallDetailsModal = ({
         />
 
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-
-        {swInstallResult?.status !== "pending_install" &&
-          isInstalledByFleet &&
-          renderInstallDetailsSection()}
+        {isInstalledByFleet && renderInstallDetailsSection()}
       </div>
     );
   };
