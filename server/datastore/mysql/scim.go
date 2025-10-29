@@ -1417,35 +1417,47 @@ func (ds *Datastore) ReconcileHostSCIMUserMappings(ctx context.Context) error {
 
 	var reconciled, failed int
 	for _, host := range unmappedHosts {
-		// Try to find a SCIM user by email (treating email as username or actual email)
-		scimUser, err := scimUserByUserNameOrEmail(ctx, ds.reader(ctx), ds.logger, host.Email, host.Email)
-		if err != nil {
-			if fleet.IsNotFound(err) {
-				// No matching SCIM user found, skip
-				continue
+		// Find SCIM user and create mapping in a single transaction
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Try to find a SCIM user by email (treating email as username or actual email)
+			scimUser, err := scimUserByUserNameOrEmail(ctx, tx, ds.logger, host.Email, host.Email)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// No matching SCIM user found, skip (this is not an error for the transaction)
+					return nil
+				}
+				return ctxerr.Wrap(ctx, err, "finding SCIM user for reconciliation")
 			}
-			level.Warn(ds.logger).Log("msg", "error finding SCIM user for reconciliation", "host_id", host.HostID, "email", host.Email, "err", err)
+
+			if scimUser == nil {
+				// No SCIM user found, skip (this is not an error for the transaction)
+				return nil
+			}
+
+			// Create the host-to-SCIM user mapping
+			return associateHostWithScimUser(ctx, tx, host.HostID, scimUser.ID)
+		})
+
+		if err != nil {
+			level.Warn(ds.logger).Log("msg", "error in reconciliation transaction", "host_id", host.HostID, "email", host.Email, "err", err)
 			failed++
 			continue
 		}
 
-		if scimUser == nil {
-			level.Warn(ds.logger).Log("msg", "no SCIM user found for reconciliation", "host_id", host.HostID, "email", host.Email)
-			continue
-		}
-
-		// Create the host-to-SCIM user mapping
-		err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			return associateHostWithScimUser(ctx, tx, host.HostID, scimUser.ID)
-		})
+		// Check if we actually found a SCIM user by trying to retrieve the mapping
+		_, err = ds.ScimUserByHostID(ctx, host.HostID)
 		if err != nil {
-			level.Warn(ds.logger).Log("msg", "error creating host-SCIM user mapping", "host_id", host.HostID, "scim_user_id", scimUser.ID, "err", err)
+			if fleet.IsNotFound(err) {
+				// No mapping was created, which means no SCIM user was found - not an error
+				continue
+			}
+			level.Warn(ds.logger).Log("msg", "error checking created mapping", "host_id", host.HostID, "email", host.Email, "err", err)
 			failed++
 			continue
 		}
 
 		reconciled++
-		level.Debug(ds.logger).Log("msg", "reconciled host SCIM user mapping", "host_id", host.HostID, "scim_user_id", scimUser.ID, "email", host.Email)
+		level.Debug(ds.logger).Log("msg", "reconciled host SCIM user mapping", "host_id", host.HostID, "email", host.Email)
 	}
 
 	if reconciled > 0 || failed > 0 {
