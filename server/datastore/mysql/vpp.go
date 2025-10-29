@@ -1941,16 +1941,27 @@ AND state = ?
 }
 
 func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	// load the failed VPP install commands for which we will create past
+	// activities - those are the commands that have not yet being verified nor
+	// canceled, and that have a corresponding MDM command result. If they don't
+	// have an MDM command result, they will never receive one as this gets
+	// called when MDM has been turned off on the host (and pre-existing MDM
+	// commands will get deactivated if the host turns MDM back on in the
+	// future).
+	// See https://github.com/fleetdm/fleet/issues/31083#issuecomment-3461597355
 	const loadFailedCmdsStmt = `
 SELECT
-	command_uuid
+	hvsi.command_uuid
 FROM
-	host_vpp_software_installs
+	host_vpp_software_installs hvsi
+	INNER JOIN hosts h ON hvsi.host_id = h.id
+	INNER JOIN nano_command_results ncr ON
+		hvsi.command_uuid = ncr.command_uuid AND ncr.id = h.uuid
 WHERE
-	verification_failed_at IS NULL
-	AND verification_at IS NULL
-	AND host_id = ?
-	AND canceled = 0
+	hvsi.verification_failed_at IS NULL
+	AND hvsi.verification_at IS NULL
+	AND hvsi.host_id = ?
+	AND hvsi.canceled = 0
 `
 	var failedCmds []string
 	if err := sqlx.SelectContext(ctx, tx, &failedCmds, loadFailedCmdsStmt, hostID); err != nil {
