@@ -582,8 +582,9 @@ type vulnResult struct {
 }
 
 // processLinuxVulnResults processes Linux kernel vulnerability results.
-// Linux uses a pre-aggregated table that already deduplicates CVEs per os_version_id,
-// so we can skip the expensive deduplication logic.
+// Linux uses a pre-aggregated table (operating_system_version_vulnerabilities) that already
+// deduplicates CVEs across all kernels for each unique name+version combination.
+// Each os_version_id maps to a unique name+version (e.g., "Ubuntu 22.04.1 LTS")
 func processLinuxVulnResults(
 	results []vulnResult,
 	osVersionIDToKeyMap map[uint]string,
@@ -610,6 +611,7 @@ func processLinuxVulnResults(
 		}
 
 		// No deduplication needed - pre-aggregated table ensures uniqueness per os_version_id
+		// and each os_version_id maps to a unique name+version key
 		vulnsByKey[key] = append(vulnsByKey[key], vuln)
 		cveSet[r.CVE] = struct{}{}
 	}
@@ -977,7 +979,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	cveSetByKey := make(map[string]map[string]struct{}) // Track unique CVEs per key for accurate counting
 	cveSet := make(map[string]struct{})
 	// Track total counts per key when using LIMIT - this is the count BEFORE limiting
-	// We need to track by OSID/OSVersionID and then aggregate by key because
+	// We need to track by OSID and then aggregate by key because
 	// multiple IDs can map to the same key. For example:
 	//  - macOS-14.7.1 on x86_64 → operating_system_id = 123
 	//  - macOS-14.7.1 on arm64 → operating_system_id = 456
