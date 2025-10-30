@@ -238,21 +238,6 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 	if authToken == "" {
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing device authentication token"))
 	}
-	// TODO(JK): remove
-	if authToken == "temp-bypass-uuid-ios" || authToken == "00008110-001E59A90CF9401E" {
-		host, err := svc.ds.Host(ctx, 5) // by chance this is also the id of my real iphone on the real db
-		if err != nil {
-			fmt.Println(err)
-		}
-		guh := svc.debugEnabledForHost(ctx, host.ID)
-		return host, guh, err
-	} else if authToken == "temp-bypass-uuid-ipados" {
-		host, err := svc.ds.Host(ctx, 6)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return host, svc.debugEnabledForHost(ctx, host.ID), err
-	}
 
 	host, err := svc.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL)
 	switch {

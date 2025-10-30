@@ -934,8 +934,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", ipadosTitleID), &updateAppStoreAppRequest{TitleID: ipadosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
 
 	ssVppData := []SSVPPTestData{
-		{platform: "ios", uuid: "temp-bypass-uuid-ios", titleID: iosTitleID, app: iOSApp},
-		{platform: "ipados", uuid: "temp-bypass-uuid-ipados", titleID: ipadosTitleID, app: iPadOSApp}}
+		{platform: "ios", uuid: "uuid-ios-test-111111", titleID: iosTitleID, app: iOSApp},
+		{platform: "ipados", uuid: "uuid-ipad-test-222222", titleID: ipadosTitleID, app: iPadOSApp}}
 
 	for i, data := range ssVppData {
 		// Enroll device, add serial number to fake Apple server, and transfer to team
