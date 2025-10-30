@@ -1,3 +1,5 @@
 hash_sha256: 492d47824a94702a1ca68d29286d0b4bc92a6f2e2f485523de6be9c092d45269
 post_install_script:
   path: ../scripts/nudge-postinstall.sh
+icon:
+  path: ../../all/icons/nudget-assets-logo.png
