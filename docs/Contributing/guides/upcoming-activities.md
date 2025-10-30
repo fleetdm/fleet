@@ -2,13 +2,14 @@
 
 Introduced with the ["Upcoming activities run as listed (one queue)"](https://github.com/fleetdm/fleet/issues/22866) story, the upcoming activities feature (also known internally as the unified queue or the "uniq") consists of a single queue that holds the activities to execute for a specific host.
 
-Those activities are processed in order (that is, the second activity being blocked until the first gets into a terminal state) and features like cancellation and prioritization are (or are planned to be) supported.
+Those activities are processed in order (that is, the second activity being blocked until the first gets into a terminal state) and features like cancellation is supported and prioritization is planned to be supported (and already has the mechanism to be supported internally).
 
 Types of activities that can be queued include:
 * Script execution
 * Software installation (custom installers or from the Fleet-maintained apps)
 * VPP app installation
 * Software uninstallation
+* In-house app installation (also known as .ipa or custom apps, added in the [Use API to deploy in-house (enterprise) iOS/iPadOS package story](https://github.com/fleetdm/fleet/issues/30936))
 * MDM commands are planned to be added to the queue (including commands to install or remove profiles)
 
 ## Implementation details
@@ -19,6 +20,7 @@ The unified queue itself consists of the `upcoming_activities` table, and activi
 * `script_upcoming_activities` for scripts
 * `software_install_upcoming_activities` for both software install and uninstall
 * `vpp_app_upcoming_activities` for VPP app install
+* `in_house_app_upcoming_activities` for in-house app install
 
 The primary table contains the meta information about the activity (user, host, priority, type, etc.) and a JSON `payload` column for secondary information that does not require any foreign key constraints or indexing. The secondary table contains foreign key references required by the activity and the corresponding `ON DELETE` behavior (e.g. if a VPP app gets deleted, the corresponding upcoming activity should be deleted as well).
 
@@ -30,8 +32,9 @@ When an activity is ready to execute (to become "active"), it is updated in `upc
 
 * For scripts, it inserts a pending execution row in `host_script_results` with the same `execution_id` as the upcoming activity, and `fleetd` (orbit) will pick it up via its notifications;
 * For software installs, it inserts a pending install row in `host_software_installs` with the same `execution_id` as the upcoming activity, and `fleetd` (orbit) will pick it up via its notifications;
-* For VPP apps, since they are processed by an MDM command, it inserts a pending MDM command in `nano_commands` and `nano_enrollment_queue`, with the `command_uuid` set to the `execution_id` of the upcoming activity, and a push notification will be sent to the host to process it via MDM;
+* For VPP apps, since they are processed by an MDM command, it inserts a pending MDM command in `nano_commands` and `nano_enrollment_queue`, with the `command_uuid` set to the `execution_id` of the upcoming activity, and a push notification will be sent to the host to process it via MDM, and it inserts in `host_vpp_software_installs`;
 * For software uninstalls, it is a bit more complex but it inserts in both `host_script_results` and `host_software_installs` with the proper `uninstall = TRUE` flag, and the same `execution_id` is used in both tables to link them (as was done before the unified queue), and `fleetd` (orbit) will pick it up via its notifications.
+* For In-house apps, since they are processed by an MDM command, it inserts a pending MDM command in `nano_commands` and `nano_enrollment_queue`, with the `command_uuid` set to the `execution_id` of the upcoming activity, and a push notification will be sent to the host to process it via MDM, and it inserts in `host_in_house_software_installs`;
 
 The behavior described above is **very important** to ensure the queue does not become stuck, in fact those are the **two rules that every future change needs to keep in mind** when it affects the upcoming activities:
 
@@ -56,12 +59,12 @@ Note that:
 
 ### Cancellation
 
-Starting with Fleet v4.67.0, cancellation of upcoming activities is supported. It is implemented as follows:
+Starting with Fleet v4.67.0 (with the [Cancel upcoming activities story](https://github.com/fleetdm/fleet/issues/25540)), cancellation of upcoming activities is supported. It is implemented as follows:
 
 * If the upcoming activity was not _activated_ yet, then it simply deletes the row from `upcoming_activities`. A few more cleanup steps are done to ensure that if it was a Wipe/Lock script, the host's state is properly reset to "not pending wipe/lock".
-* Otherwise if it was _activated_, then a new `canceled` boolean field was added to the `host_script_results`, `host_software_installs` and `host_vpp_software_installs` tables and it is set to `true` for the corresponding row. In addition to this:
+* Otherwise if it was _activated_, then a new `canceled` boolean field was added to the `host_script_results`, `host_software_installs` and `host_vpp_software_installs` tables (and was added at creation for `host_in_house_software_installs`) and it is set to `true` for the corresponding row. In addition to this:
     - If the software/VPP app install or script was part of the setup experience flow, the corresponding entry in setup experience is marked as "failed";
-	- For VPP apps, the corresponding MDM command is marked as inactive (`active = 0`) so that it won't be sent to the host if it hasn't already been sent.
+	- For VPP and in-house apps, the corresponding MDM command is marked as inactive (`active = 0`) so that it won't be sent to the host if it hasn't already been sent.
 
 An _activated_ activity is not guaranteed to not run/execute, because the host may have already received request to process it. This is ok, Fleet will properly record any result of a canceled activity, it just won't show up in Fleet because it will just show as _canceled_ (there are new past activities for the cancelation of upcoming activities). Queries that return e.g. the last status of a software install or the last result of a saved script will ignore canceled executions.
 

@@ -29,9 +29,9 @@ module.exports = {
     let errorReportById = {};
 
     // Determine how many Render POVs we need to create (if any)
-    let numberOfPovRecordsReadyForAssignment = await RenderProofOfValue.count({status: 'ready-for-assignment', user: undefined});
+    let numberOfPovRecordsReadyForAssignment = await RenderProofOfValue.count({status: 'ready for assignment', user: undefined});
     // Find any RenderProofOfValue records that have been created, but don't have any render services created for them.
-    let numberOfPovRecordsWithNoRenderServices = await RenderProofOfValue.count({status: 'record-created', user: undefined});
+    let numberOfPovRecordsWithNoRenderServices = await RenderProofOfValue.count({status: 'record created', user: undefined});
     let numberOfRenderPovToCreate = RENDER_POV_POOL_SIZE - numberOfPovRecordsReadyForAssignment - numberOfPovRecordsWithNoRenderServices;
 
     //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╗ ╔═╗╔═╗╔═╗  ╦═╗╔═╗╔═╗╔═╗╦═╗╔╦╗╔═╗
@@ -43,7 +43,7 @@ module.exports = {
       // Create an array with empty objects for each Render POV we need to create.
       // Note: We're using this approach so we can simultaneously generate the slugs for each new record that we need to create.
       let newRenderPovRecordsToCreate = Array.from({ length: numberOfRenderPovToCreate }, ()=>{return {};});
-      sails.log(`Generating slugs and creating database records for ${newRenderPovRecordsToCreate.length} new database records`);
+      // sails.log(`Generating slugs and creating database records for ${newRenderPovRecordsToCreate.length} new database records`);
 
       await sails.helpers.flow.simultaneouslyForEach(newRenderPovRecordsToCreate, async()=>{
         await sails.helpers.flow.build(async ()=>{
@@ -59,11 +59,11 @@ module.exports = {
           return newRecordForThisInstance;
         }).retry('E_UNIQUE');// Retry if the generated slug is already being used by a DB record.
       });// End of simultaneouslyForEach(newRenderPovRecordsToCreate)
-      sails.log(`Records created!`);
+      // sails.log(`Records created!`);
 
       // Retrieve the records we just created and loop through them simutaniously.
       let renderInstancesToCreate = await RenderProofOfValue.find({status: 'record created'});
-      sails.log(renderInstancesToCreate);
+      // sails.log(renderInstancesToCreate);
 
 
       //
@@ -227,7 +227,7 @@ module.exports = {
         if(errorReportById[instanceIdAsString]){
           return;
         }
-        sails.log(`MySQL service created!`);
+        sails.log(`id: ${povRecord.id}) MySQL service created!`);
         // Example response (will be the same for the next API request):
         // {
         //   "service": {
@@ -371,7 +371,7 @@ module.exports = {
           return;
         }
 
-        sails.log(`Fleet service created!`);
+        sails.log(`id: ${povRecord.id}) Fleet service created!`);
 
         let renderFleetServiceId = createFleetResponse.service.id;
 

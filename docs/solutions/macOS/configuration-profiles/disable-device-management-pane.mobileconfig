@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>DisabledPreferencePanes</key>
+            <array>
+                <string>com.apple.preferences.configurationprofiles</string>
+            </array>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.disabledsystemsettings</string>
+            <key>PayloadType</key>
+            <string>com.apple.systempreferences</string>
+            <key>PayloadUUID</key>
+            <string>16F57C19-83FF-4D62-870D-200C80921929</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Disable Device Management Pane</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.disabledsystemsettings</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>688C6E56-25C3-4E08-BB9E-83171F193C78</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

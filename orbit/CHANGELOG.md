@@ -1,4 +1,4 @@
-## Orbit 1.49.0 (Oct 24, 2025)
+## Orbit 1.49.1 (Oct 27, 2025)
 
 * Added `mcp_listening_servers` table to find MCP servers listening over HTTP.
 
@@ -7,6 +7,8 @@
 * Added windows support for web setup experience.
 
 * Setup experience for macOS hosts may now be configured to halt if any software install fails (requires Fleet server 4.76.0)
+
+* Added Contact IT button when MDM migration fails and Organization support URL is set up on Fleet server.
 
 * Improved orbit debug logs when HTTP response contains a large HTML page.
 
