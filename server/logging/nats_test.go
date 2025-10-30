@@ -10,17 +10,22 @@ import (
 	"github.com/go-kit/log"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	natsTestLogCount = 1000
-	natsTestSubject  = "test.logs"
-	natsTestTimeout  = 5 * time.Second
+	natsTestLogCount      = 1000
+	natsTestDirectSubject = "test.logs.direct"
+	natsTestStreamSubject = "test.logs.stream"
+	natsTestStreamName    = "test-logs-stream"
+	natsTestTimeout       = 5 * time.Second
 )
 
 // makeNatsClient creates a new NATS client.
 func makeNatsClient(t *testing.T, url string) *nats.Conn {
+	t.Helper()
+
 	// Connect to the NATS server, in order to receive logs.
 	nc, err := nats.Connect(url)
 
@@ -33,10 +38,13 @@ func makeNatsClient(t *testing.T, url string) *nats.Conn {
 
 // makeNatsServer creates a new NATS server.
 func makeNatsServer(t *testing.T) *server.Server {
+	t.Helper()
+
 	// Define the NATS server options, allowing the server to use a random port.
 	opts := &server.Options{
-		Host: "127.0.0.1",
-		Port: -1,
+		Host:      "127.0.0.1",
+		Port:      -1,
+		JetStream: true,
 	}
 
 	// Create the NATS server.
@@ -55,6 +63,21 @@ func makeNatsServer(t *testing.T) *server.Server {
 	return ns
 }
 
+// makeNatsLogs creates a number of test logs.
+func makeNatsLogs(t *testing.T) []json.RawMessage {
+	t.Helper()
+
+	var logs []json.RawMessage
+
+	for n := range natsTestLogCount {
+		logs = append(logs,
+			json.RawMessage(fmt.Sprintf(`{"foo":"bar %d"}`, n)),
+		)
+	}
+
+	return logs
+}
+
 func TestNatsLogWriter(t *testing.T) {
 	// Create the NATS server and connection.
 	ns := makeNatsServer(t)
@@ -66,53 +89,103 @@ func TestNatsLogWriter(t *testing.T) {
 	// Ensure the NATS connection is closed when the test is done.
 	defer nc.Close()
 
-	var expected, received []json.RawMessage
+	t.Run("PublishDirect", func(t *testing.T) {
+		// Create a wait group to track outstanding logs.
+		var wg sync.WaitGroup
 
-	for n := range natsTestLogCount {
-		expected = append(expected, json.RawMessage(fmt.Sprintf(`{"foo":"bar %d"}`, n)))
-	}
+		expected := makeNatsLogs(t)
+		received := []json.RawMessage{}
 
-	// Create a wait group to wait for the logs to be received.
-	var wg sync.WaitGroup
+		// Add the number of expected logs to the wait group.
+		wg.Add(len(expected))
 
-	// Add the number of expected logs to the wait group.
-	wg.Add(len(expected))
+		// Subscribe to the NATS subject.
+		_, err := nc.Subscribe(natsTestDirectSubject, func(m *nats.Msg) {
+			received = append(received, m.Data)
 
-	// Subscribe to the NATS subject.
-	sub, err := nc.Subscribe(natsTestSubject, func(m *nats.Msg) {
-		received = append(received, m.Data)
+			wg.Done()
+		})
 
-		wg.Done()
+		// Ensure the subscription was created successfully.
+		require.NoError(t, err)
+
+		// Create the NATS log writer, specifying that the logs should be
+		// published directly to the NATS subject, without using JetStream.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestDirectSubject,
+			"",
+			"",
+			"",
+			"",
+			"",
+			false,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		// Write the expected logs to the NATS log writer, and ensure it succeeds.
+		require.NoError(t, writer.Write(t.Context(), expected))
+
+		// Wait for all logs to be received.
+		wg.Wait()
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, expected, received)
 	})
 
-	// Ensure the subscription was created successfully.
-	require.NoError(t, err)
+	t.Run("PublishStream", func(t *testing.T) {
+		ctx := t.Context()
 
-	// Ensure the subscription is unsubscribed when the test is done.
-	defer sub.Unsubscribe()
+		// Create the JetStream context.
+		js, err := jetstream.New(nc)
 
-	// Create the NATS log writer.
-	writer, err := NewNatsLogWriter(
-		ns.ClientURL(),
-		natsTestSubject,
-		"",
-		"",
-		"",
-		"",
-		"",
-		false,
-		natsTestTimeout,
-		log.NewNopLogger(),
-	)
+		require.NoError(t, err)
 
-	require.NoError(t, err)
+		// Create the in-memory stream.
+		st, err := js.CreateStream(ctx, jetstream.StreamConfig{
+			Name:     natsTestStreamName,
+			Storage:  jetstream.MemoryStorage,
+			Subjects: []string{natsTestStreamSubject},
+		})
 
-	// Write the expected logs to the NATS log writer, and ensure it succeeds.
-	require.NoError(t, writer.Write(t.Context(), expected))
+		require.NoError(t, err)
 
-	// Wait for all logs to be received.
-	wg.Wait()
+		// Create the NATS log writer, specifying that the logs should be
+		// published to the JetStream stream.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestStreamSubject,
+			"",
+			"",
+			"",
+			"",
+			"",
+			true,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
 
-	// Ensure the received logs are equal to the expected logs.
-	require.Equal(t, expected, received)
+		require.NoError(t, err)
+
+		expected := makeNatsLogs(t)
+		received := []json.RawMessage{}
+
+		// Write the expected logs to the NATS log writer, and ensure it succeeds.
+		require.NoError(t, writer.Write(ctx, expected))
+
+		// Get the messages from the JetStream stream.
+		for n := range len(expected) {
+			msg, err := st.GetMsg(ctx, uint64(n)+1)
+
+			require.NoError(t, err)
+
+			received = append(received, msg.Data)
+		}
+
+		// Ensure the received logs are equal to the expected logs.
+		require.Equal(t, expected, received)
+	})
 }
