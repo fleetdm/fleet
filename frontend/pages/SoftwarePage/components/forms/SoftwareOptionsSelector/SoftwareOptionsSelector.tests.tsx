@@ -61,7 +61,7 @@ describe("SoftwareOptionsSelector", () => {
     expect(onToggleAutomaticInstall).toHaveBeenCalledWith(true);
   });
 
-  it("disables self-service and automatic install checkboxes for iOS", () => {
+  it("enables self-service and disables automatic install checkboxes for iOS", () => {
     renderComponent({ platform: "ios" });
 
     // Targeting the checkbox elements directly
@@ -72,11 +72,11 @@ describe("SoftwareOptionsSelector", () => {
       .getByText("Automatic install")
       .closest('[role="checkbox"]');
 
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "true");
+    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "false");
     expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("disables self-service and automatic install checkboxes for iPadOS", () => {
+  it("enables self-service and disables automatic install checkboxes for iPadOS", () => {
     renderComponent({ platform: "ipados" });
 
     // Targeting the checkbox elements directly
@@ -87,7 +87,7 @@ describe("SoftwareOptionsSelector", () => {
       .getByText("Automatic install")
       .closest('[role="checkbox"]');
 
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "true");
+    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "false");
     expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
   });
 
