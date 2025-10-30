@@ -58,6 +58,7 @@ module.exports = {
 
       // Humans
       'noahtalerman',
+      'lppepper2',
       'mike-j-thomas',
       'mikermcneil',
       'lukeheath',
