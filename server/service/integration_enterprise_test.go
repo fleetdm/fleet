@@ -21797,14 +21797,18 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 	// Insert a host identity certificate for the iOS host
 	certSerial := uint64(123456789)
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `
+		_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, certSerial)
+		if err != nil {
+			return err
+		}
+		_, err = db.ExecContext(ctx, `
 			INSERT INTO host_identity_scep_certificates
 			(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 			certSerial,
 			iosHost.ID,
-			iosHost.UUID, // CN matches UUID
+			iosHost.UUID,
 			time.Now().Add(-24*time.Hour),
 			time.Now().Add(365*24*time.Hour),
 			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
@@ -21884,7 +21888,11 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 
 		ipadCertSerial := uint64(987654321)
 		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(ctx, `
+			_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, ipadCertSerial)
+			if err != nil {
+				return err
+			}
+			_, err = db.ExecContext(ctx, `
 				INSERT INTO host_identity_scep_certificates
 				(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
