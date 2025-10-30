@@ -177,8 +177,8 @@ func TestNatsLogWriter(t *testing.T) {
 		require.NoError(t, writer.Write(ctx, expected))
 
 		// Get the messages from the JetStream stream.
-		for n := range len(expected) {
-			msg, err := st.GetMsg(ctx, uint64(n)+1)
+		for n := range uint64(len(expected)) {
+			msg, err := st.GetMsg(ctx, n+1)
 
 			require.NoError(t, err)
 
