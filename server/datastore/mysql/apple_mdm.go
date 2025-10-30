@@ -3757,7 +3757,7 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
         (uuid, username, fullname, email)
       VALUES
         (COALESCE(NULLIF(TRIM(?), ''), UUID()), ?, ?, ?)
-      ON DUPLICATE KEY UPDATE	  	
+      ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
         fullname   = VALUES(fullname)`
 
@@ -4990,7 +4990,7 @@ SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
 WHERE h.uuid = ? AND (
-	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin') 
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin')
 	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
 )`
 
