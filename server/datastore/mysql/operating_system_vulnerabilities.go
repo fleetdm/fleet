@@ -581,8 +581,43 @@ type vulnResult struct {
 	TotalCount        *uint // Total count per operating_system_id/os_version_id (only set when using ROW_NUMBER)
 }
 
-// processVulnResults processes vulnerability results and populates the given maps.
-// It handles deduplication, total count tracking, and maintains earliest CreatedAt times.
+// processLinuxVulnResults processes Linux kernel vulnerability results.
+// Linux uses a pre-aggregated table that already deduplicates CVEs per os_version_id,
+// so we can skip the expensive deduplication logic.
+func processLinuxVulnResults(
+	results []vulnResult,
+	osVersionIDToKeyMap map[uint]string,
+	totalCountByOSVersionID map[uint]uint, // Output: tracks total counts per os_version_id
+	vulnsByKey map[string][]fleet.CVE, // Output: CVEs grouped by "name-version" key
+	cveSet map[string]struct{}, // Output: global set of all CVEs for CVSS fetching
+) {
+	for _, r := range results {
+		key := osVersionIDToKeyMap[r.OSVersionID]
+
+		// Track total count per os_version_id
+		if r.TotalCount != nil {
+			totalCountByOSVersionID[r.OSVersionID] = *r.TotalCount
+		}
+
+		vuln := fleet.CVE{
+			CVE:       r.CVE,
+			CreatedAt: r.CreatedAt,
+		}
+
+		if r.ResolvedInVersion != nil {
+			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+			vuln.ResolvedInVersion = &resolvedVersion
+		}
+
+		// No deduplication needed - pre-aggregated table ensures uniqueness per os_version_id
+		vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		cveSet[r.CVE] = struct{}{}
+	}
+}
+
+// processVulnResults processes non-Linux vulnerability results.
+// Handles deduplication across multiple OSIDs that map to the same key (e.g., multi-arch),
+// tracks total counts per ID, and maintains earliest CreatedAt times.
 func processVulnResults(
 	results []vulnResult,
 	idToKeyMap map[uint]string, // Maps OSID or OSVersionID to "name-version" key
@@ -961,14 +996,13 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	)
 
 	// Process kernel vulnerability results (Linux)
-	processVulnResults(
+	// Use optimized Linux-specific processing (no deduplication overhead)
+	processLinuxVulnResults(
 		kernelVulnResults,
 		linuxOSVersionMap,
 		totalCountByOSVersionID,
 		vulnsByKey,
-		cveSetByKey,
 		cveSet,
-		func(r vulnResult) uint { return r.OSVersionID },
 	)
 
 	// Step 3: Fetch CVE metadata for all CVEs
