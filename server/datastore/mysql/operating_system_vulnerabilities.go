@@ -569,6 +569,73 @@ func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error 
 	return nil
 }
 
+// vulnResult represents a vulnerability result from database queries.
+// Used for both OS vulnerabilities (non-Linux) and kernel vulnerabilities (Linux).
+type vulnResult struct {
+	OSID              uint // For non-Linux: os.id
+	OSVersionID       uint // For Linux: os_version_id
+	CVE               string
+	ResolvedInVersion *string
+	CreatedAt         time.Time
+	IsLinux           bool  // Flag to distinguish between Linux and non-Linux results
+	TotalCount        *uint // Total count per operating_system_id/os_version_id (only set when using ROW_NUMBER)
+}
+
+// processVulnResults processes vulnerability results and populates the given maps.
+// It handles deduplication, total count tracking, and maintains earliest CreatedAt times.
+func processVulnResults(
+	results []vulnResult,
+	idToKeyMap map[uint]string, // Maps OSID or OSVersionID to "name-version" key
+	totalCountMap map[uint]uint, // Output: tracks total counts per ID
+	vulnsByKey map[string][]fleet.CVE, // Output: CVEs grouped by "name-version" key
+	cveSetByKey map[string]map[string]struct{}, // Output: unique CVEs per key for accurate counting
+	cveSet map[string]struct{}, // Output: global set of all CVEs
+	getID func(vulnResult) uint, // Extracts OSID or OSVersionID from result
+) {
+	for _, r := range results {
+		id := getID(r)
+		key := idToKeyMap[id]
+
+		// Track total count per ID when LIMIT is used
+		if r.TotalCount != nil {
+			totalCountMap[id] = *r.TotalCount
+		}
+
+		// Track unique CVEs per key for accurate counting (handles overlapping CVEs across IDs)
+		if cveSetByKey[key] == nil {
+			cveSetByKey[key] = make(map[string]struct{})
+		}
+		cveSetByKey[key][r.CVE] = struct{}{}
+
+		vuln := fleet.CVE{
+			CVE:       r.CVE,
+			CreatedAt: r.CreatedAt,
+		}
+
+		if r.ResolvedInVersion != nil {
+			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+			vuln.ResolvedInVersion = &resolvedVersion
+		}
+
+		// Check if we already have this CVE for this key (deduplication across architectures/versions)
+		found := false
+		for i, existing := range vulnsByKey[key] {
+			if existing.CVE == r.CVE {
+				found = true
+				// Keep the earliest CreatedAt time
+				if r.CreatedAt.Before(existing.CreatedAt) {
+					vulnsByKey[key][i].CreatedAt = r.CreatedAt
+				}
+				break
+			}
+		}
+		if !found {
+			vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		}
+		cveSet[r.CVE] = struct{}{}
+	}
+}
+
 // ListVulnsByMultipleOSVersions - Optimized batch query to fetch vulnerabilities for multiple OS versions
 // This replaces the previous N+1 pattern with efficient batch queries, providing performance improvement
 // for large datasets.
@@ -669,15 +736,6 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	}
 
 	// Step 2: Execute non-Linux and Linux queries in parallel
-	type vulnResult struct {
-		OSID              uint // For non-Linux: os.id
-		OSVersionID       uint // For Linux: os_version_id
-		CVE               string
-		ResolvedInVersion *string
-		CreatedAt         time.Time
-		IsLinux           bool  // Flag to distinguish between Linux and non-Linux results
-		TotalCount        *uint // Total count per operating_system_id/os_version_id (only set when using ROW_NUMBER)
-	}
 	var osVulnResults, kernelVulnResults []vulnResult
 
 	// Launch goroutines for parallel query execution
@@ -711,27 +769,11 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			FROM operating_system_vulnerabilities osv
 			WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)`
 
-		case maxVulnerabilities != nil && *maxVulnerabilities > 0:
-			// Use ROW_NUMBER() to limit at database level per operating_system_id
-			// Include total count per operating_system_id for accurate counting after deduplication
-			osVulnsQuery = `
-			SELECT operating_system_id, cve, resolved_in_version, created_at, total_count
-			FROM (
-				SELECT
-					operating_system_id,
-					cve,
-					resolved_in_version,
-					created_at,
-					ROW_NUMBER() OVER (PARTITION BY operating_system_id ORDER BY cve) as rn,
-					COUNT(*) OVER (PARTITION BY operating_system_id) as total_count
-				FROM operating_system_vulnerabilities
-				WHERE operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(nonLinuxOSIDs)), ",") + `)
-			) sub
-			WHERE rn <= ?`
-			osArgs = append(osArgs, *maxVulnerabilities)
-
 		default:
 			// Fetch all CVEs with full details
+			// Note: We fetch ALL CVEs (no LIMIT here) to ensure accurate counting
+			// when multiple OSIDs map to the same key. Application-level limiting
+			// is applied after deduplication.
 			osVulnsQuery = `
 			SELECT
 				osv.operating_system_id,
@@ -900,92 +942,34 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	cveSetByKey := make(map[string]map[string]struct{}) // Track unique CVEs per key for accurate counting
 	cveSet := make(map[string]struct{})
 	// Track total counts per key when using LIMIT - this is the count BEFORE limiting
-	// We need to track by OSID/OSVersionID and then aggregate by key
+	// We need to track by OSID/OSVersionID and then aggregate by key because
+	// multiple IDs can map to the same key. For example:
+	//  - macOS-14.7.1 on x86_64 → operating_system_id = 123
+	//  - macOS-14.7.1 on arm64 → operating_system_id = 456
 	totalCountByOSID := make(map[uint]uint)        // For non-Linux: operating_system_id -> total count
 	totalCountByOSVersionID := make(map[uint]uint) // For Linux: os_version_id -> total count
 
 	// Process OS vulnerability results (non-Linux)
-	for _, r := range osVulnResults {
-		key := nonLinuxOSIDMap[r.OSID]
-
-		// Track total count per OSID when LIMIT is used
-		if r.TotalCount != nil {
-			totalCountByOSID[r.OSID] = *r.TotalCount
-		}
-
-		// Track unique CVEs per key for accurate counting (handles overlapping CVEs across OSIDs)
-		if cveSetByKey[key] == nil {
-			cveSetByKey[key] = make(map[string]struct{})
-		}
-		cveSetByKey[key][r.CVE] = struct{}{}
-
-		vuln := fleet.CVE{
-			CVE:       r.CVE,
-			CreatedAt: r.CreatedAt,
-		}
-
-		if r.ResolvedInVersion != nil {
-			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
-			vuln.ResolvedInVersion = &resolvedVersion
-		}
-
-		// Check if we already have this CVE for this key (deduplication across architectures)
-		found := false
-		for i, existing := range vulnsByKey[key] {
-			if existing.CVE == r.CVE {
-				found = true
-				// Keep the earliest CreatedAt time
-				if r.CreatedAt.Before(existing.CreatedAt) {
-					vulnsByKey[key][i].CreatedAt = r.CreatedAt
-				}
-				break
-			}
-		}
-		if !found {
-			vulnsByKey[key] = append(vulnsByKey[key], vuln)
-		}
-		cveSet[r.CVE] = struct{}{}
-	}
+	processVulnResults(
+		osVulnResults,
+		nonLinuxOSIDMap,
+		totalCountByOSID,
+		vulnsByKey,
+		cveSetByKey,
+		cveSet,
+		func(r vulnResult) uint { return r.OSID },
+	)
 
 	// Process kernel vulnerability results (Linux)
-	for _, r := range kernelVulnResults {
-		key := linuxOSVersionMap[r.OSVersionID]
-
-		// Track total count per OSVersionID when LIMIT is used
-		if r.TotalCount != nil {
-			totalCountByOSVersionID[r.OSVersionID] = *r.TotalCount
-		}
-
-		// Track unique CVEs per key for accurate counting (handles overlapping CVEs across OSVersionIDs)
-		if cveSetByKey[key] == nil {
-			cveSetByKey[key] = make(map[string]struct{})
-		}
-		cveSetByKey[key][r.CVE] = struct{}{}
-
-		vuln := fleet.CVE{
-			CVE:       r.CVE,
-			CreatedAt: r.CreatedAt,
-		}
-
-		if r.ResolvedInVersion != nil {
-			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
-			vuln.ResolvedInVersion = &resolvedVersion
-		}
-
-		// Check if we already have this CVE (shouldn't happen as we're grouping in the query)
-		found := false
-		for _, existing := range vulnsByKey[key] {
-			if existing.CVE == r.CVE {
-				found = true
-				break
-			}
-		}
-		if !found {
-			vulnsByKey[key] = append(vulnsByKey[key], vuln)
-		}
-
-		cveSet[r.CVE] = struct{}{}
-	}
+	processVulnResults(
+		kernelVulnResults,
+		linuxOSVersionMap,
+		totalCountByOSVersionID,
+		vulnsByKey,
+		cveSetByKey,
+		cveSet,
+		func(r vulnResult) uint { return r.OSVersionID },
+	)
 
 	// Step 3: Fetch CVE metadata for all CVEs
 	if includeCVSS && len(cveSet) > 0 {
@@ -1105,31 +1089,12 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 					}
 				}
 			}
-		case maxVulnerabilities != nil && *maxVulnerabilities > 0:
-			osIDCount := 0
-			for _, keyForOSID := range nonLinuxOSIDMap {
-				if keyForOSID == key {
-					osIDCount++
-				}
+		default:
+			// For non-Linux: use deduplicated count from cveSetByKey
+			// Since we fetch all CVEs without LIMIT, cveSetByKey contains all unique CVEs
+			if cveSetByKey[key] != nil {
+				count = len(cveSetByKey[key])
 			}
-			if osIDCount == 1 {
-				// Single OSID: use total_count from SQL
-				for osID, keyForOSID := range nonLinuxOSIDMap {
-					if keyForOSID == key {
-						if totalCount, exists := totalCountByOSID[osID]; exists {
-							count = int(totalCount) //nolint:gosec,G115
-							break
-						}
-					}
-				}
-			} else if osIDCount > 1 {
-				// Multiple OSIDs (e.g., multi-arch): deduplicate across OSIDs using cveSetByKey
-				if cveSetByKey[key] != nil {
-					count = len(cveSetByKey[key])
-				}
-			}
-		case cveSetByKey[key] != nil:
-			count = len(cveSetByKey[key])
 		}
 
 		// Apply per-key limit after deduplication if maxVulnerabilities is specified.

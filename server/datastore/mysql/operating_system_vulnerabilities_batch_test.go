@@ -577,6 +577,7 @@ func testListVulnsByMultipleOSVersionsWithMaxVulnerabilities(t *testing.T, ds *D
 	// Create test OS versions with vulnerabilities
 	osVersions := setupTestOSVersionsWithVulns(t, ds, ctx)
 	linuxOS := setupLinuxOSWithKernelVulns(t, ds, ctx)
+	multiArchOS := setupMultiArchOSWithVulns(t, ds, ctx)
 
 	testCases := []struct {
 		name           string
@@ -653,6 +654,25 @@ func testListVulnsByMultipleOSVersionsWithMaxVulnerabilities(t *testing.T, ds *D
 				}
 			},
 		},
+		{
+			name:       "multi-arch with max returns correct count",
+			maxVulns:   ptr.Int(3),
+			osVersions: []fleet.OSVersion{multiArchOS},
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				key := multiArchOS.NameOnly + "-" + multiArchOS.Version
+				vulnData, ok := vulnsMap[key]
+				assert.True(t, ok, "Should have vulnerabilities for multi-arch OS")
+
+				// Should return at most 3 vulnerabilities (application-level limit)
+				assert.LessOrEqual(t, len(vulnData.Vulnerabilities), 3, "Should have at most 3 vulnerabilities (limited)")
+
+				// Count should be 15 (total unique CVEs across both architectures)
+				// - arm64 arch has: CVE-2024-0001 through CVE-2024-0010 (10 CVEs)
+				// - x86_64 arch has: CVE-2024-0006 through CVE-2024-0015 (10 CVEs)
+				// - Total unique: 15 CVEs (CVE-2024-0001 through CVE-2024-0015)
+				assert.Equal(t, 15, vulnData.Count, "Count should be 15 total unique CVEs across both architectures")
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -669,5 +689,83 @@ func testListVulnsByMultipleOSVersionsWithMaxVulnerabilities(t *testing.T, ds *D
 			require.NotNil(t, vulnsMap)
 			tc.validateResult(t, vulnsMap)
 		})
+	}
+}
+
+// Helper function to set up a multi-architecture OS with vulnerabilities
+// Creates macOS 14.7.1 with two architectures (x86_64 and ARM) that map to the same key
+// This simulates the scenario where multiple operating_system_id values share name+version
+func setupMultiArchOSWithVulns(t *testing.T, ds *Datastore, ctx context.Context) fleet.OSVersion {
+	osName := "macOS"
+	osVersion := "14.7.1"
+
+	// Create first OS entry (x86_64 architecture)
+	os1 := fleet.OperatingSystem{
+		Name:          osName,
+		Version:       osVersion,
+		Arch:          "x86_64",
+		Platform:      "darwin",
+		KernelVersion: "23.6.0",
+	}
+	err := ds.UpdateHostOperatingSystem(ctx, 2000, os1)
+	require.NoError(t, err)
+
+	// Create second OS entry (ARM architecture) - same name and version, different arch
+	os2 := fleet.OperatingSystem{
+		Name:          osName,
+		Version:       osVersion,
+		Arch:          "arm64",
+		Platform:      "darwin",
+		KernelVersion: "23.6.0",
+	}
+	err = ds.UpdateHostOperatingSystem(ctx, 2001, os2)
+	require.NoError(t, err)
+
+	// Get both OS IDs
+	stmt := `SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? ORDER BY arch`
+	var osResults []struct {
+		ID          uint `db:"id"`
+		OSVersionID uint `db:"os_version_id"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &osResults, stmt, osName, osVersion)
+	require.NoError(t, err)
+	require.Len(t, osResults, 2, "Should have 2 OS entries (x86_64 and arm64)")
+
+	osID1 := osResults[0].ID // arm64
+	osID2 := osResults[1].ID // x86_64
+
+	// Add 10 CVEs to first architecture (CVE-2024-0001 through CVE-2024-0010)
+	var vulns1 []fleet.OSVulnerability
+	for i := 1; i <= 10; i++ {
+		vulns1 = append(vulns1, fleet.OSVulnerability{
+			OSID:              osID1,
+			CVE:               fmt.Sprintf("CVE-2024-%04d", i),
+			ResolvedInVersion: ptr.String(osVersion + ".1"),
+		})
+	}
+	_, err = ds.InsertOSVulnerabilities(ctx, vulns1, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// Add 10 CVEs to second architecture (CVE-2024-0006 through CVE-2024-0015)
+	// This creates 5 overlapping CVEs (0006-0010) and 5 unique CVEs (0011-0015)
+	var vulns2 []fleet.OSVulnerability
+	for i := 6; i <= 15; i++ {
+		vulns2 = append(vulns2, fleet.OSVulnerability{
+			OSID:              osID2,
+			CVE:               fmt.Sprintf("CVE-2024-%04d", i),
+			ResolvedInVersion: ptr.String(osVersion + ".1"),
+		})
+	}
+	_, err = ds.InsertOSVulnerabilities(ctx, vulns2, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// Return an OSVersion representing the merged key
+	// Note: We use the first OS's IDs, but the key "macOS-14.7.1" will aggregate both
+	return fleet.OSVersion{
+		ID:          osID1,
+		OSVersionID: osResults[0].OSVersionID,
+		NameOnly:    osName,
+		Version:     osVersion,
+		Platform:    "darwin",
 	}
 }
