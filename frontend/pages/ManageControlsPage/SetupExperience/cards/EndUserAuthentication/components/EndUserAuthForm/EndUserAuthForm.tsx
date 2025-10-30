@@ -77,7 +77,8 @@ const EndUserAuthForm = ({
           <Link to={PATHS.ADMIN_INTEGRATIONS_SSO_END_USER}>
             identity provider (IdP)
           </Link>{" "}
-          when they set up their new hosts.{" "}
+          when they set up their new hosts.
+          <br />
           <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>{" "}
           hosts will also be required to agree to an{" "}
           <Link
