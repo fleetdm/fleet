@@ -516,7 +516,7 @@ macOS host using a user-scoped configuration profile.
 
 ### Editing ceritificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 
-When you edit a certificate configuration profile, via GitOps, on Apple hosts, a new certificate will be added to the host's Keychain and the old certificate will be removed. It takes a couple minutes for the old certificate to be removed.
+When you edit a certificate configuration profile for Apple hosts, via GitOps, a new certificate will be added to each hosts' Keychain and the old certificate will be removed. It takes a couple minutes for the old certificate to be removed.
 
 ### Assumptions and limitations
 
