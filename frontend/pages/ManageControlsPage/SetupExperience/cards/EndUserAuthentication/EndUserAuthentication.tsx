@@ -120,7 +120,7 @@ const EndUserAuthentication = ({
         title="End user authentication"
         details={
           <CustomLink
-          newTab
+            newTab
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/end-user-authentication`}
             text="Preview end user experience"
           />
