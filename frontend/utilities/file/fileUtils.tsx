@@ -1,3 +1,4 @@
+import React from "react";
 import { PackageType } from "interfaces/package_type";
 
 type IPlatformDisplayName = "macOS" | "Windows" | "Linux" | "macOS & Linux";
@@ -61,24 +62,35 @@ export const getExtensionFromFileName = (fileName: string) => {
   return ext as PackageType | undefined;
 };
 
-/** This gets the platform display name from the file. */
-export const getPlatformDisplayName = (file: File) => {
+/** This gets the platform display name from the file.
+ * Includes nuance for .sh software installers only supported on Linux
+ */
+export const getPlatformDisplayName = (
+  file: File,
+  isSoftwareInstaller = false
+) => {
   const fileExt = getExtensionFromFileName(file.name);
   if (!fileExt) {
     return undefined;
   }
+
+  if (fileExt === "sh" && isSoftwareInstaller) {
+    // Currently, .sh files for software installers are only supported for Linux
+    return "Linux";
+  }
+
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
 /** This gets the file details from the file. */
-export const getFileDetails = (file: File) => {
+export const getFileDetails = (file: File, isSoftwareInstaller = false) => {
   return {
     name: file.name,
-    description: getPlatformDisplayName(file),
+    description: getPlatformDisplayName(file, isSoftwareInstaller),
   };
 };
 
 export interface IFileDetails {
   name: string;
-  description?: string;
+  description?: React.ReactNode;
 }
