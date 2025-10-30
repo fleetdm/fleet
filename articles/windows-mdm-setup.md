@@ -53,9 +53,11 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
-After you connect Fleet to Microsoft Entra ID, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+Connecting Fleet to Entra also enables end users to manually turn on MDM via the [Settings > Access work or school workflow](https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973#:~:text=If%20you%27ve%20had%20your%20device%20for%20a%20while%20and%20it%27s%20already%20been%20set%20up%2C%20you%20can%20follow%20these%20steps%20to%20join%20your%20device%20to%20the%20network.).
 
-In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
+After you connect Fleet to Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+
+In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls or manually turns on MDM needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
 
 ### Step 1: Buy Microsoft licenses
 
