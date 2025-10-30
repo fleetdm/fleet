@@ -150,8 +150,8 @@ func (s Software) ToUniqueStr() string {
 	if s.ApplicationID != nil && *s.ApplicationID != "" {
 		ss = append(ss, *s.ApplicationID)
 	}
-	// UpgradeCode added in a migration, include only if it exists // TODO - understanding this
-	// reasoning better
+	// if identical software comes in with a newly non-empty or changed upgrade code, it will be
+	// considered Software unique from its nil/empty ugprade coded predecessor
 	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
 		ss = append(ss, *s.UpgradeCode)
 	}
@@ -168,7 +168,11 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 		cols = append(cols, *s.ApplicationID)
 	}
 
-	// TODO - consider UpgradeCode here?
+	// though possible for a Windows software to have the empty string upgrade code, would provide no
+	// additional signal of uniqueness, so omit
+	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
+		cols = append(cols, *s.UpgradeCode)
+	}
 
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {
