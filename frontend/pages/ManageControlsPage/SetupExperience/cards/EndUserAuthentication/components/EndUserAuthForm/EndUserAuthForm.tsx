@@ -80,7 +80,9 @@ const EndUserAuthForm = ({
           when they set up their new hosts.{" "}
           <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>{" "}
           hosts will also be required to agree to an{" "}
-          <Link to={PATHS.ADMIN_INTEGRATIONS_MDM}>
+          <Link
+            to={`${PATHS.ADMIN_INTEGRATIONS_MDM}#end-user-license-agreement`}
+          >
             end user license agreement (EULA)
           </Link>{" "}
           if configured.
