@@ -526,69 +526,14 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 
-	digiCertVars, customSCEPVars, ndesVars, smallstepVars, err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
+		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
 		return nil, err
 	}
 
-	if digiCertVars.Found() {
-		if !digiCertVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
-		}
-		err := additionalDigiCertValidation(contents, digiCertVars)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
-	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() {
-		if ndesVars.RenewalOnly() {
-			ndesVars = nil
-		}
-		if customSCEPVars.RenewalOnly() {
-			customSCEPVars = nil
-		}
-		if smallstepVars.RenewalOnly() {
-			smallstepVars = nil
-		}
-		// If only the renewal ID variable appeared without any of its associated variables, return an error. It is shared
-		// by the 3 CA types but is only allowed when CA vars are in use
-		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil {
-			return nil, &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
-		}
-	}
-
-	if customSCEPVars.Found() {
-		if !customSCEPVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
-		}
-		err := additionalCustomSCEPValidation(contents, customSCEPVars)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if ndesVars.Found() {
-		if !ndesVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
-		}
-		err := additionalNDESValidation(contents, ndesVars)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if smallstepVars.Found() {
-		if !smallstepVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: smallstepVars.ErrorMessage()}
-		}
-		err := additionalSmallstepValidation(contents, smallstepVars)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return variables.Dedupe(fleetVars), nil
+	return fleetVars, nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,

@@ -346,17 +346,22 @@ func (cs *SmallstepVarsFound) SetRenewalID() (*SmallstepVarsFound, bool) {
 // and that is mapped to a set of CA vars, that can later be used for validation.
 //
 // TODO: Make this function also handle validation across platforms, but due to time I left it in the respective apple and windows mdm flows.
-func validateProfileCertificateAuthorityVariables(profileContents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) (*DigiCertVarsFound, *CustomSCEPVarsFound, *NDESVarsFound, *SmallstepVarsFound, error) {
+func validateProfileCertificateAuthorityVariables(profileContents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities,
+	additionalDigiCertValidation func(contents string, digicertVars *DigiCertVarsFound) error,
+	additionalCustomSCEPValidation func(contents string, customSCEPVars *CustomSCEPVarsFound) error,
+	additionalNDESValidation func(contents string, ndesVars *NDESVarsFound) error,
+	additionalSmallstepValidation func(contents string, smallstepVars *SmallstepVarsFound) error,
+) error {
 	fleetVars := variables.FindKeepDuplicates(profileContents)
 	if len(fleetVars) == 0 {
-		return nil, nil, nil, nil, nil
+		return nil
 	}
 
 	fmt.Println(fleetVars)
 
 	// Check for premium license if the profile contains Fleet variables
 	if lic == nil || !lic.IsPremium() {
-		return nil, nil, nil, nil, fleet.ErrMissingLicense
+		return fleet.ErrMissingLicense
 	}
 
 	var (
@@ -463,17 +468,81 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 
 		if !ok {
 			if !caFound {
-				return nil, nil, nil, nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s does not exist.", k)}
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s does not exist.", k)}
 			}
 
 			if k == string(fleet.FleetVarSCEPRenewalID) {
 				// Special message for renewal ID
-				return nil, nil, nil, nil, &fleet.BadRequestError{Message: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU)."}
+				return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU)."}
 			}
 
-			return nil, nil, nil, nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
 		}
 	}
 
-	return digiCertVars, customSCEPVars, ndesVars, smallstepVars, nil
+	if digiCertVars.Found() {
+		if !digiCertVars.Ok() {
+			return &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
+		}
+		if additionalDigiCertValidation != nil {
+			err := additionalDigiCertValidation(profileContents, digiCertVars)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
+	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() {
+		if ndesVars.RenewalOnly() {
+			ndesVars = nil
+		}
+		if customSCEPVars.RenewalOnly() {
+			customSCEPVars = nil
+		}
+		if smallstepVars.RenewalOnly() {
+			smallstepVars = nil
+		}
+		// If only the renewal ID variable appeared without any of its associated variables, return an error. It is shared
+		// by the 3 CA types but is only allowed when CA vars are in use
+		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil {
+			return &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
+		}
+	}
+
+	if customSCEPVars.Found() {
+		if !customSCEPVars.Ok() {
+			return &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
+		}
+		if additionalCustomSCEPValidation != nil {
+			err := additionalCustomSCEPValidation(profileContents, customSCEPVars)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if ndesVars.Found() {
+		if !ndesVars.Ok() {
+			return &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
+		}
+		if additionalNDESValidation != nil {
+			err := additionalNDESValidation(profileContents, ndesVars)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if smallstepVars.Found() {
+		if !smallstepVars.Ok() {
+			return &fleet.BadRequestError{Message: smallstepVars.ErrorMessage()}
+		}
+		if additionalSmallstepValidation != nil {
+			err := additionalSmallstepValidation(profileContents, smallstepVars)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
