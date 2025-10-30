@@ -48,6 +48,8 @@ This creates `server/datastore/mysql/schema-mariadb.sql`.
 The migrations contained in `server/datastore/mysql/migrations/tables/` are not compatabile with mariadb syntax, so you cannot use the `prepare db` command you would use to typically. You need to create your development database with the `schema-mariadb.sql` file.
 This `schema-mariadb.sql` file is also used when running tests. The schema file is selected by the test infrastructure based on the `FLEET_DB_CLIENT` environment variable.
 
+It is important to note that there are data migrations in `server/datastore/mysql/migrations/data`. These are not included in the `schema-mariadb.sql` file. After you import the `schema-mariadb.sql` file into your mariaDB, you will still need to run `./build/fleet prepare db --dev`. This will run the data migrations and import data that is critical to having fleet run correctly.
+
 ## Tests with MariaDB
 
 ```bash
