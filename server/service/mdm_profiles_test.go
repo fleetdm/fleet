@@ -151,16 +151,21 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 			errMsg: "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName is already present in configuration profile",
 		},
 		{
-			name: "Smallstep challenge is not a fleet variable",
-			profile: customSCEPForValidation("x$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
-				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName\" must be in the SCEP certificate's \"Challenge\" field.",
+			name:    "Smallstep challenge missing",
+			profile: customSCEPForValidation("challenge", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName", "Name", "com.apple.security.scep"),
+			errMsg:  "Smallstep certificate authority requires: $FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
 		},
 		{
-			name: "Smallstep url is not a fleet variable",
-			profile: customSCEPForValidation("${FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName}", "x${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
+			name: "Smallstep url missing",
+			profile: customSCEPForValidation("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "https://bozo.com", "Name",
+				"com.apple.security.scep"),
+			errMsg: "Smallstep certificate authority requires: $FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
+		},
+		{
+			name: "Smallstep challenge and url CA names don't match",
+			profile: customSCEPForValidation("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName2",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName\" must be in the SCEP certificate's \"URL\" field.",
+			errMsg: "Missing $FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName in the profile",
 		},
 	}
 
