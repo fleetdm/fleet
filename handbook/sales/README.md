@@ -152,7 +152,6 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Free
 ##### Emergency (P0) request communications
 Please see [handbook/company/communications#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas) for all sections above.
-
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs
