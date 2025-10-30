@@ -21812,7 +21812,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 			time.Now().Add(-24*time.Hour),
 			time.Now().Add(365*24*time.Hour),
 			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			[]byte("test-key"),
+			[]byte{0x04},
 			false,
 		)
 		return err
@@ -21903,7 +21903,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 				time.Now().Add(-24*time.Hour),
 				time.Now().Add(365*24*time.Hour),
 				"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-				[]byte("test-key"),
+				[]byte{0x04},
 				false,
 			)
 			return err
