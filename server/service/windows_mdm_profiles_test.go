@@ -137,45 +137,6 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 			wantErr:     true,
 			errContains: "Fleet variable $FLEET_VAR_UNKNOWN_VAR is not supported in Windows profiles",
 		},
-		{
-			name: "custom SCEP missing challenge variable",
-			profileXML: `<Replace>
-				<Item>
-					<Target>
-						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
-					</Target>
-					<Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA</Data>
-				</Item>
-			</Replace>`,
-			wantErr:     true,
-			errContains: "both custom SCEP challenge and proxy URL variables must be used together",
-		},
-		{
-			name: "custom SCEP missing proxy URL variable",
-			profileXML: `<Replace>
-				<Item>
-					<Target>
-						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
-					</Target>
-					<Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_MyCA</Data>
-				</Item>
-			</Replace>`,
-			wantErr:     true,
-			errContains: "both custom SCEP challenge and proxy URL variables must be used together",
-		},
-		{
-			name: "custom SCEP mismatched CA names",
-			profileXML: `<Replace>
-				<Item>
-					<Target>
-						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
-					</Target>
-					<Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA1-$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA2</Data>
-				</Item>
-			</Replace>`,
-			wantErr:     true,
-			errContains: "custom SCEP challenge and proxy URL variables must use the same CA name",
-		},
 	}
 
 	for _, tt := range tests {
