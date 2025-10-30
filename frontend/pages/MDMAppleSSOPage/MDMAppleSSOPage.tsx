@@ -58,7 +58,7 @@ const DEPSSOLoginPage = ({
           <p className={`${baseClass}__transparency-link`}>
             <CustomLink
               text="Why am I seeing this?"
-              url="https://fleetdm.com/transparency"
+              url="https://fleetdm.com/better"
               newTab
             />
           </p>
