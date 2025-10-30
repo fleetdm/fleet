@@ -114,4 +114,45 @@ describe("fileUtils", () => {
       description: "macOS",
     });
   });
+
+  describe("fileUtils - isSoftwareInstaller parameter", () => {
+    it('should return "macOS & Linux" for .sh files when isSoftwareInstaller is false (default)', () => {
+      const file = new File([""], "script.sh");
+      expect(getPlatformDisplayName(file)).toEqual("macOS & Linux");
+      expect(getPlatformDisplayName(file, false)).toEqual("macOS & Linux");
+      expect(getFileDetails(file)).toEqual({
+        name: "script.sh",
+        description: "macOS & Linux",
+      });
+      expect(getFileDetails(file, false)).toEqual({
+        name: "script.sh",
+        description: "macOS & Linux",
+      });
+    });
+
+    it('should return "Linux" for .sh files when isSoftwareInstaller is true', () => {
+      const file = new File([""], "installer.sh");
+      expect(getPlatformDisplayName(file, true)).toEqual("Linux");
+      expect(getFileDetails(file, true)).toEqual({
+        name: "installer.sh",
+        description: "Linux",
+      });
+    });
+
+    it("should not affect other file extensions when isSoftwareInstaller is true", () => {
+      const testCases = [
+        { fileName: "test.pkg", expected: "macOS" },
+        { fileName: "test.exe", expected: "Windows" },
+        { fileName: "test.ps1", expected: "Windows" },
+        { fileName: "test.deb", expected: "Linux" },
+      ];
+
+      testCases.forEach(({ fileName, expected }) => {
+        const file = new File([""], fileName);
+        // Should return same value regardless of isSoftwareInstaller
+        expect(getPlatformDisplayName(file, false)).toEqual(expected);
+        expect(getPlatformDisplayName(file, true)).toEqual(expected);
+      });
+    });
+  });
 });
