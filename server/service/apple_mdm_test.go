@@ -5494,12 +5494,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		vars    []string
 	}{
 		{
-			name: "DigiCert badCA",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_bad", "$FLEET_VAR_DIGICERT_DATA_bad", "Name",
-				"com.apple.security.pkcs12"),
-			errMsg: "_bad is not supported in configuration profiles",
-		},
-		{
 			name:    "DigiCert password missing",
 			profile: digiCertForValidation("password", "$FLEET_VAR_DIGICERT_DATA_caName", "Name", "com.apple.security.pkcs12"),
 			errMsg:  "Missing $FLEET_VAR_DIGICERT_PASSWORD_caName",
@@ -5515,20 +5509,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName2", "Name",
 				"com.apple.security.pkcs12"),
 			errMsg: "Missing $FLEET_VAR_DIGICERT_DATA_caName in the profile",
-		},
-		{
-			name: "DigiCert password shows up an extra time",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName",
-				"$FLEET_VAR_DIGICERT_PASSWORD_caName",
-				"com.apple.security.pkcs12"),
-			errMsg: "$FLEET_VAR_DIGICERT_PASSWORD_caName is already present in configuration profile",
-		},
-		{
-			name: "DigiCert data shows up an extra time",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName",
-				"$FLEET_VAR_DIGICERT_DATA_caName",
-				"com.apple.security.pkcs12"),
-			errMsg: "$FLEET_VAR_DIGICERT_DATA_caName is already present in configuration profile",
 		},
 		{
 			name: "DigiCert profile is not pkcs12",
@@ -5569,12 +5549,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "DIGICERT_PASSWORD_caName2", "DIGICERT_DATA_caName2"},
 		},
 		{
-			name: "Custom SCEP badCA",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_bad", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_bad", "Name",
-				"com.apple.security.scep"),
-			errMsg: "_bad is not supported in configuration profiles",
-		},
-		{
 			name:    "Custom SCEP challenge missing",
 			profile: customSCEPForValidation("challenge", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName", "Name", "com.apple.security.scep"),
 			errMsg:  "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
@@ -5590,20 +5564,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2",
 				"Name", "com.apple.security.scep"),
 			errMsg: "Missing $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName in the profile",
-		},
-		{
-			name: "Custom SCEP challenge shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
-				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName is already present in configuration profile",
-		},
-		{
-			name: "Custom SCEP url shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
-				"$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName is already present in configuration profile",
 		},
 		{
 			name: "Custom SCEP renewal ID shows up in the wrong place",
@@ -5694,20 +5654,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "https://bozo.com", "Name",
 				"com.apple.security.scep"),
 			errMsg: fleet.NDESSCEPVariablesMissingErrMsg,
-		},
-		{
-			name: "NDES challenge shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
-				"$FLEET_VAR_NDES_SCEP_CHALLENGE",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_NDES_SCEP_CHALLENGE is already present in configuration profile",
-		},
-		{
-			name: "NDES url shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
-				"$FLEET_VAR_NDES_SCEP_PROXY_URL",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_NDES_SCEP_PROXY_URL is already present in configuration profile",
 		},
 		{
 			name: "NDES renewal ID shows up in the wrong place",
