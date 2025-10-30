@@ -3,15 +3,12 @@ import { capitalize } from "lodash";
 
 import PATHS from "router/paths";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 import { SetupExperiencePlatform } from "interfaces/platform";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkWithContext from "components/LinkWithContext";
