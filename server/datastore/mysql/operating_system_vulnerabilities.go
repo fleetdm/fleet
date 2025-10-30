@@ -1098,56 +1098,52 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	// Step 4: Assign vulnerabilities and counts to result
 	// We iterate over the result map keys (not vulnsByKey) to ensure we capture
 	// all OS versions, including those with maxVulnerabilities=0 where vulnsByKey is empty
+
+	// Build reverse map: key -> []os_version_id for O(1) lookups
+	keyToOSVersionIDs := make(map[string][]uint)
+	for osVersionID, key := range linuxOSVersionMap {
+		keyToOSVersionIDs[key] = append(keyToOSVersionIDs[key], osVersionID)
+	}
+
 	for key := range result {
 		vulns := vulnsByKey[key]
 
-		// Calculate the actual count
+		// Calculate count
 		var count int
-		// Decide per key whether it's Linux or not
-		isLinuxKey := false
-		for _, k := range linuxOSVersionMap {
-			if k == key {
-				isLinuxKey = true
-				break
-			}
-		}
-		// For Linux OSs (using os_version_id), always use total_count when max_vulnerabilities is specified
-		// because the pre-aggregated table already deduplicates across kernels
-		switch {
-		case maxVulnerabilities != nil && isLinuxKey:
-			// Prefer max across os_version_ids mapped to this key to avoid undercount
-			for osVersionID, k := range linuxOSVersionMap {
-				if k == key {
+		if maxVulnerabilities == nil {
+			// No limit: use actual merged count
+			count = len(vulns)
+		} else {
+			// LIMIT specified: need total count before limiting
+			if osVersionIDs, isLinux := keyToOSVersionIDs[key]; isLinux {
+				// Linux: use max of database total_counts (approximation for multi-kernel scenarios)
+				for _, osVersionID := range osVersionIDs {
 					if totalCount, ok := totalCountByOSVersionID[osVersionID]; ok && int(totalCount) > count { //nolint:gosec,G115
 						count = int(totalCount) //nolint:gosec,G115
 					}
 				}
-			}
-		default:
-			// For non-Linux: use deduplicated count from cveSetByKey
-			// Since we fetch all CVEs without LIMIT, cveSetByKey contains all unique CVEs
-			if cveSetByKey[key] != nil {
-				count = len(cveSetByKey[key])
+			} else {
+				// Non-Linux: use actual count (we fetch all CVEs without database LIMIT)
+				count = len(vulns)
 			}
 		}
 
-		// Apply per-key limit after deduplication if maxVulnerabilities is specified.
-		// The SQL queries limit per OSID/OSVersionID, but when multiple share the same name+version
-		// (e.g., different architectures or kernel versions), we need to enforce the limit after merging.
-		if maxVulnerabilities != nil && *maxVulnerabilities == 0 {
-			// For max=0, return empty array but include the count
-			vulns = make([]fleet.CVE, 0)
-		} else if maxVulnerabilities != nil && *maxVulnerabilities > 0 && len(vulns) > *maxVulnerabilities {
-			// Sort by CVE in descending order for deterministic results (matches SQL ORDER BY cve DESC)
-			sort.Slice(vulns, func(i, j int) bool {
-				return vulns[i].CVE > vulns[j].CVE
-			})
-			vulns = vulns[:*maxVulnerabilities]
+		// Apply per-key limit after deduplication if maxVulnerabilities is specified
+		if maxVulnerabilities != nil {
+			if *maxVulnerabilities == 0 {
+				vulns = []fleet.CVE{}
+			} else if len(vulns) > *maxVulnerabilities {
+				sort.Slice(vulns, func(i, j int) bool {
+					return vulns[i].CVE > vulns[j].CVE
+				})
+				vulns = vulns[:*maxVulnerabilities]
+			}
 		}
 
 		if vulns == nil {
-			vulns = make([]fleet.CVE, 0)
+			vulns = []fleet.CVE{}
 		}
+
 		result[key] = fleet.OSVulnerabilitiesWithCount{
 			Vulnerabilities: vulns,
 			Count:           count,
