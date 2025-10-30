@@ -34,6 +34,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
@@ -143,13 +144,17 @@ const HostSoftwareLibrary = ({
     selectedSoftwareUpdates,
     setSelectedSoftwareUpdates,
   ] = useState<IHostSoftware | null>(null);
-  // these states and modal logic exist at this level intead of the page level to match the similar
+  // these states and modal logic exist at this level instead of the page level to match the similar
   // pattern on
   // the device user page, which facilitates manipulating relevant UI states e.g.
   // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
   const [
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWIpaInstallDetails,
+    setSelectedHostSWIpaInstallDetails,
   ] = useState<IHostSoftware | null>(null);
   const [
     selectedHostSWScriptDetails,
@@ -382,6 +387,15 @@ const HostSoftwareLibrary = ({
     [setSelectedHostSWInstallDetails]
   );
 
+  const onSetSelectedHostSWIpaInstallDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWIpaInstallDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWIpaInstallDetails]
+  );
+
   const onSetSelectedHostSWScriptDetails = useCallback(
     (hostSW?: IHostSoftware) => {
       if (hostSW) {
@@ -503,6 +517,7 @@ const HostSoftwareLibrary = ({
       onShowInventoryVersions,
       onShowUpdateDetails,
       onSetSelectedHostSWInstallDetails,
+      onSetSelectedHostSWIpaInstallDetails,
       onSetSelectedHostSWScriptDetails,
       onSetSelectedHostSWUninstallDetails,
       onSetSelectedVPPInstallDetails,
@@ -520,6 +535,7 @@ const HostSoftwareLibrary = ({
     onShowInventoryVersions,
     onShowUpdateDetails,
     onSetSelectedHostSWInstallDetails,
+    onSetSelectedHostSWIpaInstallDetails,
     onSetSelectedHostSWScriptDetails,
     onSetSelectedHostSWUninstallDetails,
     onSetSelectedVPPInstallDetails,
@@ -590,6 +606,20 @@ const HostSoftwareLibrary = ({
           }}
           hostSoftware={selectedHostSWInstallDetails}
           onCancel={() => setSelectedHostSWInstallDetails(null)}
+        />
+      )}
+      {selectedHostSWIpaInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          details={{
+            hostDisplayName,
+            fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
+            appName: selectedHostSWIpaInstallDetails.name,
+            commandUuid:
+              selectedHostSWIpaInstallDetails.software_package?.last_install
+                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+          }}
+          hostSoftware={selectedHostSWIpaInstallDetails}
+          onCancel={() => setSelectedHostSWIpaInstallDetails(null)}
         />
       )}
       {selectedHostSWScriptDetails && (

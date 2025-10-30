@@ -58,6 +58,7 @@ module.exports = {
 
       // Humans
       'noahtalerman',
+      'lppepper2',
       'mike-j-thomas',
       'mikermcneil',
       'lukeheath',
@@ -98,6 +99,7 @@ module.exports = {
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
+      'ds0x',
       'bettapizza',
       'irenareedy',
       'jakestenger',

@@ -8,7 +8,7 @@
       <LocURI>./Device/Vendor/MSFT/Policy/Config/RemoteDesktopServices/AllowUsersToConnectRemotely</LocURI>
     </Target>
     <Data>
-      <![CDATA[<enabled/><data id="SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" value="1"/>]]>
+      &lt;enabled/&gt;&lt;data id=&quot;SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services&quot; value=&quot;1&quot;/&gt;
     </Data>
   </Item>
 </Replace>

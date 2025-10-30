@@ -29,7 +29,7 @@ export type ISupportedGraphicNames = Extract<
 
 interface IFileUploaderProps {
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
-  message: string;
+  message: React.ReactNode;
   title?: string;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
@@ -67,7 +67,7 @@ interface IFileUploaderProps {
   onButtonClick?: () => void;
   fileDetails?: {
     name: string;
-    description?: string;
+    description?: React.ReactNode;
   };
   /** Indicates that this file uploader deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;

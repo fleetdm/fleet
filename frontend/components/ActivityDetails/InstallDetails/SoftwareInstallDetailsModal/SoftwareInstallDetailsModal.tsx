@@ -1,5 +1,7 @@
 /** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
- * we use SoftwareScriptDetailsModal */
+ * we use SoftwareScriptDetailsModal
+ * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
+ * we use SoftwareIpaInstallDetailsModal with the command_uuid */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
@@ -268,15 +270,23 @@ export const SoftwareInstallDetailsModal = ({
       },
     ];
 
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!swInstallResult?.post_install_script_output ||
+        !!swInstallResult?.output) &&
+      swInstallResult?.status !== "pending_install";
+
     return (
       <>
-        <RevealButton
-          isShowing={showInstallDetails}
-          showText="Details"
-          hideText="Details"
-          caretPosition="after"
-          onClick={toggleInstallDetails}
-        />
+        {showDetailsButton && (
+          <RevealButton
+            isShowing={showInstallDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleInstallDetails}
+          />
+        )}
         {showInstallDetails &&
           outputs.map(
             ({ label, value }) =>
@@ -362,10 +372,7 @@ export const SoftwareInstallDetailsModal = ({
         />
 
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-
-        {swInstallResult?.status !== "pending_install" &&
-          isInstalledByFleet &&
-          renderInstallDetailsSection()}
+        {isInstalledByFleet && renderInstallDetailsSection()}
       </div>
     );
   };

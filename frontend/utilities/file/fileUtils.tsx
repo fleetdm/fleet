@@ -1,6 +1,13 @@
+import React from "react";
 import { PackageType } from "interfaces/package_type";
+import TooltipWrapper from "components/TooltipWrapper";
 
-type IPlatformDisplayName = "macOS" | "Windows" | "Linux" | "macOS & Linux";
+type IPlatformDisplayName =
+  | "macOS"
+  | "Windows"
+  | "Linux"
+  | "iOS/iPadOS"
+  | "macOS & Linux";
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   string,
@@ -17,6 +24,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   "tar.gz": "Linux",
   sh: "macOS & Linux",
   ps1: "Windows",
+  ipa: "iOS/iPadOS",
 };
 
 /** Currently only using tar.gz, but keeping the others for future use
@@ -61,24 +69,42 @@ export const getExtensionFromFileName = (fileName: string) => {
   return ext as PackageType | undefined;
 };
 
-/** This gets the platform display name from the file. */
-export const getPlatformDisplayName = (file: File) => {
+/** This gets the platform display name from the file.
+ * Includes nuance for .sh software installers only supported on Linux
+ */
+export const getPlatformDisplayName = (
+  file: File,
+  isSoftwareInstaller = false
+) => {
   const fileExt = getExtensionFromFileName(file.name);
   if (!fileExt) {
     return undefined;
   }
+  if (fileExt === "ipa") {
+    return (
+      <TooltipWrapper tipContent="Software will be added for both platforms.">
+        {FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt]}
+      </TooltipWrapper>
+    );
+  }
+
+  if (fileExt === "sh" && isSoftwareInstaller) {
+    // Currently, .sh files for software installers are only supported for Linux
+    return "Linux";
+  }
+
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
 /** This gets the file details from the file. */
-export const getFileDetails = (file: File) => {
+export const getFileDetails = (file: File, isSoftwareInstaller = false) => {
   return {
     name: file.name,
-    description: getPlatformDisplayName(file),
+    description: getPlatformDisplayName(file, isSoftwareInstaller),
   };
 };
 
 export interface IFileDetails {
   name: string;
-  description?: string;
+  description?: React.ReactNode;
 }
