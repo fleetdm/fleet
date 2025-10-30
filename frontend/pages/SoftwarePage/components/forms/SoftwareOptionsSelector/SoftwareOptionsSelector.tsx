@@ -6,10 +6,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import {
-  getSelfServiceTooltip,
-  getSelfServiceHelpText,
-} from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
@@ -171,18 +168,13 @@ const SoftwareOptionsSelector = ({
           value={formData.selfService}
           onChange={(newVal: boolean) => onToggleSelfService(newVal)}
           className={`${baseClass}__self-service-checkbox`}
-          // TODO: Discuss the inconsistency of design with designer
           labelTooltipContent={
             !isSelfServiceDisabled &&
-            getSelfServiceTooltip(isIpaPackage || false)
+            getSelfServiceTooltip(
+              isIpaPackage || isPlatformIosOrIpados || false
+            )
           }
-          // TODO: Discuss the inconsistency of design with designer
-          helpText={
-            !isSelfServiceDisabled &&
-            isPlatformIosOrIpados &&
-            !isEditingSoftware &&
-            getSelfServiceHelpText(isPlatformIosOrIpados)
-          }
+          labelTooltipClickable
           disabled={isSelfServiceDisabled}
         >
           Self-service
