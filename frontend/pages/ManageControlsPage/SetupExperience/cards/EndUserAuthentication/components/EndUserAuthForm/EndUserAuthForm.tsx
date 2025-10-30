@@ -65,13 +65,6 @@ const EndUserAuthForm = ({
   return (
     <div className={baseClass}>
       <form>
-        <Checkbox
-          disabled={gitOpsModeEnabled}
-          value={isEndUserAuthEnabled}
-          onChange={onToggleEndUserAuth}
-        >
-          Turn on
-        </Checkbox>
         <p className={classes}>
           Require end users to authenticate with your{" "}
           <Link to={PATHS.ADMIN_INTEGRATIONS_SSO_END_USER}>
@@ -79,7 +72,9 @@ const EndUserAuthForm = ({
           </Link>{" "}
           when they set up their new hosts.
           <br />
-          <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>{" "}
+          <TooltipWrapper tipContent={getTooltipCopy()}>
+            macOS
+          </TooltipWrapper>{" "}
           hosts will also be required to agree to an{" "}
           <Link
             to={`${PATHS.ADMIN_INTEGRATIONS_MDM}#end-user-license-agreement`}
@@ -88,6 +83,13 @@ const EndUserAuthForm = ({
           </Link>{" "}
           if configured.
         </p>
+        <Checkbox
+          disabled={gitOpsModeEnabled}
+          value={isEndUserAuthEnabled}
+          onChange={onToggleEndUserAuth}
+        >
+          Turn on
+        </Checkbox>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button
