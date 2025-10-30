@@ -664,11 +664,6 @@ type getDeviceMDMManualEnrollProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getDeviceMDMManualEnrollProfileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Location", r.EnrollURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
-}
-
 func (r getDeviceMDMManualEnrollProfileResponse) Error() error { return r.Err }
 
 func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {

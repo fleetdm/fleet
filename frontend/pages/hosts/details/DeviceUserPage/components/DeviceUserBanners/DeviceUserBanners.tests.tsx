@@ -13,7 +13,6 @@ describe("Device User Banners", () => {
   it("renders the turn on mdm banner correctly", () => {
     render(
       <DeviceUserBanners
-        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
         mdmEnabledAndConfigured
@@ -22,6 +21,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(screen.getByText(turnOnMdmExpcetedText)).toBeInTheDocument();
@@ -30,7 +30,6 @@ describe("Device User Banners", () => {
   it("renders the reset key for non-linux disk encryption banner correctly", () => {
     render(
       <DeviceUserBanners
-        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
@@ -39,6 +38,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired="rotate_key"
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(
@@ -48,7 +48,6 @@ describe("Device User Banners", () => {
   it("renders the create new linux disk encryption key banner correctly for Ubuntu", () => {
     render(
       <DeviceUserBanners
-        deviceToken="foobar"
         hostPlatform="ubuntu"
         diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
         diskIsEncrypted
@@ -61,6 +60,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(
@@ -70,7 +70,6 @@ describe("Device User Banners", () => {
   it("renders the create new linux disk encryption key banner correctly for Fedora", () => {
     render(
       <DeviceUserBanners
-        deviceToken="foobar"
         hostPlatform="rhel"
         hostOsVersion="somethingsomethingfedorasomething"
         diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
@@ -84,6 +83,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(
@@ -94,7 +94,6 @@ describe("Device User Banners", () => {
   it("renders the create PIN banner correctly for Windows", () => {
     render(
       <DeviceUserBanners
-        deviceToken="foobar"
         hostPlatform="windows"
         diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
         diskIsEncrypted
@@ -107,6 +106,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
     expect(screen.getByText(createPINExepectedText)).toBeInTheDocument();
@@ -115,7 +115,6 @@ describe("Device User Banners", () => {
   it("renders no banner correctly for a mac that is verifying its disk encryption", () => {
     render(
       <DeviceUserBanners
-        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (manual)"
         mdmEnabledAndConfigured
@@ -125,6 +124,7 @@ describe("Device User Banners", () => {
         onTriggerEscrowLinuxKey={noop}
         diskEncryptionOSSetting={{ status: "verifying", detail: "" }}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
 
@@ -140,7 +140,6 @@ describe("Device User Banners", () => {
     // setup so mdm is not enabled and configured.
     render(
       <DeviceUserBanners
-        deviceToken="foobar"
         hostPlatform="darwin"
         mdmEnrollmentStatus={null}
         mdmEnabledAndConfigured={false}
@@ -149,6 +148,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
       />
     );
 

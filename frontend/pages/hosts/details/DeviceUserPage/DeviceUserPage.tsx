@@ -135,6 +135,7 @@ const DeviceUserPage = ({
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
+  const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -374,6 +375,25 @@ const DeviceUserPage = ({
     setShowEnrollMdmModal(!showEnrollMdmModal);
   }, [showEnrollMdmModal, setShowEnrollMdmModal]);
 
+  const onClickTurnOnMdm = useCallback(async () => {
+    if (host?.dep_assigned_to_fleet) {
+      // display the modal with auto-enroll instructions
+      setShowEnrollMdmModal(true);
+      return;
+    }
+    // otherwise, fetch the manual enrollment URL and open in new tab
+    try {
+      const resp = await deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken);
+      if (resp?.enroll_url) {
+        window.open(resp.enroll_url);
+      } else {
+        setEnrollUrlError("Enrollment URL is not available.");
+      }
+    } catch (e) {
+      setEnrollUrlError(`Failed to get enrollment URL. ${e}`);
+    }
+  }, [deviceAuthToken, host?.dep_assigned_to_fleet]);
+
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -532,7 +552,6 @@ const DeviceUserPage = ({
       <>
         <div className={`${baseClass} main-content`}>
           <DeviceUserBanners
-            deviceToken={deviceAuthToken}
             hostPlatform={host.platform}
             hostOsVersion={host.os_version}
             mdmEnrollmentStatus={host.mdm.enrollment_status}
@@ -545,6 +564,7 @@ const DeviceUserPage = ({
               host.mdm.macos_settings?.action_required ?? null
             }
             onClickCreatePIN={() => setShowBitLockerPINModal(true)}
+            onClickTurnOnMdm={onClickTurnOnMdm}
             onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
             diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
             diskIsEncrypted={host.disk_encryption_enabled}
@@ -761,7 +781,7 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {isDeviceUserError ? (
+      {isDeviceUserError || enrollUrlError ? (
         <DeviceUserError />
       ) : (
         <div className="core-wrapper">{renderDeviceUserPage()}</div>
