@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -609,5 +610,274 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.NoError(t, err)
 		require.True(t, ds.QueueEscrowFuncInvoked)
+	})
+}
+
+func TestAuthenticateDeviceByCertificate(t *testing.T) {
+	t.Run("success - valid certificate for iOS device", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid-ios"
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			require.Equal(t, certSerial, serialNumber)
+			return &types.HostIdentityCertificate{
+				SerialNumber: certSerial,
+				CommonName:   hostUUID,
+				HostID:       ptr.Uint(1),
+			}, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			require.Equal(t, hostUUID, identifier)
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "ios",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(1), host.ID)
+		require.Equal(t, "ios", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("success - valid certificate for iPadOS device", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(67890)
+		hostUUID := "test-uuid-ipados"
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return &types.HostIdentityCertificate{
+				SerialNumber: certSerial,
+				CommonName:   hostUUID,
+				HostID:       ptr.Uint(2),
+			}, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       2,
+				UUID:     hostUUID,
+				Platform: "ipados",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(2), host.ID)
+		require.Equal(t, "ipados", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("error - missing certificate serial", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, 0, "test-uuid")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - missing host UUID", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, 12345, "")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - certificate not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(99999)
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return nil, &mock.Error{Message: "certificate not found"}
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, "test-uuid")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - certificate CN does not match UUID", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid"
+
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return &types.HostIdentityCertificate{
+				SerialNumber: certSerial,
+				CommonName:   "different-uuid",
+				HostID:       ptr.Uint(1),
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - host not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "nonexistent-uuid"
+
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return &types.HostIdentityCertificate{
+				SerialNumber: certSerial,
+				CommonName:   hostUUID,
+				HostID:       ptr.Uint(1),
+			}, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, &mock.Error{Message: "host not found"}
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - host platform is not iOS or iPadOS (macOS)", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid-macos"
+
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return &types.HostIdentityCertificate{
+				SerialNumber: certSerial,
+				CommonName:   hostUUID,
+				HostID:       ptr.Uint(1),
+			}, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "darwin",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - host platform is not iOS or iPadOS (Windows)", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid-windows"
+
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return &types.HostIdentityCertificate{
+				SerialNumber: certSerial,
+				CommonName:   hostUUID,
+				HostID:       ptr.Uint(1),
+			}, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "windows",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - database error on certificate lookup", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return nil, errors.New("database connection error")
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, "test-uuid")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		require.Contains(t, err.Error(), "lookup certificate by serial")
+	})
+
+	t.Run("error - database error on host lookup", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid"
+
+		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+			return &types.HostIdentityCertificate{
+				SerialNumber: certSerial,
+				CommonName:   hostUUID,
+				HostID:       ptr.Uint(1),
+			}, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, errors.New("database connection error")
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		require.Contains(t, err.Error(), "lookup host by UUID")
 	})
 }

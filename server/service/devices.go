@@ -252,6 +252,57 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
+// AuthenticateDeviceByCertificate returns the host identified by the certificate
+// serial number and host UUID. This is used for iOS/iPadOS devices accessing the
+// My Device page via client certificate authentication. The certificate must match
+// the host's identity certificate, and the host must be iOS or iPadOS.
+func (svc *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (*fleet.Host, bool, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if certSerial == 0 {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing certificate serial"))
+	}
+
+	if hostUUID == "" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
+	}
+
+	// Look up the certificate by serial number
+	cert, err := svc.ds.GetHostIdentityCertBySerialNumber(ctx, certSerial)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: invalid or missing certificate"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "lookup certificate by serial")
+	}
+
+	// Verify certificate matches the host UUID (CN should match UUID)
+	if cert.CommonName != hostUUID {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: certificate does not match host"))
+	}
+
+	// Look up the host by UUID
+	host, err := svc.ds.HostByIdentifier(ctx, hostUUID)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: host not found"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "lookup host by UUID")
+	}
+
+	// Verify host platform is iOS or iPadOS
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: certificate authentication only supported for iOS and iPadOS devices"))
+	}
+
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Refetch Current Device's Host
 /////////////////////////////////////////////////////////////////////////////////
