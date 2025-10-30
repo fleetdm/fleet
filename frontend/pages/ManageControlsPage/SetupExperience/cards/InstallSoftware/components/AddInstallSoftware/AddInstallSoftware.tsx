@@ -132,11 +132,6 @@ const AddInstallSoftware = ({
         <p className={`${baseClass}__description`}>
           Install software on hosts that automatically enroll to Fleet.
         </p>
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/install-software`}
-          text="Learn how"
-        />
       </div>
       <span className={`${baseClass}__added-text`}>{addedText}</span>
       {!noSoftwareUploaded && (

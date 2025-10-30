@@ -11,6 +11,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import TooltipWrapper from "components/TooltipWrapper";
+import { Link } from "react-router";
 
 const baseClass = "end-user-auth-form";
 
@@ -72,22 +73,17 @@ const EndUserAuthForm = ({
           Turn on
         </Checkbox>
         <p className={classes}>
-          Require end users to authenticate with your identity provider (IdP)
-          and agree to an end user license agreement (EULA) when they setup
-          their new{" "}
-          <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>,{" "}
-          <TooltipWrapper tipContent={getTooltipCopy()}>iOS</TooltipWrapper>,{" "}
-          <TooltipWrapper tipContent={getTooltipCopy()}>iPadOS</TooltipWrapper>{" "}
-          and{" "}
-          <TooltipWrapper tipContent={getTooltipCopy(true)}>
-            Android
-          </TooltipWrapper>{" "}
-          hosts.{" "}
-          <CustomLink
-            url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
-            text="View IdP"
-          />{" "}
-          and <CustomLink url={PATHS.ADMIN_INTEGRATIONS_MDM} text="EULA" />.
+          Require end users to authenticate with your{" "}
+          <Link to={PATHS.ADMIN_INTEGRATIONS_SSO_END_USER}>
+            identity provider (IdP)
+          </Link>{" "}
+          when they set up their new hosts.{" "}
+          <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>{" "}
+          hosts will also be required to agree to an{" "}
+          <Link to={PATHS.ADMIN_INTEGRATIONS_MDM}>
+            end user license agreement (EULA)
+          </Link>{" "}
+          if configured.
         </p>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
