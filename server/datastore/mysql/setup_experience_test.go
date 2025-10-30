@@ -942,7 +942,16 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	// We need a new user first
 	user, err := ds.NewUser(ctx, &fleet.User{Name: "Foo", Email: "foo@example.com", GlobalRole: ptr.String("admin"), Password: []byte("12characterslong!")})
 	require.NoError(t, err)
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}})
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Filename:        "test.pkg",
+		Title:           "Test Software",
+		Version:         "1.0.0",
+		Source:          "apps",
+		Platform:        "darwin",
+		Extension:       "pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
 	require.NoError(t, err)
 	installer, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 	require.NoError(t, err)
@@ -991,10 +1000,11 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	expRes := []*fleet.SetupExperienceStatusResult{
 		{
 			HostUUID:            hostUUID,
-			Name:                "software",
+			Name:                "Test Software",
 			Status:              fleet.SetupExperienceStatusPending,
 			SoftwareInstallerID: ptr.Uint(installerID),
 			SoftwareTitleID:     installer.TitleID,
+			Source:              ptr.String("apps"),
 		},
 		{
 			HostUUID:        hostUUID,
@@ -1002,12 +1012,14 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Status:          fleet.SetupExperienceStatusPending,
 			VPPAppTeamID:    ptr.Uint(vppAppsTeamsID),
 			SoftwareTitleID: ptr.Uint(vppApp.TitleID),
+			Source:          ptr.String("apps"),
 		},
 		{
 			HostUUID:                hostUUID,
 			Name:                    "script",
 			Status:                  fleet.SetupExperienceStatusPending,
 			SetupExperienceScriptID: ptr.Uint(scriptID),
+			Source:                  nil, // Scripts don't have a source (no software title)
 		},
 	}
 
