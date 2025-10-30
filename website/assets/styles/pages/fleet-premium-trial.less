@@ -26,21 +26,19 @@
     line-height: 19.2px; /* 120% */
   }
 
-  [purpose='modal'] {
-
+  p {
+    line-height: 24px;
   }
+
+
   [purpose='close-button'] {
     position: relative;
   }
   [purpose='modal-close-button'] {
     .btn-reset();
     opacity: 0.6;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    padding-left: 16px;
-    padding-right: 16px;
-    top: -100px;
-    right: -32px;
+    top: -78px;
+    right: -21px;
     font-size: 28px;
     line-height: 1;
     &:hover {
@@ -57,6 +55,7 @@
     position: relative;
     max-width: 600px;
     margin: 0 auto;
+    min-width: 0px;
   }
   [purpose='modal-content'] {
     width: 600px;
@@ -71,7 +70,7 @@
    img {
      width: 32px;
      height: auto;
-     margin-bottom: 40px;
+     margin-bottom: 24px;
    }
   }
   [purpose='content'] {
@@ -166,6 +165,7 @@
     justify-content: center;
     align-items: center;
     // gap: 16px;
+    height: 200px;
     flex: 1 0 0;
     align-self: stretch;
     border-radius: 12px;
@@ -201,6 +201,7 @@
     gap: 16px;
     [purpose='modal-button'] {
       padding: 24px;
+      height: 200px;
     }
   }
   [purpose='license-icon'] {
@@ -240,29 +241,50 @@
       position: relative;
       // max-width: 100%;
     }
+    [purpose='modal'] {
+      max-width: unset;
+    }
+    [purpose='modal-close-button'] {
+      top: -128px;
+      right: -8px;
+    }
     [purpose='modal-content'] {
       position: relative;
       box-shadow: none;
       border: none;
       margin-top: 48px;
       width: 100%;
-      // max-width: 100%;
+      max-width: unset;
       padding: 48px;
     }
   }
   @media (max-width: 576px) {
     [purpose='modal-button-links'] {
       flex-direction: column;
+      gap: 24px;
     }
     [purpose='modal-alt-button-links'] {
       flex-direction: column;
+      gap: 24px;
     }
     [purpose='modal-content'] {
       box-shadow: none;
       margin-top: 0px;
       width: 100%;
-      padding: 48px;
+      padding: 24px;
     }
+    [purpose='modal-close-button'] {
+      top: -66px;
+      right: -8px;
+    }
+    [purpose='content'] {
+      br {
+        display: none;
+      }
+
+    }
+
+    // Move close button further in.
 
   }
 
