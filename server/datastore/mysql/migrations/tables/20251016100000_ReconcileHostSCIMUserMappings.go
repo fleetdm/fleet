@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251030132311, Down_20251030132311)
+	MigrationClient.AddMigration(Up_20251016100000, Down_20251016100000)
 }
 
-func Up_20251030132311(tx *sql.Tx) error {
+func Up_20251016100000(tx *sql.Tx) error {
 	// Find hosts with mdm_idp_accounts emails but no corresponding host_scim_user records
 	const findUnmappedHostsQuery = `
 		SELECT he.host_id, he.email
@@ -87,7 +87,7 @@ func Up_20251030132311(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251030132311(tx *sql.Tx) error {
+func Down_20251016100000(tx *sql.Tx) error {
 	// No down migration needed for data reconciliation
 	return nil
 }
