@@ -23,6 +23,7 @@ export interface IGetOSVersionsQueryParams {
   order_direction?: string;
   page?: number;
   per_page?: number;
+  max_vulnerabilities?: number;
 }
 
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsQueryParams {
@@ -66,6 +67,7 @@ export const getOSVersions = ({
   order_direction,
   page,
   per_page,
+  max_vulnerabilities = 0,
 }: IGetOSVersionsQueryParams = {}): Promise<IOSVersionsResponse> => {
   const { OS_VERSIONS } = endpoints;
   let path = OS_VERSIONS;
@@ -79,7 +81,7 @@ export const getOSVersions = ({
     order_direction,
     page,
     per_page,
-    max_vulnerabilities: 3,
+    max_vulnerabilities,
   };
 
   const queryString = buildQueryStringFromParams(params);
