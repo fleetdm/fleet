@@ -18,7 +18,6 @@ func Up_20251016100000(tx *sql.Tx) error {
 		LEFT JOIN host_scim_user hsu ON he.host_id = hsu.host_id
 		WHERE he.source = 'mdm_idp_accounts'
 		  AND hsu.host_id IS NULL
-		LIMIT 1000
 	`
 
 	rows, err := tx.Query(findUnmappedHostsQuery)
