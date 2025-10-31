@@ -271,6 +271,11 @@ To create and customize configuration profiles, download [iMazing Profile Editor
 
 For SCEP certificate configuration details, see [Okta's Device Access SCEP documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm).
 
----
+[*Get started with Fleet*](https://fleetdm.com/docs/get-started/why-fleet)
 
-*Get started with Fleet*
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="tux234">
+<meta name="authorFullName" value="Mitch Francese">
+<meta name="publishedOn" value="2025-10-30">
+<meta name="articleTitle" value="Deploying Platform SSO with Okta Device Access">
+<meta name="description" value="Learn how to use Fleet to deploy the Okta Platform SSO Extension">
