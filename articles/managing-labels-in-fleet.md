@@ -2,7 +2,7 @@
 
 ![Managing labels in Fleet](../website/assets/images/articles/managing-labels-in-fleet-1600x900@2x.png)
 
-In Fleet you can labels (tags), to scope [software](https://fleetdm.com/guides/deploy-software-packages), [policies](https://fleetdm.com/securing/what-are-fleet-policies), [queries](https://fleetdm.com/guides/queries), and [configuration profiles](https://fleetdm.com/guides/custom-os-settings) to specific hosts. In addition, you can use labels to create a custom filtered view of your hosts.
+In Fleet, you can use labels to scope [software](https://fleetdm.com/guides/deploy-software-packages), [policies](https://fleetdm.com/securing/what-are-fleet-policies), [queries](https://fleetdm.com/guides/queries), and [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for specific hosts, and filter the hosts view.
 
 Labels in Fleet can be on of the following types:
 - **Dynamic**: Query based label. All hosts that return a result to the query get this label applied.
