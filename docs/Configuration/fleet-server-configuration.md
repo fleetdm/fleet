@@ -2100,7 +2100,6 @@ library functions are available for processing values.
 ```
 
 **Example templates**
-
 | Description             | Template                                          | Result |
 |-------------------------|---------------------------------------------------|---------------------------------|
 | Route by hostname       | `results.{log.decorations.hostname}`              | `results.webserver-01`          |
