@@ -36,7 +36,8 @@ export type IEditCertAuthorityBody =
   | { ndes_scep_proxy: Partial<ICertificatesNDES> }
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
   | { hydrant: Partial<ICertificatesHydrant> }
-  | { smallstep: Partial<ICertificatesSmallstep> };
+  | { smallstep: Partial<ICertificatesSmallstep> }
+  | { custom_est: Partial<ICertificatesCustomEST> };
 
 export default {
   getCertificateAuthoritiesList: (): Promise<IGetCertAuthoritiesListResponse> => {
