@@ -1,0 +1,47 @@
+# OTEL Collector configuration overrides for production stability
+# These settings fix ClickHouse timeout issues by adding proper timeouts,
+# retry logic, and sending queues.
+
+otelCollector:
+  config:
+    exporters:
+      # Logs exporter with increased timeout and retry/queue support
+      clickhouselogsexporter:
+        timeout: 60s
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 5000
+
+      # Traces exporter with proper timeout and retry/queue support
+      clickhousetraces:
+        timeout: 120s
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 5000
+
+      # Metadata exporter with increased timeout and retry support
+      metadataexporter:
+        timeout: 60s
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+
+    processors:
+      # Optimized batch processor to reduce load
+      batch:
+        send_batch_size: 10000
+        timeout: 10s
