@@ -14,6 +14,7 @@ import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
+import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 
 // FIXME: do we care about the order of these? Should we alphabetize them or something?
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
@@ -31,6 +32,10 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     value: "custom_scep_proxy",
   },
   { label: "Smallstep", value: "smallstep" },
+  {
+    label: "Custom EST (Enrollment Over Secure Transport)",
+    value: "custom_est",
+  },
 ];
 
 /**
@@ -150,6 +155,22 @@ export const generateAddCertAuthorityData = (
           challenge_url: challengeURL,
           username: smallstepUsername,
           password: smallstepPassword,
+        },
+      };
+    case "custom_est":
+      // eslint-disable-next-line no-case-declarations
+      const {
+        name: customESTName,
+        url: customESTUrl,
+        username: customESTUsername,
+        password: customESTPassword,
+      } = formData as ICustomESTFormData;
+      return {
+        custom_est: {
+          name: customESTName,
+          url: customESTUrl,
+          username: customESTUsername,
+          password: customESTPassword,
         },
       };
     default:
