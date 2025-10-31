@@ -2073,6 +2073,42 @@ The value of the Content-Type header to use in [Kafka REST Proxy API calls](http
 
 ## NATS
 
+NATS subject configuration options (`nats_status_subject`, `nats_result_subject`,
+and `nats_audit_subject`) support dynamic routing using templates. Subjects can
+be constant strings or templates containing expressions enclosed in curly braces
+`{...}`.
+
+Expressions are evaluated using [expr](https://expr-lang.org/) and have access
+to the log data via the `log` variable. Fields can be accessed using dot
+notation (e.g., `log.name`, `log.decorations.hostname`). All of expr's standard
+library functions are available for processing values.
+
+**Example osquery result log structure:**
+```json
+{
+  "action": "snapshot",
+  "decorations": {
+    "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
+    "hostname": "webserver-01"
+  },
+  "hostIdentifier": "2d3b4dfc-9c1b-4617-ab07-c04dd3a754f0",
+  "name": "pack/Global/process_events",
+  "snapshot": [
+    {"pid": "1234", "name": "nginx", "cmdline": "/usr/sbin/nginx"}
+  ]
+}
+```
+
+**Example template expressions for osquery results:**
+- `fleet.results.{log.decorations.hostname}` - Route by hostname, produces
+  `fleet.results.webserver-01`
+- `fleet.results.{log.name | split('/') | last()}` - Extract query name from
+  path, produces `fleet.results.process_events`
+- `fleet.results.{log.action}.{log.decorations.hostname}` - Combine action and
+  hostname, produces `fleet.results.snapshot.webserver-01`
+- `fleet.results.{log.decorations.host_uuid | split('-') | first()}` - Use
+  first segment of UUID, produces `fleet.results.85c1244f`
+
 ### nats_server
 
 This flag only has effect if one of the following is true:
