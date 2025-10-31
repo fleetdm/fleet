@@ -682,18 +682,6 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	return nil
 }
 
-func updateSoftwareTitleDisplayName(ctx context.Context, tx sqlx.ExtContext, teamID *uint, titleID uint, displayName string) error {
-	_, err := tx.ExecContext(ctx, `
-		INSERT IGNORE INTO software_title_display_names
-			(team_id, software_title_id, display_name)
-		VALUES (?, ?, ?)`, teamID, titleID, displayName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
 	// NOTE: this is ok to only look in host_software_installs (and ignore
 	// upcoming_activities), because orbit should not be able to get the

@@ -2,17 +2,32 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/jmoiron/sqlx"
 )
+
+func updateSoftwareTitleDisplayName(ctx context.Context, tx sqlx.ExtContext, teamID *uint, titleID uint, displayName string) error {
+	_, err := tx.ExecContext(ctx, `
+		INSERT IGNORE INTO software_title_display_names
+			(team_id, software_title_id, display_name)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			display_name = VALUES(display_name)`, teamID, titleID, displayName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (ds *Datastore) getDisplayNamesByTeamAndTitleIds(ctx context.Context, teamID uint, titleIDs []uint) (map[uint]string, error) {
 	if len(titleIDs) == 0 {
 		return map[uint]string{}, nil
 	}
 
-	var args []interface{}
+	var args []any
 	query := `
 		SELECT software_title_id, display_name
 		FROM software_title_display_names
@@ -37,4 +52,23 @@ func (ds *Datastore) getDisplayNamesByTeamAndTitleIds(ctx context.Context, teamI
 	}
 
 	return iconsBySoftwareTitleID, nil
+}
+
+func (ds *Datastore) getSoftwareTitleDisplayName(ctx context.Context, teamID uint, titleID uint) (string, error) {
+	args := []any{teamID, titleID}
+	query := `
+		SELECT display_name
+		FROM software_title_display_names
+		WHERE team_id = ? AND software_title_id = ?
+	`
+	var displayName string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &displayName, query, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("SoftwareTitleDisplayName"), "get software title display name")
+		}
+		return "", ctxerr.Wrap(ctx, err, "get software title display name")
+	}
+
+	return displayName, nil
 }

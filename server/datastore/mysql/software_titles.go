@@ -97,6 +97,13 @@ GROUP BY
 		if icon != nil {
 			title.IconUrl = ptr.String(icon.IconUrl())
 		}
+
+		displayName, err := ds.getSoftwareTitleDisplayName(ctx, *teamID, id)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title display name")
+		}
+
+		title.DisplayName = displayName
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
