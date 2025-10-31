@@ -332,7 +332,7 @@ type SoftwareTitleListResult struct {
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
-	DisplayName   string  `json:"display_name", db:"display_name"`
+	DisplayName   string  `json:"display_name" db:"display_name"`
 }
 
 type SoftwareTitleListOptions struct {
