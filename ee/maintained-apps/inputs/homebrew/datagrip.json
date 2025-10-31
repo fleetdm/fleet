@@ -1,0 +1,8 @@
+{
+  "name": "DataGrip",
+  "slug": "datagrip/darwin",
+  "unique_identifier": "com.jetbrains.datagrip",
+  "token": "datagrip",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}
