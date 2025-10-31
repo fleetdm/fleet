@@ -592,8 +592,6 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Connect certificate authority (CA)
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
 
@@ -656,7 +654,6 @@ Object with the following structure:
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
-
 
 ##### smallstep
 
@@ -1630,7 +1627,7 @@ Modifies the Fleet's configuration with the supplied information.
 | org_name                          | string  | The organization name.                                                              |
 | org_logo_url                      | string  | The URL for the organization logo.                                                  |
 | org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.   |
-| contact_url                       | string  | A URL that can be used by end users to contact the organization.                    |
+| contact_url                       | string  | A URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that can be used by end users to contact the organization.                    |
 
 <br/>
 
@@ -3923,11 +3920,11 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Update custom human-device mapping
+### Update human-device mapping
 
 `PUT /api/v1/fleet/hosts/:id/device_mapping`
 
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+Updates the email for the data source in the human-device mapping. This source can only have one email.
 
 #### Parameters
 
@@ -3935,6 +3932,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id         | integer           | path | **Required**. The host's `id`.                                                |
 | email      | string            | body | **Required**. The custom email.                                               |
+| source     | string            | body | The data source to override. Either `"custom"` or `"idp"`. If `"idp"`, this will update the end user's `"idp_username"`. (Defaults to `"custom"`.)
 
 #### Example
 
@@ -4599,10 +4597,9 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
-
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this enables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/lock`
 
@@ -4613,26 +4610,11 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 | id | integer | path | **Required**. ID of the host to be locked. |
 | view_pin | boolean | query | For macOS hosts, whether to return the unlock PIN. |
 
-#### Example
-
-`POST /api/v1/fleet/hosts/123/lock`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "device_status": "unlocked",
-  "pending_action": "lock"
-}
-```
-
-#### Example
+#### Example with macOS unlock PIN
 
 `POST /api/v1/fleet/hosts/123/lock?view_pin=true`
 
-##### Default response (macOS hosts)
+##### Default response
 
 `Status: 200`
 
@@ -4650,9 +4632,9 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
+Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
 
-To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this disables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
@@ -4666,26 +4648,13 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
-##### Default response (Windows or Linux hosts)
+##### Default response
 
 `Status: 200`
 
 ```json
 {
   "host_id": 8,
-  "device_status": "locked",
-  "pending_action": "unlock"
-}
-```
-
-##### Default response (macOS hosts)
-
-`Status: 200`
-
-```json
-{
-  "host_id": 8,
-  "unlock_pin": "123456",
   "device_status": "locked",
   "pending_action": "unlock"
 }
@@ -6656,7 +6625,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
+| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6729,7 +6698,7 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |  Platform to update software for. Either `"macos"`, `"windows"`, or `"linux"`.  Defaults to `"macos"`. |
+| platform | string  | query |   Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
@@ -9456,6 +9425,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "display_name": "Firefox",
       "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
       "software_package": {
         "platform": "darwin",
@@ -9497,6 +9467,7 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 5,
@@ -9529,6 +9500,7 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
+      "display_name": "",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 1,
@@ -9565,6 +9537,30 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
+    },
+    {
+      "id": 12,
+      "name": "MyCustomApp",
+      "software_package": {
+        "name": "MyCustomApp-1.12.ipa",
+        "platform": "ios",
+        "version": "1.12",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null
+      },
+      "app_store_app": null,
+      "versions_count": 1,
+      "source": "ios_apps",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": null
+        }
+      ],
     }
   ],
   "meta": {
@@ -9616,6 +9612,7 @@ Get a list of all software versions.
       {
         "id": 1,
         "name": "glibc",
+        "display_name": "",
         "version": "2.12",
         "source": "rpm_packages",
         "release": "1.212.el6",
@@ -9639,6 +9636,7 @@ Get a list of all software versions.
       {
         "id": 2,
         "name": "1Password – Password Manager",
+        "display_name": "",
         "version": "2.10.0",
         "source": "chrome_extensions",
         "browser": "chrome",
@@ -9756,6 +9754,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "display_name": "Crowdstrike Falcon",
     "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
@@ -9837,6 +9836,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "display_name": "",
     "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
@@ -9875,6 +9875,61 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
+#### Example (in-house iOS app)
+
+`GET /api/v1/fleet/software/titles/24?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 12,
+    "name": "MyCustomApp",
+    "software_package": {
+      "name": "MyCustomApp-1.12.ipa",
+      "platform": "ios"
+      "fleet_maintained_id": null,
+      "version": "1.12",
+      "self_service": false,
+      "automatic_install_policies": null,
+      "categories": null,
+      "uploaded_at": "2025-08-15T00:55:03.96954Z",
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+      "title_id": 12,
+      "team_id": 3,
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      },
+      "installer_id": 332,
+      "install_script": null, 
+      "uninstall_script": null,
+      "post_install_script": null,
+      "pre_install_query": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+    },
+    "app_store_app": null,
+    "versions_count": 1,
+    "source": "ios_apps",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "1.12",
+        "vulnerabilities": null
+      }
+    ],
+  }
+}
+```
+
 ### Get software version
 
 Returns information about the specified software version.
@@ -9901,6 +9956,7 @@ Returns information about the specified software version.
   "software": {
     "id": 425224,
     "name": "Firefox.app",
+    "display_name": "Firefox",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
@@ -10049,8 +10105,7 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
-
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts.
 
 `POST /api/v1/fleet/software/package`
 
@@ -10116,6 +10171,7 @@ Content-Type: application/octet-stream
   "software_package": {
     "title_id": 123,
     "name": "FalconSensor-6.44.pkg",
+    "display_name": "",
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10157,6 +10213,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, .rpm, .tar.gz, and .ipa   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+| display_name    | string  | form | Optional override for the default `name`. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
@@ -10213,6 +10270,7 @@ Content-Type: application/octet-stream
 {
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
+    "display_name": "",
     "categories": [],
     "version": "6.44",
     "platform": "darwin",
@@ -10373,6 +10431,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
   "app_store_apps": [
     {
       "name": "Xcode",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "15.4",
       "app_store_id": "497799835",
@@ -10380,6 +10439,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
     },
     {
       "name": "Logic Pro",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
@@ -10387,6 +10447,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
     },
     {
       "name": "Logic Pro",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
@@ -10461,6 +10522,7 @@ Modify App Store (VPP) app's options.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
+| display_name    | string  | form | Optional override for the default `name`. |
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
@@ -10494,6 +10556,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 {
   "app_store_app": {
     "name": "Logic Pro",
+    "display_name": "",
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
