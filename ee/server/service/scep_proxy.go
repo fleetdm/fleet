@@ -145,19 +145,28 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	if len(parsedIDs) > 3 {
 		fleetChallenge = parsedIDs[3]
 	}
-	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
-		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
+	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) &&
+		!strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple and Windows config profiles are supported): %s",
 			profileUUID)}
 	}
-	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+
+	var profile *fleet.HostMDMCertificateProfile
+	if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+		profile, err = svc.ds.GetAppleHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+	} else if strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		profile, err = svc.ds.GetWindowsHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+	}
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
 	}
+
 	if profile == nil {
 		// Return error that implements kithttp.StatusCoder interface
 		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
 	}
-	if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
+	// We skip windows profiles for this check here as they instantly go to verifying when sent out, might change for windows renewal.
+	if (profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending) && !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
 		// This could happen if Fleet DB was updated before the profile was updated on the host.
 		// We expect another certificate request from the host once the profile is updated.
 		status := "null"
@@ -196,6 +205,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 				break
 			}
 		}
+
 		// TODO(sca): confirm if this resend method works for smallstep or if we need to use
 		// something like the approach taken for custom SCEP profiles (where we blank the command uuid
 		// to force a regeneration of the command bytes)
@@ -214,6 +224,18 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		if len(groupedCAs.CustomScepProxy) < 1 {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
+		for _, ca := range groupedCAs.CustomScepProxy {
+			if ca.Name == profile.CAName {
+				scepURL = ca.URL
+				break
+			}
+		}
+
+		if strings.HasPrefix(profile.ProfileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+			// TODO: Early return for Windows profiles as they do not support resending yet.
+			return scepURL, nil
+		}
+
 		if checkChallenge {
 			if err := svc.handleFleetChallenge(ctx, fleetChallenge, hostUUID, profileUUID); err != nil {
 				// FIXME: The layered logging implementation of the scepProxyService not
@@ -228,12 +250,6 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 				return "", &scepserver.BadRequestError{
 					Message: "custom scep challenge failed",
 				}
-			}
-		}
-		for _, ca := range groupedCAs.CustomScepProxy {
-			if ca.Name == profile.CAName {
-				scepURL = ca.URL
-				break
 			}
 		}
 	}
