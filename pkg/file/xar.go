@@ -618,7 +618,7 @@ func isValidAppFilePath(input string) (string, bool) {
 	}
 
 	if strings.HasSuffix(file, ".app") {
-		if dir == "Applications/" {
+		if strings.HasPrefix(dir, "Applications/") && strings.HasSuffix(dir, "/") {
 			return file, true
 		}
 	}
