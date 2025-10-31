@@ -150,13 +150,15 @@ module.exports = {
         return {'invalidEnterpriseToken': 'The provided enterprise token is invalid or expired.'};
       }
 
-      sails.log.warn('Error details when creating Android enterprise with Android Management API:', require('util').inspect(err));
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 400):', require('util').inspect(err));
 
       // For other 400 errors, still return as invalid token (client error)
       return {'invalidEnterpriseToken': 'Invalid request to Android Management API.'};
-    }).intercept({status: 401}, ()=>{
+    }).intercept({ status: 401 }, (err) => {
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 401):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Authorization failed with Android Management API.'};
-    }).intercept({status: 403}, ()=>{
+    }).intercept({status: 403}, (err)=>{
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 403):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Access forbidden to Android Management API.'};
     }).intercept((err)=>{
       // For all other errors (5XX, network errors, etc.), maintain existing behavior
