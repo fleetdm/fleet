@@ -5,7 +5,7 @@
 In Fleet, you can use labels to scope [software](https://fleetdm.com/guides/deploy-software-packages), [policies](https://fleetdm.com/securing/what-are-fleet-policies), [queries](https://fleetdm.com/guides/queries), and [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for specific hosts, and filter the hosts view.
 
 Labels can be one of the following types:
-- **Dynamic**: Query based label. All hosts that return a result to the query get this label applied.
+- **Dynamic**: A query-based label applied to any host that returns a result for the label’s query.
 - **Manual**: A list of selected hosts.
 - **Host vitals**: All hosts that have a specific host vital get this label applied. Currently only supported for IdP host vitals (groups and department) on macOS, iOS, iPadOS, and Android hosts.
 
