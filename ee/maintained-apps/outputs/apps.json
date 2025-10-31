@@ -86,6 +86,13 @@
       "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
     },
     {
+      "name": "DataGrip",
+      "slug": "datagrip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.datagrip",
+      "description": "A powerful cross-platform IDE for relational and NoSQL databases."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
