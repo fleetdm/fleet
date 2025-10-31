@@ -797,6 +797,7 @@ spec:
   software_package: null
   source: chrome_extensions
   extension_for: chrome
+  display_name: ""
   browser: chrome
   versions:
   - id: 0
@@ -821,6 +822,7 @@ spec:
   software_package: null
   source: deb_packages
   extension_for: ""
+  display_name: ""
   browser: ""
   versions:
   - id: 0
@@ -839,6 +841,7 @@ spec:
       "name": "foo",
       "source": "chrome_extensions",
       "extension_for": "chrome",
+      "display_name": "",
       "browser": "chrome",
       "hosts_count": 2,
       "icon_url": null,
@@ -874,6 +877,7 @@ spec:
       "id": 0,
       "name": "bar",
       "source": "deb_packages",
+      "display_name": "",
       "extension_for": "",
       "browser": "",
       "hosts_count": 0,
@@ -1040,7 +1044,7 @@ spec:
       "bundle_identifier": "bundle",
       "source": "deb_packages",
       "browser": "",
-	  "extension_for": "",	
+	  "extension_for": "",
       "generated_cpe": "",
       "vulnerabilities": null
     }
