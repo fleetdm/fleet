@@ -229,9 +229,13 @@ export const SoftwareInstallDetailsModal = ({
   );
 
   const renderScriptDetailsSection = () => {
-    if (swInstallResult?.status !== "pending_install") {
-      return (
-        <>
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      swInstallResult?.status !== "pending_install" && swInstallResult?.output;
+
+    return (
+      <>
+        {showDetailsButton && (
           <RevealButton
             isShowing={showInstallDetails}
             showText="Details"
@@ -239,14 +243,14 @@ export const SoftwareInstallDetailsModal = ({
             caretPosition="after"
             onClick={toggleInstallDetails}
           />
-          {showInstallDetails && swInstallResult?.output && (
-            <Textarea label="Script output:" variant="code">
-              {swInstallResult.output}
-            </Textarea>
-          )}
-        </>
-      );
-    }
+        )}
+        {showInstallDetails && swInstallResult?.output && (
+          <Textarea label="Script output:" variant="code">
+            {swInstallResult.output}
+          </Textarea>
+        )}
+      </>
+    );
   };
 
   const hostDisplayname =

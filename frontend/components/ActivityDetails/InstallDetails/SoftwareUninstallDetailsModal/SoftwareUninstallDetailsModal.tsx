@@ -222,6 +222,11 @@ const SoftwareUninstallDetailsModal = ({
       return <DataError description="No data returned." />;
     }
 
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!uninstallResult?.script_contents || !!uninstallResult?.output) &&
+      uninstallStatus !== "pending_uninstall";
+
     return (
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
@@ -235,7 +240,7 @@ const SoftwareUninstallDetailsModal = ({
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
-        {uninstallStatus !== "pending_uninstall" && (
+        {showDetailsButton && (
           <RevealButton
             isShowing={showDetails}
             showText="Details"
