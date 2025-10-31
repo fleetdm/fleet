@@ -44,7 +44,7 @@ When GitOps syncs the configuration, it looks for variables in scripts and profi
 
 On subsequent GitOps syncs, if a variable is used by an updated configuration profile, the profile will be resent to the host device(s).
 
-Variables aren't removed on GitOps runs. You can delete them on the `Controls` > `Variables` page.
+Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
 
 > Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small team first.
 
