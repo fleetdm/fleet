@@ -13613,7 +13613,14 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	// manual enrollment from My Device
 	token := "token_test_manual_enroll"
 	createHostAndDeviceToken(t, s.ds, token)
-	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	var r getDeviceMDMManualEnrollProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r)
+	u, err := url.Parse(r.EnrollURL)
+	require.NoError(t, err)
+	q, err := url.ParseQuery(u.RawQuery)
+	require.NoError(t, err)
+	require.Equal(t, enrollSecretWithInvalidChars, q.Get("enroll_secret"))
+	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(q.Get("enroll_secret")))
 
 	// automatic enrollment by token
 	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
@@ -14633,7 +14640,7 @@ func (s *integrationMDMTestSuite) TestSmallstepSCEPProxy() {
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               "Smallstep",
 		},
@@ -14650,7 +14657,7 @@ func (s *integrationMDMTestSuite) TestSmallstepSCEPProxy() {
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               "Smallstep",
 		},
