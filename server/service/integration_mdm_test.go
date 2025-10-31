@@ -14341,7 +14341,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "invalid identifier")
 	// Non-Apple config profile (missing leading 'a')
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CwbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -14633,7 +14633,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "invalid identifier")
 	// Non-Apple config profile (missing leading 'a')
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CwbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
