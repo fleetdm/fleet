@@ -8,7 +8,7 @@ The Fleet roadmap is set for fall 2025. Watch the video above for a walkthrough,
 
 In the next 3 months, Fleet will ship...
 
-- 👔 Customize first-time Linux and Windows setup
+- 👔 Customize first-time Linux, Windows, iOS/iPadOS, and Android (BYOD) setup
 - 🔧 Self-service scripts on macOS, Linux, and Windows
 - 📄 Deploy certificates for Wi-Fi and VPN on company-owned Linux & Windows computers and personal mobile devices (iOS/iPadOS, Android)
 - 🤖 Manage personal (BYOD) Android: enforce OS settings and manage software in work profiles
