@@ -88,12 +88,22 @@ export interface ICertificatesSmallstep {
   password: string;
 }
 
+export interface ICertificatesCustomEST {
+  id?: number;
+  type?: "custom_est";
+  name: string;
+  url: string;
+  username: string;
+  password: string;
+}
+
 export type ICertificateAuthorityType =
   | "ndes_scep_proxy"
   | "digicert"
   | "custom_scep_proxy"
   | "hydrant"
-  | "smallstep";
+  | "smallstep"
+  | "custom_est";
 
 /** all the types of certificates */
 export type ICertificateAuthority =
