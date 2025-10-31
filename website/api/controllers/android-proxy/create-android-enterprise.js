@@ -149,6 +149,9 @@ module.exports = {
           errorString.includes('ExpiredTokenException')) {
         return {'invalidEnterpriseToken': 'The provided enterprise token is invalid or expired.'};
       }
+
+      sails.log.warn('Error details when creating Android enterprise with Android Management API:', require('util').inspect(err));
+
       // For other 400 errors, still return as invalid token (client error)
       return {'invalidEnterpriseToken': 'Invalid request to Android Management API.'};
     }).intercept({status: 401}, ()=>{
