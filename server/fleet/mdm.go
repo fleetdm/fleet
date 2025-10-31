@@ -58,7 +58,7 @@ const (
 	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
-	FleetVarHostUUID                        FleetVarName = "HOST_UUID" // Windows only
+	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"

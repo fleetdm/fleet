@@ -71,7 +71,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		return titleID
 	}
 
-	// Add macOS and iOS apps to team 1
+	// Add vpp apps to team 1
 	macOSApp := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
@@ -97,6 +97,19 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
+
+	iPadOSApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "3",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 3",
+		BundleIdentifier: "c-3",
+		IconURL:          "https://example.com/images/3",
+		LatestVersion:    "2.0.0",
+	}
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: macOSApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
 
@@ -111,6 +124,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
 			iOSApp.Name, getSoftwareTitleIDFromApp(iOSApp), iOSApp.AdamID, team.ID, iOSApp.Platform), 0)
+
+	// Add iPadOS app to team
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iPadOSApp.AdamID, SelfService: true, Platform: iPadOSApp.Platform}, http.StatusOK, &addAppResp)
+
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
+			iPadOSApp.Name, getSoftwareTitleIDFromApp(iPadOSApp), iPadOSApp.AdamID, team.ID, iPadOSApp.Platform), 0)
 
 	// Create hosts for testing
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
@@ -148,11 +169,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
-	expectedApps := []*fleet.VPPApp{macOSApp, errApp, iOSApp}
+	expectedApps := []*fleet.VPPApp{macOSApp, errApp, iOSApp, iPadOSApp}
 	expectedAppsByBundleID := map[string]*fleet.VPPApp{
-		macOSApp.BundleIdentifier: macOSApp,
-		errApp.BundleIdentifier:   errApp,
-		iOSApp.BundleIdentifier:   iOSApp,
+		macOSApp.BundleIdentifier:  macOSApp,
+		errApp.BundleIdentifier:    errApp,
+		iOSApp.BundleIdentifier:    iOSApp,
+		iPadOSApp.BundleIdentifier: iPadOSApp,
 	}
 	addedApp := expectedApps[0]
 
@@ -779,6 +801,15 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	}
 	require.NotZero(t, iosTitleID)
 
+	var ipadosTitleID uint
+	for _, sw := range listSw.SoftwareTitles {
+		if sw.Name == iPadOSApp.Name && sw.Source == "ipados_apps" {
+			ipadosTitleID = sw.ID
+			break
+		}
+	}
+	require.NotZero(t, ipadosTitleID)
+
 	// Trigger install to the iOS device
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, iosTitleID), &installSoftwareRequest{},
@@ -881,6 +912,81 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+
+	// ========================================================
+	// Test iOS VPP app self service installation
+	// ========================================================
+
+	type SSVPPTestData struct {
+		host     *fleet.Host
+		app      *fleet.VPPApp
+		device   *mdmtest.TestAppleMDMClient
+		platform string
+		uuid     string
+		titleID  uint
+	}
+	// Edit iOS app to enable self service
+	require.NotZero(t, iosTitleID)
+	require.NotZero(t, ipadosTitleID)
+	updateAppResp := updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", iosTitleID), &updateAppStoreAppRequest{TitleID: iosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
+	updateAppResp = updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", ipadosTitleID), &updateAppStoreAppRequest{TitleID: ipadosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
+
+	ssVppData := []SSVPPTestData{
+		{platform: "ios", uuid: "uuid-ios-test-111111", titleID: iosTitleID, app: iOSApp},
+		{platform: "ipados", uuid: "uuid-ipad-test-222222", titleID: ipadosTitleID, app: iPadOSApp}}
+
+	for i, data := range ssVppData {
+		// Enroll device, add serial number to fake Apple server, and transfer to team
+		data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer",
+			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+		// Trigger install to the device
+		data.host.UUID = data.uuid
+		ssInstallResp := submitSelfServiceSoftwareInstallResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), &installSoftwareRequest{},
+			http.StatusAccepted, &ssInstallResp)
+
+		// Verify pending status
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
+		require.Equal(t, 1, countResp.Count)
+
+		// Simulate successful installation on device
+		opts := vppInstallOpts{
+			appInstallTimeout:  false,
+			appInstallVerified: true,
+			failOnInstall:      false,
+			bundleID:           data.app.BundleIdentifier,
+		}
+		installCmdUUID = processVPPInstallOnClient(data.device, opts)
+
+		// Verify successful installation
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
+		assert.Len(t, listResp.Hosts, 2-i)
+		assert.Equal(t, data.host.ID, listResp.Hosts[len(listResp.Hosts)-1].ID)
+
+		// Verify activity log entry
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null}`,
+				data.host.ID,
+				data.host.DisplayName(),
+				data.app.Name,
+				data.app.AdamID,
+				installCmdUUID,
+				fleet.SoftwareInstalled,
+			),
+			0,
+		)
+	}
 }
 
 // for https://github.com/fleetdm/fleet/issues/31083
