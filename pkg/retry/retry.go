@@ -10,14 +10,19 @@ import (
 type ErrorOutcome int
 
 const (
+	// ErrorOutcomeNormalRetry indicates that the error is retryable
+	// and the retry loop should continue as normal.
 	ErrorOutcomeNormalRetry ErrorOutcome = iota
-	// Reset attempts counter and backoff.
-	// Useful for hijacking the retry cycle to retry
-	// indefinitely until a certain condition is met.
+	// ErrorOutcomeResetAttempts indicates that the retry attempts counter
+	// should be reset to zero.
+	// Useful for hijacking the retry cycle to retry indefinitely
+	// until a certain condition is met.
 	ErrorOutcomeResetAttempts
-	// Ignore the error and return as if successful.
+	// ErrorOutcomeIgnore indicates that the error should be ignored
+	// and the retry loop should exit successfully.
 	ErrorOutcomeIgnore
-	// Bail out of the retry loop immediately.
+	// ErrorOutcomeDoNotRetry indicates that the error is not retryable
+	// and the retry loop should exit with the error.
 	ErrorOutcomeDoNotRetry
 )
 
