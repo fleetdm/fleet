@@ -2101,12 +2101,11 @@ library functions are available for processing values.
 
 **Example templates**
 
-| Description | Template | Result |
-|-------------|----------|--------|
-| Route by hostname | `fleet.results.{log.decorations.hostname}` | `fleet.results.webserver-01` |
-| Extract query name from path | `fleet.results.{log.name \| split("/") \| last()}` | `fleet.results.process_events` |
-| Combine action and hostname | `fleet.results.{log.action}.{log.decorations.hostname}` | `fleet.results.snapshot.webserver-01` |
-| Use first segment of UUID | `fleet.results.{log.decorations.host_uuid \| split("-") \| first()}` | `fleet.results.85c1244f` |
+| Description             | Template                                          | Result |
+|-------------------------|---------------------------------------------------|---------------------------------|
+| Route by hostname       | `results.{log.decorations.hostname}`              | `results.webserver-01`          |
+| Extract query name      | `results.{log.name \| split("/") \| last()}`      | `results.process_events`        |
+| Use action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver-01` |
 
 ### nats_server
 
