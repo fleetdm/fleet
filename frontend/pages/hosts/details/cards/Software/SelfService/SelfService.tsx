@@ -15,7 +15,7 @@ import { INotification } from "interfaces/notification";
 import {
   IDeviceSoftware,
   IHostSoftware,
-  IHostSoftwareWithUiStatus,
+  IDeviceSoftwareWithUiStatus,
   IVPPHostSoftware,
 } from "interfaces/software";
 
@@ -35,33 +35,39 @@ import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDe
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 
-import UpdatesCard from "./UpdatesCard/UpdatesCard";
+import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
 import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
-import SoftwareUpdateModal from "../SoftwareUpdateModal";
-import UninstallSoftwareModal from "./UninstallSoftwareModal";
-import SoftwareInstructionsModal from "./OpenSoftwareModal";
+import SoftwareUpdateModal from "./components/SoftwareUpdateModal";
+import UninstallSoftwareModal from "./components/UninstallSoftwareModal";
+import SoftwareInstructionsModal from "./components/OpenSoftwareModal";
 
-import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
+import { generateSoftwareTableHeaders } from "./components/SelfServiceTable/SelfServiceTableConfig";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import { getUiStatus } from "../helpers";
 
 const baseClass = "software-self-service";
 
-// These default params are not subject to change by the user
-const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 9999, // Note: There is no API pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
-  order_key: "name",
-  order_direction: "asc",
-  self_service: true,
-  category_id: undefined,
-} as const;
-
-const DEFAULT_SEARCH_QUERY = "";
-const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_SORT_HEADER = "name";
-const DEFAULT_PAGE = 0;
-const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
+// Kept separately for stable, API-specific filtering (e.g., self_service: true)
+// that uses client-only search/filtering after fetching.
+const DEFAULT_SELF_SERVICE_CONFIG = {
+  // API default params are not subject to change by user
+  api: {
+    per_page: 9999, // Note: There is no API pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
+    order_key: "name",
+    order_direction: "asc" as "asc" | "desc",
+    self_service: true,
+    category_id: undefined,
+  },
+  // Subject to change by user
+  ui: {
+    search_query: "",
+    page: 0,
+    sort_header: "name",
+    sort_direction: "asc" as "asc" | "desc",
+    page_size: 9999, // 4.77 Design decision to remove UI pagination
+  },
+};
 
 export const SELF_SERVICE_SUBHEADER =
   "Install organization-approved apps provided by your IT department.";
@@ -77,6 +83,7 @@ export interface ISoftwareSelfServiceProps {
   isHostDetailsPolling: boolean;
   hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
+  isMobileView?: boolean;
 }
 
 export const parseSelfServiceQueryParams = (queryParams: {
@@ -86,13 +93,17 @@ export const parseSelfServiceQueryParams = (queryParams: {
   order_direction?: "asc" | "desc";
   category_id?: string;
 }) => {
-  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
-  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
-  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
+  const searchQuery =
+    queryParams?.query ?? DEFAULT_SELF_SERVICE_CONFIG.ui.search_query;
+  const sortHeader =
+    queryParams?.order_key ?? DEFAULT_SELF_SERVICE_CONFIG.ui.sort_header;
+  const sortDirection =
+    queryParams?.order_direction ??
+    DEFAULT_SELF_SERVICE_CONFIG.ui.sort_direction;
   const page = queryParams?.page
     ? parseInt(queryParams.page, 10)
-    : DEFAULT_PAGE;
-  const pageSize = DEFAULT_CLIENT_SIDE_PAGINATION;
+    : DEFAULT_SELF_SERVICE_CONFIG.ui.page;
+  const pageSize = DEFAULT_SELF_SERVICE_CONFIG.ui.page_size;
   const categoryId = queryParams?.category_id
     ? parseInt(queryParams.category_id, 10)
     : undefined;
@@ -107,7 +118,7 @@ export const parseSelfServiceQueryParams = (queryParams: {
   };
 };
 
-const getInstallerName = (hostSW: IHostSoftwareWithUiStatus) => {
+const getInstallerName = (hostSW: IDeviceSoftwareWithUiStatus) => {
   if (hostSW.source === "apps" && hostSW.installed_versions) {
     const filePath = hostSW.installed_versions[0].installed_paths[0];
     // Match the last segment ending in .app and extract the name before .app
@@ -128,6 +139,7 @@ const SoftwareSelfService = ({
   isHostDetailsPolling,
   hostSoftwareUpdatedAt,
   hostDisplayName,
+  isMobileView = false,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
@@ -164,7 +176,7 @@ const SoftwareSelfService = ({
     false
   );
 
-  const enhancedSoftware = useMemo(() => {
+  const enhancedSoftware: IDeviceSoftwareWithUiStatus[] = useMemo(() => {
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
       ...software,
@@ -195,7 +207,7 @@ const SoftwareSelfService = ({
         id: deviceToken,
         page: 0, // Pagination is clientside
         query: "", // Search is now client-side to reduce API calls
-        ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
+        ...DEFAULT_SELF_SERVICE_CONFIG.api,
       },
     ];
   }, [deviceToken]);
@@ -373,7 +385,7 @@ const SoftwareSelfService = ({
   );
 
   const onClickUninstallAction = useCallback(
-    (hostSW: IHostSoftwareWithUiStatus) => {
+    (hostSW: IDeviceSoftwareWithUiStatus) => {
       selectedSoftwareForUninstall.current = {
         softwareId: hostSW.id,
         softwareName: hostSW.name,
@@ -388,7 +400,7 @@ const SoftwareSelfService = ({
   );
 
   const onClickOpenInstructionsAction = useCallback(
-    (hostSW: IHostSoftwareWithUiStatus) => {
+    (hostSW: IDeviceSoftwareWithUiStatus) => {
       selectedSoftwareForInstructions.current = {
         softwareName: getInstallerName(hostSW),
         softwareSource: hostSW.source,
@@ -577,6 +589,26 @@ const SoftwareSelfService = ({
     onClickUninstallAction,
     onClickOpenInstructionsAction,
   ]);
+
+  if (isMobileView)
+    return (
+      <SelfServiceCard
+        contactUrl={contactUrl}
+        queryParams={queryParams}
+        enhancedSoftware={enhancedSoftware}
+        selfServiceData={selfServiceData}
+        tableConfig={tableConfig}
+        isLoading={isLoading}
+        isError={isError}
+        isFetching={isFetching}
+        isEmpty={isEmpty}
+        isEmptySearch={isEmptySearch}
+        router={router}
+        pathname={pathname}
+        isMobileView={isMobileView}
+        onClickInstallAction={onClickInstallAction}
+      />
+    );
 
   return (
     <div className={baseClass}>

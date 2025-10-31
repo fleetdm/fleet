@@ -137,9 +137,7 @@ describe("UpdatesCard", () => {
         isError // true
       />
     );
-    expect(
-      screen.getByText(/This URL is invalid or expired./i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
   });
 
   it("renders nothing if there are no updatable apps", () => {
