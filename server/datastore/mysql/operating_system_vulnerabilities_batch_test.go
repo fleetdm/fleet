@@ -673,6 +673,18 @@ func testListVulnsByMultipleOSVersionsWithMaxVulnerabilities(t *testing.T, ds *D
 				assert.Equal(t, 15, vulnData.Count, "Count should be 15 total unique CVEs across both architectures")
 			},
 		},
+		{
+			name:       "multi-arch with max=0 returns correct count",
+			maxVulns:   ptr.Int(0),
+			osVersions: []fleet.OSVersion{multiArchOS},
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				key := multiArchOS.NameOnly + "-" + multiArchOS.Version
+				vulnData, ok := vulnsMap[key]
+				assert.True(t, ok, "Should have entry for %s", key)
+				assert.Len(t, vulnData.Vulnerabilities, 0, "Should have 0 vulnerabilities when max=0")
+				assert.Equal(t, 15, vulnData.Count, "Count should be 15 total unique CVEs across both architectures")
+			},
+		},
 	}
 
 	for _, tc := range testCases {
