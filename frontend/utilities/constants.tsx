@@ -346,18 +346,17 @@ export const MDM_STATUS_TOOLTIP: Record<
 > = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically. IT admins can block end users from turning MDM off.
+      MDM was turned on automatically. IT admins can block end users from turning 
+      MDM off.
     </span>
   ),
   "On (manual)": (
-    <span>
-      MDM was turned on manually. End users can turn MDM off.
-    </span>
+    <span>MDM was turned on manually. End users can turn MDM off.</span>
   ),
   "On (personal)": (
     <span>
-      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad, or by 
-      creating a work profile on Android. End users can turn MDM off.
+      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad,
+      or by creating a work profile on Android. End users can turn MDM off.
     </span>
   ),
   "On (company-owned)": null,
