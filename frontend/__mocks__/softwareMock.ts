@@ -73,6 +73,7 @@ export const createMockSoftwareVulnerability = (
 const DEFAULT_SOFTWARE_VERSION_MOCK: ISoftwareVersion = {
   id: 1,
   name: "test.app",
+  display_name: "Test App",
   version: "1.2.3",
   bundle_identifier: "com.test.Desktop",
   source: "apps",

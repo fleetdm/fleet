@@ -179,7 +179,9 @@ const SoftwareVersionDetailsPage = ({
               className={`${baseClass}__summary-section`}
             >
               <SoftwareDetailsSummary
-                title={`${softwareVersion.name}, ${softwareVersion.version}`}
+                displayName={`${
+                  softwareVersion.display_name || softwareVersion.name
+                }, ${softwareVersion.version}`}
                 type={formatSoftwareType(softwareVersion)}
                 hostCount={hostsCount}
                 queryParams={{

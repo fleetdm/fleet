@@ -2,6 +2,7 @@ import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
 import { SoftwareCategory } from "interfaces/software";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
@@ -55,6 +56,42 @@ export interface IUploadVppTokenReponse {
 }
 
 export type IRenewVppTokenResponse = IUploadVppTokenReponse;
+
+const handleDisplayNameVppForm = (
+  formData: ISoftwareDisplayNameFormData,
+  teamId: number
+): IEditVppAppPostBody => {
+  return {
+    self_service: false, // or some default as needed
+    team_id: teamId,
+    // you might not need categories/labels with this form
+  };
+};
+
+const handleEditVppForm = (
+  formData: ISoftwareVppFormData,
+  teamId: number
+): IEditVppAppPostBody => {
+  const body: IEditVppAppPostBody = {
+    self_service: formData.selfService,
+    team_id: teamId,
+  };
+
+  if (formData.categories && formData.categories.length > 0) {
+    body.categories = formData.categories as SoftwareCategory[];
+  }
+
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  }
+
+  return body;
+};
 
 export default {
   getAppleAPNInfo: () => {
@@ -126,29 +163,17 @@ export default {
   editVppApp: (
     softwareId: number,
     teamId: number,
-    formData: ISoftwareVppFormData
+    formData: ISoftwareVppFormData | ISoftwareDisplayNameFormData
   ) => {
     const { EDIT_SOFTWARE_VPP } = endpoints;
-
-    const body: IEditVppAppPostBody = {
-      self_service: formData.selfService,
-      team_id: teamId,
-    };
-
-    // Add categories if present
-    if (formData.categories && formData.categories.length > 0) {
-      body.categories = formData.categories as SoftwareCategory[];
+    let body: IEditVppAppPostBody;
+    if ("displayName" in formData) {
+      // Handles Edit display name form only
+      body = handleDisplayNameVppForm(formData, teamId);
+    } else {
+      // Handles primary Edit VPP form
+      body = handleEditVppForm(formData as ISoftwareVppFormData, teamId);
     }
-
-    if (formData.targetType === "Custom") {
-      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
-      if (formData.customTarget === "labelsIncludeAny") {
-        body.labels_include_any = selectedLabels;
-      } else {
-        body.labels_exclude_any = selectedLabels;
-      }
-    }
-
     return sendRequest("PATCH", EDIT_SOFTWARE_VPP(softwareId), body);
   },
 

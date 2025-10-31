@@ -24,6 +24,7 @@ const MOCK_PROPS = {
     source: software.source,
     currentIconUrl: null,
     name: software.name,
+    titleName: software.name,
     countsUpdatedAt: "2025-09-03T12:00:00Z",
   },
 };
