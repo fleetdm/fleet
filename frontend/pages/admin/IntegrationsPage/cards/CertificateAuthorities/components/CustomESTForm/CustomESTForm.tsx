@@ -57,47 +57,45 @@ const CustomESTForm = ({
 
   return (
     <form onSubmit={onSubmitForm}>
-      <div className={`${baseClass}__fields`}>
-        <InputField
-          label="Name"
-          name="name"
-          value={name}
-          error={validations.name?.message}
-          onChange={onChange}
-          parseTarget
-          placeholder="WIFI_CERTIFICATE"
-          helpText="Letters, numbers, and underscores only."
-        />
-        <InputField
-          label="URL"
-          name="url"
-          value={url}
-          error={validations.url?.message}
-          onChange={onChange}
-          parseTarget
-          placeholder="https://example.com/well-known/est/abc123"
-        />
-        <InputField
-          label="Username"
-          name="username"
-          value={username}
-          error={validations.username?.message}
-          onChange={onChange}
-          parseTarget
-          helpText="The username used to authenticate with the EST endpoint."
-        />
-        <InputField
-          type="password"
-          label="Password"
-          name="password"
-          value={password}
-          error={validations.password?.message}
-          onChange={onChange}
-          parseTarget
-          helpText="The password used to authenticate with the EST endpoint."
-        />
-      </div>
-      <div className={`${baseClass}__cta`}>
+      <InputField
+        label="Name"
+        name="name"
+        value={name}
+        error={validations.name?.message}
+        onChange={onChange}
+        parseTarget
+        placeholder="WIFI_CERTIFICATE"
+        helpText="Letters, numbers, and underscores only."
+      />
+      <InputField
+        label="URL"
+        name="url"
+        value={url}
+        error={validations.url?.message}
+        onChange={onChange}
+        parseTarget
+        placeholder="https://example.com/well-known/est/abc123"
+      />
+      <InputField
+        label="Username"
+        name="username"
+        value={username}
+        error={validations.username?.message}
+        onChange={onChange}
+        parseTarget
+        helpText="The username used to authenticate with the EST endpoint."
+      />
+      <InputField
+        type="password"
+        label="Password"
+        name="password"
+        value={password}
+        error={validations.password?.message}
+        onChange={onChange}
+        parseTarget
+        helpText="The password used to authenticate with the EST endpoint."
+      />
+      <div className="modal-cta-wrap">
         <TooltipWrapper
           tipContent="Complete all required fields to save."
           underline={false}
