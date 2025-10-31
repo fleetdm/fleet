@@ -27,7 +27,7 @@ func Up_20251028163158(tx *sql.Tx) error {
 
 	_, err = tx.Exec(`UPDATE software SET upgrade_code = '' WHERE source = 'programs'`)
 	if err != nil {
-		return fmt.Errorf("failed to add default empty string value to software.upgrade_code column for rows where source == 'programs': %w", err)
+		return fmt.Errorf("failed to add default empty string value to software.upgrade_code column for rows where source = 'programs': %w", err)
 	}
 
 	// NULLIF(upgrade_code, "") prevents upgrade_code being used as the unique_identifier when it is
