@@ -5,10 +5,32 @@ import (
 	"time"
 )
 
+// ErrorOutcome tells retry.Do how to react to a returned error.
+// Use with WithErrorFilter to control retry behavior.
+type ErrorOutcome int
+
+const (
+	// ErrorOutcomeNormalRetry indicates that the error is retryable
+	// and the retry loop should continue as normal.
+	ErrorOutcomeNormalRetry ErrorOutcome = iota
+	// ErrorOutcomeResetAttempts indicates that the retry attempts counter
+	// should be reset to zero.
+	// Useful for hijacking the retry cycle to retry indefinitely
+	// until a certain condition is met.
+	ErrorOutcomeResetAttempts
+	// ErrorOutcomeIgnore indicates that the error should be ignored
+	// and the retry loop should exit successfully.
+	ErrorOutcomeIgnore
+	// ErrorOutcomeDoNotRetry indicates that the error is not retryable
+	// and the retry loop should exit with the error.
+	ErrorOutcomeDoNotRetry
+)
+
 type config struct {
 	initialInterval   time.Duration
 	backoffMultiplier int
 	maxAttempts       int
+	errorFilter       func(error) ErrorOutcome
 }
 
 // Option allows to configure the behavior of retry.Do
@@ -37,6 +59,14 @@ func WithMaxAttempts(a int) Option {
 	}
 }
 
+// WithErrorFilter sets a function that maps errors to retry outcomes.
+// The filter is evaluated before max‑attempts/backoff handling.
+func WithErrorFilter(f func(error) ErrorOutcome) Option {
+	return func(c *config) {
+		c.errorFilter = f
+	}
+}
+
 // Do executes the provided function, if the function returns a
 // non-nil error it performs a retry according to the options
 // provided.
@@ -61,6 +91,19 @@ func Do(fn func() error, opts ...Option) error {
 		err := fn()
 		if err == nil {
 			return nil
+		}
+		if cfg.errorFilter != nil {
+			switch cfg.errorFilter(err) {
+			case ErrorOutcomeIgnore:
+				return nil
+			case ErrorOutcomeResetAttempts:
+				attempts = 0
+				backoff = 1
+			case ErrorOutcomeDoNotRetry:
+				return err
+			default:
+				// continue with normal retry
+			}
 		}
 
 		if cfg.maxAttempts != 0 && attempts >= cfg.maxAttempts {
