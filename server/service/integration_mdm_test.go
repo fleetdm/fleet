@@ -1364,7 +1364,15 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	s.DoRaw("GET", "/api/latest/fleet/device/invalid_token/mdm/apple/manual_enrollment_profile", nil, http.StatusUnauthorized)
 
 	// valid token downloads the profile
-	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	var r1 getDeviceMDMManualEnrollProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r1)
+	require.NotEmpty(t, r1.EnrollURL)
+	require.Contains(t, r1.EnrollURL, s.server.URL+"/enroll?enroll_secret=")
+	u, err := url.Parse(r1.EnrollURL)
+	require.NoError(t, err)
+	q, err := url.ParseQuery(u.RawQuery)
+	require.NoError(t, err)
+	require.NotEmpty(t, q.Get("enroll_secret"))
 
 	// set end user auth enabled
 	appConfig, err := s.ds.AppConfig(t.Context())
@@ -1374,10 +1382,16 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	err = s.ds.SaveAppConfig(t.Context(), appConfig)
 	require.NoError(t, err)
 
-	// fails since team has end user auth enabled
-	res := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusBadRequest)
-	errText := extractServerErrorText(res.Body)
-	require.Contains(t, errText, "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work.")
+	// works with end user auth enabled
+	var r2 getDeviceMDMManualEnrollProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r2)
+	require.NotEmpty(t, r2.EnrollURL)
+	require.Contains(t, r2.EnrollURL, s.server.URL+"/enroll?enroll_secret=")
+	u2, err := url.Parse(r2.EnrollURL)
+	require.NoError(t, err)
+	q2, err := url.ParseQuery(u2.RawQuery)
+	require.NoError(t, err)
+	require.NotEmpty(t, q2.Get("enroll_secret"))
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -13606,7 +13620,14 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	// manual enrollment from My Device
 	token := "token_test_manual_enroll"
 	createHostAndDeviceToken(t, s.ds, token)
-	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	var r getDeviceMDMManualEnrollProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r)
+	u, err := url.Parse(r.EnrollURL)
+	require.NoError(t, err)
+	q, err := url.ParseQuery(u.RawQuery)
+	require.NoError(t, err)
+	require.Equal(t, enrollSecretWithInvalidChars, q.Get("enroll_secret"))
+	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(q.Get("enroll_secret")))
 
 	// automatic enrollment by token
 	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
@@ -14647,7 +14668,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},
@@ -14664,7 +14685,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},

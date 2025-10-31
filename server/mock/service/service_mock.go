@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"net/url"
 	"sync"
 	"time"
 
@@ -541,7 +542,7 @@ type SkipAuthFunc func(ctx context.Context)
 
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
-type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) ([]byte, error)
+type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -3915,7 +3916,7 @@ func (s *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef stri
 	return s.ReconcileMDMAppleEnrollRefFunc(ctx, enrollRef, machineInfo)
 }
 
-func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
+func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	s.mu.Lock()
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
