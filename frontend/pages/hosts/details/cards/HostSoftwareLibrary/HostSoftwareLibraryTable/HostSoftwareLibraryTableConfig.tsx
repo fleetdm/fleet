@@ -93,6 +93,7 @@ export const generateHostSWLibraryTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           icon_url,
           app_store_app,
@@ -113,7 +114,7 @@ export const generateHostSWLibraryTableHeaders = ({
 
         return (
           <SoftwareNameCell
-            name={name}
+            name={display_name || name}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}

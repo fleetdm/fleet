@@ -145,6 +145,7 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  display_name?: string;
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
@@ -189,6 +190,7 @@ export interface ISoftwareVulnerability {
 export interface ISoftwareVersion {
   id: number;
   name: string; // e.g., "Figma.app"
+  display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
@@ -496,6 +498,7 @@ export interface ISoftwareInstallVersion {
 
 export interface IHostSoftwarePackage {
   name: string;
+  display_name?: string;
   self_service: boolean;
   icon_url: string | null;
   version: string;
@@ -507,6 +510,7 @@ export interface IHostSoftwarePackage {
 }
 
 export interface IHostAppStoreApp {
+  display_name?: string;
   app_store_id: string;
   self_service: boolean;
   icon_url: string;
@@ -519,6 +523,7 @@ export interface IHostAppStoreApp {
 export interface IHostSoftware {
   id: number;
   name: string;
+  display_name?: string;
   icon_url: string | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;

@@ -393,8 +393,8 @@ const EditIconModal = ({
           className={`${baseClass}__preview-card__fleet`}
         >
           <SoftwareDetailsSummary
-            title={displayName || name}
-            name={displayName || name}
+            displayName={displayName || name}
+            name={name}
             type={type}
             source={source}
             iconUrl={

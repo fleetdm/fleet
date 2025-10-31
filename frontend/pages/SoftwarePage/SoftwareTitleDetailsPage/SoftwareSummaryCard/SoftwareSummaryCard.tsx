@@ -76,7 +76,7 @@ const SoftwareSummaryCard = ({
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
-          title={title.name}
+          displayName={title.name}
           type={formatSoftwareType(title)}
           versions={title.versions?.length ?? 0}
           hostCount={title.hosts_count}
