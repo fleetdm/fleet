@@ -181,7 +181,9 @@ type Service interface {
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	// When initiated from Orbit, the hostUUID is used to link the SSO
+	// session to a specific host.
+	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.

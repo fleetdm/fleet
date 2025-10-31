@@ -1395,6 +1395,9 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
+	// AssociateHostMDMIdPAccountDB associates a host with an MDM IdP account
+	AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error
+
 	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
 
