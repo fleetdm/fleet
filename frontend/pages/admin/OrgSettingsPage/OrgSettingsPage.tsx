@@ -24,7 +24,7 @@ interface IOrgSettingsPageProps {
 export const baseClass = "org-settings";
 
 const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
-  const { section } = params;
+  const { section, subsection } = params;
   const DEFAULT_SETTINGS_SECTION = ORG_SETTINGS_NAV_ITEMS[0];
 
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
@@ -139,6 +139,8 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
               handleSubmit={onFormSubmit}
               isUpdatingSettings={isUpdatingSettings}
               isPremiumTier={isPremiumTier}
+              router={router}
+              subsection={subsection}
             />
           ) : (
             <Spinner />

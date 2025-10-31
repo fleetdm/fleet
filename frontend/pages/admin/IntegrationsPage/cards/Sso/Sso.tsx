@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -13,6 +13,13 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
+import TabText from "../../../../../components/TabText";
+import TabNav from "../../../../../components/TabNav";
+import PATHS from "../../../../../router/paths";
+import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
+import { PLATFORM_BY_INDEX } from "../../../../ManageControlsPage/SetupExperience/cards/InstallSoftware/InstallSoftware";
+import { SetupExperiencePlatform } from "../../../../../interfaces/platform";
 
 const baseClass = "app-config-form";
 
@@ -77,11 +84,14 @@ const validate = (formData: ISsoFormData) => {
   return errors;
 };
 
+export const AUTH_TARGETS_BY_INDEX = ["fleet-users", "end-users"];
+
 const Sso = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
   isUpdatingSettings,
+  router,
 }: IAppConfigFormProps): JSX.Element => {
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
@@ -160,8 +170,26 @@ const Sso = ({
     handleSubmit(formDataToSubmit);
   };
 
-  return (
-    <SettingsSection title="Single sign-on (SSO)">
+  const handleTabChange = useCallback(
+    (index: number) => {
+      // eslint-disable-next-line no-alert
+      if (!confirm("Switch tabs?\n\nChanges you made will not be saved.")) {
+        return;
+      } // TODO check for dirty fields
+
+      const newSubsection = AUTH_TARGETS_BY_INDEX[index];
+
+      router.push(
+        newSubsection === "end-users"
+          ? PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS
+          : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS
+      );
+    },
+    [router]
+  );
+
+  const renderFleetSsoTab = () => {
+    return (
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
@@ -282,6 +310,27 @@ const Sso = ({
           )}
         />
       </form>
+    );
+  };
+
+  const renderEndUserSsoTab = () => <EndUserAuthSection />;
+
+  return (
+    <SettingsSection title="Single sign-on (SSO)">
+      <TabNav secondary>
+        <Tabs selectedIndex={1} onSelect={handleTabChange}>
+          <TabList>
+            <Tab>
+              <TabText>Fleet users</TabText>
+            </Tab>
+            <Tab>
+              <TabText>End users</TabText>
+            </Tab>
+          </TabList>
+          <TabPanel key="fleet-users">{renderFleetSsoTab()}</TabPanel>
+          <TabPanel key="end-users">{renderEndUserSsoTab()}</TabPanel>
+        </Tabs>
+      </TabNav>
     </SettingsSection>
   );
 };

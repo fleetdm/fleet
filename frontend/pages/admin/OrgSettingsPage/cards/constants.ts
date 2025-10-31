@@ -1,4 +1,5 @@
 import { IConfig } from "interfaces/config";
+import { InjectedRouter } from "react-router";
 
 export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
 
@@ -13,6 +14,8 @@ export interface IAppConfigFormProps {
   isPremiumTier?: boolean;
   isUpdatingSettings?: boolean;
   handleSubmit: (formUpdates: DeepPartial<IConfig>) => false | undefined;
+  router: InjectedRouter;
+  subsection?: string;
 }
 
 export const authMethodOptions = [

@@ -8,7 +8,6 @@ import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink/CustomLink";
 import Button from "components/buttons/Button/Button";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -107,14 +106,12 @@ const EndUserAuthSection = () => {
     return (
       <form>
         <p>
-          Connect Fleet to your identity provider to require end users to
-          authenticate when they first set up their macOS, iOS, iPadOS, and
-          Android hosts.{" "}
-          <CustomLink
-            url="https://fleetdm.com/learn-more-about/end-user-authentication"
-            text="Learn more"
-            newTab
-          />
+          If enabled in{" "}
+          <strong>
+            Controls &gt; Setup experience &gt; End user authentication
+          </strong>
+          , end users will be required to authenticate when they first set up
+          their host.
         </p>
         <div
           className={`form ${
