@@ -346,7 +346,7 @@ export const MDM_STATUS_TOOLTIP: Record<
 > = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically. IT admins can block end users from 
+      MDM was turned on automatically. IT admins can block end users from
       turning MDM off.
     </span>
   ),
