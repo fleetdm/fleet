@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -248,10 +249,42 @@ func (m *natsConstantRouter) Route(_ json.RawMessage) (string, error) {
 	return m.subject, nil
 }
 
-// natsTemplatePatcher patches the expression's AST so it uses the fast JSON
-// parser when getting a value from the log.
+// natsTemplateEnv is the evaluation environment for the template expressions.
+type natsTemplateEnv struct {
+	Log *fastjson.Value `expr:"log"`
+}
+
+// natsTemplateGet gets the value of a field from a fastjson value. If it is a
+// terminal type, it returns the string representation. Otherwise, it returns
+// the fastjson value.
+func natsTemplateGet(val *fastjson.Value, path string) any {
+	v := val.Get(path)
+
+	switch v.Type() {
+	case fastjson.TypeFalse:
+		return "false"
+
+	case fastjson.TypeNull:
+		return "null"
+
+	case fastjson.TypeNumber:
+		return strconv.FormatFloat(v.GetFloat64(), 'f', -1, 64)
+
+	case fastjson.TypeString:
+		return string(v.GetStringBytes())
+
+	case fastjson.TypeTrue:
+		return "true"
+	}
+
+	return v
+}
+
+// natsTemplatePatcher patches the expression's AST so it uses natsTemplateGet
+// to get the value of a field from the log.
 type natsTemplatePatcher struct{}
 
+// Visit is called by the expression compiler to patch the AST.
 func (p *natsTemplatePatcher) Visit(node *ast.Node) {
 	if n, ok := (*node).(*ast.MemberNode); ok {
 		ast.Patch(node, &ast.CallNode{
@@ -261,29 +294,12 @@ func (p *natsTemplatePatcher) Visit(node *ast.Node) {
 	}
 }
 
-// natsTemplateEnv is the evaluation environment for the template expressions.
-type natsTemplateEnv struct {
-	Log *fastjson.Value `expr:"$"`
-}
-
-// natsTemplateGet gets a value from a fastjson value using a path. If it is a
-// string, it returns the string. Otherwise, it returns the value.
-func natsTemplateGet(val *fastjson.Value, path string) any {
-	v := val.Get(path)
-
-	if v.Type() == fastjson.TypeString {
-		return string(v.GetStringBytes())
-	}
-
-	return v
-}
-
 // natsTemplateRouter uses the log contents to create a subject.
 type natsTemplateRouter struct {
 	// The parser for the log contents, which is reused between calls.
 	parser *fastjson.Parser
 
-	// Compiled expressions for each template tag.
+	// The compiled expressions for each template tag.
 	programs map[string]*vm.Program
 
 	// The template for the subject.
@@ -299,7 +315,7 @@ func newNatsTemplateRouter(subject string) *natsTemplateRouter {
 	}
 }
 
-// Route creates a subject from the log contents.
+// Route returns the subject for a log.
 func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 	// Parse the log contents into a fastjson value.
 	val, err := m.parser.ParseBytes(log)
@@ -307,8 +323,7 @@ func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 		return "", fmt.Errorf("failed to parse log: %w", err)
 	}
 
-	// Execute the template for each tag.
-	return m.template.ExecuteFuncStringWithErr(func(w io.Writer, tag string) (int, error) {
+	evalTag := func(w io.Writer, tag string) (int, error) {
 		// If this is the first time we see this tag, compile the expression.
 		if _, ok := m.programs[tag]; !ok {
 			pr, err := expr.Compile(
@@ -340,17 +355,20 @@ func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 		}
 
 		// Evaluate the expression.
-		v, err := expr.Run(m.programs[tag], env)
+		ret, err := expr.Run(m.programs[tag], env)
 		if err != nil {
 			return 0, err
 		}
 
 		// If the value is a string, write it to the writer.
-		if s, ok := v.(string); ok {
+		if s, ok := ret.(string); ok {
 			return io.WriteString(w, s)
 		}
 
 		// No value found?
-		return 0, fmt.Errorf("expected string, got %T: %v", v, v)
-	})
+		return 0, fmt.Errorf("expected string, got %T: %v", ret, ret)
+	}
+
+	// Execute the template for each tag.
+	return m.template.ExecuteFuncStringWithErr(evalTag)
 }

@@ -79,15 +79,16 @@ func makeNatsLogs(t *testing.T) []json.RawMessage {
 }
 
 func TestNatsLogRouter(t *testing.T) {
-	// Define an abbreviated test log.
+	// Define an abbreviated test query result.
 	testLog := json.RawMessage(`{
 		"action": "snapshot",
 		"decorations": {
 		  "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
 		  "hostname": "testhostname"
 		},
+		"epoch": 0,
 		"hostIdentifier": "2d3b4dfc-9c1b-4617-ab07-c04dd3a754f0",
-		"name": "pack/Global/testname",
+		"name": "pack/Global/testquery",
 		"numerics": false,
 		"snapshot": []
 	}`)
@@ -102,12 +103,12 @@ func TestNatsLogRouter(t *testing.T) {
 	})
 
 	t.Run("Template", func(t *testing.T) {
-		router := newNatsTemplateRouter("test.logs.{ $.name | split('/') | last() }.{ $.decorations.hostname }")
+		router := newNatsTemplateRouter("test.logs.{log.name | split('/') | last()}.{log.decorations.hostname}.{log.epoch}.{log.numerics}")
 
 		subject, err := router.Route(testLog)
 
 		require.NoError(t, err)
-		require.Equal(t, "test.logs.testname.testhostname", subject)
+		require.Equal(t, "test.logs.testquery.testhostname.0.false", subject)
 	})
 }
 
