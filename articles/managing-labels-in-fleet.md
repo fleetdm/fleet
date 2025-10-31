@@ -9,7 +9,7 @@ Labels in Fleet can be on of the following types:
 - **Manual**: A list of selected hosts.
 - **Host vitals**: All hosts that have a specific host vital get this label applied. Currently only supported for IdP host vitals (groups and department) on macOS, iOS, iPadOS, and Android hosts.
 
-To add or edit a label in Fleet, select the avatar  select the avatar on the right side of the top navigation and select **Labels**.
+To add or edit a label in Fleet, select the avatar on the right side of the top navigation and select **Labels**.
 
 You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
 
