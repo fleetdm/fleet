@@ -50,12 +50,13 @@ interface IHostSWLibraryTableHeaders {
   onShowInventoryVersions?: (software?: IHostSoftware) => void;
   onShowUpdateDetails: (software?: IHostSoftware) => void;
   onSetSelectedHostSWInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWIpaInstallDetails: (details?: IHostSoftware) => void;
   onSetSelectedHostSWScriptDetails: (details?: IHostSoftware) => void;
   onSetSelectedHostSWUninstallDetails: (
     details?: ISWUninstallDetailsParentState
   ) => void;
   onSetSelectedVPPInstallDetails: (s: IVPPHostSoftware) => void;
-  onClickInstallAction: (softwareId: number) => void;
+  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
   onClickUninstallAction: (softwareId: number) => void;
   isHostOnline: boolean;
   hostName: string;
@@ -73,6 +74,7 @@ export const generateHostSWLibraryTableHeaders = ({
   onShowInventoryVersions,
   onShowUpdateDetails,
   onSetSelectedHostSWInstallDetails,
+  onSetSelectedHostSWIpaInstallDetails,
   onSetSelectedHostSWScriptDetails,
   onSetSelectedHostSWUninstallDetails,
   onSetSelectedVPPInstallDetails,
@@ -136,6 +138,7 @@ export const generateHostSWLibraryTableHeaders = ({
             onShowInventoryVersions={onShowInventoryVersions}
             onShowUpdateDetails={onShowUpdateDetails}
             onShowInstallDetails={onSetSelectedHostSWInstallDetails}
+            onShowIpaInstallDetails={onSetSelectedHostSWIpaInstallDetails}
             onShowScriptDetails={onSetSelectedHostSWScriptDetails}
             onShowVPPInstallDetails={onSetSelectedVPPInstallDetails}
             onShowUninstallDetails={onSetSelectedHostSWUninstallDetails}

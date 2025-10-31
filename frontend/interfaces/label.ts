@@ -16,6 +16,15 @@ export default PropTypes.shape({
 
 export type LabelType = "regular" | "builtin";
 export type LabelMembershipType = "dynamic" | "manual" | "host_vitals";
+export const LabelMembershipTypeToDisplayCopy: Record<
+  LabelMembershipType,
+  string
+> = {
+  dynamic: "Dynamic",
+  manual: "Manual",
+  host_vitals: "Host vitals",
+};
+
 export type LabelHostVitalsCriterion =
   | "end_user_idp_group"
   | "end_user_idp_department"; // for now, may expand to be configurable

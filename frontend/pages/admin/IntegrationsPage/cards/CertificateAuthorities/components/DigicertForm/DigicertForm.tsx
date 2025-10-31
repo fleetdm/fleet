@@ -123,7 +123,7 @@ const DigicertForm = ({
             <>
               You can find the <b>Profile GUID</b> by opening one of the{" "}
               <CustomLink
-                text="Digicert profiles"
+                text="DigiCert profiles"
                 url="https://demo.one.digicert.com/mpki/policies/profiles"
                 newTab
               />

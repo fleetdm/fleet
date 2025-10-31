@@ -145,6 +145,22 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	s.withServer.commonTearDownTest(s.T())
 }
 
+// clearOktaConditionalAccess clears all Okta conditional access configuration fields.
+// This is useful for test cleanup to ensure tests don't interfere with each other.
+func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
+	body := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         nil,
+			"okta_assertion_consumer_service_url": nil,
+			"okta_audience_uri":                   nil,
+			"okta_certificate":                    nil,
+		},
+	}
+	b, err := json.Marshal(body)
+	require.NoError(s.T(), err)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", b, http.StatusOK)
+}
+
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	t := s.T()
 
@@ -4373,8 +4389,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NotNil(t, host3)
 
 	// set disk space information for some hosts (none provided for host3)
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0, nil))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0, ptr.Float64(1200.0)))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -14201,6 +14217,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUIDs[0],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14225,6 +14242,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload2.Filename,
 		InstallUUID:     installUUIDs[1],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14255,6 +14273,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstalled),
+		Source:          ptr.String("deb_packages"),
 	}
 	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -14291,6 +14310,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16578,6 +16598,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "installed",
+		"source": "apps",
 		"policy_id": %d,
 		"policy_name": "%s"
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
@@ -16598,6 +16619,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "%s",
+		"source": "deb_packages",
 		"policy_id": %d,
 		"policy_name": "%s"
 	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID, fleet.SoftwareInstallFailed, policy2Team1.ID, policy2Team1.Name), 0)
@@ -16640,6 +16662,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "%s",
+		"source": "programs",
 		"policy_id": %f,
 		"policy_name": "%s"
 	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID,
@@ -17588,6 +17611,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUID,
 		Status:          string(fleet.SoftwareInstallFailed),
+		Source:          ptr.String("rpm_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -18512,8 +18536,123 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     swInstallExecID,
 		Status:          string(fleet.SoftwareInstalled),
+		Source:          ptr.String("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+}
+
+// TestScriptPackageUploadValidation tests that script packages (.sh and .ps1)
+// properly ignore unsupported fields (install_script, post_install_script,
+// uninstall_script, pre_install_query) when uploaded via the API. These fields
+// are not supported because the file contents themselves become the install script.
+func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
+	t := s.T()
+
+	tmpDir := t.TempDir()
+
+	shScriptPath := filepath.Join(tmpDir, "test-script.sh")
+	shScriptContent := []byte("#!/bin/bash\necho 'Installing...'\n")
+	err := os.WriteFile(shScriptPath, shScriptContent, 0644)
+	require.NoError(t, err)
+
+	ps1ScriptPath := filepath.Join(tmpDir, "test-script.ps1")
+	ps1ScriptContent := []byte("Write-Host 'Installing...'\n")
+	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0644)
+	require.NoError(t, err)
+
+	t.Run("sh script package ignores unsupported fields", func(t *testing.T) {
+		installerFile, err := fleet.NewKeepFileReader(shScriptPath)
+		require.NoError(t, err)
+		defer installerFile.Close()
+
+		// Upload with unsupported fields populated
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "echo 'This should be ignored'",
+			PostInstallScript: "echo 'Post-install should be ignored'",
+			UninstallScript:   "echo 'Uninstall should be ignored'",
+			PreInstallQuery:   "SELECT 1",
+			Filename:          "test-script.sh",
+			InstallerFile:     installerFile,
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Verify fields were cleared
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+
+		var found bool
+		var titleID uint
+		for _, sw := range listResp.SoftwareTitles {
+			if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "test-script.sh" {
+				found = true
+				titleID = sw.ID
+				break
+			}
+		}
+		require.True(t, found, "Script package should be created")
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		installer := titleResp.SoftwareTitle.SoftwarePackage
+
+		require.Equal(t, string(shScriptContent), installer.InstallScript, ".sh script package should have install_script from file contents")
+		require.NotEqual(t, "echo 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Empty(t, installer.PostInstallScript, ".sh script package should not have post_install_script")
+		require.Empty(t, installer.UninstallScript, ".sh script package should not have uninstall_script")
+		require.Empty(t, installer.PreInstallQuery, ".sh script package should not have pre_install_query")
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
+	})
+
+	t.Run("ps1 script package ignores unsupported fields", func(t *testing.T) {
+		installerFile, err := fleet.NewKeepFileReader(ps1ScriptPath)
+		require.NoError(t, err)
+		defer installerFile.Close()
+
+		// Upload with unsupported fields populated
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "Write-Host 'This should be ignored'",
+			PostInstallScript: "Write-Host 'Post-install should be ignored'",
+			UninstallScript:   "Write-Host 'Uninstall should be ignored'",
+			PreInstallQuery:   "SELECT 1",
+			Filename:          "test-script.ps1",
+			InstallerFile:     installerFile,
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Verify fields were cleared
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+
+		var found bool
+		var titleID uint
+		for _, sw := range listResp.SoftwareTitles {
+			if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "test-script.ps1" {
+				found = true
+				titleID = sw.ID
+				break
+			}
+		}
+		require.True(t, found, "Script package should be created")
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		installer := titleResp.SoftwareTitle.SoftwarePackage
+
+		require.Equal(t, string(ps1ScriptContent), installer.InstallScript, ".ps1 script package should have install_script from file contents")
+		require.NotEqual(t, "Write-Host 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Empty(t, installer.PostInstallScript, ".ps1 script package should not have post_install_script")
+		require.Empty(t, installer.UninstallScript, ".ps1 script package should not have uninstall_script")
+		require.Empty(t, installer.PreInstallQuery, ".ps1 script package should not have pre_install_query")
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
+	})
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
@@ -19083,6 +19222,9 @@ var mockedConditionalAccessMicrosoftProxyInstance = &mockedConditionalAccessMicr
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	t := s.T()
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+	})
 
 	// Test license.managed_cloud is set on Cloud environments.
 	var acResp appConfigResponse
@@ -19182,7 +19324,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Nil(t, acResp.ConditionalAccess)
+	// ConditionalAccess is always initialized, but Entra fields should be empty
+	require.NotNil(t, acResp.ConditionalAccess)
+	require.Equal(t, "", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Create again with a different tenant.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
@@ -19216,7 +19361,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Nil(t, acResp.ConditionalAccess)
+	// ConditionalAccess is always initialized, but Entra fields should be empty
+	require.NotNil(t, acResp.ConditionalAccess)
+	require.Equal(t, "", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
@@ -19956,7 +20104,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["vim"],
+				executionIDs["test.tar.gz"],
 			),
 		), http.StatusNoContent)
 
@@ -19972,11 +20120,11 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Record a result for test.tar.gz.
+		// Record a result for vim
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -19985,7 +20133,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["test.tar.gz"],
+				executionIDs["vim"],
 			),
 		), http.StatusNoContent)
 
@@ -20181,8 +20329,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.NotEmpty(t, executionIDs["vim"])
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-		// Cancel the software install for vim.
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", ubuntuHost.ID, executionIDs["vim"]),
+		// Cancel the software install for test.tar.gz.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", ubuntuHost.ID, executionIDs["test.tar.gz"]),
 			nil, http.StatusNoContent)
 
 		// Get status of the "Setup experience" for the Ubuntu host.
@@ -20197,11 +20345,11 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Record a result for test.tar.gz.
+		// Record a result for vim.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -20210,7 +20358,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["test.tar.gz"],
+				executionIDs["vim"],
 			),
 		), http.StatusNoContent)
 
@@ -20226,9 +20374,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	t.Run("ubuntu-software-edited-during-se", func(t *testing.T) {
@@ -20311,6 +20459,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			"install_uuid": %q,
 			"status": "failed",
 			"self_service": false,
+			"source": "deb_packages",
 			"policy_name": null,
 			"policy_id": null
 		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", "vim.deb", executionIDs["vim"]), 0)
@@ -20571,7 +20720,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 					"install_script_output": "ok"
 				}`,
 			*ubuntuHost.OrbitNodeKey,
-			executionIDs["vim"],
+			executionIDs["test.tar.gz"],
 		),
 	), http.StatusNoContent)
 
@@ -20587,11 +20736,11 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
 	})
 	require.Equal(t, "test.tar.gz", orbitRes.Results.Software[0].Name)
-	require.EqualValues(t, "running", orbitRes.Results.Software[0].Status)
+	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
 	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
-	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+	require.EqualValues(t, "running", orbitRes.Results.Software[1].Status)
 
-	// Record a result for test.tar.gz.
+	// Record a result for vim.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 		fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -20600,7 +20749,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 					"install_script_output": "ok"
 				}`,
 			*ubuntuHost.OrbitNodeKey,
-			executionIDs["test.tar.gz"],
+			executionIDs["vim"],
 		),
 	), http.StatusNoContent)
 
@@ -21285,4 +21434,323 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
 	require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
 	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+}
+
+func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := s.createHosts(t, "darwin")
+	host := hosts[0]
+
+	// Create a SCIM user for testing
+	scimUser := &fleet.ScimUser{
+		UserName: "test.user",
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "scim.user@example.com",
+				Primary: ptr.Bool(true),
+			},
+		},
+	}
+
+	createdUserID, err := s.ds.CreateScimUser(ctx, scimUser)
+	require.NoError(t, err)
+	defer func() { _ = s.ds.DeleteScimUser(ctx, createdUserID) }()
+
+	// Test IDP device mapping with premium license and valid SCIM user
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "scim.user@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
+
+	// Verify the IDP mapping was created and returned in device mappings
+	require.Equal(t, "scim.user@example.com", putResp.DeviceMapping[0].Email)
+	require.Equal(t, fleet.DeviceMappingIDP, putResp.DeviceMapping[0].Source)
+
+	// Verify the IDP mapping appears in the host's device mappings via getHostDeviceMapping
+	var getResp listHostDeviceMappingResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.DeviceMapping, 1)
+	require.Equal(t, "scim.user@example.com", getResp.DeviceMapping[0].Email)
+	require.Equal(t, fleet.DeviceMappingIDP, getResp.DeviceMapping[0].Source)
+
+	// Test that IDP mapping appears correctly in host details via getHostEndpoint
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+
+	// Find the IDP information in end_users field
+	foundIdpInDetails := false
+	for _, endUser := range hostResp.Host.EndUsers {
+		// IDP users should have IdpUserName populated
+		if endUser.IdpUserName == "test.user" {
+			foundIdpInDetails = true
+			// Verify other IDP fields if they exist
+			assert.NotEmpty(t, endUser.IdpUserName, "IDP EndUser should have IdpUserName")
+		}
+	}
+	assert.True(t, foundIdpInDetails, "Should find IDP user in host end_users")
+
+	// Verify consistency between identifier and ID-based endpoints
+	hostResp2 := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp2)
+
+	// Find the same IDP information in the ID-based endpoint
+	foundIdpInDetailsById := false
+	for _, endUser := range hostResp2.Host.EndUsers {
+		if endUser.IdpUserName == "test.user" {
+			foundIdpInDetailsById = true
+		}
+	}
+	assert.True(t, foundIdpInDetailsById, "Should find IDP user in ID-based host endpoint")
+
+	// Test that IDP accepts any username, even if not a SCIM user
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "any.username@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
+
+	// Test that custom mappings still work alongside IDP
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "custom.user@example.com", Source: "custom"},
+		http.StatusOK, &putResp)
+
+	// Verify current mappings: custom and latest IDP (replacement behavior)
+	foundCustom := false
+	foundCurrentIdp := false
+	foundOldIdp := false
+	for _, mapping := range putResp.DeviceMapping {
+		if mapping.Email == "custom.user@example.com" && mapping.Source == fleet.DeviceMappingCustomReplacement {
+			foundCustom = true
+		}
+		if mapping.Email == "any.username@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+			foundCurrentIdp = true
+		}
+		if mapping.Email == "scim.user@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+			foundOldIdp = true
+		}
+	}
+	assert.True(t, foundCustom, "Should find custom mapping in device_mapping")
+	assert.True(t, foundCurrentIdp, "Should find current IDP mapping (any.username) in device_mapping")
+	assert.False(t, foundOldIdp, "Should NOT find old IDP mapping (scim.user) - replacement behavior")
+
+	// Verify IDP appears in idp_username and custom appears in other_emails
+	var finalHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &finalHostResp)
+
+	require.Len(t, finalHostResp.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser := finalHostResp.Host.EndUsers[0]
+
+	// Current IDP user (non-SCIM) should appear in idp_username field
+	assert.Equal(t, "any.username@example.com", endUser.IdpUserName, "Current IDP user should be in idp_username")
+	assert.Empty(t, endUser.IdpFullName, "Non-SCIM user should not have full name")
+
+	// Verify custom mapping appears in other_emails
+	foundCustomInOtherEmails := false
+	foundIdpInOtherEmails := false
+	for _, otherEmail := range endUser.OtherEmails {
+		if otherEmail.Email == "custom.user@example.com" {
+			foundCustomInOtherEmails = true
+		}
+		// Verify IDP emails do NOT appear in other_emails
+		if otherEmail.Email == "any.username@example.com" {
+			foundIdpInOtherEmails = true
+		}
+	}
+	assert.True(t, foundCustomInOtherEmails, "Custom mapping should appear in other_emails")
+	assert.False(t, foundIdpInOtherEmails, "IDP mappings should NOT appear in other_emails")
+
+	// Test with non-SCIM IDP user only (should replace previous IDP mapping)
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "nonscim@example.com", Source: "idp"},
+		http.StatusOK, &putResp)
+
+	// Verify device mapping API shows only the new IDP mapping (replacement behavior)
+	foundNonScimIdp := false
+	foundPreviousIdp := false
+	for _, mapping := range putResp.DeviceMapping {
+		if mapping.Email == "nonscim@example.com" && mapping.Source == fleet.DeviceMappingIDP {
+			foundNonScimIdp = true
+		}
+		if (mapping.Email == "scim.user@example.com" || mapping.Email == "any.username@example.com") && mapping.Source == fleet.DeviceMappingIDP {
+			foundPreviousIdp = true
+		}
+	}
+	assert.True(t, foundNonScimIdp, "Should find new IDP mapping in device_mapping")
+	assert.False(t, foundPreviousIdp, "Should NOT find old IDP mappings (replacement behavior)")
+
+	var nonScimHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &nonScimHostResp)
+
+	require.Len(t, nonScimHostResp.Host.EndUsers, 1, "Should have exactly one end user")
+	endUser = nonScimHostResp.Host.EndUsers[0]
+
+	// Non-SCIM IDP user should appear in idp_username field (no SCIM data)
+	assert.Equal(t, "nonscim@example.com", endUser.IdpUserName, "Non-SCIM IDP user should be in idp_username")
+	assert.Empty(t, endUser.IdpFullName, "Non-SCIM user should not have full name")
+
+	// Verify IDP email doesn't appear in other_emails
+	foundNonScimInOtherEmails := false
+	for _, otherEmail := range endUser.OtherEmails {
+		if otherEmail.Email == "nonscim@example.com" {
+			foundNonScimInOtherEmails = true
+		}
+	}
+	assert.False(t, foundNonScimInOtherEmails, "Non-SCIM IDP should NOT appear in other_emails")
+}
+
+func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
+	t := s.T()
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+	})
+
+	// Helper function to build Okta conditional access payloads
+	// Passing nil for a field will emit null in the JSON
+	oktaPayload := func(idp, acs, aud, cert *string) []byte {
+		body := map[string]any{
+			"conditional_access": map[string]any{
+				"okta_idp_id":                         idp,
+				"okta_assertion_consumer_service_url": acs,
+				"okta_audience_uri":                   aud,
+				"okta_certificate":                    cert,
+			},
+		}
+		b, err := json.Marshal(body)
+		require.NoError(t, err)
+		return b
+	}
+
+	// Valid PEM certificate for testing (real Okta certificate)
+	validCert := `-----BEGIN CERTIFICATE-----
+MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
+ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
+VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
+A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
+MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
+NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
+2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
+kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
+ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
+Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
+nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
+9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
+umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
+FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
+-----END CERTIFICATE-----`
+
+	// Test values
+	idp := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
+	acs := "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7"
+	aud := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
+	invalidURL := "not-a-valid-url"
+	invalidCert := "not-a-valid-pem-certificate"
+
+	// GET config should return empty Okta fields initially
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	// ConditionalAccess should always be present; initially Okta fields should be empty/not valid
+	require.NotNil(t, acResp.ConditionalAccess)
+	require.False(t, acResp.ConditionalAccess.OktaIDPID.Valid)
+	require.False(t, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid)
+	require.False(t, acResp.ConditionalAccess.OktaAudienceURI.Valid)
+	require.False(t, acResp.ConditionalAccess.OktaCertificate.Valid)
+
+	// Test 1: Try to set only some Okta fields (should fail validation)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, nil, nil, nil), http.StatusUnprocessableEntity)
+
+	// Test 2: Try to set 3 out of 4 fields (should fail validation)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, nil), http.StatusUnprocessableEntity)
+
+	// Test 3: Set all 4 Okta fields with valid values (should succeed)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert), http.StatusOK)
+
+	// GET config should now return the Okta fields
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.OktaIDPID.Valid)
+	assert.Equal(t, idp, acResp.ConditionalAccess.OktaIDPID.Value)
+	assert.Equal(t, acs, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+	assert.Equal(t, aud, acResp.ConditionalAccess.OktaAudienceURI.Value)
+	assert.Equal(t, validCert, acResp.ConditionalAccess.OktaCertificate.Value)
+
+	// Verify activity was created for adding Okta config
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeAddedConditionalAccessOkta{}.ActivityName(),
+		"",
+		0,
+	)
+
+	// Test 4: Try to set invalid URL for assertion_consumer_service_url (should fail)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &invalidURL, &aud, &validCert), http.StatusUnprocessableEntity)
+
+	// Test 5: Try to set invalid PEM certificate (should fail)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &invalidCert), http.StatusUnprocessableEntity)
+
+	// Test 6: Clear all Okta configuration by setting all fields to null
+	// First verify Okta is currently configured (from Test 3)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.OktaIDPID.Valid, "Okta should be configured before Test 6")
+
+	// Now clear it
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(nil, nil, nil, nil), http.StatusOK)
+
+	// Verify all fields are now null/empty
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	// ConditionalAccess should always be present; after clearing, Okta fields should not be valid
+	require.NotNil(t, acResp.ConditionalAccess)
+	assert.False(t, acResp.ConditionalAccess.OktaIDPID.Valid)
+	assert.False(t, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid)
+	assert.False(t, acResp.ConditionalAccess.OktaAudienceURI.Valid)
+	assert.False(t, acResp.ConditionalAccess.OktaCertificate.Valid)
+
+	// Verify activity was created for deleting Okta config
+	// Note: Using lastActivityOfTypeMatches which searches the last 10 activities
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDeletedConditionalAccessOkta{}.ActivityName(),
+		"", // no details for this activity type
+		0,  // don't check specific ID
+	)
+
+	// Test 7: Verify an unrelated config change doesn't affect Okta settings when Okta is configured
+	// First, set up Okta config again
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert), http.StatusOK)
+
+	// Make an unrelated change (e.g., org_name)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-okta-config"
+		}
+	}`), http.StatusOK, &acResp)
+	require.Equal(t, "test-okta-config", acResp.OrgInfo.OrgName)
+
+	// Verify Okta settings are still there
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, idp, acResp.ConditionalAccess.OktaIDPID.Value)
+	assert.Equal(t, acs, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+	assert.Equal(t, aud, acResp.ConditionalAccess.OktaAudienceURI.Value)
+	assert.Equal(t, validCert, acResp.ConditionalAccess.OktaCertificate.Value)
+
+	// Test 8: Verify activity is created when editing Okta config
+	// Change one of the fields (e.g., the IDP ID)
+	newIdp := "https://www.okta.com/saml2/service-provider/newvalue123"
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&newIdp, &acs, &aud, &validCert), http.StatusOK)
+
+	// Verify the field was changed
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, newIdp, acResp.ConditionalAccess.OktaIDPID.Value)
+
+	// Verify activity was created for editing Okta config
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeAddedConditionalAccessOkta{}.ActivityName(),
+		"",
+		0,
+	)
 }

@@ -27,14 +27,10 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 <!-- Insert the link to the feature request that this story contributes to and add the feature request as this story's parent issue. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
 
-## Context
-- Product Designer: _________________________ <!-- Who is the Product Designer to contact if folks have questions about the UI, CLI, or API changes? -->
-- Engineer: _________________________ <!-- Who is the Engineer to contact if folks have technical questions? -->
+## Resources
   
 <!--
-What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
-1. 
-2. 
+Provide links to any research or helpful resources (ex. Apple documentation). Put "None" if there are no resources.
 -->
 
 ## Changes

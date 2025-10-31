@@ -85,7 +85,7 @@ type GetUserSettingsFunc func(ctx context.Context, id uint) (settings *fleet.Use
 
 type InitiateSSOFunc func(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error)
 
@@ -221,6 +221,8 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
+
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
@@ -233,7 +235,7 @@ type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint,
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
-type SetCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error)
+type SetHostDeviceMappingFunc func(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
@@ -450,6 +452,10 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
 type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error)
+
+type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+
+type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error)
 
 type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error)
 
@@ -775,7 +781,7 @@ type SetSetupExperienceSoftwareFunc func(ctx context.Context, platform string, t
 
 type ListSetupExperienceSoftwareFunc func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
-type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error)
+type GetOrbitSetupExperienceStatusFunc func(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error)
 
@@ -788,6 +794,10 @@ type SetupExperienceNextStepFunc func(ctx context.Context, host *fleet.Host) (bo
 type SetupExperienceInitFunc func(ctx context.Context) (*fleet.SetupExperienceInitResult, error)
 
 type GetDeviceSetupExperienceStatusFunc func(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error)
+
+type MaybeCancelPendingSetupExperienceStepsFunc func(ctx context.Context, host *fleet.Host) error
+
+type IsAllSetupExperienceSoftwareRequiredFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
 type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error)
 
@@ -1138,6 +1148,9 @@ type Service struct {
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
 
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
+
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
 
@@ -1156,8 +1169,8 @@ type Service struct {
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
 
-	SetCustomHostDeviceMappingFunc        SetCustomHostDeviceMappingFunc
-	SetCustomHostDeviceMappingFuncInvoked bool
+	SetHostDeviceMappingFunc        SetHostDeviceMappingFunc
+	SetHostDeviceMappingFuncInvoked bool
 
 	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
 	HostLiteByIdentifierFuncInvoked bool
@@ -1482,6 +1495,12 @@ type Service struct {
 
 	UpdateAppStoreAppFunc        UpdateAppStoreAppFunc
 	UpdateAppStoreAppFuncInvoked bool
+
+	GetInHouseAppManifestFunc        GetInHouseAppManifestFunc
+	GetInHouseAppManifestFuncInvoked bool
+
+	GetInHouseAppPackageFunc        GetInHouseAppPackageFunc
+	GetInHouseAppPackageFuncInvoked bool
 
 	MDMAppleProcessOTAEnrollmentFunc        MDMAppleProcessOTAEnrollmentFunc
 	MDMAppleProcessOTAEnrollmentFuncInvoked bool
@@ -1990,6 +2009,12 @@ type Service struct {
 	GetDeviceSetupExperienceStatusFunc        GetDeviceSetupExperienceStatusFunc
 	GetDeviceSetupExperienceStatusFuncInvoked bool
 
+	MaybeCancelPendingSetupExperienceStepsFunc        MaybeCancelPendingSetupExperienceStepsFunc
+	MaybeCancelPendingSetupExperienceStepsFuncInvoked bool
+
+	IsAllSetupExperienceSoftwareRequiredFunc        IsAllSetupExperienceSoftwareRequiredFunc
+	IsAllSetupExperienceSoftwareRequiredFuncInvoked bool
+
 	AddFleetMaintainedAppFunc        AddFleetMaintainedAppFunc
 	AddFleetMaintainedAppFuncInvoked bool
 
@@ -2294,11 +2319,11 @@ func (s *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessionI
 	return s.InitiateSSOFunc(ctx, redirectURL)
 }
 
-func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	s.mu.Lock()
 	s.InitiateMDMSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL)
+	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL, hostUUID)
 }
 
 func (s *Service) InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error) {
@@ -2770,6 +2795,13 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	return s.RefetchHostFunc(ctx, id)
 }
 
+func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+	s.mu.Lock()
+	s.CleanupExpiredHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredHostsFunc(ctx)
+}
+
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
@@ -2812,11 +2844,11 @@ func (s *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
-func (s *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+func (s *Service) SetHostDeviceMapping(ctx context.Context, id uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
 	s.mu.Lock()
-	s.SetCustomHostDeviceMappingFuncInvoked = true
+	s.SetHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetCustomHostDeviceMappingFunc(ctx, hostID, email)
+	return s.SetHostDeviceMappingFunc(ctx, id, email, source)
 }
 
 func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
@@ -3573,6 +3605,20 @@ func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *u
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories)
+}
+
+func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetInHouseAppManifestFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppManifestFunc(ctx, titleID, teamID)
+}
+
+func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	s.mu.Lock()
+	s.GetInHouseAppPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppPackageFunc(ctx, titleID, teamID)
 }
 
 func (s *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
@@ -4709,11 +4755,11 @@ func (s *Service) ListSetupExperienceSoftware(ctx context.Context, platform stri
 	return s.ListSetupExperienceSoftwareFunc(ctx, platform, teamID, opts)
 }
 
-func (s *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+func (s *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	s.mu.Lock()
 	s.GetOrbitSetupExperienceStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetOrbitSetupExperienceStatusFunc(ctx, orbitNodeKey, forceRelease)
+	return s.GetOrbitSetupExperienceStatusFunc(ctx, orbitNodeKey, forceRelease, resetFailedSetupSteps)
 }
 
 func (s *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*fleet.Script, []byte, error) {
@@ -4756,6 +4802,20 @@ func (s *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.De
 	s.GetDeviceSetupExperienceStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceSetupExperienceStatusFunc(ctx)
+}
+
+func (s *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.MaybeCancelPendingSetupExperienceStepsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeCancelPendingSetupExperienceStepsFunc(ctx, host)
+}
+
+func (s *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, host *fleet.Host) (bool, error) {
+	s.mu.Lock()
+	s.IsAllSetupExperienceSoftwareRequiredFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsAllSetupExperienceSoftwareRequiredFunc(ctx, host)
 }
 
 func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error) {

@@ -2,10 +2,7 @@
   @include vertical-card-layout;
 
   &__description {
-    margin: 0;
-  }
-
-  &__learn-how-link {
+    margin-top: 0;
     margin-bottom: $pad-large;
   }
 

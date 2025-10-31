@@ -22,4 +22,14 @@
   &__manual-install-tooltip {
     text-align: center;
   }
+
+  &__macos_options_form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    button.reveal-button {
+      align-self: flex-start;
+    }
+  }
 }

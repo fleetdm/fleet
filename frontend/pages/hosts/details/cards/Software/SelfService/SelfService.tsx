@@ -31,6 +31,7 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 
@@ -139,6 +140,10 @@ const SoftwareSelfService = ({
   const [
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | undefined>(undefined);
+  const [
+    selectedHostSWIpaInstallDetails,
+    setSelectedHostSWIpaInstallDetails,
   ] = useState<IHostSoftware | undefined>(undefined);
   const [
     selectedHostSWScriptDetails,
@@ -350,7 +355,7 @@ const SoftwareSelfService = ({
   }, []);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number) => {
+    async (softwareId: number, isScriptPackage = false) => {
       try {
         await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
         if (isMountedRef.current) {
@@ -358,7 +363,10 @@ const SoftwareSelfService = ({
         }
       } catch (error) {
         // We only show toast message if API returns an error
-        renderFlash("error", "Couldn't install. Please try again.");
+        renderFlash(
+          "error",
+          `Couldn't ${isScriptPackage ? "run" : "install"}. Please try again.`
+        );
       }
     },
     [deviceToken, onInstallOrUninstall, renderFlash]
@@ -471,6 +479,13 @@ const SoftwareSelfService = ({
     [setSelectedHostSWInstallDetails]
   );
 
+  const onShowIpaInstallDetails = useCallback(
+    (hostSoftware?: IHostSoftware) => {
+      setSelectedHostSWIpaInstallDetails(hostSoftware);
+    },
+    [setSelectedHostSWIpaInstallDetails]
+  );
+
   const onShowScriptDetails = useCallback(
     (hostSoftware?: IHostSoftware) => {
       setSelectedHostSWScriptDetails(hostSoftware);
@@ -543,6 +558,7 @@ const SoftwareSelfService = ({
     return generateSoftwareTableHeaders({
       onShowUpdateDetails,
       onShowInstallDetails,
+      onShowIpaInstallDetails,
       onShowScriptDetails,
       onShowVPPInstallDetails,
       onShowUninstallDetails,
@@ -553,6 +569,7 @@ const SoftwareSelfService = ({
   }, [
     onShowUpdateDetails,
     onShowInstallDetails,
+    onShowIpaInstallDetails,
     onShowScriptDetails,
     onShowVPPInstallDetails,
     onShowUninstallDetails,
@@ -618,9 +635,25 @@ const SoftwareSelfService = ({
           contactUrl={contactUrl}
         />
       )}
+      {selectedHostSWIpaInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          hostSoftware={selectedHostSWIpaInstallDetails}
+          details={{
+            hostDisplayName,
+            fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
+            appName: selectedHostSWIpaInstallDetails.name,
+            commandUuid:
+              selectedHostSWIpaInstallDetails.software_package?.last_install
+                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+          }}
+          onRetry={onClickInstallAction}
+          onCancel={() => setSelectedHostSWIpaInstallDetails(undefined)}
+          deviceAuthToken={deviceToken}
+        />
+      )}
       {selectedHostSWScriptDetails && (
         <SoftwareScriptDetailsModal
-          hostSoftware={selectedHostSWInstallDetails}
+          hostSoftware={selectedHostSWScriptDetails}
           details={{
             host_display_name: hostDisplayName,
             install_uuid:

@@ -17,6 +17,7 @@ import {
   IHostAppStoreApp,
   EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -55,7 +56,10 @@ interface IHostInstallerActionButtonProps {
 
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
-  onClickInstallAction: (softwareId: number) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isSoftwarePackage?: boolean
+  ) => void;
   onClickUninstallAction: () => void;
   onClickOpenInstructionsAction?: () => void;
   baseClass: string;
@@ -243,8 +247,13 @@ export const HostInstallerActionCell = ({
       "failed_uninstall",
     ].includes(ui_status);
 
+  const isIpaPackage =
+    (software.source === "ios_apps" || software.source === "ipados_apps") &&
+    !!software_package;
+
   const canUninstallSoftware =
     !app_store_app &&
+    !isIpaPackage &&
     !!software_package &&
     (installedVersionsDetected || installedTgzPackageDetected);
 
@@ -287,7 +296,12 @@ export const HostInstallerActionCell = ({
       baseClass={baseClass}
       tooltip={installTooltip}
       disabled={installDisabled}
-      onClick={() => onClickInstallAction(id)}
+      onClick={() =>
+        onClickInstallAction(
+          id,
+          SCRIPT_PACKAGE_SOURCES.includes(software.source)
+        )
+      }
       icon={buttonDisplayConfig.install.icon}
       text={buttonDisplayConfig.install.text}
       testId={`${baseClass}__install-button--test`}

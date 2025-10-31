@@ -1,1 +1,0 @@
-* During software ingestion, re-added software rename functionality to generate less lock contention during high concurrency.

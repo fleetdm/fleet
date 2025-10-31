@@ -12,6 +12,7 @@
   .premium-feature-message {
     display: flex;
     gap: 4px;
+    align-items: center;
 
     p {
       // need to set line-height to normal for the icons and text to be aligned

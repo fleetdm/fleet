@@ -128,6 +128,8 @@ type SoftwareInstaller struct {
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
 	Categories []string `json:"categories"`
+
+	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -378,6 +380,8 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
+	// Source is the osquery source for this software (e.g., "sh_packages", "ps1_packages").
+	Source *string `json:"source" db:"source"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
@@ -584,8 +588,12 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "pkg_packages", nil
 	case "tar.gz":
 		return "tgz_packages", nil
-	case "sh", "ps1":
-		return "scripts", nil
+	case "ipa":
+		return "ipa", nil
+	case "sh":
+		return "sh_packages", nil
+	case "ps1":
+		return "ps1_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -600,6 +608,8 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
+	case "ipa": // TODO(JVE): what about iPads? Can we get the platforms from the Info.plist file?
+		return "ios", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}

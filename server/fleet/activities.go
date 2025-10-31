@@ -114,6 +114,7 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeCreatedUser{},
 	ActivityTypeDeletedUser{},
+	ActivityTypeDeletedHost{},
 	ActivityTypeChangedUserGlobalRole{},
 	ActivityTypeDeletedUserGlobalRole{},
 	ActivityTypeChangedUserTeamRole{},
@@ -224,6 +225,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeAddedConditionalAccessOkta{},
+	ActivityTypeDeletedConditionalAccessOkta{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
 	ActivityTypeDisabledConditionalAccessAutomations{},
 
@@ -262,6 +265,16 @@ type AutomatableActivity interface {
 type ActivityHostOnly interface {
 	ActivityDetails
 	HostOnly() bool
+}
+
+// ActivityActivator is the optional additional interface that can be implemented by activities that
+// may require activating the next upcoming activity when it gets created. Most upcoming activities get
+// activated when the result of the previous one completes (such as scripts and software installs), but
+// some can only be activated when the activity gets recorded (such as VPP and in-house apps).
+type ActivityActivator interface {
+	ActivityDetails
+	MustActivateNextUpcomingActivity() bool
+	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
 }
 
 type ActivityTypeEnabledActivityAutomations struct {
@@ -828,6 +841,45 @@ func (a ActivityTypeDeletedUser) Documentation() (activity string, details strin
 	"user_id": 42,
 	"user_name": "Foo",
 	"user_email": "foo@example.com"
+}`
+}
+
+type ActivityTypeDeletedHost struct {
+	HostID           uint                   `json:"host_id"`
+	HostDisplayName  string                 `json:"host_display_name"`
+	HostSerial       string                 `json:"host_serial"`
+	TriggeredBy      DeletedHostTriggeredBy `json:"triggered_by"`
+	HostExpiryWindow *int                   `json:"host_expiry_window,omitempty"`
+}
+
+type DeletedHostTriggeredBy string
+
+const (
+	DeletedHostTriggeredByManual     DeletedHostTriggeredBy = "manual"
+	DeletedHostTriggeredByExpiration DeletedHostTriggeredBy = "expiration"
+)
+
+func (a ActivityTypeDeletedHost) ActivityName() string {
+	return "deleted_host"
+}
+
+func (a ActivityTypeDeletedHost) WasFromAutomation() bool {
+	return a.TriggeredBy == DeletedHostTriggeredByExpiration
+}
+
+func (a ActivityTypeDeletedHost) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host is deleted.`,
+		`This activity contains the following fields:
+- "host_id": Unique ID of the deleted host in Fleet.
+- "host_display_name": Display name of the deleted host.
+- "host_serial": Hardware serial number of the deleted host.
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".`, `{
+	"host_id": 42,
+	"host_display_name": "USER-WINDOWS",
+	"host_serial": "ABC123",
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
 }`
 }
 
@@ -1837,9 +1889,11 @@ type ActivityTypeInstalledSoftware struct {
 	SelfService         bool    `json:"self_service"`
 	InstallUUID         string  `json:"install_uuid"`
 	Status              string  `json:"status"`
+	Source              *string `json:"source,omitempty"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"-"`
+	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1854,6 +1908,18 @@ func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
 
+func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
+	// for in-house apps, we only activate the next upcoming activity if the
+	// installation failed, because if it succeeded (and in this case, it only
+	// means the command to install succeeded), we only activate the next
+	// activity when we verify the app is actually installed.
+	return a.CommandUUID != "" && a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
+}
+
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a Fleet-maintained app or custom package is installed on a host.`,
 		`This activity contains the following fields:
@@ -1864,8 +1930,10 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 `, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
@@ -1874,18 +1942,20 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }`
 }
 
 type ActivityTypeUninstalledSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	ExecutionID     string `json:"script_execution_id"`
-	SelfService     bool   `json:"self_service"`
-	Status          string `json:"status"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	SoftwareTitle   string  `json:"software_title"`
+	ExecutionID     string  `json:"script_execution_id"`
+	SelfService     bool    `json:"self_service"`
+	Status          string  `json:"status"`
+	Source          *string `json:"source,omitempty"`
 }
 
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
@@ -1904,13 +1974,15 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 - "software_title": Name of the software.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
-- "status": Status of the software uninstallation.`, `{
+- "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
-  "status": "uninstalled"
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }`
 }
 
@@ -2276,6 +2348,18 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
+}
+
+func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
+	// for VPP apps, we only activate the next upcoming activity if the installation
+	// failed, because if it succeeded (and in this case, it only means the command to
+	// install succeeded), we only activate the next activity when we verify the
+	// app is actually installed.
+	return a.Status != string(SoftwareInstalled)
+}
+
+func (a ActivityInstalledAppStoreApp) ActivateNextUpcomingActivityArgs() (uint, string) {
+	return a.HostID, a.CommandUUID
 }
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
@@ -2778,6 +2862,28 @@ func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName()
 
 func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
 	return "Generated when Microsoft Entra is integration is disconnected.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeAddedConditionalAccessOkta struct{}
+
+func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
+	return "added_conditional_access_okta"
+}
+
+func (a ActivityTypeAddedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta is configured or edited for conditional access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessOkta struct{}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
+	return "deleted_conditional_access_okta"
+}
+
+func (a ActivityTypeDeletedConditionalAccessOkta) Documentation() (string, string, string) {
+	return "Generated when Okta conditional access configuration is removed.",
 		"This activity does not contain any detail fields.", ""
 }
 

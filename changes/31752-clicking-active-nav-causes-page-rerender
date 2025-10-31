@@ -1,1 +1,0 @@
-- Fix a bug where clicking the currently selected navbar item would cause a full-page rerender

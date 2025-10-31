@@ -457,6 +457,29 @@ This activity contains the following fields:
 }
 ```
 
+## deleted_host
+
+Generated when a host is deleted.
+
+This activity contains the following fields:
+- "host_id": Unique ID of the deleted host in Fleet.
+- "host_display_name": Display name of the deleted host.
+- "host_serial": Hardware serial number of the deleted host.
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".
+
+#### Example
+
+```json
+{
+	"host_id": 42,
+	"host_display_name": "USER-WINDOWS",
+	"host_serial": "ABC123",
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
+}
+```
+
 ## changed_user_global_role
 
 Generated when user global roles are changed.
@@ -1343,8 +1366,10 @@ This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+- "command_uuid": ID of the in-house app installation.
 
 
 #### Example
@@ -1358,6 +1383,7 @@ This activity contains the following fields:
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending",
+  "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date"
 }
@@ -1374,6 +1400,7 @@ This activity contains the following fields:
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.
+- "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
 
 #### Example
 
@@ -1384,7 +1411,8 @@ This activity contains the following fields:
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
-  "status": "uninstalled"
+  "status": "uninstalled",
+  "source": "pkg_packages"
 }
 ```
 
@@ -2060,6 +2088,18 @@ This activity does not contain any detail fields.
 ## deleted_conditional_access_integration_microsoft
 
 Generated when Microsoft Entra is integration is disconnected.
+
+This activity does not contain any detail fields.
+
+## added_conditional_access_okta
+
+Generated when Okta is configured or edited for conditional access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_okta
+
+Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 

@@ -28,7 +28,7 @@ Learn more about automatically installing software [the Automatically install so
 
 * Select the "Custom package" tab.
 
-* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, and `.tar.gz` files are supported.
+* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, and `.tar.gz` files are supported.
 
 * If you check the "Automatic install" box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist.
 
@@ -36,7 +36,7 @@ Learn more about automatically installing software [the Automatically install so
 
 * To customize installer behavior, click on “Advanced options.”
 
-> After the initial package upload, all options, except for automatic install, can be modified. This includes the self-service setting, pre-install query, scripts, and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .deb, .rpm, or .exe) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
+> After the initial package upload, all options, except for automatic install, can be modified. This includes the self-service setting, pre-install query, scripts, and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .exe, .deb, .rpm, or .ipa) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
 
 ### Package metadata extraction
 
@@ -51,6 +51,7 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 - [.exe extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/pe.go#:~:text=func%20ExtractPEMetadata)
 - [.deb extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/deb.go#:~:text=func%20ExtractDebMetadata)
 - [.rpm extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/rpm.go#:~:text=func%20ExtractRPMMetadata)
+- [.ipa extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/ipa.go#:~:text=func%20ExtractIPAMetadata)
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives, and as long as install and uninstall scripts are supplied.
 
