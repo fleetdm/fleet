@@ -231,6 +231,13 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedBundleID:   "corp.sap.privileges",
 			expectedPackageIDs: []string{"corp.sap.privileges.pkg"},
 		},
+		{
+			file:               "distribution-cisco-secure-client.xml",
+			expectedName:       "Cisco Secure Client",
+			expectedVersion:    "5.1.3.62",
+			expectedBundleID:   "com.cisco.secureclient.gui",
+			expectedPackageIDs: []string{"com.cisco.pkg.anyconnect.vpn"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -325,10 +332,14 @@ func TestIsValidAppFilePath(t *testing.T) {
 		{"baz.app", true},
 		{"foo/bar/baz.app", false},
 		{"Applications/baz.app", true},
-		{"Applications/foo/baz.app", false},
+		{"Applications/foo/baz.app", true},
 		{"foo/baz.app", false},
 		{"baz.txt", true},
 		{"Applications/baz.txt", false},
+		{"Applications/Cisco/Cisco Secure Client.app", true},
+		{"Applications/Foo with spaces.app", true},
+		{"Applications/foo", false},
+		{"foo", true},
 	}
 
 	for _, test := range tests {
