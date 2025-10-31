@@ -346,22 +346,18 @@ export const MDM_STATUS_TOOLTIP: Record<
 > = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically using Apple Automated Device Enrollment
-      (DEP), Windows Autopilot, or Windows Azure AD Join. Administrators can
-      block end users from turning MDM off.
+      MDM was turned on automatically. IT admins can block end users from turning MDM off.
     </span>
   ),
   "On (manual)": (
     <span>
-      MDM was turned on manually, by installing fleetd on macOS and Windows, or
-      by installing enrollment profile on macOS. End user can turn MDM off.
+      MDM was turned on manually. End users can turn MDM off.
     </span>
   ),
   "On (personal)": (
     <span>
-      End user turned on MDM on personal (BYOD) host, by signing in with Managed
-      Apple Account on iPhone/iPad, or by enrolling Android via enrollment link
-      or by signing in with Google account. End user can turn MDM off.
+      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad, or by 
+      creating a work profile on Android. End users can turn MDM off.
     </span>
   ),
   "On (company-owned)": null,
