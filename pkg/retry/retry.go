@@ -93,8 +93,7 @@ func Do(fn func() error, opts ...Option) error {
 			return nil
 		}
 		if cfg.errorFilter != nil {
-			outcome := cfg.errorFilter(err)
-			switch outcome {
+			switch cfg.errorFilter(err) {
 			case ErrorOutcomeIgnore:
 				return nil
 			case ErrorOutcomeResetAttempts:
