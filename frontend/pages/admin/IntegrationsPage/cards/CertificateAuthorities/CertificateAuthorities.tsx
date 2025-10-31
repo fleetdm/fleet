@@ -105,12 +105,7 @@ const CertificateAuthorities = () => {
         content={
           <>
             To help your end users connect to Wi-Fi or VPNs, you can add your
-            certificate authority. Then, head over to{" "}
-            <CustomLink
-              url={paths.CONTROLS_CUSTOM_SETTINGS}
-              text="Controls > OS Settings > Custom"
-            />{" "}
-            settings to configure how certificates are delivered to your hosts.{" "}
+            certificate authority.{" "}
             <CustomLink
               text="Learn more"
               url="https://fleetdm.com/learn-more-about/certificate-authorities"
