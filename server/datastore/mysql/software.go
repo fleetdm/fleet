@@ -1800,7 +1800,7 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 		tmID = *opt.TeamID
 	}
 	displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, tmID, titleIDs)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
 	}
 
@@ -1966,7 +1966,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 
 		if software.TitleID != nil {
 			displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *software.TitleID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "getting display name for software")
 			}
 			software.DisplayName = displayName
