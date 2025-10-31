@@ -803,7 +803,7 @@ WHERE
 	if row.VPPAdamID.Valid {
 		vppAppID = &fleet.VPPAppID{
 			AdamID:   row.VPPAdamID.V,
-			Platform: fleet.AppleDevicePlatform(row.VPPPlatform.V),
+			Platform: fleet.InstallableDevicePlatform(row.VPPPlatform.V),
 		}
 	}
 	return row.InstallerID.V, vppAppID, row.InHouseID.V, nil
@@ -2896,6 +2896,34 @@ WHERE
 	res := make(map[uint]struct{}, len(hostIDs))
 	for _, id := range hostIDs {
 		res[id] = struct{}{}
+	}
+
+	return res, nil
+}
+
+func (ds *Datastore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]struct{}, error) {
+	return ds.getIncludedHostUUIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
+}
+
+func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[string]struct{}, error) {
+	filter := fmt.Sprintf(labelScopedFilter, swType)
+	stmt := fmt.Sprintf(`SELECT
+		h.uuid
+FROM
+		hosts h
+WHERE
+		EXISTS (%s)
+		AND platform = 'android'
+`, filter)
+
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
+	}
+
+	res := make(map[string]struct{}, len(hostUUIDs))
+	for _, uuid := range hostUUIDs {
+		res[uuid] = struct{}{}
 	}
 
 	return res, nil

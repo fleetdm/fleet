@@ -312,7 +312,7 @@ type PolicySoftwareInstallerData struct {
 type PolicyVPPData struct {
 	ID       uint                `db:"id"`
 	AdamID   string              `db:"adam_id"`
-	Platform AppleDevicePlatform `db:"platform"`
+	Platform InstallableDevicePlatform `db:"platform"`
 }
 
 type PolicyScriptData struct {

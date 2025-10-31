@@ -2052,7 +2052,7 @@ type Datastore interface {
 
 	// GetVPPAppMetadataByAdamIDPlatformTeamID returns the VPP app correspoding to the specified
 	// ADAM ID, platform within the context of the specified team. It includes the vpp_app_team_id value.
-	GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform AppleDevicePlatform, teamID *uint) (*VPPApp, error)
+	GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform InstallableDevicePlatform, teamID *uint) (*VPPApp, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
@@ -2129,6 +2129,8 @@ type Datastore interface {
 	// GetIncludedHostIDMapForVPPApp gets the set of hosts that are targeted/in scope for the
 	// given VPP app, based on label membership.
 	GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+	GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]struct{}, error)
 
 	// GetExcludedHostIDMapForVPPApp gets the set of hosts that are NOT targeted/in scope for the
 	// given VPP app, based on label membership.

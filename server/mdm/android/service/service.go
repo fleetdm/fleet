@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
@@ -44,7 +45,8 @@ type Service struct {
 	ds               fleet.AndroidDatastore
 	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
-	fleetSvc         fleet.Service
+	// fleetSvc         fleet.Service
+	activityModule   activities.ActivityModule
 	serverPrivateKey string
 
 	// SignupSSEInterval can be overwritten in tests.
@@ -57,22 +59,24 @@ func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
-	fleetSvc fleet.Service,
+	// fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
+	activityModule activities.ActivityModule,
 ) (android.Service, error) {
-	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, fleetDS)
+	client := NewAMAPIClient(ctx, logger, licenseKey)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule)
 }
 
 func NewServiceWithClient(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
-	fleetSvc fleet.Service,
+	// fleetSvc fleet.Service,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
+	activityModule activities.ActivityModule,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -80,18 +84,19 @@ func NewServiceWithClient(
 	}
 
 	return &Service{
-		logger:            logger,
-		authz:             authorizer,
-		ds:                ds,
-		androidAPIClient:  client,
-		fleetSvc:          fleetSvc,
+		logger:           logger,
+		authz:            authorizer,
+		ds:               ds,
+		androidAPIClient: client,
+		// fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 		fleetDS:           fleetDS,
+		activityModule:    activityModule,
 	}, nil
 }
 
-func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+func NewAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
 		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
@@ -365,7 +370,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "getting user")
 	}
 
-	if err = svc.fleetSvc.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
+	if err = svc.activityModule.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for enabled Android MDM")
 	}
 
@@ -452,7 +457,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
 	}
 
-	if err = svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
+	if err = svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
@@ -811,7 +816,7 @@ func unenrollAndroidHostEndpoint(ctx context.Context, request interface{}, svc a
 // The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
 func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
 	// Load host and authorize based on team
-	h, err := svc.fleetSvc.GetHostLite(ctx, hostID)
+	h, err := svc.fleetDS.HostLite(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -848,7 +853,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 
 	// Emit activity: admin told Fleet to unenroll
 	displayName := fleet.HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
-	if err := svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
+	if err := svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
 		HostSerial:       h.HardwareSerial,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
@@ -856,5 +861,28 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
 	}
+	return nil
+}
+
+func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
+	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
+}
+
+func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string, hostUUIDs map[string]struct{}) error {
+
+	for uuid := range hostUUIDs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
+
+		appPolicy := &androidmanagement.ApplicationPolicy{
+			PackageName: applicationID,
+			InstallType: "AVAILABLE",
+		}
+
+		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

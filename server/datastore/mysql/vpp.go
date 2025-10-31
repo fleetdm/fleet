@@ -465,7 +465,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID)
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, &vppToken.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -563,9 +563,16 @@ WHERE
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	var vppTokenID *uint
 	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+		if !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+		}
+	}
+
+	if vppToken != nil {
+		vppTokenID = &vppToken.ID
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -580,7 +587,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		vppAppTeamID, err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppToken.ID)
+		vppAppTeamID, err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppTokenID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
@@ -707,7 +714,7 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID uint) (uint, error) {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID *uint) (uint, error) {
 	stmt := `
 INSERT INTO vpp_apps_teams
 	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup)
@@ -728,12 +735,15 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	res, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, appID.InstallDuringSetup)
-	if IsDuplicate(err) {
-		err = &existsError{
-			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
-			TeamID:       teamID,
-			ResourceType: "VPPAppID",
+	if err != nil {
+		if IsDuplicate(err) {
+			err = &existsError{
+				Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
+				TeamID:       teamID,
+				ResourceType: "VPPAppID",
+			}
 		}
+		return 0, ctxerr.Wrap(ctx, err, "inserting app store app")
 	}
 
 	var id int64
@@ -776,6 +786,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		source = "ios_apps"
 	case fleet.IPadOSPlatform:
 		source = "ipados_apps"
+	case fleet.AndroidPlatform:
+		source = "android_apps"
 	default:
 		source = "apps"
 	}
@@ -788,6 +800,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	if app.BundleIdentifier != "" {
 		// match by bundle identifier first, or standard matching if we
 		// don't have a bundle identifier match
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
+		insertArgs = append(insertArgs, app.BundleIdentifier)
 		switch source {
 		case "ios_apps", "ipados_apps":
 			selectStmt = `
@@ -797,6 +811,13 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    ORDER BY bundle_identifier = ? DESC
 				    LIMIT 1`
 			selectArgs = []any{app.BundleIdentifier, source, app.Name, source, app.BundleIdentifier}
+		case "android_apps":
+			selectStmt = `
+				   SELECT id
+				   FROM software_titles
+				   WHERE application_id = ? AND additional_identifier IS NULL`
+			selectArgs = []any{app.BundleIdentifier}
+			insertStmt = `INSERT INTO software_titles (name, source, application_id, extension_for) VALUES (?, ?, ?, '')`
 		default:
 			selectStmt = `
 				    SELECT id
@@ -804,8 +825,6 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    WHERE bundle_identifier = ? AND additional_identifier = 0`
 			selectArgs = []any{app.BundleIdentifier}
 		}
-		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
-		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
 	titleID, err := ds.optimisticGetOrInsertWithWriter(ctx,
@@ -820,7 +839,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		},
 	)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert VPP app")
+		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert app store app")
 	}
 
 	return titleID, nil
@@ -884,7 +903,7 @@ func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppApps
 	return &info, nil
 }
 
-func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 	stmt := `
 	SELECT va.adam_id,
 	 va.bundle_identifier,
@@ -1483,6 +1502,11 @@ func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 			SET vpp_apps_teams_id = NULL`, tokenID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "removing policy automations associated with vpp token")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`, tokenID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing vpp apps associated with vpp token")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
