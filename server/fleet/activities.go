@@ -206,6 +206,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedHydrant{},
 	ActivityDeletedHydrant{},
 	ActivityEditedHydrant{},
+	ActivityAddedCustomESTProxy{},
+	ActivityDeletedCustomESTProxy{},
+	ActivityEditedCustomESTProxy{},
 	ActivityAddedSmallstep{},
 	ActivityDeletedSmallstep{},
 	ActivityEditedSmallstep{},
@@ -2595,6 +2598,51 @@ func (a ActivityEditedHydrant) Documentation() (activity string, details string,
 	return "Generated when Hydrant certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
 - "name": Name of the certificate authority.`, `{
   "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityAddedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedCustomESTProxy) ActivityName() string {
+	return "added_custom_est_proxy"
+}
+
+func (a ActivityAddedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityDeletedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedCustomESTProxy) ActivityName() string {
+	return "deleted_custom_est_proxy"
+}
+
+func (a ActivityDeletedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityEditedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedCustomESTProxy) ActivityName() string {
+	return "edited_custom_est_proxy"
+}
+
+func (a ActivityEditedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
 }`
 }
 

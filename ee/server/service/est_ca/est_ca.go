@@ -1,4 +1,4 @@
-package hydrant
+package est_ca
 
 import (
 	"context"
@@ -25,17 +25,17 @@ type Service struct {
 	client  *http.Client
 }
 
-// Compile-time check for HydrantService interface
-var _ fleet.HydrantService = (*Service)(nil)
+// Compile-time check for ESTService interface
+var _ fleet.ESTService = (*Service)(nil)
 
-func NewService(opts ...Opt) fleet.HydrantService {
+func NewService(opts ...Opt) fleet.ESTService {
 	s := &Service{}
 	s.populateOpts(opts)
 	s.client = fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 	return s
 }
 
-// Opt is the type for Hydrant integration options.
+// Opt is the type for EST integration options.
 type Opt func(*Service)
 
 // WithTimeout sets the timeout to use for the HTTP client.
@@ -64,60 +64,60 @@ func (s *Service) populateOpts(opts []Opt) {
 	}
 }
 
-func (s *Service) ValidateHydrantURL(ctx context.Context, hydrantCA fleet.HydrantCA) error {
-	reqURL := hydrantCA.URL + "/cacerts"
+func (s *Service) ValidateESTURL(ctx context.Context, estCA fleet.ESTProxyCA) error {
+	reqURL := estCA.URL + "/cacerts"
 	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating Hydrant CA request")
+		return ctxerr.Wrap(ctx, err, "creating EST CA request")
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sending Hydrant CA request")
+		return ctxerr.Wrap(ctx, err, "sending EST CA request")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return ctxerr.Errorf(ctx, "unexpected Hydrant CA status code: %d", resp.StatusCode)
+		return ctxerr.Errorf(ctx, "unexpected EST CA status code: %d", resp.StatusCode)
 	}
 	contentType := resp.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "application/pkcs7-mime") {
-		return ctxerr.Errorf(ctx, "unexpected Hydrant CA content type: %s", contentType)
+		return ctxerr.Errorf(ctx, "unexpected EST CA content type: %s", contentType)
 	}
 	// For now we are just verifying that there is a body of the reportedly correct format. We could
 	// possibly do more. A better implementation would be similar to Digicert's which validates the
 	// credentials in addition to the URL but I don't see a way to do that with Hydrant's API.
 	caCerts, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading Hydrant CA response body")
+		return ctxerr.Wrap(ctx, err, "reading EST CA response body")
 	}
 	if len(caCerts) == 0 {
-		return ctxerr.Errorf(ctx, "no CA certificates found in Hydrant CA /cacerts response. URL may be incorrect")
+		return ctxerr.Errorf(ctx, "no CA certificates found in EST CA /cacerts response. URL may be incorrect")
 	}
 	return nil
 }
 
-func (s *Service) GetCertificate(ctx context.Context, hydrantCA fleet.HydrantCA, csr string) (*fleet.HydrantCertificate, error) {
-	reqURL, err := url.Parse(hydrantCA.URL + "/simpleenroll")
+func (s *Service) GetCertificate(ctx context.Context, estCA fleet.ESTProxyCA, csr string) (*fleet.ESTCertificate, error) {
+	reqURL, err := url.Parse(estCA.URL + "/simpleenroll")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing Hydrant CA URL")
+		return nil, ctxerr.Wrap(ctx, err, "parsing EST CA URL")
 	}
-	apiCredential := hydrantCA.ClientID + ":" + hydrantCA.ClientSecret
+	apiCredential := estCA.Username + ":" + estCA.Password
 	encodedCredential := base64.StdEncoding.EncodeToString([]byte(apiCredential))
 
-	hydrantRequest, err := http.NewRequestWithContext(ctx, "POST", reqURL.String(), strings.NewReader(csr))
+	estRequest, err := http.NewRequestWithContext(ctx, "POST", reqURL.String(), strings.NewReader(csr))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating Hydrant CA request")
+		return nil, ctxerr.Wrap(ctx, err, "creating EST CA request")
 	}
-	hydrantRequest.Header.Set("Content-Type", "application/pkcs10")
-	hydrantRequest.Header.Set("Accept", "application/pkcs7-mime")
-	hydrantRequest.Header.Set("Authorization", "Basic "+encodedCredential)
-	resp, err := s.client.Do(hydrantRequest)
+	estRequest.Header.Set("Content-Type", "application/pkcs10")
+	estRequest.Header.Set("Accept", "application/pkcs7-mime")
+	estRequest.Header.Set("Authorization", "Basic "+encodedCredential)
+	resp, err := s.client.Do(estRequest)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sending Hydrant CA request")
+		return nil, ctxerr.Wrap(ctx, err, "sending EST CA request")
 	}
 	defer resp.Body.Close()
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading Hydrant CA response body")
+		return nil, ctxerr.Wrap(ctx, err, "reading EST CA response body")
 	}
 	if resp.StatusCode != http.StatusOK {
 		bytesToLog := bytes
@@ -125,11 +125,11 @@ func (s *Service) GetCertificate(ctx context.Context, hydrantCA fleet.HydrantCA,
 		if len(bytes) > 1000 {
 			bytesToLog = bytes[:1000]
 		}
-		s.logger.Log("msg", "unexpected Hydrant CA status code", "status_code", resp.StatusCode, "response_body", string(bytesToLog))
-		return nil, ctxerr.Errorf(ctx, "unexpected Hydrant CA status code: %d", resp.StatusCode)
+		s.logger.Log("msg", "unexpected EST CA status code", "status_code", resp.StatusCode, "response_body", string(bytesToLog))
+		return nil, ctxerr.Errorf(ctx, "unexpected EST CA status code: %d", resp.StatusCode)
 	}
 
-	return &fleet.HydrantCertificate{
+	return &fleet.ESTCertificate{
 		Certificate: bytes,
 	}, nil
 }

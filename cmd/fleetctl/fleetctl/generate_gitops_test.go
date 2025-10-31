@@ -559,6 +559,14 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				ClientSecret: maskSecret("some-hydrant-client-secret", includeSecrets),
 			},
 		},
+		EST: []fleet.ESTProxyCA{
+			{
+				Name:     "some-est-name",
+				URL:      "https://some-est-url.example.com",
+				Username: "some-est-username",
+				Password: maskSecret("some-est-password", includeSecrets),
+			},
+		},
 		Smallstep: []fleet.SmallstepSCEPProxyCA{
 			{
 				Name:         "some-smallstep-name",

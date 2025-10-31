@@ -184,6 +184,21 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		ClientSecret: ptr.String("hydrant-client-secret2"),
 	}
 
+	estCA1 := &fleet.CertificateAuthority{
+		Name:     ptr.String("Custom EST CA"),
+		URL:      ptr.String("http://customcerts.example.com"),
+		Type:     string(fleet.CATypeCustomESTProxy),
+		Username: ptr.String("custom-est-username"),
+		Password: ptr.String("custom-est-password"),
+	}
+	estCA2 := &fleet.CertificateAuthority{
+		Name:     ptr.String("Custom EST CA 2"),
+		URL:      ptr.String("http://customcerts2.example.com"),
+		Type:     string(fleet.CATypeCustomESTProxy),
+		Username: ptr.String("custom-est-username2"),
+		Password: ptr.String("custom-est-password2"),
+	}
+
 	// Custom SCEP CAs
 	customSCEPCA1 := &fleet.CertificateAuthority{
 		Name:      ptr.String("Custom SCEP CA"),
@@ -231,6 +246,8 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		digicertCA2,
 		hydrantCA1,
 		hydrantCA2,
+		estCA1,
+		estCA2,
 		customSCEPCA1,
 		customSCEPCA2,
 		ndesCA,
@@ -385,6 +402,14 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		ClientSecret: ptr.String("hydrant-client-secret"),
 	}
 
+	customESTCA := &fleet.CertificateAuthority{
+		Name:     ptr.String("Custom EST CA"),
+		URL:      ptr.String("https://estca.example.com"),
+		Type:     string(fleet.CATypeCustomESTProxy),
+		Username: ptr.String("custom-est-username"),
+		Password: ptr.String("custom-est-password"),
+	}
+
 	// Custom SCEP CAs
 	customSCEPCA1 := &fleet.CertificateAuthority{
 		Name:      ptr.String("Custom SCEP CA"),
@@ -416,6 +441,7 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		hydrantCA1,
+		customESTCA,
 		customSCEPCA1,
 		ndesCA1,
 		smallstepCA1,
@@ -481,6 +507,26 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Equal(t, "https://localhost", *updatedCA.URL)
 		require.Equal(t, "updated-client-id", *updatedCA.ClientID)
 		require.Equal(t, "updated-client-secret", *updatedCA.ClientSecret)
+	})
+
+	t.Run("successfully updates custom est proxy CA", func(t *testing.T) {
+		customESTCA := caMap[fleet.CATypeCustomESTProxy]
+
+		customESTCA.Name = ptr.String("updated EST")
+		customESTCA.URL = ptr.String("https://coolguy.localhost")
+		customESTCA.Username = ptr.String("updated-username")
+		customESTCA.Password = ptr.String("updated-password")
+
+		err := ds.UpdateCertificateAuthorityByID(ctx, customESTCA.ID, customESTCA)
+		require.NoError(t, err)
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, customESTCA.ID, true)
+		require.NoError(t, err)
+
+		require.Equal(t, "updated EST", *updatedCA.Name)
+		require.Equal(t, "https://coolguy.localhost", *updatedCA.URL)
+		require.Equal(t, "updated-username", *updatedCA.Username)
+		require.Equal(t, "updated-password", *updatedCA.Password)
 	})
 
 	t.Run("successfully updates ndes scep proxy CA", func(t *testing.T) {
