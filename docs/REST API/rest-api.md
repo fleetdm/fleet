@@ -3242,6 +3242,7 @@ Returns the information of the specified host.
     ],
     "mdm": {
       "encryption_key_available": true,
+      "encryption_key_archived": true,
       "enrollment_status": "On (manual)",
       "name": "Fleet",
       "connected_to_fleet": true,
@@ -3474,6 +3475,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     ],
     "mdm": {
       "encryption_key_available": false,
+      "encryption_key_archived": false,
       "enrollment_status": null,
       "name": "",
       "server_url": null,
@@ -3673,6 +3675,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "packs": [],
     "mdm": {
       "encryption_key_available": true,
+      "encryption_key_archived": true,
       "enrollment_status": "On (manual)",
       "name": "Fleet",
       "connected_to_fleet": true,
