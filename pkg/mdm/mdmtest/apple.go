@@ -287,7 +287,8 @@ func (c *TestAppleMDMClient) SetDEPToken(tok string) {
 func (c *TestAppleMDMClient) Enroll() error {
 	switch {
 	case c.fetchEnrollmentProfileFromDesktop:
-		if err := c.fetchEnrollmentProfileFromDesktopURL(); err != nil {
+		if err := c.fetchEnrollmentProfileFromOTAURL(); err != nil {
+			// if err := c.fetchEnrollmentProfileFromDesktopURL(); err != nil {
 			return fmt.Errorf("get enrollment profile from desktop URL: %w", err)
 		}
 	case c.fetchEnrollmentProfileFromDEPUsingPost:
@@ -329,11 +330,11 @@ func (c *TestAppleMDMClient) UserEnroll() error {
 	return c.UserTokenUpdate()
 }
 
-func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
-	return c.fetchOTAProfile(
-		"/api/latest/fleet/device/" + c.desktopURLToken + "/mdm/apple/manual_enrollment_profile",
-	)
-}
+// func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
+// 	return c.fetchOTAProfile(
+// 		"/api/latest/fleet/device/" + c.desktopURLToken + "/mdm/apple/manual_enrollment_profile",
+// 	)
+// }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
