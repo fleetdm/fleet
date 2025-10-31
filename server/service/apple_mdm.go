@@ -3457,24 +3457,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	// much more difficult to reason about the state of the host. We should try instead
 	// to centralize the flow control in the lifecycle methods.
 	if !scepRenewalInProgress {
-		// Create a new activity for the enrollment, MDM state changes after is reset, fetch the
-		// checkin updatedInfo again
-		updatedInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
-		if err != nil {
-			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
-		}
-		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
-			HostDisplayName:  updatedInfo.DisplayName,
-			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
-			MDMPlatform:      fleet.MDMPlatformApple,
-			Platform:         updatedInfo.Platform,
-		}
-		if r.Type == mdm.UserEnrollmentDevice {
-			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
-		} else {
-			mdmEnrolledActivity.HostSerial = ptr.String(updatedInfo.HardwareSerial)
-		}
-
 		if svc.keyValueStore != nil {
 			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
 			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
@@ -3483,12 +3465,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 				level.Error(svc.logger).Log("msg", "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
 			}
 		}
-
-		return newActivity(
-			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
-		)
 	}
-
 	return nil
 }
 
@@ -3528,6 +3505,24 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			}
 		} else {
 			svc.logger.Log("info", "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
+		}
+
+		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+			HostDisplayName:  info.DisplayName,
+			InstalledFromDEP: info.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+			Platform:         info.Platform,
+		}
+		if r.Type == mdm.UserEnrollmentDevice {
+			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
+		} else {
+			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
+		}
+		err = newActivity(
+			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
+		)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "creating mdm enrolled activity for")
 		}
 	}
 
