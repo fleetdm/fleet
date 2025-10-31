@@ -361,7 +361,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 					HostID:          host.ID,
 					HostDisplayName: host.DisplayName(),
 					HostSerial:      host.HardwareSerial,
-					TriggeredBy:     "manual",
+					TriggeredBy:     fleet.DeletedHostTriggeredByManual,
 				},
 			); err != nil {
 				return err
@@ -841,7 +841,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 			HostSerial:      host.HardwareSerial,
-			TriggeredBy:     "manual",
+			TriggeredBy:     fleet.DeletedHostTriggeredByManual,
 		},
 	); err != nil {
 		return err
@@ -877,7 +877,7 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 				HostID:           hostDetail.ID,
 				HostDisplayName:  hostDetail.DisplayName,
 				HostSerial:       hostDetail.Serial,
-				TriggeredBy:      "expiration",
+				TriggeredBy:      fleet.DeletedHostTriggeredByExpiration,
 				HostExpiryWindow: &hostDetail.HostExpiryWindow,
 			},
 		); err != nil {

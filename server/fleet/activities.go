@@ -845,19 +845,26 @@ func (a ActivityTypeDeletedUser) Documentation() (activity string, details strin
 }
 
 type ActivityTypeDeletedHost struct {
-	HostID           uint   `json:"host_id"`
-	HostDisplayName  string `json:"host_display_name"`
-	HostSerial       string `json:"host_serial"`
-	TriggeredBy      string `json:"triggered_by"`
-	HostExpiryWindow *int   `json:"host_expiry_window,omitempty"`
+	HostID           uint                   `json:"host_id"`
+	HostDisplayName  string                 `json:"host_display_name"`
+	HostSerial       string                 `json:"host_serial"`
+	TriggeredBy      DeletedHostTriggeredBy `json:"triggered_by"`
+	HostExpiryWindow *int                   `json:"host_expiry_window,omitempty"`
 }
+
+type DeletedHostTriggeredBy string
+
+const (
+	DeletedHostTriggeredByManual     DeletedHostTriggeredBy = "manual"
+	DeletedHostTriggeredByExpiration DeletedHostTriggeredBy = "expiration"
+)
 
 func (a ActivityTypeDeletedHost) ActivityName() string {
 	return "deleted_host"
 }
 
 func (a ActivityTypeDeletedHost) WasFromAutomation() bool {
-	return a.TriggeredBy == "expiration"
+	return a.TriggeredBy == DeletedHostTriggeredByExpiration
 }
 
 func (a ActivityTypeDeletedHost) Documentation() (activity string, details string, detailsExample string) {
