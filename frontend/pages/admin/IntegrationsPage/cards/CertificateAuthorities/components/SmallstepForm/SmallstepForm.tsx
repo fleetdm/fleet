@@ -59,72 +59,70 @@ const SmallstepForm = ({
 
   return (
     <form onSubmit={onSubmitForm}>
-      <div className={`${baseClass}__fields`}>
-        <InputField
-          label="Name"
-          name="name"
-          value={name}
-          error={validations.name?.message}
-          onChange={onChange}
-          parseTarget
-          placeholder="WIFI_CERTIFICATE"
-          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_SMALLSTEP_DATA_WIFI_CERTIFICATE)."
-        />
-        <InputField
-          label="SCEP URL"
-          name="scepURL"
-          value={scepURL}
-          error={validations.scepURL?.message}
-          onChange={onChange}
-          parseTarget
-          placeholder="https://example.scep.smallstep.com/p/agents/integration-fleet-xr9f4db7"
-        />
-        <InputField
-          label="Challenge URL"
-          name="challengeURL"
-          value={challengeURL}
-          error={validations.challengeURL?.message}
-          onChange={onChange}
-          parseTarget
-          placeholder="https://example.scep.smallstep.com/fleet/xr9f4db7-83f1-48ab-8982-8b6870d4fl85/challenge"
-          helpText={
-            <>
-              Smallstep calls this the <b>SCEP Challenge URL</b>.
-            </>
-          }
-        />
-        <InputField
-          label="Username"
-          name="username"
-          value={username}
-          error={validations.username?.message}
-          onChange={onChange}
-          parseTarget
-          placeholder={"r9c5faea-af93-4679-922c-5548c6254438"}
-          helpText={
-            <>
-              Smallstep calls this the{" "}
-              <b>Challenge Basic Authentication Username</b>.
-            </>
-          }
-        />
-        <InputField
-          type="password"
-          label="Password"
-          name="password"
-          value={password}
-          error={validations.password?.message}
-          onChange={onChange}
-          parseTarget
-          helpText={
-            <>
-              Smallstep calls this the{" "}
-              <b>Challenge Basic Authentication Password</b>.
-            </>
-          }
-        />
-      </div>
-      <div className={`${baseClass}__cta`}>
+      <InputField
+        label="Name"
+        name="name"
+        value={name}
+        error={validations.name?.message}
+        onChange={onChange}
+        parseTarget
+        placeholder="WIFI_CERTIFICATE"
+        helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_SMALLSTEP_DATA_WIFI_CERTIFICATE)."
+      />
+      <InputField
+        label="SCEP URL"
+        name="scepURL"
+        value={scepURL}
+        error={validations.scepURL?.message}
+        onChange={onChange}
+        parseTarget
+        placeholder="https://example.scep.smallstep.com/p/agents/integration-fleet-xr9f4db7"
+      />
+      <InputField
+        label="Challenge URL"
+        name="challengeURL"
+        value={challengeURL}
+        error={validations.challengeURL?.message}
+        onChange={onChange}
+        parseTarget
+        placeholder="https://example.scep.smallstep.com/fleet/xr9f4db7-83f1-48ab-8982-8b6870d4fl85/challenge"
+        helpText={
+          <>
+            Smallstep calls this the <b>SCEP Challenge URL</b>.
+          </>
+        }
+      />
+      <InputField
+        label="Username"
+        name="username"
+        value={username}
+        error={validations.username?.message}
+        onChange={onChange}
+        parseTarget
+        placeholder={"r9c5faea-af93-4679-922c-5548c6254438"}
+        helpText={
+          <>
+            Smallstep calls this the{" "}
+            <b>Challenge Basic Authentication Username</b>.
+          </>
+        }
+      />
+      <InputField
+        type="password"
+        label="Password"
+        name="password"
+        value={password}
+        error={validations.password?.message}
+        onChange={onChange}
+        parseTarget
+        helpText={
+          <>
+            Smallstep calls this the{" "}
+            <b>Challenge Basic Authentication Password</b>.
+          </>
+        }
+      />
+      <div className="modal-cta-wrap">
         <TooltipWrapper
           tipContent="Complete all required fields to save."
           underline={false}

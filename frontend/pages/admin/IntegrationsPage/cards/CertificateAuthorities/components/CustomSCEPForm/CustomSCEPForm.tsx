@@ -74,37 +74,35 @@ const CustomSCEPForm = ({
 
   return (
     <form onSubmit={onSubmitForm}>
-      <div className={`${baseClass}__fields`}>
-        <InputField
-          label="Name"
-          name="name"
-          value={name}
-          error={formValidation.name?.message}
-          onChange={onInputChange}
-          parseTarget
-          placeholder="WIFI_CERTIFICATE"
-          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_CERTIFICATE)."
-        />
-        <InputField
-          label="SCEP URL"
-          name="scepURL"
-          value={scepURL}
-          error={formValidation.scepURL?.message}
-          onChange={onInputChange}
-          parseTarget
-          placeholder="https://example.com/scep"
-        />
-        <InputField
-          type="password"
-          label="Challenge"
-          name="challenge"
-          value={challenge}
-          onChange={onInputChange}
-          parseTarget
-          helpText="Password to authenticate with a SCEP server."
-        />
-      </div>
-      <div className={`${baseClass}__cta`}>
+      <InputField
+        label="Name"
+        name="name"
+        value={name}
+        error={formValidation.name?.message}
+        onChange={onInputChange}
+        parseTarget
+        placeholder="WIFI_CERTIFICATE"
+        helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_CERTIFICATE)."
+      />
+      <InputField
+        label="SCEP URL"
+        name="scepURL"
+        value={scepURL}
+        error={formValidation.scepURL?.message}
+        onChange={onInputChange}
+        parseTarget
+        placeholder="https://example.com/scep"
+      />
+      <InputField
+        type="password"
+        label="Challenge"
+        name="challenge"
+        value={challenge}
+        onChange={onInputChange}
+        parseTarget
+        helpText="Password to authenticate with a SCEP server."
+      />
+      <div className="modal-cta-wrap">
         <TooltipWrapper
           tipContent="Complete all required fields to save."
           underline={false}
