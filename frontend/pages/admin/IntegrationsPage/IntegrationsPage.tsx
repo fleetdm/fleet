@@ -66,8 +66,10 @@ const IntegrationsPage = ({
         await configAPI.update(diff);
         renderFlash("success", "Successfully updated settings.");
         refetchConfig();
+        return true;
       } catch (err: unknown) {
         renderFlash("error", "Could not update settings");
+        return false;
       } finally {
         setIsUpdatingSettings(false);
       }

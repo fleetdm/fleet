@@ -23,7 +23,11 @@ import {
 
 const baseClass = "end-user-auth-section";
 
-const EndUserAuthSection = () => {
+export interface IEndUserAuthSectionProps {
+  setDirty: (dirty: boolean) => void;
+}
+
+const EndUserAuthSection = ({ setDirty }: IEndUserAuthSectionProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
@@ -42,6 +46,7 @@ const EndUserAuthSection = () => {
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
       const newData = { ...formData, [name]: value?.trim() || "" };
       setFormData(newData);
+      setDirty(true);
 
       const newErrors = validateFormDataIdp(newData);
       if (!newErrors) {
@@ -57,7 +62,7 @@ const EndUserAuthSection = () => {
         setFormErrors(newErrors);
       }
     },
-    [formData, formErrors]
+    [formData, formErrors, setDirty]
   );
 
   const onBlur = useCallback(() => {
@@ -82,6 +87,7 @@ const EndUserAuthSection = () => {
           },
         });
         renderFlash("success", "Successfully updated end user authentication!");
+        setDirty(false);
       } catch (err) {
         const ae = (typeof err === "object" ? err : {}) as AxiosResponse;
         if (ae.status === 422) {
@@ -94,7 +100,7 @@ const EndUserAuthSection = () => {
         renderFlash("error", "Couldn't update. Please try again.");
       }
     },
-    [formData, renderFlash]
+    [formData, renderFlash, setDirty]
   );
 
   const renderContent = () => {
@@ -190,9 +196,7 @@ const EndUserAuthSection = () => {
     return null;
   }
 
-  return (
-    <div className={baseClass}>{renderContent()}</div>
-  );
+  return <div className={baseClass}>{renderContent()}</div>;
 };
 
 export default EndUserAuthSection;

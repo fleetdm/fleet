@@ -51,7 +51,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   });
 
   const onFormSubmit = useCallback(
-    (formUpdates: DeepPartial<IConfig>) => {
+    async (formUpdates: DeepPartial<IConfig>) => {
       if (!appConfig) {
         return false;
       }
@@ -62,22 +62,24 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
       // send all formUpdates.agent_options because diff overrides all agent options
       diff.agent_options = formUpdates.agent_options;
 
-      configAPI
-        .update(diff)
-        .then(() => {
+      try {
+        try {
+          await configAPI.update(diff);
           renderFlash("success", "Successfully updated settings.");
           refetchConfig();
-        })
-        .catch((response: { data: IApiError }) => {
+          return true;
+        } catch (response) {
+          const resp = response as undefined | { data: IApiError };
+
           if (
-            response?.data.errors[0].reason.includes("could not dial smtp host")
+            resp?.data.errors[0].reason.includes("could not dial smtp host")
           ) {
             renderFlash(
               "error",
               "Could not connect to SMTP server. Please try again."
             );
-          } else if (response?.data.errors) {
-            const reason = response?.data.errors[0].reason;
+          } else if (resp?.data.errors) {
+            const reason = resp?.data.errors[0].reason;
             const agentOptionsInvalid =
               reason.includes("unsupported key provided") ||
               reason.includes("invalid value type");
@@ -99,10 +101,11 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
               </>
             );
           }
-        })
-        .finally(() => {
-          setIsUpdatingSettings(false);
-        });
+          return false;
+        }
+      } finally {
+        setIsUpdatingSettings(false);
+      }
     },
     [appConfig, refetchConfig, renderFlash]
   );

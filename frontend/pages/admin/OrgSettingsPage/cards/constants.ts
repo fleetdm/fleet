@@ -13,7 +13,7 @@ export interface IAppConfigFormProps {
   appConfig: IConfig;
   isPremiumTier?: boolean;
   isUpdatingSettings?: boolean;
-  handleSubmit: (formUpdates: DeepPartial<IConfig>) => false | undefined;
+  handleSubmit: (formUpdates: DeepPartial<IConfig>) => Promise<boolean>;
   router: InjectedRouter;
   subsection?: string;
 }

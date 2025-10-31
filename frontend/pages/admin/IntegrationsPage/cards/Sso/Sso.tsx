@@ -119,6 +119,7 @@ const Sso = ({
   } = formData;
 
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
+  const [formDirty, setFormDirty] = useState<boolean>(false);
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
@@ -135,13 +136,14 @@ const Sso = ({
       }
     });
     setFormErrors(errsToSet);
+    setFormDirty(true);
   };
 
   const onInputBlur = () => {
     setFormErrors(validate(formData));
   };
 
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const errs = validate(formData);
@@ -167,25 +169,30 @@ const Sso = ({
       },
     };
 
-    handleSubmit(formDataToSubmit);
+    if (await handleSubmit(formDataToSubmit)) {
+      setFormDirty(false);
+    }
   };
 
   const handleTabChange = useCallback(
     (index: number) => {
-      // eslint-disable-next-line no-alert
-      if (!confirm("Switch tabs?\n\nChanges you made will not be saved.")) {
+      if (
+        formDirty &&
+        // eslint-disable-next-line no-alert
+        !confirm("Switch tabs?\n\nChanges you made will not be saved.")
+      ) {
         return;
-      } // TODO check for dirty fields
+      }
 
+      setFormDirty(false);
       const newSubsection = AUTH_TARGETS_BY_INDEX[index];
-
       router.push(
         newSubsection === "end-users"
           ? PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS
           : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS
       );
     },
-    [router]
+    [formDirty, router]
   );
 
   const renderFleetSsoTab = () => {
@@ -313,7 +320,9 @@ const Sso = ({
     );
   };
 
-  const renderEndUserSsoTab = () => <EndUserAuthSection />;
+  const renderEndUserSsoTab = () => (
+    <EndUserAuthSection setDirty={setFormDirty} />
+  );
 
   return (
     <SettingsSection title="Single sign-on (SSO)">
