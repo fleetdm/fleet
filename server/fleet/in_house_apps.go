@@ -8,4 +8,5 @@ type InHouseAppPayload struct {
 	Platform        string
 	ValidatedLabels *LabelIdentsWithScope
 	Version         string
+	SelfService     bool
 }

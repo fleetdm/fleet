@@ -208,6 +208,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			Platform:        payload.Platform,
 			ValidatedLabels: payload.ValidatedLabels,
 			Version:         payload.Version,
+			SelfService:     payload.SelfService,
 		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "MatchOrCreateSoftwareInstaller")

@@ -486,7 +486,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
 				'command_uuid', ua.execution_id,
-				'self_service', false,
+				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
@@ -1730,13 +1730,14 @@ func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, 
 	const insStmt = `
 INSERT INTO
 	host_in_house_software_installs
-(host_id, in_house_app_id, command_uuid, user_id, platform)
+(host_id, in_house_app_id, command_uuid, user_id, platform, self_service)
 SELECT
 	ua.host_id,
 	ihua.in_house_app_id,
 	ua.execution_id,
 	ua.user_id,
-	iha.platform
+	iha.platform,
+	COALESCE(ua.payload->'$.self_service', 0)
 FROM
 	upcoming_activities ua
 	INNER JOIN in_house_app_upcoming_activities ihua
