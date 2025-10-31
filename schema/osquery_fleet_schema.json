@@ -24382,7 +24382,7 @@
     ],
     "evented": false,
     "examples": "Show Google Chrome open events, as allowed by Santa.\n\n```\nSELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app';\n```",
-    "notes": "- Fleetd only stores the most recent 10,000 allowed events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- \"If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits\"",
+    "notes": "- Fleetd only stores the most recent 10,000 allowed events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
     "columns": [
       {
         "name": "timestamp",
@@ -24420,7 +24420,7 @@
     ],
     "evented": false,
     "examples": "Collect all Santa denied logs from macOS hosts.\n```\nSELECT * FROM santa_denied;\n```",
-    "notes": "- Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- \"If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits\"",
+    "notes": "- Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
     "columns": [
       {
         "name": "timestamp",
