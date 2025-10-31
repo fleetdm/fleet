@@ -34,6 +34,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
   resolveUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -78,6 +79,7 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -221,6 +223,10 @@ const HostDetailsPage = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    scriptPackageDetails,
+    setScriptPackageDetails,
   ] = useState<IPackageInstallDetails | null>(null);
   const [
     packageUninstallDetails,
@@ -681,14 +687,25 @@ const HostDetailsPage = ({
           setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setPackageInstallDetails({
-            ...details,
-            // FIXME: It seems like the backend is not using the correct display name when it returns
-            // upcoming install activities. As a workaround, we'll prefer the display name from
-            // the host object if it's available.
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
+            setScriptPackageDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          } else {
+            setPackageInstallDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          }
           break;
         case "uninstalled_software":
           setPackageUninstallDetails({
@@ -1394,6 +1411,12 @@ const HostDetailsPage = ({
             <SoftwareInstallDetailsModal
               details={packageInstallDetails}
               onCancel={onCancelSoftwareInstallDetailsModal}
+            />
+          )}
+          {scriptPackageDetails && (
+            <SoftwareScriptDetailsModal
+              details={scriptPackageDetails}
+              onCancel={() => setScriptPackageDetails(null)}
             />
           )}
           {packageUninstallDetails && (

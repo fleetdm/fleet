@@ -294,7 +294,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_script: {
     iconName: "error",
-    displayText: "Failed run",
+    displayText: "Failed",
     tooltip: ({ lastInstalledAt, isSelfService }) => (
       <>
         The script failed to run
@@ -495,7 +495,7 @@ const InstallStatusCell = ({
     const displayStatusConfig = [
       {
         condition: true, // Allow click even if no last install to see details modal
-        statuses: ["Failed run", "Run (pending)", "Ran"],
+        statuses: ["Failed", "Run (pending)", "Ran"],
         onClick: onClickScriptStatus,
       },
       {
