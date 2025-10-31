@@ -7,7 +7,9 @@ In Fleet, you can use labels to scope [software](https://fleetdm.com/guides/depl
 Labels can be one of the following types:
 - **Dynamic**: A query-based label applied to any host that returns a result for the label’s query.
 - **Manual**: A manually assigned label used to filter selected hosts.
-- **Host vitals**: All hosts that have a specific host vital get this label applied. Currently only supported for IdP host vitals (groups and department) on macOS, iOS, iPadOS, and Android hosts.
+- **Host vitals**: A Fleet-generated label applied to hosts that match a specific host vital.
+
+>Host vitals are currently supported only for IdP host vitals (groups and department) on macOS, iOS, iPadOS, and Android.
 
 To add or edit a label in Fleet, select the avatar on the right side of the top navigation and select **Labels**.
 
