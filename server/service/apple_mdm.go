@@ -5565,6 +5565,7 @@ func preprocessProfileContents(
 			}
 		}
 		if len(managedCertificatePayloads) != 0 {
+			// TODO: We could filter out failed profiles, but at the moment we don't, see Windows impl. for how it's done there.
 			err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating managed certificates")

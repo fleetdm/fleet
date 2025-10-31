@@ -994,8 +994,9 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		profileContents  string
 		expectedContents string
 		expectError      bool
-		processingError  string // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
-		setup            func() // Used for setting up datastore mocks.
+		processingError  string                                                          // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
+		setup            func()                                                          // Used for setting up datastore mocks.
+		expect           func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) // Add more params as they need validation.
 		freeTier         bool
 	}{
 		{
@@ -1055,6 +1056,11 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
 					return "supersecret", nil
 				}
+			},
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, "CERTIFICATE", managedCerts[0].CAName)
+				require.Equal(t, fleet.CAConfigCustomSCEPProxy, managedCerts[0].Type)
 			},
 		},
 		{
@@ -1161,7 +1167,9 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 			require.NoError(t, err)
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents, params)
+			managedCertificates := &[]*fleet.MDMManagedCertificate{}
+
+			result, err := PreprocessWindowsProfileContentsForDeployment(ctx, log.NewNopLogger(), ds, appConfig, tt.hostUUID, tt.hostCmdUUID, profileUUID, groupedCAs, tt.profileContents, managedCertificates, params)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {
@@ -1174,6 +1182,10 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 
 			require.Equal(t, tt.expectedContents, result)
 			require.NoError(t, err)
+
+			if tt.expect != nil {
+				tt.expect(t, *managedCertificates)
+			}
 		})
 	}
 }
