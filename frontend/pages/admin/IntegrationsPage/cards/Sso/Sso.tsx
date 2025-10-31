@@ -10,13 +10,13 @@ import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TabText from "components/TabText";
+import TabNav from "components/TabNav";
+import PATHS from "router/paths";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
-import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
-import TabText from "../../../../../components/TabText";
-import TabNav from "../../../../../components/TabNav";
-import PATHS from "../../../../../router/paths";
 import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
 
 const baseClass = "app-config-form";
