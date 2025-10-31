@@ -16,7 +16,7 @@ export default {
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
-  CONTROLS_SETUP_ASSITANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
+  CONTROLS_SETUP_ASSISTANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
   CONTROLS_INSTALL_SOFTWARE: (platform: SetupExperiencePlatform) =>
     `${URL_PREFIX}/controls/setup-experience/install-software/${platform}`,
   CONTROLS_RUN_SCRIPT: `${URL_PREFIX}/controls/setup-experience/run-script`,
@@ -63,7 +63,8 @@ export default {
   ADMIN_INTEGRATIONS_VPP: `${INTEGRATIONS_PREFIX}/mdm/vpp`,
   ADMIN_INTEGRATIONS_VPP_SETUP: `${INTEGRATIONS_PREFIX}/vpp/setup`,
   ADMIN_INTEGRATIONS_SSO: `${INTEGRATIONS_PREFIX}/sso`,
-  ADMIN_INTEGRATIONS_SSO_END_USER: `${INTEGRATIONS_PREFIX}/sso/end-users`, // TODO route to new tab
+  ADMIN_INTEGRATIONS_SSO_FLEET_USERS: `${INTEGRATIONS_PREFIX}/sso/fleet-users`,
+  ADMIN_INTEGRATIONS_SSO_END_USERS: `${INTEGRATIONS_PREFIX}/sso/end-users`,
   ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK: `${INTEGRATIONS_PREFIX}/host-status-webhook`,
 
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
