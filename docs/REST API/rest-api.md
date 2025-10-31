@@ -825,7 +825,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 ### Request certificate
 
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
+Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) and custom SCEP certificate authorities (CA). DigiCert and NDES are coming soon.
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
@@ -838,6 +838,10 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| device_token     | string | body | The device's authentication token.   |
+| certificate_id   | integer | path | **Required (if using device_token for authentication).** The ID of the certificate created in Fleet. You can see your certificate IDs using the [List certificates endpoint](#list-certificates). |
+
+
 
 #### Example
 
