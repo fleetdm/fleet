@@ -2083,7 +2083,7 @@ to the log data via the `log` variable. Fields can be accessed using dot
 notation (e.g., `log.name`, `log.decorations.hostname`). All of expr's standard
 library functions are available for processing values.
 
-**Example osquery result log structure:**
+**Example log**
 ```json
 {
   "action": "snapshot",
@@ -2099,15 +2099,14 @@ library functions are available for processing values.
 }
 ```
 
-**Example template expressions for osquery results:**
-- `fleet.results.{log.decorations.hostname}` - Route by hostname, produces
-  `fleet.results.webserver-01`
-- `fleet.results.{log.name | split('/') | last()}` - Extract query name from
-  path, produces `fleet.results.process_events`
-- `fleet.results.{log.action}.{log.decorations.hostname}` - Combine action and
-  hostname, produces `fleet.results.snapshot.webserver-01`
-- `fleet.results.{log.decorations.host_uuid | split('-') | first()}` - Use
-  first segment of UUID, produces `fleet.results.85c1244f`
+**Example templates**
+
+| Template | Description | Result |
+|----------|-------------|--------|
+| `fleet.results.{log.decorations.hostname}` | Route by hostname | `fleet.results.webserver-01` |
+| `fleet.results.{log.name | split('/') | last()}` | Extract query name from path | `fleet.results.process_events` |
+| `fleet.results.{log.action}.{log.decorations.hostname}` | Combine action and hostname | `fleet.results.snapshot.webserver-01` |
+| `fleet.results.{log.decorations.host_uuid | split('-') | first()}` | Use first segment of UUID | `fleet.results.85c1244f` |
 
 ### nats_server
 
