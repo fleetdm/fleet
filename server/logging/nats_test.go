@@ -78,6 +78,39 @@ func makeNatsLogs(t *testing.T) []json.RawMessage {
 	return logs
 }
 
+func TestNatsLogRouter(t *testing.T) {
+	// Define an abbreviated test log.
+	testLog := json.RawMessage(`{
+		"action": "snapshot",
+		"decorations": {
+		  "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
+		  "hostname": "testhostname"
+		},
+		"hostIdentifier": "2d3b4dfc-9c1b-4617-ab07-c04dd3a754f0",
+		"name": "pack/Global/testname",
+		"numerics": false,
+		"snapshot": []
+	}`)
+
+	t.Run("Constant", func(t *testing.T) {
+		router := newNatsConstantRouter("test.logs")
+
+		subject, err := router.Route(testLog)
+
+		require.NoError(t, err)
+		require.Equal(t, "test.logs", subject)
+	})
+
+	t.Run("Template", func(t *testing.T) {
+		router := newNatsTemplateRouter("test.logs.{ $.name | split('/') | last() }.{ $.decorations.hostname }")
+
+		subject, err := router.Route(testLog)
+
+		require.NoError(t, err)
+		require.Equal(t, "test.logs.testname.testhostname", subject)
+	})
+}
+
 func TestNatsLogWriter(t *testing.T) {
 	// Create the NATS server and connection.
 	ns := makeNatsServer(t)
@@ -89,7 +122,7 @@ func TestNatsLogWriter(t *testing.T) {
 	// Ensure the NATS connection is closed when the test is done.
 	defer nc.Close()
 
-	t.Run("PublishDirect", func(t *testing.T) {
+	t.Run("Direct", func(t *testing.T) {
 		// Create a wait group to track outstanding logs.
 		var wg sync.WaitGroup
 
@@ -136,7 +169,7 @@ func TestNatsLogWriter(t *testing.T) {
 		require.Equal(t, expected, received)
 	})
 
-	t.Run("PublishStream", func(t *testing.T) {
+	t.Run("Stream", func(t *testing.T) {
 		ctx := t.Context()
 
 		// Create the JetStream context.
