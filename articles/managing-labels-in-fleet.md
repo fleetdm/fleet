@@ -13,7 +13,7 @@ To add or edit a label in Fleet, select the avatar on the right side of the top 
 
 You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
 
-> For dynamic labels, if you want to change the query or platforms, you must delete the existing label and create a new one.
+> For dynamic labels, if you want to change the query or platform, you must delete the existing label and create a new one.
 
 <meta name="articleTitle" value="Labels in Fleet">
 <meta name="authorFullName" value="Noah Talerman">
