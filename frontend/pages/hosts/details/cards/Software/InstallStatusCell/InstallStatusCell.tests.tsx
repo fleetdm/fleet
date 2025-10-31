@@ -373,7 +373,7 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Failed run' for a payload-free package that failed to run", async () => {
+  it("renders 'Failed' for a payload-free package that failed to run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -393,12 +393,10 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(
-      screen.getByRole("button", { name: /Failed run/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
-    await user.hover(screen.getByText(/Failed run/));
+    await user.hover(screen.getByText(/Failed/));
     await waitFor(() => {
       expect(screen.getByText(/The script failed to run/i)).toBeInTheDocument();
     });
