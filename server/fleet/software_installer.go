@@ -563,6 +563,8 @@ type UpdateSoftwareInstallerPayload struct {
 	ValidatedLabels *LabelIdentsWithScope
 	Categories      []string
 	CategoryIDs     []uint
+	// DisplayName is an end-user friendly name.
+	DisplayName string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
