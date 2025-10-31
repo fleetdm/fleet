@@ -9,9 +9,9 @@ If you would like to manage hosts that can travel outside your VPN or intranet, 
 - `/api/osquery/*`
 - `/api/v1/osquery/*`
 
-## Using Fleet Desktop on remote devices
+## Fleet Desktop
 
-If you're using Fleet Desktop `/api/*/fleet/device/*/desktop` must be exposed in the API, and for the end user **Fleet Desktop > My device** page `/device/*` and `/assets/*` must be exposed.
+If you're using Fleet Desktop, `/api/*/fleet/device/*/desktop` must be exposed in the API, and for the end user **Fleet Desktop > My device** page `/device/*` and `/assets/*` must be exposed.
 
 For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
@@ -23,7 +23,7 @@ If you would like to use the fleetctl CLI from outside of your network, the foll
 - `/api/*/setup`
 - `/api/*/fleet/*`
 
-## Using Fleet's MDM features
+## MDM features
 
 ### macOS
 
@@ -56,8 +56,19 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 - `/api/mdm/microsoft/tos`: Presents end users with the Terms of Service agreement during out-of-the-box Windows setup. Required for automatic enrollment.
 - `/api/mdm/microsoft/auth`: If you use automatic enrollment, authenticates end users during out-of-the-box Windows setup. 
   - See the [section 3.2 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a) for more details.
+ 
+### iOS and iPadOS
 
-### SCEP proxy
+If you would like to use Fleet's iOS/iPadOS MDM features, the following endpoints need to be exposed:
+
+- `/enroll`: Allows end users to access the enrollment page on which they download an enrollment profile to enroll their iOS/iPadOS host.
+- `/api/*/fleet/enrollment_profiles/ota`:  Allows hosts to download an enrollment profile.
+
+### Android
+
+- `/enroll`: Allows end users to access the enrollment page where they select a link to enroll their Android host.
+
+## SCEP proxy
 
 If you would like to use Fleet as a SCEP proxy, the following endpoint needs to be exposed:
 
