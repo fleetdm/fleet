@@ -1275,6 +1275,7 @@ func listSoftwareDB(
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
+
 	}
 
 	return softwares, nil
@@ -1328,6 +1329,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.vendor",
 			"s.arch",
 			"s.application_id",
+			"s.title_id",
 			goqu.I("scp.cpe").As("generated_cpe"),
 		).
 		// Include this in the sub-query in case we want to sort by 'generated_cpe'
@@ -1517,6 +1519,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.vendor",
 			"s.arch",
 			"s.application_id",
+			"s.title_id",
 			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
 			"scv.cve",
 			"scv.created_at",
@@ -1785,6 +1788,30 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 		return nil, nil, err
 	}
 
+	var titleIDs []uint
+	for _, s := range software {
+		if s.TitleID != nil {
+			titleIDs = append(titleIDs, *s.TitleID)
+		}
+	}
+
+	var tmID uint
+	if opt.TeamID != nil {
+		tmID = *opt.TeamID
+	}
+	displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, tmID, titleIDs)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+	}
+
+	for i, s := range software {
+		if s.TitleID != nil {
+			if displayName, ok := displayNames[*s.TitleID]; ok {
+				software[i].DisplayName = displayName
+			}
+		}
+	}
+
 	perPage := opt.ListOptions.PerPage
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
@@ -1849,6 +1876,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.vendor",
 			"s.arch",
 			"s.extension_id",
+			"s.title_id",
 			"scv.cve",
 			"scv.created_at",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
@@ -1929,6 +1957,19 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 
 		if i == 0 {
 			software = result.Software
+		}
+
+		var tmID uint
+		if teamID != nil {
+			tmID = *teamID
+		}
+
+		if software.TitleID != nil {
+			displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *software.TitleID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting display name for software")
+			}
+			software.DisplayName = displayName
 		}
 
 		if result.CVE != nil {

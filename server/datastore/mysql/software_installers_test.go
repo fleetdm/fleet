@@ -3431,13 +3431,14 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host0 := test.NewHost(t, ds, "host0", "", "host0key", "host0uuid", time.Now())
 
 	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:    tfr1,
 		Extension:        "msi",
-		StorageID:        "storage6",
-		Filename:         "foobar6",
-		Title:            "Something2",
+		StorageID:        "storageid",
+		Filename:         "originalname.msi",
+		Title:            "OriginalName1",
 		PackageIDs:       []string{"id2"},
 		Version:          "2.0",
 		Source:           "programs",
@@ -3510,6 +3511,27 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, "update1", title.DisplayName)
 
+	// Update host's software so we get a software version
+	software0 := []fleet.Software{
+		{Name: "OriginalName1", Version: "0.0.1", Source: "programs", TitleID: ptr.Uint(titleID)},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host0.ID, software0)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+
+	softwareList, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, softwareList, 1)
+	assert.Equal(t, titleID, *softwareList[0].TitleID)
+	assert.Equal(t, "update1", softwareList[0].DisplayName)
+
+	software, err := ds.SoftwareByID(ctx, softwareList[0].ID, ptr.Uint(0), false, &fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, titleID, *software.TitleID)
+	assert.Equal(t, "update1", software.DisplayName)
+
 	// Update the display name again, should see the change
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
 		DisplayName:       "update2",
@@ -3540,6 +3562,19 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, "update2", title.DisplayName)
 
+	softwareList, _, err = ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, softwareList, 1)
+	assert.Equal(t, titleID, *softwareList[0].TitleID)
+	assert.Equal(t, "update2", softwareList[0].DisplayName)
+
+	software, err = ds.SoftwareByID(ctx, softwareList[0].ID, ptr.Uint(0), false, &fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, titleID, *software.TitleID)
+	assert.Equal(t, "update2", software.DisplayName)
+
 	// Update display name to be empty
 	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:           titleID,
@@ -3568,4 +3603,18 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
 	require.NoError(t, err)
 	assert.Empty(t, title.DisplayName)
+
+	softwareList, _, err = ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, softwareList, 1)
+	assert.Equal(t, titleID, *softwareList[0].TitleID)
+	assert.Empty(t, softwareList[0].DisplayName)
+
+	software, err = ds.SoftwareByID(ctx, softwareList[0].ID, ptr.Uint(0), false, &fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, titleID, *software.TitleID)
+	assert.Empty(t, software.DisplayName)
+
 }

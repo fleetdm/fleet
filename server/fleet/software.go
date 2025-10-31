@@ -100,6 +100,8 @@ type Software struct {
 	IsKernel bool `json:"-"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+
+	DisplayName string `json:"display_name"`
 }
 
 func (Software) AuthzType() string {
