@@ -954,6 +954,7 @@ spec:
   source: chrome_extensions
   browser: chrome
   extension_for: chrome
+  display_name: ""
   version: 0.0.1
   vulnerabilities:
   - cve: cve-321-432-543
@@ -970,6 +971,7 @@ spec:
   extension_id: xyz
   browser: edge
   extension_for: edge
+  display_name: ""
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
   id: 0
@@ -977,6 +979,7 @@ spec:
   source: chrome_extensions
   browser: chrome
   extension_for: chrome
+  display_name: ""
   version: 0.0.3
   vulnerabilities: null
 - bundle_identifier: bundle
@@ -986,6 +989,7 @@ spec:
   source: deb_packages
   browser: ""
   extension_for: ""
+  display_name: ""
   version: 0.0.3
   vulnerabilities: null
 `
@@ -1002,6 +1006,7 @@ spec:
       "source": "chrome_extensions",
 	  "browser": "chrome",
 	  "extension_for": "chrome",
+	  "display_name": "",
       "generated_cpe": "somecpe",
       "vulnerabilities": [
         {
@@ -1024,6 +1029,7 @@ spec:
       "extension_id": "xyz",
       "browser": "edge",
 	  "extension_for": "edge",
+	  "display_name": "",
       "generated_cpe": "",
       "vulnerabilities": null
     },
@@ -1034,6 +1040,7 @@ spec:
       "source": "chrome_extensions",
 	  "browser": "chrome",
 	  "extension_for": "chrome",
+	  "display_name": "",
       "generated_cpe": "someothercpewithoutvulns",
       "vulnerabilities": null
     },
@@ -1043,6 +1050,7 @@ spec:
       "version": "0.0.3",
       "bundle_identifier": "bundle",
       "source": "deb_packages",
+      "display_name": "",
       "browser": "",
 	  "extension_for": "",
       "generated_cpe": "",
