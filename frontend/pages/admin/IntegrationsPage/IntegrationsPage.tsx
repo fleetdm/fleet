@@ -33,7 +33,7 @@ const IntegrationsPage = ({
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
-  const { section } = params;
+  const { section, subsection } = params;
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   // // // settings that live under the integrations page
@@ -104,6 +104,7 @@ const IntegrationsPage = ({
               handleSubmit={onUpdateSettings}
               isPremiumTier={isPremiumTier}
               isUpdatingSettings={isUpdatingSettings}
+              subsection={subsection}
             />
           ) : (
             <Spinner />

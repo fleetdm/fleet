@@ -18,8 +18,6 @@ import TabText from "../../../../../components/TabText";
 import TabNav from "../../../../../components/TabNav";
 import PATHS from "../../../../../router/paths";
 import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
-import { PLATFORM_BY_INDEX } from "../../../../ManageControlsPage/SetupExperience/cards/InstallSoftware/InstallSoftware";
-import { SetupExperiencePlatform } from "../../../../../interfaces/platform";
 
 const baseClass = "app-config-form";
 
@@ -92,8 +90,10 @@ const Sso = ({
   isPremiumTier,
   isUpdatingSettings,
   router,
+  subsection,
 }: IAppConfigFormProps): JSX.Element => {
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
+  const selectedAuthTarget = subsection as string;
 
   const [formData, setFormData] = useState<ISsoFormData>({
     enableSso: appConfig.sso_settings?.enable_sso ?? false,
@@ -318,7 +318,10 @@ const Sso = ({
   return (
     <SettingsSection title="Single sign-on (SSO)">
       <TabNav secondary>
-        <Tabs selectedIndex={1} onSelect={handleTabChange}>
+        <Tabs
+          selectedIndex={AUTH_TARGETS_BY_INDEX.indexOf(selectedAuthTarget)}
+          onSelect={handleTabChange}
+        >
           <TabList>
             <Tab>
               <TabText>Fleet users</TabText>

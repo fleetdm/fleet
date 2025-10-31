@@ -192,11 +192,7 @@ const EndUserAuthSection = () => {
   }
 
   return (
-    <div className={baseClass}>
-      <SettingsSection title="End user authentication">
-        {renderContent()}
-      </SettingsSection>
-    </div>
+    <div className={baseClass}>{renderContent()}</div>
   );
 };
 
