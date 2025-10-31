@@ -1172,7 +1172,7 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 	require.Equal(t, host.ID, details.HostID)
 	require.Equal(t, "Test Computer", details.HostDisplayName)
 	require.Equal(t, "ABC123", details.HostSerial)
-	require.Equal(t, "manual", details.TriggeredBy)
+	require.Equal(t, fleet.DeletedHostTriggeredByManual, details.TriggeredBy)
 }
 
 func TestDeleteHostsCreatesActivities(t *testing.T) {
@@ -1242,7 +1242,7 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 		require.Contains(t, []uint{host1.ID, host2.ID}, details.HostID)
 		require.Contains(t, []string{"Computer 1", "Computer 2"}, details.HostDisplayName)
 		require.Contains(t, []string{"SERIAL1", "SERIAL2"}, details.HostSerial)
-		require.Equal(t, "manual", details.TriggeredBy)
+		require.Equal(t, fleet.DeletedHostTriggeredByManual, details.TriggeredBy)
 	}
 }
 
@@ -1370,7 +1370,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 		err = json.Unmarshal(*activity.Details, &details)
 		require.NoError(t, err)
 
-		if details.TriggeredBy == "expiration" {
+		if details.TriggeredBy == fleet.DeletedHostTriggeredByExpiration {
 			require.NotNil(t, details.HostExpiryWindow, "HostExpiryWindow should be set for expired hosts")
 			deletedHostActivities = append(deletedHostActivities, hostActivity{
 				hostID:       details.HostID,
