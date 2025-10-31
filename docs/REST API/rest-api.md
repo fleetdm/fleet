@@ -5851,7 +5851,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 ### Batch-update custom OS settings (configuration profiles)
 
-Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are not assigned to "No team" (Fleet Premium).
+Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are assigned to "No team" (Fleet Premium).
 
 For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list. 
 
