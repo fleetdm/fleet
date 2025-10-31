@@ -405,7 +405,7 @@ func setupKernelVulnsWithTeam(t *testing.T, ds *Datastore, ctx context.Context, 
 	require.NoError(t, err)
 
 	// Refresh the pre-aggregated table
-	err = ds.RefreshOSVersionVulnerabilities(ctx)
+	err = ds.refreshOSVersionVulnerabilities(ctx)
 	require.NoError(t, err)
 }
 
@@ -517,7 +517,7 @@ func testListVulnsByMultipleLinuxOSWithManyKernels(t *testing.T, ds *Datastore) 
 	}
 
 	// Refresh the pre-aggregated table
-	err = ds.RefreshOSVersionVulnerabilities(ctx)
+	err = ds.refreshOSVersionVulnerabilities(ctx)
 	require.NoError(t, err)
 
 	// Now query for vulnerabilities

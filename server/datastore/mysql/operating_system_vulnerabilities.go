@@ -10,6 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -362,7 +364,7 @@ func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilitie
 
 func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src fleet.VulnerabilitySource, olderThan time.Time) error {
 	// Note: operating_system_version_vulnerabilities cleanup is handled automatically
-	// by RefreshOSVersionVulnerabilities, which removes stale entries during its refresh
+	// by refreshOSVersionVulnerabilities, which removes stale entries during its refresh
 	deleteStmt := `
 		DELETE FROM operating_system_vulnerabilities
 		WHERE source = ? AND updated_at < ?
@@ -440,6 +442,9 @@ GROUP BY id, cve, version
 	return kernels, nil
 }
 
+// InsertKernelSoftwareMapping should never be called concurrently
+// It should be called as part of vulnerabilities job, which should only run on 1 server at a time.
+// If concurrent calls are expected, add proper locking.
 func (ds *Datastore) InsertKernelSoftwareMapping(ctx context.Context) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE kernel_host_counts SET hosts_count = 0`)
 	if err != nil {
@@ -488,19 +493,17 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	// Refresh the pre-aggregated OS version vulnerabilities table
-	if err := ds.RefreshOSVersionVulnerabilities(ctx); err != nil {
+	if err := ds.refreshOSVersionVulnerabilities(ctx); err != nil {
 		return ctxerr.Wrap(ctx, err, "refresh os version vulnerabilities after kernel mapping update")
 	}
 
 	return nil
 }
 
-// RefreshOSVersionVulnerabilities refreshes the pre-aggregated operating_system_version_vulnerabilities table
+// refreshOSVersionVulnerabilities refreshes the pre-aggregated operating_system_version_vulnerabilities table
 // with current data from kernel_host_counts and software_cve.
 // This function completely refreshes the table and removes any stale entries.
-// This function should be called after:
-//   - InsertKernelSoftwareMapping (when kernel_host_counts is updated)
-func (ds *Datastore) RefreshOSVersionVulnerabilities(ctx context.Context) error {
+func (ds *Datastore) refreshOSVersionVulnerabilities(ctx context.Context) error {
 	// Capture timestamp at start - we'll use this to mark all refreshed rows
 	// and clean up any rows that weren't touched (stale data)
 	updatedAt := time.Now()
@@ -591,9 +594,19 @@ func processLinuxVulnResults(
 	totalCountByOSVersionID map[uint]uint, // Output: tracks total counts per os_version_id
 	vulnsByKey map[string][]fleet.CVE, // Output: CVEs grouped by "name-version" key
 	cveSet map[string]struct{}, // Output: global set of all CVEs for CVSS fetching
+	logger log.Logger,
 ) {
 	for _, r := range results {
 		key := osVersionIDToKeyMap[r.OSVersionID]
+		if key == "" {
+			// Skip results with missing os_version_id mapping to avoid creating empty string keys
+			level.Error(logger).Log(
+				"msg", "missing os_version_id mapping in processLinuxVulnResults",
+				"os_version_id", r.OSVersionID,
+				"cve", r.CVE,
+			)
+			continue
+		}
 
 		// Track total count per os_version_id
 		if r.TotalCount != nil {
@@ -1002,6 +1015,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		totalCountByOSVersionID,
 		vulnsByKey,
 		cveSet,
+		ds.logger,
 	)
 
 	// Step 3: Fetch CVE metadata for all CVEs

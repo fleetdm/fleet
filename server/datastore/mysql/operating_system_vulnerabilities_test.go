@@ -797,7 +797,7 @@ func testRefreshOSVersionVulnerabilities(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Refresh should update the value
-		require.NoError(t, ds.RefreshOSVersionVulnerabilities(ctx))
+		require.NoError(t, ds.refreshOSVersionVulnerabilities(ctx))
 
 		// Verify the update
 		var resolvedVersion string
@@ -827,7 +827,7 @@ func testRefreshOSVersionVulnerabilities(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Refresh should not error and should clean up all entries for this OS version
-		require.NoError(t, ds.RefreshOSVersionVulnerabilities(ctx))
+		require.NoError(t, ds.refreshOSVersionVulnerabilities(ctx))
 
 		// Should have no vulnerabilities now (automatically cleaned up since they're stale)
 		err = ds.writer(ctx).GetContext(ctx, &count, `
