@@ -397,7 +397,7 @@ type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
 
 type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
-type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
@@ -5256,7 +5256,7 @@ func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 	return s.ScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
+func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 	s.mu.Lock()
 	s.CleanupExpiredHostsFuncInvoked = true
 	s.mu.Unlock()

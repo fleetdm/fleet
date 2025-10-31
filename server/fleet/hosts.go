@@ -1612,3 +1612,11 @@ func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser,
 
 	return endUsers, nil
 }
+
+// DeletedHostDetails contains details about a host that has been deleted.
+type DeletedHostDetails struct {
+	ID               uint
+	DisplayName      string
+	Serial           string
+	HostExpiryWindow int
+}
