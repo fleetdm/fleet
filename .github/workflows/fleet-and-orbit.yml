@@ -81,9 +81,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Verify Go version
-        run: go version
-
       - name: Set up Node.js
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
@@ -103,31 +100,19 @@ jobs:
 
           # Install cloudflared
           #
-          # Updated to 2025.10.1 to fix compatibility issues with Go 1.25.3
-          wget https://github.com/cloudflare/cloudflared/releases/download/2025.10.1/cloudflared-linux-amd64.deb
+          # We pin to version 2025.5.0 because something broke with 2025.6.1.
+          # 2025.6.1 fails with "failed to create tunnel: Unknown output format 'default'"
+          wget https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb
 
           # Add secret
           echo "$CERT_PEM" | base64 -d > cert.pem
-
           # Start tunnel
-          echo "=== Starting Cloudflare tunnel ==="
-          echo "Tunnel name: ${{ needs.gen.outputs.subdomain }}"
-          echo "Tunnel domain: ${{ needs.gen.outputs.domain }}"
           cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
-
-          # Wait for tunnel to be ready
-          echo "=== Waiting for tunnel to be ready ==="
           until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
             echo "Awaiting tunnel ready..."
             sleep 5
           done
-
-          # Verify tunnel is working
-          echo "=== Tunnel ready! Verifying DNS propagation ==="
-          sleep 5  # Give DNS a moment to propagate
-          nslookup ${{ needs.gen.outputs.domain }} || echo "WARNING: DNS lookup failed"
-          echo "=== Cloudflare tunnel setup complete ==="
 
       - name: Start Infra Dependencies
         run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis &
@@ -210,34 +195,16 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Verify Go version
-        run: go version
-
       - name: Build Fleetctl
         run: make fleetctl
 
       - id: enroll
         name: Set enroll secret
         run: |
-          # DNS and network diagnostics
-          echo "=== DNS Resolution Test ==="
-          echo "Attempting to resolve: ${{ needs.gen.outputs.domain }}"
-          nslookup ${{ needs.gen.outputs.domain }} || echo "nslookup failed"
-          dig ${{ needs.gen.outputs.domain }} || echo "dig failed"
-
-          echo "=== Network Connectivity Test ==="
-          echo "Testing HTTPS connectivity to: ${{ needs.gen.outputs.address }}"
-          curl -v --max-time 10 ${{ needs.gen.outputs.address }} || echo "curl failed"
-
-          echo "=== DNS Server Configuration ==="
-          cat /etc/resolv.conf
-
-          echo "=== Starting fleetctl login attempts ==="
           ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
           until ./build/fleetctl login --email admin@example.com --password preview1337#
           do
-            echo "Login failed. Retrying in 30s..."
-            echo "Current time: $(date)"
+            echo "Retrying in 30s..."
             sleep 30
           done
           echo '---
