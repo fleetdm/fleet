@@ -9,8 +9,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import { generateFormValidations, validateFormData } from "./helpers";
 
-const baseClass = "custom-e-s-t-form";
-
 export interface ICustomESTFormData {
   name: string;
   url: string;
