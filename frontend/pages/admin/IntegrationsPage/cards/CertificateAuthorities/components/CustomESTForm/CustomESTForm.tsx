@@ -9,19 +9,15 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import { generateFormValidations, validateFormData } from "./helpers";
 
-const baseClass = "smallstep-form";
-
-export interface ISmallstepFormData {
+export interface ICustomESTFormData {
   name: string;
-  scepURL: string;
-  challengeURL: string;
+  url: string;
   username: string;
   password: string;
 }
-
-interface ISmallstepFormProps {
+interface ICustomESTFormProps {
+  formData: ICustomESTFormData;
   certAuthorities?: ICertificateAuthorityPartial[];
-  formData: ISmallstepFormData;
   submitBtnText: string;
   isSubmitting: boolean;
   isEditing?: boolean;
@@ -31,9 +27,9 @@ interface ISmallstepFormProps {
   onCancel: () => void;
 }
 
-const SmallstepForm = ({
-  certAuthorities,
+const CustomESTForm = ({
   formData,
+  certAuthorities,
   submitBtnText,
   isSubmitting,
   isEditing = false,
@@ -41,7 +37,7 @@ const SmallstepForm = ({
   onChange,
   onSubmit,
   onCancel,
-}: ISmallstepFormProps) => {
+}: ICustomESTFormProps) => {
   const validationsConfig = useMemo(() => {
     return generateFormValidations(certAuthorities ?? [], isEditing);
   }, [certAuthorities, isEditing]);
@@ -50,7 +46,7 @@ const SmallstepForm = ({
     return validateFormData(formData, validationsConfig);
   }, [formData, validationsConfig]);
 
-  const { name, scepURL, challengeURL, username, password } = formData;
+  const { name, url, username, password } = formData;
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -67,30 +63,16 @@ const SmallstepForm = ({
         onChange={onChange}
         parseTarget
         placeholder="WIFI_CERTIFICATE"
-        helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_SMALLSTEP_DATA_WIFI_CERTIFICATE)."
+        helpText="Letters, numbers, and underscores only."
       />
       <InputField
-        label="SCEP URL"
-        name="scepURL"
-        value={scepURL}
-        error={validations.scepURL?.message}
+        label="URL"
+        name="url"
+        value={url}
+        error={validations.url?.message}
         onChange={onChange}
         parseTarget
-        placeholder="https://example.scep.smallstep.com/p/agents/integration-fleet-xr9f4db7"
-      />
-      <InputField
-        label="Challenge URL"
-        name="challengeURL"
-        value={challengeURL}
-        error={validations.challengeURL?.message}
-        onChange={onChange}
-        parseTarget
-        placeholder="https://example.scep.smallstep.com/fleet/xr9f4db7-83f1-48ab-8982-8b6870d4fl85/challenge"
-        helpText={
-          <>
-            Smallstep calls this the <b>SCEP Challenge URL</b>.
-          </>
-        }
+        placeholder="https://example.com/well-known/est/abc123"
       />
       <InputField
         label="Username"
@@ -99,13 +81,7 @@ const SmallstepForm = ({
         error={validations.username?.message}
         onChange={onChange}
         parseTarget
-        placeholder={"r9c5faea-af93-4679-922c-5548c6254438"}
-        helpText={
-          <>
-            Smallstep calls this the{" "}
-            <b>Challenge Basic Authentication Username</b>.
-          </>
-        }
+        helpText="The username used to authenticate with the EST endpoint."
       />
       <InputField
         type="password"
@@ -115,12 +91,7 @@ const SmallstepForm = ({
         error={validations.password?.message}
         onChange={onChange}
         parseTarget
-        helpText={
-          <>
-            Smallstep calls this the{" "}
-            <b>Challenge Basic Authentication Password</b>.
-          </>
-        }
+        helpText="The password used to authenticate with the EST endpoint."
       />
       <div className="modal-cta-wrap">
         <TooltipWrapper
@@ -146,4 +117,4 @@ const SmallstepForm = ({
   );
 };
 
-export default SmallstepForm;
+export default CustomESTForm;

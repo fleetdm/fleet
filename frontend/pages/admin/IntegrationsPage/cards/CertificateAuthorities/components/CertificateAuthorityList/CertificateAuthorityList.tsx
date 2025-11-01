@@ -37,6 +37,9 @@ export const generateListData = (
       case "smallstep":
         description = "Smallstep";
         break;
+      case "custom_est":
+        description = "Custom Enrollment Over Secure Transport (EST)";
+        break;
       default:
         description = "Unknown Certificate Authority Type";
     }

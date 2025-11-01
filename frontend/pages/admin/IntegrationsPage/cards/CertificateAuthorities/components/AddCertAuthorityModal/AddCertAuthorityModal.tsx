@@ -28,13 +28,17 @@ import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import SmallstepForm, {
   ISmallstepFormData,
 } from "../SmallstepForm/SmallstepForm";
+import CustomESTForm, {
+  ICustomESTFormData,
+} from "../CustomESTForm/CustomESTForm";
 
 export type ICertFormData =
   | IDigicertFormData
   | IHydrantFormData
   | INDESFormData
   | ICustomSCEPFormData
-  | ISmallstepFormData;
+  | ISmallstepFormData
+  | ICustomESTFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -94,6 +98,16 @@ const AddCertAuthorityModal = ({
     password: "",
   });
 
+  const [
+    customESTFormData,
+    setCustomESTFormData,
+  ] = useState<ICustomESTFormData>({
+    name: "",
+    url: "",
+    username: "",
+    password: "",
+  });
+
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
   };
@@ -122,6 +136,10 @@ const AddCertAuthorityModal = ({
         setFormData = setSmallstepFormData;
         formData = smallstepFormData;
         break;
+      case "custom_est":
+        setFormData = setCustomESTFormData;
+        formData = customESTFormData;
+        break;
       default:
         return;
     }
@@ -149,6 +167,9 @@ const AddCertAuthorityModal = ({
         break;
       case "smallstep":
         formData = smallstepFormData;
+        break;
+      case "custom_est":
+        formData = customESTFormData;
         break;
       default:
         return;
@@ -233,6 +254,18 @@ const AddCertAuthorityModal = ({
         return (
           <SmallstepForm
             formData={smallstepFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "custom_est":
+        return (
+          <CustomESTForm
+            formData={customESTFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
