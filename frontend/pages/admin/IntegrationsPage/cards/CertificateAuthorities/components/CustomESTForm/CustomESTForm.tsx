@@ -99,7 +99,7 @@ const CustomESTForm = ({
         <TooltipWrapper
           tipContent="Complete all required fields to save."
           underline={false}
-          position="top"
+          position="right"
           disableTooltip={validations.isValid}
           showArrow
         >
