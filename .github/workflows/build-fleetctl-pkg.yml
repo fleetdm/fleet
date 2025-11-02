@@ -147,8 +147,8 @@ jobs:
             exit 1
           fi
           
-          # Show version for verification
-          ./fleetctl version
+          # Verify binary works and show version
+          ./fleetctl --version
 
       - name: Import package signing keys
         env:
