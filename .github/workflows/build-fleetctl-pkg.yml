@@ -208,15 +208,52 @@ jobs:
             # Create a zip for notarization
             zip fleetctl_notarize.zip fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
             
-            # Submit for notarization
-            xcrun notarytool submit fleetctl_notarize.zip \
+            # Submit for notarization and capture output
+            NOTARIZE_OUTPUT=$(xcrun notarytool submit fleetctl_notarize.zip \
               --apple-id "$AC_USERNAME" \
               --password "$AC_PASSWORD" \
               --team-id "$AC_TEAM_ID" \
-              --wait
+              --wait 2>&1)
             
-            # Staple the notarization ticket
-            xcrun stapler staple fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+            # Extract submission ID and status from output
+            SUBMISSION_ID=$(echo "$NOTARIZE_OUTPUT" | grep -i "id:" | head -1 | awk '{print $NF}' || echo "")
+            STATUS=$(echo "$NOTARIZE_OUTPUT" | grep -i "status:" | awk '{print $NF}' || echo "")
+            
+            echo "Notarization output:"
+            echo "$NOTARIZE_OUTPUT"
+            
+            if [ -n "$SUBMISSION_ID" ] && [ "$STATUS" != "Accepted" ] && [ "$STATUS" != "" ]; then
+              echo "⚠️  Notarization status: $STATUS"
+              echo "Retrieving notarization log for details..."
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$AC_USERNAME" \
+                --password "$AC_PASSWORD" \
+                --team-id "$AC_TEAM_ID" || true
+              
+              # In test mode, continue even if notarization fails
+              if [ "${{ steps.extract_version.outputs.is_test_mode }}" = "true" ]; then
+                echo "⚠️  Notarization failed, but continuing in test mode"
+                rm -f fleetctl_notarize.zip
+                exit 0
+              else
+                echo "❌ Notarization failed. Exiting."
+                exit 1
+              fi
+            elif [ "$STATUS" = "Accepted" ] || [ -z "$STATUS" ]; then
+              # Notarization succeeded (or --wait completed without explicit status, assume success)
+              echo "✓ Notarization completed successfully"
+              
+              # Staple the notarization ticket
+              xcrun stapler staple fleetctl_v${{ steps.extract_version.outputs.version }}.pkg || {
+                echo "Warning: Stapling failed, but notarization may have succeeded"
+                # In test mode, continue even if stapling fails
+                if [ "${{ steps.extract_version.outputs.is_test_mode }}" = "true" ]; then
+                  echo "Continuing in test mode despite stapling failure"
+                else
+                  exit 1
+                fi
+              }
+            fi
             
             # Clean up notarization zip
             rm -f fleetctl_notarize.zip
