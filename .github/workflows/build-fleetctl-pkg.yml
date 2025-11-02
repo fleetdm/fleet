@@ -1,0 +1,229 @@
+name: Build fleetctl macOS package
+
+# This workflow builds a signed and notarized macOS .pkg installer for fleetctl
+# as part of the Fleet release process. The package is uploaded as a release asset.
+
+on:
+  push:
+    tags:
+      - "fleet-*"
+  workflow_dispatch: # Manual trigger for testing
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: write # Needed to upload release assets
+  id-token: write # Needed for attestations
+
+jobs:
+  build-fleetctl-pkg:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          # Remove 'fleet-' prefix to get version
+          VERSION="${TAG_NAME#fleet-}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Fleet version: $VERSION"
+
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Install dependencies
+        run: |
+          # Install any required dependencies before building
+          make deps || echo "No dependencies step needed"
+
+      - name: Generate code (if needed)
+        run: |
+          # Generate any required code before building
+          make generate-go || echo "No generation step needed"
+
+      - name: Build fleetctl binary
+        run: |
+          # Build fleetctl for macOS (universal binary - both amd64 and arm64)
+          VERSION="${{ steps.extract_version.outputs.version }}"
+          
+          # Extract branch name from ref, handling both tags and branches
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            BRANCH_NAME="${{ steps.extract_version.outputs.tag_name }}"
+          else
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          fi
+          
+          # Set up version ldflags
+          LDFLAGS="-X github.com/fleetdm/fleet/v4/server/version.appName=fleetctl \
+                   -X github.com/fleetdm/fleet/v4/server/version.version=${VERSION} \
+                   -X github.com/fleetdm/fleet/v4/server/version.branch=${BRANCH_NAME} \
+                   -X github.com/fleetdm/fleet/v4/server/version.revision=${GITHUB_SHA} \
+                   -X github.com/fleetdm/fleet/v4/server/version.buildDate=$(date -u +%Y-%m-%d) \
+                   -X github.com/fleetdm/fleet/v4/server/version.buildUser=github-actions"
+          
+          # Build for amd64
+          echo "Building fleetctl for darwin/amd64..."
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
+            -trimpath \
+            -ldflags "$LDFLAGS" \
+            -o fleetctl_amd64 \
+            ./cmd/fleetctl
+          
+          # Build for arm64
+          echo "Building fleetctl for darwin/arm64..."
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build \
+            -trimpath \
+            -ldflags "$LDFLAGS" \
+            -o fleetctl_arm64 \
+            ./cmd/fleetctl
+          
+          # Create universal binary using lipo
+          echo "Creating universal binary..."
+          lipo -create fleetctl_amd64 fleetctl_arm64 -output fleetctl
+          chmod +x fleetctl
+          
+          # Clean up architecture-specific binaries
+          rm -f fleetctl_amd64 fleetctl_arm64
+          
+          # Verify we have the binary
+          if [ ! -f fleetctl ]; then
+            echo "Error: fleetctl binary not found after build"
+            exit 1
+          fi
+          
+          # Show version for verification
+          ./fleetctl version
+
+      - name: Import package signing keys
+        env:
+          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security import certificate.p12 -k build.keychain -P $APPLE_INSTALLER_CERTIFICATE_PASSWORD -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security find-identity -vv
+          rm certificate.p12
+
+      - name: Create package structure
+        run: |
+          # Create package root directory structure
+          mkdir -p pkgroot/usr/local/bin
+          cp fleetctl pkgroot/usr/local/bin/fleetctl
+          chmod +x pkgroot/usr/local/bin/fleetctl
+
+      - name: Build PKG
+        run: |
+          # Build the component package
+          pkgbuild \
+            --root pkgroot \
+            --identifier com.fleetdm.fleetctl \
+            --version "${{ steps.extract_version.outputs.version }}" \
+            --install-location / \
+            fleetctl_unsigned.pkg
+
+      - name: Sign package
+        run: |
+          # Sign the package using the certificate identity
+          PACKAGE_SIGNING_IDENTITY_SHA1="D52080FD1F0941DE31346F06DA0F08AED6FACBBF"
+          productsign --sign "$PACKAGE_SIGNING_IDENTITY_SHA1" \
+            fleetctl_unsigned.pkg \
+            fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+
+      - name: Verify package signature
+        run: |
+          pkgutil --check-signature fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+
+      - name: Notarize package
+        env:
+          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        # We use retry because we've seen Apple notarization fail or timeout
+        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3.0.0
+        with:
+          timeout_minutes: 40
+          max_attempts: 10
+          command: |
+            # Create a zip for notarization
+            zip fleetctl_notarize.zip fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+            
+            # Submit for notarization
+            xcrun notarytool submit fleetctl_notarize.zip \
+              --apple-id "$AC_USERNAME" \
+              --password "$AC_PASSWORD" \
+              --team-id "$AC_TEAM_ID" \
+              --wait
+            
+            # Staple the notarization ticket
+            xcrun stapler staple fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+            
+            # Clean up notarization zip
+            rm -f fleetctl_notarize.zip
+
+      - name: Upload package to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.extract_version.outputs.tag_name }}"
+          PACKAGE_NAME="fleetctl_v${{ steps.extract_version.outputs.version }}.pkg"
+          
+          # Wait for release to exist (goreleaser creates it as draft)
+          MAX_WAIT=300  # 5 minutes max wait
+          ELAPSED=0
+          INTERVAL=10   # Check every 10 seconds
+          
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            if gh release view "$TAG_NAME" --repo fleetdm/fleet &>/dev/null; then
+              echo "Release found"
+              break
+            fi
+            echo "Waiting for release to be created... (${ELAPSED}s/${MAX_WAIT}s)"
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "Warning: Release not found after waiting ${MAX_WAIT}s"
+            echo "Attempting to upload anyway (release might be created as draft)..."
+          fi
+          
+          echo "Uploading $PACKAGE_NAME to release $TAG_NAME"
+          gh release upload "$TAG_NAME" "$PACKAGE_NAME" --repo fleetdm/fleet || {
+            echo "Upload failed, retrying once..."
+            sleep 5
+            gh release upload "$TAG_NAME" "$PACKAGE_NAME" --repo fleetdm/fleet
+          }
+
+      - name: Attest package
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+          push-to-registry: false
+
