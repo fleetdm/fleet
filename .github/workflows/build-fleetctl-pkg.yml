@@ -150,20 +150,47 @@ jobs:
           # Verify binary works and show version
           ./fleetctl --version
 
-      - name: Import package signing keys
+      - name: Import application signing keys (for binary)
+        env:
+          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > app_certificate.p12
+          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain || true
+          security default-keychain -s build.keychain
+          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security import app_certificate.p12 -k build.keychain -P $APPLE_APPLICATION_CERTIFICATE_PASSWORD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security find-identity -vv
+          rm app_certificate.p12
+
+      - name: Sign fleetctl binary
+        run: |
+          # Sign the binary with Developer ID Application certificate
+          CODESIGN_IDENTITY="51049B247B25B3119FAE7E9C0CC4375A43E47237"
+          codesign --sign "$CODESIGN_IDENTITY" \
+            --options runtime \
+            --timestamp \
+            --force \
+            --verbose \
+            fleetctl
+          
+          # Verify the signature
+          codesign --verify --verbose fleetctl
+          codesign --display --verbose fleetctl
+
+      - name: Import package signing keys (for .pkg)
         env:
           APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
           APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > certificate.p12
-          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
-          security import certificate.p12 -k build.keychain -P $APPLE_INSTALLER_CERTIFICATE_PASSWORD -T /usr/bin/productsign
+          echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > installer_certificate.p12
+          security import installer_certificate.p12 -k build.keychain -P $APPLE_INSTALLER_CERTIFICATE_PASSWORD -T /usr/bin/productsign
           security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k $KEYCHAIN_PASSWORD build.keychain
           security find-identity -vv
-          rm certificate.p12
+          rm installer_certificate.p12
 
       - name: Create package structure
         run: |
