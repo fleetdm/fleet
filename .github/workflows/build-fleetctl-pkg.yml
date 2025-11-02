@@ -2,12 +2,24 @@ name: Build fleetctl macOS package
 
 # This workflow builds a signed and notarized macOS .pkg installer for fleetctl
 # as part of the Fleet release process. The package is uploaded as a release asset.
+#
+# TESTING:
+# To test without affecting production, use workflow_dispatch with test_mode enabled:
+# 1. Go to Actions → Build fleetctl macOS package → Run workflow
+# 2. Select your branch (e.g., main or feature branch)
+# 3. Check "Test mode - will skip release upload if enabled"
+# 4. The package will be built, signed, and uploaded as an artifact (not to releases)
 
 on:
   push:
     tags:
       - "fleet-*"
   workflow_dispatch: # Manual trigger for testing
+    inputs:
+      test_mode:
+        description: 'Test mode - will skip release upload if enabled'
+        type: boolean
+        default: false
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -42,11 +54,22 @@ jobs:
         id: extract_version
         run: |
           TAG_NAME="${{ github.ref_name }}"
-          # Remove 'fleet-' prefix to get version
-          VERSION="${TAG_NAME#fleet-}"
+          # Remove 'fleet-' prefix to get version (or use branch name for manual triggers)
+          if [[ "$TAG_NAME" == fleet-* ]]; then
+            VERSION="${TAG_NAME#fleet-}"
+          else
+            # For manual triggers on branches, use a test version
+            VERSION="test-$(date +%Y%m%d-%H%M%S)"
+            TAG_NAME="fleet-${VERSION}"
+          fi
+          
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_test_mode=${{ github.event.inputs.test_mode }}" >> $GITHUB_OUTPUT
           echo "Fleet version: $VERSION"
+          if [ "${{ github.event.inputs.test_mode }}" = "true" ]; then
+            echo "⚠️  TEST MODE: Package will be built but NOT uploaded to release"
+          fi
 
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
@@ -188,6 +211,7 @@ jobs:
             rm -f fleetctl_notarize.zip
 
       - name: Upload package to release
+        if: steps.extract_version.outputs.is_test_mode != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -220,6 +244,14 @@ jobs:
             sleep 5
             gh release upload "$TAG_NAME" "$PACKAGE_NAME" --repo fleetdm/fleet
           }
+
+      - name: Upload package artifact (test mode only)
+        if: steps.extract_version.outputs.is_test_mode == 'true'
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleetctl-test-package
+          path: fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+          retention-days: 7
 
       - name: Attest package
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
