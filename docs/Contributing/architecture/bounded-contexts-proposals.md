@@ -2,10 +2,10 @@
 
 Three strategic approaches to modularize Fleet's codebase based on comprehensive analysis.
 
-**Analysis Date:** November 2025
-**Codebase Size:** ~539K lines Go (server)
-**Database Tables:** ~182 tables
-**API Endpoints:** 385+ endpoints across 4 protocols
+**Analysis Date:** November 2025  
+**Codebase Size:** ~539K lines Go (server)  
+**Database Tables:** ~182 tables  
+**API Endpoints:** 385+ endpoints across 4 protocols  
 
 ---
 
@@ -1292,12 +1292,12 @@ When an API endpoint needs multiple contexts, the **owning context orchestrates*
 
 ### Cons
 
-❌ **Platform expertise scattered** - Apple MDM knowledge split across Device, Configuration, Software contexts
-❌ **Complex platform features** - Setup Assistant touches multiple contexts
-❌ **Vendor coupling** - Apple VPP doesn't map cleanly to generic "Software"
-❌ **Migration complexity** - Current MDM modules don't align
-❌ **API complexity** - "Install software" API same, but implementation very different per platform
-❌ **Agent dependency** - Many capabilities (Queries, Policies) only work with agent, not MDM-only hosts
+❌ **Platform expertise scattered** - Apple MDM knowledge split across Device, Configuration, Software contexts  
+❌ **Complex platform features** - Setup Assistant touches multiple contexts  
+❌ **Vendor coupling** - Apple VPP doesn't map cleanly to generic "Software"  
+❌ **Migration complexity** - Current MDM modules don't align  
+❌ **API complexity** - "Install software" API same, but implementation very different per platform  
+❌ **Agent dependency** - Many capabilities (Queries, Policies) only work with agent, not MDM-only hosts  
 
 ### Module dependency map
 
@@ -1309,11 +1309,11 @@ When an API endpoint needs multiple contexts, the **owning context orchestrates*
                       │
        ┌──────────────┼──────────────┐
        │              │              │
-┌──────▼───────┐ ┌───▼───────┐ ┌────▼──────────┐
-│  Identity &  │ │   Agent   │ │   Software    │
-│    Access    │ │ Management│ │   Lifecycle   │
+┌──────▼───────┐ ┌───▼────────┐ ┌────▼──────────┐
+│  Identity &  │ │   Agent    │ │   Software    │
+│    Access    │ │ Management │ │   Lifecycle   │
 │ Management   │ │(Foundation)│ │  Management   │
-└──────────────┘ └───┬───────┘ └───────────────┘
+└──────────────┘ └───┬────────┘ └───────────────┘
                      │
        ┌─────────────┴─────────────┬──────────────┐
        │                           │              │
@@ -1323,16 +1323,16 @@ When an API endpoint needs multiple contexts, the **owning context orchestrates*
 │  Lifecycle   │ │                    │ │   Management      │
 └──────┬───────┘ └─────┬──────────────┘ └────────┬──────────┘
        │               │                         │
-       │   ┌───────────┴────────────┬────────────┘
-       │   │                        │
-       │   │  (Each capability context orchestrates across platforms)
-       │   │
-       │   │    Platform adapters (internal to contexts):
-       │   │    - Apple MDM implementation
-       │   │    - Windows MDM implementation
-       │   │    - Android MDM implementation
-       │   │
-       └───┴────────────────────────┘
+       │   ┌───────────┴─────────────────────────┴────────────────────┐
+       │   │                                                          │
+       │   │  (Each capability context orchestrates across platforms) │
+       │   │                                                          │
+       │   │    Platform adapters (internal to contexts):             │
+       │   │    - Apple MDM implementation                            │
+       │   │    - Windows MDM implementation                          │
+       │   │    - Android MDM implementation                          │
+       │   │                                                          │
+       └───┴──────────────────────────────────────────────────────────┘
                      │
               ┌──────▼──────────┐
               │    Query &      │
@@ -1690,21 +1690,21 @@ Same as Proposal 1 - Fleet has common endpoints like `POST /api/v1/fleet/mdm/pro
 
 ### Pros
 
-✅ **Minimal disruption** - Build on existing modularization
-✅ **Incremental** - Can do one module at a time
-✅ **Proven path** - MDM modules already work
-✅ **Learn as we go** - Can adjust based on learnings
-✅ **Agent Management elevated** - Recognized as first-class, independent context
-✅ **Mixed deployments supported** - Agent works without MDM, MDM works without agent
-✅ **Distributed orchestration** - Cross-platform logic in domain contexts, not central gateway
+✅ **Minimal disruption** - Build on existing modularization  
+✅ **Incremental** - Can do one module at a time  
+✅ **Proven path** - MDM modules already work  
+✅ **Learn as we go** - Can adjust based on learnings  
+✅ **Agent Management elevated** - Recognized as first-class, independent context  
+✅ **Mixed deployments supported** - Agent works without MDM, MDM works without agent  
+✅ **Distributed orchestration** - Cross-platform logic in domain contexts, not central gateway  
 
 ### Cons
 
-❌ **Less "pure" DDD** - Compromises for pragmatism
-❌ **Platform bias** - Still MDM-centric for MDM features
-❌ **Evolving architecture** - Will change over time
-❌ **Dependency complexity** - More inter-module dependencies than Proposal 1
-❌ **Thin MDM API layer needed** - For cross-platform MDM endpoints
+❌ **Less "pure" DDD** - Compromises for pragmatism  
+❌ **Platform bias** - Still MDM-centric for MDM features  
+❌ **Evolving architecture** - Will change over time  
+❌ **Dependency complexity** - More inter-module dependencies than Proposal 1  
+❌ **Thin MDM API layer needed** - For cross-platform MDM endpoints  
 
 ---
 
