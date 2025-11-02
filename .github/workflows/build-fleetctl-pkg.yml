@@ -36,6 +36,7 @@ defaults:
 permissions:
   contents: write # Needed to upload release assets
   id-token: write # Needed for attestations
+  attestations: write # Needed to create build provenance attestations
 
 jobs:
   build-fleetctl-pkg:
@@ -329,6 +330,7 @@ jobs:
           retention-days: 7
 
       - name: Attest package
+        continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
           subject-path: fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
