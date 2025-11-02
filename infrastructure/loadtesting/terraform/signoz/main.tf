@@ -220,7 +220,7 @@ resource "helm_release" "signoz" {
   repository = "https://charts.signoz.io"
   chart      = "signoz"
   namespace  = "signoz"
-  timeout    = 1200 # 20 minutes for initial deployment
+  timeout    = 3600 # 60 minutes - allows for worst-case AWS delays during both apply and destroy
 
   create_namespace = true
   wait             = true
