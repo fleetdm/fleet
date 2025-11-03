@@ -394,6 +394,22 @@ type HostSoftwareEntry struct {
 	PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
 }
 
+// MarshalJSON implements custom JSON marshaling for HostSoftwareEntry to ensure
+// all fields (both from embedded Software and the additional fields) are marshaled
+func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
+	hse.populateBrowserField()
+	type Alias Software
+	return json.Marshal(&struct {
+		*Alias
+		InstalledPaths           []string                   `json:"installed_paths"`
+		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+	}{
+		Alias:                    (*Alias)(&hse.Software),
+		InstalledPaths:           hse.InstalledPaths,
+		PathSignatureInformation: hse.PathSignatureInformation,
+	})
+}
+
 type PathSignatureInformation struct {
 	InstalledPath  string  `json:"installed_path"`
 	TeamIdentifier string  `json:"team_identifier"`
