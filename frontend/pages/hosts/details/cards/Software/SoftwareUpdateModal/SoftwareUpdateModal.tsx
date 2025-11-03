@@ -89,6 +89,7 @@ const SoftwareUpdateModal = ({
     id,
     status,
     name,
+    display_name,
     installed_versions,
     software_package,
     app_store_app,
@@ -115,7 +116,7 @@ const SoftwareUpdateModal = ({
             hostDisplayName={hostDisplayName}
             isDeviceUser={isDeviceUser}
             softwareStatus={status}
-            softwareName={name}
+            softwareName={display_name || name}
             installerName={installerName}
             installerVersion={installerVersion}
           />
