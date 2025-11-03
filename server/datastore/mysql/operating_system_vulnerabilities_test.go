@@ -31,6 +31,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 		{"DeleteOutOfDateOSVulnerabilities", testDeleteOutOfDateOSVulnerabilities},
 		{"TestListKernelsByOS", testListKernelsByOS},
 		{"TestKernelVulnsHostCount", testKernelVulnsHostCount},
+		{"RefreshOSVersionVulnerabilities", testRefreshOSVersionVulnerabilities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -113,9 +114,9 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 		dbOS = append(dbOS, *os)
 	}
 
-	cves, err := ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil)
+	cves, err := ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil, nil)
 	require.NoError(t, err)
-	require.Empty(t, cves)
+	require.Empty(t, cves.Vulnerabilities)
 
 	mockTime := time.Date(2024, time.January, 18, 10, 0, 0, 0, time.UTC)
 
@@ -169,33 +170,43 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// test without CVS meta
-	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil)
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil, nil)
 	require.NoError(t, err)
 
 	expected := []string{"CVE-2021-1234", "CVE-2021-1235"}
-	require.Len(t, cves, 2)
-	for _, cve := range cves {
+	require.Len(t, cves.Vulnerabilities, 2)
+	for _, cve := range cves.Vulnerabilities {
 		require.Contains(t, expected, cve.CVE)
 		require.Greater(t, cve.CreatedAt, time.Now().Add(-time.Hour)) // assert non-zero time
 	}
 
 	// test with CVS meta
-	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true, nil)
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true, nil, nil)
 	require.NoError(t, err)
-	require.Len(t, cves, 2)
+	require.Len(t, cves.Vulnerabilities, 2)
 
-	require.Equal(t, cveMeta[0].CVE, cves[0].CVE)
-	require.Equal(t, &cveMeta[0].CVSSScore, cves[0].CVSSScore)
-	require.Equal(t, &cveMeta[0].EPSSProbability, cves[0].EPSSProbability)
-	require.Equal(t, &cveMeta[0].CISAKnownExploit, cves[0].CISAKnownExploit)
-	require.Equal(t, cveMeta[0].Published, *cves[0].CVEPublished)
-	require.Equal(t, cveMeta[0].Description, **cves[0].Description)
-	require.Equal(t, cveMeta[1].CVE, cves[1].CVE)
-	require.Equal(t, &cveMeta[1].CVSSScore, cves[1].CVSSScore)
-	require.Equal(t, &cveMeta[1].EPSSProbability, cves[1].EPSSProbability)
-	require.Equal(t, &cveMeta[1].CISAKnownExploit, cves[1].CISAKnownExploit)
-	require.Equal(t, cveMeta[1].Published, *cves[1].CVEPublished)
-	require.Equal(t, cveMeta[1].Description, **cves[1].Description)
+	require.Equal(t, cveMeta[0].CVE, cves.Vulnerabilities[0].CVE)
+	require.NotNil(t, cves.Vulnerabilities[0].CVSSScore)
+	require.Equal(t, *cveMeta[0].CVSSScore, **cves.Vulnerabilities[0].CVSSScore)
+	require.NotNil(t, cves.Vulnerabilities[0].EPSSProbability)
+	require.Equal(t, *cveMeta[0].EPSSProbability, **cves.Vulnerabilities[0].EPSSProbability)
+	require.NotNil(t, cves.Vulnerabilities[0].CISAKnownExploit)
+	require.Equal(t, *cveMeta[0].CISAKnownExploit, **cves.Vulnerabilities[0].CISAKnownExploit)
+	require.NotNil(t, cves.Vulnerabilities[0].CVEPublished)
+	require.Equal(t, *cveMeta[0].Published, **cves.Vulnerabilities[0].CVEPublished)
+	require.NotNil(t, cves.Vulnerabilities[0].Description)
+	require.Equal(t, cveMeta[0].Description, **cves.Vulnerabilities[0].Description)
+	require.Equal(t, cveMeta[1].CVE, cves.Vulnerabilities[1].CVE)
+	require.NotNil(t, cves.Vulnerabilities[1].CVSSScore)
+	require.Equal(t, *cveMeta[1].CVSSScore, **cves.Vulnerabilities[1].CVSSScore)
+	require.NotNil(t, cves.Vulnerabilities[1].EPSSProbability)
+	require.Equal(t, *cveMeta[1].EPSSProbability, **cves.Vulnerabilities[1].EPSSProbability)
+	require.NotNil(t, cves.Vulnerabilities[1].CISAKnownExploit)
+	require.Equal(t, *cveMeta[1].CISAKnownExploit, **cves.Vulnerabilities[1].CISAKnownExploit)
+	require.NotNil(t, cves.Vulnerabilities[1].CVEPublished)
+	require.Equal(t, *cveMeta[1].Published, **cves.Vulnerabilities[1].CVEPublished)
+	require.NotNil(t, cves.Vulnerabilities[1].Description)
+	require.Equal(t, cveMeta[1].Description, **cves.Vulnerabilities[1].Description)
 }
 
 func testInsertOSVulnerabilities(t *testing.T, ds *Datastore) {
@@ -497,30 +508,30 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				expectedSet[v.CVE] = struct{}{}
 			}
 
-			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false, &teamID)
+			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false, &teamID, nil)
 			require.NoError(t, err)
-			for _, g := range cves {
+			for _, g := range cves.Vulnerabilities {
 				_, ok := expectedSet[g.CVE]
 				assert.Truef(t, ok, "got unexpected CVE: %s", g.CVE)
 			}
 
-			assert.Len(t, cves, len(tt.vulns))
+			assert.Len(t, cves.Vulnerabilities, len(tt.vulns))
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false, nil)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false, nil, nil)
 			require.NoError(t, err)
-			require.Empty(t, cves)
+			require.Empty(t, cves.Vulnerabilities)
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true, nil)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true, nil, nil)
 			require.NoError(t, err)
-			require.Len(t, cves, len(tt.vulns))
-			for _, g := range cves {
+			require.Len(t, cves.Vulnerabilities, len(tt.vulns))
+			for _, g := range cves.Vulnerabilities {
 				_, ok := expectedSet[g.CVE]
 				assert.True(t, ok)
 			}
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true, nil)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true, nil, nil)
 			require.NoError(t, err)
-			require.Empty(t, cves)
+			require.Empty(t, cves.Vulnerabilities)
 		})
 	}
 }
@@ -671,4 +682,160 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	kernels, err = ds.ListKernelsByOS(ctx, os1.OSVersionID, nil)
 	require.NoError(t, err)
 	require.Empty(t, kernels)
+}
+
+func testRefreshOSVersionVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test host and software
+	host := test.NewHost(t, ds, "test-host", "", "testkey", "testuuid", time.Now(), test.WithPlatform("ubuntu"))
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	os := fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "22.04",
+		Arch:          "x86_64",
+		KernelVersion: "5.15.0-1",
+		Platform:      "ubuntu",
+	}
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host.ID, os))
+
+	osRecord, err := ds.GetHostOperatingSystem(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Create Linux kernel software with vulnerabilities
+	kernel := fleet.Software{
+		Name:     "linux",
+		Version:  "5.15.0-1",
+		Source:   "programs",
+		IsKernel: true,
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{kernel})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	// Add CVEs to the kernel
+	vulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: host.Software[0].ID, CVE: "CVE-2024-0001"},
+		{SoftwareID: host.Software[0].ID, CVE: "CVE-2024-0002"},
+	}
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	// Update mappings to populate kernel_host_counts
+	require.NoError(t, ds.UpdateOSVersions(ctx))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
+
+	t.Run("populates per-team vulnerabilities", func(t *testing.T) {
+		// Query per-team vulnerabilities
+		type vuln struct {
+			OSVersionID uint   `db:"os_version_id"`
+			CVE         string `db:"cve"`
+			TeamID      *uint  `db:"team_id"`
+		}
+
+		var teamVulns []vuln
+		err := ds.writer(ctx).SelectContext(ctx, &teamVulns, `
+			SELECT os_version_id, cve, team_id
+			FROM operating_system_version_vulnerabilities
+			WHERE os_version_id = ? AND team_id IS NOT NULL
+			ORDER BY cve
+		`, osRecord.OSVersionID)
+		require.NoError(t, err)
+		require.Len(t, teamVulns, 2, "Should have 2 per-team Linux kernel vulnerabilities")
+		require.Equal(t, osRecord.OSVersionID, teamVulns[0].OSVersionID)
+		require.Equal(t, "CVE-2024-0001", teamVulns[0].CVE)
+		require.NotNil(t, teamVulns[0].TeamID)
+		require.Equal(t, team.ID, *teamVulns[0].TeamID)
+		require.Equal(t, "CVE-2024-0002", teamVulns[1].CVE)
+	})
+
+	t.Run("populates all-teams aggregated vulnerabilities", func(t *testing.T) {
+		// Query "all teams" vulnerabilities (team_id = NULL)
+		type vuln struct {
+			OSVersionID uint   `db:"os_version_id"`
+			CVE         string `db:"cve"`
+			TeamID      *uint  `db:"team_id"`
+		}
+
+		var allTeamsVulns []vuln
+		err := ds.writer(ctx).SelectContext(ctx, &allTeamsVulns, `
+			SELECT os_version_id, cve, team_id
+			FROM operating_system_version_vulnerabilities
+			WHERE os_version_id = ? AND team_id IS NULL
+			ORDER BY cve
+		`, osRecord.OSVersionID)
+		require.NoError(t, err)
+		require.Len(t, allTeamsVulns, 2, "Should have 2 'all teams' aggregated vulnerabilities")
+		require.Equal(t, osRecord.OSVersionID, allTeamsVulns[0].OSVersionID)
+		require.Equal(t, "CVE-2024-0001", allTeamsVulns[0].CVE)
+		require.Nil(t, allTeamsVulns[0].TeamID, "team_id should be NULL for 'all teams'")
+		require.Equal(t, "CVE-2024-0002", allTeamsVulns[1].CVE)
+	})
+
+	t.Run("updates existing vulnerabilities on refresh", func(t *testing.T) {
+		// Manually update resolved_in_version to verify UPDATE works
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE operating_system_version_vulnerabilities
+			SET resolved_in_version = '5.15.0-old'
+			WHERE os_version_id = ? AND cve = 'CVE-2024-0001'
+		`, osRecord.OSVersionID)
+		require.NoError(t, err)
+
+		// Update software_cve with new resolved_in_version
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+			UPDATE software_cve
+			SET resolved_in_version = '5.15.0-new'
+			WHERE software_id = ? AND cve = 'CVE-2024-0001'
+		`, host.Software[0].ID)
+		require.NoError(t, err)
+
+		// Refresh should update the value
+		require.NoError(t, ds.refreshOSVersionVulnerabilities(ctx))
+
+		// Verify the update
+		var resolvedVersion string
+		err = ds.writer(ctx).GetContext(ctx, &resolvedVersion, `
+			SELECT resolved_in_version
+			FROM operating_system_version_vulnerabilities
+			WHERE os_version_id = ? AND cve = 'CVE-2024-0001' AND team_id IS NOT NULL
+			LIMIT 1
+		`, osRecord.OSVersionID)
+		require.NoError(t, err)
+		require.Equal(t, "5.15.0-new", resolvedVersion)
+	})
+
+	t.Run("cleans up stale entries on refresh", func(t *testing.T) {
+		// Verify we have vulnerabilities before cleanup
+		var count int
+		err := ds.writer(ctx).GetContext(ctx, &count, `
+			SELECT COUNT(*)
+			FROM operating_system_version_vulnerabilities
+			WHERE os_version_id = ?
+		`, osRecord.OSVersionID)
+		require.NoError(t, err)
+		require.Greater(t, count, 0, "Should have vulnerabilities before cleanup")
+
+		// Clear kernel_host_counts to simulate no active hosts with this kernel
+		_, err = ds.writer(ctx).ExecContext(ctx, `TRUNCATE TABLE kernel_host_counts`)
+		require.NoError(t, err)
+
+		// Refresh should not error and should clean up all entries for this OS version
+		require.NoError(t, ds.refreshOSVersionVulnerabilities(ctx))
+
+		// Should have no vulnerabilities now (automatically cleaned up since they're stale)
+		err = ds.writer(ctx).GetContext(ctx, &count, `
+			SELECT COUNT(*)
+			FROM operating_system_version_vulnerabilities
+			WHERE os_version_id = ?
+		`, osRecord.OSVersionID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "All stale vulnerabilities should be cleaned up by refresh")
+	})
 }

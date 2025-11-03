@@ -267,9 +267,9 @@ type AddLabelsToHostFunc func(ctx context.Context, id uint, labels []string) err
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, id uint, labels []string) error
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
 
-type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error)
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error)
 
 type ListHostSoftwareFunc func(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
@@ -2956,18 +2956,18 @@ func (s *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labels []st
 	return s.RemoveLabelsFromHostFunc(ctx, id, labels)
 }
 
-func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS)
+	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS, maxVulnerabilities)
 }
 
-func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
 	s.mu.Lock()
 	s.OSVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS)
+	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS, maxVulnerabilities)
 }
 
 func (s *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
