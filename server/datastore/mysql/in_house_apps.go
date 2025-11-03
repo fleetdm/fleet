@@ -291,7 +291,18 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 		ExecutionID string `db:"command_uuid"`
 	}
 	var installs []ipaInstall
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &installs, `SELECT host_id, command_uuid FROM host_in_house_software_installs WHERE in_house_app_id = ?`, inHouseAppID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &installs, `
+		SELECT 
+			host_id, 
+			command_uuid 
+		FROM 
+			host_in_house_software_installs 
+		WHERE 
+			in_house_app_id = ? AND 
+			canceled = 0 AND
+			verification_at IS NULL AND
+			verification_failed_at IS NULL
+`, inHouseAppID)
 	if err != nil {
 		return err
 	}
