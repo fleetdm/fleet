@@ -1850,6 +1850,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			}
 			payload.ValidatedLabels = validatedLabels
 		}
+		// TODO(mna): is there a sure-fire way to know this is an ipa at this stage? So we could
+		// ignore the scripts and the subsequent validation?
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 	}
 
@@ -2060,6 +2062,7 @@ func (svc *Service) softwareBatchUpload(
 
 			installer.CategoryIDs = catIDs
 
+			// TODO(mna): this needs to handle in-house apps too, maybe if we can differentiate before this runs...
 			// check if we already have the installer based on the SHA256 and URL
 			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
 			if err != nil {
@@ -2316,6 +2319,8 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}
 
+	// TODO(mna): differentiate between installers and in-house apps and call
+	// both batch-set datastore methods.
 	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, installers); err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
 		return
@@ -2376,6 +2381,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return "", "", nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
+	// TODO(mna): need to return in-house apps too
 	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
 	if err != nil {
 		return "", "", nil, ctxerr.Wrap(ctx, err, "get software installers")
