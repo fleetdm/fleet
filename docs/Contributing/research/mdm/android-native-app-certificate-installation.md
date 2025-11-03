@@ -26,8 +26,7 @@ Android Management API don't support certificate installation through REST API, 
     ```
 
 2. App then checks if the `DELEGATION_CERT_INSTALL` is granted.
-
-    https://github.com/marko-lisica/android-certificate-installer/blob/master/app/src/main/java/com/lisica/certinstaller/MainActivity.kt#L94
+https://github.com/marko-lisica/android-certificate-installer/blob/master/app/src/main/java/com/lisica/certinstaller/MainActivity.kt#L94
 
 3. When delgated scope is granted, app can utulize [`DevicePolicyManager.installKeyPair`](https://developer.android.com/reference/android/app/admin/DevicePolicyManager#installKeyPair(android.content.ComponentName,%20java.security.PrivateKey,%20java.security.cert.Certificate[],%20java.lang.String,%20int)) to install certificate to Android host.
     - Each installed certificate has an `alias` which is unique name that identifies certificate. This is needed for example to remove certificate using [`removeKeyPair`](https://developer.android.com/reference/android/app/admin/DevicePolicyManager#removeKeyPair(android.content.ComponentName,%20java.lang.String))
