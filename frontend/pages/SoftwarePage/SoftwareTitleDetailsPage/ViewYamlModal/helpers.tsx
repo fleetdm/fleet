@@ -15,6 +15,7 @@ interface RenderYamlHelperText {
   onClickUninstallScript?: (evt: MouseEvent) => void;
   onClickIcon?: (evt: MouseEvent) => void;
   hasAdvancedOptionsAvailable?: boolean;
+  isScriptPackage?: boolean;
 }
 
 // Helper to join items with commas and Oxford comma before "and"
@@ -50,10 +51,13 @@ export const renderDownloadFilesText = ({
   onClickUninstallScript,
   onClickIcon,
   hasAdvancedOptionsAvailable = true,
+  isScriptPackage = false,
 }: RenderYamlHelperText): JSX.Element => {
   const items: { key: string; element: JSX.Element }[] = [];
 
-  if (preInstallQuery) {
+  // Script packages (.sh and .ps1) should not expose install_script,
+  // post_install_script, uninstall_script, or pre_install_query fields
+  if (!isScriptPackage && preInstallQuery) {
     items.push({
       key: "pre-install-query",
       element: (
@@ -63,7 +67,7 @@ export const renderDownloadFilesText = ({
       ),
     });
   }
-  if (installScript) {
+  if (!isScriptPackage && installScript) {
     items.push({
       key: "install-script",
       element: (
@@ -77,7 +81,7 @@ export const renderDownloadFilesText = ({
       ),
     });
   }
-  if (uninstallScript) {
+  if (!isScriptPackage && uninstallScript) {
     items.push({
       key: "uninstall-script",
       element: (
@@ -91,7 +95,7 @@ export const renderDownloadFilesText = ({
       ),
     });
   }
-  if (postInstallScript) {
+  if (!isScriptPackage && postInstallScript) {
     items.push({
       key: "post-install-script",
       element: (
@@ -146,6 +150,7 @@ interface CreatePackageYamlParams {
   postInstallScript?: string;
   uninstallScript?: string;
   iconUrl: string | null;
+  isScriptPackage?: boolean;
 }
 
 export const createPackageYaml = ({
@@ -159,6 +164,7 @@ export const createPackageYaml = ({
   postInstallScript,
   uninstallScript,
   iconUrl,
+  isScriptPackage = false,
 }: CreatePackageYamlParams): string => {
   let yaml = `# ${softwareTitle} (${packageName}) version ${version}
 `;
@@ -176,25 +182,28 @@ export const createPackageYaml = ({
 
   const hyphenatedSWTitle = hyphenateString(softwareTitle);
 
-  if (preInstallQuery) {
+  // Script packages (.sh and .ps1) should not expose install_script,
+  // post_install_script, uninstall_script, or pre_install_query fields.
+  // The file contents themselves become the install script.
+  if (!isScriptPackage && preInstallQuery) {
     yaml += `  pre_install_query:
     path: ../queries/pre-install-query-${hyphenatedSWTitle}.yml
 `;
   }
 
-  if (installScript) {
+  if (!isScriptPackage && installScript) {
     yaml += `  install_script:
     path: ../scripts/install-${hyphenatedSWTitle}.sh
 `;
   }
 
-  if (postInstallScript) {
+  if (!isScriptPackage && postInstallScript) {
     yaml += `  post_install_script:
     path: ../scripts/post-install-${hyphenatedSWTitle}.sh
 `;
   }
 
-  if (uninstallScript) {
+  if (!isScriptPackage && uninstallScript) {
     yaml += `  uninstall_script:
     path: ../scripts/uninstall-${hyphenatedSWTitle}.sh
 `;
