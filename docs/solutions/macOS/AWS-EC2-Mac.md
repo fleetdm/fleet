@@ -16,6 +16,7 @@ In order to enroll Amazon Web Services (AWS) Elastic Compute Cloud (EC2) Mac ins
   * It'll take about 6–20 minutes for the instance to start.
 ## 3. Connect to the instance via VNC (or Apple's Screen Sharing app, or Apple Remote Desktop). Follow the prompts to allow the script to control System Settings and allow it Accessibility privileges in System Settings as presented.
   * If the prompts don't appear, `osascript /Users/Shared/enroll-ec2-mac.scpt --restart-agent` should bring it up after a minute or so.
+  * There is a bit of time (typically less than 1 minute) after you grant these privileges that the script is either installing a companion app in the background ([cliclick via Homebrew](https://formulae.brew.sh/formula/cliclick)) or testing its privileges to ensure it'll be able to enroll automatically. You may see the System Settings page flash or change before receiving the confirmation dialog.
   * Once you get the dialog below, **click OK**. Clicking OK will finish preparing the image for automatic enrollment.
     ![A dialog box with a success message for enroll-ec2-mac.](SetupComplete.png)
     > *Note: Clicking OK here makes a change to the LaunchAgent (com.amazon.dsx.ec2.enrollment.automation.startup.plist), taking it out of "setup" mode, ensuring that the next time it's launched it will enroll (and not just re-check permissions, presenting the above dialog again).*
