@@ -26,13 +26,12 @@ Android Management API don't support certificate installation through REST API, 
     ```
 2. App then checks if the `DELEGATION_CERT_INSTALL` is granted. See more here in [POC](https://github.com/marko-lisica/android-certificate-installer/blob/master/app/src/main/java/com/lisica/certinstaller/MainActivity.kt#L94)
 3. When delgated scope is granted, app can utulize [DevicePolicyManager.installKeyPair](https://developer.android.com/reference/android/app/admin/DevicePolicyManager#installKeyPair(android.content.ComponentName,%20java.security.PrivateKey,%20java.security.cert.Certificate[],%20java.lang.String,%20int)) to install certificate to Android host.
-- Each installed certificate has an `alias` which is unique name that identifies certificate. This is needed for example to remove certificate using [removeKeyPair](https://developer.android.com/reference/android/app/admin/DevicePolicyManager#removeKeyPair(android.content.ComponentName,%20java.lang.String))
-
+    Each installed certificate has an `alias` which is unique name that identifies certificate. This is needed for example to remove certificate using [removeKeyPair](https://developer.android.com/reference/android/app/admin/DevicePolicyManager#removeKeyPair(android.content.ComponentName,%20java.lang.String))
 4. When certificate is installed using method above, by default it can't be used by another app. One option is to handle this in the app, using `DelegatedAdminReceiver.onChoosePrivateKeyAlias` which receives information whenever some app requests certificate, then with this method you can decide how to present certificates (either present default certificate list to show all available certs, or scope to specific cert for specific app/URL). I used other option, to handle this via AMAPI:
-- AMAPI in the policy offers the option to control whether you want to present certificates to the users.
-- `privateKeySelectionEnabled` must be enabled to present certificates to the users
-- With `choosePrivateKeyRules` you can define which certificate to present to the user. When I specified `privateKeyAlias` I wansn't even offered to choose certificate, Android selected for me automatically.
-    - I wasn't able to figure out how to write this Java regex so it works only for specific URL.
+    AMAPI in the policy offers the option to control whether you want to present certificates to the users.
+    `privateKeySelectionEnabled` must be enabled to present certificates to the users
+    With `choosePrivateKeyRules` you can define which certificate to present to the user. When I specified `privateKeyAlias` I wansn't even offered to choose certificate, Android selected for me automatically.
+        I wasn't able to figure out how to write this Java regex so it works only for specific URL.
 
 ```json
 {
