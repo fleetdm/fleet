@@ -595,6 +595,8 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 		}
 	}
 
+	name = strings.TrimSuffix(name, ".app")
+
 	// if we didn't find package IDs, use the identifier as the package ID
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)

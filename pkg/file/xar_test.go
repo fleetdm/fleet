@@ -265,14 +265,14 @@ func TestParsePackageInfoFiles(t *testing.T) {
 	}{
 		{
 			file:               "packageInfo-oktaVerify.xml",
-			expectedName:       "Okta Verify.app",
+			expectedName:       "Okta Verify",
 			expectedVersion:    "9.27.0",
 			expectedBundleID:   "com.okta.mobile",
 			expectedPackageIDs: []string{"com.okta.mobile"},
 		},
 		{
 			file:             "packageInfo-iriunWebcam.xml",
-			expectedName:     "IriunWebcam.app",
+			expectedName:     "IriunWebcam",
 			expectedVersion:  "2.8.10",
 			expectedBundleID: "com.iriun.macwebcam",
 			expectedPackageIDs: []string{
