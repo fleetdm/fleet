@@ -21411,6 +21411,160 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
 }
 
+// TestSetupExperiencePayloadFreePackageWithRetries tests that when a payload-free package
+// (script package) fails during setup experience with retries enabled, only ONE activity
+// is created for the final failure, not one activity per retry attempt.
+//
+// This test verifies the fix for https://github.com/fleetdm/fleet/issues/34818
+func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWithRetries() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team for setup experience
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	// Create temporary script file for testing
+	shContent := "#!/bin/bash\necho 'This will fail'\nexit 1\n"
+	shFile, err := fleet.NewTempFileReader(strings.NewReader(shContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer shFile.Close()
+
+	// Upload a script package (.sh file) as a software installer
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		Filename:      "test-script.sh",
+		TeamID:        &team.ID,
+		InstallerFile: shFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	// Get the installer title ID we just created
+	var titleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, payload.Filename)
+	})
+	require.NotZero(t, titleID)
+
+	// Configure the script package to run as part of the setup experience
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   team.ID,
+		TitleIDs: []uint{titleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	// Create a Linux host for testing
+	name := t.Name() + "-linux"
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String(name),
+		NodeKey:         ptr.String(name),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", name),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "ubuntu",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Manually create a pending software install for setup experience
+	// This simulates what happens when setup experience starts
+	var executionID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		execUUID := uuid.New().String()
+		executionID = execUUID
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (
+				execution_id, host_id, software_installer_id, install_script_exit_code,
+				pre_install_query_output, post_install_script_exit_code, post_install_script_output,
+				user_id, self_service
+			)
+			SELECT ?, ?, id, NULL, '', NULL, '', NULL, 0
+			FROM software_installers
+			WHERE title_id = ? AND global_or_team_id = ?
+		`, execUUID, host.ID, titleID, &team.ID)
+		return err
+	})
+	require.NotEmpty(t, executionID)
+
+	// Count activities before any failures
+	activitiesBefore, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	initialActivityCount := len(activitiesBefore)
+
+	// Simulate retry attempt #1 - FAILS with RetriesRemaining=2
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+		fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"install_script_exit_code": 1,
+			"install_script_output": "Attempt 1 failed",
+			"retries_remaining": 2
+		}`, *host.OrbitNodeKey, executionID),
+	), http.StatusNoContent)
+
+	// Verify NO new activity was created for intermediate failure
+	activities1, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities1, initialActivityCount, "Intermediate failure #1 should NOT create an activity")
+
+	// Simulate retry attempt #2 - FAILS with RetriesRemaining=1
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+		fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"install_script_exit_code": 1,
+			"install_script_output": "Attempt 2 failed",
+			"retries_remaining": 1
+		}`, *host.OrbitNodeKey, executionID),
+	), http.StatusNoContent)
+
+	// Verify still NO new activity was created
+	activities2, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities2, initialActivityCount, "Intermediate failure #2 should NOT create an activity")
+
+	// Simulate final attempt #3 - FAILS with RetriesRemaining=0 (no more retries)
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+		fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"install_script_exit_code": 1,
+			"install_script_output": "Final attempt failed",
+			"retries_remaining": 0
+		}`, *host.OrbitNodeKey, executionID),
+	), http.StatusNoContent)
+
+	// Verify exactly ONE activity was created for the final failure
+	activitiesFinal, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activitiesFinal, initialActivityCount+1, "Final failure should create exactly ONE activity")
+
+	// Find the software installation activity (may not be the first one due to test setup activities)
+	var installActivity *fleet.Activity
+	expectedActivityType := fleet.ActivityTypeInstalledSoftware{}.ActivityName()
+	for i := range activitiesFinal {
+		if activitiesFinal[i].Type == expectedActivityType {
+			installActivity = activitiesFinal[i]
+			break
+		}
+	}
+	require.NotNil(t, installActivity, "Should have found an installed_software activity")
+
+	var activityDetails fleet.ActivityTypeInstalledSoftware
+	require.NoError(t, json.Unmarshal(*installActivity.Details, &activityDetails))
+	require.Equal(t, host.ID, activityDetails.HostID)
+	require.Equal(t, host.DisplayName(), activityDetails.HostDisplayName)
+	require.Equal(t, executionID, activityDetails.InstallUUID)
+	require.Equal(t, "failed_install", activityDetails.Status)
+}
+
 func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	t := s.T()
 	ctx := context.Background()
