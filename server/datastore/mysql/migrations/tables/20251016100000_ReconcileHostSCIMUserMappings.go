@@ -11,6 +11,17 @@ func init() {
 }
 
 func Up_20251016100000(tx *sql.Tx) error {
+	// Check if there are any SCIM users - if not, skip this migration
+	const checkScimUsersQuery = `SELECT COUNT(*) FROM scim_users`
+	var scimUserCount int
+	if err := tx.QueryRow(checkScimUsersQuery).Scan(&scimUserCount); err != nil {
+		return errors.Wrap(err, "check scim_users count")
+	}
+
+	if scimUserCount == 0 {
+		return nil // No SCIM users, nothing to reconcile
+	}
+
 	// Find hosts with mdm_idp_accounts emails but no corresponding host_scim_user records
 	const findUnmappedHostsQuery = `
 		SELECT he.host_id, he.email
