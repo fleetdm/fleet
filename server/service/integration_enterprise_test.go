@@ -21493,10 +21493,28 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 	})
 	require.NotEmpty(t, executionID)
 
-	// Count activities before any failures
-	activitiesBefore, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	initialActivityCount := len(activitiesBefore)
+	// Helper: count installed_software activities for this specific executionID
+	countActivitiesForExec := func() int {
+		acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+		require.NoError(t, err)
+		cnt := 0
+		for _, a := range acts {
+			if a.Details == nil {
+				continue
+			}
+			var d fleet.ActivityTypeInstalledSoftware
+			if err := json.Unmarshal(*a.Details, &d); err != nil {
+				continue
+			}
+			if d.InstallUUID == executionID {
+				cnt++
+			}
+		}
+		return cnt
+	}
+
+	// Before posting results, there should be no activity for this execution
+	require.Equal(t, 0, countActivitiesForExec())
 
 	// Simulate retry attempt #1 - FAILS with RetriesRemaining=2
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -21509,10 +21527,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 		}`, *host.OrbitNodeKey, executionID),
 	), http.StatusNoContent)
 
-	// Verify NO new activity was created for intermediate failure
-	activities1, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities1, initialActivityCount, "Intermediate failure #1 should NOT create an activity")
+	// Verify NO new activity was created for intermediate failure (retries_remaining=2)
+	require.Equal(t, 0, countActivitiesForExec(), "Intermediate failure #1 should NOT create an activity")
 
 	// Simulate retry attempt #2 - FAILS with RetriesRemaining=1
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -21525,10 +21541,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 		}`, *host.OrbitNodeKey, executionID),
 	), http.StatusNoContent)
 
-	// Verify still NO new activity was created
-	activities2, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities2, initialActivityCount, "Intermediate failure #2 should NOT create an activity")
+	// Verify still NO new activity was created (retries_remaining=1)
+	require.Equal(t, 0, countActivitiesForExec(), "Intermediate failure #2 should NOT create an activity")
 
 	// Simulate final attempt #3 - FAILS with RetriesRemaining=0 (no more retries)
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -21542,16 +21556,19 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 	), http.StatusNoContent)
 
 	// Verify exactly ONE activity was created for the final failure
-	activitiesFinal, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activitiesFinal, initialActivityCount+1, "Final failure should create exactly ONE activity")
+	require.Equal(t, 1, countActivitiesForExec(), "Final failure should create exactly ONE activity")
 
-	// Find the software installation activity (may not be the first one due to test setup activities)
+	// Find the software installation activity for this execution
+	acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
 	var installActivity *fleet.Activity
-	expectedActivityType := fleet.ActivityTypeInstalledSoftware{}.ActivityName()
-	for i := range activitiesFinal {
-		if activitiesFinal[i].Type == expectedActivityType {
-			installActivity = activitiesFinal[i]
+	for i := range acts {
+		if acts[i].Details == nil {
+			continue
+		}
+		var d fleet.ActivityTypeInstalledSoftware
+		if json.Unmarshal(*acts[i].Details, &d) == nil && d.InstallUUID == executionID {
+			installActivity = acts[i]
 			break
 		}
 	}
