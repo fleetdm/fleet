@@ -29,7 +29,7 @@ export type IAddCertAuthorityBody =
   | { custom_scep_proxy: ICertificatesCustomSCEP }
   | { hydrant: ICertificatesHydrant }
   | { smallstep: ICertificatesSmallstep }
-  | { custom_est: ICertificatesCustomEST };
+  | { custom_est_proxy: ICertificatesCustomEST };
 
 export type IEditCertAuthorityBody =
   | { digicert: Partial<ICertificatesDigicert> }
@@ -37,7 +37,7 @@ export type IEditCertAuthorityBody =
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
   | { hydrant: Partial<ICertificatesHydrant> }
   | { smallstep: Partial<ICertificatesSmallstep> }
-  | { custom_est: Partial<ICertificatesCustomEST> };
+  | { custom_est_proxy: Partial<ICertificatesCustomEST> };
 
 export default {
   getCertificateAuthoritiesList: (): Promise<IGetCertAuthoritiesListResponse> => {

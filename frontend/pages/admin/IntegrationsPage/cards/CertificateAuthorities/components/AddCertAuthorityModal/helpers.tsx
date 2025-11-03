@@ -34,7 +34,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   { label: "Smallstep", value: "smallstep" },
   {
     label: "Custom EST (Enrollment Over Secure Transport)",
-    value: "custom_est",
+    value: "custom_est_proxy",
   },
 ];
 
@@ -157,7 +157,7 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
-    case "custom_est": {
+    case "custom_est_proxy": {
       const {
         name: customESTName,
         url: customESTUrl,
@@ -165,7 +165,7 @@ export const generateAddCertAuthorityData = (
         password: customESTPassword,
       } = formData as ICustomESTFormData;
       return {
-        custom_est: {
+        custom_est_proxy: {
           name: customESTName,
           url: customESTUrl,
           username: customESTUsername,

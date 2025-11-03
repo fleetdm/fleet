@@ -37,7 +37,7 @@ export const generateListData = (
       case "smallstep":
         description = "Smallstep";
         break;
-      case "custom_est":
+      case "custom_est_proxy":
         description = "Custom Enrollment Over Secure Transport (EST)";
         break;
       default:

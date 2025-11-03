@@ -63,7 +63,7 @@ export const generateDefaultFormData = (
         challenge: customSCEPcert.challenge,
       };
     }
-    case "custom_est":
+    case "custom_est_proxy":
       return {
         name: certAuthority.name,
         url: certAuthority.url,
@@ -187,7 +187,7 @@ export const generateEditCertAuthorityData = (
         ),
       };
     }
-    case "custom_est": {
+    case "custom_est_proxy": {
       const {
         name: customESTName,
         scepURL: customESTUrl,
@@ -195,7 +195,7 @@ export const generateEditCertAuthorityData = (
         password: customESTPassword,
       } = formData as ISmallstepFormData;
       return {
-        custom_est: deepDifference(
+        custom_est_proxy: deepDifference(
           {
             name: customESTName,
             url: customESTUrl,
@@ -306,7 +306,7 @@ export const updateFormData = (
       }
       break;
     }
-    case "custom_est": {
+    case "custom_est_proxy": {
       const formData = prevFormData as ICustomESTFormData;
       if (update.name === "url") {
         return {

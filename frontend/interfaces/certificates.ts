@@ -90,7 +90,7 @@ export interface ICertificatesSmallstep {
 
 export interface ICertificatesCustomEST {
   id?: number;
-  type?: "custom_est";
+  type?: "custom_est_proxy";
   name: string;
   url: string;
   username: string;
@@ -103,7 +103,7 @@ export type ICertificateAuthorityType =
   | "custom_scep_proxy"
   | "hydrant"
   | "smallstep"
-  | "custom_est";
+  | "custom_est_proxy";
 
 /** all the types of certificates */
 export type ICertificateAuthority =

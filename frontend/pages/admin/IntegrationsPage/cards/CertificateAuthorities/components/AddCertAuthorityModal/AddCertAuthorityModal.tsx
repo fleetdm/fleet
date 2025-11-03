@@ -136,7 +136,7 @@ const AddCertAuthorityModal = ({
         setFormData = setSmallstepFormData;
         formData = smallstepFormData;
         break;
-      case "custom_est":
+      case "custom_est_proxy":
         setFormData = setCustomESTFormData;
         formData = customESTFormData;
         break;
@@ -168,7 +168,7 @@ const AddCertAuthorityModal = ({
       case "smallstep":
         formData = smallstepFormData;
         break;
-      case "custom_est":
+      case "custom_est_proxy":
         formData = customESTFormData;
         break;
       default:
@@ -262,7 +262,7 @@ const AddCertAuthorityModal = ({
             onCancel={onExit}
           />
         );
-      case "custom_est":
+      case "custom_est_proxy":
         return (
           <CustomESTForm
             formData={customESTFormData}

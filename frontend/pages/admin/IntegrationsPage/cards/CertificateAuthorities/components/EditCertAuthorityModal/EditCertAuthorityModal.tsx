@@ -96,7 +96,7 @@ const EditCertAuthorityModal = ({
         return SmallstepForm;
       case "custom_scep_proxy":
         return CustomSCEPForm;
-      case "custom_est":
+      case "custom_est_proxy":
         return CustomESTForm;
       default:
         throw new Error(
