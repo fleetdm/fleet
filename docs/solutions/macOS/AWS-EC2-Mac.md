@@ -1,6 +1,6 @@
 # Enrolling Amazon Web Services (AWS) EC2 Mac instances into Fleet
 
-In order to enroll Amazon Web Services (AWS) Elastic Compute Cloud (EC2) Mac instances into Fleet, a few steps are required. These steps will enable automatic enrollment of any instance that's launched from the resulting Amazon Machine Image (AMI)
+In order to enroll Amazon Web Services (AWS) Elastic Compute Cloud (EC2) Mac instances into Fleet, a few steps are required. These steps will enable automatic enrollment of any instance that's launched from the resulting Amazon Machine Image (AMI). These instructions are made to be used with [enroll-ec2-mac](https://github.com/aws-samples/amazon-ec2-mac-mdm-enrollment-automation), a script for automatic MDM enrollment of AWS EC2 Mac instances.
 
 ## 1. First, upload the CloudFormation template to AWS, which will create your AWS Secrets Manager secret.
   * Download the template as text, then upload to CloudFormation. You'll be prompted next for your specific values next.
@@ -16,13 +16,22 @@ In order to enroll Amazon Web Services (AWS) Elastic Compute Cloud (EC2) Mac ins
   * It'll take about 6–20 minutes for the instance to start.
 ## 3. Connect to the instance via VNC (or Apple's Screen Sharing app, or Apple Remote Desktop). Follow the prompts to allow the script to control System Settings and allow it Accessibility privileges in System Settings as presented.
   * If the prompts don't appear, `osascript /Users/Shared/enroll-ec2-mac.scpt --restart-agent` should bring it up after a minute or so.
-  * Once you get the dialog below, **click OK**. That will finish preparing the image for automatic enrollment.
-  * (https://raw.githubusercontent.com/aws-samples/amazon-ec2-mac-mdm-enrollment-automation/refs/heads/main/SetupComplete.png)
+  * Once you get the dialog below, **click OK**. Clicking OK will finish preparing the image for automatic enrollment.
+    ![A dialog box with a success message for enroll-ec2-mac.](SetupComplete.png)
+    > *Note: Clicking OK here makes a change to the LaunchAgent (com.amazon.dsx.ec2.enrollment.automation.startup.plist), taking it out of "setup" mode, ensuring that the next time it's launched it will enroll (and not just re-check permissions, presenting the above dialog again).*
   * After clicking OK, in the **AWS console**, go to **EC2**, then to **Instances**, then the intended Mac instance. From the **Actions** menu in the upper right, click **Image and templates**, and then **Create image**.
   * Though it's officially better to have it reboot as part of the process, I've made many images with "No reboot" checked and without issue. If you leave reboot on, the Mac will automatically enroll into Fleet when it restarts.
   * * This is what I term a "console reboot," which reboots the underlying AWS Nitro system and takes about 10-15 minutes. If you reboot a Mac instance normally from the UI (or `sudo reboot` et. al.), it's the typical ~ 1 minute.
   * Imaging may take some time to complete (I've had anywhere from 5 minutes to an hour for a 100GB EBS volume), it's basically locking the bits as soon as you hit that **Create image** button.
 ## 4. Launch a new Mac instance using the new image.
   * No user data script required after image setup, other than a defaults write to set the region for the secret (if it's different to the one the instance is launching in).
-  * IAM profile must be set as above.
-  * The Mac will take the same 6-20 minutes to launch, and will appear enrolled in the Fleet console shortly after.
+  * Reminder: the IAM instance profile must be set as above whenever launching an instance for enrollment. If the instance can't access the secret, enrollment will fail. See [the Troubleshooting section on the script's repository](https://github.com/aws-samples/amazon-ec2-mac-mdm-enrollment-automation/blob/main/README.md?tab=readme-ov-file#troubleshooting--tips) for more.
+  * The EC2 Mac instance will take the same 6-20 minutes to launch, and will appear enrolled in the Fleet console shortly after.
+
+
+<meta name="category" value="engineering">
+<meta name="authorGitHubUsername" value="ds0x">
+<meta name="authorFullName" value="Dave Siederer">
+<meta name="publishedOn" value="2024-11-03">
+<meta name="articleTitle" value="Enrolling Amazon Web Services (AWS) EC2 Mac instances into Fleet">
+<meta name="articleImageUrl" value="ec2-mac-fleet.jpg">
