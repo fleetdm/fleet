@@ -30,9 +30,10 @@ In order to enroll Amazon Web Services (AWS) Elastic Compute Cloud (EC2) Mac ins
   * The EC2 Mac instance will take the same 6-20 minutes to launch, and will appear enrolled in the Fleet console shortly after.
 
 
-<meta name="category" value="engineering">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ds0x">
 <meta name="authorFullName" value="Dave Siederer">
-<meta name="publishedOn" value="2024-11-03">
+<meta name="publishedOn" value="2025-11-03">
 <meta name="articleTitle" value="Enrolling Amazon Web Services (AWS) EC2 Mac instances into Fleet">
 <meta name="articleImageUrl" value="ec2-mac-fleet.jpg">
+<meta name="description" value="MDM Enroll an EC2 Mac into FLeet">
