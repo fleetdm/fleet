@@ -5,6 +5,7 @@ import classnames from "classnames";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;
@@ -35,32 +36,19 @@ const TooltipTruncatedText = ({
   const ref = useRef<HTMLInputElement>(null);
   const isTruncated = useCheckTruncatedElement(ref);
 
-  const tooltipId = uniqueId();
   return (
-    <div className={classNames}>
-      <div className="tooltip-truncated" data-tip data-for={tooltipId}>
-        <div ref={ref} className={isTruncated ? "truncated" : undefined}>
-          {value}
-        </div>
+    <TooltipWrapper
+      className={classNames}
+      disableTooltip={!isTruncated}
+      underline={false}
+      position={tooltipPosition}
+      showArrow
+      tipContent={tooltip ?? value}
+    >
+      <div className={`${baseClass}__text-value`} ref={ref}>
+        {value}
       </div>
-      <ReactTooltip
-        place={tooltipPosition}
-        effect="solid"
-        backgroundColor={COLORS["tooltip-bg"]}
-        id={tooltipId}
-        data-html
-        className="truncated-tooltip" // responsive widths
-        clickable
-        delayHide={200} // need delay set to hover using clickable
-        disable={!isTruncated}
-      >
-        <>
-          {tooltip ?? value}
-          <div className="safari-hack">&nbsp;</div>
-          {/* Fixes triple click selecting next element in Safari */}
-        </>
-      </ReactTooltip>
-    </div>
+    </TooltipWrapper>
   );
 };
 

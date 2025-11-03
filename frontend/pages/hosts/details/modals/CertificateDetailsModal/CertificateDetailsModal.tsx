@@ -60,15 +60,15 @@ const CertificateDetailsModal = ({
 
   const showSubjectSection = Boolean(
     subjectCountry ||
-      subjectOrganization ||
-      subjectOrganizationalUnit ||
-      subjectCommonName
+    subjectOrganization ||
+    subjectOrganizationalUnit ||
+    subjectCommonName
   );
   const showIssuerNameSection = Boolean(
     issuerCommonName ||
-      issuerCountry ||
-      issuerOrganization ||
-      issuerOrganizationalUnit
+    issuerCountry ||
+    issuerOrganization ||
+    issuerOrganizationalUnit
   );
   const showValidityPeriodSection = Boolean(
     not_valid_before || not_valid_after
@@ -96,7 +96,13 @@ const CertificateDetailsModal = ({
                 {subjectOrganization && (
                   <DataSet
                     title="Organization"
-                    value={<TooltipTruncatedText value={subjectOrganization} />}
+                    value={
+                      <TooltipTruncatedText
+                        value={
+                          "This is long text to truncate. does it get truncates? it should get truncated. alsjdf;lajsdl;fj;lajsdjasljjjfljk;j"
+                        }
+                      />
+                    }
                     orientation="horizontal"
                   />
                 )}
