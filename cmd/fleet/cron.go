@@ -1831,7 +1831,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)
-		defaultInterval = 30 * time.Second
+		defaultInterval = 1 * time.Hour
 	)
 
 	logger = kitlog.With(logger, "cron", name)
