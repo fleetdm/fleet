@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251028103213(t *testing.T) {
+func TestUp_20251028140400(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Create in house app

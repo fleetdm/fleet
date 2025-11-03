@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251022123456(t *testing.T) {
+func TestUp_20251028140100(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// look up table, and see it does not contain FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID
