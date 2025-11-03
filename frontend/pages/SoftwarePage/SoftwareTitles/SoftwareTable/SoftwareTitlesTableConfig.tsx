@@ -115,7 +115,8 @@ const generateTableHeaders = (
 
         return (
           <SoftwareNameCell
-            name={nameCellData.displayName || nameCellData.name}
+            name={nameCellData.name}
+            display_name={nameCellData.displayName}
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}

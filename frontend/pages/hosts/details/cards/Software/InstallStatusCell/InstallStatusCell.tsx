@@ -347,7 +347,7 @@ type IInstallStatusCellProps = {
 };
 
 const getSoftwarePackageName = (software: IHostSoftware) =>
-  software.software_package?.name;
+  software.software_package?.display_name || software.software_package?.name;
 
 const resolveDisplayText = (
   displayText: IStatusDisplayConfig["displayText"],
@@ -454,7 +454,7 @@ const InstallStatusCell = ({
     if (lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
-          softwareName: software.name || "",
+          softwareName: software.display_name || software.name || "",
           softwarePackageName,
           uninstallStatus: (software.status ||
             "pending_uninstall") as SoftwareUninstallStatus,

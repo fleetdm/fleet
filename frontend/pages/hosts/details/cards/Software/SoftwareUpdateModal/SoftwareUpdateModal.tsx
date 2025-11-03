@@ -93,7 +93,8 @@ const SoftwareUpdateModal = ({
     software_package,
     app_store_app,
   } = software;
-  const installerName = software_package?.name || "";
+  const installerName =
+    software_package?.display_name || software_package?.name || "";
   const installerVersion = software_package?.version || app_store_app?.version;
 
   const onClickUpdate = () => {

@@ -77,7 +77,8 @@ export const generateSoftwareTableHeaders = ({
         const { name, display_name, source, icon_url } = cellProps.row.original;
         return (
           <SoftwareNameCell
-            name={display_name || name}
+            name={name}
+            display_name={display_name}
             source={source}
             iconUrl={icon_url}
             pageContext="deviceUser"

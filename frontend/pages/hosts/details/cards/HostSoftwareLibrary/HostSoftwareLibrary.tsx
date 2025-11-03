@@ -648,7 +648,9 @@ const HostSoftwareLibrary = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName: selectedVPPInstallDetails.name,
+            appName:
+              selectedVPPInstallDetails.display_name ||
+              selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,
           }}
           hostSoftware={selectedVPPInstallDetails}
