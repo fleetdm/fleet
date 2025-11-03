@@ -3,6 +3,8 @@
 package table
 
 import (
+	"context"
+	
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/containerd_containers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falcon_kernel_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falconctl"
@@ -11,12 +13,13 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dconf_read"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_pacman_packages"
+	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
 )
 
-func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
+func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	return []osquery.OsqueryPlugin{
 		cryptsetup.TablePlugin(log.Logger),            // table name is "cryptsetup_status"
 		falconctl.NewFalconctlOptionTable(log.Logger), // table name is "falconctl_option"
