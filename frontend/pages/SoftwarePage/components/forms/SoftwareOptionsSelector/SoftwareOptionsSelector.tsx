@@ -10,6 +10,7 @@ import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
 import {
   CATEGORIES_ITEMS,
   ICategory,
@@ -63,7 +64,8 @@ interface ISoftwareOptionsSelector {
   formData:
     | IFleetMaintainedAppFormData
     | ISoftwareVppFormData
-    | IPackageFormData;
+    | IPackageFormData
+    | ISoftwareAndroidFormData;
   /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
   onToggleAutomaticInstall: (value: boolean) => void;
   onToggleSelfService: (value: boolean) => void;
@@ -105,6 +107,7 @@ const SoftwareOptionsSelector = ({
 
   const isPlatformIosOrIpados =
     platform === "ios" || platform === "ipados" || isIpaPackage;
+  const isPlatformAndroid = platform === "android";
   const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
     disableOptions ||
@@ -156,7 +159,14 @@ const SoftwareOptionsSelector = ({
         <p>
           Currently, self-service and automatic installation are not available
           for iOS and iPadOS. Today, you can manually install on the{" "}
-          <b>Host details</b> page for each host.
+          <strong>Host details</strong> page for each host.
+        </p>
+      )}
+      {isPlatformAndroid && (
+        <p>
+          Currently, Android apps can only be added as self-service and end user
+          can install them from <strong>Play Store</strong> in their work
+          profile{" "}
         </p>
       )}
       <div className={`${baseClass}__self-service`}>

@@ -30,7 +30,7 @@ const addSoftwareSubNav: IAddSoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
   },
   {
-    name: "App Store (VPP)",
+    name: "App store",
     pathname: PATHS.SOFTWARE_ADD_APP_STORE,
   },
   {

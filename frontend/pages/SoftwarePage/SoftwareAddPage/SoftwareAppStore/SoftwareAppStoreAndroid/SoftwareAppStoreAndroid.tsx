@@ -11,79 +11,25 @@ import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
-import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Button from "components/buttons/Button";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import { getPathWithQueryParams } from "utilities/url";
-import SoftwareVppForm from "../../components/forms/SoftwareVppForm";
-import { getErrorMessage, teamHasVPPToken } from "./helpers";
-import { ISoftwareVppFormData } from "../../components/forms/SoftwareVppForm/SoftwareVppForm";
+import SoftwareAndroidForm from "pages/SoftwarePage/components/forms/SoftwareAndroidForm";
+import { getErrorMessage } from "./helpers";
+import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
 
-const baseClass = "software-app-store-vpp";
-//
-
-interface IEnableVppMessage {
-  onEnableVpp: () => void;
-}
-
-const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
-  <div className={`${baseClass}__enable-vpp-message`}>
-    <p className={`${baseClass}__enable-vpp-title`}>
-      Volume Purchasing Program (VPP) isn&apos;t enabled
-    </p>
-    <p className={`${baseClass}__enable-vpp-description`}>
-      To add App Store apps, first enable VPP.
-    </p>
-    <Button onClick={onEnableVpp}>Enable VPP</Button>
-  </div>
-);
-
-interface IAddTeamToVppMessage {
-  onEditVpp: () => void;
-}
-
-const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
-  <EmptyTable
-    header="This team isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this team to VPP."
-    primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}
-  />
-);
-
-const NoVppAppsMessage = () => (
-  <div className={`${baseClass}__no-vpp-message`}>
-    <p className={`${baseClass}__no-vpp-title`}>
-      You don&apos;t have any App Store apps
-    </p>
-    <p className={`${baseClass}__no-vpp-description`}>
-      You must purchase apps in{" "}
-      <CustomLink
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
-        text="ABM"
-        newTab
-      />
-      .<br />
-      App Store apps that are already added to this team are not listed.
-    </p>
-  </div>
-);
+const baseClass = "software-app-store-android";
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
   router: InjectedRouter;
 }
 
-const SoftwareAppStoreVpp = ({
+const SoftwareAppStoreAndroid = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
@@ -122,24 +68,6 @@ const SoftwareAppStoreVpp = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
       staleTime: 10000,
-    }
-  );
-
-  const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
-  const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
-
-  const {
-    data: vppApps,
-    isLoading: isLoadingVppApps,
-    error: errorVppApps,
-  } = useQuery(
-    ["vppSoftware", currentTeamId],
-    () => mdmAppleAPI.getVppApps(currentTeamId),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: hasVppToken,
-      staleTime: 30000,
-      select: (res) => res.app_store_apps,
     }
   );
 
@@ -196,42 +124,17 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (isLoadingVppInfo || isLoadingVppApps || isLoadingLabels) {
+    if (isLoadingVppInfo || isLoadingLabels) {
       return <Spinner />;
     }
 
-    if (errorVppInfo || errorVppApps || isErrorLabels) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
-    }
-
-    if (noVppTokenUploaded) {
-      return (
-        <EnableVppMessage
-          onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
-        />
-      );
-    }
-
-    if (!hasVppToken) {
-      return (
-        <AddTeamToVppMessage
-          onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
-        />
-      );
-    }
-
-    if (!vppApps) {
-      return <NoVppAppsMessage />;
-    }
     return (
       <div className={`${baseClass}__content`}>
-        <SoftwareVppForm
-          labels={labels || []}
+        <SoftwareAndroidForm
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareTitles}
           onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
           isLoading={isLoading}
-          vppApps={vppApps}
         />
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
@@ -245,4 +148,4 @@ const SoftwareAppStoreVpp = ({
   return <div className={baseClass}>{renderContent()}</div>;
 };
 
-export default SoftwareAppStoreVpp;
+export default SoftwareAppStoreAndroid;
