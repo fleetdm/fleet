@@ -25,6 +25,11 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("dconf_read", dconf_read.Columns(), dconf_read.Generate),
 		table.NewPlugin("containerd_containers", containerd_containers.Columns(), containerd_containers.Generate),
 		table.NewPlugin(fleetd_pacman_packages.TableName, fleetd_pacman_packages.Columns(), fleetd_pacman_packages.Generate),
+		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return crowdstrike_falcon.CrowdstrikeFalconGenerate(ctx, queryContext, opts.Socket)
+			},
+		),
 
 		dataflattentable.TablePluginExec(
 			log.Logger,
