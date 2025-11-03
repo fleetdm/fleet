@@ -2150,6 +2150,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 
 	// Also verify the JSON marshaling by checking the raw JSON response
 	rawResp := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "populate_software", "true")
+	defer rawResp.Body.Close()
 	body, err := io.ReadAll(rawResp.Body)
 	require.NoError(t, err)
 
