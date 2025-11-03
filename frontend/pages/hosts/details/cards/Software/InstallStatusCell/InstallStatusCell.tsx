@@ -9,6 +9,7 @@ import {
   IVPPHostSoftware,
   SoftwareUninstallStatus,
   IAppLastInstall,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { Colors } from "styles/var/colors";
 
@@ -491,15 +492,17 @@ const InstallStatusCell = ({
         (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
       recentlyTakenAction;
 
+    const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
+
     // Status groups and their click handlers
     const displayStatusConfig = [
       {
-        condition: true, // Allow click even if no last install to see details modal
+        condition: isScriptPackage, // Still allows click even if no last install to see details modal
         statuses: ["Failed", "Run (pending)", "Ran"],
         onClick: onClickScriptStatus,
       },
       {
-        condition: true, // Allow click even if no last install to see details modal
+        condition: !isScriptPackage, // Still allows click even if no last install to see details modal
         statuses: ["Failed", "Install (pending)", "Installed"],
         onClick: onClickInstallStatus,
       },
@@ -516,6 +519,7 @@ const InstallStatusCell = ({
     ];
 
     // Find a matching config for the current display text
+    // Given the condition is met and the display text is in the statuses array
     const match = displayStatusConfig.find(
       ({ condition, statuses }) =>
         condition && statuses.includes(resolvedDisplayText as string)
