@@ -2,8 +2,13 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"time"
 
+	kithttp "github.com/go-kit/kit/transport/http"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -40,24 +45,42 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			return next(ctx, request)
 		}
 
+		var sigAuthenticated bool
+		requestPath := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+
+		httpSig, sigOk := httpsig.FromContext(ctx)
+		if sigOk && httpsig.IsSigAuthEndpoint(requestPath) {
+			if time.Now().After(httpSig.NotValidAfter) {
+				return nil, fleet.NewAuthFailedError("host identity certificate expired")
+			}
+			sigAuthenticated = true
+		}
+
 		// if not successful, try again this time with errors
-		sessionKey, ok := token.FromContext(ctx)
-		if !ok {
+		sessionKey, seshOk := token.FromContext(ctx)
+
+		if !seshOk && !sigAuthenticated {
 			return nil, fleet.NewAuthHeaderRequiredError("no auth token")
 		}
 
-		v, err := AuthViewer(ctx, string(sessionKey), svc)
-		if err != nil {
-			return nil, err
-		}
+		if seshOk {
+			v, err := AuthViewer(ctx, string(sessionKey), svc)
+			if err != nil {
+				return nil, err
+			}
 
-		if v.User.IsAdminForcedPasswordReset() {
-			return nil, fleet.ErrPasswordResetRequired
-		}
+			if v.User.IsAdminForcedPasswordReset() {
+				return nil, fleet.ErrPasswordResetRequired
+			}
 
-		ctx = viewer.NewContext(ctx, *v)
-		if ac, ok := authz.FromContext(ctx); ok {
-			ac.SetAuthnMethod(authz.AuthnUserToken)
+			ctx = viewer.NewContext(ctx, *v)
+			if ac, ok := authz.FromContext(ctx); ok {
+				ac.SetAuthnMethod(authz.AuthnUserToken)
+			}
+		} else {
+			if ac, ok := authz.FromContext(ctx); ok {
+				ac.SetAuthnMethod(authz.AuthnHTTPMessageSignature)
+			}
 		}
 		return next(ctx, request)
 	}
