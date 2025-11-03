@@ -6,9 +6,9 @@ CIS Benchmarks represent the consensus-based effort of cybersecurity experts to 
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
 Fleet has implemented native support for CIS Benchmarks for the following platforms:
-- macOS 13.0 Ventura
-- macOS 14.0 Sonoma
-- macOS 15.0 Sequoia
+- macOS 14 Sonoma
+- macOS 15 Sequoia
+- macOS 26 Tahoe
 - Windows 10 Enterprise
 - Windows 11 Enterprise
 
