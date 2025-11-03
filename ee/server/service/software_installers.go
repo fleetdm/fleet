@@ -1850,8 +1850,6 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			}
 			payload.ValidatedLabels = validatedLabels
 		}
-		// TODO(mna): is there a sure-fire way to know this is an ipa at this stage? So we could
-		// ignore the scripts and the subsequent validation?
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 	}
 
@@ -1939,6 +1937,11 @@ func (svc *Service) softwareBatchUpload(
 	dryRun bool,
 ) {
 	var batchErr error
+
+	// TODO: this might be a little drastic to drop back to Background context,
+	// consider using ctx.WithoutCancel to keep all but the cancellation of the
+	// parent: https://pkg.go.dev/context#WithoutCancel
+	// e.g. for telemetry and such.
 
 	// We do not use the request ctx on purpose because this method runs in the background.
 	ctx := context.Background()
@@ -2381,7 +2384,6 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return "", "", nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
-	// TODO(mna): need to return in-house apps too
 	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
 	if err != nil {
 		return "", "", nil, ctxerr.Wrap(ctx, err, "get software installers")

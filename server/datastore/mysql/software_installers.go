@@ -2710,6 +2710,10 @@ func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Contex
 	return nil
 }
 
+// GetSoftwareInstallers returns all software installers, including in-house
+// apps, for the specified team. The reason why installers and in-house apps
+// are returned together is that this is used in the gitops flow, where both
+// types of installers are specified in the same "packages" key in the yaml.
 func (ds *Datastore) GetSoftwareInstallers(ctx context.Context, teamID uint) ([]fleet.SoftwarePackageResponse, error) {
 	const loadInsertedSoftwareInstallers = `
 SELECT
@@ -2720,13 +2724,34 @@ SELECT
   si.fleet_maintained_app_id,
   COALESCE(icons.filename, '') AS icon_filename,
   COALESCE(icons.storage_id, '') AS icon_hash_sha256
-FROM software_installers si
-LEFT JOIN software_title_icons icons ON icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
-WHERE global_or_team_id = ?
+FROM 
+	software_installers si
+	LEFT JOIN software_title_icons icons ON 
+		icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
+WHERE 
+	global_or_team_id = ?
+
+UNION ALL
+
+SELECT
+	iha.team_id,
+	iha.title_id,
+	'' as url, -- TODO should we store the url for in-house apps, probably, right...
+	iha.storage_id as hash_sha256,
+	NULL as fleet_maintained_app_id,
+  COALESCE(icons.filename, '') AS icon_filename,
+  COALESCE(icons.storage_id, '') AS icon_hash_sha256
+FROM
+	in_house_apps iha
+	LEFT JOIN software_title_icons icons ON
+		icons.software_title_id = iha.title_id AND icons.team_id = iha.global_or_team_id
+WHERE
+	iha.global_or_team_id = ?
 `
 	var softwarePackages []fleet.SoftwarePackageResponse
 	// Using ds.writer(ctx) on purpose because this method is to be called after applying software.
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &softwarePackages, loadInsertedSoftwareInstallers, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &softwarePackages,
+		loadInsertedSoftwareInstallers, teamID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 	return softwarePackages, nil
