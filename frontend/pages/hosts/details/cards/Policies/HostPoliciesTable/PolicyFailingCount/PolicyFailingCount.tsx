@@ -1,8 +1,8 @@
 import { IHostPolicy } from "interfaces/policy";
 import React from "react";
 
-import Icon from "components/Icon/Icon";
 import InfoBanner from "components/InfoBanner";
+import IconStatusMessage from "components/IconStatusMessage";
 
 const baseClass = "policy-failing-count";
 
@@ -20,17 +20,23 @@ const PolicyFailingCount = ({
 
   return failCount ? (
     <InfoBanner className={baseClass} color="grey" borderRadius="xlarge">
-      <div className={`${baseClass}__count`}>
-        <Icon name="error-outline" color="ui-fleet-black-50" />
-        This device is failing
-        {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
-      </div>
-      <p>
-        Click a policy below to see if there are steps you can take to resolve
-        the issue
-        {failCount > 1 ? "s" : ""}.
-        {deviceUser && " Once resolved, click “Refetch” above to confirm."}
-      </p>
+      <IconStatusMessage
+        iconName="error-outline"
+        iconColor="ui-fleet-black-50"
+        message={
+          <span>
+            <strong>
+              This device is failing
+              {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
+            </strong>
+            <br />
+            Click a policy below to see if there are steps you can take to
+            resolve the issue
+            {failCount > 1 ? "s" : ""}.
+            {deviceUser && " Once resolved, click “Refetch” above to confirm."}
+          </span>
+        }
+      />
     </InfoBanner>
   ) : null;
 };

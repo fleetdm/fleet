@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -41,7 +42,7 @@ func TestValidateUserProvided(t *testing.T) {
 </SyncML>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "Add top level element",
@@ -159,7 +160,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Alert>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "XML with Replace and Atomic",
@@ -177,7 +178,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Atomic>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "XML with Replace and Delete",
@@ -195,7 +196,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Delete>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "XML with Replace and Exec",
@@ -213,7 +214,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Exec>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Only SCEP profiles can include <Exec> elements.",
 		},
 		{
 			name: "XML with Replace and Get",
@@ -231,7 +232,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Get>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "XML with Replace and Results",
@@ -249,7 +250,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Results>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "XML with Replace and Status",
@@ -267,7 +268,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Status>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "XML with elements not defined in the protocol",
@@ -285,7 +286,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Foo>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
 		},
 		{
 			name: "invalid XML with mismatched tags",
@@ -484,7 +485,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  </Replace>
 				`),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements after comments",
+			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements after comments",
 		},
 		{
 			name: "XML with nested root element in data",
@@ -595,6 +596,114 @@ func TestValidateUserProvided(t *testing.T) {
 				`),
 			},
 			wantErr: "",
+		},
+		{
+			name: "SCEP profile with other LocURIs",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+				    </Target>
+				  </Replace>
+				  <Replace>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "Only options that have <LocURI> starting with \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
+		},
+		{
+			name: "SCEP profile without Exec block",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "\"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+		},
+		{
+			name: "SCEP profile with Exec block, but worng LocURI ",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Replace>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+					</Target>
+				</Replace>
+				<Exec>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Random/Scep/LocURI</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				`),
+			},
+			wantErr: "Couldn't add. \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+		},
+		{
+			name: fmt.Sprintf("SCEP profile with missing $FLEET_VAR_%s after SCEP LocURI", FleetVarSCEPWindowsCertificateID),
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Add>
+					<CmdID>12</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-id-that-is-not-fleet-var/Install/CAThumbprint</LocURI>
+						</Target>
+						<Meta>
+							<Format xmlns="syncml:metinf">chr</Format>
+						</Meta>
+						<Data>0DE4135C02E5E3C040FE1353E204D8B6F331F47A</Data>
+					</Item>
+				</Add>
+				`),
+			},
+			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
+		},
+		{
+			name: "SCEP Profile with missing required LocURI",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Add>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+						</Target>
+					</Item>
+				</Add>
+				<Exec>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				`),
+			},
+			wantErr: fmt.Sprintf("\"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_%s/Install/CAThumbprint\" is missing.", FleetVarSCEPWindowsCertificateID),
+		},
+		{
+			name: "Only SCEP profiles can have Exec elements",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Exec>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/CustomExecTargetLocURI</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				`),
+			},
+			wantErr: "Only SCEP profiles can include <Exec> elements.",
 		},
 	}
 

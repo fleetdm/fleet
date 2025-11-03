@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -37,7 +37,7 @@ func NewSoapRequest(request []byte) (fleet.SoapRequest, error) {
 
 func TestValidSoapResponse(t *testing.T) {
 	relatesTo := "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749"
-	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New("test"))
+	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, fleet.MDEDiscovery, errors.New("test"))
 	sres, err := NewSoapResponse(&soapFaultMsg, relatesTo)
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
@@ -54,7 +54,7 @@ func TestInvalidSoapResponse(t *testing.T) {
 
 func TestFaultMessageSoapResponse(t *testing.T) {
 	targetErrorString := "invalid input request"
-	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New(targetErrorString))
+	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, fleet.MDEDiscovery, errors.New(targetErrorString))
 	sres, err := NewSoapResponse(&soapFaultMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
@@ -63,7 +63,7 @@ func TestFaultMessageSoapResponse(t *testing.T) {
 	require.Contains(t, string(outXML), fmt.Sprintf("<s:text xml:lang=\"en-us\">%s</s:text>", targetErrorString))
 }
 
-// func NewRequestSecurityTokenResponseCollection(provisionedToken string) (mdm_types.RequestSecurityTokenResponseCollection, error) {
+// func NewRequestSecurityTokenResponseCollection(provisionedToken string) (fleet.RequestSecurityTokenResponseCollection, error) {
 func TestRequestSecurityTokenResponseCollectionSoapResponse(t *testing.T) {
 	provisionedToken := "provisionedToken"
 	reqSecTokenCollectionMsg, err := NewRequestSecurityTokenResponseCollection(provisionedToken)
@@ -258,7 +258,7 @@ func TestValidNewSyncMLCmdGet(t *testing.T) {
 func TestValidNewSyncMLCmdBool(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := newSyncMLCmdBool(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdBool(fleet.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -274,7 +274,7 @@ func TestValidNewSyncMLCmdBool(t *testing.T) {
 func TestValidNewSyncMLCmdInt(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := newSyncMLCmdInt(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdInt(fleet.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -290,7 +290,7 @@ func TestValidNewSyncMLCmdInt(t *testing.T) {
 func TestValidSyncMLCmdText(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := newSyncMLCmdText(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdText(fleet.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -306,7 +306,7 @@ func TestValidSyncMLCmdText(t *testing.T) {
 func TestValidSyncMLCmdXml(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := newSyncMLCmdXml(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdXml(fleet.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -337,7 +337,7 @@ func TestValidSyncMLCmd(t *testing.T) {
 	testCmdDataType := "testcmddatatype"
 	testCmdDataFormat := "testchr"
 	testCmdDataValue := "testdata"
-	cmdMsg := NewSyncMLCmd(mdm_types.CmdReplace, testCmdSource, testCmdTarget, testCmdDataType, testCmdDataFormat, testCmdDataValue)
+	cmdMsg := NewSyncMLCmd(fleet.CmdReplace, testCmdSource, testCmdTarget, testCmdDataType, testCmdDataFormat, testCmdDataValue)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -375,7 +375,7 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 	require.Equal(t, "uuid-1", cmd.CommandUUID)
 	require.Empty(t, cmd.TargetLocURI)
 
-	syncOne := new(mdm_types.SyncMLCmd)
+	syncOne := new(fleet.SyncMLCmd)
 	err = xml.Unmarshal(cmd.RawCommand, syncOne)
 	require.NoError(t, err)
 	require.Len(t, syncOne.ReplaceCommands, 1)
@@ -388,11 +388,11 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 	)
 
 	// build and generate a second command with the same syncml
-	cmd, err = buildCommandFromProfileBytes(rawSyncML, "uuid-2")
+	cmd, err = buildCommandFromProfileBytes(syncMLForTestWithExec("foo/bar"), "uuid-2")
 	require.Nil(t, err)
 	require.Equal(t, "uuid-2", cmd.CommandUUID)
 	require.Empty(t, cmd.TargetLocURI)
-	syncTwo := new(mdm_types.SyncMLCmd)
+	syncTwo := new(fleet.SyncMLCmd)
 	err = xml.Unmarshal(cmd.RawCommand, syncTwo)
 	require.NoError(t, err)
 	require.Len(t, syncTwo.ReplaceCommands, 1)
@@ -400,7 +400,7 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 	// generated xml contains additional comments about CmdID
 	require.Equal(
 		t,
-		fmt.Sprintf(`<Atomic><!-- CmdID generated by Fleet --><CmdID>uuid-2</CmdID><Replace><!-- CmdID generated by Fleet --><CmdID>%s</CmdID><Item><Target><LocURI>foo/bar</LocURI></Target></Item></Replace><Add><!-- CmdID generated by Fleet --><CmdID>%s</CmdID><Item><Target><LocURI>foo/bar</LocURI></Target></Item></Add></Atomic>`, syncTwo.ReplaceCommands[0].CmdID.Value, syncTwo.AddCommands[0].CmdID.Value),
+		fmt.Sprintf(`<Atomic><!-- CmdID generated by Fleet --><CmdID>uuid-2</CmdID><Replace><!-- CmdID generated by Fleet --><CmdID>%s</CmdID><Item><Target><LocURI>foo/bar</LocURI></Target></Item></Replace><Add><!-- CmdID generated by Fleet --><CmdID>%s</CmdID><Item><Target><LocURI>foo/bar</LocURI></Target></Item></Add><Exec><!-- CmdID generated by Fleet --><CmdID>%s</CmdID><Item><Target><LocURI>foo/bar</LocURI></Target></Item></Exec></Atomic>`, syncTwo.ReplaceCommands[0].CmdID.Value, syncTwo.AddCommands[0].CmdID.Value, syncTwo.ExecCommands[0].CmdID.Value),
 		string(cmd.RawCommand),
 	)
 
@@ -426,6 +426,97 @@ func syncMLForTest(locURI string) []byte {
 </Replace>`, locURI, locURI))
 }
 
+func syncMLForTestWithExec(locURI string) []byte {
+	return []byte(fmt.Sprintf(`
+<Add>
+  <Item>
+    <Target>
+      <LocURI>%s</LocURI>
+    </Target>
+  </Item>
+</Add>
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>%s</LocURI>
+    </Target>
+  </Item>
+</Replace>
+<Exec>
+  <Item>
+    <Target>
+	  <LocURI>%s</LocURI>
+	</Target>
+  </Item>
+</Exec>`, locURI, locURI, locURI))
+}
+
+// Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
+// Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
+func setupReconcilerTest(t *testing.T, ds *mock.Store, profile *fleet.MDMWindowsConfigProfile, hostUUID string) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
+	// Mock ListMDMWindowsProfilesToInstall to return a profile with Fleet variable
+	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return []*fleet.MDMWindowsProfilePayload{
+			{
+				ProfileUUID:   profile.ProfileUUID,
+				ProfileName:   profile.Name,
+				HostUUID:      hostUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeInstall,
+			},
+		}, nil
+	}
+
+	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return nil, nil
+	}
+
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		return map[string]fleet.MDMWindowsProfileContents{
+			profile.ProfileUUID: {
+				SyncML:   profile.SyncML,
+				Checksum: []byte("test-checksum"),
+			},
+		}, nil
+	}
+
+	capturedUpdates = &[]*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		*capturedUpdates = append(*capturedUpdates, payload...)
+		return nil
+	}
+
+	ds.GetMDMWindowsBitLockerSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+		return &fleet.MDMWindowsBitLockerSummary{}, nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	ds.BulkDeleteMDMWindowsHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
+		return nil
+	}
+
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{},
+		}, nil
+	}
+
+	managedCerts = &[]*fleet.MDMManagedCertificate{}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		*managedCerts = payload
+		return nil
+	}
+
+	return capturedUpdates, managedCerts
+}
+
 func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
@@ -440,35 +531,8 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>Host: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`),
 	}
 
-	// Mock ListMDMWindowsProfilesToInstall to return a profile with Fleet variable
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return []*fleet.MDMWindowsProfilePayload{
-			{
-				ProfileUUID:   testProfile.ProfileUUID,
-				ProfileName:   testProfile.Name,
-				HostUUID:      testHostUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
-			},
-		}, nil
-	}
+	capturedUpdates, managedCerts := setupReconcilerTest(t, ds, testProfile, testHostUUID)
 
-	// Mock ListMDMWindowsProfilesToRemove to return no profiles
-	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
-
-	// Mock GetMDMWindowsProfilesContents to return the profile content
-	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
-		return map[string]fleet.MDMWindowsProfileContents{
-			testProfile.ProfileUUID: {
-				SyncML:   testProfile.SyncML,
-				Checksum: []byte("test-checksum"),
-			},
-		}, nil
-	}
-
-	// Mock MDMWindowsInsertCommandForHosts to succeed (but fail specifically for preprocessed content)
 	var receivedCommand *fleet.MDMWindowsCommand
 	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 		receivedCommand = cmd
@@ -477,38 +541,6 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 			return errors.New("command insert failed after preprocessing")
 		}
 		return nil
-	}
-
-	// Mock BulkUpsertMDMWindowsHostProfiles to capture status updates
-	var capturedUpdates []*fleet.MDMWindowsBulkUpsertHostProfilePayload
-	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
-		capturedUpdates = append(capturedUpdates, payload...)
-		return nil
-	}
-
-	// Mock GetMDMWindowsBitLockerSummary
-	ds.GetMDMWindowsBitLockerSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
-		return &fleet.MDMWindowsBitLockerSummary{}, nil
-	}
-
-	// Mock AppConfig to enable Windows MDM
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			MDM: fleet.MDM{
-				WindowsEnabledAndConfigured: true,
-			},
-		}, nil
-	}
-
-	// Mock BulkDeleteMDMWindowsHostsConfigProfiles (for remove operations)
-	ds.BulkDeleteMDMWindowsHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
-		return nil
-	}
-
-	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*mdm_types.GroupedCertificateAuthorities, error) {
-		return &fleet.GroupedCertificateAuthorities{
-			CustomScepProxy: []fleet.CustomSCEPProxyCA{},
-		}, nil
 	}
 
 	// Run ReconcileWindowsProfiles
@@ -520,16 +552,82 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	require.Contains(t, string(receivedCommand.RawCommand), testHostUUID, "UUID should have been substituted in the command")
 	require.NotContains(t, string(receivedCommand.RawCommand), "$FLEET_VAR_HOST_UUID", "Fleet variable should have been replaced")
 
+	// Verify managed certs is empty as no certs were in the profile
+	require.Empty(t, managedCerts, "No managed certificates should have been added")
+
 	// Verify that the error was captured and the profile was marked as failed
 	require.True(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked, "MDMWindowsInsertCommandForHosts should have been called")
 	require.True(t, ds.BulkUpsertMDMWindowsHostProfilesFuncInvoked, "BulkUpsertMDMWindowsHostProfiles should have been called")
 
 	// Find the error status update
 	var foundError bool
-	for _, update := range capturedUpdates {
+	for _, update := range *capturedUpdates {
 		if update.Status != nil && *update.Status == fleet.MDMDeliveryFailed {
 			foundError = true
 			require.Contains(t, update.Detail, "command insert failed after preprocessing", "Error detail should contain the original error message")
+			break
+		}
+	}
+	require.True(t, foundError, "Should have found a failed status update")
+}
+
+func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertificate(t *testing.T) {
+	ctx := t.Context()
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	})
+	ds := new(mock.Store)
+	logger := log.NewNopLogger()
+
+	// Setup test data with a profile containing a certificate that will fail processing
+	testHostUUID := "test-host-uuid"
+	testProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "test-profile-uuid",
+		Name:        "Test Profile with Cert",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Certificate</LocURI></Target><Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA</Data></Item></Replace>`),
+	}
+
+	capturedUpdates, managedCerts := setupReconcilerTest(t, ds, testProfile, testHostUUID)
+
+	// Override GetGroupedCertificateAuthorities to return a valid CA
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{
+				{
+					ID:        1,
+					Name:      "CA",
+					URL:       "https://scep.proxy.url",
+					Challenge: "secret",
+				},
+			},
+		}, nil
+	}
+
+	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+		return "secret", nil
+	}
+
+	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		return errors.New("fake error to check managed certificate")
+	}
+
+	// Run ReconcileWindowsProfiles
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err) // The function should not return an error even if cert processing fails
+	fmt.Println(capturedUpdates)
+
+	// Verify no managed certificates were added due to failure
+	require.Empty(t, managedCerts, "No managed certificates should have been added")
+
+	// Verify that the error was captured and the profile was marked as failed
+	require.True(t, ds.BulkUpsertMDMWindowsHostProfilesFuncInvoked, "BulkUpsertMDMWindowsHostProfiles should have been called")
+
+	// Find the error status update
+	var foundError bool
+	for _, update := range *capturedUpdates {
+		if update.Status != nil && *update.Status == fleet.MDMDeliveryFailed {
+			foundError = true
+			require.Contains(t, update.Detail, "fake error to check managed certificate", "Error detail should indicate certificate processing failure")
 			break
 		}
 	}

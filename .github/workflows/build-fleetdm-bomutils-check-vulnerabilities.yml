@@ -41,6 +41,11 @@ jobs:
       - name: Build fleetdm/bomutils
         run: make bomutils-docker
 
+      - name: Clean up Docker build cache
+        run: |
+          docker system prune -af
+          df -h
+
       - name: List VEX files
         id: generate_vex_files
         run: |

@@ -85,7 +85,7 @@ type GetUserSettingsFunc func(ctx context.Context, id uint) (settings *fleet.Use
 
 type InitiateSSOFunc func(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error)
 
@@ -220,6 +220,8 @@ type DeleteHostFunc func(ctx context.Context, id uint) (err error)
 type HostByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
+
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
@@ -450,6 +452,10 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
 type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny []string, labelsExcludeAny []string, categories []string) (*fleet.VPPAppStoreApp, error)
+
+type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+
+type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error)
 
 type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error)
 
@@ -1142,6 +1148,9 @@ type Service struct {
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
 
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
+
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
 
@@ -1486,6 +1495,12 @@ type Service struct {
 
 	UpdateAppStoreAppFunc        UpdateAppStoreAppFunc
 	UpdateAppStoreAppFuncInvoked bool
+
+	GetInHouseAppManifestFunc        GetInHouseAppManifestFunc
+	GetInHouseAppManifestFuncInvoked bool
+
+	GetInHouseAppPackageFunc        GetInHouseAppPackageFunc
+	GetInHouseAppPackageFuncInvoked bool
 
 	MDMAppleProcessOTAEnrollmentFunc        MDMAppleProcessOTAEnrollmentFunc
 	MDMAppleProcessOTAEnrollmentFuncInvoked bool
@@ -2304,11 +2319,11 @@ func (s *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessionI
 	return s.InitiateSSOFunc(ctx, redirectURL)
 }
 
-func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	s.mu.Lock()
 	s.InitiateMDMSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL)
+	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL, hostUUID)
 }
 
 func (s *Service) InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error) {
@@ -2778,6 +2793,13 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	s.RefetchHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.RefetchHostFunc(ctx, id)
+}
+
+func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+	s.mu.Lock()
+	s.CleanupExpiredHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredHostsFunc(ctx)
 }
 
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
@@ -3583,6 +3605,20 @@ func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *u
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, selfService, labelsIncludeAny, labelsExcludeAny, categories)
+}
+
+func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetInHouseAppManifestFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppManifestFunc(ctx, titleID, teamID)
+}
+
+func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	s.mu.Lock()
+	s.GetInHouseAppPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppPackageFunc(ctx, titleID, teamID)
 }
 
 func (s *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error) {

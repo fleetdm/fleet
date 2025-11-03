@@ -65,7 +65,7 @@ Below is an explanation of what each of the macOS CrowdStrike Falcon payloads do
 - `crowdstrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
 - `crowdstrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
 
-[Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/docs/solutions/configuration-profiles)
+[Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/docs/solutions/macOS/configuration-profiles)
 
 >To upload Configuration Profiles to your Fleet instance: go to **Controls > OS Settings > Custom settings** then click **Add Profile**. See the screen shot below for details.
 
