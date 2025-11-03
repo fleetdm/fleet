@@ -10,7 +10,7 @@ import (
 
 func updateSoftwareTitleDisplayName(ctx context.Context, tx sqlx.ExtContext, teamID *uint, titleID uint, displayName string) error {
 	_, err := tx.ExecContext(ctx, `
-		INSERT IGNORE INTO software_title_display_names
+		INSERT INTO software_title_display_names
 			(team_id, software_title_id, display_name)
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
