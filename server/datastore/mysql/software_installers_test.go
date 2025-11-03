@@ -3344,7 +3344,7 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	require.NoError(t, err)
 
 	// Create an installer with a non-NULL fleet_maintained_app_id
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:                "testpkg",
 		Source:               "apps",
 		InstallScript:        "echo install",
@@ -3366,6 +3366,7 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	preInstallQuery := "SELECT 2"
 	selfService := true
 	payload := &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:         titleID,
 		InstallerID:     installerID,
 		StorageID:       "storageid2", // different storage id
 		Filename:        "test2.pkg",
