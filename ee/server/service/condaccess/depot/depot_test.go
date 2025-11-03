@@ -110,7 +110,7 @@ func testPutWithValidHost(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 
 	// Verify certificate was stored
-	hostID, err := ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64()))
+	hostID, err := ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec,G115
 	require.NoError(t, err)
 	assert.Equal(t, host.ID, hostID)
 }
@@ -168,7 +168,7 @@ func testPutMultipleCerts(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 
 	// Verify first cert is stored
-	hostID, err := ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert1.SerialNumber.Int64()))
+	hostID, err := ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert1.SerialNumber.Int64())) //nolint:gosec,G115
 	require.NoError(t, err)
 	assert.Equal(t, host.ID, hostID)
 
@@ -178,13 +178,13 @@ func testPutMultipleCerts(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 
 	// Verify second cert is stored
-	hostID, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert2.SerialNumber.Int64()))
+	hostID, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert2.SerialNumber.Int64())) //nolint:gosec,G115
 	require.NoError(t, err)
 	assert.Equal(t, host.ID, hostID)
 
 	// Verify first cert is STILL VALID (not revoked)
 	// This follows industry best practice: keep old certs valid during grace period
-	hostID, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert1.SerialNumber.Int64()))
+	hostID, err = ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert1.SerialNumber.Int64())) //nolint:gosec,G115
 	require.NoError(t, err)
 	assert.Equal(t, host.ID, hostID, "old certificate should remain valid for grace period")
 }
