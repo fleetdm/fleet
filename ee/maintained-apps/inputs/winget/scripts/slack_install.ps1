@@ -4,10 +4,11 @@
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
-    # Firefox uses /S for silent installation
+    # Add argument to install silently
+    # Slack uses --silent for silent installation
     $processOptions = @{
         FilePath     = "$exeFilePath"
-        ArgumentList = "/S"
+        ArgumentList = "--silent"
         PassThru     = $true
         Wait         = $true
     }

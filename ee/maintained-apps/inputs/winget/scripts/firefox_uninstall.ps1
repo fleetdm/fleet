@@ -80,7 +80,7 @@ if (-not $foundUninstaller) {
     Write-Host "Uninstaller for '$softwareName' not found."
     # Change exit code to 0 if you don't want to fail if uninstaller is not
     # found. This could happen if program was already uninstalled.
-    $exitCode = 1
+    $exitCode = 0
 }
 
 } catch {
