@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251016100000, Down_20251016100000)
+	MigrationClient.AddMigration(Up_20251028140100, Down_20251028140100)
 }
 
-func Up_20251016100000(tx *sql.Tx) error {
+func Up_20251028140100(tx *sql.Tx) error {
 	// Check if there are any SCIM users - if not, skip this migration
 	const checkScimUsersQuery = `SELECT COUNT(*) FROM scim_users`
 	var scimUserCount int
@@ -97,7 +97,7 @@ func Up_20251016100000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251016100000(tx *sql.Tx) error {
+func Down_20251028140100(tx *sql.Tx) error {
 	// No down migration needed for data reconciliation
 	return nil
 }
