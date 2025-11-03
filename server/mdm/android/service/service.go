@@ -319,7 +319,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	appReportsEnabled := false //license.IsPremium(ctx)
+	appReportsEnabled := license.IsPremium(ctx)
 
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
