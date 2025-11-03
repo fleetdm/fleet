@@ -17,6 +17,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
@@ -350,6 +351,11 @@ type HostIdentity struct {
 	RequireHTTPMessageSignature bool
 }
 
+// ConditionalAccess combines conditional access-related test options
+type ConditionalAccess struct {
+	SCEPStorage scep_depot.Depot
+}
+
 type TestServerOpts struct {
 	Logger                          kitlog.Logger
 	License                         *fleet.LicenseInfo
@@ -386,6 +392,7 @@ type TestServerOpts struct {
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity
+	ConditionalAccess               *ConditionalAccess
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -501,6 +508,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
+	}
+
+	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
+		require.NoError(t, condaccess.RegisterSCEP(rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
 	}
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
