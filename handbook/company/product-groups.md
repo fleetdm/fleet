@@ -585,17 +585,21 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
-Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
+Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the bug review DRI (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance.  QA has **1 business day** to move the bug to the next step (reproduced) or request more information.
+At this state, the Head of Product Designer is responsible for going through the inbox and adding the correct product group label. Then, it's the product group Product Designer's responsibility to decide if it's a bug, attempt reproduction and documenting reproduction steps if they're missing, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
+For community-reported bugs, this may require the Product Designer to gather more information from the reporter. The Production designer should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
 
-For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. QA should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. The Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 
-If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, QA verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [reproduced state](#reproduced).
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, the Product Designer verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [needs reproduction](#needs-reproduction) or [reproduced state](#reproduced).
+
+#### Needs reproduction
+
+TODO
 
 #### Reproduced
 
