@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -193,4 +194,70 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			require.Equal(t, tt.expectedPostInstallScriptOutput, tt.initial.PostInstallScriptOutput)
 		})
 	}
+}
+
+func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
+	// Test that HostSoftwareEntry properly marshals all fields including
+	// InstalledPaths and PathSignatureInformation from the embedded Software struct
+	hashValue := "abc123"
+	entry := HostSoftwareEntry{
+		Software: Software{
+			ID:               1,
+			Name:             "Test Software",
+			Version:          "1.0.0",
+			Source:           "chrome_extensions",
+			BundleIdentifier: "com.test.software",
+			ExtensionID:      "test-extension-id",
+			ExtensionFor:     "chrome",
+			Browser:          "",
+			Release:          "1",
+			Vendor:           "Test Vendor",
+			Arch:             "x86_64",
+			GenerateCPE:      "cpe:2.3:a:test:software:1.0.0:*:*:*:*:*:*:*",
+			Vulnerabilities:  Vulnerabilities{},
+			HostsCount:       5,
+			ApplicationID:    ptr.String("com.test.app"),
+		},
+		InstalledPaths: []string{"/usr/local/bin/test", "/opt/test"},
+		PathSignatureInformation: []PathSignatureInformation{
+			{
+				InstalledPath:  "/usr/local/bin/test",
+				TeamIdentifier: "ABCDE12345",
+				HashSha256:     &hashValue,
+			},
+		},
+	}
+
+	// Marshal to JSON
+	data, err := entry.MarshalJSON()
+	require.NoError(t, err)
+
+	// Expected JSON with all fields including browser and extension_for
+	expectedJSON := `{
+		"id": 1,
+		"name": "Test Software",
+		"version": "1.0.0",
+		"bundle_identifier": "com.test.software",
+		"source": "chrome_extensions",
+		"extension_id": "test-extension-id",
+		"extension_for": "chrome",
+		"browser": "chrome",
+		"release": "1",
+		"vendor": "Test Vendor",
+		"arch": "x86_64",
+		"generated_cpe": "cpe:2.3:a:test:software:1.0.0:*:*:*:*:*:*:*",
+		"vulnerabilities": [],
+		"hosts_count": 5,
+		"application_id": "com.test.app",
+		"installed_paths": ["/usr/local/bin/test", "/opt/test"],
+		"signature_information": [
+			{
+				"installed_path": "/usr/local/bin/test",
+				"team_identifier": "ABCDE12345",
+				"hash_sha256": "abc123"
+			}
+		]
+	}`
+
+	assert.JSONEq(t, expectedJSON, string(data))
 }

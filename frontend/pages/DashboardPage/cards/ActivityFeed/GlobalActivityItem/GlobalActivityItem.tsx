@@ -19,6 +19,7 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import TooltipWrapper from "components/TooltipWrapper";
 import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
@@ -223,6 +224,35 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         deleted a user <b>{activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  deletedHost: (activity: IActivity) => {
+    const { host_display_name, triggered_by, host_expiry_window } =
+      activity.details || {};
+
+    if (triggered_by === "expiration") {
+      return (
+        <>
+          automatically deleted host <b>{host_display_name}</b> after{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                The host expiry window configured in <br />
+                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+              </>
+            }
+          >
+            {host_expiry_window} day{host_expiry_window !== 1 ? "s" : ""}
+          </TooltipWrapper>{" "}
+          of inactivity.
+        </>
+      );
+    }
+
+    return (
+      <>
+        deleted host <b>{host_display_name}</b>.
       </>
     );
   },
@@ -1616,6 +1646,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.UserDeleted: {
       return TAGGED_TEMPLATES.userDeleted(activity);
+    }
+    case ActivityType.HostDeleted: {
+      return TAGGED_TEMPLATES.deletedHost(activity);
     }
     case ActivityType.UserChangedGlobalRole: {
       return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);

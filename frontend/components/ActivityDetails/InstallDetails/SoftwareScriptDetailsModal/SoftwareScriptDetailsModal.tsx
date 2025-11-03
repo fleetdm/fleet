@@ -193,7 +193,7 @@ interface ISoftwareInstallDetailsProps {
   contactUrl?: string; // My Device Page only
 }
 
-export const SoftwareInstallDetailsModal = ({
+export const SoftwareScriptDetailsModal = ({
   details: detailsFromProps,
   onCancel,
   hostSoftware,
@@ -341,4 +341,4 @@ export const SoftwareInstallDetailsModal = ({
   );
 };
 
-export default SoftwareInstallDetailsModal;
+export default SoftwareScriptDetailsModal;

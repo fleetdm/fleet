@@ -85,7 +85,7 @@ type GetUserSettingsFunc func(ctx context.Context, id uint) (settings *fleet.Use
 
 type InitiateSSOFunc func(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error)
 
@@ -221,6 +221,8 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
+
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
@@ -265,9 +267,9 @@ type AddLabelsToHostFunc func(ctx context.Context, id uint, labels []string) err
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, id uint, labels []string) error
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error)
 
-type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error)
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error)
 
 type ListHostSoftwareFunc func(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
@@ -1145,6 +1147,9 @@ type Service struct {
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
+
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
@@ -2314,11 +2319,11 @@ func (s *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessionI
 	return s.InitiateSSOFunc(ctx, redirectURL)
 }
 
-func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	s.mu.Lock()
 	s.InitiateMDMSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL)
+	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL, hostUUID)
 }
 
 func (s *Service) InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error) {
@@ -2790,6 +2795,13 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	return s.RefetchHostFunc(ctx, id)
 }
 
+func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+	s.mu.Lock()
+	s.CleanupExpiredHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredHostsFunc(ctx)
+}
+
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
@@ -2944,18 +2956,18 @@ func (s *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labels []st
 	return s.RemoveLabelsFromHostFunc(ctx, id, labels)
 }
 
-func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (s *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS)
+	return s.OSVersionsFunc(ctx, teamID, platform, name, version, opts, includeCVSS, maxVulnerabilities)
 }
 
-func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+func (s *Service) OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
 	s.mu.Lock()
 	s.OSVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS)
+	return s.OSVersionFunc(ctx, osVersionID, teamID, includeCVSS, maxVulnerabilities)
 }
 
 func (s *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {

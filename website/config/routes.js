@@ -997,6 +997,8 @@ module.exports.routes = {
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
   'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
   'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
+  'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication',
+  'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/macos-setup-experience#bootstrap-package',
   'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
 
   // Sitemap
