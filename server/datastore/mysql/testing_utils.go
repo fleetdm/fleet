@@ -934,3 +934,9 @@ func checkUpcomingActivities(t *testing.T, ds *Datastore, host *fleet.Host, exec
 	}
 	require.Equal(t, want, got)
 }
+
+// GetUnderlyingDB returns the underlying *sqlx.DB from a Datastore for testing purposes only.
+// This should only be used in test code where direct DB access is needed.
+func GetUnderlyingDB(ds *Datastore) *sqlx.DB {
+	return ds.primary
+}
