@@ -65,6 +65,8 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
 		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/team_software_installer_valid_ipa.yml", ""},
+		{"testdata/gitops/team_software_installer_subdir_ipa.yml", ""},
 	}
 	for _, c := range cases {
 		c.file = filepath.Join("../../fleetctl", c.file)
@@ -320,6 +322,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
 		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/no_team_software_installer_valid_ipa.yml", ""},
+		{"testdata/gitops/no_team_software_installer_subdir_ipa.yml", ""},
 	}
 	for _, c := range cases {
 		c.noTeamFile = filepath.Join("../../fleetctl", c.noTeamFile)
