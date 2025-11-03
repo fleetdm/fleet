@@ -134,6 +134,7 @@ describe("InstallStatusCell - component", () => {
             software_package: createMockHostSoftwarePackage({
               name: "mock software.sh",
             }),
+            source: "sh_packages",
           }),
           ui_status: "ran_script",
         }}
