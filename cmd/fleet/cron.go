@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -1840,5 +1841,31 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		}),
 	)
 
+	return s, nil
+}
+
+func cronEnableAndroidAppReportsOnDefaultPolicy(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	androidSvc android.Service,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronEnableAndroidAppReportsOnDefaultPolicy)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 45*time.Second)
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return androidSvc.EnableAppReportsOnDefaultPolicy(ctx)
+		}),
+	)
 	return s, nil
 }

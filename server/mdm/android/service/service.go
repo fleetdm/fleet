@@ -319,7 +319,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	appReportsEnabled := license.IsPremium(ctx)
+	appReportsEnabled := false //license.IsPremium(ctx)
 
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
@@ -855,6 +855,46 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		Platform:         "android",
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
+	}
+	return nil
+}
+
+func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Then Android MDM isn't setup yet, so no-op
+			level.Info(svc.logger).Log("msg", "skipping android default policy migration, Android MDM is not turned on")
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+	appReportsEnabled := license.IsPremium(ctx)
+
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
+	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
+		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
+			DeviceSettingsEnabled:        true,
+			MemoryInfoEnabled:            true,
+			NetworkInfoEnabled:           true,
+			DisplayInfoEnabled:           true,
+			PowerManagementEventsEnabled: true,
+			HardwareStatusEnabled:        true,
+			SystemPropertiesEnabled:      true,
+			SoftwareInfoEnabled:          true, // Android OS version, etc.
+			CommonCriteriaModeEnabled:    true,
+			ApplicationReportsEnabled:    appReportsEnabled,
+			ApplicationReportingSettings: nil,
+		},
+	})
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
+		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", defaultAndroidPolicyID)
 	}
 	return nil
 }

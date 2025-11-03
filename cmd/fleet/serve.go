@@ -1084,6 +1084,12 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
+			}); err != nil {
+				initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
 					instanceID,
