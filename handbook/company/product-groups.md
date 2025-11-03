@@ -7,6 +7,8 @@ When creating software, handoffs between teams or contributors are one of the mo
 > - Write down philosophies and show how the pieces of the development process fit together on this "🛩️ Product groups" page.
 > - Use the dedicated [departmental](https://fleetdm.com/handbook/company#org-chart) handbook pages for [🚀 Engineering](https://fleetdm.com/handbook/engineering) and [🦢 Product Design](https://fleetdm.com/handbook/product) to keep track of specific, rote responsibilities and recurring rituals designed to be read and used only by people within those departments.
 
+For a high-level view of where each category and stage stands today, see the [🧭 Product maturity assessment](https://fleetdm.com/handbook/company/product-maturity-assessment).
+
 
 ## Product roadmap
 
