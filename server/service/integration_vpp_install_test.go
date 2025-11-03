@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -944,11 +945,17 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
 			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
 
+		// TODO(mna): until we have SCEP-based authentication for iDevices, cheat by
+		// inserting a token for that host so we can use the self-service API.
+		hostSecret := uuid.NewString()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, data.host.ID, hostSecret)
+			return err
+		})
+
 		// Trigger install to the device
 		data.host.UUID = data.uuid
-		ssInstallResp := submitSelfServiceSoftwareInstallResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), &installSoftwareRequest{},
-			http.StatusAccepted, &ssInstallResp)
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", hostSecret, data.titleID), nil, http.StatusAccepted)
 
 		// Verify pending status
 		countResp = countHostsResponse{}
@@ -1558,7 +1565,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	require.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
 	titleID := resp.SoftwareTitles[0].ID
 
-	// TODO: until iDevice SCEP-based auth is implemented, cheat by adding a
+	// TODO(mna): until iDevice SCEP-based auth is implemented, cheat by adding a
 	// token associated with the iOS host so we can use the self-install endpoint.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, 'secret')`, iosHost.ID)
