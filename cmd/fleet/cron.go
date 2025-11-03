@@ -830,6 +830,7 @@ func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	svc fleet.Service,
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
@@ -892,7 +893,8 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"expired_hosts",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupExpiredHosts(ctx)
+				// Call service method to handle activity creation
+				_, err := svc.CleanupExpiredHosts(ctx)
 				return err
 			},
 		),
@@ -977,6 +979,7 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
+			// TODO(MHJ): Move this datastore method to shared space, for when windows renewal is being worked on.
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {

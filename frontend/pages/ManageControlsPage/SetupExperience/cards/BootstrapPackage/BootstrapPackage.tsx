@@ -14,13 +14,16 @@ import mdmAPI, {
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { NotificationContext } from "context/notification";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 import SectionHeader from "components/SectionHeader";
+import CustomLink from "components/CustomLink";
 
-import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
 import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
@@ -190,9 +193,6 @@ const BootstrapPackage = ({
             }}
           />
         </div>
-        <div className={`${baseClass}__preview-container`}>
-          <BootstrapPackagePreview />
-        </div>
       </SetupExperienceContentContainer>
     );
   };
@@ -228,7 +228,16 @@ const BootstrapPackage = ({
 
   return (
     <section className={baseClass}>
-      <SectionHeader title="Bootstrap package" />
+      <SectionHeader
+        title="Bootstrap package"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/bootstrap-package`}
+            text="Preview end user experience"
+          />
+        }
+      />
       {renderContent()}
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal

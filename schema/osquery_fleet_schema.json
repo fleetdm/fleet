@@ -24376,12 +24376,13 @@
   },
   {
     "name": "santa_allowed",
-    "description": "List of applications Santa has allowed to run on the host.",
+    "description": "Logs events for when Santa allowed applications to run on the host. Fleet's agent (fleetd) only stores the most recent 10,000 allowed events.",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "examples": "Show Google Chrome open events, as allowed by Santa.\n\n```\nSELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app';\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 allowed events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
     "columns": [
       {
         "name": "timestamp",
@@ -24413,12 +24414,13 @@
   },
   {
     "name": "santa_denied",
-    "description": "List of applications Santa has denied from running on the host.",
+    "description": "Logs events for when Santa denied applications from running on the host. Fleet's agent (fleetd) only stores the most recent 10,000 denied events.",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "examples": "Collect all Santa denied logs from macOS hosts.\n```\nSELECT * FROM santa_denied;\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
     "columns": [
       {
         "name": "timestamp",
@@ -24447,43 +24449,6 @@
     ],
     "url": "https://fleetdm.com/tables/santa_denied",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_denied.yml"
-  },
-  {
-    "name": "santa_rules",
-    "description": "The [Santa](https://github.com/google/santa) rules that are currently installed on a macOS host.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "Verify that running WhatsApp will be denied (blocked) by Santa via WhatsApp's Team ID.\n```\nSELECT state FROM santa_rules WHERE identifier = '57T9237FN3';\n```",
-    "columns": [
-      {
-        "name": "identifier",
-        "description": "Rule identifier (SHA256, Team ID, etc.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "type",
-        "description": "Type of rule (Binary, Certificate, TeamID)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "state",
-        "description": "Rule state (Allowlist, Denylist)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "custom_message",
-        "description": "Custom message associated with the rule",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/santa_rules",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_rules.yml"
   },
   {
     "name": "santa_status",

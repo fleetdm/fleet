@@ -143,7 +143,12 @@ const generateDefaultTableHeaders = (
       ) {
         return <TextCell value="Not supported" grey />;
       }
-      return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      return (
+        <VulnerabilitiesCell
+          vulnerabilities={cellProps.cell.value}
+          vulnerabilitiesCount={cellProps.row.original.vulnerabilities_count}
+        />
+      );
     },
   },
   {
