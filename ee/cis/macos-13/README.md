@@ -1,8 +1,8 @@
-# macOS 13 Ventura benchmark
+# macOS 13 Ventura
 
 Fleet's policies for macOS 13 are deprecated. See Fleet's [supported host operating systems](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support).
 
-The policies have been written against v3.1.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
+The policies have been written against v3.1.0. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
 For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com/docs/using-fleet/cis-benchmarks) documentation.
 
