@@ -283,11 +283,11 @@ In these cases there are two differences in our pull request process:
 
 ### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the EM knows a user story will be pushed, it is the product group EM's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
 
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
-3. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
+3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
 
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
