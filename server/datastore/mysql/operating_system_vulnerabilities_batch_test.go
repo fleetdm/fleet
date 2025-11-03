@@ -257,9 +257,7 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 			assert.Greater(t, vulnData.Count, 0, "Linux platform count should be > 0 with maxVulnerabilities")
 		} else {
 			// Non-Linux should also have correct count, not 0
-			// BUG REPRODUCTION: This will fail with current code because non-Linux count becomes 0
-			// when len(linuxOSVersionMap) > 0
-			assert.Equal(t, 1, vulnData.Count, "Non-Linux platform %s should have count=1, not 0 (bug: switch on global len(linuxOSVersionMap))", osV.Platform)
+			assert.Equal(t, 1, vulnData.Count, "Non-Linux platform %s should have count=1", osV.Platform)
 			assert.Len(t, vulnData.Vulnerabilities, 1, "Non-Linux should have 1 limited vulnerability")
 			assert.Equal(t, fmt.Sprintf("CVE-2024-PLAT-%d", i), vulnData.Vulnerabilities[0].CVE)
 		}
@@ -683,6 +681,86 @@ func testListVulnsByMultipleOSVersionsWithMaxVulnerabilities(t *testing.T, ds *D
 				assert.True(t, ok, "Should have entry for %s", key)
 				assert.Len(t, vulnData.Vulnerabilities, 0, "Should have 0 vulnerabilities when max=0")
 				assert.Equal(t, 15, vulnData.Count, "Count should be 15 total unique CVEs across both architectures")
+			},
+		},
+		{
+			name:       "combined osVersions + linuxOS with max=1",
+			maxVulns:   ptr.Int(1),
+			osVersions: append(osVersions, linuxOS),
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				// Should have entries for all 3 non-Linux OS + 1 Linux OS = 4 total
+				assert.Len(t, vulnsMap, 4)
+
+				// Check non-Linux OS versions
+				for _, osV := range osVersions {
+					key := osV.NameOnly + "-" + osV.Version
+					vulnData, ok := vulnsMap[key]
+					assert.True(t, ok, "Should have vulnerabilities for %s", key)
+					assert.Len(t, vulnData.Vulnerabilities, 1, "Should have exactly 1 vulnerability (limited)")
+					assert.Equal(t, 2, vulnData.Count, "Count should show total of 2 vulnerabilities")
+				}
+
+				// Check Linux OS
+				linuxKey := linuxOS.NameOnly + "-" + linuxOS.Version
+				linuxVulnData, ok := vulnsMap[linuxKey]
+				assert.True(t, ok, "Should have vulnerabilities for Linux OS")
+				assert.Len(t, linuxVulnData.Vulnerabilities, 1, "Should have exactly 1 vulnerability (limited)")
+				assert.GreaterOrEqual(t, linuxVulnData.Count, 1, "Count should be at least 1 for kernel vulnerabilities")
+			},
+		},
+		{
+			name:       "combined osVersions + linuxOS with max=0",
+			maxVulns:   ptr.Int(0),
+			osVersions: append(osVersions, linuxOS),
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				assert.Len(t, vulnsMap, 4)
+
+				// All OS versions should return empty vulnerability arrays but correct counts
+				for _, osV := range osVersions {
+					key := osV.NameOnly + "-" + osV.Version
+					vulnData, ok := vulnsMap[key]
+					assert.True(t, ok, "Should have entry for %s", key)
+					assert.Len(t, vulnData.Vulnerabilities, 0, "Should have 0 vulnerabilities when max=0")
+					assert.Equal(t, 2, vulnData.Count, "Count should still show total of 2 vulnerabilities")
+				}
+
+				linuxKey := linuxOS.NameOnly + "-" + linuxOS.Version
+				linuxVulnData, ok := vulnsMap[linuxKey]
+				assert.True(t, ok, "Should have entry for Linux OS")
+				assert.Len(t, linuxVulnData.Vulnerabilities, 0, "Should have 0 vulnerabilities when max=0")
+				assert.GreaterOrEqual(t, linuxVulnData.Count, 1, "Count should be at least 1 for kernel vulnerabilities")
+			},
+		},
+		{
+			name:       "combined all OS types with max=2",
+			maxVulns:   ptr.Int(2),
+			osVersions: append(append(osVersions, linuxOS), multiArchOS),
+			validateResult: func(t *testing.T, vulnsMap map[string]fleet.OSVulnerabilitiesWithCount) {
+				// Should have 3 non-Linux + 1 Linux + 1 multi-arch = 5 total
+				assert.Len(t, vulnsMap, 5)
+
+				// Check non-Linux OS versions
+				for _, osV := range osVersions {
+					key := osV.NameOnly + "-" + osV.Version
+					vulnData, ok := vulnsMap[key]
+					assert.True(t, ok, "Should have vulnerabilities for %s", key)
+					assert.LessOrEqual(t, len(vulnData.Vulnerabilities), 2, "Should have at most 2 vulnerabilities (limited)")
+					assert.Equal(t, 2, vulnData.Count, "Count should show total of 2 vulnerabilities")
+				}
+
+				// Check Linux OS
+				linuxKey := linuxOS.NameOnly + "-" + linuxOS.Version
+				linuxVulnData, ok := vulnsMap[linuxKey]
+				assert.True(t, ok, "Should have vulnerabilities for Linux OS")
+				assert.LessOrEqual(t, len(linuxVulnData.Vulnerabilities), 2, "Should have at most 2 vulnerabilities (limited)")
+				assert.GreaterOrEqual(t, linuxVulnData.Count, 1, "Count should be at least 1 for kernel vulnerabilities")
+
+				// Check multi-arch OS
+				multiArchKey := multiArchOS.NameOnly + "-" + multiArchOS.Version
+				multiArchVulnData, ok := vulnsMap[multiArchKey]
+				assert.True(t, ok, "Should have vulnerabilities for multi-arch OS")
+				assert.LessOrEqual(t, len(multiArchVulnData.Vulnerabilities), 2, "Should have at most 2 vulnerabilities (limited)")
+				assert.Equal(t, 15, multiArchVulnData.Count, "Count should be 15 total unique CVEs across both architectures")
 			},
 		},
 	}
