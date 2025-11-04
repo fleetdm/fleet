@@ -1,4 +1,9 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, {
+  MutableRefObject,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 import { AxiosResponse } from "axios";
 
 import { expandErrorReasonRequired } from "interfaces/errors";
@@ -26,9 +31,15 @@ export interface IEndUserAuthSectionProps {
   setDirty: (dirty: boolean) => void;
   formData: IFormDataIdp;
   setFormData: React.Dispatch<React.SetStateAction<IFormDataIdp>>;
+  originalFormData: MutableRefObject<IFormDataIdp>;
 }
 
-const EndUserAuthSection = ({ setDirty, formData, setFormData }: IEndUserAuthSectionProps) => {
+const EndUserAuthSection = ({
+  setDirty,
+  formData,
+  setFormData,
+  originalFormData,
+}: IEndUserAuthSectionProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
@@ -60,7 +71,7 @@ const EndUserAuthSection = ({ setDirty, formData, setFormData }: IEndUserAuthSec
         setFormErrors(newErrors);
       }
     },
-    [formData, formErrors, setDirty]
+    [formData, setFormData, formErrors, setDirty]
   );
 
   const onBlur = useCallback(() => {
@@ -85,6 +96,7 @@ const EndUserAuthSection = ({ setDirty, formData, setFormData }: IEndUserAuthSec
           },
         });
         renderFlash("success", "Successfully updated end user authentication!");
+        originalFormData.current = { ...formData };
         setDirty(false);
       } catch (err) {
         const ae = (typeof err === "object" ? err : {}) as AxiosResponse;

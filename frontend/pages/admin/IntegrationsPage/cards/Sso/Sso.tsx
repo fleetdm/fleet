@@ -18,7 +18,10 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
-import { IFormDataIdp, newFormDataIdp } from "../IdentityProviders/components/EndUserAuthSection/helpers";
+import {
+  IFormDataIdp,
+  newFormDataIdp,
+} from "../IdentityProviders/components/EndUserAuthSection/helpers";
 
 const baseClass = "app-config-form";
 
@@ -108,10 +111,6 @@ const Sso = ({
       appConfig.sso_settings?.enable_jit_provisioning ?? false,
   });
 
-  const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
-    newFormDataIdp(appConfig?.mdm?.end_user_authentication)
-  );
-
   const {
     enableSso,
     idpName,
@@ -182,6 +181,11 @@ const Sso = ({
     }
   };
 
+  const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
+    newFormDataIdp(appConfig?.mdm?.end_user_authentication)
+  );
+  const originalEndUserFormData = useRef(endUserFormData);
+
   const handleTabChange = useCallback(
     (index: number) => {
       if (
@@ -194,6 +198,7 @@ const Sso = ({
 
       setFormDirty(false);
       setFormData(originalFormData.current);
+      setEndUserFormData(originalEndUserFormData.current);
       const newSubsection = AUTH_TARGETS_BY_INDEX[index];
       router.push(
         newSubsection === "end-users"
@@ -334,6 +339,7 @@ const Sso = ({
       setDirty={setFormDirty}
       formData={endUserFormData}
       setFormData={setEndUserFormData}
+      originalFormData={originalEndUserFormData}
     />
   );
 
