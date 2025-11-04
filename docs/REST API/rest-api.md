@@ -589,6 +589,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [List certificates](#list-certificates)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
+- [Get certificate](#get-certificate-2)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Delete certificate](#delete-certificate)
 - [Request certificate](#request-certificate)
@@ -872,26 +873,9 @@ Get details of the certificate authority.
 |---------------- |-------- |------|-------------------------------------------------------------|
 | id   | integer | body | **Required**. The ID of the certificate authority. |
 
-
-#### Request headers
-
-This endpoint accepts node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
-
-The `Authorization` header must be formatted as follows:
-
-```
-Authorization: Node key <node_key>
-```
-
 #### Example
 
 `GET /api/v1/fleet/certificate_authorities/1`
-
-##### Request headers
-
-```http
-Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
-```
 
 ##### Default response
 
@@ -912,6 +896,55 @@ Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
 ```
+
+### Get certificate
+
+Get details of the certificate added to Fleet.
+
+`GET /api/v1/fleet/certificates/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | path | **Required**. The ID of the certificate. |
+| host_uuid   | integer | query | If included, variables in `subject_name` will be replaced with host's values. |
+
+#### Request headers
+
+This endpoint accepts node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
+
+The `Authorization` header must be formatted as follows:
+
+```
+Authorization: Node key <node_key>
+```
+
+#### Example
+
+`GET /api/v1/fleet/certificates/1`
+
+##### Request headers
+
+```http
+Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authority_id": 2,
+  "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+  "created_at": "2025-11-04T00:00:00Z",
+  "id": 1,
+  "name": "wifi-certificate",
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+}
+```
+
 
 ### Delete certificate authority (CA)
 
@@ -1180,7 +1213,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Fleet configuration
 
-- [Get certificate](#get-certificate)
+- [Get Fleet certificate](#get-fleet-certificate)
 - [Get configuration](#get-configuration)
 - [Modify configuration](#modify-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
@@ -1192,7 +1225,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
 
 
-### Get certificate
+### Get Fleet certificate
 
 Returns the Fleet certificate.
 
