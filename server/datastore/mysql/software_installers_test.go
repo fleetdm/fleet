@@ -52,6 +52,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
 		{"SaveInstallerUpdatesClearsFleetMaintainedAppID", testSaveInstallerUpdatesClearsFleetMaintainedAppID},
 		{"SoftwareInstallerReplicaLag", testSoftwareInstallerReplicaLag},
+		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayName},
 	}
 
 	for _, c := range cases {
@@ -3343,7 +3344,7 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	require.NoError(t, err)
 
 	// Create an installer with a non-NULL fleet_maintained_app_id
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:                "testpkg",
 		Source:               "apps",
 		InstallScript:        "echo install",
@@ -3365,6 +3366,7 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	preInstallQuery := "SELECT 2"
 	selfService := true
 	payload := &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:         titleID,
 		InstallerID:     installerID,
 		StorageID:       "storageid2", // different storage id
 		Filename:        "test2.pkg",
@@ -3422,4 +3424,198 @@ func testSoftwareInstallerReplicaLag(t *testing.T, _ *Datastore) {
 	gotInstaller, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
 	require.NoError(t, err)
 	require.NotNil(t, gotInstaller)
+}
+
+func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host0 := test.NewHost(t, ds, "host0", "", "host0key", "host0uuid", time.Now())
+
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		Extension:        "msi",
+		StorageID:        "storageid",
+		Filename:         "originalname.msi",
+		Title:            "OriginalName1",
+		PackageIDs:       []string{"id2"},
+		Version:          "2.0",
+		Source:           "programs",
+		AutomaticInstall: true,
+		UserID:           user1.ID,
+
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Display name is empty by default
+	titles, _, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Empty(t, titles[0].DisplayName)
+
+	title, err := ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, title.DisplayName)
+
+	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		DisplayName:       "update1",
+		TitleID:           titleID,
+		InstallerFile:     &fleet.TempFileReader{},
+		InstallScript:     new(string),
+		PreInstallQuery:   new(string),
+		PostInstallScript: new(string),
+		SelfService:       ptr.Bool(false),
+		UninstallScript:   new(string),
+	})
+	require.NoError(t, err)
+
+	// Display name entry should be in join table
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		type result struct {
+			DisplayName     string `db:"display_name"`
+			SoftwareTitleID uint   `db:"software_title_id"`
+			TeamID          uint   `db:"team_id"`
+		}
+		var r []result
+
+		err := sqlx.SelectContext(ctx, q, &r, "SELECT display_name, software_title_id, team_id FROM software_title_display_names")
+		require.NoError(t, err)
+
+		assert.Len(t, r, 1)
+		assert.Equal(t, r[0], result{"update1", titleID, 0})
+		return nil
+	})
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, "update1", titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "update1", title.DisplayName)
+
+	// Update host's software so we get a software version
+	software0 := []fleet.Software{
+		{Name: "OriginalName1", Version: "0.0.1", Source: "programs", TitleID: ptr.Uint(titleID)},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host0.ID, software0)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+
+	softwareList, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, softwareList, 1)
+	assert.Equal(t, titleID, *softwareList[0].TitleID)
+	assert.Equal(t, "update1", softwareList[0].DisplayName)
+
+	software, err := ds.SoftwareByID(ctx, softwareList[0].ID, ptr.Uint(0), false, &fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, titleID, *software.TitleID)
+	assert.Equal(t, "update1", software.DisplayName)
+
+	// Update the display name again, should see the change
+	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		DisplayName:       "update2",
+		TitleID:           titleID,
+		InstallerFile:     &fleet.TempFileReader{},
+		InstallScript:     new(string),
+		PreInstallQuery:   new(string),
+		PostInstallScript: new(string),
+		SelfService:       ptr.Bool(false),
+		UninstallScript:   new(string),
+	})
+	require.NoError(t, err)
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, "update2", titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "update2", title.DisplayName)
+
+	softwareList, _, err = ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, softwareList, 1)
+	assert.Equal(t, titleID, *softwareList[0].TitleID)
+	assert.Equal(t, "update2", softwareList[0].DisplayName)
+
+	software, err = ds.SoftwareByID(ctx, softwareList[0].ID, ptr.Uint(0), false, &fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, titleID, *software.TitleID)
+	assert.Equal(t, "update2", software.DisplayName)
+
+	// Update display name to be empty
+	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:           titleID,
+		InstallerFile:     &fleet.TempFileReader{},
+		InstallScript:     new(string),
+		PreInstallQuery:   new(string),
+		PostInstallScript: new(string),
+		SelfService:       ptr.Bool(false),
+		UninstallScript:   new(string),
+	})
+	require.NoError(t, err)
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Empty(t, titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, title.DisplayName)
+
+	softwareList, _, err = ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, softwareList, 1)
+	assert.Equal(t, titleID, *softwareList[0].TitleID)
+	assert.Empty(t, softwareList[0].DisplayName)
+
+	software, err = ds.SoftwareByID(ctx, softwareList[0].ID, ptr.Uint(0), false, &fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, titleID, *software.TitleID)
+	assert.Empty(t, software.DisplayName)
+
 }
