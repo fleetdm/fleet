@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.0.43",
+      "version": "2.0.54",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere';"
       },
-      "installer_url": "https://downloads.cursor.com/production/8e4da76ad196925accaa169efcae28c45454cce3/win32/x64/system-setup/CursorSetup-x64-2.0.43.exe",
+      "installer_url": "https://downloads.cursor.com/production/7a31bffd467aa2d9adfda69076eb924e9062cb27/win32/x64/system-setup/CursorSetup-x64-2.0.54.exe",
       "install_script_ref": "03589b5e",
       "uninstall_script_ref": "6c8096c5",
-      "sha256": "a9fecf3d5877a67a0fc60d0ba0c430a71a14279ce147570d2d56fbaee1808f33",
+      "sha256": "bc29cf48b274d0994a1c435705a38cc4fa954c5c8641645ab30233c1f6e590e4",
       "default_categories": [
         "Developer Tools"
       ]
