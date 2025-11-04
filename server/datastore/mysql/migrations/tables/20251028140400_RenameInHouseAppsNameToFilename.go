@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251028103213, Down_20251028103213)
+	MigrationClient.AddMigration(Up_20251028140400, Down_20251028140400)
 }
 
-func Up_20251028103213(tx *sql.Tx) error {
+func Up_20251028140400(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE in_house_apps
     RENAME COLUMN name TO filename
@@ -21,6 +21,6 @@ ALTER TABLE in_house_apps
 	return nil
 }
 
-func Down_20251028103213(tx *sql.Tx) error {
+func Down_20251028140400(tx *sql.Tx) error {
 	return nil
 }

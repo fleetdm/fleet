@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251027101155, Down_20251027101155)
+	MigrationClient.AddMigration(Up_20251028140300, Down_20251028140300)
 }
 
-func Up_20251027101155(tx *sql.Tx) error {
+func Up_20251028140300(tx *sql.Tx) error {
 	// Note that at the moment of this migration, in-house apps uninstall is not
 	// supported, so we don't add it to the enum.
 	_, err := tx.Exec(`
@@ -96,6 +96,6 @@ CREATE TABLE host_in_house_software_installs (
 	return nil
 }
 
-func Down_20251027101155(tx *sql.Tx) error {
+func Down_20251028140300(tx *sql.Tx) error {
 	return nil
 }

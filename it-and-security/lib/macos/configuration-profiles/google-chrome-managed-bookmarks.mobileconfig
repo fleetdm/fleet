@@ -357,7 +357,7 @@
                             <key>name</key>
                             <string>Issue: 🦟Bug report</string>
                             <key>url</key>
-                            <string>https://github.com/fleetdm/fleet/issues/new?assignees=&amp;labels=bug%2C%3Areproduce&amp;projects=&amp;template=bug-report.md&amp;title=</string>
+                            <string>https://github.com/fleetdm/fleet/issues/new?template=bug-report.md</string>
                         </dict>
                         <dict>
                             <key>name</key>
