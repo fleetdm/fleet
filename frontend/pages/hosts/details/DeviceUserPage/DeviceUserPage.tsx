@@ -695,22 +695,17 @@ const DeviceUserPage = ({
                   osSettings={host?.mdm.os_settings}
                 />
                 <AboutCard
-                  className={
-                    showUsersCard ? defaultCardClass : fullWidthCardClass
-                  }
+                  className={defaultCardClass}
                   aboutData={aboutData}
                   munki={deviceMacAdminsData?.munki}
                 />
-                {showUsersCard && (
-                  <UserCard
-                    className={defaultCardClass}
-                    platform={host.platform}
-                    endUsers={host.end_users ?? []}
-                    enableAddEndUser={false}
-                    disableFullNameTooltip
-                    disableGroupsTooltip
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  canWriteEndUser={false} // to hide button for now - TODO confirm how to handle this page, not yet specced
+                  endUsers={host.end_users ?? []}
+                  disableFullNameTooltip
+                  disableGroupsTooltip
+                />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
                     className={fullWidthCardClass}
