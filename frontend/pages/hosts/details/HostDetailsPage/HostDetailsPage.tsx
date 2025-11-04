@@ -3,7 +3,7 @@ import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { pick } from "lodash";
+import { pick, set } from "lodash";
 
 import PATHS from "router/paths";
 
@@ -209,6 +209,10 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+
+  // General-use updating state
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
@@ -236,7 +240,6 @@ const HostDetailsPage = ({
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
 
-  const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
@@ -273,7 +276,6 @@ const HostDetailsPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
-  const [showUpdateEndUserModal, setShowAddEndUserModal] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -625,7 +627,7 @@ const HostDetailsPage = ({
 
   const onDestroyHost = async () => {
     if (host) {
-      setIsUpdatingHost(true);
+      setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
         router.push(PATHS.MANAGE_HOSTS);
@@ -641,7 +643,7 @@ const HostDetailsPage = ({
         );
       } finally {
         setShowDeleteHostModal(false);
-        setIsUpdatingHost(false);
+        setIsUpdating(false);
       }
     }
   };
@@ -781,7 +783,7 @@ const HostDetailsPage = ({
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
-    setIsUpdatingHost(true);
+    setIsUpdating(true);
 
     const teamId = typeof team.id === "number" ? team.id : null;
 
@@ -797,10 +799,9 @@ const HostDetailsPage = ({
       refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
-      console.log(error);
       renderFlash("error", "Could not transfer host. Please try again.");
     } finally {
-      setIsUpdatingHost(false);
+      setIsUpdating(false);
     }
   };
 
@@ -889,6 +890,21 @@ const HostDetailsPage = ({
       (host.platform === "windows" || isLinuxLike(host.platform))
     ) {
       refetchHostDetails();
+    }
+  };
+
+  const onUpdateEndUser = async (username: string) => {
+    setIsUpdating(true);
+    try {
+      // TODO - (product) if empty, call DELETE
+      await hostAPI.updateHostIdpUsername(hostIdFromURL, username);
+      renderFlash("success", "Updated end user.");
+      setShowUpdateEndUserModal(false);
+      refetchHostDetails();
+    } catch (e) {
+      renderFlash("error", "Could not update end user. Please try again.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -1203,7 +1219,7 @@ const HostDetailsPage = ({
                     isGlobalAdmin ||
                     isGlobalMaintainer
                   }
-                  onAddEndUser={() => setShowAddEndUserModal(true)}
+                  onClickUpdateUser={() => setShowUpdateEndUserModal(true)}
                 />
                 {showActivityCard && (
                   <ActivityCard
@@ -1332,7 +1348,7 @@ const HostDetailsPage = ({
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
               hostName={host?.display_name}
-              isUpdating={isUpdatingHost}
+              isUpdating={isUpdating}
             />
           )}
           {showSelectQueryModal && host && (
@@ -1359,7 +1375,7 @@ const HostDetailsPage = ({
               onSubmit={onTransferHostSubmit}
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
-              isUpdating={isUpdatingHost}
+              isUpdating={isUpdating}
             />
           )}
           {!!host && showPolicyDetailsModal && (
@@ -1501,7 +1517,9 @@ const HostDetailsPage = ({
           <UpdateEndUserModal
             isPremiumTier={isPremiumTier}
             endUsers={host.end_users ?? []}
-            onExit={() => setShowAddEndUserModal(false)}
+            onUpdate={onUpdateEndUser}
+            isUpdating={isUpdating}
+            onExit={() => setShowUpdateEndUserModal(false)}
           />
         )}
       </>

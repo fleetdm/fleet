@@ -90,6 +90,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
   HOST_CERTIFICATES: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/certificates`,
+  HOST_DEVICE_MAPPING: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,

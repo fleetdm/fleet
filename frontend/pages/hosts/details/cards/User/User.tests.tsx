@@ -10,7 +10,7 @@ describe("User card", () => {
   describe("IdP data", () => {
     it("renders the username, full name, groups, and department fields", () => {
       const endUsers = [createMockHostEndUser()];
-      render(<User endUsers={endUsers} onAddEndUser={noop} />);
+      render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
 
       expect(screen.getByText("Username (IdP)")).toBeInTheDocument();
       expect(screen.getByText("jdoe")).toBeInTheDocument();
@@ -28,18 +28,20 @@ describe("User card", () => {
 
     it("does not render the 'Add user' button without write permission even when there is an existing IdP username", () => {
       const endUsers = [createMockHostEndUser()];
-      render(<User endUsers={endUsers} onAddEndUser={noop} />);
+      render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
       expect(screen.queryByText("Add user")).toBeNull();
       expect(screen.queryByText("Edit user")).toBeNull();
     });
     it("With write permission, renders the 'Add user' button when there is not an existing IdP username", () => {
-      render(<User endUsers={[]} canWriteEndUser onAddEndUser={noop} />);
+      render(<User endUsers={[]} canWriteEndUser onClickUpdateUser={noop} />);
       expect(screen.getByText("Add user")).toBeInTheDocument();
       expect(screen.queryByText("Edit user")).toBeNull();
     });
     it("With write permission, renders the 'Edit user' button when there is an existing IdP username", () => {
       const endUsers = [createMockHostEndUser()];
-      render(<User endUsers={endUsers} canWriteEndUser onAddEndUser={noop} />);
+      render(
+        <User endUsers={endUsers} canWriteEndUser onClickUpdateUser={noop} />
+      );
       expect(screen.queryByText("Add user")).toBeNull();
       expect(screen.getByText("Edit user")).toBeInTheDocument();
     });
@@ -54,7 +56,7 @@ describe("User card", () => {
         ],
       }),
     ];
-    render(<User endUsers={endUsers} onAddEndUser={noop} />);
+    render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
 
     expect(screen.getByText("Google Chrome profiles")).toBeInTheDocument();
     expect(screen.getByText("Profile1")).toBeInTheDocument();
@@ -70,7 +72,7 @@ describe("User card", () => {
         ],
       }),
     ];
-    render(<User endUsers={endUsers} onAddEndUser={noop} />);
+    render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
 
     expect(screen.getByText("Other emails")).toBeInTheDocument();
     expect(screen.getByText("other1@example.com")).toBeInTheDocument();

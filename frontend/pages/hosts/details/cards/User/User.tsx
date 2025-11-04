@@ -30,7 +30,7 @@ interface IUserProps {
   disableFullNameTooltip?: boolean;
   disableGroupsTooltip?: boolean;
   className?: string;
-  onAddEndUser?: () => void;
+  onClickUpdateUser?: () => void;
 }
 
 const User = ({
@@ -39,7 +39,7 @@ const User = ({
   disableFullNameTooltip = false,
   disableGroupsTooltip = false,
   className,
-  onAddEndUser = noop,
+  onClickUpdateUser = noop,
 }: IUserProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -71,7 +71,7 @@ const User = ({
           <Button
             className={`${baseClass}__add-user-btn`}
             variant="inverse"
-            onClick={onAddEndUser}
+            onClick={onClickUpdateUser}
             size="small"
           >
             <Icon name={writeButtonIcon} />

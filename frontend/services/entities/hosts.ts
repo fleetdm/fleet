@@ -674,4 +674,8 @@ export default {
 
     return sendRequest("GET", path);
   },
+  updateHostIdpUsername(hostId: number, idpUsername: string) {
+    const path = endpoints.HOST_DEVICE_MAPPING(hostId);
+    return sendRequest("PUT", path, { source: "idp", email: idpUsername });
+  },
 };
