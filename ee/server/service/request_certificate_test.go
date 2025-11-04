@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/est_ca"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -150,9 +150,9 @@ func TestRequestCertificate(t *testing.T) {
 			logger: logger,
 			ds:     ds,
 			authz:  authorizer,
-			estService: est_ca.NewService(
-				est_ca.WithTimeout(2*time.Second),
-				est_ca.WithLogger(logger),
+			estService: est.NewService(
+				est.WithTimeout(2*time.Second),
+				est.WithLogger(logger),
 			),
 		}
 		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
