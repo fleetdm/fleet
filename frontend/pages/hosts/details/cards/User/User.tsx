@@ -100,7 +100,7 @@ const User = ({
         />
         <DataSet
           title={
-            disableGroupsTooltip && endUser.idp_info_updated_at !== null ? (
+            disableGroupsTooltip ? (
               "Groups (IdP)"
             ) : (
               <TooltipWrapper tipContent={generateGroupsTipContent(endUsers)}>
