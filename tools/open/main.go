@@ -21,7 +21,7 @@ func main() {
 
 	err := open.Browser(*openTool)
 	if err != nil {
-		fmt.Println("Err opening URL")
-		panic(err)
+		fmt.Printf("Error opening URL: %v\n", err)
+		return
 	}
 }
