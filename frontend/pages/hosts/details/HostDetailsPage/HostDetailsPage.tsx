@@ -1199,11 +1199,9 @@ const HostDetailsPage = ({
                   className={defaultCardClass}
                   endUsers={host.end_users ?? []}
                   canWriteEndUser={
-                    !!(
-                      isTeamMaintainerOrTeamAdmin ||
-                      isGlobalAdmin ||
-                      isGlobalMaintainer
-                    )
+                    isTeamMaintainerOrTeamAdmin ||
+                    isGlobalAdmin ||
+                    isGlobalMaintainer
                   }
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />

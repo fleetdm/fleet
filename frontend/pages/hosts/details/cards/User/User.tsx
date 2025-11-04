@@ -21,12 +21,13 @@ import {
   generateGroupsValues,
   generateOtherEmailsValues,
 } from "./helpers";
+import { write } from "fs";
 
 const baseClass = "user-card";
 
 interface IUserProps {
   endUsers: IHostEndUser[];
-  canWriteEndUser: boolean;
+  canWriteEndUser?: boolean;
   disableFullNameTooltip?: boolean;
   disableGroupsTooltip?: boolean;
   className?: string;
@@ -35,7 +36,7 @@ interface IUserProps {
 
 const User = ({
   endUsers,
-  canWriteEndUser,
+  canWriteEndUser = false,
   disableFullNameTooltip = false,
   disableGroupsTooltip = false,
   className,
@@ -46,6 +47,10 @@ const User = ({
   const userNameDisplayValues = generateUsernameValues(endUsers);
   const chromeProfilesDisplayValues = generateChromeProfilesValues(endUsers);
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
+
+  const [writeButtonText, writeButtonIcon] = userNameDisplayValues.length
+    ? ["Edit user", "pencil" as const]
+    : ["Add user", "plus" as const];
 
   const endUser = endUsers[0];
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
@@ -70,7 +75,8 @@ const User = ({
             onClick={onAddEndUser}
             size="small"
           >
-            <Icon name="plus" /> Add user
+            <Icon name={writeButtonIcon} />
+            {writeButtonText}
           </Button>
         )}
       </div>
