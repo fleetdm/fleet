@@ -588,6 +588,8 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
+- [Add certificate](#add-certificate)
+- [Delete certificate](#delete-certificate)
 - [Request certificate](#request-certificate)
 
 ### Add certificate authority (CA)
@@ -838,7 +840,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
-| device_token     | string | body | The device's authentication token.   |
+| node_key     | string | body | The authentication key used by Fleet's Android agent.   |
 | certificate_id   | integer | path | **Required (if using device_token for authentication).** The ID of the certificate created in Fleet. You can see your certificate IDs using the [List certificates endpoint](#list-certificates). |
 
 
@@ -867,6 +869,119 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
   "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
 }
 ```
+
+### Add certificate
+
+Add certificate to deploy to the all hosts on the team. Fleet currently supports adding certificates for Android that are issued from custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
+
+`POST /api/v1/fleet/certificates`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
+| certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
+| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
+
+#### Request header
+
+This endpoint accepts `node_key` from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
+
+| Header Name       | Type   | Description                                           |
+|:------------------|:-------|:------------------------------------------------------|
+| Authorization     | string | The authentication key used by Fleet's Android agent. |
+
+#### Example
+
+`POST /api/v1/fleet/certificate_authorities`
+
+##### Request header
+
+```http
+Authorization: Node key <node_key>
+```
+
+##### Request body
+
+```json
+{
+  "name": "wifi-certificate",
+  "certificate_authority_id": 1,
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "name": "WIFI_CERTIFICATE",
+  "type": "digicert"
+}
+```
+
+### List certificate
+
+Add certificate to deploy to the all hosts on the team. Fleet currently supports adding certificates for Android that are issued from custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
+
+`POST /api/v1/fleet/certificates`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
+| certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
+| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
+
+#### Request header
+
+This endpoint accepts `node_key` from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
+
+| Header Name       | Type   | Description                                           |
+|:------------------|:-------|:------------------------------------------------------|
+| Authorization     | string | The authentication key used by Fleet's Android agent. |
+
+#### Example
+
+`POST /api/v1/fleet/certificate_authorities`
+
+##### Request header
+
+```http
+Authorization: Node key <node_key>
+```
+
+##### Request body
+
+```json
+{
+  "name": "wifi-certificate",
+  "certificate_authority_id": 1,
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "wifi-certificate",
+    "certificate_authority_id": "1",
+    "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+    "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  }
+]
+```
+
 
 ---
 
