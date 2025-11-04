@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/testtable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 	"github.com/rs/zerolog/log"
 
@@ -53,6 +54,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("nvram_info", nvram_info.Columns(), nvram_info.Generate),
 		table.NewPlugin("tcc_access", tcc_access.Columns(), tcc_access.Generate),
 		table.NewPlugin("authdb", authdb.Columns(), authdb.Generate),
+		table.NewPlugin("testtable", testtable.Columns(), testtable.Generate),
 		table.NewPlugin("pmset", pmset.Columns(), pmset.Generate),
 		table.NewPlugin("sudo_info", sudo_info.Columns(), sudo_info.Generate),
 		table.NewPlugin("software_update", software_update.Columns(), software_update.Generate),
