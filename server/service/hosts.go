@@ -1652,7 +1652,6 @@ type putHostDeviceMappingResponse struct {
 func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 
 // putHostDeviceMappingEndpoint
-// Deprecated: Because the corresponding GET endpoint is deprecated.
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
 
@@ -1698,7 +1697,7 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 	case fleet.DeviceMappingCustomOverride, fleet.DeviceMappingCustomInstaller:
 		return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
 	case fleet.DeviceMappingIDP:
-		// Check if this is a premium-only feature
+		// This is a premium-only feature
 		lic, err := svc.License(ctx)
 		if err != nil {
 			return nil, err
