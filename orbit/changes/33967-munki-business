@@ -1,2 +1,2 @@
 * Upgraded macadmins osquery-extension to v1.2.6.
-* Exposed `crowdstrike_falcon` osquery table from macadmins extension.
+* Exposed macOS `crowdstrike_falcon` osquery table from macadmins extension.

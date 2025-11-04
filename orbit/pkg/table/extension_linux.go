@@ -3,8 +3,6 @@
 package table
 
 import (
-	"context"
-	
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/containerd_containers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falcon_kernel_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falconctl"
@@ -13,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dconf_read"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_pacman_packages"
-	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -28,11 +25,12 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("dconf_read", dconf_read.Columns(), dconf_read.Generate),
 		table.NewPlugin("containerd_containers", containerd_containers.Columns(), containerd_containers.Generate),
 		table.NewPlugin(fleetd_pacman_packages.TableName, fleetd_pacman_packages.Columns(), fleetd_pacman_packages.Generate),
-		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
+		// disabled pending https://github.com/macadmins/osquery-extension/issues/75
+		/*table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 				return crowdstrike_falcon.CrowdstrikeFalconGenerate(ctx, queryContext, opts.Socket)
 			},
-		),
+		),*/
 
 		dataflattentable.TablePluginExec(
 			log.Logger,
