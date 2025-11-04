@@ -36,7 +36,7 @@ import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
-import AppStoreDetailsModal from "./components/AppStoreDetailsModal";
+import AppStoreDetailsModal from "./components/AppStoreDetailsModal/AppStoreDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {

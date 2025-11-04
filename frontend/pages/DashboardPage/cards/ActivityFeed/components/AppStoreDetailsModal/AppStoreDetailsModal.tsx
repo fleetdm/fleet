@@ -19,7 +19,7 @@ interface IAppStoreDetailsModalProps {
   onCancel: () => void;
 }
 
-const AppStoreDetailsModalProp = ({
+const AppStoreDetailsModal = ({
   details,
   onCancel,
 }: IAppStoreDetailsModalProps) => {
@@ -69,4 +69,4 @@ const AppStoreDetailsModalProp = ({
   );
 };
 
-export default AppStoreDetailsModalProp;
+export default AppStoreDetailsModal;
