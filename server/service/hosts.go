@@ -1706,10 +1706,29 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			return nil, fleet.ErrMissingLicense
 		}
 
+		// Get host information for the activity
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host for activity")
+		}
+
 		// Store the IDP username for display (accept any value)
 		// This will appear in the host details API under the idp_username field
 		if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
+		}
+
+		// Create activity for IdP update
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedHostIdpData{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				HostIdPUsername: email,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create updated host idp activity")
 		}
 
 		// Check if the user is a valid SCIM user to manage the join table
