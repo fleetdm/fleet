@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/expr-lang/expr"
@@ -22,24 +23,36 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
+// natsPublisher sends logs to a NATS server.
+type natsPublisher interface {
+	// Flush waits for all published logs to be acknowledged.
+	Flush(context.Context) error
+
+	// Publish sends the log message to the NATS server.
+	Publish(context.Context, string, json.RawMessage) error
+}
+
 // natsRouter determines the NATS subject for a log.
 type natsRouter interface {
 	Route(json.RawMessage) (string, error)
 }
 
-// natsWriter sends logs to a NATS server.
-type natsWriter interface {
-	Flush(context.Context) error
-	Write(context.Context, string, json.RawMessage) error
-}
-
 // natsLogWriter represents a NATS log writer.
 type natsLogWriter struct {
-	logger  log.Logger
-	timeout time.Duration
+	// The NATS connection.
+	client *nats.Conn
 
+	// Whether to use JetStream.
+	jetstream bool
+
+	// The logger.
+	logger log.Logger
+
+	// The subject router.
 	router natsRouter
-	writer natsWriter
+
+	// The timeout for the writer.
+	timeout time.Duration
 }
 
 // Define the NATS subject template tags.
@@ -120,7 +133,7 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 	)
 
 	// Connect to the NATS server.
-	nc, err := nats.Connect(server, opts...)
+	client, err := nats.Connect(server, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to nats server: %w", err)
 	}
@@ -138,87 +151,90 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 		router = newNatsTemplateRouter(subject)
 	}
 
-	var writer natsWriter
-
-	// Create the underlying NATS writer.
-	if jetstream {
-		writer, err = newNatsStreamWriter(nc)
-	} else {
-		writer, err = newNatsDirectWriter(nc)
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create nats writer: %w", err)
-	}
-
+	// Return the NATS log writer.
 	return &natsLogWriter{
-		logger:  logger,
-		timeout: timeout,
-		router:  router,
-		writer:  writer,
+		client:    client,
+		jetstream: jetstream,
+		logger:    logger,
+		router:    router,
+		timeout:   timeout,
 	}, nil
 }
 
-// Write publishes the logs to the NATS server by calling the underlying writer.
+// Write publishes the logs to the NATS server.
 func (w *natsLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
+	var pub natsPublisher
+	var err error
+
+	// Create the NATS publisher, according to the JetStream setting.
+	if w.jetstream {
+		pub, err = newNatsStreamPublisher(w.client)
+	} else {
+		pub, err = newNatsClientPublisher(w.client)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to create nats publisher: %w", err)
+	}
+
 	// Create a context with the specified timeout.
 	ctx, cancel := context.WithTimeout(ctx, w.timeout)
 
 	defer cancel()
 
+	// Process each log in the batch, routing it to the appropriate subject.
 	for _, log := range logs {
-		// Determine the subject for the log using the router.
 		sub, err := w.router.Route(log)
 		if err != nil {
 			return fmt.Errorf("failed to route log: %w", err)
 		}
 
-		if err := w.writer.Write(ctx, sub, log); err != nil {
-			return fmt.Errorf("failed to write log: %w", err)
+		if err := pub.Publish(ctx, sub, log); err != nil {
+			return fmt.Errorf("failed to publish log: %w", err)
 		}
 	}
 
 	// Wait for all logs in this batch to be acknowledged.
-	return w.writer.Flush(ctx)
+	return pub.Flush(ctx)
 }
 
-// natsDirectWriter represents a non-JetStream writer.
-type natsDirectWriter struct {
-	client *nats.Conn
+// natsClientPublisher represents a non-JetStream publisher.
+type natsClientPublisher struct {
+	nc *nats.Conn
 }
 
-// newNatsDirectWriter creates a new direct writer.
-func newNatsDirectWriter(client *nats.Conn) (*natsDirectWriter, error) {
-	return &natsDirectWriter{client}, nil
+// newNatsClientPublisher creates a new client publisher.
+func newNatsClientPublisher(nc *nats.Conn) (*natsClientPublisher, error) {
+	return &natsClientPublisher{nc}, nil
 }
 
 // Flush flushes the client.
-func (w *natsDirectWriter) Flush(ctx context.Context) error {
-	return w.client.FlushWithContext(ctx)
+func (w *natsClientPublisher) Flush(ctx context.Context) error {
+	return w.nc.FlushWithContext(ctx)
 }
 
-// Write sends the log synchronously.
-func (w *natsDirectWriter) Write(ctx context.Context, sub string, log json.RawMessage) error {
-	return w.client.Publish(sub, log)
+// Publish sends the log synchronously.
+func (w *natsClientPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
+	return w.nc.Publish(sub, log)
 }
 
-// natsStreamWriter represents a JetStream writer.
-type natsStreamWriter struct {
+// natsStreamPublisher represents a JetStream publisher.
+type natsStreamPublisher struct {
 	js nats.JetStreamContext
 }
 
-// newNatsStreamWriter creates a new JetStream writer.
-func newNatsStreamWriter(client *nats.Conn) (*natsStreamWriter, error) {
-	js, err := client.JetStream()
+// newNatsStreamPublisher creates a new JetStream publisher.
+func newNatsStreamPublisher(nc *nats.Conn) (*natsStreamPublisher, error) {
+	js, err := nc.JetStream()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get JetStream context: %w", err)
 	}
 
-	return &natsStreamWriter{js}, nil
+	return &natsStreamPublisher{js}, nil
 }
 
 // Flush waits for all published logs to be acknowledged.
-func (w *natsStreamWriter) Flush(ctx context.Context) error {
+func (w *natsStreamPublisher) Flush(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -228,8 +244,8 @@ func (w *natsStreamWriter) Flush(ctx context.Context) error {
 	}
 }
 
-// Write sends the log asynchronously using the JetStream API.
-func (w *natsStreamWriter) Write(ctx context.Context, sub string, log json.RawMessage) error {
+// Publish sends the log asynchronously using the JetStream API.
+func (w *natsStreamPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
 	_, err := w.js.PublishAsync(sub, log)
 
 	return err
@@ -237,17 +253,17 @@ func (w *natsStreamWriter) Write(ctx context.Context, sub string, log json.RawMe
 
 // natsConstantRouter returns a constant subject for all logs.
 type natsConstantRouter struct {
-	subject string
+	sub string
 }
 
 // newNatsConstantRouter creates a new constant router.
-func newNatsConstantRouter(subject string) *natsConstantRouter {
-	return &natsConstantRouter{subject}
+func newNatsConstantRouter(sub string) *natsConstantRouter {
+	return &natsConstantRouter{sub}
 }
 
 // Route returns the constant subject.
 func (m *natsConstantRouter) Route(_ json.RawMessage) (string, error) {
-	return m.subject, nil
+	return m.sub, nil
 }
 
 // natsTemplateEnv is the evaluation environment for the template expressions.
@@ -298,36 +314,42 @@ func (p *natsTemplatePatcher) Visit(node *ast.Node) {
 // natsTemplateRouter uses the log contents to create a subject.
 type natsTemplateRouter struct {
 	// The parser for the log contents, which is reused between calls.
-	parser *fastjson.Parser
+	ps *fastjson.Parser
 
-	// The compiled expressions for each template tag.
-	programs map[string]*vm.Program
+	// The compiled programs for each template tag expression.
+	pr map[string]*vm.Program
 
 	// The template for the subject.
-	template *fasttemplate.Template
+	tp *fasttemplate.Template
+
+	sync.Mutex
 }
 
 // newNatsTemplateRouter creates a new template router.
 func newNatsTemplateRouter(subject string) *natsTemplateRouter {
 	return &natsTemplateRouter{
-		parser:   new(fastjson.Parser),
-		programs: make(map[string]*vm.Program),
-		template: fasttemplate.New(subject, natsSubjectTagStart, natsSubjectTagStop),
+		ps: new(fastjson.Parser),
+		pr: make(map[string]*vm.Program),
+		tp: fasttemplate.New(subject, natsSubjectTagStart, natsSubjectTagStop),
 	}
 }
 
 // Route returns the subject for a log.
 func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
+	// Acquire the lock to ensure thread safety for the parser and programs.
+	m.Lock()
+	defer m.Unlock()
+
 	// Parse the log contents into a fastjson value.
-	val, err := m.parser.ParseBytes(log)
+	val, err := m.ps.ParseBytes(log)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse log: %w", err)
 	}
 
-	evalTag := func(w io.Writer, tag string) (int, error) {
-		// If this is the first time we see this tag, compile the expression.
-		if _, ok := m.programs[tag]; !ok {
-			pr, err := expr.Compile(
+	fn := func(w io.Writer, tag string) (int, error) {
+		// If this is the first time we see this tag expression, compile it.
+		if _, ok := m.pr[tag]; !ok {
+			m.pr[tag], err = expr.Compile(
 				tag,
 				expr.Env(&natsTemplateEnv{}),
 				expr.Patch(&natsTemplatePatcher{}),
@@ -346,17 +368,15 @@ func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 			if err != nil {
 				return 0, fmt.Errorf("failed to compile '%s': %w", tag, err)
 			}
-
-			m.programs[tag] = pr
 		}
 
-		// Create the evaluation environment.
+		// Create the evaluation environment for the tag expression.
 		env := &natsTemplateEnv{
 			Log: val,
 		}
 
-		// Evaluate the expression.
-		ret, err := expr.Run(m.programs[tag], env)
+		// Evaluate the tag expression.
+		ret, err := expr.Run(m.pr[tag], env)
 		if err != nil {
 			return 0, err
 		}
@@ -366,10 +386,10 @@ func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 			return io.WriteString(w, s)
 		}
 
-		// No value found?
+		// Non-string type returned?
 		return 0, fmt.Errorf("expected string, got %T: %v", ret, ret)
 	}
 
 	// Execute the template for each tag.
-	return m.template.ExecuteFuncStringWithErr(evalTag)
+	return m.tp.ExecuteFuncStringWithErr(fn)
 }
