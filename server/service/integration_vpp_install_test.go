@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -944,11 +945,17 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
 			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
 
+		// TODO(mna): until we have SCEP-based authentication for iDevices, cheat by
+		// inserting a token for that host so we can use the self-service API.
+		hostSecret := uuid.NewString()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, data.host.ID, hostSecret)
+			return err
+		})
+
 		// Trigger install to the device
 		data.host.UUID = data.uuid
-		ssInstallResp := submitSelfServiceSoftwareInstallResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), &installSoftwareRequest{},
-			http.StatusAccepted, &ssInstallResp)
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", hostSecret, data.titleID), nil, http.StatusAccepted)
 
 		// Verify pending status
 		countResp = countHostsResponse{}
@@ -1532,4 +1539,148 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.SoftwarePackage.Name)
 	require.Equal(t, "ios", st.SoftwareTitle.SoftwarePackage.Platform)
 	require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
+}
+
+func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Enroll iPhone
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+
+	// Upload in-house app for iOS, not available in self-service for now
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	// get its title ID
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &resp, "team_id", "0")
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
+	titleID := resp.SoftwareTitles[0].ID
+
+	activityData := fmt.Sprintf(`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "team_name": null,
+		"team_id": null, "self_service": false, "software_title_id": %d}`, titleID)
+	s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+
+	// TODO(mna): until iDevice SCEP-based auth is implemented, cheat by adding a
+	// token associated with the iOS host so we can use the self-install endpoint.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, 'secret')`, iosHost.ID)
+		return err
+	})
+
+	// self-install a non-existing title
+	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/secret/software/install/%d", 999), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available for install.")
+
+	// self-install an existing title not available for self-install
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/secret/software/install/%d", titleID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available through self-service")
+
+	// update the in-house app to make it self-service
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{SelfService: ptr.Bool(true), TitleID: titleID, TeamID: nil},
+		http.StatusOK, "")
+	activityData = fmt.Sprintf(`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_icon_url": null, "team_name": null,
+		"team_id": null, "self_service": true, "software_title_id": %d}`, titleID)
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+	// self-install request is accepted
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/secret/software/install/%d", titleID), nil, http.StatusAccepted)
+
+	var installCmdUUID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
+	})
+	require.NotEmpty(t, installCmdUUID)
+
+	// last activity is still "edited software" as the installed activity is created only when
+	// the install is verified
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), "", 0)
+
+	// Process the InstallApplication command
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		if cmd.Command.RequestType == "InstallApplication" {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
+
+			// Points at the expected manifest URL
+			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, titleID, 0)
+			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	// Install verification command should be sent, acknowledge it
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					{Name: "test", BundleIdentifier: "com.ipa-test.ipa-test", Version: "1.0", Installed: true},
+				},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	// installed activity is now created
+	activityData = fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_uuid": %q, "install_uuid": "", 
+	"software_title": "ipa_test", "software_package": "", "self_service": true, "status": "installed",
+	"policy_id": null, "policy_name": null}`, iosHost.ID, iosHost.DisplayName(), installCmdUUID)
+	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), activityData, 0)
+
+	// host has no more upcoming activities
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 0)
+
+	// host has the past activity for the installed app
+	var listPastResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", iosHost.ID), nil, http.StatusOK, &listPastResp)
+	require.Len(t, listPastResp.Activities, 1)
+
+	// update the app to have a label condition
+	clr := createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}}}, http.StatusOK, &clr)
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: titleID, TeamID: nil, LabelsIncludeAny: []string{"L1"},
+	}, http.StatusOK, "")
+
+	// self-install request is rejected
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/secret/software/install/%d", titleID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "This software is not available for this host.")
+
+	// add the label to the host, so it can be installed
+	var addLabelsToHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", iosHost.ID), addLabelsToHostRequest{
+		Labels: []string{"L1"}}, http.StatusOK, &addLabelsToHostResp)
+
+	// self-install request is now accepted
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/secret/software/install/%d", titleID), nil, http.StatusAccepted)
 }
