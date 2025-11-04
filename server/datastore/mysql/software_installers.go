@@ -2758,11 +2758,11 @@ SELECT
   si.fleet_maintained_app_id,
   COALESCE(icons.filename, '') AS icon_filename,
   COALESCE(icons.storage_id, '') AS icon_hash_sha256
-FROM 
+FROM
 	software_installers si
-	LEFT JOIN software_title_icons icons ON 
+	LEFT JOIN software_title_icons icons ON
 		icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
-WHERE 
+WHERE
 	global_or_team_id = ?
 
 UNION ALL
@@ -2988,6 +2988,8 @@ WHERE
 	return res, nil
 }
 
+// GetTeamsWithInstallerByHash retrieves all software installers and in-house apps
+// matching the given sha256 hash (storage_id) and optional URL, grouped by team ID.
 func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT
@@ -3005,7 +3007,27 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.storage_id = ?%s`
+	si.storage_id = ? %s
+
+UNION ALL
+
+SELECT
+	iha.id AS installer_id,
+	iha.team_id AS team_id,
+	iha.filename AS filename,
+	'ipa' AS extension,
+	iha.version AS version,
+	iha.platform AS platform,
+	st.source AS source,
+	st.bundle_identifier AS bundle_identifier,
+	st.name AS title,
+	'' AS package_ids
+FROM
+	in_house_apps iha
+	JOIN software_titles st ON iha.title_id = st.id
+WHERE
+	iha.storage_id = ? %s
+`
 
 	var urlFilter string
 	args := []any{sha256}
@@ -3013,7 +3035,8 @@ WHERE
 		urlFilter = " AND url = ?"
 		args = append(args, url)
 	}
-	stmt = fmt.Sprintf(stmt, urlFilter)
+	stmt = fmt.Sprintf(stmt, urlFilter, urlFilter)
+	args = append(args, args...)
 
 	var installers []*fleet.ExistingSoftwareInstaller
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &installers, stmt, args...); err != nil {

@@ -2320,17 +2320,25 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 
+	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	for _, payload := range installers {
 		if err := svc.storeSoftware(ctx, payload); err != nil {
 			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
 			return
 		}
+		if payload.Extension == "ipa" {
+			inHouseInstallers = append(inHouseInstallers, payload)
+		} else {
+			softwareInstallers = append(softwareInstallers, payload)
+		}
 	}
 
-	// TODO(mna): differentiate between installers and in-house apps and call
-	// both batch-set datastore methods.
-	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, installers); err != nil {
+	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers); err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
+		return
+	}
+	if err := svc.ds.BatchSetInHouseAppsInstallers(ctx, teamID, inHouseInstallers); err != nil {
+		batchErr = fmt.Errorf("batch set in-house apps installers: %w", err)
 		return
 	}
 
