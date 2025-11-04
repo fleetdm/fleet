@@ -177,6 +177,11 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	displayNameMultiPart := r.MultipartForm.Value["display_name"]
 	if len(displayNameMultiPart) > 0 {
 		decoded.DisplayName = displayNameMultiPart[0]
+		if len(decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
+			return nil, &fleet.BadRequestError{
+				Message: "The maximum display name length is 255 characters.",
+			}
+		}
 	}
 
 	return &decoded, nil
