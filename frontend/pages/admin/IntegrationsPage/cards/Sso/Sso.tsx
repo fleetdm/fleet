@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -118,6 +118,8 @@ const Sso = ({
     enableJitProvisioning,
   } = formData;
 
+  const originalFormData = useRef(formData);
+
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
   const [formDirty, setFormDirty] = useState<boolean>(false);
 
@@ -171,6 +173,7 @@ const Sso = ({
 
     if (await handleSubmit(formDataToSubmit)) {
       setFormDirty(false);
+      originalFormData.current = { ...formData };
     }
   };
 
@@ -185,6 +188,7 @@ const Sso = ({
       }
 
       setFormDirty(false);
+      setFormData(originalFormData.current);
       const newSubsection = AUTH_TARGETS_BY_INDEX[index];
       router.push(
         newSubsection === "end-users"
