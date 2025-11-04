@@ -584,6 +584,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 ## Certificates
 
 - [Add certificate authority (CA)](#add-certificate-authority-ca)
+- [Add certificate](#add-certificate)
 - [Edit certificate authority (CA)](#edit-certificate-authority-ca)
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
@@ -686,6 +687,8 @@ Object with the following structure:
   "type": "digicert"
 }
 ```
+
+### Add certificate
 
 ### Edit certificate authority (CA)
 
