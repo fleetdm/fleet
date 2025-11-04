@@ -1,7 +1,7 @@
 package main
 
-// This is a tool to test the zenity package on Linux
-// It will show an entry dialog, a progress dialog, and an info dialog
+// This is a tool to test the "open" package.
+// It will open the default browser at a given URL.
 
 import (
 	"flag"
