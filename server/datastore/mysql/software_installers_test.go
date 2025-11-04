@@ -2983,6 +2983,20 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// add an in-house app to the team
+	ihaID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team1.ID,
+		UserID:           user.ID,
+		Title:            "inhouse",
+		Filename:         "inhouse.ipa",
+		BundleIdentifier: "com.inhouse",
+		StorageID:        "inhouse",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
 	// get installer IDs from added installers
 	var installer1NoTeam, installer1Team1, installer2NoTeam uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -3028,6 +3042,17 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
 	require.Equal(t, installers[0].InstallerID, installer2NoTeam)
+
+	// in-house hash with invalid url
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, "inhouse", "https://no-such-match")
+	require.NoError(t, err)
+	require.Len(t, installers, 0)
+
+	// in-house hash without url match
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, "inhouse", "")
+	require.NoError(t, err)
+	require.Len(t, installers, 1)
+	require.Equal(t, installers[team1.ID].InstallerID, ihaID)
 }
 
 func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
