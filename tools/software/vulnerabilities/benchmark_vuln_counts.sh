@@ -26,7 +26,7 @@ run_test() {
 
     # Seed data
     echo "Seeding test data..."
-    go run ./test_vuln_counts_performance.go \
+    go run "$TOOL_PATH" \
         -hosts="$hosts" \
         -teams="$teams" \
         -cves="$cves" \
@@ -34,7 +34,7 @@ run_test() {
 
     echo ""
     echo "Running performance test..."
-    go run ./test_vuln_counts_performance.go \
+    go run "$TOOL_PATH" \
         -iterations="$iterations" \
         -test-only
 }
