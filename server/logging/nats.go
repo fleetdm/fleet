@@ -177,7 +177,7 @@ func (w *natsLogWriter) Write(ctx context.Context, logs []json.RawMessage) error
 		return fmt.Errorf("failed to create nats publisher: %w", err)
 	}
 
-	// Create a context with the specified timeout.
+	// Create a context with the configured timeout.
 	ctx, cancel := context.WithTimeout(ctx, w.timeout)
 
 	defer cancel()
@@ -198,12 +198,12 @@ func (w *natsLogWriter) Write(ctx context.Context, logs []json.RawMessage) error
 	return pub.Flush(ctx)
 }
 
-// natsClientPublisher represents a non-JetStream publisher.
+// natsClientPublisher represents a core NATS publisher.
 type natsClientPublisher struct {
 	nc *nats.Conn
 }
 
-// newNatsClientPublisher creates a new client publisher.
+// newNatsClientPublisher creates a new core NATS publisher.
 func newNatsClientPublisher(nc *nats.Conn) (*natsClientPublisher, error) {
 	return &natsClientPublisher{nc}, nil
 }
@@ -213,7 +213,7 @@ func (p *natsClientPublisher) Flush(ctx context.Context) error {
 	return p.nc.FlushWithContext(ctx)
 }
 
-// Publish sends the log synchronously.
+// Publish publishes the log to the specified subject.
 func (p *natsClientPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
 	return p.nc.Publish(sub, log)
 }
@@ -244,7 +244,7 @@ func (p *natsStreamPublisher) Flush(ctx context.Context) error {
 	}
 }
 
-// Publish sends the log asynchronously using the JetStream API.
+// Publish publishes the log to the specified subject using the JetStream API.
 func (p *natsStreamPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
 	_, err := p.js.PublishAsync(sub, log)
 
@@ -313,11 +313,11 @@ func (p *natsTemplatePatcher) Visit(node *ast.Node) {
 
 // natsTemplateRouter uses the log contents to create a subject.
 type natsTemplateRouter struct {
-	// The parser for the log contents, which is reused between calls.
-	ps *fastjson.Parser
-
 	// The compiled programs for each template tag expression.
 	pr map[string]*vm.Program
+
+	// The parser for the log contents, which is reused between calls.
+	ps *fastjson.Parser
 
 	// The template for the subject.
 	tp *fasttemplate.Template
@@ -326,17 +326,17 @@ type natsTemplateRouter struct {
 }
 
 // newNatsTemplateRouter creates a new template router.
-func newNatsTemplateRouter(subject string) *natsTemplateRouter {
+func newNatsTemplateRouter(sub string) *natsTemplateRouter {
 	return &natsTemplateRouter{
-		ps: new(fastjson.Parser),
 		pr: make(map[string]*vm.Program),
-		tp: fasttemplate.New(subject, natsSubjectTagStart, natsSubjectTagStop),
+		ps: new(fastjson.Parser),
+		tp: fasttemplate.New(sub, natsSubjectTagStart, natsSubjectTagStop),
 	}
 }
 
 // Route returns the subject for a log.
 func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
-	// Acquire the lock to ensure thread safety for the parser and programs.
+	// Acquire the lock to ensure thread safety for the parser and tag programs.
 	r.Lock()
 	defer r.Unlock()
 
@@ -346,6 +346,7 @@ func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 		return "", fmt.Errorf("failed to parse log: %w", err)
 	}
 
+	// Define the function to evaluate the template for each tag.
 	fn := func(w io.Writer, tag string) (int, error) {
 		// If this is the first time we see this tag expression, compile it.
 		if _, ok := r.pr[tag]; !ok {
