@@ -705,25 +705,9 @@ Add certificate to deploy to the all hosts on the team. Fleet currently supports
 | certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
 | subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
 
-#### Request header
-
-This endpoint accepts node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
-
-The `Authorization` header must be formatted as follows:
-
-```
-Authorization: Node key <node_key>
-```
-
 #### Example
 
 `POST /api/v1/fleet/certificate_authorities`
-
-##### Request header
-
-```http
-Authorization: Node key cfc6fc5d-ae95-4db9-8967-52a0b87c01e4
-```
 
 ##### Request body
 
@@ -888,9 +872,26 @@ Get details of the certificate authority.
 |---------------- |-------- |------|-------------------------------------------------------------|
 | id   | integer | body | **Required**. The ID of the certificate authority. |
 
+
+#### Request headers
+
+This endpoint accepts node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
+
+The `Authorization` header must be formatted as follows:
+
+```
+Authorization: Node key <node_key>
+```
+
 #### Example
 
 `GET /api/v1/fleet/certificate_authorities/1`
+
+##### Request headers
+
+```http
+Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
 
 ##### Default response
 
