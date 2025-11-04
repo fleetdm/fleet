@@ -21,10 +21,8 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-// extractCertSerialFromHeader extracts the client certificate serial number
-// from the X-Client-Cert-Serial HTTP header (set by the load balancer during
-// mTLS) and adds it to the request context. This is used for certificate-based authentication
-// of iOS/iPadOS devices.
+// extractCertSerialFromHeader extracts certificate serial from X-Client-Cert-Serial
+// header (set by load balancer during mTLS) for iOS/iPadOS device authentication.
 func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.Context {
 	serialStr := r.Header.Get("X-Client-Cert-Serial")
 	if serialStr == "" {
@@ -33,9 +31,8 @@ func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.C
 
 	serial, err := strconv.ParseUint(serialStr, 10, 64)
 	if err != nil {
-		// Invalid serial format - log and continue without cert auth
-		// The authentication will fall back to token-based auth
-		return ctx
+		// Force cert auth on parse error instead of falling back to token auth.
+		return certserial.NewContext(ctx, 0)
 	}
 
 	return certserial.NewContext(ctx, serial)
@@ -75,13 +72,11 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		var debug bool
 		var authnMethod authz_ctx.AuthenticationMethod
 
-		// Check if certificate serial is present in context (from X-Client-Cert-Serial header)
-		if certSerial, ok := certserial.FromContext(ctx); ok && certSerial > 0 {
-			// Certificate-based authentication (iOS/iPadOS with UUID in URL)
+		if certSerial, ok := certserial.FromContext(ctx); ok {
+			// Header presence signals cert auth intent, even if serial is invalid.
 			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
 			authnMethod = authz_ctx.AuthnDeviceCertificate
 		} else {
-			// Token-based authentication (existing behavior for all other platforms)
 			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
 			authnMethod = authz_ctx.AuthnDeviceToken
 		}

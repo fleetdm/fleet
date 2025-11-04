@@ -881,3 +881,127 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		require.Contains(t, err.Error(), "lookup host by UUID")
 	})
 }
+
+func TestAuthenticateDeviceRejectsIOSIPadOS(t *testing.T) {
+	t.Run("error - iOS device attempting token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     "ios-device-uuid",
+				Platform: "ios",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+		require.Contains(t, authErr.Internal(), "iOS and iPadOS devices must use certificate authentication")
+	})
+
+	t.Run("error - iPadOS device attempting token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       2,
+				UUID:     "ipados-device-uuid",
+				Platform: "ipados",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+		require.Contains(t, authErr.Internal(), "iOS and iPadOS devices must use certificate authentication")
+	})
+
+	t.Run("success - macOS device with token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       3,
+				UUID:     "macos-device-uuid",
+				Platform: "darwin",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(3), host.ID)
+		require.Equal(t, "darwin", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("success - Windows device with token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       4,
+				UUID:     "windows-device-uuid",
+				Platform: "windows",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(4), host.ID)
+		require.Equal(t, "windows", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("success - Linux device with token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       5,
+				UUID:     "linux-device-uuid",
+				Platform: "ubuntu",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(5), host.ID)
+		require.Equal(t, "ubuntu", host.Platform)
+		require.False(t, debug)
+	})
+}

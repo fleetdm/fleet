@@ -21927,4 +21927,41 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macHost.UUID), nil, http.StatusUnauthorized, headers)
 		res.Body.Close()
 	})
+
+	t.Run("invalid cert serial format - non-numeric", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "invalid-format",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("invalid cert serial format - negative number", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "-12345",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("cert serial zero should fail cert auth", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "0",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("iOS device with token auth should be rejected", func(t *testing.T) {
+		// Create a device token for the iOS host
+		iosToken := "ios-device-token"
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, iosHost.ID, iosToken)
+			return err
+		})
+
+		// Attempt to use token auth (no cert header) - should be rejected
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosToken), nil, http.StatusUnauthorized)
+		res.Body.Close()
+	})
 }
