@@ -11,10 +11,6 @@ TOOL_PATH="$TOOL_DIR/test_vuln_counts_performance.go"
 # Default MySQL settings (adjust as needed)
 export MYSQL_TEST=1
 
-echo "Building performance test tool..."
-cd "$TOOL_DIR"
-go build -o test_vuln_counts_performance test_vuln_counts_performance.go
-
 run_test() {
     local name="$1"
     local hosts="$2"
@@ -30,7 +26,7 @@ run_test() {
 
     # Seed data
     echo "Seeding test data..."
-    ./test_vuln_counts_performance \
+    go run ./test_vuln_counts_performance.go \
         -hosts="$hosts" \
         -teams="$teams" \
         -cves="$cves" \
@@ -38,7 +34,7 @@ run_test() {
 
     echo ""
     echo "Running performance test..."
-    ./test_vuln_counts_performance \
+    go run ./test_vuln_counts_performance.go \
         -iterations="$iterations" \
         -test-only
 }
