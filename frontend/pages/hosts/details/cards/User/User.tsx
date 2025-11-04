@@ -83,11 +83,7 @@ const User = ({
 
       <div className={`${baseClass}__content`}>
         <DataSet
-          title={
-            <TooltipWrapper tipContent="Username collected from your IdP during automatic enrollment (ADE) or added via the Fleet API.">
-              Username (IdP)
-            </TooltipWrapper>
-          }
+          title="Username (IdP)"
           value={<UserValue values={userNameDisplayValues} />}
         />
 
