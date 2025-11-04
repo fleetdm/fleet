@@ -4,7 +4,7 @@ package table
 
 import (
 	"context"
-	
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/containerd_containers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falcon_kernel_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falconctl"
