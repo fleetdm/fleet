@@ -26,7 +26,7 @@ const baseClass = "user-card";
 
 interface IUserProps {
   endUsers: IHostEndUser[];
-  enableAddEndUser: boolean;
+  canWriteEndUser: boolean;
   disableFullNameTooltip?: boolean;
   disableGroupsTooltip?: boolean;
   className?: string;
@@ -35,7 +35,7 @@ interface IUserProps {
 
 const User = ({
   endUsers,
-  enableAddEndUser,
+  canWriteEndUser,
   disableFullNameTooltip = false,
   disableGroupsTooltip = false,
   className,
@@ -63,7 +63,7 @@ const User = ({
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
-        {enableAddEndUser && (
+        {canWriteEndUser && (
           <Button
             className={`${baseClass}__add-user-btn`}
             variant="inverse"

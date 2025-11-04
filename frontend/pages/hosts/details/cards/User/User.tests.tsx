@@ -11,11 +11,7 @@ describe("User card", () => {
     it("renders the username, full name, groups, and department fields", () => {
       const endUsers = [createMockHostEndUser()];
       render(
-        <User
-          endUsers={endUsers}
-          enableAddEndUser={false}
-          onAddEndUser={noop}
-        />
+        <User endUsers={endUsers} canWriteEndUser={false} onAddEndUser={noop} />
       );
 
       expect(screen.getByText("Username (IdP)")).toBeInTheDocument();
@@ -31,6 +27,21 @@ describe("User card", () => {
       expect(screen.getByText("Department (IdP)")).toBeInTheDocument();
       expect(screen.getByText("Engineering")).toBeInTheDocument();
     });
+
+    it("does not render the 'Add user' button without write permission even when there is an existing IdP username", () => {
+      const endUsers = [createMockHostEndUser()];
+      render(
+        <User endUsers={endUsers} canWriteEndUser={false} onAddEndUser={noop} />
+      );
+      expect(screen.queryByText("Add user")).toBeNull();
+      expect(screen.queryByText("Edit user")).toBeNull();
+    });
+    it("For team admins, renders the 'Add user' button when there is not an existing IdP username", () => {
+      // TODO
+    });
+    it("For team admins, renders the 'Edit user' button when there is  an existing IdP username", () => {
+      // TODO
+    });
   });
 
   it("renders the chrome profiles field when has chrome profile values", () => {
@@ -43,7 +54,7 @@ describe("User card", () => {
       }),
     ];
     render(
-      <User endUsers={endUsers} enableAddEndUser={false} onAddEndUser={noop} />
+      <User endUsers={endUsers} canWriteEndUser={false} onAddEndUser={noop} />
     );
 
     expect(screen.getByText("Google Chrome profiles")).toBeInTheDocument();
@@ -61,7 +72,7 @@ describe("User card", () => {
       }),
     ];
     render(
-      <User endUsers={endUsers} enableAddEndUser={false} onAddEndUser={noop} />
+      <User endUsers={endUsers} canWriteEndUser={false} onAddEndUser={noop} />
     );
 
     expect(screen.getByText("Other emails")).toBeInTheDocument();

@@ -55,12 +55,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import {
-  isAndroid,
-  isAppleDevice,
-  isIPadOrIPhone,
-  isLinuxLike,
-} from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -128,11 +123,6 @@ import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import AddEndUserModal from "../cards/User/components/AddEndUserModal";
-import {
-  generateChromeProfilesValues,
-  generateOtherEmailsValues,
-  generateUsernameValues,
-} from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
@@ -195,6 +185,7 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isGlobalMaintainer,
     isGlobalObserver,
+    isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
@@ -1207,9 +1198,12 @@ const HostDetailsPage = ({
                 <UserCard
                   className={defaultCardClass}
                   endUsers={host.end_users ?? []}
-                  enableAddEndUser={
-                    isDarwinHost &&
-                    generateUsernameValues(host.end_users ?? []).length === 0
+                  canWriteEndUser={
+                    !!(
+                      isTeamMaintainerOrTeamAdmin ||
+                      isGlobalAdmin ||
+                      isGlobalMaintainer
+                    )
                   }
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
