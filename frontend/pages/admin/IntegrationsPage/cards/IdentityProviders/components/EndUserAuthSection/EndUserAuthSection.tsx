@@ -17,7 +17,6 @@ import {
   IFormDataIdp,
   IFormErrorsIdp,
   isMissingAnyRequiredField,
-  newFormDataIdp,
   validateFormDataIdp,
 } from "./helpers";
 
@@ -25,16 +24,15 @@ const baseClass = "end-user-auth-section";
 
 export interface IEndUserAuthSectionProps {
   setDirty: (dirty: boolean) => void;
+  formData: IFormDataIdp;
+  setFormData: React.Dispatch<React.SetStateAction<IFormDataIdp>>;
 }
 
-const EndUserAuthSection = ({ setDirty }: IEndUserAuthSectionProps) => {
+const EndUserAuthSection = ({ setDirty, formData, setFormData }: IEndUserAuthSectionProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const { renderFlash } = useContext(NotificationContext);
-  const [formData, setFormData] = useState(
-    newFormDataIdp(config?.mdm?.end_user_authentication)
-  );
   const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
   const enableSaveButton =

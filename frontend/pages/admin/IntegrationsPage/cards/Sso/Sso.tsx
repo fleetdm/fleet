@@ -18,6 +18,7 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
+import { IFormDataIdp, newFormDataIdp } from "../IdentityProviders/components/EndUserAuthSection/helpers";
 
 const baseClass = "app-config-form";
 
@@ -106,6 +107,10 @@ const Sso = ({
     enableJitProvisioning:
       appConfig.sso_settings?.enable_jit_provisioning ?? false,
   });
+
+  const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
+    newFormDataIdp(appConfig?.mdm?.end_user_authentication)
+  );
 
   const {
     enableSso,
@@ -325,7 +330,11 @@ const Sso = ({
   };
 
   const renderEndUserSsoTab = () => (
-    <EndUserAuthSection setDirty={setFormDirty} />
+    <EndUserAuthSection
+      setDirty={setFormDirty}
+      formData={endUserFormData}
+      setFormData={setEndUserFormData}
+    />
   );
 
   return (
