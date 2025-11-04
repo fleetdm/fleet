@@ -53,8 +53,9 @@ func TestRegisterIdP(t *testing.T) {
 		req := httptest.NewRequest("POST", idpSSOPath, nil)
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
-		// Should return 501 Not Implemented (handler stub)
-		require.Equal(t, http.StatusNotImplemented, w.Code)
+		// Phase 4: Should redirect to error page when certificate header is missing
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
 	})
 
 }
@@ -283,6 +284,188 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 
 		require.Equal(t, http.StatusInternalServerError, w.Code)
 		require.Contains(t, w.Body.String(), "Server URL not configured")
+	})
+}
+
+func TestParseSerialNumber(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		expected  uint64
+		expectErr bool
+	}{
+		{
+			name:     "simple hex number",
+			input:    "1A2B3C",
+			expected: 0x1A2B3C,
+		},
+		{
+			name:     "hex with colons",
+			input:    "1A:2B:3C",
+			expected: 0x1A2B3C,
+		},
+		{
+			name:     "hex with spaces",
+			input:    "1A 2B 3C",
+			expected: 0x1A2B3C,
+		},
+		{
+			name:     "mixed colons and spaces",
+			input:    "1A:2B 3C",
+			expected: 0x1A2B3C,
+		},
+		{
+			name:     "large serial number",
+			input:    "DEADBEEF12345678",
+			expected: 0xDEADBEEF12345678,
+		},
+		{
+			name:     "lowercase hex",
+			input:    "abcdef123456",
+			expected: 0xABCDEF123456,
+		},
+		{
+			name:      "invalid hex characters",
+			input:     "GHIJKL",
+			expectErr: true,
+		},
+		{
+			name:      "empty string",
+			input:     "",
+			expectErr: true,
+		},
+		{
+			name:      "overflow uint64",
+			input:     "FFFFFFFFFFFFFFFF1", // 17 hex digits, more than uint64 max
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseSerialNumber(tt.input)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestServeSSO(t *testing.T) {
+	t.Run("missing certificate serial header", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := kitlog.NewNopLogger()
+
+		svc := &idpService{
+			ds:     ds,
+			logger: logger,
+		}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		w := httptest.NewRecorder()
+
+		svc.serveSSO(w, req)
+
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
+	})
+
+	t.Run("invalid certificate serial format", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := kitlog.NewNopLogger()
+
+		svc := &idpService{
+			ds:     ds,
+			logger: logger,
+		}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		req.Header.Set("X-Client-Cert-Serial", "INVALID_HEX")
+		w := httptest.NewRecorder()
+
+		svc.serveSSO(w, req)
+
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
+	})
+
+	t.Run("certificate not found in database", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := kitlog.NewNopLogger()
+
+		// Mock certificate lookup - return not found error
+		ds.GetConditionalAccessCertHostIDBySerialNumberFunc = func(ctx context.Context, serial uint64) (uint, error) {
+			return 0, errors.New("certificate not found")
+		}
+
+		svc := &idpService{
+			ds:     ds,
+			logger: logger,
+		}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		req.Header.Set("X-Client-Cert-Serial", "DEADBEEF")
+		w := httptest.NewRecorder()
+
+		svc.serveSSO(w, req)
+
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
+		require.True(t, ds.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked)
+	})
+
+	t.Run("valid certificate - returns not implemented for Phase 5", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := kitlog.NewNopLogger()
+
+		// Mock certificate lookup - return success
+		ds.GetConditionalAccessCertHostIDBySerialNumberFunc = func(ctx context.Context, serial uint64) (uint, error) {
+			require.Equal(t, uint64(0xDEADBEEF), serial)
+			return 123, nil // host_id = 123
+		}
+
+		svc := &idpService{
+			ds:     ds,
+			logger: logger,
+		}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		req.Header.Set("X-Client-Cert-Serial", "DEADBEEF")
+		w := httptest.NewRecorder()
+
+		svc.serveSSO(w, req)
+
+		// Phase 4 stops here - Phase 5 will implement full SAML response
+		require.Equal(t, http.StatusNotImplemented, w.Code)
+		require.True(t, ds.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked)
+	})
+
+	t.Run("handles hex with colons", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := kitlog.NewNopLogger()
+
+		// Mock certificate lookup
+		ds.GetConditionalAccessCertHostIDBySerialNumberFunc = func(ctx context.Context, serial uint64) (uint, error) {
+			require.Equal(t, uint64(0xDEADBEEF), serial)
+			return 456, nil
+		}
+
+		svc := &idpService{
+			ds:     ds,
+			logger: logger,
+		}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		req.Header.Set("X-Client-Cert-Serial", "DE:AD:BE:EF")
+		w := httptest.NewRecorder()
+
+		svc.serveSSO(w, req)
+
+		require.Equal(t, http.StatusNotImplemented, w.Code)
+		require.True(t, ds.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked)
 	})
 }
 

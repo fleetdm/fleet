@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -95,8 +97,51 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 // serveSSO handles POST /api/fleet/conditional_access/idp/sso
 // Handles SAML AuthnRequest from Okta, verifies device certificate and health.
 func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
-	s.logger.Log("msg", "SSO endpoint called (not yet implemented)")
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	ctx := r.Context()
+
+	// Extract certificate serial number from header (set by load balancer)
+	serialStr := r.Header.Get("X-Client-Cert-Serial")
+	if serialStr == "" {
+		level.Error(s.logger).Log("msg", "missing client certificate serial", "remote_addr", r.RemoteAddr)
+		http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+		return
+	}
+
+	// Parse serial number (hex string to uint64)
+	serial, err := parseSerialNumber(serialStr)
+	if err != nil {
+		level.Error(s.logger).Log("msg", "invalid certificate serial format", "serial", serialStr, "err", err)
+		http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+		return
+	}
+
+	// Look up host by certificate serial number
+	hostID, err := s.ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, serial)
+	if err != nil {
+		level.Error(s.logger).Log("msg", "certificate not recognized", "serial", serial, "err", err)
+		http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+		return
+	}
+
+	// Phase 5 will continue here with SAML AuthnRequest parsing and device health checks
+	level.Info(s.logger).Log("msg", "SSO endpoint called - device authenticated", "host_id", hostID, "serial", serial)
+	http.Error(w, "Not fully implemented - Phase 5 pending", http.StatusNotImplemented)
+}
+
+// parseSerialNumber parses a certificate serial number from hex string to uint64.
+// The serial number is provided by the load balancer in the X-Client-Cert-Serial header.
+func parseSerialNumber(serialStr string) (uint64, error) {
+	// Remove any colons or spaces that might be in the serial number
+	serialStr = strings.ReplaceAll(serialStr, ":", "")
+	serialStr = strings.ReplaceAll(serialStr, " ", "")
+
+	// Parse as hex (base 16) to uint64
+	serial, err := strconv.ParseUint(serialStr, 16, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse serial number: %w", err)
+	}
+
+	return serial, nil
 }
 
 // buildIdentityProvider creates a SAML IdentityProvider from AppConfig.
