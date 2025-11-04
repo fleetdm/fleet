@@ -10,10 +10,11 @@ import { ITeamConfig } from "interfaces/team";
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
-import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
@@ -109,14 +110,22 @@ const EndUserAuthentication = ({
             defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
           />
         )}
-        <EndUserExperiencePreview />
       </SetupExperienceContentContainer>
     );
   };
 
   return (
     <section className={baseClass}>
-      <SectionHeader title="End user authentication" />
+      <SectionHeader
+        title="End user authentication"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/end-user-authentication`}
+            text="Preview end user experience"
+          />
+        }
+      />
       {renderContent()}
     </section>
   );

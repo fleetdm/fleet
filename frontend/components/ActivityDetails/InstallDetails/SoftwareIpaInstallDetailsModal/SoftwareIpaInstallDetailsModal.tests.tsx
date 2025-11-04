@@ -2,7 +2,8 @@ import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import mockServer from "test/mock-server";
-import { getUniversalSoftwareInstallHandler } from "test/handlers/software-handlers";
+import { getMdmCommandResultHandler } from "test/handlers/software-handlers";
+import { getDeviceVppCommandResultHandler } from "test/handlers/device-handler";
 import { createMockHostSoftware } from "__mocks__/hostMock";
 
 import SoftwareIpaInstallDetailsModal from "./SoftwareIpaInstallDetailsModal";
@@ -33,7 +34,10 @@ const renderModal = (
 
 describe("SoftwareIpaInstallDetailsModal component", () => {
   beforeEach(() => {
-    mockServer.use(getUniversalSoftwareInstallHandler);
+    mockServer.use(
+      getMdmCommandResultHandler,
+      getDeviceVppCommandResultHandler
+    );
   });
 
   afterEach(() => {

@@ -493,6 +493,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(
 		ctx, samlProvider, svc.ssoSessionStore, redirectURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		sso.SSORequestData{},
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")

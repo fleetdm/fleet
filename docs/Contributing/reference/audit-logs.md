@@ -457,6 +457,29 @@ This activity contains the following fields:
 }
 ```
 
+## deleted_host
+
+Generated when a host is deleted.
+
+This activity contains the following fields:
+- "host_id": Unique ID of the deleted host in Fleet.
+- "host_display_name": Display name of the deleted host.
+- "host_serial": Hardware serial number of the deleted host.
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".
+
+#### Example
+
+```json
+{
+	"host_id": 42,
+	"host_display_name": "USER-WINDOWS",
+	"host_serial": "ABC123",
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
+}
+```
+
 ## changed_user_global_role
 
 Generated when user global roles are changed.
