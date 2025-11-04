@@ -143,6 +143,7 @@ export enum ActivityType {
   CreatedCustomVariable = "created_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
+  EditedHostIdpData = "edited_host_idp_data",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -258,4 +259,5 @@ export interface IActivityDetails {
   user_id?: number;
   webhook_url?: string;
   custom_variable_name?: string;
+  host_idp_username?: string;
 }
