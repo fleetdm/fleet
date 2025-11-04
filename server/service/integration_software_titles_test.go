@@ -71,11 +71,20 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		TeamID:            &team.ID,
 		DisplayName:       "RubyUpdate1",
 	}, http.StatusOK, "")
-	// TODO: check activities
-	// activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-	// "team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
-	// 	titleID, labelResp.Label.ID, t.Name())
-	// s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+	activityData := fmt.Sprintf(`
+	{
+		"software_title": "ruby",
+		"software_package": "ruby.deb",
+		"software_icon_url": null,
+		"team_name": "%s",
+	    "team_id": %d,
+		"self_service": true,
+		"software_title_id": %d,
+		"software_display_name": "%s"
+	}`,
+		team.Name, team.ID, titleID, "RubyUpdate1")
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Entity has display name
 	stResp := getSoftwareTitleResponse{}
@@ -118,5 +127,14 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Len(resp.SoftwareTitles, 1)
 	s.Assert().Empty(resp.SoftwareTitles[0].DisplayName)
+
+	// My device self service has display name
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	s.Assert().Empty(getDeviceSw.Software[0].DisplayName)
 
 }
