@@ -157,26 +157,6 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			}
 		}
 
-		// _, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id=?`, tid)
-		// if err != nil {
-		// 	return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_configuration_profiles for team %d", tid)
-		// }
-
-		// _, err = tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=?`, tid)
-		// if err != nil {
-		// 	return ctxerr.Wrapf(ctx, err, "deleting mdm_windows_configuration_profiles for team %d", tid)
-		// }
-
-		// _, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_declarations WHERE team_id=?`, tid)
-		// if err != nil {
-		// 	return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_declarations for team %d", tid)
-		// }
-
-		// _, err = tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id=?`, tid)
-		// if err != nil {
-		// 	return ctxerr.Wrapf(ctx, err, "deleting mdm_android_configuration_profiles for team %d", tid)
-		// }
-
 		return nil
 	})
 }
