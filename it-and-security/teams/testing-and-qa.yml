@@ -72,10 +72,9 @@ software:
       labels_include_any:
         - "RPM-based Linux hosts"
   fleet_maintained_apps:
-    # Comment out any lines that are using custom packages or VPP apps
     # macOS apps
-    # - slug: 1password/darwin # 1Password for macOS
-    #   self_service: true
+    - slug: 1password/darwin # 1Password for macOS
+      self_service: true
     - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
       self_service: true
     - slug: adobe-creative-cloud/darwin # Adobe Creative Cloud for macOS
@@ -96,12 +95,12 @@ software:
       self_service: true
     - slug: figma/darwin # Figma for macOS
       self_service: true
-    # - slug: firefox/darwin # Mozilla Firefox for macOS
-    #   self_service: true
-    # - slug: google-chrome/darwin # Google Chrome for macOS
-    #   self_service: true
-    # - slug: intune-company-portal/darwin # Company Portal for macOS
-    #   self_service: true
+    - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+    - slug: intune-company-portal/darwin # Company Portal for macOS
+      self_service: true
     - slug: iterm2/darwin # iTerm2 for macOS
       self_service: true
     - slug: microsoft-edge/darwin # Microsoft Edge for macOS
@@ -120,8 +119,8 @@ software:
       self_service: true
     - slug: postman/darwin # Postman for macOS
       self_service: true
-    # - slug: santa/darwin # Santa for macOS
-    #   self_service: true
+    - slug: santa/darwin # Santa for macOS
+      self_service: true
     - slug: slack/darwin # Slack for macOS
       self_service: true
     - slug: teamviewer/darwin # TeamViewer for macOS
@@ -134,8 +133,8 @@ software:
       self_service: true
     - slug: yubico-yubikey-manager/darwin # Yubikey Manager for macOS
       self_service: true
-    # - slug: zoom/darwin # Zoom for macOS
-    #   self_service: true
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
     # Windows apps
     - slug: box-drive/windows # Box Drive for Windows
       self_service: true
@@ -145,8 +144,8 @@ software:
       self_service: true
     - slug: cursor/windows # Cursor for Windows
       self_service: true
-    # - slug: google-chrome/windows # Google Chrome for Windows
-    #   self_service: true
+    - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
     - slug: teamviewer/windows # TeamViewer for Windows
       self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio Code for Windows
