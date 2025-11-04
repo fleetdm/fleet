@@ -520,17 +520,17 @@ type UploadSoftwareInstallerPayload struct {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint     `db:"installer_id"`
-	TeamID           *uint    `db:"team_id"`
-	Filename         string   `db:"filename"`
-	Extension        string   `db:"extension"`
-	Version          string   `db:"version"`
-	Platform         string   `db:"platform"`
-	Source           string   `db:"source"`
-	BundleIdentifier *string  `db:"bundle_identifier"`
-	Title            string   `db:"title"`
-	PackageIDList    string   `db:"package_ids"`
-	PackageIDs       []string ``
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
+	PackageIDList    string  `db:"package_ids"`
+	PackageIDs       []string
 }
 
 type UpdateSoftwareInstallerPayload struct {

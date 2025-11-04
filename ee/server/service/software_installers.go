@@ -2022,9 +2022,23 @@ func (svc *Service) softwareBatchUpload(
 
 	var g errgroup.Group
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
-	// critical to avoid data race, the slice is pre-allocated and each
+
+	// the reason for this struct with extra installers support is that:
+	// - ih-house apps match multiple installers to a single source installer
+	//   payload (because an .ipa creates entries for iOS and iPadOS)
+	// - the for loop over each entry in the payload is executed in a goroutine
+	//   that can only write to its pre-allocated index in the installers slice, so
+	//   any extra installer for a given payload must be part of a single value
+	//   inserted in that slice.
+	type installerPayloadWithExtras struct {
+		*fleet.UploadSoftwareInstallerPayload
+		ExtraInstallers []*fleet.UploadSoftwareInstallerPayload
+	}
+
+	// critical to avoid data race, the slices are pre-allocated and each
 	// goroutine only writes to its index.
-	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
+	installers := make([]*installerPayloadWithExtras, len(payloads))
+	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
 
 	for i, p := range payloads {
 		i, p := i, p
@@ -2032,8 +2046,8 @@ func (svc *Service) softwareBatchUpload(
 		g.Go(func() error {
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
 			// available after the goroutine completes. Instead, all temp file
-			// readers will have their Close deferred after the join/wait of
-			// goroutines.
+			// readers are collected in toBeClosedTFRs and will have their Close
+			// deferred after the join/wait of goroutines.
 			installer := &fleet.UploadSoftwareInstallerPayload{
 				TeamID:             teamID,
 				InstallScript:      p.InstallScript,
@@ -2050,6 +2064,8 @@ func (svc *Service) softwareBatchUpload(
 				Categories:         p.Categories,
 			}
 
+			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
+
 			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
 			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, p.Categories)
 			if err != nil {
@@ -2065,7 +2081,6 @@ func (svc *Service) softwareBatchUpload(
 
 			installer.CategoryIDs = catIDs
 
-			// TODO(mna): this needs to handle in-house apps too, maybe if we can differentiate before this runs...
 			// check if we already have the installer based on the SHA256 and URL
 			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
 			if err != nil {
@@ -2077,12 +2092,11 @@ func (svc *Service) softwareBatchUpload(
 				tmID = *teamID
 			}
 
-			foundInstaller, ok := teamIDs[tmID]
-
+			foundInstallers, ok := teamIDs[tmID]
 			switch {
 			case ok:
 				// Perfect match: existing installer on the same team
-				installer.StorageID = p.SHA256
+				foundInstaller := foundInstallers[0]
 
 				if foundInstaller.Extension == "exe" || foundInstaller.Extension == "tar.gz" {
 					if p.InstallScript == "" {
@@ -2093,18 +2107,19 @@ func (svc *Service) softwareBatchUpload(
 						return fmt.Errorf("Couldn't edit. Uninstall script is required for .%s packages.", foundInstaller.Extension)
 					}
 				}
-				installer.Extension = foundInstaller.Extension
-				installer.Filename = foundInstaller.Filename
-				installer.Version = foundInstaller.Version
-				installer.Platform = foundInstaller.Platform
-				installer.Source = foundInstaller.Source
-				if foundInstaller.BundleIdentifier != nil {
-					installer.BundleIdentifier = *foundInstaller.BundleIdentifier
+
+				// make a copy of the installer without filled fields in case we add
+				// extra installers
+				extraInstallerBase := *installer
+				fillSoftwareInstallerPayloadFromExisting(installer, foundInstaller, p.SHA256)
+				for _, extraInstaller := range foundInstallers[1:] {
+					extraPayload := extraInstallerBase
+					fillSoftwareInstallerPayloadFromExisting(&extraPayload, extraInstaller, p.SHA256)
+					extraInstallers = append(extraInstallers, &extraPayload)
 				}
-				installer.Title = foundInstaller.Title
-				installer.PackageIDs = foundInstaller.PackageIDs
+
 			case !ok && len(teamIDs) > 0:
-				// Installer exists, but for another team. We should copy it over to this team
+				// Installer(s) exists, but for another team. We should copy it over to this team
 				// (if we have access to the other team).
 				user, err := svc.ds.UserByID(ctx, userID)
 				if err != nil {
@@ -2113,7 +2128,7 @@ func (svc *Service) softwareBatchUpload(
 
 				userctx := viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-				for tmID, i := range teamIDs {
+				for tmID, teamInstallers := range teamIDs {
 					// use the first one to which this user has access; the specific one shouldn't
 					// matter because they're all the same installer bytes
 					var tmIDPtr *uint
@@ -2124,7 +2139,8 @@ func (svc *Service) softwareBatchUpload(
 						continue
 					}
 
-					if i.Extension == "exe" {
+					teamInstaller := teamInstallers[0]
+					if teamInstaller.Extension == "exe" {
 						if p.InstallScript == "" {
 							return errors.New("Couldn't edit. Install script is required for .exe packages.")
 						}
@@ -2134,17 +2150,16 @@ func (svc *Service) softwareBatchUpload(
 						}
 					}
 
-					installer.Extension = i.Extension
-					installer.Filename = i.Filename
-					installer.Version = i.Version
-					installer.Platform = i.Platform
-					installer.Source = i.Source
-					if i.BundleIdentifier != nil {
-						installer.BundleIdentifier = *i.BundleIdentifier
+					// make a copy of the installer without filled fields in case we add
+					// extra installers
+					extraInstallerBase := *installer
+					fillSoftwareInstallerPayloadFromExisting(installer, teamInstaller, p.SHA256)
+					for _, extraInstaller := range teamInstallers[1:] {
+						extraPayload := extraInstallerBase
+						fillSoftwareInstallerPayloadFromExisting(&extraPayload, extraInstaller, p.SHA256)
+						extraInstallers = append(extraInstallers, &extraPayload)
 					}
-					installer.Title = i.Title
-					installer.StorageID = p.SHA256
-					installer.PackageIDs = i.PackageIDs
+
 					break
 				}
 			}
@@ -2170,6 +2185,8 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				installer.InstallerFile = tfr
+				toBeClosedTFRs[i] = tfr
+
 				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
 
@@ -2244,7 +2261,6 @@ func (svc *Service) softwareBatchUpload(
 			if installer.FleetMaintainedAppID == nil && installer.InstallerFile != nil {
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
-					_ = installer.InstallerFile.Close() // closing the temp file here since it will not be available after the goroutine completes
 					return err
 				}
 
@@ -2290,7 +2306,10 @@ func (svc *Service) softwareBatchUpload(
 				installer.Title = installer.Filename
 			}
 
-			installers[i] = installer
+			installers[i] = &installerPayloadWithExtras{
+				UploadSoftwareInstallerPayload: installer,
+				ExtraInstallers:                extraInstallers,
+			}
 
 			return nil
 		})
@@ -2299,9 +2318,9 @@ func (svc *Service) softwareBatchUpload(
 	waitErr := g.Wait()
 
 	// defer close for any valid temp file reader
-	for _, payload := range installers {
-		if payload != nil && payload.InstallerFile != nil {
-			defer payload.InstallerFile.Close()
+	for _, tfr := range toBeClosedTFRs {
+		if tfr != nil {
+			defer tfr.Close()
 		}
 	}
 
@@ -2316,7 +2335,8 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
-	for _, payload := range installers {
+	for _, payloadWithExtras := range installers {
+		payload := payloadWithExtras.UploadSoftwareInstallerPayload
 		if err := svc.storeSoftware(ctx, payload); err != nil {
 			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
 			return
@@ -2339,6 +2359,20 @@ func (svc *Service) softwareBatchUpload(
 
 	// Note: per @noahtalerman we don't want activity items for CLI actions
 	// anymore, so that's intentionally skipped.
+}
+
+func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInstallerPayload, existing *fleet.ExistingSoftwareInstaller, sha256Hash string) {
+	payload.Extension = existing.Extension
+	payload.Filename = existing.Filename
+	payload.Version = existing.Version
+	payload.Platform = existing.Platform
+	payload.Source = existing.Source
+	if existing.BundleIdentifier != nil {
+		payload.BundleIdentifier = *existing.BundleIdentifier
+	}
+	payload.Title = existing.Title
+	payload.StorageID = sha256Hash
+	payload.PackageIDs = existing.PackageIDs
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {

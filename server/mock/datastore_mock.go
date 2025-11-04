@@ -1379,7 +1379,7 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
-type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
+type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error)
 
 type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
@@ -8688,7 +8688,7 @@ func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID s
 	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetTeamsWithInstallerByHashFuncInvoked = true
 	s.mu.Unlock()

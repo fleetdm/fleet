@@ -2736,7 +2736,7 @@ UNION ALL
 SELECT
 	iha.team_id,
 	iha.title_id,
-	'' as url, -- TODO should we store the url for in-house apps, probably, right...
+	iha.url,
 	iha.storage_id as hash_sha256,
 	NULL as fleet_maintained_app_id,
   COALESCE(icons.filename, '') AS icon_filename,
@@ -2956,7 +2956,9 @@ WHERE
 
 // GetTeamsWithInstallerByHash retrieves all software installers and in-house apps
 // matching the given sha256 hash (storage_id) and optional URL, grouped by team ID.
-func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+// Software installers can only have at most 1 installer per team for the given hash,
+// while in-house apps can have multiple (1 for ios and 1 for ipados).
+func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT
 	si.id AS installer_id,
@@ -3009,21 +3011,21 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get software installer by hash")
 	}
 
-	set := make(map[uint]*fleet.ExistingSoftwareInstaller, len(installers))
+	byTeam := make(map[uint][]*fleet.ExistingSoftwareInstaller, len(installers))
 	for _, installer := range installers {
 		// team ID 0 is No team in this context
 		var tmID uint
 		if installer.TeamID != nil {
 			tmID = *installer.TeamID
 		}
-		if _, ok := set[tmID]; ok {
+		if _, ok := byTeam[tmID]; ok && installer.Extension != "ipa" {
 			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
 		}
 		if installer.PackageIDList != "" {
 			installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
 		}
-		set[tmID] = installer
+		byTeam[tmID] = append(byTeam[tmID], installer)
 	}
 
-	return set, nil
+	return byTeam, nil
 }
