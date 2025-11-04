@@ -209,13 +209,13 @@ func newNatsClientPublisher(nc *nats.Conn) (*natsClientPublisher, error) {
 }
 
 // Flush flushes the client.
-func (w *natsClientPublisher) Flush(ctx context.Context) error {
-	return w.nc.FlushWithContext(ctx)
+func (p *natsClientPublisher) Flush(ctx context.Context) error {
+	return p.nc.FlushWithContext(ctx)
 }
 
 // Publish sends the log synchronously.
-func (w *natsClientPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
-	return w.nc.Publish(sub, log)
+func (p *natsClientPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
+	return p.nc.Publish(sub, log)
 }
 
 // natsStreamPublisher represents a JetStream publisher.
@@ -234,19 +234,19 @@ func newNatsStreamPublisher(nc *nats.Conn) (*natsStreamPublisher, error) {
 }
 
 // Flush waits for all published logs to be acknowledged.
-func (w *natsStreamPublisher) Flush(ctx context.Context) error {
+func (p *natsStreamPublisher) Flush(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 
-	case <-w.js.PublishAsyncComplete():
+	case <-p.js.PublishAsyncComplete():
 		return nil
 	}
 }
 
 // Publish sends the log asynchronously using the JetStream API.
-func (w *natsStreamPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
-	_, err := w.js.PublishAsync(sub, log)
+func (p *natsStreamPublisher) Publish(ctx context.Context, sub string, log json.RawMessage) error {
+	_, err := p.js.PublishAsync(sub, log)
 
 	return err
 }
@@ -262,8 +262,8 @@ func newNatsConstantRouter(sub string) *natsConstantRouter {
 }
 
 // Route returns the constant subject.
-func (m *natsConstantRouter) Route(_ json.RawMessage) (string, error) {
-	return m.sub, nil
+func (r *natsConstantRouter) Route(_ json.RawMessage) (string, error) {
+	return r.sub, nil
 }
 
 // natsTemplateEnv is the evaluation environment for the template expressions.
@@ -335,21 +335,21 @@ func newNatsTemplateRouter(subject string) *natsTemplateRouter {
 }
 
 // Route returns the subject for a log.
-func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
+func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 	// Acquire the lock to ensure thread safety for the parser and programs.
-	m.Lock()
-	defer m.Unlock()
+	r.Lock()
+	defer r.Unlock()
 
 	// Parse the log contents into a fastjson value.
-	val, err := m.ps.ParseBytes(log)
+	val, err := r.ps.ParseBytes(log)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse log: %w", err)
 	}
 
 	fn := func(w io.Writer, tag string) (int, error) {
 		// If this is the first time we see this tag expression, compile it.
-		if _, ok := m.pr[tag]; !ok {
-			m.pr[tag], err = expr.Compile(
+		if _, ok := r.pr[tag]; !ok {
+			r.pr[tag], err = expr.Compile(
 				tag,
 				expr.Env(&natsTemplateEnv{}),
 				expr.Patch(&natsTemplatePatcher{}),
@@ -376,7 +376,7 @@ func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 		}
 
 		// Evaluate the tag expression.
-		ret, err := expr.Run(m.pr[tag], env)
+		ret, err := expr.Run(r.pr[tag], env)
 		if err != nil {
 			return 0, err
 		}
@@ -391,5 +391,5 @@ func (m *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 	}
 
 	// Execute the template for each tag.
-	return m.tp.ExecuteFuncStringWithErr(fn)
+	return r.tp.ExecuteFuncStringWithErr(fn)
 }
