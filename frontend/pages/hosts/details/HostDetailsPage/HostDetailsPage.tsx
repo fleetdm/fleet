@@ -1009,11 +1009,6 @@ const HostDetailsPage = ({
 
   const showSoftwareLibraryTab = isPremiumTier;
 
-  const showUsersCard =
-    isAppleDevice(host.platform) ||
-    isAndroidHost ||
-    generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
-    generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1204,25 +1199,21 @@ const HostDetailsPage = ({
                   className={fullWidthCardClass}
                 />
                 <AboutCard
-                  className={
-                    showUsersCard ? defaultCardClass : fullWidthCardClass
-                  }
+                  className={fullWidthCardClass}
                   aboutData={aboutData}
                   munki={macadmins?.munki}
                   mdm={mdm}
                 />
-                {showUsersCard && (
-                  <UserCard
-                    className={defaultCardClass}
-                    platform={host.platform}
-                    endUsers={host.end_users ?? []}
-                    enableAddEndUser={
-                      isDarwinHost &&
-                      generateUsernameValues(host.end_users ?? []).length === 0
-                    }
-                    onAddEndUser={() => setShowAddEndUserModal(true)}
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  platform={host.platform}
+                  endUsers={host.end_users ?? []}
+                  enableAddEndUser={
+                    isDarwinHost &&
+                    generateUsernameValues(host.end_users ?? []).length === 0
+                  }
+                  onAddEndUser={() => setShowAddEndUserModal(true)}
+                />
                 {showActivityCard && (
                   <ActivityCard
                     className={
