@@ -110,6 +110,8 @@ export const generateHostSWLibraryTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
@@ -122,6 +124,7 @@ export const generateHostSWLibraryTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetailsLibrary"
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },

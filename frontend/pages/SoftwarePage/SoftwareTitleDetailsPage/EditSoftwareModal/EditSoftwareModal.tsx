@@ -9,8 +9,6 @@ import {
   ISoftwarePackage,
   isSoftwarePackage,
 } from "interfaces/software";
-import mdmAppleAPI from "services/entities/mdm_apple";
-
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
@@ -51,7 +49,7 @@ interface IEditSoftwareModalProps {
   software: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
-  installerType: "package" | "vpp";
+  installerType: "package" | "app-store";
   router: InjectedRouter;
   gitOpsModeEnabled?: boolean;
   openViewYamlModal: () => void;
@@ -248,12 +246,12 @@ const EditSoftwareModal = ({
     }
   };
 
-  // Edit VPP API call
+  // Edit App Store API call -- currently only for VPP apps and not Google Play apps
   const onEditVpp = async (formData: ISoftwareVppFormData) => {
     setIsUpdatingSoftware(true);
 
     try {
-      await mdmAppleAPI.editVppApp(softwareId, teamId, formData);
+      await softwareAPI.editAppStoreApp(softwareId, teamId, formData);
 
       renderFlash(
         "success",

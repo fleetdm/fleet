@@ -36,7 +36,7 @@ import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
-import VppDetailsModal from "./components/VPPDetailsModal";
+import AppStoreDetailsModal from "./components/AppStoreDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -85,7 +85,10 @@ const ActivityFeed = ({
     softwareDetails,
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
-  const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
+  const [
+    appStoreDetails,
+    setAppStoreDetails,
+  ] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -178,7 +181,7 @@ const ActivityFeed = ({
       case ActivityType.AddedAppStoreApp:
       case ActivityType.EditedAppStoreApp:
       case ActivityType.DeletedAppStoreApp:
-        setVppDetails({ ...details });
+        setAppStoreDetails({ ...details });
         break;
       case ActivityType.RanScriptBatch:
       case ActivityType.CanceledScriptBatch:
@@ -322,10 +325,10 @@ const ActivityFeed = ({
           onCancel={() => setSoftwareDetails(null)}
         />
       )}
-      {vppDetails && (
-        <VppDetailsModal
-          details={vppDetails}
-          onCancel={() => setVppDetails(null)}
+      {appStoreDetails && (
+        <AppStoreDetailsModal
+          details={appStoreDetails}
+          onCancel={() => setAppStoreDetails(null)}
         />
       )}
     </div>

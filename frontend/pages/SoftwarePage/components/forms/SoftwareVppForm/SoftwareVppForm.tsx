@@ -154,7 +154,7 @@ const SoftwareVppForm = ({
   );
 
   const [formValidation, setFormValidation] = useState<IFormValidation>({
-    isValid: !!softwareVppForEdit, // Disables submit before VPP to add is selected
+    isValid: !!softwareVppForEdit, // Disables submit if Application ID is
   });
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -372,7 +372,7 @@ const SoftwareVppForm = ({
                 type="submit"
                 disabled={disableChildren || isSubmitDisabled}
                 isLoading={isLoading}
-                className={`${baseClass}__add-secret-btn`}
+                className={`${baseClass}__add-software-btn`}
               >
                 {softwareVppForEdit ? "Save" : "Add software"}
               </Button>

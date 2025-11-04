@@ -1,3 +1,5 @@
+// Used in both Apple App Store (VPP) and Android Play Store details modals
+
 import React from "react";
 
 import { IActivityDetails } from "interfaces/activity";
@@ -10,14 +12,17 @@ import {
   TargetValue,
 } from "../LibrarySoftwareDetailsModal/LibrarySoftwareDetailsModal";
 
-const baseClass = "vpp-details-modal";
+const baseClass = "app-store-details-modal";
 
-interface IVppDetailsModalProps {
+interface IAppStoreDetailsModalProps {
   details: IActivityDetails;
   onCancel: () => void;
 }
 
-const VppDetailsModal = ({ details, onCancel }: IVppDetailsModalProps) => {
+const AppStoreDetailsModalProp = ({
+  details,
+  onCancel,
+}: IAppStoreDetailsModalProps) => {
   const { labels_include_any, labels_exclude_any } = details;
 
   return (
@@ -31,7 +36,12 @@ const VppDetailsModal = ({ details, onCancel }: IVppDetailsModalProps) => {
       <>
         <div className={`${baseClass}__modal-content`}>
           <DataSet title="Name" value={details.software_title} />
-          <DataSet title="App Store ID" value={details.app_store_id} />
+          <DataSet
+            title={
+              details.platform === "android" ? "Google Play ID" : "App Store ID"
+            }
+            value={details.app_store_id}
+          />
           <DataSet
             title="Self-Service"
             value={details.self_service ? "Yes" : "No"}
@@ -59,4 +69,4 @@ const VppDetailsModal = ({ details, onCancel }: IVppDetailsModalProps) => {
   );
 };
 
-export default VppDetailsModal;
+export default AppStoreDetailsModalProp;

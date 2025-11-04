@@ -183,6 +183,13 @@ export const SELF_SERVICE_TOOLTIP = (
   </>
 );
 
+export const SELF_SERVICE_ANDROID_PLAY_STORE_TOOLTIP = (
+  <>
+    End users can install from the <strong>Play Store</strong> <br />
+    in their work profile.
+  </>
+);
+
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {

@@ -135,6 +135,7 @@ const HostSoftwareLibrary = ({
   const isUnsupported = isAndroid(platform); // no Android software
   const isWindowsHost = platform === "windows";
   const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
+  const isAndroidHost = isAndroid(platform);
   const isMacOSHost = platform === "darwin";
 
   const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
@@ -353,8 +354,9 @@ const HostSoftwareLibrary = ({
   const onAddSoftware = useCallback(() => {
     // "Add Software" path dependent on host's platform
     const addSoftwarePathForHostPlatform = () => {
-      if (isIPadOrIPhoneHost) {
+      if (isIPadOrIPhoneHost || isAndroidHost) {
         return PATHS.SOFTWARE_ADD_APP_STORE;
+        // TODO: Perhaps having the dropdown preselected to android for android hosts
       }
       if (isMacOSHost || isWindowsHost) {
         return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
@@ -367,7 +369,14 @@ const HostSoftwareLibrary = ({
         team_id: hostTeamId,
       })
     );
-  }, [hostTeamId, isIPadOrIPhoneHost, isMacOSHost, isWindowsHost, router]);
+  }, [
+    hostTeamId,
+    isIPadOrIPhoneHost,
+    isAndroidHost,
+    isMacOSHost,
+    isWindowsHost,
+    router,
+  ]);
 
   const onShowUpdateDetails = useCallback(
     (software?: IHostSoftware) => {
@@ -435,9 +444,12 @@ const HostSoftwareLibrary = ({
     isHostOnline,
   ]);
 
-  const userHasSWWritePermission = Boolean(
+  const hasSWWriteRole = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
+
+  // 4.77 Currently Android apps can only be installed via self-service by end user
+  const userHasSWWritePermission = hasSWWriteRole && !isAndroidHost;
 
   const isMountedRef = useRef(false);
   useEffect(() => {

@@ -382,6 +382,7 @@ const getEmptyCellTooltip = (
   );
 };
 
+// TODO: Update for Android Play Store apps
 const InstallStatusCell = ({
   software,
   onShowInventoryVersions,

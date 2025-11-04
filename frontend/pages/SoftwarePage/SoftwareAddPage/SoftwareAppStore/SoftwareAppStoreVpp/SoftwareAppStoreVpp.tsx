@@ -10,6 +10,7 @@ import { ILabelSummary } from "interfaces/label";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -166,7 +167,7 @@ const SoftwareAppStoreVpp = ({
     try {
       const {
         software_title_id: softwareVppTitleId,
-      } = await mdmAppleAPI.addVppApp(currentTeamId, formData);
+      } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
       renderFlash(
         "success",

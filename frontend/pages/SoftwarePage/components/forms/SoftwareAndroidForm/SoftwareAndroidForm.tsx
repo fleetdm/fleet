@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import classnames from "classnames";
 
 import { AppContext } from "context/app";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -20,13 +21,9 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import generateFormValidation from "./helpers";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { IAppStoreApp } from "interfaces/software";
 
 const baseClass = "software-android-form";
-
-interface IAndroidAppFormErrors {
-  application_id?: string | null;
-}
 
 export interface ISoftwareAndroidFormData {
   selfService: boolean;
@@ -36,24 +33,15 @@ export interface ISoftwareAndroidFormData {
   labelTargets: Record<string, boolean>;
   applicationID: string;
   categories: string[];
+  platform: "android";
 }
 
 export interface IFormValidation {
   isValid: boolean;
-  customTarget?: { isValid: boolean };
 }
 
-const validateFormData = ({ applicationID }: ISoftwareAndroidFormData) => {
-  const errors: IAndroidAppFormErrors = {};
-  if (!applicationID) {
-    errors.application_id = "Application ID must be present";
-  }
-
-  return errors;
-};
-
 interface ISoftwareAndroidFormProps {
-  softwareAndroidForEdit?: any; // TODO: IAndroidApp
+  softwareAndroidForEdit?: IAppStoreApp; // 4.77 Currently no edit Android functionality
   onSubmit: (formData: ISoftwareAndroidFormData) => void;
   isLoading?: boolean;
   onCancel: () => void;
@@ -73,32 +61,30 @@ const SoftwareAndroidForm = ({
   const [formData, setFormData] = useState<ISoftwareAndroidFormData>(
     softwareAndroidForEdit
       ? {
-          applicationID: softwareAndroidForEdit.application_id,
-          selfService: softwareAndroidForEdit.self_service || false,
-          automaticInstall: softwareAndroidForEdit.automatic_install || false,
+          applicationID: softwareAndroidForEdit.app_store_id || "",
+          selfService: softwareAndroidForEdit.self_service || false, // 4.77 Currently unavailable to change
+          automaticInstall: softwareAndroidForEdit.automatic_install || false, // 4.77 Currently unavailable for Android apps
           targetType: getTargetType(softwareAndroidForEdit),
           customTarget: getCustomTarget(softwareAndroidForEdit),
           labelTargets: generateSelectedLabels(softwareAndroidForEdit),
           categories: softwareAndroidForEdit.categories || [],
+          platform: "android",
         }
       : {
           applicationID: "",
-          selfService: false,
-          automaticInstall: false,
+          selfService: true, // Default to true for new Android apps
+          automaticInstall: false, // 4.77 Currently navailable for Android apps
           targetType: "All hosts",
           customTarget: "labelsIncludeAny",
           labelTargets: {},
           categories: [],
+          platform: "android",
         }
   );
-  const [formErrors, setFormErrors] = useState<IAndroidAppFormErrors>({});
+
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: !!softwareAndroidForEdit, // Disables submit before Android application ID is entered
   });
-
-  const onInputBlur = () => {
-    setFormErrors(validateFormData(formData));
-  };
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -108,18 +94,7 @@ const SoftwareAndroidForm = ({
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
-    const newErrs = validateFormData(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
+    setFormValidation(generateFormValidation(newFormData));
   };
 
   const onToggleSelfServiceCheckbox = (value: boolean) => {
@@ -174,6 +149,7 @@ const SoftwareAndroidForm = ({
         <InputField
           autoFocus
           label="Application ID"
+          placeholder="com.android.chrome"
           helpText={
             <>
               The ID at the end of the app&apos;s{" "}
@@ -190,8 +166,6 @@ const SoftwareAndroidForm = ({
           name="applicationID"
           value={formData.applicationID}
           parseTarget
-          onBlur={onInputBlur}
-          error={formErrors.application_id}
           disabled={gitOpsModeEnabled} // TODO: Confirm GitOps behavior
         />
         <div className={`${baseClass}__form-frame`}>
@@ -203,6 +177,7 @@ const SoftwareAndroidForm = ({
               onToggleSelfService={onToggleSelfServiceCheckbox}
               onSelectCategory={onSelectCategory}
               onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
+              disableOptions
             />
           </Card>
         </div>
@@ -234,7 +209,7 @@ const SoftwareAndroidForm = ({
                 type="submit"
                 disabled={disableChildren || isSubmitDisabled}
                 isLoading={isLoading}
-                className={`${baseClass}__add-secret-btn`}
+                className={`${baseClass}__add-software-btn`}
               >
                 {softwareAndroidForEdit ? "Save" : "Add software"}
               </Button>

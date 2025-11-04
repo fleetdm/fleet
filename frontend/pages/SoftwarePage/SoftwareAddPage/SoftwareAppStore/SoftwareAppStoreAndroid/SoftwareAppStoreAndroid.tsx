@@ -1,28 +1,25 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
-import { AxiosError } from "axios";
+import axios from "axios";
 import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import { ILabelSummary } from "interfaces/label";
-import mdmAppleAPI, {
-  IGetVppTokensResponse,
-} from "services/entities/mdm_apple";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import softwareAPI from "services/entities/software";
 
-import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
 
 import { getPathWithQueryParams } from "utilities/url";
 import SoftwareAndroidForm from "pages/SoftwarePage/components/forms/SoftwareAndroidForm";
 import { getErrorMessage } from "./helpers";
-import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ADD_SOFTWARE_ERROR_PREFIX } from "../../helpers";
 
 const baseClass = "software-app-store-android";
+
+const AMAPI_BASE_URL = "https://androidmanagement.googleapis.com/v1/";
+const ENTERPRISE_ID = "<your_enterprise_id>"; // Set this appropriately
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
@@ -42,35 +39,6 @@ const SoftwareAppStoreAndroid = ({
     setShowPreviewEndUserExperience,
   ] = useState(false);
 
-  const {
-    data: vppInfo,
-    isLoading: isLoadingVppInfo,
-    error: errorVppInfo,
-  } = useQuery<IGetVppTokensResponse, AxiosError>(
-    ["vppInfo", currentTeamId],
-    () => mdmAppleAPI.getVppTokens(),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      staleTime: 30000,
-      retry: (tries, error) => error.status !== 404 && tries <= 3,
-    }
-  );
-
-  const {
-    data: labels,
-    isLoading: isLoadingLabels,
-    isError: isErrorLabels,
-  } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
-
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
-      staleTime: 10000,
-    }
-  );
-
   const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
     const queryParams = {
       team_id: currentTeamId,
@@ -84,29 +52,55 @@ const SoftwareAppStoreAndroid = ({
     setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
   };
 
-  const onAddSoftware = async (formData: ISoftwareVppFormData) => {
-    if (!formData.selectedApp) {
+  const onAddSoftware = async (formData: ISoftwareAndroidFormData) => {
+    if (!formData.applicationID) {
       return;
     }
 
     setIsLoading(true);
 
     try {
+      // HANDLED SERVER SIDE?
+      // // Validate app ID exists using AMAPI
+      // const appId = formData.applicationID; // e.g. "us.zoom.videomeetings"
+      // const appApiUrl = `${AMAPI_BASE_URL}enterprises/${ENTERPRISE_ID}/applications/${appId}`;
+      // // Requires OAuth access token with the required scopes
+      // const accessToken = "<your_oauth_access_token>";
+
+      // const appApiRes = await axios.get(appApiUrl, {
+      //   headers: {
+      //     Authorization: `Bearer ${accessToken}`,
+      //   },
+      // });
+
+      // // If successful, app metadata is present
+      // if (!appApiRes.data || !appApiRes.data.name) {
+      //   renderFlash(
+      //     "error",
+      //     `${ADD_SOFTWARE_ERROR_PREFIX} The application ID isn't available in Play Store. Please find ID on the Play Store and try again.`
+      //   );
+      //   setIsLoading(false);
+      //   return;
+      // }
+
       const {
-        software_title_id: softwareVppTitleId,
-      } = await mdmAppleAPI.addVppApp(currentTeamId, formData);
+        software_title_id: softwareAppStoreTitleId,
+        // Maybe this will return name and can render success message with the name?
+        name: softwareTitleName,
+      } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
       renderFlash(
         "success",
         <>
-          <b>{formData.selectedApp.name}</b> successfully added.
+          {/* <strong>{appApiRes.data.name}</strong> successfully added. */}
+          <strong>{softwareTitleName}</strong> successfully added.
         </>,
         { persistOnPageChange: true }
       );
 
       router.push(
         getPathWithQueryParams(
-          PATHS.SOFTWARE_TITLE_DETAILS(softwareVppTitleId.toString()),
+          PATHS.SOFTWARE_TITLE_DETAILS(softwareAppStoreTitleId.toString()),
           { team_id: currentTeamId }
         )
       );
@@ -122,10 +116,6 @@ const SoftwareAppStoreAndroid = ({
       return (
         <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
       );
-    }
-
-    if (isLoadingVppInfo || isLoadingLabels) {
-      return <Spinner />;
     }
 
     return (

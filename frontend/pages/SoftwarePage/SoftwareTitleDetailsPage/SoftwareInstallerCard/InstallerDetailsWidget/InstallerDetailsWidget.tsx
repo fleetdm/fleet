@@ -42,9 +42,16 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
   );
 };
 
-const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
+const renderInstallerDisplayText = (
+  installerType: string,
+  isFma: boolean,
+  androidPlayStoreLink?: string
+) => {
   if (installerType === "package") {
     return isFma ? "Fleet-maintained" : "Custom package";
+  }
+  if (androidPlayStoreLink) {
+    return "Google Play Store";
   }
   return "App Store (VPP)";
 };
@@ -52,12 +59,13 @@ const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
 interface IInstallerDetailsWidgetProps {
   className?: string;
   softwareName: string;
-  installerType: "package" | "vpp";
+  installerType: "package" | "app-store";
   addedTimestamp?: string;
   version?: string | null;
   sha256?: string | null;
   isFma: boolean;
   isScriptPackage: boolean;
+  androidPlayStoreLink?: string;
 }
 
 const InstallerDetailsWidget = ({
@@ -69,6 +77,7 @@ const InstallerDetailsWidget = ({
   version,
   isFma,
   isScriptPackage,
+  androidPlayStoreLink,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -88,11 +97,13 @@ const InstallerDetailsWidget = ({
   };
 
   const renderIcon = () => {
-    return installerType === "package" ? (
-      <Graphic name="file-pkg" />
-    ) : (
-      <SoftwareIcon name="appStore" size="medium" />
-    );
+    if (installerType === "app-store") {
+      if (androidPlayStoreLink) {
+        return <SoftwareIcon name="androidPlayStore" size="medium" />;
+      }
+      return <SoftwareIcon name="appleAppStore" size="medium" />;
+    }
+    return <Graphic name="file-pkg" />;
   };
 
   const renderDetails = () => {
@@ -103,7 +114,7 @@ const InstallerDetailsWidget = ({
 
       let versionInfo = <span>{version}</span>;
 
-      if (installerType === "vpp") {
+      if (installerType === "app-store") {
         versionInfo = (
           <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
             <span>{version}</span>
@@ -132,6 +143,25 @@ const InstallerDetailsWidget = ({
             }
           >
             <span>Version (unknown)</span>
+          </TooltipWrapper>
+        );
+      }
+
+      if (androidPlayStoreLink) {
+        versionInfo = (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                See latest version on the{" "}
+                <CustomLink
+                  text="Play Store"
+                  url={androidPlayStoreLink}
+                  newTab
+                />
+              </span>
+            }
+          >
+            <span>Latest</span>
           </TooltipWrapper>
         );
       }
@@ -190,7 +220,7 @@ const InstallerDetailsWidget = ({
 
     return (
       <>
-        {renderInstallerDisplayText(installerType, isFma)}
+        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreLink)}
         {renderVersionInfo()}
         {renderTimeStamp()}
         {renderSha256()}
