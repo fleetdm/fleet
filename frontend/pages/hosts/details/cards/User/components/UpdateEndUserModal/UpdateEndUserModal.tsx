@@ -14,6 +14,7 @@ const baseClass = "update-end-user-modal";
 
 interface IUpdateEndUserModalProps {
   isPremiumTier: boolean;
+  /** There will be at most 1 end user */
   endUsers: IHostEndUser[];
   onUpdate: (username: string) => void;
   isUpdating?: boolean;
@@ -27,12 +28,10 @@ const UpdateEndUserModal = ({
   isUpdating,
   onExit,
 }: IUpdateEndUserModalProps) => {
-  // TODO - reconcile impliciation of multiple end users
-  const userNameDisplayValues = generateUsernameValues(endUsers);
-  const isEditing = userNameDisplayValues.length > 0;
-  const [idpUsername, setIdpUsername] = useState(
-    isEditing ? userNameDisplayValues[0] : ""
-  );
+  // at most 1
+  const userNameDisplayValue = generateUsernameValues(endUsers)[0];
+  const isEditing = !!userNameDisplayValue;
+  const [idpUsername, setIdpUsername] = useState(userNameDisplayValue || "");
 
   const onSave = () => {
     onUpdate(idpUsername);

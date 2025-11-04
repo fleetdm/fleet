@@ -25,6 +25,7 @@ import {
 const baseClass = "user-card";
 
 interface IUserProps {
+  /** There will be at most 1 end user */
   endUsers: IHostEndUser[];
   canWriteEndUser?: boolean;
   disableFullNameTooltip?: boolean;
@@ -43,6 +44,7 @@ const User = ({
 }: IUserProps) => {
   const classNames = classnames(baseClass, className);
 
+  // though this code implies otherwise, there will be at most 1 end user
   const userNameDisplayValues = generateUsernameValues(endUsers);
   const chromeProfilesDisplayValues = generateChromeProfilesValues(endUsers);
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
