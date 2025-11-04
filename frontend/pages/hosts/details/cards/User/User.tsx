@@ -3,7 +3,6 @@ import classnames from "classnames";
 import { noop } from "lodash";
 
 import { IHostEndUser } from "interfaces/host";
-import { HostPlatform, isAndroid, isAppleDevice } from "interfaces/platform";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -26,7 +25,6 @@ import {
 const baseClass = "user-card";
 
 interface IUserProps {
-  platform: HostPlatform;
   endUsers: IHostEndUser[];
   enableAddEndUser: boolean;
   disableFullNameTooltip?: boolean;
@@ -36,7 +34,6 @@ interface IUserProps {
 }
 
 const User = ({
-  platform,
   endUsers,
   enableAddEndUser,
   disableFullNameTooltip = false,
@@ -51,9 +48,6 @@ const User = ({
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
 
   const endUser = endUsers[0];
-  const showUsername = isAppleDevice(platform) || isAndroid(platform);
-  const showFullName = showUsername && userNameDisplayValues.length > 0;
-  const showGroups = showUsername && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
   const showOtherEmails = otherEmailsDisplayValues.length > 0;
   const userDepartment = [];
@@ -82,57 +76,47 @@ const User = ({
       </div>
 
       <div className={`${baseClass}__content`}>
-        {showUsername && (
-          <DataSet
-            title={
-              <TooltipWrapper tipContent="Username collected from your IdP during automatic enrollment (ADE) or added via the Fleet API.">
-                Username (IdP)
-              </TooltipWrapper>
-            }
-            value={<UserValue values={userNameDisplayValues} />}
-          />
-        )}
+        <DataSet
+          title={
+            <TooltipWrapper tipContent="Username collected from your IdP during automatic enrollment (ADE) or added via the Fleet API.">
+              Username (IdP)
+            </TooltipWrapper>
+          }
+          value={<UserValue values={userNameDisplayValues} />}
+        />
 
-        {showFullName && (
-          <DataSet
-            title={
-              disableFullNameTooltip ? (
-                "Full name (IdP)"
-              ) : (
-                <TooltipWrapper
-                  tipContent={generateFullNameTipContent(endUsers)}
-                >
-                  Full name (IdP)
-                </TooltipWrapper>
-              )
-            }
-            value={<UserValue values={generateFullNameValues(endUsers)} />}
-          />
-        )}
-        {showGroups && (
-          <DataSet
-            title={
-              disableGroupsTooltip && endUser.idp_info_updated_at !== null ? (
-                "Groups (IdP)"
-              ) : (
-                <TooltipWrapper tipContent={generateGroupsTipContent(endUsers)}>
-                  Groups (IdP)
-                </TooltipWrapper>
-              )
-            }
-            value={<UserValue values={generateGroupsValues(endUsers)} />}
-          />
-        )}
-        {showUsername && (
-          <DataSet
-            title={
-              <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>
-                Department (IdP)
+        <DataSet
+          title={
+            disableFullNameTooltip ? (
+              "Full name (IdP)"
+            ) : (
+              <TooltipWrapper tipContent={generateFullNameTipContent(endUsers)}>
+                Full name (IdP)
               </TooltipWrapper>
-            }
-            value={<UserValue values={userDepartment} />}
-          />
-        )}
+            )
+          }
+          value={<UserValue values={generateFullNameValues(endUsers)} />}
+        />
+        <DataSet
+          title={
+            disableGroupsTooltip && endUser.idp_info_updated_at !== null ? (
+              "Groups (IdP)"
+            ) : (
+              <TooltipWrapper tipContent={generateGroupsTipContent(endUsers)}>
+                Groups (IdP)
+              </TooltipWrapper>
+            )
+          }
+          value={<UserValue values={generateGroupsValues(endUsers)} />}
+        />
+        <DataSet
+          title={
+            <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>
+              Department (IdP)
+            </TooltipWrapper>
+          }
+          value={<UserValue values={userDepartment} />}
+        />
         {showChromeProfiles && (
           <DataSet
             title="Google Chrome profiles"
