@@ -122,9 +122,9 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import AddEndUserModal from "../cards/User/components/AddEndUserModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 
 const baseClass = "host-details";
 
@@ -273,7 +273,7 @@ const HostDetailsPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
-  const [showAddEndUserModal, setShowAddEndUserModal] = useState(false);
+  const [showUpdateEndUserModal, setShowAddEndUserModal] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -1497,8 +1497,12 @@ const HostDetailsPage = ({
             />
           )}
         </>
-        {showAddEndUserModal && (
-          <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
+        {showUpdateEndUserModal && (
+          <UpdateEndUserModal
+            isPremiumTier={isPremiumTier}
+            endUsers={host.end_users ?? []}
+            onExit={() => setShowAddEndUserModal(false)}
+          />
         )}
       </>
     );
