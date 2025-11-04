@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251103000000, Down_20251103000000)
+	MigrationClient.AddMigration(Up_20251104000000, Down_20251104000000)
 }
 
-func Up_20251103000000(tx *sql.Tx) error {
+func Up_20251104000000(tx *sql.Tx) error {
 	// Create conditional_access_scep_serials table first (referenced by foreign key)
 	// Reserve serial number 1 for system use, similar to host identity SCEP
 	_, err := tx.Exec(`
@@ -48,6 +48,6 @@ func Up_20251103000000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251103000000(_ *sql.Tx) error {
+func Down_20251104000000(_ *sql.Tx) error {
 	return nil
 }
