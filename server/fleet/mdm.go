@@ -858,6 +858,10 @@ const (
 	MDMAssetConditionalAccessCACert MDMAssetName = "conditional_access_ca_cert"
 	// MDMAssetConditionalAccessCAKey is the name of the root CA private key used for conditional access SCEP
 	MDMAssetConditionalAccessCAKey MDMAssetName = "conditional_access_ca_key"
+	// MDMAssetConditionalAccessIDPCert is the certificate Fleet uses to sign SAML assertions as an IdP for conditional access
+	MDMAssetConditionalAccessIDPCert MDMAssetName = "conditional_access_idp_cert"
+	// MDMAssetConditionalAccessIDPKey is the private key Fleet uses to sign SAML assertions as an IdP for conditional access
+	MDMAssetConditionalAccessIDPKey MDMAssetName = "conditional_access_idp_key"
 )
 
 type MDMConfigAsset struct {

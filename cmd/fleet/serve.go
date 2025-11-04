@@ -1362,7 +1362,7 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}
-					if err = condaccess.RegisterSCEP(rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+					if err = condaccess.RegisterSCEP(ctx, rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup conditional access SCEP")
 					}
 

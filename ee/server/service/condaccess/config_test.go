@@ -20,32 +20,30 @@ func TestInitAssets(t *testing.T) {
 	ctx := t.Context()
 
 	// Initialize assets
-	err := initAssets(ds)
+	err := initAssets(ctx, ds)
 	require.NoError(t, err)
 
-	// Verify assets were created
+	// Verify all assets were created
 	expectedAssets := []fleet.MDMAssetName{
 		fleet.MDMAssetConditionalAccessCACert,
 		fleet.MDMAssetConditionalAccessCAKey,
+		fleet.MDMAssetConditionalAccessIDPCert,
+		fleet.MDMAssetConditionalAccessIDPKey,
 	}
 	savedAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, expectedAssets, nil)
 	require.NoError(t, err)
-	require.Len(t, savedAssets, 2, "Should have created both CA cert and key")
+	require.Len(t, savedAssets, 4, "Should have created all four assets")
 
-	// Verify we have both cert and key
-	var caCertAsset, caKeyAsset fleet.MDMConfigAsset
-	var foundCert, foundKey bool
-	for _, asset := range savedAssets {
-		if asset.Name == fleet.MDMAssetConditionalAccessCACert {
-			caCertAsset = asset
-			foundCert = true
-		} else if asset.Name == fleet.MDMAssetConditionalAccessCAKey {
-			caKeyAsset = asset
-			foundKey = true
-		}
-	}
-	require.True(t, foundCert, "Should have CA cert")
-	require.True(t, foundKey, "Should have CA key")
+	// Extract assets by name
+	caCertAsset, foundCACert := savedAssets[fleet.MDMAssetConditionalAccessCACert]
+	caKeyAsset, foundCAKey := savedAssets[fleet.MDMAssetConditionalAccessCAKey]
+	idpCertAsset, foundIDPCert := savedAssets[fleet.MDMAssetConditionalAccessIDPCert]
+	idpKeyAsset, foundIDPKey := savedAssets[fleet.MDMAssetConditionalAccessIDPKey]
+
+	require.True(t, foundCACert, "Should have CA cert")
+	require.True(t, foundCAKey, "Should have CA key")
+	require.True(t, foundIDPCert, "Should have IdP cert")
+	require.True(t, foundIDPKey, "Should have IdP key")
 
 	// Verify cert is valid PEM
 	pemBlock, _ := pem.Decode(caCertAsset.Value)
@@ -57,8 +55,8 @@ func TestInitAssets(t *testing.T) {
 	require.NoError(t, err, "Should be able to parse CA certificate")
 
 	// Verify certificate attributes
-	assert.Equal(t, "Fleet Conditional Access CA", cert.Subject.CommonName, "CA cert should have correct common name")
-	assert.Contains(t, cert.Subject.Organization, "Local Certificate Authority", "CA cert should have correct organization")
+	assert.Equal(t, "Fleet conditional access CA", cert.Subject.CommonName, "CA cert should have correct common name")
+	assert.Contains(t, cert.Subject.Organization, "Local certificate authority", "CA cert should have correct organization")
 
 	// Verify certificate is valid for 10 years (with tolerance for leap years)
 	// 10 years can be 3652 days (2 leap years) or 3653 days (3 leap years)
@@ -92,25 +90,37 @@ func TestInitAssets(t *testing.T) {
 	require.NoError(t, err, "Should be able to parse RSA private key")
 	assert.Equal(t, 2048, rsaPrivKey.N.BitLen(), "RSA private key should be 2048 bits")
 
+	// Verify IdP cert is valid PEM
+	idpPemBlock, _ := pem.Decode(idpCertAsset.Value)
+	require.NotNil(t, idpPemBlock, "IdP cert should be valid PEM")
+	require.Equal(t, "CERTIFICATE", idpPemBlock.Type, "PEM block should be a certificate")
+
+	// Parse the IdP certificate
+	idpCert, err := x509.ParseCertificate(idpPemBlock.Bytes)
+	require.NoError(t, err, "Should be able to parse IdP certificate")
+
+	// Verify IdP certificate attributes
+	assert.Equal(t, "Fleet conditional access IdP", idpCert.Subject.CommonName, "IdP cert should have correct common name")
+	assert.Contains(t, idpCert.Subject.Organization, "Local certificate authority", "IdP cert should have correct organization")
+
 	// Save original values for idempotency check
-	originalCertValue := caCertAsset.Value
-	originalKeyValue := caKeyAsset.Value
+	originalCACertValue := caCertAsset.Value
+	originalCAKeyValue := caKeyAsset.Value
+	originalIDPCertValue := idpCertAsset.Value
+	originalIDPKeyValue := idpKeyAsset.Value
 
 	// Second initialization - should not regenerate
-	err = initAssets(ds)
+	err = initAssets(ctx, ds)
 	require.NoError(t, err)
 
-	// Get the assets again
+	// Get all assets again
 	secondAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, expectedAssets, nil)
 	require.NoError(t, err)
-	require.Len(t, secondAssets, 2)
+	require.Len(t, secondAssets, 4)
 
-	// Verify values are unchanged
-	for _, asset := range secondAssets {
-		if asset.Name == fleet.MDMAssetConditionalAccessCACert {
-			assert.Equal(t, originalCertValue, asset.Value, "CA cert should not be regenerated")
-		} else if asset.Name == fleet.MDMAssetConditionalAccessCAKey {
-			assert.Equal(t, originalKeyValue, asset.Value, "CA key should not be regenerated")
-		}
-	}
+	// Verify all values are unchanged (idempotent)
+	assert.Equal(t, originalCACertValue, secondAssets[fleet.MDMAssetConditionalAccessCACert].Value, "CA cert should not be regenerated")
+	assert.Equal(t, originalCAKeyValue, secondAssets[fleet.MDMAssetConditionalAccessCAKey].Value, "CA key should not be regenerated")
+	assert.Equal(t, originalIDPCertValue, secondAssets[fleet.MDMAssetConditionalAccessIDPCert].Value, "IdP cert should not be regenerated")
+	assert.Equal(t, originalIDPKeyValue, secondAssets[fleet.MDMAssetConditionalAccessIDPKey].Value, "IdP key should not be regenerated")
 }

@@ -511,7 +511,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 
 	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
-		require.NoError(t, condaccess.RegisterSCEP(rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
 	}
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
