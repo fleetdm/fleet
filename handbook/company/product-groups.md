@@ -593,14 +593,18 @@ Then, it's the product group Product Designer's responsibility to decide if it's
 
 When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "New requests" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
+
 For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. The Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 
 If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, the Product Designer verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [needs reproduction](#needs-reproduction) or [reproduced state](#reproduced).
 
-If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "New requests" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
-
 
 #### Needs reproduction
+
+The bug has been confirmed it's a bug but not reproduced.
+
+Take the following action: Add the `:reproduce` label so that the bug is added to the :help-qa board.
 
 At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Produce Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
 
