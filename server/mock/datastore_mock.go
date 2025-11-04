@@ -509,7 +509,7 @@ type GetPastActivityDataForInHouseAppInstallFunc func(ctx context.Context, comma
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
-type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error)
+type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
@@ -5648,7 +5648,7 @@ func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fl
 	return s.SetHostSoftwareInstallResultFunc(ctx, result)
 }
 
-func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
+func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
 	s.mu.Lock()
 	s.CreateIntermediateInstallFailureRecordFuncInvoked = true
 	s.mu.Unlock()

@@ -1404,7 +1404,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// If this is an intermediate failure that will be retried, handle it specially
 	if result.RetriesRemaining > 0 {
 		// Create a record while keeping the original pending
-		_, _, _, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
+		_, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "save intermediate install failure")
 		}
