@@ -48,6 +48,7 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
 	Categories        []string
+	DisplayName       string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -173,6 +174,11 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.Categories = categories
 	}
 
+	displayNameMultiPart := r.MultipartForm.Value["display_name"]
+	if len(displayNameMultiPart) > 0 {
+		decoded.DisplayName = displayNameMultiPart[0]
+	}
+
 	return &decoded, nil
 }
 
@@ -190,6 +196,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsIncludeAny:  req.LabelsIncludeAny,
 		LabelsExcludeAny:  req.LabelsExcludeAny,
 		Categories:        req.Categories,
+		DisplayName:       req.DisplayName,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
