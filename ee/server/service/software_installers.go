@@ -2190,11 +2190,17 @@ func (svc *Service) softwareBatchUpload(
 				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
 
-				// For script packages (.sh and .ps1), clear unsupported fields early.
-				// Determine extension from filename to validate before metadata extraction.
+				// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
+				// unsupported fields early. Determine extension from filename to
+				// validate before metadata extraction.
 				ext := strings.ToLower(filepath.Ext(filename))
 				ext = strings.TrimPrefix(ext, ".")
 				if fleet.IsScriptPackage(ext) {
+					installer.PostInstallScript = ""
+					installer.UninstallScript = ""
+					installer.PreInstallQuery = ""
+				} else if ext == "ipa" {
+					installer.InstallScript = ""
 					installer.PostInstallScript = ""
 					installer.UninstallScript = ""
 					installer.PreInstallQuery = ""
@@ -2270,9 +2276,10 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// For script packages (.sh and .ps1), clear unsupported fields
-			// The file contents become the install script, so post_install_script,
-			// uninstall_script, and pre_install_query are not supported.
+			// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
+			// unsupported fields. For script packages, the file contents become the
+			// install script, so post_install_script, uninstall_script, and
+			// pre_install_query are not supported.
 			if fleet.IsScriptPackage(installer.Extension) {
 				installer.PostInstallScript = ""
 				installer.UninstallScript = ""
@@ -2286,6 +2293,11 @@ func (svc *Service) softwareBatchUpload(
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
 				}
+			} else if installer.Extension == "ipa" {
+				installer.PostInstallScript = ""
+				installer.UninstallScript = ""
+				installer.PreInstallQuery = ""
+				installer.InstallScript = ""
 			}
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
@@ -2304,6 +2316,20 @@ func (svc *Service) softwareBatchUpload(
 			}
 			if installer.Title == "" {
 				installer.Title = installer.Filename
+			}
+
+			// if this is an .ipa and there is no extra installer, create it here
+			if installer.Extension == "ipa" && len(extraInstallers) == 0 {
+				extraPayload := *installer
+				switch installer.Platform {
+				case string(fleet.IOSPlatform):
+					extraPayload.Platform = string(fleet.IPadOSPlatform)
+					extraPayload.Source = "ipados_apps"
+				case string(fleet.IPadOSPlatform):
+					extraPayload.Platform = string(fleet.IOSPlatform)
+					extraPayload.Source = "ios_apps"
+				}
+				extraInstallers = append(extraInstallers, &extraPayload)
 			}
 
 			installers[i] = &installerPayloadWithExtras{
