@@ -227,6 +227,24 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		}
 	}
 
+	// Enforce team-scoped uniqueness by storage hash, aligning upload behavior with GitOps.
+	{
+		var tmID uint
+		if payload.TeamID != nil {
+			tmID = *payload.TeamID
+		}
+		teamsByHash, err := ds.GetTeamsWithInstallerByHash(ctx, payload.StorageID, payload.URL)
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "check duplicate installer by hash")
+		}
+		if _, exists := teamsByHash[tmID]; exists {
+			return 0, 0, fleet.NewInvalidArgumentError(
+				"software",
+				"Couldn't add software. An installer with identical contents already exists on this team.",
+			)
+		}
+	}
+
 	if err := ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload); err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "add software title to matching software")
 	}

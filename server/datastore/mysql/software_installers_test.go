@@ -47,6 +47,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
 		{"GetDetailsForUninstallFromExecutionID", testGetDetailsForUninstallFromExecutionID},
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
+		{"MatchOrCreateSoftwareInstallerDuplicateHash", testMatchOrCreateSoftwareInstallerDuplicateHash},
 		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
@@ -3224,4 +3225,61 @@ func testSoftwareInstallerReplicaLag(t *testing.T, _ *Datastore) {
 	gotInstaller, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
 	require.NoError(t, err)
 	require.NotNil(t, gotInstaller)
+}
+
+func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team A"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team B"})
+	require.NoError(t, err)
+
+	const sameHash = "dup-hash-001"
+
+	mkPayload := func(teamID *uint, filename, title string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("same-bytes"), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:   tfr,
+			Extension:       "pkg",
+			StorageID:       sameHash,
+			Filename:        filename,
+			Title:           title,
+			Version:         "1.0",
+			Source:          "apps",
+			Platform:        "darwin",
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			TeamID:          teamID,
+		}
+	}
+
+	// Create on Team A → success
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "a.pkg", "title-a"))
+	require.NoError(t, err)
+
+	// Duplicate on Team A with different name/title but same hash → reject
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "b.pkg", "title-b"))
+	require.Error(t, err)
+	if _, ok := err.(*fleet.InvalidArgumentError); !ok {
+		t.Fatalf("expected InvalidArgumentError for same-team duplicate hash, got: %T: %v", err, err)
+	}
+
+	// Same hash on different team → allowed
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamB.ID, "c.pkg", "title-c"))
+	require.NoError(t, err)
+
+	// Global scope first time → allowed
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global1.pkg", "title-g1"))
+	require.NoError(t, err)
+
+	// Global scope second time (duplicate hash) → reject
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global2.pkg", "title-g2"))
+	require.Error(t, err)
+	if _, ok := err.(*fleet.InvalidArgumentError); !ok {
+		t.Fatalf("expected InvalidArgumentError for global duplicate hash, got: %T: %v", err, err)
+	}
 }
