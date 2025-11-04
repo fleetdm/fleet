@@ -54,7 +54,9 @@ export const generateFormValidations = (
             return (
               isEditing ||
               customESTIntegrations.find(
-                (cert) => cert.name === formData.name
+                (cert) =>
+                  cert.name === formData.name &&
+                  cert.type === "custom_est_proxy"
               ) === undefined
             );
           },
