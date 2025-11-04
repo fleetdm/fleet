@@ -896,9 +896,13 @@ const HostDetailsPage = ({
   const onUpdateEndUser = async (username: string) => {
     setIsUpdating(true);
     try {
-      // TODO - (product) if empty, call DELETE
-      await hostAPI.updateHostIdpUsername(hostIdFromURL, username);
-      renderFlash("success", "Updated end user.");
+      if (username === "") {
+        await hostAPI.deleteHostIdp(hostIdFromURL);
+        renderFlash("success", "Removed end user.");
+      } else {
+        await hostAPI.updateHostIdp(hostIdFromURL, username);
+        renderFlash("success", "Updated end user.");
+      }
       setShowUpdateEndUserModal(false);
       refetchHostDetails();
     } catch (e) {

@@ -56,7 +56,7 @@ const UpdateEndUserModal = ({
           <div className="modal-cta-wrap">
             <Button
               isLoading={isUpdating}
-              disabled={isUpdating}
+              disabled={isUpdating || (!isEditing && idpUsername === "")}
               onClick={onSave}
             >
               Save

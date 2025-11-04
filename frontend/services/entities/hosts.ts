@@ -674,8 +674,14 @@ export default {
 
     return sendRequest("GET", path);
   },
-  updateHostIdpUsername(hostId: number, idpUsername: string) {
+  updateHostIdp(hostId: number, idpUsername: string) {
     const path = endpoints.HOST_DEVICE_MAPPING(hostId);
     return sendRequest("PUT", path, { source: "idp", email: idpUsername });
+  },
+  deleteHostIdp(hostId: number) {
+    const path = endpoints.HOST_DEVICE_MAPPING(hostId);
+    // product confirm - only one IdP per host, so DELETE removes it, or multiple and this method
+    // needs to specify which to delete?
+    return sendRequest("DELETE", path);
   },
 };
