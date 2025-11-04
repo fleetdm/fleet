@@ -12,13 +12,13 @@ import (
 
 func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
 	var query string
-	var args []interface{}
+	var args []any
 	query = `
 		INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename)
 		VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE
 		storage_id = VALUES(storage_id), filename = VALUES(filename)
 	`
-	args = []interface{}{payload.TeamID, payload.TitleID, payload.StorageID, payload.Filename}
+	args = []any{payload.TeamID, payload.TitleID, payload.StorageID, payload.Filename}
 
 	_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	if err != nil {
@@ -34,7 +34,7 @@ func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payloa
 }
 
 func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error) {
-	args := []interface{}{teamID, titleID}
+	args := []any{teamID, titleID}
 	query := `
 		SELECT team_id, software_title_id, storage_id, filename
 		FROM software_title_icons
@@ -67,7 +67,7 @@ func (ds *Datastore) GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, team
 		return map[uint]fleet.SoftwareTitleIcon{}, nil
 	}
 
-	var args []interface{}
+	var args []any
 	query := `
 		SELECT team_id, software_title_id, storage_id, filename
 		FROM software_title_icons

@@ -595,6 +595,8 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 		}
 	}
 
+	name = strings.TrimSuffix(name, ".app")
+
 	// if we didn't find package IDs, use the identifier as the package ID
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)
@@ -618,7 +620,7 @@ func isValidAppFilePath(input string) (string, bool) {
 	}
 
 	if strings.HasSuffix(file, ".app") {
-		if dir == "Applications/" {
+		if strings.HasPrefix(dir, "Applications/") && strings.HasSuffix(dir, "/") {
 			return file, true
 		}
 	}
