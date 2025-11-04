@@ -688,12 +688,12 @@ WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
 	const cancelAllPendingInHouseInstalls = `
-UPDATE 
-	host_in_house_software_installs 
-SET 
+UPDATE
+	host_in_house_software_installs
+SET
 	canceled = 1
-WHERE 
-	verification_at IS NULL AND 
+WHERE
+	verification_at IS NULL AND
 	verification_failed_at IS NULL AND
 	in_house_app_id IN (
 		SELECT id FROM in_house_apps WHERE global_or_team_id = ?
@@ -701,16 +701,16 @@ WHERE
 `
 
 	const cancelAllPendingInHouseNanoCmds = `
-UPDATE 
-	nano_enrollment_queue 
-SET 
-	active = 0 
-WHERE 
+UPDATE
+	nano_enrollment_queue
+SET
+	active = 0
+WHERE
 	command_uuid IN (
-		SELECT command_uuid 
+		SELECT command_uuid
 		FROM host_in_house_software_installs hihsi
 			INNER JOIN in_house_apps iha ON hihsi.in_house_app_id = iha.id
-		WHERE 
+		WHERE
 			hihsi.verification_at IS NULL AND
 			hihsi.verification_failed_at IS NULL AND
 			iha.global_or_team_id = ?
@@ -796,19 +796,6 @@ WHERE
 				AND software_installer_id IN (
 					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
 			   )
-`
-
-	const unsetInstallersNotInListFromPolicies = `
-UPDATE
-  policies
-SET
-  software_installer_id = NULL
-WHERE
-  software_installer_id IN (
-    SELECT id FROM software_installers
-    WHERE global_or_team_id = ? AND
-    title_id NOT IN (?)
-  )
 `
 
 	const deleteInstallersNotInList = `
@@ -1007,30 +994,11 @@ VALUES
 			return nil
 		}
 
-		// TODO(mna): done adjustin up to here
-
 		var args []any
 		for _, installer := range installers {
-			// check for installers that target macOS if any package installer is
-			// associated with a software title that already has a VPP app for the same
-			// platform (if that platform is macOS), then this is a conflict.
-			// See https://github.com/fleetdm/fleet/issues/32082
-			if installer.Platform == string(fleet.MacOSPlatform) {
-				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, installer.BundleIdentifier, installer.Source, "")
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "check existing VPP app for installer title identifier")
-				}
-				if exists {
-					return ctxerr.Wrap(ctx, fleet.ConflictError{
-						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-							installer.Title, teamName),
-					}, "vpp app conflicts with existing software installer")
-				}
-			}
-
 			args = append(
 				args,
-				installer.Title,
+				strings.TrimSuffix(installer.Filename, ".ipa"),
 				installer.Source,
 				"",
 				func() *string {
@@ -1042,12 +1010,9 @@ VALUES
 			)
 		}
 
-		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?),", len(installers)),
-			",",
-		)
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(installers)), ",")
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert new/edited software title")
+			return ctxerr.Wrap(ctx, err, "insert new/edited software titles")
 		}
 
 		var titleIDs []uint
@@ -1055,29 +1020,20 @@ VALUES
 		for _, installer := range installers {
 			args = append(
 				args,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
+				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
 				installer.Source,
 				"",
 			)
 		}
-		values = strings.TrimSuffix(
-			strings.Repeat("(?,?,?),", len(installers)),
-			",",
-		)
+		values = strings.TrimSuffix(strings.Repeat("(?,?,?),", len(installers)), ",")
 
 		if err := sqlx.SelectContext(ctx, tx, &titleIDs, fmt.Sprintf(loadSoftwareTitles, values), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "load existing titles")
 		}
 
-		stmt, args, err := sqlx.In(unsetInstallersNotInListFromPolicies, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete installers from policies")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
-		}
+		// TODO(mna): done adjusting up to here
 
-		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
+		stmt, args, err := sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
 		}
