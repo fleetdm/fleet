@@ -5317,14 +5317,14 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 	`
 
 	var details struct {
-		SoftwareInstallerID uint       `db:"software_installer_id"`
-		UserID              *uint      `db:"user_id"`
-		PolicyID            *uint      `db:"policy_id"`
-		SelfService         bool       `db:"self_service"`
-		CreatedAt           time.Time  `db:"created_at"`
-		SoftwareTitleID     *uint      `db:"software_title_id"`
-		SoftwarePackage     string     `db:"software_package"`
-		SoftwareTitle       string     `db:"software_title"`
+		SoftwareInstallerID uint      `db:"software_installer_id"`
+		UserID              *uint     `db:"user_id"`
+		PolicyID            *uint     `db:"policy_id"`
+		SelfService         bool      `db:"self_service"`
+		CreatedAt           time.Time `db:"created_at"`
+		SoftwareTitleID     *uint     `db:"software_title_id"`
+		SoftwarePackage     string    `db:"software_package"`
+		SoftwareTitle       string    `db:"software_title"`
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &details, getDetailsStmt, result.InstallUUID, result.HostID); err != nil {
