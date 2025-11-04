@@ -3,6 +3,7 @@ import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { IAppStoreApp } from "interfaces/software";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -21,7 +22,6 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import generateFormValidation from "./helpers";
-import { IAppStoreApp } from "interfaces/software";
 
 const baseClass = "software-android-form";
 
