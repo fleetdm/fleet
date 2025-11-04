@@ -52,6 +52,9 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			if time.Now().After(httpSig.NotValidAfter) {
 				return nil, fleet.NewAuthFailedError("host identity certificate expired")
 			}
+			if httpSig.HostID == nil {
+				return nil, fleet.NewAuthFailedError("identity certificate is not linked to a specific host")
+			}
 			sigAuthenticated = true
 		}
 
