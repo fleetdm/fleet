@@ -31,11 +31,21 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	if ca.Type != string(fleet.CATypeHydrant) && ca.Type != string(fleet.CATypeCustomESTProxy) {
 		return nil, &fleet.BadRequestError{Message: "This API currently only supports Hydrant and EST Certificate Authorities."}
 	}
-	if ca.Type == string(fleet.CATypeHydrant) && ca.ClientSecret == nil {
-		return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
+	if ca.Type == string(fleet.CATypeHydrant) {
+		if ca.ClientID == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a username configured."}
+		}
+		if ca.ClientSecret == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
+		}
 	}
-	if ca.Type == string(fleet.CATypeCustomESTProxy) && ca.Password == nil {
-		return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a password configured."}
+	if ca.Type == string(fleet.CATypeCustomESTProxy) {
+		if ca.Username == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a username configured."}
+		}
+		if ca.Password == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a password configured."}
+		}
 	}
 	certificateRequest, err := svc.parseCSR(ctx, p.CSR)
 	if err != nil {

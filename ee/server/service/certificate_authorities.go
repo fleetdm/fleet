@@ -191,6 +191,9 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 	if p.Smallstep != nil {
 		casToCreate++
 	}
+	if p.CustomESTProxy != nil {
+		casToCreate++
+	}
 	if casToCreate == 0 {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
 	}
@@ -467,7 +470,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 			Name: ca.Name,
 		}
 	case string(fleet.CATypeCustomESTProxy):
-		activity = fleet.ActivityDeletedCustomSCEPProxy{
+		activity = fleet.ActivityDeletedCustomESTProxy{
 			Name: ca.Name,
 		}
 	}
@@ -574,7 +577,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		}
 	}
 	for _, ca := range incoming.EST {
-		if ca.Name == "" {
+		if strings.TrimSpace(ca.Name) == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_est_proxy: CA name cannot be empty.")
 		}
 		ca.Preprocess()
@@ -1085,7 +1088,8 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	var activity fleet.ActivityDetails
 	var caActivityName string
 
-	if p.DigiCertCAUpdatePayload != nil {
+	switch {
+	case p.DigiCertCAUpdatePayload != nil:
 		if p.DigiCertCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sDigiCert CA update payload is empty", errPrefix)}
 		}
@@ -1112,8 +1116,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedDigiCert{Name: caActivityName}
-	}
-	if p.HydrantCAUpdatePayload != nil {
+	case p.HydrantCAUpdatePayload != nil:
 		if p.HydrantCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sHydrant CA update payload is empty", errPrefix)}
 		}
@@ -1136,8 +1139,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedHydrant{Name: caActivityName}
-	}
-	if p.CustomESTCAUpdatePayload != nil {
+	case p.CustomESTCAUpdatePayload != nil:
 		if p.CustomESTCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCustom EST CA update payload is empty", errPrefix)}
 		}
@@ -1160,8 +1162,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedCustomESTProxy{Name: caActivityName}
-	}
-	if p.NDESSCEPProxyCAUpdatePayload != nil {
+	case p.NDESSCEPProxyCAUpdatePayload != nil:
 		if p.NDESSCEPProxyCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sNDES SCEP Proxy CA update payload is empty", errPrefix)}
 		}
@@ -1184,8 +1185,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedNDESSCEPProxy{}
-	}
-	if p.CustomSCEPProxyCAUpdatePayload != nil {
+	case p.CustomSCEPProxyCAUpdatePayload != nil:
 		if p.CustomSCEPProxyCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCustom SCEP Proxy CA update payload is empty", errPrefix)}
 		}
@@ -1208,8 +1208,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		}
 		activity = fleet.ActivityEditedCustomSCEPProxy{Name: caActivityName}
 
-	}
-	if p.SmallstepSCEPProxyCAUpdatePayload != nil {
+	case p.SmallstepSCEPProxyCAUpdatePayload != nil:
 		if p.SmallstepSCEPProxyCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sSmallstep SCEP Proxy CA update payload is empty", errPrefix)}
 		}

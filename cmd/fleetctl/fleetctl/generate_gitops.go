@@ -864,7 +864,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your EST password here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "certificate_authorities.custom_est_proxy.client_secret",
+					Key:      "certificate_authorities.custom_est_proxy.password",
 				})
 			}
 		}

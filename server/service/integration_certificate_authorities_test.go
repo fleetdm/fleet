@@ -148,6 +148,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					EST: []fleet.ESTProxyCA{v},
 				},
+				DryRun: dryRun,
 			}, nil
 		case fleet.NDESSCEPProxyCA:
 			return batchApplyCertificateAuthoritiesRequest{
