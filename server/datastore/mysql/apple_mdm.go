@@ -830,17 +830,6 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 	return &profile, nil
 }
 
-func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-	DELETE hmmc FROM host_mdm_managed_certificates hmmc
-		LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-		WHERE hmap.host_uuid IS NULL`)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "clean up mdm certificate profiles")
-	}
-	return nil
-}
-
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	// This will trigger a resend next time profiles are checked
@@ -3767,12 +3756,12 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
       INSERT INTO mdm_idp_accounts
         (uuid, username, fullname, email)
       VALUES
-        (UUID(), ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
+        (COALESCE(NULLIF(TRIM(?), ''), UUID()), ?, ?, ?)
+      ON DUPLICATE KEY UPDATE	  	
         username   = VALUES(username),
         fullname   = VALUES(fullname)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.Username, account.Fullname, account.Email)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
@@ -6829,67 +6818,6 @@ LIMIT 1`
 	return &settings, nil
 }
 
-func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
-	if len(payload) == 0 {
-		return nil
-	}
-
-	executeUpsertBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`
-	    INSERT INTO host_mdm_managed_certificates (
-              host_uuid,
-              profile_uuid,
-              challenge_retrieved_at,
-			  not_valid_before,
-	          not_valid_after,
-			  type,
-			  ca_name,
-			  serial
-            )
-            VALUES %s
-            ON DUPLICATE KEY UPDATE
-              challenge_retrieved_at = VALUES(challenge_retrieved_at),
-			  not_valid_before = VALUES(not_valid_before),
-			  not_valid_after = VALUES(not_valid_after),
-			  type = VALUES(type),
-			  ca_name = VALUES(ca_name),
-			  serial = VALUES(serial)`,
-			strings.TrimSuffix(valuePart, ","),
-		)
-
-		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		return err
-	}
-
-	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
-		return valuePart, args
-	}
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-
-	if err := batchProcessDB(payload, batchSize, generateValueArgs, executeUpsertBatch); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
-	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
-	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial
-	FROM host_mdm_managed_certificates
-	WHERE host_uuid = ?
-	`, hostUUID)
-	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
-}
-
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
 // require MDM to be processed, for when MDM is turned off for the host (or
 // when it turns on again, e.g. after removing the enrollment profile - it may
@@ -7058,7 +6986,11 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 	return result, err
 }
 
-func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, acctUUID string) error {
+func (ds *Datastore) AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error {
+	return associateHostMDMIdPAccountDB(ctx, ds.writer(ctx), hostUUID, acctUUID)
+}
+
+func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, acctUUID string) error {
 	const stmt = `
 INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid)
 VALUES (?, ?)

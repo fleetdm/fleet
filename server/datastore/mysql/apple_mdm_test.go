@@ -92,7 +92,6 @@ func TestMDMApple(t *testing.T) {
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
-		{"CleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
@@ -8448,48 +8447,6 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			})
 		})
 	}
-}
-
-func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("host0-osquery-id"),
-		NodeKey:         ptr.String("host0-node-key"),
-		UUID:            "host0-test-mdm-profiles",
-		Hostname:        "hostname0",
-	})
-	require.NoError(t, err)
-
-	badProfileUUID := uuid.NewString()
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid) VALUES (?, ?)
-		`, host.UUID, badProfileUUID)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	var uid string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
-			badProfileUUID)
-	})
-	require.Equal(t, badProfileUUID, uid)
-
-	// Cleanup should delete the above orphaned record
-	err = ds.CleanUpMDMManagedCertificates(ctx)
-	require.NoError(t, err)
-	err = ExecAdhocSQLWithError(ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
-			badProfileUUID)
-	})
-	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {

@@ -108,6 +108,8 @@ type Software struct {
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+
+	DisplayName string `json:"display_name"`
 }
 
 func (Software) AuthzType() string {
@@ -271,6 +273,8 @@ type SoftwareTitle struct {
 	// UpgradeCode is a GUID representing a related set of Windows software products. See
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// DisplayName is an end-user friendly name.
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -355,6 +359,7 @@ type SoftwareTitleListResult struct {
 	// UpgradeCode is a GUID representing a related set of Windows software products. See
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	DisplayName string  `json:"display_name" db:"display_name"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -420,6 +425,22 @@ type HostSoftwareEntry struct {
 	// host_software_installed_paths table.
 	InstalledPaths           []string                   `json:"installed_paths"`
 	PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+}
+
+// MarshalJSON implements custom JSON marshaling for HostSoftwareEntry to ensure
+// all fields (both from embedded Software and the additional fields) are marshaled
+func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
+	hse.populateBrowserField()
+	type Alias Software
+	return json.Marshal(&struct {
+		*Alias
+		InstalledPaths           []string                   `json:"installed_paths"`
+		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+	}{
+		Alias:                    (*Alias)(&hse.Software),
+		InstalledPaths:           hse.InstalledPaths,
+		PathSignatureInformation: hse.PathSignatureInformation,
+	})
 }
 
 type PathSignatureInformation struct {

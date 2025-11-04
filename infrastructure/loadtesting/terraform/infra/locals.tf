@@ -2,6 +2,7 @@ locals {
   customer    = "fleet-${terraform.workspace}"
   prefix      = "fleet-${terraform.workspace}"
   fleet_image = "${aws_ecr_repository.fleet.repository_url}:${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+
   # Tracing configuration - either OTEL or Elastic APM
   otel_environment_variables = var.enable_otel ? {
     OTEL_SERVICE_NAME               = terraform.workspace
