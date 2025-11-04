@@ -1613,6 +1613,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 		"team_id": null, "self_service": false, "software_title_id": %d}`, titleID)
 	s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
+	// Add certificate authentication for iPhone
 	iosHost, err := s.ds.Host(ctx, iosHost.ID)
 	require.NoError(t, err)
 	certSerial := uint64(123456789)
