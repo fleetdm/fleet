@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium._
 
-Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/docs/configuration/yaml-files#variables) or criteria for labels.
+Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/docs/configuration/yaml-files#variables) or criteria for [labels](https://fleetdm.com/guides/managing-labels-in-fleet).
 
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as any other IdP that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
