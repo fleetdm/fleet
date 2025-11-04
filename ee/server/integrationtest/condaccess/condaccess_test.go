@@ -94,8 +94,8 @@ func testGetCACert(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Verify CA certificate attributes
-	assert.Equal(t, "Fleet Conditional Access CA", cert.Subject.CommonName)
-	assert.Contains(t, cert.Subject.Organization, "Local Certificate Authority")
+	assert.Equal(t, "Fleet conditional access CA", cert.Subject.CommonName)
+	assert.Contains(t, cert.Subject.Organization, "Local certificate authority")
 	assert.True(t, cert.IsCA)
 
 	// Verify RSA key

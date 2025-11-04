@@ -22,10 +22,9 @@ import (
 )
 
 const (
-	idpMetadataPath    = "/api/fleet/conditional_access/idp/metadata"
-	idpSSOPath         = "/api/fleet/conditional_access/idp/sso"
-	idpSigningCertPath = "/api/fleet/conditional_access/idp/signing_cert"
-	idpSSOPrefix       = "okta."
+	idpMetadataPath = "/api/fleet/conditional_access/idp/metadata"
+	idpSSOPath      = "/api/fleet/conditional_access/idp/sso"
+	idpSSOPrefix    = "okta."
 )
 
 // idpService implements the Okta conditional access IdP functionality.
@@ -53,11 +52,9 @@ func RegisterIdP(
 	// Register handlers with OpenTelemetry middleware
 	metadataHandler := otel.WrapHandler(http.HandlerFunc(svc.serveMetadata), idpMetadataPath, *fleetConfig)
 	ssoHandler := otel.WrapHandler(http.HandlerFunc(svc.serveSSO), idpSSOPath, *fleetConfig)
-	signingCertHandler := otel.WrapHandler(http.HandlerFunc(svc.serveSigningCert), idpSigningCertPath, *fleetConfig)
 
 	mux.Handle(idpMetadataPath, metadataHandler)
 	mux.Handle(idpSSOPath, ssoHandler)
-	mux.Handle(idpSigningCertPath, signingCertHandler)
 
 	return nil
 }
@@ -99,13 +96,6 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 // Handles SAML AuthnRequest from Okta, verifies device certificate and health.
 func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	s.logger.Log("msg", "SSO endpoint called (not yet implemented)")
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
-}
-
-// serveSigningCert handles GET /api/fleet/conditional_access/idp/signing_cert
-// Returns the public signing certificate for Okta to verify SAML assertions.
-func (s *idpService) serveSigningCert(w http.ResponseWriter, r *http.Request) {
-	s.logger.Log("msg", "signing cert endpoint called (not yet implemented)")
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 

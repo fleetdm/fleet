@@ -31,6 +31,11 @@ func TestRegisterIdP(t *testing.T) {
 		}, nil
 	}
 
+	// Mock GetAllMDMConfigAssetsByName to return empty map (no certificates)
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
+	}
+
 	mux := http.NewServeMux()
 	err := RegisterIdP(mux, ds, logger, cfg)
 	require.NoError(t, err)
@@ -52,13 +57,6 @@ func TestRegisterIdP(t *testing.T) {
 		require.Equal(t, http.StatusNotImplemented, w.Code)
 	})
 
-	t.Run("signing cert endpoint registered", func(t *testing.T) {
-		req := httptest.NewRequest("GET", idpSigningCertPath, nil)
-		w := httptest.NewRecorder()
-		mux.ServeHTTP(w, req)
-		// Should return 501 Not Implemented (handler stub)
-		require.Equal(t, http.StatusNotImplemented, w.Code)
-	})
 }
 
 func TestRegisterIdP_NilConfig(t *testing.T) {
@@ -439,6 +437,7 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 	})
 
 	t.Run("returns error when no certificate", func(t *testing.T) {
+		// nolint:gosec,G101
 		onlyKey := `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAhL8AyvTQZUtMdae59NmD2xaMmESQRrAuhJG0w9mElE+L/ysq
 wqTR+JgrpgoemJj6IviSV7Q0dUwBCGTq8LjCaJoozLyIRnEkHaBYs79eTpv5VprU
