@@ -943,7 +943,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		// Refresh host to get UUID
 		data.host, err = s.ds.Host(context.Background(), data.host.ID)
 		require.NoError(t, err)
-		fmt.Println("hooooooost uuid: ", data.host.UUID)
 
 		// Trigger install to the device
 		headers := map[string]string{
