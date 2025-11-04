@@ -1365,6 +1365,11 @@ the way that the Fleet server works.
 					if err = condaccess.RegisterSCEP(rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup conditional access SCEP")
 					}
+
+					// Conditional Access IdP (Okta)
+					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access IdP")
+					}
 				} else {
 					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
 				}
