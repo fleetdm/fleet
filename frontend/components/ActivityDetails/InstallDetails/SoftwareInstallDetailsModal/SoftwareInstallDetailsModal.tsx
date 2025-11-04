@@ -261,6 +261,10 @@ export const SoftwareInstallDetailsModal = ({
   const renderInstallDetailsSection = () => {
     const outputs = [
       {
+        label: "Pre-install query output:",
+        value: swInstallResult?.pre_install_query_output,
+      },
+      {
         label: "Install script output:",
         value: swInstallResult?.output,
       },
