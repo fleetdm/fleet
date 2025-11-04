@@ -1199,14 +1199,13 @@ const HostDetailsPage = ({
                   className={fullWidthCardClass}
                 />
                 <AboutCard
-                  className={fullWidthCardClass}
+                  className={defaultCardClass}
                   aboutData={aboutData}
                   munki={macadmins?.munki}
                   mdm={mdm}
                 />
                 <UserCard
                   className={defaultCardClass}
-                  platform={host.platform}
                   endUsers={host.end_users ?? []}
                   enableAddEndUser={
                     isDarwinHost &&
