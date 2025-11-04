@@ -21754,3 +21754,214 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		0,
 	)
 }
+
+func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create an iOS host enrolled in MDM
+	iosHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ios-test-host"),
+		NodeKey:         ptr.String("ios-test-node-key"),
+		UUID:            "ios-test-uuid-12345",
+		Hostname:        "ios-test-device",
+		Platform:        "ios",
+	})
+	require.NoError(t, err)
+
+	// Create a macOS host for backward compatibility testing
+	macHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("mac-test-host"),
+		NodeKey:         ptr.String("mac-test-node-key"),
+		UUID:            "mac-test-uuid-67890",
+		Hostname:        "mac-test-device",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Create device token for macOS host (traditional token-based auth)
+	macToken := "valid-mac-token"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, macHost.ID, macToken)
+		return err
+	})
+
+	// Insert a host identity certificate for the iOS host
+	certSerial := uint64(123456789)
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, certSerial)
+		if err != nil {
+			return err
+		}
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO host_identity_scep_certificates
+			(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`,
+			certSerial,
+			iosHost.ID,
+			iosHost.UUID,
+			time.Now().Add(-24*time.Hour),
+			time.Now().Add(365*24*time.Hour),
+			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			[]byte{0x04},
+			false,
+		)
+		return err
+	})
+
+	t.Run("iOS device with valid certificate", func(t *testing.T) {
+		var getHostResp getDeviceHostResponse
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, iosHost.ID, getHostResp.Host.ID)
+		require.Equal(t, iosHost.UUID, getHostResp.Host.UUID)
+		require.Equal(t, "ios", getHostResp.Host.Platform)
+	})
+
+	t.Run("iOS device without certificate header", func(t *testing.T) {
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized)
+		res.Body.Close()
+	})
+
+	t.Run("iOS device with wrong certificate serial", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "999999999",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	// Ensures token-based auth still works for macOS (backward compatibility)
+	t.Run("macOS device with token auth", func(t *testing.T) {
+		var getHostResp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macToken), nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, macHost.ID, getHostResp.Host.ID)
+		require.Equal(t, "darwin", getHostResp.Host.Platform)
+	})
+
+	t.Run("multiple endpoints with certificate auth", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
+		}
+
+		res := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/refetch", iosHost.UUID), nil, http.StatusOK, headers)
+		res.Body.Close()
+
+		var getHostResp getDeviceHostResponse
+		res = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.True(t, getHostResp.Host.RefetchRequested)
+
+		res = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s/transparency", iosHost.UUID), nil, http.StatusTemporaryRedirect, headers)
+		res.Body.Close()
+	})
+
+	t.Run("iPadOS device with certificate", func(t *testing.T) {
+		ipadHost, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("ipad-test-host"),
+			NodeKey:         ptr.String("ipad-test-node-key"),
+			UUID:            "ipad-test-uuid-11111",
+			Hostname:        "ipad-test-device",
+			Platform:        "ipados",
+		})
+		require.NoError(t, err)
+
+		ipadCertSerial := uint64(987654321)
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, ipadCertSerial)
+			if err != nil {
+				return err
+			}
+			_, err = db.ExecContext(ctx, `
+				INSERT INTO host_identity_scep_certificates
+				(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`,
+				ipadCertSerial,
+				ipadHost.ID,
+				ipadHost.UUID,
+				time.Now().Add(-24*time.Hour),
+				time.Now().Add(365*24*time.Hour),
+				"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+				[]byte{0x04},
+				false,
+			)
+			return err
+		})
+
+		var getHostResp getDeviceHostResponse
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", ipadCertSerial),
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", ipadHost.UUID), nil, http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, ipadHost.ID, getHostResp.Host.ID)
+		require.Equal(t, "ipados", getHostResp.Host.Platform)
+	})
+
+	t.Run("certificate for wrong host", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("invalid cert serial format - non-numeric", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "invalid-format",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("invalid cert serial format - negative number", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "-12345",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("cert serial zero should fail cert auth", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Client-Cert-Serial": "0",
+		}
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
+		res.Body.Close()
+	})
+
+	t.Run("iOS device with token auth should be rejected", func(t *testing.T) {
+		// Create a device token for the iOS host
+		iosToken := "ios-device-token"
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, iosHost.ID, iosToken)
+			return err
+		})
+
+		// Attempt to use token auth (no cert header) - should be rejected
+		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosToken), nil, http.StatusUnauthorized)
+		res.Body.Close()
+	})
+}
