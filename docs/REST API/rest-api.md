@@ -589,7 +589,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [List certificates](#list-certificates)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
-- [Get certificate](#get-certificate-2)
+- [Get certificate](#get-certificate)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Delete certificate](#delete-certificate)
 - [Request certificate](#request-certificate)
