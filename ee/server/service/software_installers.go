@@ -2378,10 +2378,10 @@ func (svc *Service) softwareBatchUpload(
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
 		return
 	}
-	// if err := svc.ds.BatchSetInHouseAppsInstallers(ctx, teamID, inHouseInstallers); err != nil {
-	// 	batchErr = fmt.Errorf("batch set in-house apps installers: %w", err)
-	// 	return
-	// }
+	if err := svc.ds.BatchSetInHouseAppsInstallers(ctx, teamID, inHouseInstallers); err != nil {
+		batchErr = fmt.Errorf("batch set in-house apps installers: %w", err)
+		return
+	}
 
 	// Note: per @noahtalerman we don't want activity items for CLI actions
 	// anymore, so that's intentionally skipped.

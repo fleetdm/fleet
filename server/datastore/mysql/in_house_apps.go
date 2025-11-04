@@ -292,13 +292,13 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 	}
 	var installs []ipaInstall
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &installs, `
-		SELECT 
-			host_id, 
-			command_uuid 
-		FROM 
-			host_in_house_software_installs 
-		WHERE 
-			in_house_app_id = ? AND 
+		SELECT
+			host_id,
+			command_uuid
+		FROM
+			host_in_house_software_installs
+		WHERE
+			in_house_app_id = ? AND
 			canceled = 0 AND
 			verification_at IS NULL AND
 			verification_failed_at IS NULL
@@ -661,4 +661,767 @@ WHERE
 	}
 
 	return user, act, nil
+}
+
+func (ds *Datastore) BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	// TODO(mna): implement all this for in-house apps...
+	return nil
+
+	const upsertSoftwareTitles = `
+INSERT INTO software_titles
+  (name, source, extension_for, bundle_identifier)
+VALUES
+  %s
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  source = VALUES(source),
+  extension_for = VALUES(extension_for),
+  bundle_identifier = VALUES(bundle_identifier)
+`
+
+	const loadSoftwareTitles = `
+SELECT
+  id
+FROM
+  software_titles
+WHERE (unique_identifier, source, extension_for) IN (%s)
+`
+
+	const unsetAllInstallersFromPolicies = `
+UPDATE
+  policies
+SET
+  software_installer_id = NULL
+WHERE
+  team_id = ?
+`
+
+	const deleteAllPendingUninstallScriptExecutions = `
+		DELETE FROM host_script_results WHERE execution_id IN (
+			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
+			AND software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+			)
+		)
+`
+
+	const cancelSetupExperienceStatusForAllDeletedPendingSoftwareInstalls = `
+UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
+	  SELECT execution_id FROM host_software_installs hsi INNER JOIN software_installers si ON hsi.software_installer_id=si.id
+	  WHERE hsi.status IN ('pending_install', 'pending_uninstall') AND si.global_or_team_id = ?
+	UNION
+	  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+	  INNER JOIN software_installers si ON siua.software_installer_id=si.id
+	  WHERE ua.activity_type IN ('software_install', 'software_uninstall') AND si.global_or_team_id = ?
+)
+`
+
+	const deleteAllPendingSoftwareInstallsHSI = `
+		DELETE FROM host_software_installs
+		WHERE status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+
+	const loadAffectedHostsPendingSoftwareInstallsUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua
+			ON ua.id = siua.upcoming_activity_id
+		WHERE
+			ua.activity_type IN ('software_install', 'software_uninstall') AND
+			ua.activated_at IS NOT NULL AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+
+	const deleteAllPendingSoftwareInstallsUA = `
+		DELETE FROM upcoming_activities
+		USING upcoming_activities
+		INNER JOIN software_install_upcoming_activities siua
+			ON upcoming_activities.id = siua.upcoming_activity_id
+		WHERE
+			activity_type IN ('software_install', 'software_uninstall') AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+	const markAllSoftwareInstallsAsRemoved = `
+		UPDATE host_software_installs SET removed = TRUE
+		WHERE status IS NOT NULL AND host_deleted_at IS NULL
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+
+	const deleteAllInstallersInTeam = `
+DELETE FROM
+  software_installers
+WHERE
+  global_or_team_id = ?
+`
+
+	const deletePendingUninstallScriptExecutionsNotInList = `
+		DELETE FROM host_script_results WHERE execution_id IN (
+			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
+			AND software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
+		)
+`
+
+	const cancelSetupExperienceStatusForDeletedSoftwareInstalls = `
+		UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
+			  SELECT execution_id FROM host_software_installs hsi INNER JOIN software_installers si ON hsi.software_installer_id=si.id
+			  WHERE hsi.status IN ('pending_install', 'pending_uninstall') AND si.global_or_team_id = ? AND si.title_id NOT IN (?)
+			UNION
+			  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+			  INNER JOIN software_installers si ON siua.software_installer_id=si.id
+			  WHERE ua.activity_type IN ('software_install', 'software_uninstall') AND si.global_or_team_id = ? AND si.title_id NOT IN (?)
+		)
+	`
+
+	const deletePendingSoftwareInstallsNotInListHSI = `
+		DELETE FROM host_software_installs
+		WHERE status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+		)
+`
+
+	const loadAffectedHostsPendingSoftwareInstallsNotInListUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua
+			ON ua.id = siua.upcoming_activity_id
+		WHERE
+			ua.activity_type IN ('software_install', 'software_uninstall') AND
+			ua.activated_at IS NOT NULL AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
+`
+
+	const deletePendingSoftwareInstallsNotInListUA = `
+		DELETE FROM upcoming_activities
+		USING upcoming_activities
+		INNER JOIN software_install_upcoming_activities siua
+			ON upcoming_activities.id = siua.upcoming_activity_id
+		WHERE
+			activity_type IN ('software_install', 'software_uninstall') AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
+`
+	const markSoftwareInstallsNotInListAsRemoved = `
+		UPDATE host_software_installs SET removed = TRUE
+			WHERE status IS NOT NULL AND host_deleted_at IS NULL
+				AND software_installer_id IN (
+					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			   )
+`
+
+	const unsetInstallersNotInListFromPolicies = `
+UPDATE
+  policies
+SET
+  software_installer_id = NULL
+WHERE
+  software_installer_id IN (
+    SELECT id FROM software_installers
+    WHERE global_or_team_id = ? AND
+    title_id NOT IN (?)
+  )
+`
+
+	const countInstallDuringSetupNotInList = `
+SELECT
+  COUNT(*)
+FROM
+  software_installers
+WHERE
+  global_or_team_id = ? AND
+  title_id NOT IN (?) AND
+  install_during_setup = 1
+`
+
+	const deleteInstallersNotInList = `
+DELETE FROM
+  software_installers
+WHERE
+  global_or_team_id = ? AND
+  title_id NOT IN (?)
+`
+
+	const checkExistingInstaller = `
+SELECT
+	id,
+	storage_id != ? is_package_modified,
+	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
+	COALESCE(post_install_script_content_id != ? OR
+		(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
+		(? IS NULL AND post_install_script_content_id IS NOT NULL)
+	, FALSE) is_metadata_modified
+FROM
+	software_installers
+WHERE
+	global_or_team_id = ?	AND
+	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+`
+
+	const insertNewOrEditedInstaller = `
+INSERT INTO software_installers (
+	team_id,
+	global_or_team_id,
+	storage_id,
+	filename,
+	extension,
+	version,
+	install_script_content_id,
+	uninstall_script_content_id,
+	pre_install_query,
+	post_install_script_content_id,
+	platform,
+	self_service,
+	upgrade_code,
+	title_id,
+	user_id,
+	user_name,
+	user_email,
+	url,
+	package_ids,
+	install_during_setup,
+	fleet_maintained_app_id
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
+  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
+)
+ON DUPLICATE KEY UPDATE
+  install_script_content_id = VALUES(install_script_content_id),
+  uninstall_script_content_id = VALUES(uninstall_script_content_id),
+  post_install_script_content_id = VALUES(post_install_script_content_id),
+  storage_id = VALUES(storage_id),
+  filename = VALUES(filename),
+  extension = VALUES(extension),
+  version = VALUES(version),
+  pre_install_query = VALUES(pre_install_query),
+  platform = VALUES(platform),
+  self_service = VALUES(self_service),
+  upgrade_code = VALUES(upgrade_code),
+  user_id = VALUES(user_id),
+  user_name = VALUES(user_name),
+  user_email = VALUES(user_email),
+  url = VALUES(url),
+  install_during_setup = COALESCE(?, install_during_setup)
+`
+
+	const loadSoftwareInstallerID = `
+SELECT
+	id
+FROM
+	software_installers
+WHERE
+	global_or_team_id = ?	AND
+	-- this is guaranteed to select a single title_id, due to unique index
+	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+`
+
+	const deleteInstallerLabelsNotInList = `
+DELETE FROM
+	software_installer_labels
+WHERE
+	software_installer_id = ? AND
+	label_id NOT IN (?)
+`
+
+	const deleteAllInstallerLabels = `
+DELETE FROM
+	software_installer_labels
+WHERE
+	software_installer_id = ?
+`
+
+	const upsertInstallerLabels = `
+INSERT INTO
+	software_installer_labels (
+		software_installer_id,
+		label_id,
+		exclude
+	)
+VALUES
+	%s
+ON DUPLICATE KEY UPDATE
+	exclude = VALUES(exclude)
+`
+
+	const loadExistingInstallerLabels = `
+SELECT
+	label_id,
+	exclude
+FROM
+	software_installer_labels
+WHERE
+	software_installer_id = ?
+`
+
+	const deleteAllInstallerCategories = `
+DELETE FROM
+	software_installer_software_categories
+WHERE
+	software_installer_id = ?
+`
+
+	const deleteInstallerCategoriesNotInList = `
+DELETE FROM
+	software_installer_software_categories
+WHERE
+	software_installer_id = ? AND
+	software_category_id NOT IN (?)
+`
+
+	const upsertInstallerCategories = `
+INSERT IGNORE INTO
+	software_installer_software_categories (
+		software_installer_id,
+		software_category_id
+	)
+VALUES
+	%s
+`
+
+	// use a team id of 0 if no-team
+	var globalOrTeamID uint
+	teamName := fleet.TeamNameNoTeam
+	if tmID != nil {
+		globalOrTeamID = *tmID
+		tm, err := ds.Team(ctx, *tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
+		}
+		teamName = tm.Name
+	}
+
+	// if we're batch-setting installers and replacing the ones installed during
+	// setup in the same go, no need to validate that we don't delete one marked
+	// as install during setup (since we're overwriting those). This is always
+	// called from fleetctl gitops, so it should always be the case anyway.
+	var replacingInstallDuringSetup bool
+	if len(installers) == 0 || installers[0].InstallDuringSetup != nil {
+		replacingInstallDuringSetup = true
+	}
+
+	var activateAffectedHostIDs []uint
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// if no installers are provided, just delete whatever was in
+		// the table
+		if len(installers) == 0 {
+			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
+			}
+
+			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
+			}
+
+			if _, err := tx.ExecContext(ctx, cancelSetupExperienceStatusForAllDeletedPendingSoftwareInstalls, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning,
+				globalOrTeamID, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs")
+			}
+
+			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
+			}
+
+			var affectedHostIDs []uint
+			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs,
+				loadAffectedHostsPendingSoftwareInstallsUA, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming software installs")
+			}
+			activateAffectedHostIDs = affectedHostIDs
+
+			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsUA, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all upcoming pending host software install records")
+			}
+
+			if _, err := tx.ExecContext(ctx, markAllSoftwareInstallsAsRemoved, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "mark all host software installs as removed")
+			}
+
+			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+			}
+
+			return nil
+		}
+
+		var args []any
+		for _, installer := range installers {
+			// check for installers that target macOS if any package installer is
+			// associated with a software title that already has a VPP app for the same
+			// platform (if that platform is macOS), then this is a conflict.
+			// See https://github.com/fleetdm/fleet/issues/32082
+			if installer.Platform == string(fleet.MacOSPlatform) {
+				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, installer.BundleIdentifier, installer.Source, "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check existing VPP app for installer title identifier")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+							installer.Title, teamName),
+					}, "vpp app conflicts with existing software installer")
+				}
+			}
+
+			args = append(
+				args,
+				installer.Title,
+				installer.Source,
+				"",
+				func() *string {
+					if strings.TrimSpace(installer.BundleIdentifier) != "" {
+						return &installer.BundleIdentifier
+					}
+					return nil
+				}(),
+			)
+		}
+
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?,?,?),", len(installers)),
+			",",
+		)
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert new/edited software title")
+		}
+
+		var titleIDs []uint
+		args = []any{}
+		for _, installer := range installers {
+			args = append(
+				args,
+				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
+				installer.Source,
+				"",
+			)
+		}
+		values = strings.TrimSuffix(
+			strings.Repeat("(?,?,?),", len(installers)),
+			",",
+		)
+
+		if err := sqlx.SelectContext(ctx, tx, &titleIDs, fmt.Sprintf(loadSoftwareTitles, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "load existing titles")
+		}
+
+		stmt, args, err := sqlx.In(unsetInstallersNotInListFromPolicies, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete installers from policies")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		}
+
+		// check if any in the list are install_during_setup, fail if there is one
+		if !replacingInstallDuringSetup {
+			stmt, args, err = sqlx.In(countInstallDuringSetupNotInList, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to check installers install_during_setup")
+			}
+			var countInstallDuringSetup int
+			if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "check installers installed during setup")
+			}
+			if countInstallDuringSetup > 0 {
+				return errDeleteInstallerInstalledDuringSetup
+			}
+		}
+
+		stmt, args, err = sqlx.In(deletePendingUninstallScriptExecutionsNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete pending uninstall script executions")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
+		}
+
+		stmt, args, err = sqlx.In(cancelSetupExperienceStatusForDeletedSoftwareInstalls, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning,
+			globalOrTeamID, titleIDs, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to cancel pending setup experience software installs")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs for obsolete host software install records")
+		}
+
+		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
+		}
+
+		stmt, args, err = sqlx.In(loadAffectedHostsPendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to load affected hosts for upcoming software installs")
+		}
+		var affectedHostIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming software installs")
+		}
+		activateAffectedHostIDs = affectedHostIDs
+
+		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete upcoming pending software installs")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete upcoming pending host software install records")
+		}
+
+		stmt, args, err = sqlx.In(markSoftwareInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to mark obsolete host software installs as removed")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
+		}
+
+		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		}
+
+		for _, installer := range installers {
+			if installer.ValidatedLabels == nil {
+				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
+			}
+
+			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
+			}
+			installScriptID, _ := isRes.LastInsertId()
+
+			uisRes, err := insertScriptContents(ctx, tx, installer.UninstallScript)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "inserting uninstall script contents for software installer with name %q", installer.Filename)
+			}
+			uninstallScriptID, _ := uisRes.LastInsertId()
+
+			var postInstallScriptID *int64
+			if installer.PostInstallScript != "" {
+				pisRes, err := insertScriptContents(ctx, tx, installer.PostInstallScript)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "inserting post-install script contents for software installer with name %q", installer.Filename)
+				}
+
+				insertID, _ := pisRes.LastInsertId()
+				postInstallScriptID = &insertID
+			}
+
+			wasUpdatedArgs := []interface{}{
+				// package update
+				installer.StorageID,
+				// metadata update
+				installScriptID,
+				uninstallScriptID,
+				installer.PreInstallQuery,
+				postInstallScriptID,
+				postInstallScriptID,
+				postInstallScriptID,
+				// WHERE clause
+				globalOrTeamID,
+				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
+				installer.Source,
+			}
+
+			// pull existing installer state if it exists so we can diff for side effects post-update
+			type existingInstallerUpdateCheckResult struct {
+				InstallerID        uint `db:"id"`
+				IsPackageModified  bool `db:"is_package_modified"`
+				IsMetadataModified bool `db:"is_metadata_modified"`
+			}
+			var existing []existingInstallerUpdateCheckResult
+			err = sqlx.SelectContext(ctx, tx, &existing, checkExistingInstaller, wasUpdatedArgs...)
+			if err != nil {
+				if !errors.Is(err, sql.ErrNoRows) {
+					return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
+				}
+			}
+
+			args := []interface{}{
+				tmID,
+				globalOrTeamID,
+				installer.StorageID,
+				installer.Filename,
+				installer.Extension,
+				installer.Version,
+				installScriptID,
+				uninstallScriptID,
+				installer.PreInstallQuery,
+				postInstallScriptID,
+				installer.Platform,
+				installer.SelfService,
+				installer.UpgradeCode,
+				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
+				installer.Source,
+				installer.UserID,
+				installer.UserID,
+				installer.UserID,
+				installer.URL,
+				strings.Join(installer.PackageIDs, ","),
+				installer.InstallDuringSetup,
+				installer.FleetMaintainedAppID,
+				installer.InstallDuringSetup,
+			}
+			upsertQuery := insertNewOrEditedInstaller
+			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
+				upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)
+			}
+
+			if _, err := tx.ExecContext(ctx, upsertQuery, args...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
+			}
+
+			// now that the software installer is created/updated, load its installer
+			// ID (cannot use res.LastInsertID due to the upsert statement, won't
+			// give the id in case of update)
+			var installerID uint
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source); err != nil {
+				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
+			}
+
+			// process the labels associated with that software installer
+			if len(installer.ValidatedLabels.ByName) == 0 {
+				// no label to apply, so just delete all existing labels if any
+				res, err := tx.ExecContext(ctx, deleteAllInstallerLabels, installerID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer labels for %s", installer.Filename)
+				}
+
+				if n, _ := res.RowsAffected(); n > 0 && len(existing) > 0 {
+					// if it did delete a row, then the target changed so pending
+					// installs/uninstalls must be deleted
+					existing[0].IsMetadataModified = true
+				}
+			} else {
+				// there are new labels to apply, delete only the obsolete ones
+				labelIDs := make([]uint, 0, len(installer.ValidatedLabels.ByName))
+				for _, lbl := range installer.ValidatedLabels.ByName {
+					labelIDs = append(labelIDs, lbl.LabelID)
+				}
+				stmt, args, err := sqlx.In(deleteInstallerLabelsNotInList, installerID, labelIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to delete installer labels not in list")
+				}
+
+				res, err := tx.ExecContext(ctx, stmt, args...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer labels not in list for %s", installer.Filename)
+				}
+				if n, _ := res.RowsAffected(); n > 0 && len(existing) > 0 {
+					// if it did delete a row, then the target changed so pending
+					// installs/uninstalls must be deleted
+					existing[0].IsMetadataModified = true
+				}
+
+				excludeLabels := installer.ValidatedLabels.LabelScope == fleet.LabelScopeExcludeAny
+				if len(existing) > 0 && !existing[0].IsMetadataModified {
+					// load the remaining labels for that installer, so that we can detect
+					// if any label changed (if the counts differ, then labels did change,
+					// otherwise if the exclude bool changed, the target did change).
+					var existingLabels []struct {
+						LabelID uint `db:"label_id"`
+						Exclude bool `db:"exclude"`
+					}
+					if err := sqlx.SelectContext(ctx, tx, &existingLabels, loadExistingInstallerLabels, installerID); err != nil {
+						return ctxerr.Wrapf(ctx, err, "load existing labels for installer with name %q", installer.Filename)
+					}
+
+					if len(existingLabels) != len(labelIDs) {
+						existing[0].IsMetadataModified = true
+					}
+					if len(existingLabels) > 0 && existingLabels[0].Exclude != excludeLabels {
+						// same labels are provided, but the include <-> exclude changed
+						existing[0].IsMetadataModified = true
+					}
+				}
+
+				// upsert the new labels now that obsolete ones have been deleted
+				var upsertLabelArgs []any
+				for _, lblID := range labelIDs {
+					upsertLabelArgs = append(upsertLabelArgs, installerID, lblID, excludeLabels)
+				}
+				upsertLabelValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(installer.ValidatedLabels.ByName)), ",")
+
+				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerLabels, upsertLabelValues), upsertLabelArgs...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert new/edited labels for installer with name %q", installer.Filename)
+				}
+			}
+
+			if len(installer.CategoryIDs) == 0 {
+				// delete all categories if there are any
+				_, err := tx.ExecContext(ctx, deleteAllInstallerCategories, installerID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer categories for %s", installer.Filename)
+				}
+			} else {
+				// there are new categories to apply, delete only the obsolete ones
+				stmt, args, err := sqlx.In(deleteInstallerCategoriesNotInList, installerID, installer.CategoryIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to delete installer categories not in list")
+				}
+
+				_, err = tx.ExecContext(ctx, stmt, args...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer categories not in list for %s", installer.Filename)
+				}
+
+				var upsertCategoriesArgs []any
+				for _, catID := range installer.CategoryIDs {
+					upsertCategoriesArgs = append(upsertCategoriesArgs, installerID, catID)
+				}
+				upsertCategoriesValues := strings.TrimSuffix(strings.Repeat("(?,?),", len(installer.CategoryIDs)), ",")
+				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerCategories, upsertCategoriesValues), upsertCategoriesArgs...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for installer with name %q", installer.Filename)
+				}
+			}
+
+			// perform side effects if this was an update (related to pending (un)install requests)
+			if len(existing) > 0 {
+				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(
+					ctx,
+					tx,
+					existing[0].InstallerID,
+					existing[0].IsMetadataModified,
+					existing[0].IsPackageModified,
+				)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
+				}
+				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
