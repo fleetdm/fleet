@@ -39,6 +39,7 @@ func TestVPP(t *testing.T) {
 		{"TestVPPTokenTeamAssignment", testVPPTokenTeamAssignment},
 		{"TestGetAllVPPApps", testGetAllVPPApps},
 		{"TestGetUnverifiedVPPInstallsForHost", testGetUnverifiedVPPInstallsForHost},
+		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameVPP},
 	}
 
 	for _, c := range cases {
@@ -2088,4 +2089,128 @@ func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Len(t, x, step.after)
 	}
+}
+
+func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	titleID := va1.TitleID
+
+	// Display name is empty by default
+	titles, _, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Empty(t, titles[0].DisplayName)
+
+	title, err := ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, title.DisplayName)
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+			DisplayName: "vpp_update1",
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	// Display name entry should be in join table
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		type result struct {
+			DisplayName     string `db:"display_name"`
+			SoftwareTitleID uint   `db:"software_title_id"`
+			TeamID          uint   `db:"team_id"`
+		}
+		var r []result
+
+		err := sqlx.SelectContext(ctx, q, &r, "SELECT display_name, software_title_id, team_id FROM software_title_display_names")
+		require.NoError(t, err)
+
+		assert.Len(t, r, 1)
+		assert.Equal(t, r[0], result{"vpp_update1", titleID, 0})
+		return nil
+	})
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, "vpp_update1", titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "vpp_update1", title.DisplayName)
+
+	// Update the display name again, should see the change
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+			DisplayName: "vpp_update2",
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, "vpp_update2", titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "vpp_update2", title.DisplayName)
+
+	// Update display name to be empty
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Empty(t, titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, title.DisplayName)
 }

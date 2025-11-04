@@ -241,6 +241,7 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		"source": "chrome_extensions",
 		"extension_id": "test-extension-id",
 		"extension_for": "chrome",
+		"display_name": "",
 		"browser": "chrome",
 		"release": "1",
 		"vendor": "Test Vendor",

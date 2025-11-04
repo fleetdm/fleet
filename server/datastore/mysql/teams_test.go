@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"testing"
@@ -107,8 +108,79 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			// Add a bunch of data into tables with team IDs that should be cleared when team is deleted
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				res, err := q.ExecContext(context.Background(), fmt.Sprintf(`INSERT INTO software_titles (name, source) VALUES ('MyCoolApp_%s', 'apps')`, tt.name))
+				if err != nil {
+					return err
+				}
+				titleID, _ := res.LastInsertId()
+				_, err = q.ExecContext(
+					context.Background(),
+					`INSERT INTO
+					      mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum)
+				     VALUES (?, ?, ?, ?, ?, ?)`,
+					fmt.Sprintf("uuid_%s", tt.name),
+					0,
+					fmt.Sprintf("TestPayloadIdentifier_%s", tt.name),
+					fmt.Sprintf("TestPayloadName_%s", tt.name),
+					`<?xml version="1.0"`,
+					[]byte("test"),
+				)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(context.Background(), `
+								  INSERT INTO
+								      mdm_windows_configuration_profiles (team_id, name, syncml, profile_uuid)
+								  VALUES (?, ?, ?, ?)`, 0, fmt.Sprintf("TestPayloadName_%s", tt.name), `<?xml version="1.0"`, fmt.Sprintf("uuid_%s", tt.name))
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(context.Background(), `
+								  INSERT INTO
+								      mdm_android_configuration_profiles (profile_uuid, team_id, name, raw_json)
+								  VALUES (?, ?, ?, ?)`, fmt.Sprintf("uuid_%s", tt.name), 0, fmt.Sprintf("TestPayloadName_%s", tt.name), `{"foo": "bar"}`)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?)",
+					team.ID,
+					titleID,
+					"delete_test",
+				)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename) VALUES (?, ?, ?, ?)",
+					team.ID,
+					titleID,
+					"delete_test",
+					"delete_test.png",
+				)
+
+				return err
+			})
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
+
+			// Check that related tables were cleared
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				for _, table := range teamRefs {
+					var count int
+					err := sqlx.GetContext(context.Background(), q, &count, fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE team_id = ?`, table), team.ID)
+					if err != nil {
+						return err
+					}
+					assert.Zero(t, count)
+				}
+				return nil
+			})
 
 			newP, err := ds.Pack(context.Background(), p.ID)
 			require.NoError(t, err)

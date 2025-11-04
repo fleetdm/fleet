@@ -1038,7 +1038,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Fleet configuration
 
-- [Get Fleet certificate](#get-certificate)
+- [Get Fleet certificate](#get-fleet-certificate)
 - [Get configuration](#get-configuration)
 - [Update configuration](#update-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)

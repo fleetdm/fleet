@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251027101151, Down_20251027101151)
+	MigrationClient.AddMigration(Up_20251028140200, Down_20251028140200)
 }
 
-func Up_20251027101151(tx *sql.Tx) error {
+func Up_20251028140200(tx *sql.Tx) error {
 	createTableStmt := `
 CREATE TABLE in_house_apps (
   id int unsigned NOT NULL AUTO_INCREMENT,
@@ -55,6 +55,6 @@ CREATE TABLE in_house_app_labels (
 	return nil
 }
 
-func Down_20251027101151(tx *sql.Tx) error {
+func Down_20251028140200(tx *sql.Tx) error {
 	return nil
 }
