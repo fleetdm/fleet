@@ -29,6 +29,19 @@ const (
 	idpSSOPrefix    = "okta."
 )
 
+// notFoundError implements fleet.NotFoundError interface for conditional access IdP errors.
+type notFoundError struct {
+	msg string
+}
+
+func (e *notFoundError) Error() string {
+	return e.msg
+}
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
 // idpService implements the Okta conditional access IdP functionality.
 type idpService struct {
 	ds     fleet.Datastore
@@ -83,7 +96,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build IdP
-	idp, err := s.buildIdentityProvider(ctx, appConfig, serverURL)
+	idp, err := s.buildIdentityProvider(ctx, serverURL)
 	if err != nil {
 		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -118,14 +131,54 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	// Look up host by certificate serial number
 	hostID, err := s.ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, serial)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "certificate not recognized", "serial", serial, "err", err)
-		http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+		if fleet.IsNotFound(err) {
+			level.Error(s.logger).Log("msg", "certificate not recognized", "serial", serial, "err", err)
+			http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+			return
+		}
+		level.Error(s.logger).Log("msg", "failed to lookup host by certificate serial", "serial", serial, "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// Phase 5 will continue here with SAML AuthnRequest parsing and device health checks
-	level.Info(s.logger).Log("msg", "SSO endpoint called - device authenticated", "host_id", hostID, "serial", serial)
-	http.Error(w, "Not fully implemented - Phase 5 pending", http.StatusNotImplemented)
+	// Load AppConfig for IdP configuration
+	appConfig, err := s.ds.AppConfig(ctx)
+	if err != nil {
+		level.Error(s.logger).Log("msg", "failed to load app config", "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Get Fleet server URL from config
+	serverURL := appConfig.ServerSettings.ServerURL
+	if serverURL == "" {
+		level.Error(s.logger).Log("msg", "server URL not configured")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Build IdP
+	idp, err := s.buildIdentityProvider(ctx, serverURL)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			level.Error(s.logger).Log("msg", "IdP certificate or key not found", "err", err)
+			http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+			return
+		}
+		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Set session provider to handle device health checks
+	idp.SessionProvider = &deviceHealthSessionProvider{
+		ds:     s.ds,
+		logger: s.logger,
+		hostID: hostID,
+	}
+
+	// ServeSSO handles SAML AuthnRequest parsing, generates assertion, and returns response
+	idp.ServeSSO(w, r)
 }
 
 // parseSerialNumber parses a certificate serial number from hex string to uint64.
@@ -144,8 +197,100 @@ func parseSerialNumber(serialStr string) (uint64, error) {
 	return serial, nil
 }
 
-// buildIdentityProvider creates a SAML IdentityProvider from AppConfig.
-func (s *idpService) buildIdentityProvider(ctx context.Context, appConfig *fleet.AppConfig, serverURL string) (*saml.IdentityProvider, error) {
+// deviceHealthSessionProvider implements saml.SessionProvider interface to handle
+// device health verification during SAML SSO flow.
+type deviceHealthSessionProvider struct {
+	ds     fleet.Datastore
+	logger kitlog.Logger
+	hostID uint
+}
+
+// GetSession is called by the SAML library to get session information for the SAML assertion.
+// It performs device health checks and returns appropriate session data or error.
+// The req parameter is currently unused but required by the saml.SessionProvider interface.
+func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest) *saml.Session {
+	_ = req // unused but required by interface
+	ctx := r.Context()
+
+	// Load host to get team ID
+	hostLite, err := p.ds.HostLite(ctx, p.hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			level.Error(p.logger).Log("msg", "host not found", "host_id", p.hostID, "err", err)
+			http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+			return nil
+		}
+		level.Error(p.logger).Log("msg", "failed to load host", "host_id", p.hostID, "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return nil
+	}
+
+	// Get policies configured for conditional access
+	teamID := uint(0)
+	if hostLite.TeamID != nil {
+		teamID = *hostLite.TeamID
+	}
+	conditionalAccessPolicyIDs, err := p.ds.GetPoliciesForConditionalAccess(ctx, teamID)
+	if err != nil {
+		level.Error(p.logger).Log("msg", "failed to get conditional access policies", "host_id", p.hostID, "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return nil
+	}
+
+	// Create a set of conditional access policy IDs for fast lookup
+	conditionalAccessPolicyIDsSet := make(map[uint]struct{}, len(conditionalAccessPolicyIDs))
+	for _, policyID := range conditionalAccessPolicyIDs {
+		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
+	}
+
+	// Create a minimal Host for ListPoliciesForHost (only ID is needed)
+	host := &fleet.Host{ID: p.hostID}
+
+	// Get all policies for the host
+	policies, err := p.ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		level.Error(p.logger).Log("msg", "failed to list policies for host", "host_id", p.hostID, "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return nil
+	}
+
+	// Check if device has failing conditional access policies
+	failingConditionalAccessCount := 0
+	for _, policy := range policies {
+		// Only check policies that are marked for conditional access
+		if _, isConditionalAccessPolicy := conditionalAccessPolicyIDsSet[policy.ID]; !isConditionalAccessPolicy {
+			continue
+		}
+		// Check if policy is failing
+		if policy.Response == "fail" {
+			failingConditionalAccessCount++
+		}
+	}
+
+	if failingConditionalAccessCount > 0 {
+		level.Debug(p.logger).Log(
+			"msg", "device has failing conditional access policies",
+			"host_id", p.hostID,
+			"failing_conditional_access_policies_count", failingConditionalAccessCount,
+		)
+		http.Redirect(w, r, "https://fleetdm.com/remediate", http.StatusSeeOther)
+		return nil
+	}
+
+	// Device is compliant - return session for SAML assertion
+	// The NameID should be unique per device. We use the host ID as the identifier.
+	level.Debug(p.logger).Log("msg", "device is compliant, generating SAML assertion", "host_id", p.hostID)
+	return &saml.Session{
+		NameID: fmt.Sprintf("host-%d", p.hostID),
+		// UserName can be used to identify the device in Okta
+		UserName: fmt.Sprintf("fleet-device-%d", p.hostID),
+		// Groups can be used for additional authorization in Okta if needed
+		Groups: []string{"fleet-managed"},
+	}
+}
+
+// buildIdentityProvider creates a SAML IdentityProvider using the Fleet server URL.
+func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string) (*saml.IdentityProvider, error) {
 	// Load Fleet's IdP certificate and key from mdm_config_assets
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetConditionalAccessIDPCert,
@@ -158,7 +303,9 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, appConfig *fleet
 	certAsset, certOK := assets[fleet.MDMAssetConditionalAccessIDPCert]
 	keyAsset, keyOK := assets[fleet.MDMAssetConditionalAccessIDPKey]
 	if !certOK || !keyOK {
-		return nil, ctxerr.New(ctx, "conditional access idp certificate or key not found in mdm_config_assets")
+		// Return NotFoundError so it can be properly handled as a configuration issue
+		// (redirect to error page) rather than an infrastructure error (500)
+		return nil, &notFoundError{msg: "conditional access idp certificate or key not found in mdm_config_assets"}
 	}
 
 	// Parse certificate and key
@@ -189,6 +336,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, appConfig *fleet
 	samlLogger := &kitlogAdapter{logger: kitlog.With(s.logger, "component", "saml-idp")}
 
 	// Build IdentityProvider
+	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device
 	idp := &saml.IdentityProvider{
 		Key:             key,
 		SignatureMethod: dsig.RSASHA256SignatureMethod,
@@ -196,7 +344,6 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, appConfig *fleet
 		Certificate:     cert,
 		MetadataURL:     *metadataURL,
 		SSOURL:          *ssoURL,
-		// SessionProvider and ServiceProviderProvider will be added in Phase 5
 	}
 
 	return idp, nil
