@@ -21753,4 +21753,51 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		"",
 		0,
 	)
+
+	// Test 9: Set configuration with multiple certificate blocks
+	// This tests that the validation logic properly handles multiple PEM-encoded certificates
+	// Use a second different certificate to simulate a real-world scenario (e.g., certificate chain)
+	secondValidCert := `-----BEGIN CERTIFICATE-----
+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
+-----END CERTIFICATE-----`
+	validCertMultiple := validCert + "\n" + secondValidCert
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCertMultiple), http.StatusOK)
+
+	// Verify the configuration is saved with multiple certificates
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.OktaCertificate.Valid)
+	assert.Equal(t, validCertMultiple, acResp.ConditionalAccess.OktaCertificate.Value)
 }
