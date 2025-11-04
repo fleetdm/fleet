@@ -89,7 +89,7 @@ require (
 	github.com/klauspost/compress v1.18.0
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.2.6
+	github.com/macadmins/osquery-extension v1.2.7
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0

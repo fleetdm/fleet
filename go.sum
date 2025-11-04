@@ -578,6 +578,7 @@ github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/macadmins/osquery-extension v1.2.6 h1:hs3+WdG97PGxu83m7LPQUt0HgkvXI/Xmic6ZO4Ta8XE=
 github.com/macadmins/osquery-extension v1.2.6/go.mod h1:RqmyokbNDR423yqPj8GqnRcYfjT2qQeWoTPq485tveg=
+github.com/macadmins/osquery-extension v1.2.7/go.mod h1:RqmyokbNDR423yqPj8GqnRcYfjT2qQeWoTPq485tveg=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/matryer/is v1.4.0 h1:sosSmIWwkYITGrxZ25ULNDeKiMNzFSr4V/eqBQP0PeE=
 github.com/matryer/is v1.4.0/go.mod h1:8I/i5uYgLzgsgEloJE1U6xx5HkBQpAZvepWuujKwMRU=
