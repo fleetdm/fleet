@@ -98,7 +98,7 @@ Note: this is not a full analysis of pain points, but rather a brief summary. Th
 - ✅ **Single database**: All contexts share one MySQL database for operational simplicity
 - ✅ **Joins across contexts allowed**: For read operations (queries, reports, dashboards)
 - ⚠️ **Joins indicate coupling**: Frequent cross-context joins suggest wrong boundaries
-- ✅ Consider materialized views or other approaches for complex cross-context queries
+- ✅ Consider views or other approaches for complex cross-context queries
 
 **Module communication:**
 - ✅ **Public APIs only**: Modules expose service interfaces; internal implementation is private
