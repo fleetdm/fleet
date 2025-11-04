@@ -7,6 +7,7 @@ import {
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import { HostPlatform, isAndroid } from "interfaces/platform";
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
@@ -15,6 +16,7 @@ export interface IEmptySoftwareTableProps {
   isSoftwareDisabled?: boolean;
   noSearchQuery?: boolean;
   installableSoftwareExists?: boolean;
+  platform?: HostPlatform;
 }
 
 const generateTypeText = (
@@ -38,6 +40,7 @@ const EmptySoftwareTable = ({
   isSoftwareDisabled,
   noSearchQuery,
   installableSoftwareExists,
+  platform,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const softwareTypeText = generateTypeText(
     tableName,
@@ -70,6 +73,11 @@ const EmptySoftwareTable = ({
       };
     }
 
+    let info = `Expecting to see ${softwareTypeText}? Check back later.`;
+    if (isAndroid(platform || "")) {
+      info = `${info} It may take up to 24 hours for Android to report the software.`;
+    }
+
     if (!isFiltered) {
       if (softwareFilter === "allSoftware") {
         if (installableSoftwareExists) {
@@ -80,14 +88,14 @@ const EmptySoftwareTable = ({
         }
         return {
           header: `No ${tableName} detected`,
-          info: `Expecting to see ${softwareTypeText}? Check back later.`,
+          info,
         };
       }
     }
 
     return {
       header: "No items match the current search criteria",
-      info: `Expecting to see ${softwareTypeText}? Check back later.`,
+      info,
     };
   };
 
