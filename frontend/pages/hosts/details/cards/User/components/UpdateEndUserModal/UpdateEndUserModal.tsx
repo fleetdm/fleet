@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 
 import { IHostEndUser } from "interfaces/host";
 
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -25,27 +27,42 @@ const UpdateEndUserModal = ({
   isUpdating,
   onExit,
 }: IUpdateEndUserModalProps) => {
+  // TODO - reconcile impliciation of multiple end users
   const userNameDisplayValues = generateUsernameValues(endUsers);
   const isEditing = userNameDisplayValues.length > 0;
+  const [idpUsername, setIdpUsername] = useState(
+    isEditing ? userNameDisplayValues[0] : ""
+  );
+
+  const onSave = () => {
+    onUpdate(idpUsername);
+  };
+
   const renderContent = () => {
     if (!isPremiumTier) {
       return <PremiumFeatureMessage />;
     }
-    const onSave = () => {
-      // TODO - call passed-in update with current form value
-    };
     return (
       <>
-        <div className={`${baseClass}__content`}>TODO</div>
-        <div className="modal-cta-wrap">
-          <Button
-            isLoading={isUpdating}
-            disabled={isUpdating}
-            onClick={onUpdate}
-          >
-            Save
-          </Button>
-        </div>
+        <form>
+          <InputField
+            label="Username (IdP)"
+            name="username_idp"
+            value={idpUsername}
+            onChange={(val: string) => setIdpUsername(val)}
+            helpText="This will be used to populate additional user data, e.g. full name and department."
+          />
+
+          <div className="modal-cta-wrap">
+            <Button
+              isLoading={isUpdating}
+              disabled={isUpdating}
+              onClick={onSave}
+            >
+              Save
+            </Button>
+          </div>
+        </form>
       </>
     );
   };
