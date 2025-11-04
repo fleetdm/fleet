@@ -93,7 +93,13 @@ module.exports = {
 
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
       // Retrieve the IAM policy for the created pubsub topic.
-      let newPubSubTopicIamPolicy = await sails.helpers.flow.build(async ()=>{
+      let tryCount = 0;
+      let newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
+        if (tryCount > 0) {
+          // Wait a bit before retrying
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        tryCount++;
         let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
           resource: fullPubSubTopicName,
         });
@@ -112,7 +118,13 @@ module.exports = {
 
       // Update the pubsub topic's IAM policy
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/setIamPolicy
-      await sails.helpers.flow.build(async ()=>{
+      tryCount = 0;
+      await sails.helpers.flow.build(async () => {
+        if (tryCount > 0) {
+          // Wait a bit before retrying
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        tryCount++;
         await pubsub.projects.topics.setIamPolicy({
           resource: fullPubSubTopicName,
           requestBody: {
