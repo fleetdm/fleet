@@ -15,7 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/google/uuid"
+	// "github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -919,43 +919,54 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ========================================================
 
 	type SSVPPTestData struct {
-		host     *fleet.Host
-		app      *fleet.VPPApp
-		device   *mdmtest.TestAppleMDMClient
-		platform string
-		uuid     string
-		titleID  uint
+		host       *fleet.Host
+		app        *fleet.VPPApp
+		device     *mdmtest.TestAppleMDMClient
+		platform   string
+		titleID    uint
+		certSerial uint64
 	}
 	// Edit iOS app to enable self service
 	require.NotZero(t, iosTitleID)
 	require.NotZero(t, ipadosTitleID)
+
 	updateAppResp := updateAppStoreAppResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", iosTitleID), &updateAppStoreAppRequest{TitleID: iosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", iosTitleID),
+		&updateAppStoreAppRequest{TitleID: iosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
 	updateAppResp = updateAppStoreAppResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", ipadosTitleID), &updateAppStoreAppRequest{TitleID: ipadosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", ipadosTitleID),
+		&updateAppStoreAppRequest{TitleID: ipadosTitleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
 
 	ssVppData := []SSVPPTestData{
-		{platform: "ios", uuid: "uuid-ios-test-111111", titleID: iosTitleID, app: iOSApp},
-		{platform: "ipados", uuid: "uuid-ipad-test-222222", titleID: ipadosTitleID, app: iPadOSApp}}
+		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(987654321)},
+		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)}}
 
 	for i, data := range ssVppData {
 		// Enroll device, add serial number to fake Apple server, and transfer to team
 		data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
+		// data.host.UUID = uuid.New().String()
+		// s.ds.UpdateHost(context.Background(), data.host)
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
 			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
 
-		// TODO(mna): until we have SCEP-based authentication for iDevices, cheat by
-		// inserting a token for that host so we can use the self-service API.
-		hostSecret := uuid.NewString()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, data.host.ID, hostSecret)
-			return err
-		})
+		// Refresh host to get UUID
+		data.host, err = s.ds.Host(context.Background(), data.host.ID)
+		require.NoError(t, err)
+		fmt.Println("hooooooost uuid: ", data.host.UUID)
 
 		// Trigger install to the device
-		data.host.UUID = data.uuid
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", hostSecret, data.titleID), nil, http.StatusAccepted)
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
+		}
+		s.addHostIdentityCertificate(data.host.ID, data.host.UUID, data.certSerial)
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysql.DumpTable(t, q, "hosts", "id", "hardware_model", "hardware_serial", "uuid")
+			mysql.DumpTable(t, q, "host_identity_scep_serials")
+			mysql.DumpTable(t, q, "host_identity_scep_certificates")
+			return nil
+		})
+		s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted, headers)
 
 		// Verify pending status
 		countResp = countHostsResponse{}
@@ -1210,6 +1221,35 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Len(t, listResp.Activities, 1)
 	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[0].Type)
 	require.Contains(t, string(*listResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+}
+
+func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostID uint, hostUUID string, certSerial uint64) {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Insert a host identity certificate for the iOS host
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, certSerial)
+		if err != nil {
+			return err
+		}
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO host_identity_scep_certificates
+			(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`,
+			certSerial,
+			hostID,
+			hostUUID,
+			time.Now().Add(-24*time.Hour),
+			time.Now().Add(365*24*time.Hour),
+			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			[]byte{0x04},
+			false,
+		)
+		return err
+	})
 }
 
 // for https://github.com/fleetdm/fleet/issues/32082
