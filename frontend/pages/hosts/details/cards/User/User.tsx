@@ -21,7 +21,6 @@ import {
   generateGroupsValues,
   generateOtherEmailsValues,
 } from "./helpers";
-import { write } from "fs";
 
 const baseClass = "user-card";
 
