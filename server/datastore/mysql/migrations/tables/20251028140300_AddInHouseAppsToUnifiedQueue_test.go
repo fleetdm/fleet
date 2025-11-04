@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20251027101155(t *testing.T) {
+func TestUp_20251028140300(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	hostID := insertHost(t, db, nil)
