@@ -485,6 +485,24 @@ func (svc *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
 	return nil
 }
 
+func (svc *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+
+	// Apple, Windows, or Android MDM configuration setting
+	if !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured && !appCfg.MDM.AndroidEnabledAndConfigured {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMDMNotConfigured
+	}
+
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Run Apple or Windows MDM Command
 ////////////////////////////////////////////////////////////////////////////////
