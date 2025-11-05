@@ -2074,24 +2074,22 @@ The value of the Content-Type header to use in [Kafka REST Proxy API calls](http
 ## NATS
 
 NATS subject configuration options (`nats_status_subject`, `nats_result_subject`,
-and `nats_audit_subject`) support dynamic routing using templates. Subjects can
-be constant strings or templates containing expressions enclosed in curly braces
-`{...}`.
+and `nats_audit_subject`) support dynamic subject generation using templates.
+Subjects can be constant strings, or templates containing expressions enclosed
+in curly braces (`{...}`).
 
-Expressions are evaluated using [expr](https://expr-lang.org/) and have access
-to the log data via the `log` variable. Fields can be accessed using dot
-notation (e.g., `log.name`, `log.decorations.hostname`). All of expr's standard
-library functions are available for processing values.
+Template expressions are evaluated using [expr](https://expr-lang.org/) and have
+access to the log data via the `log` variable. Fields can be accessed using dot
+notation, such as `log.name` and `log.decorations.hostname`.
 
-**Example log**
+**Example Log**
 ```json
 {
   "action": "snapshot",
   "decorations": {
     "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
-    "hostname": "webserver-01"
+    "hostname": "webserver"
   },
-  "hostIdentifier": "2d3b4dfc-9c1b-4617-ab07-c04dd3a754f0",
   "name": "pack/Global/process_events",
   "snapshot": [
     {"pid": "1234", "name": "nginx", "cmdline": "/usr/sbin/nginx"}
@@ -2099,12 +2097,12 @@ library functions are available for processing values.
 }
 ```
 
-**Example templates**
-| Description             | Template                                          | Result |
-|-------------------------|---------------------------------------------------|---------------------------------|
-| Route by hostname       | `results.{log.decorations.hostname}`              | `results.webserver-01`          |
-| Extract query name      | `results.{log.name \| split("/") \| last()}`      | `results.process_events`        |
-| Use action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver-01` |
+**Example Subject Templates**
+| Description         | Template                                          | Result                       |
+|---------------------|---------------------------------------------------|------------------------------|
+| Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
+| Extract query name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
+| Action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver` |
 
 ### nats_server
 
@@ -2170,7 +2168,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
 - `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
 
-Path to the NATS credentials file for authentication. Cannot be used together with `nats_nkey_file`.
+Path to the NATS [credentials file](https://docs.nats.io/using-nats/developer/connecting/creds) for authentication. Cannot be used together with `nats_nkey_file`.
 
 - Default value: none
 - Environment variable: `FLEET_NATS_CRED_FILE`
@@ -2186,7 +2184,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
 - `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
 
-Path to the NATS NKey seed file for authentication. Cannot be used together with `nats_cred_file`.
+Path to the NATS [NKey seed file](https://docs.nats.io/using-nats/developer/connecting/nkey) for authentication. Cannot be used together with `nats_cred_file`.
 
 - Default value: none
 - Environment variable: `FLEET_NATS_NKEY_FILE`

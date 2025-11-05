@@ -336,7 +336,7 @@ func newNatsTemplateRouter(sub string) *natsTemplateRouter {
 
 // Route returns the subject for a log.
 func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
-	// Acquire the lock to ensure thread safety for the parser and tag programs.
+	// Prevent concurrent access to the parser and tag programs.
 	r.Lock()
 	defer r.Unlock()
 
