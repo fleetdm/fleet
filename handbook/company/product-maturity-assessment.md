@@ -119,15 +119,15 @@ Fleet provides comprehensive device management across the entire device lifecycl
 | Activity feed | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
 | [Audit logs](https://fleetdm.com/docs/using-fleet/audit-logging) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
 | Custom dashboards | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| Real-time alerts |  |  |  |  |  |
-| Historical data analysis |  |  |  |  |  |
+| Real-time alerts | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
+| Historical data analysis | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
 | Compliance reporting | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
 
 ---
 
 ### Maintain
 
-**Stage lifecycle**: Core Capabilities Available
+**Stage lifecycle**: Production Ready
 
 **Analyst reports**
 
@@ -164,12 +164,10 @@ Fleet provides comprehensive device management across the entire device lifecycl
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
 | Remote wipe | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Device unenrollment |  |  |  |  |  |
-| Transfer ownership |  |  |  |  |  |
-| Reassignment workflows |  |  |  |  |  |
-| Offboarding audit trail |  |  |  |  |  |
+| Device unenrollment | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
+| Offboarding audit trail | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
 | Lock lost/stolen devices | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Activation lock management |  |  |  |  |  |
+| Activation lock management | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
 
 ---
 
@@ -205,15 +203,13 @@ Fleet provides comprehensive device management across the entire device lifecycl
 | Webhooks | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
 | SSO/SAML | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
 | Google Workspace Calendar | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Slack integration |  |  |  |  |  |
-| Jira integration |  |  |  |  |  |
-| Zendesk integration |  |  |  |  |  |
-| Splunk integration |  |  |  |  |  |
-| Datadog integration |  |  |  |  |  |
-| Terraform provider |  |  |  |  |  |
-| Zapier |  |  |  |  |  |
+| Slack integration | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
+| Jira integration | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
+| Zendesk integration | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
+| Splunk integration | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
+| Terraform provider | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
 | GitOps support | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** |
-| ServiceNow integration |  |  |  |  |  |
+| ServiceNow integration | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
 
 ---
 
@@ -225,15 +221,9 @@ Fleet provides comprehensive device management across the entire device lifecycl
 | :---- | :---- | :---- | :---- | :---- | :---- |
 | Self-managed deployment | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
 | Fleet cloud | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Docker deployment |  |  |  |  |  |
-| Kubernetes deployment |  |  |  |  |  |
-| High availability |  |  |  |  |  |
-| Auto-scaling |  |  |  |  |  |
-| Performance monitoring |  |  |  |  |  |
-| Disaster recovery |  |  |  |  |  |
-| Backup & Restore |  |  |  |  |  |
-| Multi-region support |  |  |  |  |  |
-| Multi-tenancy |  |  |  |  |  |
+| Docker deployment | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
+| Kubernetes deployment | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
+| Multi-tenancy | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
 
 ---
 
