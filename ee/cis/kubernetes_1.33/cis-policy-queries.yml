@@ -72,7 +72,28 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - 1.2.9 - v1.12 - Ensure that the admission control plugin EventRateLimit is set (Manual)
+  name: CIS - Ensure that the --cert-file and --key-file arguments are set as appropriate (Automated)
+  platform: linux
+  description: |
+    Configure TLS encryption for the etcd service.
+  resolution: |
+    Remediation:
+    By default, RKE2 generates cert and key files for etcd. These are located in /var/lib/rancher/rke2/server/tls/etcd/.
+     If this check fails, ensure that the configuration file /var/lib/rancher/rke2/server/db/etcd/config has not been modified to use custom cert and key files.
+  query: |
+    SELECT 1 AS success
+    FROM 
+        processes
+    WHERE 
+        name = 'etcd' AND cmdline LIKE '%--cert-file%' AND cmdline LIKE '%--key-file%';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: mccormickjw
+---
+apiVersion: v1
+kind: policy
+spec:
+ name: CIS - 1.2.9 - v1.12 - Ensure that the admission control plugin EventRateLimit is set (Manual)
   platforms: linux
   platform: linux
   description: |
