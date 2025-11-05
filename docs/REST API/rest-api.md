@@ -10760,7 +10760,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 
 _Available in Fleet Premium._
 
-Add App Store (VPP) app purchased in Apple Business Manager.
+Add Apple or Google App Store app. Apple apps must be added in Apple Business Manager (ABM) before adding them to Fleet.
 
 `POST /api/v1/fleet/software/app_store_apps`
 
@@ -10775,6 +10775,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | The Android Play Store app's [managed configuration](TODO) in JSON format. Currently only supported for Android.
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
