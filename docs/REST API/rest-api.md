@@ -26,18 +26,19 @@ This page includes a list of available resources and their API routes.
 
 ## Authentication
 
-- [Retrieve your API token](#retrieve-your-api-token)
+- [API tokens](#api-tokens)
 - [Log in](#log-in)
 - [Log out](#log-out)
-- [Forgot password](#forgot-password)
+- [Send password reset email](#send-password-reset-email)
 - [Update password](#update-password)
 - [Reset password](#reset-password)
-- [Me](#me)
-- [SSO config](#sso-config)
+- [Get me](#get-me)
+- [Update password (reset required)](#update-password-reset-required)
+- [Get SSO configuration](#get-sso-configuration)
 - [Initiate SSO](#initiate-sso)
 - [SSO callback](#sso-callback)
 
-### Retrieve your API token
+### API tokens
 
 All API requests to the Fleet server require API token authentication unless noted in the documentation. API tokens are tied to your Fleet user account.
 
@@ -167,7 +168,7 @@ Logs out the authenticated user.
 
 ---
 
-### Forgot password
+### Send password reset email
 
 Sends a password reset email to the specified email. Requires that SMTP or SES is configured for your Fleet server.
 
@@ -294,7 +295,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 ---
 
-### Me
+### Get me
 
 Retrieves the user data for the authenticated user.
 
@@ -335,7 +336,7 @@ Retrieves the user data for the authenticated user.
 
 ---
 
-### Perform required password reset
+### Update password (reset required)
 
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
@@ -377,7 +378,7 @@ Resets the password of the authenticated user. Requires that `force_password_res
 
 ---
 
-### SSO config
+### Get SSO configuration
 
 Gets the current SSO configuration.
 
