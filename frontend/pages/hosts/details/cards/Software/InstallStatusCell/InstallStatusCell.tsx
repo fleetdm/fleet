@@ -11,6 +11,7 @@ import {
   IAppLastInstall,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { isAndroid, isAppleDevice } from "interfaces/platform";
 import { Colors } from "styles/var/colors";
 
 import Icon from "components/Icon";
@@ -23,7 +24,6 @@ import {
   getLastInstall,
   getLastUninstall,
 } from "../../HostSoftwareLibrary/helpers";
-import { isAndroid, isAppleDevice } from "interfaces/platform";
 
 const baseClass = "install-status-cell";
 
