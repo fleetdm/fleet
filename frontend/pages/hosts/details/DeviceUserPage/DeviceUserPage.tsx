@@ -260,6 +260,11 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       onSuccess: ({ host: responseHost }) => {
+        // If we're just showing the setup screen,
+        // we don't need to refetch or alert on offline hosts.
+        if (location.query.setup_only) {
+          return;
+        }
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
@@ -526,6 +531,7 @@ const DeviceUserPage = ({
             false
           }
           toggleInfoModal={toggleInfoModal}
+          platform={host.platform}
         />
       );
     }
