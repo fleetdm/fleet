@@ -1056,9 +1056,9 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. Use `setup_experience` to initiate a web-based SSO login outside of the DEP flow. |
 | user_identifier | string | body | Passed by Apple for account-driven enrollment.
-| host_uuid | string | body | For Windows or Linux hosts, the hardware UUID of the device to enroll. Leave blank for macOS. 
+| host_uuid | string | body | The hardware UUID of the device to enroll when using the `setup_experience` value for `initiator`.
 
 #### Example
 
