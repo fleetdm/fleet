@@ -231,12 +231,17 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	// However, if the duplicate-by-hash is for the same title/source on the same team,
 	// let the DB unique (team,title) constraint surface the conflict (so tests expecting
 	// a 409 Conflict with "already exists" still pass).
+	//
+	// Special case for script packages (.sh/.ps1): Allow multiple scripts with the same
+	// content but different filenames on the same team, since the filename is part of
+	// the user experience and scripts are payload-free.
 	{
 		var tmID uint
 		if payload.TeamID != nil {
 			tmID = *payload.TeamID
 		}
-		teamsByHash, err := ds.GetTeamsWithInstallerByHash(ctx, payload.StorageID, payload.URL)
+		// Check duplicates by content hash only (ignore URL) to align with GitOps/apply rules.
+		teamsByHash, err := ds.GetTeamsWithInstallerByHash(ctx, payload.StorageID, "")
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "check duplicate installer by hash")
 		}
@@ -244,11 +249,19 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			// If the existing installer has the same title and source, allow the insert to proceed
 			// so that the existing UNIQUE (global_or_team_id, title_id) constraint yields a
 			// Conflict error with the expected message.
-			if !(found.Title == payload.Title && found.Source == payload.Source) {
-				return 0, 0, fleet.NewInvalidArgumentError(
-					"software",
-					"Couldn't add software. An installer with identical contents already exists on this team.",
-				)
+			if found.Title == payload.Title && found.Source == payload.Source {
+				// Let the DB constraint handle this - it will return a proper 409 Conflict
+				// with "already exists" message
+			} else {
+				// For script packages, only block if the filename is also identical.
+				// This allows multiple scripts with same content but different names.
+				isScriptPkg := fleet.IsScriptPackage(payload.Extension)
+				if !isScriptPkg || found.Filename == payload.Filename {
+					return 0, 0, fleet.NewInvalidArgumentError(
+						"software",
+						"Couldn't add software. An installer with identical contents already exists on this team.",
+					)
+				}
 			}
 		}
 	}
