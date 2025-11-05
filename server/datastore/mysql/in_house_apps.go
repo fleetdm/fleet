@@ -664,9 +664,6 @@ WHERE
 }
 
 func (ds *Datastore) BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-	// TODO(mna): implement all this for in-house apps...
-	return nil
-
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
   (name, source, extension_for, bundle_identifier)
@@ -756,67 +753,85 @@ WHERE
   global_or_team_id = ?
 `
 
-	const deletePendingSoftwareInstallsNotInListHSI = `
-		DELETE FROM host_software_installs
-		WHERE status IN('pending_install', 'pending_uninstall')
-		AND software_installer_id IN (
-			SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-		)
+	const cancelPendingInHouseInstallsNotInList = `
+UPDATE
+	host_in_house_software_installs
+SET
+	canceled = 1
+WHERE
+	verification_at IS NULL AND
+	verification_failed_at IS NULL AND
+	in_house_app_id IN (
+		SELECT id FROM in_house_apps WHERE global_or_team_id = ? AND title_id NOT IN (?)
+	)
 `
 
-	const loadAffectedHostsPendingSoftwareInstallsNotInListUA = `
+	const cancelPendingInHouseNanoCmdsNotInList = `
+UPDATE
+	nano_enrollment_queue
+SET
+	active = 0
+WHERE
+	command_uuid IN (
+		SELECT command_uuid
+		FROM host_in_house_software_installs hihsi
+			INNER JOIN in_house_apps iha ON hihsi.in_house_app_id = iha.id
+		WHERE
+			hihsi.verification_at IS NULL AND
+			hihsi.verification_failed_at IS NULL AND
+			iha.global_or_team_id = ? AND
+			iha.title_id NOT IN (?)
+	)
+`
+
+	const loadAffectedHostsPendingInHouseInstallsNotInListUA = `
 		SELECT
 			DISTINCT host_id
 		FROM
 			upcoming_activities ua
-		INNER JOIN software_install_upcoming_activities siua
-			ON ua.id = siua.upcoming_activity_id
+		INNER JOIN in_house_app_upcoming_activities ihua
+			ON ua.id = ihua.upcoming_activity_id
 		WHERE
-			ua.activity_type IN ('software_install', 'software_uninstall') AND
+			ua.activity_type = 'in_house_app_install' AND
 			ua.activated_at IS NOT NULL AND
-			siua.software_installer_id IN (
-				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-			)
+			ihua.in_house_app_id IN (
+				SELECT id FROM in_house_apps WHERE global_or_team_id = ? AND title_id NOT IN (?)
+		)
 `
 
-	const deletePendingSoftwareInstallsNotInListUA = `
+	const deletePendingInHouseInstallsNotInListUA = `
 		DELETE FROM upcoming_activities
 		USING upcoming_activities
-		INNER JOIN software_install_upcoming_activities siua
-			ON upcoming_activities.id = siua.upcoming_activity_id
+		INNER JOIN in_house_app_upcoming_activities ihua
+			ON upcoming_activities.id = ihua.upcoming_activity_id
 		WHERE
-			activity_type IN ('software_install', 'software_uninstall') AND
-			siua.software_installer_id IN (
-				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-			)
-`
-	const markSoftwareInstallsNotInListAsRemoved = `
-		UPDATE host_software_installs SET removed = TRUE
-			WHERE status IS NOT NULL AND host_deleted_at IS NULL
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-			   )
+			activity_type = 'in_house_app_install' AND
+			ihua.in_house_app_id IN (
+				SELECT id FROM in_house_apps WHERE global_or_team_id = ? AND title_id NOT IN (?)
+		)
 `
 
-	const deleteInstallersNotInList = `
+	const markInHouseInstallsNotInListAsRemoved = `
+		UPDATE host_in_house_software_installs SET removed = TRUE
+		WHERE in_house_app_id IN (
+			SELECT id FROM in_house_apps WHERE global_or_team_id = ? AND title_id NOT IN (?)
+		)
+`
+
+	const deleteInHouseInstallersNotInList = `
 DELETE FROM
-  software_installers
+	in_house_apps
 WHERE
   global_or_team_id = ? AND
-  title_id NOT IN (?)
+	title_id NOT IN (?)
 `
 
 	const checkExistingInstaller = `
 SELECT
 	id,
-	storage_id != ? is_package_modified,
-	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
-	COALESCE(post_install_script_content_id != ? OR
-		(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
-		(? IS NULL AND post_install_script_content_id IS NOT NULL)
-	, FALSE) is_metadata_modified
+	storage_id != ? is_package_modified
 FROM
-	software_installers
+	in_house_apps
 WHERE
 	global_or_team_id = ?	AND
 	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
@@ -824,81 +839,61 @@ WHERE
 
 	const insertNewOrEditedInstaller = `
 INSERT INTO software_installers (
+	title_id,
 	team_id,
 	global_or_team_id,
-	storage_id,
 	filename,
-	extension,
 	version,
-	install_script_content_id,
-	uninstall_script_content_id,
-	pre_install_query,
-	post_install_script_content_id,
+	storage_id,
 	platform,
+	bundle_identifier,
 	self_service,
-	upgrade_code,
-	title_id,
-	user_id,
-	user_name,
-	user_email,
-	url,
-	package_ids,
-	install_during_setup,
-	fleet_maintained_app_id
+	url
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
-  install_script_content_id = VALUES(install_script_content_id),
-  uninstall_script_content_id = VALUES(uninstall_script_content_id),
-  post_install_script_content_id = VALUES(post_install_script_content_id),
-  storage_id = VALUES(storage_id),
   filename = VALUES(filename),
-  extension = VALUES(extension),
   version = VALUES(version),
-  pre_install_query = VALUES(pre_install_query),
+  storage_id = VALUES(storage_id),
   platform = VALUES(platform),
+  bundle_identifier = VALUES(bundle_identifier),
   self_service = VALUES(self_service),
-  upgrade_code = VALUES(upgrade_code),
-  user_id = VALUES(user_id),
-  user_name = VALUES(user_name),
-  user_email = VALUES(user_email),
-  url = VALUES(url),
-  install_during_setup = COALESCE(?, install_during_setup)
+  url = VALUES(url)
 `
 
-	const loadSoftwareInstallerID = `
+	const loadInHouseInstallerID = `
 SELECT
 	id
 FROM
-	software_installers
+	in_house_apps
 WHERE
+	-- this is guaranteed to select a single in-house installer, due to unique index
 	global_or_team_id = ?	AND
-	-- this is guaranteed to select a single title_id, due to unique index
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	filename = ? AND
+	platform = ?
 `
 
-	const deleteInstallerLabelsNotInList = `
+	const deleteInHouseLabelsNotInList = `
 DELETE FROM
-	software_installer_labels
+	in_house_app_labels
 WHERE
-	software_installer_id = ? AND
+	in_house_app_id = ? AND
 	label_id NOT IN (?)
 `
 
-	const deleteAllInstallerLabels = `
+	const deleteAllInHouseLabels = `
 DELETE FROM
-	software_installer_labels
+	in_house_app_labels
 WHERE
-	software_installer_id = ?
+	in_house_app_id = ?
 `
 
-	const upsertInstallerLabels = `
+	const upsertInHouseLabels = `
 INSERT INTO
-	software_installer_labels (
-		software_installer_id,
+	in_house_app_labels (
+		in_house_app_id,
 		label_id,
 		exclude
 	)
@@ -908,56 +903,25 @@ ON DUPLICATE KEY UPDATE
 	exclude = VALUES(exclude)
 `
 
-	const loadExistingInstallerLabels = `
+	const loadExistingInHouseLabels = `
 SELECT
 	label_id,
 	exclude
 FROM
-	software_installer_labels
+	in_house_app_labels
 WHERE
-	software_installer_id = ?
-`
-
-	const deleteAllInstallerCategories = `
-DELETE FROM
-	software_installer_software_categories
-WHERE
-	software_installer_id = ?
-`
-
-	const deleteInstallerCategoriesNotInList = `
-DELETE FROM
-	software_installer_software_categories
-WHERE
-	software_installer_id = ? AND
-	software_category_id NOT IN (?)
-`
-
-	const upsertInstallerCategories = `
-INSERT IGNORE INTO
-	software_installer_software_categories (
-		software_installer_id,
-		software_category_id
-	)
-VALUES
-	%s
+	in_house_app_id = ?
 `
 
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
-	teamName := fleet.TeamNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
-		tm, err := ds.Team(ctx, *tmID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fetch team for batch set in-house apps installers")
-		}
-		teamName = tm.Name
 	}
 
 	// NOTE: at the time of implementation, in-house apps do not support install
-	// during setup, nor does it support automatic install (via policies) and
-	// uninstalls, so the related validations that are done in
+	// during setup, automatic install (via policies), categories, and
+	// uninstalls, so the related validations and updates that are done in
 	// BatchSetSoftwareInstallers are removed here.
 
 	var activateAffectedHostIDs []uint
@@ -1031,68 +995,66 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "load existing titles")
 		}
 
-		// TODO(mna): done adjusting up to here
-
-		stmt, args, err := sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
+		stmt, args, err := sqlx.In(cancelPendingInHouseInstallsNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
+			return ctxerr.Wrap(ctx, err, "build statement to cancel pending in-house installs")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
+			return ctxerr.Wrap(ctx, err, "cancel obsolete pending host in-house install records")
+		}
+		stmt, args, err = sqlx.In(cancelPendingInHouseNanoCmdsNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to cancel pending in-house nano commands")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel obsolete pending host in-house install nano commands")
 		}
 
-		stmt, args, err = sqlx.In(loadAffectedHostsPendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(loadAffectedHostsPendingInHouseInstallsNotInListUA, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to load affected hosts for upcoming software installs")
+			return ctxerr.Wrap(ctx, err, "build statement to load affected hosts for upcoming in-house installs")
 		}
 		var affectedHostIDs []uint
 		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming software installs")
+			return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming in-house installs")
 		}
 		activateAffectedHostIDs = affectedHostIDs
 
-		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(deletePendingInHouseInstallsNotInListUA, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete upcoming pending software installs")
+			return ctxerr.Wrap(ctx, err, "build statement to delete upcoming pending in-house installs")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete upcoming pending host software install records")
+			return ctxerr.Wrap(ctx, err, "delete obsolete upcoming pending host in-house install records")
 		}
 
-		stmt, args, err = sqlx.In(markSoftwareInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(markInHouseInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to mark obsolete host software installs as removed")
+			return ctxerr.Wrap(ctx, err, "build statement to mark obsolete host in-house installs as removed")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
+			return ctxerr.Wrap(ctx, err, "mark obsolete host in-house installs as removed")
 		}
 
-		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(deleteInHouseInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete in-house installers")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+			return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 		}
 
 		for _, installer := range installers {
 			if installer.ValidatedLabels == nil {
-				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
+				return ctxerr.Errorf(ctx, "labels have not been validated for in-house app with name %s", installer.Filename)
 			}
 
 			wasUpdatedArgs := []interface{}{
 				// package update
 				installer.StorageID,
-				// metadata update
-				installScriptID,
-				uninstallScriptID,
-				installer.PreInstallQuery,
-				postInstallScriptID,
-				postInstallScriptID,
-				postInstallScriptID,
 				// WHERE clause
 				globalOrTeamID,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
+				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
 				installer.Source,
 			}
 
@@ -1100,64 +1062,50 @@ VALUES
 			type existingInstallerUpdateCheckResult struct {
 				InstallerID        uint `db:"id"`
 				IsPackageModified  bool `db:"is_package_modified"`
-				IsMetadataModified bool `db:"is_metadata_modified"`
+				IsMetadataModified bool
 			}
 			var existing []existingInstallerUpdateCheckResult
 			err = sqlx.SelectContext(ctx, tx, &existing, checkExistingInstaller, wasUpdatedArgs...)
 			if err != nil {
-				if !errors.Is(err, sql.ErrNoRows) {
-					return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
-				}
+				return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
 			}
 
 			args := []interface{}{
+				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
+				installer.Source,
 				tmID,
 				globalOrTeamID,
-				installer.StorageID,
 				installer.Filename,
-				installer.Extension,
 				installer.Version,
-				installScriptID,
-				uninstallScriptID,
-				installer.PreInstallQuery,
-				postInstallScriptID,
+				installer.StorageID,
 				installer.Platform,
+				installer.BundleIdentifier,
 				installer.SelfService,
-				installer.UpgradeCode,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
-				installer.UserID,
-				installer.UserID,
-				installer.UserID,
 				installer.URL,
-				strings.Join(installer.PackageIDs, ","),
-				installer.InstallDuringSetup,
-				installer.FleetMaintainedAppID,
-				installer.InstallDuringSetup,
 			}
 			upsertQuery := insertNewOrEditedInstaller
 			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
-				upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)
+				upsertQuery = fmt.Sprintf("%s, updated_at = NOW()", upsertQuery)
 			}
 
 			if _, err := tx.ExecContext(ctx, upsertQuery, args...); err != nil {
-				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
+				return ctxerr.Wrapf(ctx, err, "insert new/edited in-house app with name %q", installer.Filename)
 			}
 
 			// now that the software installer is created/updated, load its installer
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source); err != nil {
-				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadInHouseInstallerID, globalOrTeamID, installer.Filename, installer.Platform); err != nil {
+				return ctxerr.Wrapf(ctx, err, "load id of new/edited in-house app with name %q", installer.Filename)
 			}
 
-			// process the labels associated with that software installer
+			// process the labels associated with that in-house installer
 			if len(installer.ValidatedLabels.ByName) == 0 {
 				// no label to apply, so just delete all existing labels if any
-				res, err := tx.ExecContext(ctx, deleteAllInstallerLabels, installerID)
+				res, err := tx.ExecContext(ctx, deleteAllInHouseLabels, installerID)
 				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "delete installer labels for %s", installer.Filename)
+					return ctxerr.Wrapf(ctx, err, "delete in-house labels for %s", installer.Filename)
 				}
 
 				if n, _ := res.RowsAffected(); n > 0 && len(existing) > 0 {
@@ -1171,14 +1119,14 @@ VALUES
 				for _, lbl := range installer.ValidatedLabels.ByName {
 					labelIDs = append(labelIDs, lbl.LabelID)
 				}
-				stmt, args, err := sqlx.In(deleteInstallerLabelsNotInList, installerID, labelIDs)
+				stmt, args, err := sqlx.In(deleteInHouseLabelsNotInList, installerID, labelIDs)
 				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build statement to delete installer labels not in list")
+					return ctxerr.Wrap(ctx, err, "build statement to delete in-house labels not in list")
 				}
 
 				res, err := tx.ExecContext(ctx, stmt, args...)
 				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "delete installer labels not in list for %s", installer.Filename)
+					return ctxerr.Wrapf(ctx, err, "delete in-house labels not in list for %s", installer.Filename)
 				}
 				if n, _ := res.RowsAffected(); n > 0 && len(existing) > 0 {
 					// if it did delete a row, then the target changed so pending
@@ -1195,8 +1143,8 @@ VALUES
 						LabelID uint `db:"label_id"`
 						Exclude bool `db:"exclude"`
 					}
-					if err := sqlx.SelectContext(ctx, tx, &existingLabels, loadExistingInstallerLabels, installerID); err != nil {
-						return ctxerr.Wrapf(ctx, err, "load existing labels for installer with name %q", installer.Filename)
+					if err := sqlx.SelectContext(ctx, tx, &existingLabels, loadExistingInHouseLabels, installerID); err != nil {
+						return ctxerr.Wrapf(ctx, err, "load existing labels for in-house with name %q", installer.Filename)
 					}
 
 					if len(existingLabels) != len(labelIDs) {
@@ -1215,44 +1163,15 @@ VALUES
 				}
 				upsertLabelValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(installer.ValidatedLabels.ByName)), ",")
 
-				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerLabels, upsertLabelValues), upsertLabelArgs...)
+				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInHouseLabels, upsertLabelValues), upsertLabelArgs...)
 				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "insert new/edited labels for installer with name %q", installer.Filename)
+					return ctxerr.Wrapf(ctx, err, "insert new/edited labels for in-house with name %q", installer.Filename)
 				}
 			}
 
-			if len(installer.CategoryIDs) == 0 {
-				// delete all categories if there are any
-				_, err := tx.ExecContext(ctx, deleteAllInstallerCategories, installerID)
-				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "delete installer categories for %s", installer.Filename)
-				}
-			} else {
-				// there are new categories to apply, delete only the obsolete ones
-				stmt, args, err := sqlx.In(deleteInstallerCategoriesNotInList, installerID, installer.CategoryIDs)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build statement to delete installer categories not in list")
-				}
-
-				_, err = tx.ExecContext(ctx, stmt, args...)
-				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "delete installer categories not in list for %s", installer.Filename)
-				}
-
-				var upsertCategoriesArgs []any
-				for _, catID := range installer.CategoryIDs {
-					upsertCategoriesArgs = append(upsertCategoriesArgs, installerID, catID)
-				}
-				upsertCategoriesValues := strings.TrimSuffix(strings.Repeat("(?,?),", len(installer.CategoryIDs)), ",")
-				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerCategories, upsertCategoriesValues), upsertCategoriesArgs...)
-				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for installer with name %q", installer.Filename)
-				}
-			}
-
-			// perform side effects if this was an update (related to pending (un)install requests)
+			// perform side effects if this was an update (related to pending install requests)
 			if len(existing) > 0 {
-				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(
+				affectedHostIDs, err := ds.runInHouseUpdateSideEffectsInTransaction(
 					ctx,
 					tx,
 					existing[0].InstallerID,
@@ -1260,7 +1179,7 @@ VALUES
 					existing[0].IsPackageModified,
 				)
 				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
+					return ctxerr.Wrapf(ctx, err, "processing side-effects for in-house with name %q", installer.Filename)
 				}
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
 			}
@@ -1272,4 +1191,87 @@ VALUES
 		return err
 	}
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+}
+
+func (ds *Datastore) runInHouseUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {
+	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs
+		const cancelInHouseInstalls = `
+UPDATE
+	host_in_house_software_installs
+SET
+	canceled = 1
+WHERE
+	verification_at IS NULL AND
+	verification_failed_at IS NULL AND
+	in_house_app_id IN = ?
+`
+		_, err = tx.ExecContext(ctx, cancelInHouseInstalls, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cancel pending host in-house installs")
+		}
+
+		const cancelInHouseCmds = `
+UPDATE
+	nano_enrollment_queue
+SET
+	active = 0
+WHERE
+	command_uuid IN (
+		SELECT command_uuid
+		FROM host_in_house_software_installs 
+		WHERE
+			verification_at IS NULL AND
+			verification_failed_at IS NULL AND
+			in_house_app_id = ?
+	)
+`
+		_, err = tx.ExecContext(ctx, cancelInHouseCmds, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cancel pending host in-house commands")
+		}
+
+		const loadAffectedHosts = `
+SELECT
+	DISTINCT host_id
+FROM
+	upcoming_activities ua
+INNER JOIN in_house_app_upcoming_activities ihua
+	ON ua.id = ihua.upcoming_activity_id
+WHERE
+	ua.activity_type = 'in_house_app_install' AND
+	ua.activated_at IS NOT NULL AND
+	ihua.in_house_app_id = ?
+`
+		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, loadAffectedHosts, installerID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for in-house installs")
+		}
+
+		const deleteUpcomingInHouse = `
+DELETE FROM upcoming_activities
+USING upcoming_activities
+INNER JOIN in_house_app_upcoming_activities ihua
+	ON upcoming_activities.id = ihua.upcoming_activity_id
+WHERE
+	activity_type = 'in_house_app_install' AND
+	ihua.in_house_app_id = ?
+`
+
+		_, err = tx.ExecContext(ctx, deleteUpcomingInHouse, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete upcoming host in-house installs")
+		}
+	}
+
+	if wasPackageUpdated { // hide existing install counts
+		const markInHouseRemoved = `
+UPDATE host_in_house_software_installs SET removed = TRUE
+WHERE in_house_app_id = ?
+`
+		_, err := tx.ExecContext(ctx, markInHouseRemoved, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "hide existing install counts")
+		}
+	}
+
+	return affectedHostIDs, nil
 }
