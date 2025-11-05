@@ -95,7 +95,9 @@ func TestNatsLogRouter(t *testing.T) {
 	}`)
 
 	t.Run("Constant", func(t *testing.T) {
-		router := newNatsConstantRouter("test.logs")
+		router, err := newNatsConstantRouter("test.logs")
+
+		require.NoError(t, err)
 
 		subject, err := router.Route(testLog)
 
@@ -105,12 +107,24 @@ func TestNatsLogRouter(t *testing.T) {
 
 	t.Run("Template", func(t *testing.T) {
 		template := "test.logs.{log.name | split('/') | last()}.{log.decorations.hostname}.{log.epoch}.{log.numerics}"
-		router := newNatsTemplateRouter(template)
+
+		router, err := newNatsTemplateRouter(template)
+
+		require.NoError(t, err)
+		require.Len(t, router.pr, 4)
 
 		subject, err := router.Route(testLog)
 
 		require.NoError(t, err)
 		require.Equal(t, "test.logs.testquery.testhostname.0.false", subject)
+	})
+
+	t.Run("TemplateInvalidExpr", func(t *testing.T) {
+		template := "test.logs.{log.name | invalidFunction()}"
+
+		_, err := newNatsTemplateRouter(template)
+
+		require.Error(t, err)
 	})
 }
 

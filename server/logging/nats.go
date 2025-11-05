@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/expr-lang/expr"
@@ -140,12 +139,17 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 		"server", server,
 	)
 
-	// Start by assuming a constant subject.
-	var router natsRouter = newNatsConstantRouter(subject)
+	var router natsRouter
 
 	// If the subject contains template tags, use a template router instead.
 	if strings.Contains(subject, natsSubjectTagStart) && strings.Contains(subject, natsSubjectTagStop) {
-		router = newNatsTemplateRouter(subject)
+		router, err = newNatsTemplateRouter(subject)
+	} else {
+		router, err = newNatsConstantRouter(subject)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create nats router: %w", err)
 	}
 
 	// Return the NATS log writer.
@@ -253,8 +257,8 @@ type natsConstantRouter struct {
 }
 
 // newNatsConstantRouter creates a new constant router.
-func newNatsConstantRouter(sub string) *natsConstantRouter {
-	return &natsConstantRouter{sub}
+func newNatsConstantRouter(sub string) (*natsConstantRouter, error) {
+	return &natsConstantRouter{sub}, nil
 }
 
 // Route returns the constant subject.
@@ -317,17 +321,49 @@ type natsTemplateRouter struct {
 
 	// The template for the subject.
 	tp *fasttemplate.Template
-
-	sync.Mutex
 }
 
 // newNatsTemplateRouter creates a new template router.
-func newNatsTemplateRouter(sub string) *natsTemplateRouter {
-	return &natsTemplateRouter{
-		pp: new(fastjson.ParserPool),
-		pr: make(map[string]*vm.Program),
-		tp: fasttemplate.New(sub, natsSubjectTagStart, natsSubjectTagStop),
+func newNatsTemplateRouter(sub string) (*natsTemplateRouter, error) {
+	// Initialize the programs map.
+	pr := make(map[string]*vm.Program)
+
+	// Initialize the template.
+	tp := fasttemplate.New(sub,
+		natsSubjectTagStart,
+		natsSubjectTagStop,
+	)
+
+	// Define the expression compiler options.
+	opts := []expr.Option{
+		expr.Env(&natsTemplateEnv{}),
+		expr.Patch(&natsTemplatePatcher{}),
+		expr.AsKind(reflect.String),
+		expr.Function(
+			"get",
+			func(params ...any) (any, error) {
+				return natsTemplateGet(
+					params[0].(*fastjson.Value),
+					params[1].(string),
+				), nil
+			},
+			natsTemplateGet,
+		),
 	}
+
+	// Execute the template, compiling each tag expression.
+	_, err := tp.ExecuteFuncStringWithErr(func(_ io.Writer, tag string) (int, error) {
+		p, err := expr.Compile(tag, opts...)
+
+		pr[tag] = p
+
+		return 0, err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &natsTemplateRouter{pp: new(fastjson.ParserPool), pr: pr, tp: tp}, nil
 }
 
 // Route returns the subject for a log.
@@ -344,13 +380,8 @@ func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 
 	// Define the function to evaluate the template for a tag.
 	fn := func(w io.Writer, tag string) (int, error) {
-		pr, err := r.compileTag(tag)
-		if err != nil {
-			return 0, err
-		}
-
 		// Evaluate the tag expression.
-		r, err := expr.Run(pr, &natsTemplateEnv{Log: v})
+		r, err := expr.Run(r.pr[tag], &natsTemplateEnv{Log: v})
 		if err != nil {
 			return 0, err
 		}
@@ -365,38 +396,4 @@ func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
 	}
 
 	return r.tp.ExecuteFuncStringWithErr(fn)
-}
-
-// compileTag compiles a tag expression into a program.
-func (r *natsTemplateRouter) compileTag(tag string) (*vm.Program, error) {
-	// Prevent concurrent access to the programs map.
-	r.Lock()
-	defer r.Unlock()
-
-	// If this is the first time we see this tag expression, compile it.
-	if _, ok := r.pr[tag]; !ok {
-		pr, err := expr.Compile(
-			tag,
-			expr.Env(&natsTemplateEnv{}),
-			expr.Patch(&natsTemplatePatcher{}),
-			expr.AsKind(reflect.String),
-			expr.Function(
-				"get",
-				func(params ...any) (any, error) {
-					return natsTemplateGet(
-						params[0].(*fastjson.Value),
-						params[1].(string),
-					), nil
-				},
-				natsTemplateGet,
-			),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to compile '%s': %w", tag, err)
-		}
-
-		r.pr[tag] = pr
-	}
-
-	return r.pr[tag], nil
 }
