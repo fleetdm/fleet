@@ -45,9 +45,6 @@ type natsLogWriter struct {
 	// Whether to use JetStream.
 	jetstream bool
 
-	// The logger.
-	logger log.Logger
-
 	// The subject router.
 	router natsRouter
 
@@ -155,7 +152,6 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 	return &natsLogWriter{
 		client:    client,
 		jetstream: jetstream,
-		logger:    logger,
 		router:    router,
 		timeout:   timeout,
 	}, nil
@@ -313,11 +309,11 @@ func (p *natsTemplatePatcher) Visit(node *ast.Node) {
 
 // natsTemplateRouter uses the log contents to create a subject.
 type natsTemplateRouter struct {
+	// The JSON parser pool.
+	pp *fastjson.ParserPool
+
 	// The compiled programs for each template tag expression.
 	pr map[string]*vm.Program
-
-	// The parser for the log contents, which is reused between calls.
-	ps *fastjson.Parser
 
 	// The template for the subject.
 	tp *fasttemplate.Template
@@ -328,69 +324,79 @@ type natsTemplateRouter struct {
 // newNatsTemplateRouter creates a new template router.
 func newNatsTemplateRouter(sub string) *natsTemplateRouter {
 	return &natsTemplateRouter{
+		pp: new(fastjson.ParserPool),
 		pr: make(map[string]*vm.Program),
-		ps: new(fastjson.Parser),
 		tp: fasttemplate.New(sub, natsSubjectTagStart, natsSubjectTagStop),
 	}
 }
 
 // Route returns the subject for a log.
 func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
-	// Prevent concurrent access to the parser and tag programs.
-	r.Lock()
-	defer r.Unlock()
+	// Get a JSON parser from the pool, and ensure it is released when done.
+	p := r.pp.Get()
+	defer r.pp.Put(p)
 
 	// Parse the log contents into a fastjson value.
-	val, err := r.ps.ParseBytes(log)
+	v, err := p.ParseBytes(log)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse log: %w", err)
 	}
 
-	// Define the function to evaluate the template for each tag.
+	// Define the function to evaluate the template for a tag.
 	fn := func(w io.Writer, tag string) (int, error) {
-		// If this is the first time we see this tag expression, compile it.
-		if _, ok := r.pr[tag]; !ok {
-			r.pr[tag], err = expr.Compile(
-				tag,
-				expr.Env(&natsTemplateEnv{}),
-				expr.Patch(&natsTemplatePatcher{}),
-				expr.AsKind(reflect.String),
-				expr.Function(
-					"get",
-					func(params ...any) (any, error) {
-						return natsTemplateGet(
-							params[0].(*fastjson.Value),
-							params[1].(string),
-						), nil
-					},
-					natsTemplateGet,
-				),
-			)
-			if err != nil {
-				return 0, fmt.Errorf("failed to compile '%s': %w", tag, err)
-			}
-		}
-
-		// Create the evaluation environment for the tag expression.
-		env := &natsTemplateEnv{
-			Log: val,
-		}
-
-		// Evaluate the tag expression.
-		ret, err := expr.Run(r.pr[tag], env)
+		pr, err := r.compileTag(tag)
 		if err != nil {
 			return 0, err
 		}
 
-		// If the value is a string, write it to the writer.
-		if s, ok := ret.(string); ok {
+		// Evaluate the tag expression.
+		r, err := expr.Run(pr, &natsTemplateEnv{Log: v})
+		if err != nil {
+			return 0, err
+		}
+
+		// If the returned value is a string, write it.
+		if s, ok := r.(string); ok {
 			return io.WriteString(w, s)
 		}
 
-		// Non-string type returned?
-		return 0, fmt.Errorf("expected string, got %T: %v", ret, ret)
+		// Non-string type returned.
+		return 0, fmt.Errorf("expected string, got %T: %v", r, r)
 	}
 
-	// Execute the template for each tag.
 	return r.tp.ExecuteFuncStringWithErr(fn)
+}
+
+// compileTag compiles a tag expression into a program.
+func (r *natsTemplateRouter) compileTag(tag string) (*vm.Program, error) {
+	// Prevent concurrent access to the programs map.
+	r.Lock()
+	defer r.Unlock()
+
+	// If this is the first time we see this tag expression, compile it.
+	if _, ok := r.pr[tag]; !ok {
+		pr, err := expr.Compile(
+			tag,
+			expr.Env(&natsTemplateEnv{}),
+			expr.Patch(&natsTemplatePatcher{}),
+			expr.AsKind(reflect.String),
+			expr.Function(
+				"get",
+				func(params ...any) (any, error) {
+					return natsTemplateGet(
+						params[0].(*fastjson.Value),
+						params[1].(string),
+					), nil
+				},
+				natsTemplateGet,
+			),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile '%s': %w", tag, err)
+		}
+
+		r.pr[tag] = pr
+	}
+
+	return r.pr[tag], nil
 }

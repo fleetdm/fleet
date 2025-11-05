@@ -104,7 +104,8 @@ func TestNatsLogRouter(t *testing.T) {
 	})
 
 	t.Run("Template", func(t *testing.T) {
-		router := newNatsTemplateRouter("test.logs.{log.name | split('/') | last()}.{log.decorations.hostname}.{log.epoch}.{log.numerics}")
+		template := "test.logs.{log.name | split('/') | last()}.{log.decorations.hostname}.{log.epoch}.{log.numerics}"
+		router := newNatsTemplateRouter(template)
 
 		subject, err := router.Route(testLog)
 
@@ -171,6 +172,58 @@ func TestNatsLogWriter(t *testing.T) {
 		require.Equal(t, expected, received)
 	})
 
+	t.Run("DirectInvalidJson", func(t *testing.T) {
+		var lock sync.Mutex
+		var seen int
+
+		// Subscribe to the NATS subject to count received messages.
+		_, err := nc.Subscribe(natsTestDirectSubject+".invalid", func(m *nats.Msg) {
+			lock.Lock()
+			seen++
+			lock.Unlock()
+		})
+
+		// Ensure the subscription was created successfully.
+		require.NoError(t, err)
+
+		// Create the NATS log writer with a template subject that requires
+		// parsing the JSON to route the message.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestDirectSubject+".invalid.{log.name}",
+			"",
+			"",
+			"",
+			"",
+			"",
+			false,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		// Attempt to write invalid JSON logs.
+		invalidLogs := []json.RawMessage{
+			json.RawMessage(`{invalid json`),
+			json.RawMessage(`not json at all`),
+			json.RawMessage(`{"incomplete": `),
+		}
+
+		// Writing invalid JSON should result in an error.
+		err = writer.Write(t.Context(), invalidLogs)
+
+		require.Error(t, err)
+
+		// Wait a moment to ensure no messages were published.
+		time.Sleep(100 * time.Millisecond)
+
+		// Ensure no messages were received.
+		lock.Lock()
+		require.Equal(t, 0, seen)
+		lock.Unlock()
+	})
+
 	t.Run("Stream", func(t *testing.T) {
 		ctx := t.Context()
 
@@ -222,5 +275,61 @@ func TestNatsLogWriter(t *testing.T) {
 
 		// Ensure the received logs are equal to the expected logs.
 		require.Equal(t, expected, received)
+	})
+
+	t.Run("StreamInvalidJson", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create the JetStream context.
+		js, err := jetstream.New(nc)
+
+		require.NoError(t, err)
+
+		// Create the in-memory stream for invalid JSON tests.
+		st, err := js.CreateStream(ctx, jetstream.StreamConfig{
+			Name:     natsTestStreamName + "-invalid",
+			Storage:  jetstream.MemoryStorage,
+			Subjects: []string{natsTestStreamSubject + ".invalid.*"},
+		})
+
+		require.NoError(t, err)
+
+		// Create the NATS log writer with a template subject that requires
+		// parsing the JSON to route the message.
+		writer, err := NewNatsLogWriter(
+			ns.ClientURL(),
+			natsTestStreamSubject+".invalid.{log.name}",
+			"",
+			"",
+			"",
+			"",
+			"",
+			true,
+			natsTestTimeout,
+			log.NewNopLogger(),
+		)
+
+		require.NoError(t, err)
+
+		// Attempt to write invalid JSON logs.
+		invalidLogs := []json.RawMessage{
+			json.RawMessage(`{invalid json`),
+			json.RawMessage(`not json at all`),
+			json.RawMessage(`{"incomplete": `),
+		}
+
+		// Writing invalid JSON should result in an error.
+		err = writer.Write(ctx, invalidLogs)
+
+		require.Error(t, err)
+
+		// Wait a moment to ensure no messages were published.
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify that the stream has no messages.
+		info, err := st.Info(ctx)
+
+		require.NoError(t, err)
+		require.Equal(t, uint64(0), info.State.Msgs)
 	})
 }
