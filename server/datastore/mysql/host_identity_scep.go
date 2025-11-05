@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -59,4 +60,42 @@ func (ds *Datastore) GetHostIdentityCertByName(ctx context.Context, name string)
 		return nil, err
 	}
 	return &hostIdentityCert, nil
+}
+
+// RevokeOldHostIdentityCerts revokes old certificates for hosts that have a newer certificate.
+// It only revokes certificates where the newer certificate is older than the grace period.
+// This prevents authentication failures during certificate rotation.
+// Returns the number of certificates revoked.
+func (ds *Datastore) RevokeOldHostIdentityCerts(ctx context.Context, gracePeriod time.Duration) (int64, error) {
+	// Find and revoke old certificates where a newer certificate exists for the same host,
+	// and the newer certificate is older than the grace period (to ensure it's stable)
+	//
+	// Explanation:
+	// 1. Find the newest "stable" cert for each host (stable = issued before grace period)
+	// 2. Revoke all certs with serial < newest stable serial for that host
+	stmt := `
+		UPDATE host_identity_scep_certificates old_certs
+		INNER JOIN (
+			SELECT host_id, MAX(serial) as newest_stable_serial
+			FROM host_identity_scep_certificates
+			WHERE not_valid_before < DATE_SUB(NOW(6), INTERVAL ? SECOND)
+			  AND revoked = 0
+			GROUP BY host_id
+		) stable_certs ON old_certs.host_id = stable_certs.host_id
+		SET old_certs.revoked = 1, old_certs.updated_at = NOW(6)
+		WHERE old_certs.serial < stable_certs.newest_stable_serial
+		  AND old_certs.revoked = 0
+	`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, int(gracePeriod.Seconds()))
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
 }

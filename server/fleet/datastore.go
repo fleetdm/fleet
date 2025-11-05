@@ -2447,6 +2447,12 @@ type Datastore interface {
 	GetConditionalAccessCertHostIDBySerialNumber(ctx context.Context, serial uint64) (uint, error)
 	// GetConditionalAccessCertCreatedAtByHostID retrieves the created_at timestamp of the most recent certificate for a host.
 	GetConditionalAccessCertCreatedAtByHostID(ctx context.Context, hostID uint) (*time.Time, error)
+	// RevokeOldConditionalAccessCerts revokes old certificates for hosts that have a newer certificate.
+	// Returns the number of certificates revoked.
+	RevokeOldConditionalAccessCerts(ctx context.Context, gracePeriod time.Duration) (int64, error)
+	// RevokeOldHostIdentityCerts revokes old host identity certificates for hosts that have a newer certificate.
+	// Returns the number of certificates revoked.
+	RevokeOldHostIdentityCerts(ctx context.Context, gracePeriod time.Duration) (int64, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
