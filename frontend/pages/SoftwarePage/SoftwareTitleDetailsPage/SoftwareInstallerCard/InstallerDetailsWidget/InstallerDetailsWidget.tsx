@@ -8,6 +8,7 @@ import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import Graphic from "components/Graphic";
@@ -18,6 +19,8 @@ import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
 
 const baseClass = "installer-details-widget";
+
+const ANDROID_PLAY_STORE_URL = "https://play.google.com/store/apps/details";
 
 interface IInstallerNameProps {
   name: string;
@@ -77,7 +80,7 @@ const InstallerDetailsWidget = ({
   version,
   isFma,
   isScriptPackage,
-  androidPlayStoreLink,
+  androidPlayStoreLink: androidPlayStoreId,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -98,7 +101,7 @@ const InstallerDetailsWidget = ({
 
   const renderIcon = () => {
     if (installerType === "app-store") {
-      if (androidPlayStoreLink) {
+      if (androidPlayStoreId) {
         return <SoftwareIcon name="androidPlayStore" size="medium" />;
       }
       return <SoftwareIcon name="appleAppStore" size="medium" />;
@@ -147,7 +150,7 @@ const InstallerDetailsWidget = ({
         );
       }
 
-      if (androidPlayStoreLink) {
+      if (androidPlayStoreId) {
         versionInfo = (
           <TooltipWrapper
             tipContent={
@@ -155,7 +158,9 @@ const InstallerDetailsWidget = ({
                 See latest version on the{" "}
                 <CustomLink
                   text="Play Store"
-                  url={androidPlayStoreLink}
+                  url={getPathWithQueryParams(ANDROID_PLAY_STORE_URL, {
+                    id: androidPlayStoreId,
+                  })}
                   newTab
                 />
               </span>
@@ -220,7 +225,7 @@ const InstallerDetailsWidget = ({
 
     return (
       <>
-        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreLink)}
+        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)}
         {renderVersionInfo()}
         {renderTimeStamp()}
         {renderSha256()}

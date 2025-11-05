@@ -355,8 +355,9 @@ const HostSoftwareLibrary = ({
     // "Add Software" path dependent on host's platform
     const addSoftwarePathForHostPlatform = () => {
       if (isIPadOrIPhoneHost || isAndroidHost) {
-        return PATHS.SOFTWARE_ADD_APP_STORE;
-        // TODO: Perhaps having the dropdown preselected to android for android hosts
+        return getPathWithQueryParams(PATHS.SOFTWARE_ADD_APP_STORE, {
+          platform: isAndroidHost ? "android" : "apple",
+        });
       }
       if (isMacOSHost || isWindowsHost) {
         return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;

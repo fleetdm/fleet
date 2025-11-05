@@ -176,6 +176,15 @@ export const generateHostSWLibraryTableHeaders = ({
         const installerData = softwareTitle.software_package
           ? softwareTitle.software_package
           : (softwareTitle.app_store_app as IHostAppStoreApp);
+        const isAndroidPlayStoreApp =
+          !!softwareTitle.app_store_app &&
+          softwareTitle.source === "android_apps";
+
+        // For Android Play Store apps, we do not show the version in the library
+        if (isAndroidPlayStoreApp) {
+          return <span>Latest</span>;
+        }
+
         return (
           <VersionCell versions={[{ version: installerData?.version || "" }]} />
         );

@@ -60,7 +60,7 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IActivityDetails | null>(null); // Also includes Android Play Store installs
   const [
     scriptPackageDetails,
     setScriptPackageDetails,
@@ -167,7 +167,9 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setVppInstallDetails({ ...details });
+        details?.platform === "android"
+          ? setPackageInstallDetails({ ...details }) // Android Play Store installs
+          : setVppInstallDetails({ ...details }); // Apple VPP installs
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:

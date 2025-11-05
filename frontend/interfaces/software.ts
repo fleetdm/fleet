@@ -505,6 +505,7 @@ export interface IHostSoftwarePackage {
 
 export interface IHostAppStoreApp {
   app_store_id: string;
+  platform: Platform;
   self_service: boolean;
   icon_url: string;
   version: string;
