@@ -25,7 +25,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	auth, authOk := authz.FromContext(ctx)
 	if !authOk {
 		// This shouldn't be possible
-		return nil, &fleet.BadRequestError{Message: "Missing authentication method"}
+		return nil, &fleet.BadRequestError{Message: "Missing authentication authorization context"}
 	}
 	if auth.AuthnMethod() == authz.AuthnHTTPMessageSignature {
 		// Message Signature auth is not granular, device already checked and authorized in middleware
