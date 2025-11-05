@@ -1,22 +1,35 @@
 # Deploy CrowdStrike Falcon with Fleet
 
-This guide will show you how to deploy CrowdStrike Falcon on macOS, Linux and Windows using Fleet. It covers installing the CrowdStrike Falcon application, creating a post-install script for collecting the CrowdStrike Customer ID for activation and deploying required application configurations.
+This guide will cover how to deploy CrowdStrike Falcon on macOS, Linux and Windows using Fleet. It includes:
 
-You can use Setup Experience to install CrowdStrike on [macOS](https://fleetdm.com/guides/macos-setup-experience#install-software), [Windows](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software), and [Linux](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software) hosts when they are initially provisioned.
+- Installing the CrowdStrike Falcon application
+- Creating a post-install script to collect the CrowdStrike Customer ID for activation
+- Deploying required application configurations
 
-> Starting with fleetd 1.50, you can use the `crowdstrike_falcon` osquery table to check the status of a Crowdstrike Falcon installation on macOS and Linux.
+### Install notes
 
-## Get the Falcon installer
+- Fleet recommends using the End User Setup Experience to install CrowdStrike on hosts when they are initially enrolled and provisioned.
+  - [macOS Setup](https://fleetdm.com/guides/macos-setup-experience#install-software)
+  - [Linux](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
+  - [Windows](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
+ 
+- If your organization is using Fleet GitOps and you want to pass the CrowdStrike site key as a secret, follow this guide: https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles.
 
-From the CrowdStrike Falcon dashboard, click the hamburger menu in the top-left corner of the page, then navigate to **Host setup and management** > **Sensor Downloads** (in the **Deploy** section of the menu).
+- Starting with fleetd version 1.50, you can use the `crowdstrike_falcon` osquery table to check the status of a Crowdstrike Falcon installation on macOS and Linux.
 
-Once you select the appropriate Falcon Sensor package for your platform, make note of your **Customer ID**, found in the **How to install** sidebar on the right side of the page. You'll need this below.
+## Download the Falcon installer
 
-> For Windows, CrowdStrike offers `.exe` and `.msi` Falcon installers. The `.msi` installer performs a silent, fully-automated installation when using the **Automatic install** option in Fleet, so you'll likely want that one.
+On the CrowdStrike Falcon dashboard, click the hamburger menu in the top-left corner of the page, then navigate to **Host setup and management** > **Sensor Downloads** (in the **Deploy** section of the menu).
 
-## macOS
+Select the appropriate Falcon Sensor package for your platform and copy the **Customer ID** string found in the **How to install** sidebar on the right side of the page. The **Customer ID** *must be collected* during the CrowdStrike installation to activate the Falcon application on a host.
 
-### 1. Set up configuration profiles
+> For Windows, CrowdStrike offers `.exe` and `.msi` Falcon installers. Selecting the `.msi` package is preferable because it performs a silent, fully-automated installation when using the **Automatic install** option in Fleet.
+
+See the sections below for more steps specific to your platform.
+
+## macOS Falcon installation
+
+### 1. Deploy configuration profiles
 
 CrowdStrike Falcon requires multiple `.mobileconfig` payloads on macOS.
 
@@ -36,9 +49,9 @@ To upload Configuration Profiles to your Fleet instance: go to **Controls > OS S
 
 ![Manage configuration profiles](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
 
-### 2. Prepare the post-install script
+### 2. Create a post-install script
 
-To match a host to your CrowdStrike account, you'll need to run a script after Falcon is installed. You can use the script below for macOS, combined with the Customer ID you grabbed earlier.
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on macOS with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 #!/bin/bash
@@ -65,13 +78,11 @@ fi
 
 3. Click **Add software**.
 
-For more information on adding software, see the [software deployment guide](https://fleetdm.com/guides/deploy-software-packages).
+## Linux Falcon installation
 
-## Linux
+### 1. Create a post-install script
 
-### 1. Prepare the post-install script
-
-To match a host to your CrowdStrike account, you'll need to run a script after Falcon is installed. You can use the script below for Linux, combined with the Customer ID you grabbed earlier.
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on Linux with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 #!/bin/bash
@@ -99,13 +110,11 @@ CrowdStrike provides [documentation for additional flags](https://github.com/Cro
 
 3. Click **Add software**.
 
-For more information on adding software, see the [software deployment guide](https://fleetdm.com/guides/deploy-software-packages).
+## Windows Falcon installation
 
-## Windows
+### 1. Create a post-install script
 
-### 1. Prepare the post-install script
-
-To match a host to your CrowdStrike account, you'll need to run a script after Falcon is installed. You can use the script below for Windows, combined with the Customer ID you grabbed earlier.
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on Windows with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 # Set your Customer ID here
@@ -132,7 +141,9 @@ CrowdStrike provides [documentation for additional flags](https://github.com/Cro
 2. Click **Advanced options**, then paste the activation script from the previous step into **Post-install script**, making sure to set the `$FalconCid` variable.
 3. Click **Add software**.
 
-For more information on adding software, see the [software deployment guide](https://fleetdm.com/guides/deploy-software-packages).
+## Conclusion
+
+Fleet offers admins a straight-forward approach to deploying the CrowdStrike Falcon application across your macOS, Linux and Windows hosts. See https://fleetdm.com/guides/deploy-software-packages for more information on installing software packages using Fleet.
 
 <meta name="articleTitle" value="Deploy CrowdStrike with Fleet">
 <meta name="authorFullName" value="Harrison Ravazzolo">
