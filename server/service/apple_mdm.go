@@ -508,173 +508,37 @@ func CheckProfileIsNotSigned(data []byte) error {
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
-	fleetVars := variables.FindKeepDuplicates(contents)
+	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
 	}
 
-	// Check for premium license if the profile contains Fleet variables
-	if lic == nil || !lic.IsPremium() {
-		return nil, fleet.ErrMissingLicense
-	}
-
-	var (
-		digiCertVars   *digiCertVarsFound
-		customSCEPVars *customSCEPVarsFound
-		ndesVars       *ndesVarsFound
-		smallstepVars  *smallstepVarsFound
-	)
-	for _, k := range fleetVars {
-		ok := true
-		if !slices.Contains(fleetVarsSupportedInAppleConfigProfiles, fleet.FleetVarName(k)) {
-			found := false
-			switch {
-			case strings.HasPrefix(k, string(fleet.FleetVarDigiCertDataPrefix)):
-				caName := strings.TrimPrefix(k, string(fleet.FleetVarDigiCertDataPrefix))
-				for _, ca := range groupedCAs.DigiCert {
-					if ca.Name == caName {
-						found = true
-						digiCertVars, ok = digiCertVars.SetData(caName)
-						break
-					}
-				}
-			case strings.HasPrefix(k, string(fleet.FleetVarDigiCertPasswordPrefix)):
-				caName := strings.TrimPrefix(k, string(fleet.FleetVarDigiCertPasswordPrefix))
-				for _, ca := range groupedCAs.DigiCert {
-					if ca.Name == caName {
-						found = true
-						digiCertVars, ok = digiCertVars.SetPassword(caName)
-						break
-					}
-				}
-			case strings.HasPrefix(k, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
-				caName := strings.TrimPrefix(k, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
-				for _, ca := range groupedCAs.CustomScepProxy {
-					if ca.Name == caName {
-						found = true
-						customSCEPVars, ok = customSCEPVars.SetURL(caName)
-						break
-					}
-				}
-			case strings.HasPrefix(k, string(fleet.FleetVarCustomSCEPChallengePrefix)):
-				caName := strings.TrimPrefix(k, string(fleet.FleetVarCustomSCEPChallengePrefix))
-				for _, ca := range groupedCAs.CustomScepProxy {
-					if ca.Name == caName {
-						found = true
-						customSCEPVars, ok = customSCEPVars.SetChallenge(caName)
-						break
-					}
-				}
-			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
-				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
-				for _, ca := range groupedCAs.Smallstep {
-					if ca.Name == caName {
-						found = true
-						smallstepVars, ok = smallstepVars.SetURL(caName)
-						break
-					}
-				}
-			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix)):
-				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
-				for _, ca := range groupedCAs.Smallstep {
-					if ca.Name == caName {
-						found = true
-						smallstepVars, ok = smallstepVars.SetChallenge(caName)
-						break
-					}
-				}
-			}
-			if !found {
-				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
-			}
-		} else {
-			switch k {
-			case string(fleet.FleetVarNDESSCEPProxyURL):
-				ndesVars, ok = ndesVars.SetURL()
-			case string(fleet.FleetVarNDESSCEPChallenge):
-				ndesVars, ok = ndesVars.SetChallenge()
-			case string(fleet.FleetVarSCEPRenewalID):
-				// This is kind of a goofy way of doing things but essentially, since custom SCEP, NDES, and Smallstep
-				// share the renewal ID Fleet variable, we need to set the
-
-				customSCEPVars, ok = customSCEPVars.SetRenewalID()
-				if ok {
-					ndesVars, ok = ndesVars.SetRenewalID()
-					if ok {
-						smallstepVars, ok = smallstepVars.SetRenewalID()
-					}
-				}
-			}
-		}
-		if !ok {
-			if k == string(fleet.FleetVarSCEPRenewalID) {
-				// Special message for renewal ID
-				return nil, &fleet.BadRequestError{Message: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU)."}
-			}
-			// We limit CA variables to once per profile
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
-		}
-	}
-	if digiCertVars.Found() {
-		if !digiCertVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
-		}
-		err := additionalDigiCertValidation(contents, digiCertVars)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
-	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() {
-		if ndesVars.RenewalOnly() {
-			ndesVars = nil
-		}
-		if customSCEPVars.RenewalOnly() {
-			customSCEPVars = nil
-		}
-		if smallstepVars.RenewalOnly() {
-			smallstepVars = nil
-		}
-		// If only the renewal ID variable appeared without any of its associated variables, return an error. It is shared
-		// by the 3 CA types but is only allowed when CA vars are in use
-		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil {
-			return nil, &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
-		}
-	}
-	if customSCEPVars.Found() {
-		if !customSCEPVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
-		}
-		err := additionalCustomSCEPValidation(contents, customSCEPVars)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if ndesVars.Found() {
-		if !ndesVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
-		}
-		err := additionalNDESValidation(contents, ndesVars)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if smallstepVars.Found() {
-		if !smallstepVars.Ok() {
-			return nil, &fleet.BadRequestError{Message: smallstepVars.ErrorMessage()}
-		}
-		err := additionalSmallstepValidation(contents, smallstepVars)
-		if err != nil {
-			return nil, err
+	// Validate against all valid Fleet variables in configuration profiles
+	for _, fleetVar := range fleetVars {
+		if !slices.Contains(fleetVarsSupportedInAppleConfigProfiles, fleet.FleetVarName(fleetVar)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", fleetVar)}
 		}
 	}
 
-	return variables.Dedupe(fleetVars), nil
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
+		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
+	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
+	if err != nil {
+		return nil, err
+	}
+
+	return fleetVars, nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
 // and that these variables are only present in a "com.apple.security.pkcs12" payload
-func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFound) error {
+func additionalDigiCertValidation(contents string, digiCertVars *DigiCertVarsFound) error {
 	// Find and replace matches in base64 encoded data contents so we can unmarshal the plist and keep the Fleet vars.
 	contents = variables.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
 		return base64.StdEncoding.EncodeToString([]byte(match))
@@ -743,7 +607,7 @@ func (p *PKCS12PayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 // additionalCustomSCEPValidation checks that Challenge/URL fields march Custom SCEP Fleet variables
 // exactly, that the SCEP renewal ID variable is present in the CN and that these variables are only
 // present in a "com.apple.security.scep" payload
-func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPVarsFound) error {
+func additionalCustomSCEPValidation(contents string, customSCEPVars *CustomSCEPVarsFound) error {
 	scepProf, err := unmarshalSCEPProfile(contents)
 	if err != nil {
 		return err
@@ -796,7 +660,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	return nil
 }
 
-func additionalSmallstepValidation(contents string, smallstepVars *smallstepVarsFound) error {
+func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVarsFound) error {
 	scepProf, err := unmarshalSCEPProfile(contents)
 	if err != nil {
 		return err
@@ -948,7 +812,7 @@ func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 // additionalNDESValidation checks that Challenge/URL fields match NDES Fleet variables
 // exactly, that the SCEP renewal ID variable is present in the CN, and that these variables are only
 // present in a "com.apple.security.scep" payload
-func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
+func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	scepProf, err := unmarshalSCEPProfile(contents)
 	if err != nil {
 		return err
@@ -3341,8 +3205,9 @@ func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAp
 ////////////////////////////////////////////////////////////////////////////////
 
 type initiateMDMSSORequest struct {
-	Initiator      string `json:"initiator,omitempty"`       // optional, passed by the UI during account-driven enrollment
+	Initiator      string `json:"initiator,omitempty"`       // optional, passed by the UI during account-driven enrollment, or by Orbit for non-Apple IdP auth.
 	UserIdentifier string `json:"user_identifier,omitempty"` // optional, passed by Apple for account-driven enrollment
+	HostUUID       string `json:"host_uuid,omitempty"`       // optional, passed by Orbit for non-Apple IdP auth
 }
 
 type initiateMDMSSOResponse struct {
@@ -3361,7 +3226,7 @@ func (r initiateMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWri
 
 func initiateMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateMDMSSORequest)
-	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMSSO(ctx, req.Initiator, "")
+	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMSSO(ctx, req.Initiator, "", req.HostUUID)
 	if err != nil {
 		return initiateMDMSSOResponse{Err: err}, nil
 	}
@@ -3374,7 +3239,7 @@ func initiateMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
-func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -3451,14 +3316,38 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 
 type getManualEnrollmentProfileRequest struct{}
 
+type getManualEnrollmentProfileResponse struct {
+	// Profile field is used in HijackRender for the response.
+	Profile []byte
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getManualEnrollmentProfileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// make the browser download the content to a file
+	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	// explicitly set the content length before the write, so the caller can
+	// detect short writes (if it fails to send the full content properly)
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
+	// this content type will make macos open the profile with the proper application
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
+	// prevent detection of content, obey the provided content-type
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if n, err := w.Write(r.Profile); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func (r getManualEnrollmentProfileResponse) Error() error { return r.Err }
+
 func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
 	if err != nil {
-		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+		return getManualEnrollmentProfileResponse{Err: err}, nil
 	}
 
-	// Using this type to keep code DRY as it already has all the functionality we need.
-	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+	return getManualEnrollmentProfileResponse{Profile: profile}, nil
 }
 
 func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
@@ -4264,7 +4153,6 @@ func NewInstalledApplicationListResultsHandler(
 		setStatusForExpectedInstall := func(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
-
 		) error {
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
@@ -5565,6 +5453,7 @@ func preprocessProfileContents(
 			}
 		}
 		if len(managedCertificatePayloads) != 0 {
+			// TODO: We could filter out failed profiles, but at the moment we don't, see Windows impl. for how it's done there.
 			err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating managed certificates")
@@ -5673,81 +5562,6 @@ func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdT
 	return hardwareSerial, true, nil
 }
 
-type digiCertVarsFound struct {
-	dataCA     map[string]struct{}
-	passwordCA map[string]struct{}
-}
-
-// Ok makes sure that both DATA and PASSWORD variables are present in a DigiCert profile.
-func (d *digiCertVarsFound) Ok() bool {
-	if d == nil {
-		return true
-	}
-	if len(d.dataCA) != len(d.passwordCA) {
-		return false
-	}
-	for ca := range d.dataCA {
-		if _, ok := d.passwordCA[ca]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-func (d *digiCertVarsFound) Found() bool {
-	return d != nil
-}
-
-func (d *digiCertVarsFound) CAs() []string {
-	if d == nil {
-		return nil
-	}
-	keys := make([]string, 0, len(d.dataCA))
-	for key := range d.dataCA {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-func (d *digiCertVarsFound) ErrorMessage() string {
-	for ca := range d.passwordCA {
-		if _, ok := d.dataCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarDigiCertDataPrefix, ca)
-		}
-	}
-	for ca := range d.dataCA {
-		if _, ok := d.passwordCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarDigiCertPasswordPrefix, ca)
-		}
-	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
-		fleet.FleetVarDigiCertDataPrefix, fleet.FleetVarDigiCertPasswordPrefix)
-}
-
-func (d *digiCertVarsFound) SetData(value string) (*digiCertVarsFound, bool) {
-	if d == nil {
-		d = &digiCertVarsFound{}
-	}
-	if d.dataCA == nil {
-		d.dataCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := d.dataCA[value]
-	d.dataCA[value] = struct{}{}
-	return d, !alreadyPresent
-}
-
-func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool) {
-	if d == nil {
-		d = &digiCertVarsFound{}
-	}
-	if d.passwordCA == nil {
-		d.passwordCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := d.passwordCA[value]
-	d.passwordCA[value] = struct{}{}
-	return d, !alreadyPresent
-}
-
 func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
@@ -5779,62 +5593,6 @@ func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertific
 	return true, nil
 }
 
-type ndesVarsFound struct {
-	urlFound       bool
-	challengeFound bool
-	renewalIdFound bool
-}
-
-// Ok makes sure that Challenge, URL, and renewal ID are present.
-func (n *ndesVarsFound) Ok() bool {
-	if n == nil {
-		return true
-	}
-	return n.urlFound && n.challengeFound && n.renewalIdFound
-}
-
-func (n *ndesVarsFound) Found() bool {
-	return n != nil
-}
-
-func (n *ndesVarsFound) RenewalOnly() bool {
-	return n != nil && !n.urlFound && !n.challengeFound && n.renewalIdFound
-}
-
-func (n *ndesVarsFound) ErrorMessage() string {
-	if n.renewalIdFound && !n.urlFound && !n.challengeFound {
-		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
-	}
-	return fleet.NDESSCEPVariablesMissingErrMsg
-}
-
-func (n *ndesVarsFound) SetURL() (*ndesVarsFound, bool) {
-	if n == nil {
-		n = &ndesVarsFound{}
-	}
-	alreadyPresent := n.urlFound
-	n.urlFound = true
-	return n, !alreadyPresent
-}
-
-func (n *ndesVarsFound) SetChallenge() (*ndesVarsFound, bool) {
-	if n == nil {
-		n = &ndesVarsFound{}
-	}
-	alreadyPresent := n.challengeFound
-	n.challengeFound = true
-	return n, !alreadyPresent
-}
-
-func (n *ndesVarsFound) SetRenewalID() (*ndesVarsFound, bool) {
-	if n == nil {
-		n = &ndesVarsFound{}
-	}
-	alreadyPresent := n.renewalIdFound
-	n.renewalIdFound = true
-	return n, !alreadyPresent
-}
-
 func isNDESSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, userEnrollmentsToHostUUIDsMap map[string]string, profUUID string, target *cmdTarget,
 ) (bool, error) {
@@ -5846,206 +5604,6 @@ func isNDESSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertific
 			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.", ptr.Time(time.Now().UTC()))
 	}
 	return true, nil
-}
-
-type customSCEPVarsFound struct {
-	urlCA          map[string]struct{}
-	challengeCA    map[string]struct{}
-	renewalIdFound bool
-}
-
-// Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
-// This allows the Admin to override the SCEP challenge in the profile.
-func (cs *customSCEPVarsFound) Ok() bool {
-	if cs == nil {
-		return true
-	}
-	if len(cs.challengeCA) != len(cs.urlCA) {
-		return false
-	}
-	if len(cs.challengeCA) == 0 {
-		return false
-	}
-	for ca := range cs.challengeCA {
-		if _, ok := cs.urlCA[ca]; !ok {
-			return false
-		}
-	}
-	return cs.renewalIdFound
-}
-
-func (cs *customSCEPVarsFound) Found() bool {
-	return cs != nil
-}
-
-func (cs *customSCEPVarsFound) RenewalOnly() bool {
-	return cs != nil && len(cs.urlCA) == 0 && len(cs.challengeCA) == 0 && cs.renewalIdFound
-}
-
-func (cs *customSCEPVarsFound) CAs() []string {
-	if cs == nil {
-		return nil
-	}
-	keys := make([]string, 0, len(cs.urlCA))
-	for key := range cs.urlCA {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-func (cs *customSCEPVarsFound) ErrorMessage() string {
-	if cs.renewalIdFound && len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
-		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
-	}
-	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
-		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
-	}
-	for ca := range cs.challengeCA {
-		if _, ok := cs.urlCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarCustomSCEPProxyURLPrefix, ca)
-		}
-	}
-	for ca := range cs.urlCA {
-		if _, ok := cs.challengeCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarCustomSCEPChallengePrefix, ca)
-		}
-	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
-		fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarCustomSCEPChallengePrefix)
-}
-
-func (cs *customSCEPVarsFound) SetURL(value string) (*customSCEPVarsFound, bool) {
-	if cs == nil {
-		cs = &customSCEPVarsFound{}
-	}
-	if cs.urlCA == nil {
-		cs.urlCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := cs.urlCA[value]
-	cs.urlCA[value] = struct{}{}
-	return cs, !alreadyPresent
-}
-
-func (cs *customSCEPVarsFound) SetChallenge(value string) (*customSCEPVarsFound, bool) {
-	if cs == nil {
-		cs = &customSCEPVarsFound{}
-	}
-	if cs.challengeCA == nil {
-		cs.challengeCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := cs.challengeCA[value]
-	cs.challengeCA[value] = struct{}{}
-	return cs, !alreadyPresent
-}
-
-func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
-	if cs == nil {
-		cs = &customSCEPVarsFound{}
-	}
-	alreadyPresent := cs.renewalIdFound
-	cs.renewalIdFound = true
-	return cs, !alreadyPresent
-}
-
-type smallstepVarsFound struct {
-	urlCA          map[string]struct{}
-	challengeCA    map[string]struct{}
-	renewalIdFound bool
-}
-
-// Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
-// This allows the Admin to override the SCEP challenge in the profile.
-func (cs *smallstepVarsFound) Ok() bool {
-	if cs == nil {
-		return true
-	}
-	// There must be a 1:1 mapping between URL and Challenge CAs
-	if len(cs.challengeCA) != len(cs.urlCA) {
-		return false
-	}
-	if len(cs.challengeCA) == 0 {
-		return false
-	}
-	for ca := range cs.challengeCA {
-		if _, ok := cs.urlCA[ca]; !ok {
-			// Unable to find matching URL CA for Challenge CA
-			return false
-		}
-	}
-	return cs.renewalIdFound
-}
-
-func (cs *smallstepVarsFound) Found() bool {
-	return cs != nil
-}
-
-func (cs *smallstepVarsFound) RenewalOnly() bool {
-	return cs != nil && len(cs.urlCA) == 0 && len(cs.challengeCA) == 0 && cs.renewalIdFound
-}
-
-func (cs *smallstepVarsFound) CAs() []string {
-	if cs == nil {
-		return nil
-	}
-	keys := make([]string, 0, len(cs.urlCA))
-	for key := range cs.urlCA {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-func (cs *smallstepVarsFound) ErrorMessage() string {
-	if cs.renewalIdFound && len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
-		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
-	}
-	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
-		return fmt.Sprintf("SCEP profile for Smallstep certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarSmallstepSCEPChallengePrefix, fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
-	}
-	for ca := range cs.challengeCA {
-		if _, ok := cs.urlCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarSmallstepSCEPProxyURLPrefix, ca)
-		}
-	}
-	for ca := range cs.urlCA {
-		if _, ok := cs.challengeCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarSmallstepSCEPChallengePrefix, ca)
-		}
-	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
-		fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarSmallstepSCEPChallengePrefix)
-}
-
-func (cs *smallstepVarsFound) SetURL(value string) (*smallstepVarsFound, bool) {
-	if cs == nil {
-		cs = &smallstepVarsFound{}
-	}
-	if cs.urlCA == nil {
-		cs.urlCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := cs.urlCA[value]
-	cs.urlCA[value] = struct{}{}
-	return cs, !alreadyPresent
-}
-
-func (cs *smallstepVarsFound) SetChallenge(value string) (*smallstepVarsFound, bool) {
-	if cs == nil {
-		cs = &smallstepVarsFound{}
-	}
-	if cs.challengeCA == nil {
-		cs.challengeCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := cs.challengeCA[value]
-	cs.challengeCA[value] = struct{}{}
-	return cs, !alreadyPresent
-}
-
-func (cs *smallstepVarsFound) SetRenewalID() (*smallstepVarsFound, bool) {
-	if cs == nil {
-		cs = &smallstepVarsFound{}
-	}
-	alreadyPresent := cs.renewalIdFound
-	cs.renewalIdFound = true
-	return cs, !alreadyPresent
 }
 
 func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,

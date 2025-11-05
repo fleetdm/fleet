@@ -9,6 +9,7 @@ interface ISettingsSectionProps {
   title: string;
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }
 
 /** This component encapsulates the common styles for each settings section */
@@ -16,11 +17,12 @@ const SettingsSection = ({
   title,
   children,
   className,
+  id,
 }: ISettingsSectionProps) => {
   const classes = classnames(baseClass, className);
 
   return (
-    <section className={classes}>
+    <section className={classes} id={id}>
       <SectionHeader title={title} wrapperCustomClass={`${baseClass}__title`} />
       <>{children}</>
     </section>

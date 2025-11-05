@@ -7,12 +7,13 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { formatDistanceToNow } from "date-fns";
 
-import softwareAPI from "services/entities/software";
-import deviceUserAPI from "services/entities/device_user";
+import mdmApi, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
+import deviceUserAPI, {
+  IGetVppInstallCommandResultsResponse,
+} from "services/entities/device_user";
 
 import {
   IHostSoftware,
-  ISoftwareIpaInstallResults,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { IMdmCommandResult } from "interfaces/mdm";
@@ -233,22 +234,41 @@ export const SoftwareIpaInstallDetailsModal = ({
     setShowInstallDetails((prev) => !prev);
   };
 
+  const responseHandler = (
+    response:
+      | IGetVppInstallCommandResultsResponse
+      | IGetMdmCommandResultsResponse
+  ) => {
+    const results = response.results?.[0];
+    if (!results) {
+      // FIXME: It's currently possible that the command results API response is empty for pending
+      // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
+      // display some minimal pending UI. This should be removed once the API response is fixed.
+      return {} as IMdmCommandResult;
+    }
+    return {
+      ...results,
+      payload: atob(results.payload),
+      result: atob(results.result),
+    };
+  };
+
   const { data: swInstallResult, isLoading, isError, error } = useQuery<
-    ISoftwareIpaInstallResults,
-    AxiosError,
-    IMdmCommandResult
+    IMdmCommandResult,
+    AxiosError
   >(
     ["mdm_command_results", commandUuid],
     async () => {
       return deviceAuthToken
-        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, commandUuid)
-        : softwareAPI.getSoftwareInstallResult(commandUuid);
+        ? deviceUserAPI
+            .getVppCommandResult(deviceAuthToken, commandUuid)
+            .then(responseHandler)
+        : mdmApi.getCommandResults(commandUuid).then(responseHandler);
     },
     {
       refetchOnWindowFocus: false,
       staleTime: 3000,
       enabled: !!commandUuid,
-      select: (data) => data.results,
     }
   );
 
@@ -289,7 +309,6 @@ export const SoftwareIpaInstallDetailsModal = ({
     commandUpdatedAt: swInstallResult?.updated_at || "",
   });
 
-  console.log("isMDMStatusNotNow", isMDMStatusNotNow);
   const renderInventoryVersionsSection = () => {
     if (hostSoftware?.installed_versions?.length) {
       return <InventoryVersions hostSoftware={hostSoftware} />;
@@ -298,6 +317,11 @@ export const SoftwareIpaInstallDetailsModal = ({
   };
 
   const renderInstallDetailsSection = () => {
+    // Hide section if there's no details to display
+    if (!swInstallResult?.result && !swInstallResult?.payload) {
+      return null;
+    }
+
     return (
       <>
         <RevealButton

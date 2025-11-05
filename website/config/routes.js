@@ -539,7 +539,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /microsoft-compliance-partner/remediate': {
+  'GET /remediate': {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
@@ -547,7 +547,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /microsoft-compliance-partner/enroll': {
+  'GET /turn-on-mdm': {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
@@ -897,6 +897,10 @@ module.exports.routes = {
   'GET /seceng': '/observability?utm_content=eo-security',
   'GET /vm': '/software-management?utm_content=vm',
 
+  // Microsoft conditional access
+  'GET /microsoft-compliance-partner/remediate': '/remediate',
+  'GET /microsoft-compliance-partner/enroll': '/turn-on-mdm',
+
   // Fleet UI
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
@@ -991,8 +995,11 @@ module.exports.routes = {
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
+  'GET /learn-more-about/deleting-android-enterprise': '/guides/android-mdm-setup#deleting-android-enterprise-in-google-admin',
   'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
   'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
+  'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication',
+  'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/macos-setup-experience#bootstrap-package',
   'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
 
   // Sitemap

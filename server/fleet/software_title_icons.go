@@ -47,6 +47,7 @@ type SoftwareTitleIconStore interface {
 
 type DetailsForSoftwareIconActivity struct {
 	SoftwareInstallerID *uint                   `db:"software_installer_id"`
+	InHouseAppID        *uint                   `db:"in_house_app_id"`
 	AdamID              *string                 `db:"adam_id"`
 	VPPAppTeamID        *uint                   `db:"vpp_app_team_id"`
 	VPPIconUrl          *string                 `db:"vpp_icon_url"`

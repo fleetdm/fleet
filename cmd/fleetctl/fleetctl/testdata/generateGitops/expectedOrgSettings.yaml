@@ -1,4 +1,9 @@
 certificate_authorities:
+  custom_est_proxy:
+  - name: some-est-name
+    password: ___GITOPS_COMMENT_7___
+    url: https://some-est-url.example.com
+    username: some-est-username
   custom_scep_proxy:
     - challenge: ___GITOPS_COMMENT_5___
       name: some-custom-scep-proxy-name
@@ -26,9 +31,9 @@ certificate_authorities:
   smallstep:
     - challenge_url: https://some-smallstep-challenge-url.com
       name: some-smallstep-name
-      password: ___GITOPS_COMMENT_7___
+      password: ___GITOPS_COMMENT_8___
       url: https://some-smallstep-url.com
-      username: ___GITOPS_COMMENT_8___
+      username: ___GITOPS_COMMENT_9___
 features:
   enable_host_users: true
   enable_software_inventory: true
@@ -75,8 +80,8 @@ mdm:
     entity_id: some-mdm-entity-id.com
     idp_name: some-other-idp-name
     issuer_uri: https://some-mdm-issuer-uri.com
-    metadata: ___GITOPS_COMMENT_9___
-    metadata_url: ___GITOPS_COMMENT_10___
+    metadata: ___GITOPS_COMMENT_10___
+    metadata_url: ___GITOPS_COMMENT_11___
   end_user_license_agreement: ./lib/eula/test.pdf
   volume_purchasing_program:
     - location: Fleet Device Management Inc.
@@ -91,7 +96,7 @@ org_info:
   org_logo_url_light_background: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
-  - secret: ___GITOPS_COMMENT_11___
+  - secret: ___GITOPS_COMMENT_12___
 server_settings:
   ai_features_disabled: false
   debug_host_ids:
@@ -111,8 +116,8 @@ sso_settings:
   entity_id: dogfood.fleetdm.com
   idp_image_url: http://some-sso-idp-image-url.com
   idp_name: some-idp-name
-  metadata: ___GITOPS_COMMENT_12___
-  metadata_url: ___GITOPS_COMMENT_13___
+  metadata: ___GITOPS_COMMENT_13___
+  metadata_url: ___GITOPS_COMMENT_14___
   sso_server_url: https://sso.fleetdm.com
 webhook_settings:
   activities_webhook:

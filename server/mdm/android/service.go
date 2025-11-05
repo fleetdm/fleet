@@ -23,6 +23,7 @@ type Service interface {
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
 	AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string, hostUUIDs map[string]struct{}) error
+	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
 }
 
 // /////////////////////////////////////////////

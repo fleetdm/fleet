@@ -434,6 +434,8 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 
 The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
+If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
+
 ### macos_setup
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
@@ -850,6 +852,11 @@ org_settings:
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
+    custom_est_proxy:
+    - name: EST_WIFI
+      url: https://example.com/est
+      username: $EST_PROXY_USERNAME
+      password: $EST_PROXY_PASSWORD
     hydrant:
       - name: HYDRANT_WIFI
         url: https://example.hydrantid.com/.well-known/est/abc123
@@ -896,6 +903,13 @@ Can only be configured for all teams (`org_settings`).
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
+
+#### custom_est_proxy
+
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the EST (Enrollment Over Secure Transport) endpoint.
+- `username` is the username for the EST server.
+- `password` is the password for the EST server.
 
 #### smallstep
 

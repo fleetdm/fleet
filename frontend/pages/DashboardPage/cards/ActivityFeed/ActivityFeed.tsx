@@ -149,11 +149,10 @@ const ActivityFeed = ({
         if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
           setScriptPackageDetails({ ...details });
         } else {
-          setPackageInstallDetails({ ...details });
+          details?.command_uuid
+            ? setIpaPackageInstallDetails({ ...details })
+            : setPackageInstallDetails({ ...details });
         }
-        details?.command_uuid
-          ? setIpaPackageInstallDetails({ ...details })
-          : setPackageInstallDetails({ ...details });
         break;
       case ActivityType.UninstalledSoftware:
         setPackageUninstallDetails({
