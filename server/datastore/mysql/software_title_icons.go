@@ -148,6 +148,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 	query := `
 		SELECT
 			software_installers.id AS software_installer_id,
+			in_house_apps.id AS in_house_app_id,
 			vpp_apps.adam_id AS adam_id,
 			vpp_apps_teams.id AS vpp_app_team_id,
 			vpp_apps.icon_url AS vpp_icon_url,
@@ -155,13 +156,14 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			software_installers.filename AS filename,
 			teams.name AS team_name,
 			COALESCE(teams.id, 0) AS team_id,
-			COALESCE(software_installers.self_service, vpp_apps_teams.self_service) AS self_service,
+			COALESCE(software_installers.self_service, vpp_apps_teams.self_service, false) AS self_service, -- TODO(JK): change false to iha.self_service once that is merged
 			software_titles.id AS software_title_id,
 			vpp_apps.platform AS platform
 		FROM software_title_icons
 		INNER JOIN software_titles ON software_title_icons.software_title_id = software_titles.id
 		LEFT JOIN teams ON software_title_icons.team_id = teams.id
 		LEFT JOIN software_installers ON software_installers.title_id = software_titles.id
+		LEFT JOIN in_house_apps ON in_house_apps.title_id = software_titles.id
 		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
 		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id AND vpp_apps_teams.platform = vpp_apps.platform
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
@@ -205,6 +207,21 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
 		}
 	}
+	if details.InHouseAppID != nil {
+		labelQuery := `
+			SELECT
+				labels.id AS id,
+				labels.name AS name,
+				in_house_app_labels.exclude AS exclude
+			FROM in_house_app_labels
+			INNER JOIN labels ON in_house_app_labels.label_id = labels.id
+			WHERE in_house_app_id = ?
+		`
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.InHouseAppID); err != nil {
+			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
+		}
+	}
+
 	for _, l := range labels {
 		if l.Exclude {
 			details.LabelsExcludeAny = append(details.LabelsExcludeAny, fleet.ActivitySoftwareLabel{

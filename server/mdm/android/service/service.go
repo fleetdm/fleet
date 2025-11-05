@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -319,8 +318,6 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	appReportsEnabled := license.IsPremium(ctx)
-
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
 	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
@@ -333,12 +330,8 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			SystemPropertiesEnabled:      true,
 			SoftwareInfoEnabled:          true, // Android OS version, etc.
 			CommonCriteriaModeEnabled:    true,
-			// Application inventory will likely be a Premium feature.
 			// applicationReports take a lot of space in device status reports. They are not free -- our current cost is $40 per TiB (2025-02-20).
-			// We should disable them for free accounts. To enable them for a server transitioning from Free to Premium, we will need to patch the existing policies.
-			// For server transitioning from Premium to Free, we will need to patch the existing policies to disable software inventory, which could also be done
-			// by the fleetdm.com androidAPIClient or manually. The androidAPIClient could also enforce this report setting.
-			ApplicationReportsEnabled:    appReportsEnabled,
+			ApplicationReportsEnabled:    true,
 			ApplicationReportingSettings: nil,
 		},
 	})
@@ -869,7 +862,6 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 		}
 		return ctxerr.Wrap(ctx, err, "getting android enterprise")
 	}
-	appReportsEnabled := license.IsPremium(ctx)
 
 	secret, err := svc.getClientAuthenticationSecret(ctx)
 	if err != nil {
@@ -889,7 +881,7 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 			SystemPropertiesEnabled:      true,
 			SoftwareInfoEnabled:          true, // Android OS version, etc.
 			CommonCriteriaModeEnabled:    true,
-			ApplicationReportsEnabled:    appReportsEnabled,
+			ApplicationReportsEnabled:    true,
 			ApplicationReportingSettings: nil,
 		},
 	})
