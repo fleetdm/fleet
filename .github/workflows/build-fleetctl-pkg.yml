@@ -216,11 +216,11 @@ jobs:
           PACKAGE_SIGNING_IDENTITY_SHA1="D52080FD1F0941DE31346F06DA0F08AED6FACBBF"
           productsign --sign "$PACKAGE_SIGNING_IDENTITY_SHA1" \
             fleetctl_unsigned.pkg \
-            fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+            fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
 
       - name: Verify package signature
         run: |
-          pkgutil --check-signature fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+          pkgutil --check-signature fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
 
       - name: Notarize package
         env:
@@ -234,7 +234,7 @@ jobs:
           max_attempts: 10
           command: |
             # Create a zip for notarization
-            zip fleetctl_notarize.zip fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+            zip fleetctl_notarize.zip fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
             
             # Submit for notarization and capture output
             NOTARIZE_OUTPUT=$(xcrun notarytool submit fleetctl_notarize.zip \
@@ -272,7 +272,7 @@ jobs:
               echo "✓ Notarization completed successfully"
               
               # Staple the notarization ticket
-              xcrun stapler staple fleetctl_v${{ steps.extract_version.outputs.version }}.pkg || {
+              xcrun stapler staple fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg || {
                 echo "Warning: Stapling failed, but notarization may have succeeded"
                 # In test mode, continue even if stapling fails
                 if [ "${{ steps.extract_version.outputs.is_test_mode }}" = "true" ]; then
@@ -292,7 +292,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="${{ steps.extract_version.outputs.tag_name }}"
-          PACKAGE_NAME="fleetctl_v${{ steps.extract_version.outputs.version }}.pkg"
+          PACKAGE_NAME="fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg"
           
           # Wait for release to exist (goreleaser creates it as draft)
           MAX_WAIT=300  # 5 minutes max wait
@@ -326,13 +326,13 @@ jobs:
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleetctl-test-package
-          path: fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+          path: fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
           retention-days: 7
 
       - name: Attest package
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: fleetctl_v${{ steps.extract_version.outputs.version }}.pkg
+          subject-path: fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
           push-to-registry: false
 
