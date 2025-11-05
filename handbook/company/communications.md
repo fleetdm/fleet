@@ -391,8 +391,8 @@ Opinionated conventions help people work faster and spend less time figuring out
 
 _**Note:**_ There are only a few "special" labels that are exceptions to this rule:
 - `bug` A defect in the product.
-- `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 - `story` A user story.
+- `timebox` A timeboxed issue.
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
 
