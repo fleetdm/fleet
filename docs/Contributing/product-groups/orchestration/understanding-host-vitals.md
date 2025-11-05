@@ -1088,7 +1088,7 @@ SELECT
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+	'' as upgrade_code
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
