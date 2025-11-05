@@ -1040,7 +1040,7 @@ spec:
       "bundle_identifier": "bundle",
       "source": "deb_packages",
       "browser": "",
-	  "extension_for": "",	
+	  "extension_for": "",
       "generated_cpe": "",
       "vulnerabilities": null
     }
@@ -2458,6 +2458,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return declaration, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 
