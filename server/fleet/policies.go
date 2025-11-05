@@ -310,8 +310,8 @@ type PolicySoftwareInstallerData struct {
 }
 
 type PolicyVPPData struct {
-	ID       uint                `db:"id"`
-	AdamID   string              `db:"adam_id"`
+	ID       uint                      `db:"id"`
+	AdamID   string                    `db:"adam_id"`
 	Platform InstallableDevicePlatform `db:"platform"`
 }
 

@@ -18,7 +18,7 @@ import (
 )
 
 type activityModule struct {
-	ds     fleet.Datastore
+	repo   ActivityRepo
 	logger kitlog.Logger
 }
 
@@ -26,9 +26,16 @@ type ActivityModule interface {
 	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 }
 
-func NewActivityModule(ds fleet.Datastore, logger kitlog.Logger) ActivityModule {
+// ActivityRepo is the datastore repository interface needed to handle Fleet activities.
+// It is implemented by fleet.Datastore.
+type ActivityRepo interface {
+	AppConfig(ctx context.Context) (*fleet.AppConfig, error)
+	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
+}
+
+func NewActivityModule(repo ActivityRepo, logger kitlog.Logger) ActivityModule {
 	return &activityModule{
-		ds:     ds,
+		repo:   repo,
 		logger: logger,
 	}
 }
@@ -36,7 +43,7 @@ func NewActivityModule(ds fleet.Datastore, logger kitlog.Logger) ActivityModule 
 var automationActivityAuthor = "Fleet"
 
 func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	appConfig, err := a.ds.AppConfig(ctx)
+	appConfig, err := a.repo.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
 	}
@@ -103,5 +110,5 @@ func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, acti
 	}
 	// We update the context to indicate that we processed the webhook.
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	return a.ds.NewActivity(ctx, user, activity, detailsBytes, timestamp)
+	return a.repo.NewActivity(ctx, user, activity, detailsBytes, timestamp)
 }
