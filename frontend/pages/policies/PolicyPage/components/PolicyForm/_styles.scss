@@ -86,6 +86,13 @@
     }
   }
 
+  &__policy-description-wrapper,
+  &__policy-resolution-wrapper {
+    .icon {
+      align-self: flex-start;
+    }
+  }
+
   &__policy-name-wrapper {
     .no-value {
       min-width: 112px;
@@ -127,9 +134,12 @@
     white-space: normal;
     background-color: transparent;
     overflow: hidden;
+    font-size: $x-small;
   }
 
   &__policy-name {
+   font-size:$large;
+
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
     }
