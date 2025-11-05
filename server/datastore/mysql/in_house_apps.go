@@ -1208,7 +1208,7 @@ SET
 WHERE
 	verification_at IS NULL AND
 	verification_failed_at IS NULL AND
-	in_house_app_id IN = ?
+	in_house_app_id = ?
 `
 		_, err = tx.ExecContext(ctx, cancelInHouseInstalls, installerID)
 		if err != nil {

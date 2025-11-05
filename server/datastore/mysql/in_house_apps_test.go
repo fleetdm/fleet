@@ -777,14 +777,14 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 
-	var iosInHouseID, iosTitleID uint
+	var iosInHouseID2, iosTitleID2 uint
 	for _, app := range apps {
 		require.NotNil(t, app.TitleID)
 		meta, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, *app.TitleID)
 		require.NoError(t, err)
 		if meta.Platform == "ios" {
-			iosInHouseID = meta.InstallerID
-			iosTitleID = *app.TitleID
+			iosInHouseID2 = meta.InstallerID
+			iosTitleID2 = *app.TitleID
 		}
 	}
 
@@ -796,15 +796,14 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 		{Filename: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleID: ipa2.BundleIdentifier},
 	})
 
-	// add pending and completed installs for ipa1
-	completedCmd := createInHouseAppInstallRequest(t, ds, host1.ID, iosInHouseID, iosTitleID, user1)
-	pendingCmd := createInHouseAppInstallRequest(t, ds, host2.ID, iosInHouseID, iosTitleID, user1)
+	// add pending and completed installs for ipa2
+	completedCmd := createInHouseAppInstallRequest(t, ds, host1.ID, iosInHouseID2, iosTitleID2, user1)
+	createInHouseAppInstallRequest(t, ds, host2.ID, iosInHouseID2, iosTitleID2, user1)
 	createInHouseAppInstallResultVerified(t, ds, host1, completedCmd, "Acknowledged")
 
-	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID)
+	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID2)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 1, Pending: 1}, *summary)
-	_ = pendingCmd
 
 	// batch-set without changes, should not affect installs
 	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
@@ -848,11 +847,87 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 		{Filename: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleID: ipa2.BundleIdentifier},
 	})
 
-	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID)
+	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID2)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 1, Pending: 1}, *summary)
 
 	// remove ipa2 and add ipa1
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID:        ipa1.StorageID,
+			Filename:         ipa1.Filename,
+			Title:            ipa1.Title,
+			Source:           "ios_apps",
+			Version:          ipa1.Version,
+			UserID:           user1.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: ipa1.BundleIdentifier,
+			SelfService:      ipa1.SelfService,
+		},
+		{
+			StorageID:        ipa1.StorageID,
+			Filename:         ipa1.Filename,
+			Title:            ipa1.Title,
+			Source:           "ipados_apps",
+			Version:          ipa1.Version,
+			UserID:           user1.ID,
+			Platform:         "ipados",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: ipa1.BundleIdentifier,
+			SelfService:      ipa1.SelfService,
+		},
+	})
+	require.NoError(t, err)
+
+	apps, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+
+	var iosInHouseID1, iosTitleID1 uint
+	for _, app := range apps {
+		require.NotNil(t, app.TitleID)
+		meta, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, *app.TitleID)
+		require.NoError(t, err)
+		if meta.Platform == "ios" {
+			iosInHouseID1 = meta.InstallerID
+			iosTitleID1 = *app.TitleID
+		}
+	}
+
+	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
+		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1")},
+		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1")},
+	}, []fleet.InHouseAppPayload{
+		{Filename: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleID: ipa1.BundleIdentifier},
+		{Filename: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleID: ipa1.BundleIdentifier},
+	})
+
+	// stats don't report anything about ipa2 anymore
+	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID2)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0}, *summary)
+
+	pendingHost1, _, err := ds.ListHostUpcomingActivities(ctx, host1.ID, fleet.ListOptions{PerPage: 10})
+	require.NoError(t, err)
+	require.Empty(t, pendingHost1)
+	pendingHost2, _, err := ds.ListHostUpcomingActivities(ctx, host2.ID, fleet.ListOptions{PerPage: 10})
+	require.NoError(t, err)
+	require.Empty(t, pendingHost2)
+
+	// add pending and completed installs for ipa1
+	completedCmd = createInHouseAppInstallRequest(t, ds, host1.ID, iosInHouseID1, iosTitleID1, user1)
+	createInHouseAppInstallRequest(t, ds, host2.ID, iosInHouseID1, iosTitleID1, user1)
+	createInHouseAppInstallResultVerified(t, ds, host1, completedCmd, "Acknowledged")
+
+	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID1)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 1, Pending: 1}, *summary)
+
+	// update the storage ID of ipa1 (so it is a different installer binary)
+	ipa1.StorageID = "ipa1-new"
 	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			StorageID:        ipa1.StorageID,
@@ -895,108 +970,23 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 		{Filename: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleID: ipa1.BundleIdentifier},
 	})
 
-	// stats don't report anything about ins1 anymore
-	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID)
+	// stats don't report anything about ipa1 anymore (as if it was deleted)
+	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID1)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0}, *summary)
 
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, _, err = ds.ListHostUpcomingActivities(ctx, host1.ID, fleet.ListOptions{PerPage: 10})
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
-	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingHost2, _, err = ds.ListHostUpcomingActivities(ctx, host2.ID, fleet.ListOptions{PerPage: 10})
 	require.NoError(t, err)
 	require.Empty(t, pendingHost2)
 
-	/*
-		// add pending and completed installs for ins0
-		softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
-		require.NoError(t, err)
-		require.Len(t, softwareInstallers, 1)
-		instDetails0, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *softwareInstallers[0].TitleID, false)
-		require.NoError(t, err)
-
-		_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, instDetails0.InstallerID, fleet.HostSoftwareInstallOptions{})
-		require.NoError(t, err)
-		execID2b, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, instDetails0.InstallerID, fleet.HostSoftwareInstallOptions{})
-		require.NoError(t, err)
-
-		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-			HostID:                host2.ID,
-			InstallUUID:           execID2b,
-			InstallScriptExitCode: ptr.Int(1),
-		})
-		require.NoError(t, err)
-
-		pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
-		require.NoError(t, err)
-		require.Len(t, pendingHost1, 1)
-
-		summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 1, PendingInstall: 1}, *summary)
-
-		// Add software installer with same name different bundle id
-		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
-			InstallScript:    "install",
-			InstallerFile:    tfr0,
-			StorageID:        ins0,
-			Filename:         "installer0",
-			Title:            "ins0",
-			Source:           "apps",
-			Version:          "1",
-			PreInstallQuery:  "foo",
-			UserID:           user1.ID,
-			Platform:         "darwin",
-			URL:              "https://example.com",
-			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-			BundleIdentifier: "com.example.different.ins0",
-		}})
-		require.NoError(t, err)
-		softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
-		require.NoError(t, err)
-		require.Len(t, softwareInstallers, 1)
-		assertSoftware([]fleet.SoftwareTitle{
-			{Name: ins0, Source: "apps", ExtensionFor: "", BundleIdentifier: ptr.String("com.example.different.ins0")},
-		})
-
-		// Add software installer with the same bundle id but different name
-		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
-			InstallScript:    "install",
-			InstallerFile:    tfr0,
-			StorageID:        ins0,
-			Filename:         "installer0",
-			Title:            "ins0-different",
-			Source:           "apps",
-			Version:          "1",
-			PreInstallQuery:  "foo",
-			UserID:           user1.ID,
-			Platform:         "darwin",
-			URL:              "https://example.com",
-			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-			BundleIdentifier: "com.example.ins0",
-		}})
-		require.NoError(t, err)
-		softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
-		require.NoError(t, err)
-		require.Len(t, softwareInstallers, 1)
-		assertSoftware([]fleet.SoftwareTitle{
-			{Name: "ins0-different", Source: "apps", ExtensionFor: "", BundleIdentifier: ptr.String("com.example.ins0")},
-		})
-
-		// remove everything
-		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
-		require.NoError(t, err)
-		softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
-		require.NoError(t, err)
-		require.Empty(t, softwareInstallers)
-		assertSoftware([]fleet.SoftwareTitle{})
-
-		// stats don't report anything about ins0 anymore
-		summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 0, PendingInstall: 0}, *summary)
-		pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
-		require.NoError(t, err)
-		require.Empty(t, pendingHost1)
-	*/
+	// remove everything
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	apps, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Empty(t, apps)
+	assertTitlesAndApps(nil, nil)
 }
