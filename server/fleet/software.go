@@ -33,6 +33,8 @@ const (
 	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
 	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
 	SoftwareTeamIdentifierMaxLength = 10
+
+	SoftwareTitleDisplayNameMaxLength = 255
 )
 
 type Vulnerabilities []CVE
@@ -100,6 +102,8 @@ type Software struct {
 	IsKernel bool `json:"-"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+
+	DisplayName string `json:"display_name"`
 }
 
 func (Software) AuthzType() string {
@@ -249,6 +253,8 @@ type SoftwareTitle struct {
 	IsKernel bool `json:"-" db:"is_kernel"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// DisplayName is an end-user friendly name.
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -330,6 +336,7 @@ type SoftwareTitleListResult struct {
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	DisplayName   string  `json:"display_name" db:"display_name"`
 }
 
 type SoftwareTitleListOptions struct {

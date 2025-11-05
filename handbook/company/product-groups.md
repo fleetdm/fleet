@@ -884,13 +884,13 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
   - Structured and/or unstructured social activities
 
 
-### New customer promise(s)
+### Customer promise(s)
 
-The Account Executive (AE) or Customer Success Manager (CSM) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
+The Account Executive (AE) or Customer Success Manager (CSM) schedules this meeting before Fleet commits to one or more customer promises. It's meant to streamline communication and encourage getting the best product decisions.
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attached to the promise(s), then we're not ready for this call.
 
-On the order form, customer promises are represented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
+On the order form, customer promises are represented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items). CSM's must reserve customer promise requests for issues that are required for a renewal to close or for an expansion to close. 
 
 **Participants:** AE or CSM, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM (+ temporarily: CRO).
 

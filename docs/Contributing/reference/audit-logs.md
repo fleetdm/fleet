@@ -1466,6 +1466,7 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
 
 #### Example
 
@@ -1478,6 +1479,7 @@ This activity contains the following fields:
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1852,6 +1854,51 @@ This activity contains the following fields:
 ```json
 {
   "name": "HYDRANT_WIFI"
+}
+```
+
+## added_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## deleted_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## edited_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
 }
 ```
 

@@ -4,7 +4,6 @@ import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
 import classnames from "classnames";
 
-import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -67,7 +66,7 @@ const EndUserAuthForm = ({
       <form>
         <p className={classes}>
           Require end users to authenticate with your{" "}
-          <Link to={PATHS.ADMIN_INTEGRATIONS_SSO_END_USER}>
+          <Link to={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}>
             identity provider (IdP)
           </Link>{" "}
           when they set up their new hosts.
