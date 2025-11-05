@@ -1,7 +1,7 @@
 //go:build darwin
 // +build darwin
 
-package testtable
+package yaml_key
 
 import (
 	"context"
