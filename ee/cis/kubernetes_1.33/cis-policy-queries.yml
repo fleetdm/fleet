@@ -37,7 +37,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that the --client-cert-auth argument is set to true
+  name: CIS 2.2 - Ensure that the --client-cert-auth argument is set to true
   platform: linux
   description: |
     Enable client authencation on etcd service.
