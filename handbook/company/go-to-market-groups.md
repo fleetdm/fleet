@@ -162,19 +162,19 @@ The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is respons
 - Assign an **on-site DRI**. The DRI oversees on-site activities, keeps the team coordinated, and ensures key tasks are completed.
 
 
-#### Pre-event check-in call TODO do the thing I did above to the rest of the headings you added. 
+**Pre-event check-in call**
 
 Schedule a Zoom call with the team **at least one week before** the event.
 
 **During the call:**
 - Review objectives and roles.  
 - Confirm logistics (booth setup, travel, materials, swag).  
-- Go over contact and outreach strategy.  
+- Go over contact and outreach strategy, and confirm everyone has downloaded Popl.  
 - Make sure systems and materials are ready.  
 - Track any action items and assign owners.
 
 
-#### On-site responsibilities (DRI) TODO do the thing I did above to the rest of the headings you added.
+**On-site responsibilities (DRI)** 
 
 - Make sure the booth/demo area is set up correctly.  
 - Ensure **1–2 team members** are at the booth when coverage is needed, based on the event schedule.  
@@ -184,7 +184,7 @@ Schedule a Zoom call with the team **at least one week before** the event.
 - Confirm demos, materials, and setups are working.
 
 
-#### Post-event follow-up TODO do the thing I did above to the rest of the headings you added.
+**Post-event follow-up**
 
 - Confirm all contacts and leads are recorded, and the team knows any follow-up actions.  
 - Capture lessons learned for future events.  
