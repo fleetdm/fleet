@@ -944,7 +944,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		data.host, err = s.ds.Host(context.Background(), data.host.ID)
 		require.NoError(t, err)
 
-		// Trigger install to the device
+		// Use certificate authentication
 		headers := map[string]string{
 			"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
 		}
@@ -1224,35 +1224,6 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Len(t, listResp.Activities, 1)
 	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[0].Type)
 	require.Contains(t, string(*listResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
-}
-
-func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostID uint, hostUUID string, certSerial uint64) {
-	t := s.T()
-	s.setSkipWorkerJobs(t)
-	ctx := context.Background()
-
-	// Insert a host identity certificate for the iOS host
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, certSerial)
-		if err != nil {
-			return err
-		}
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO host_identity_scep_certificates
-			(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`,
-			certSerial,
-			hostID,
-			hostUUID,
-			time.Now().Add(-24*time.Hour),
-			time.Now().Add(365*24*time.Hour),
-			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			[]byte{0x04},
-			false,
-		)
-		return err
-	})
 }
 
 // for https://github.com/fleetdm/fleet/issues/32082
@@ -1734,4 +1705,33 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 
 	// self-install request is now accepted
 	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+}
+
+func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostID uint, hostUUID string, certSerial uint64) {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Insert a host identity certificate for the iOS host
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, certSerial)
+		if err != nil {
+			return err
+		}
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO host_identity_scep_certificates
+			(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`,
+			certSerial,
+			hostID,
+			hostUUID,
+			time.Now().Add(-24*time.Hour),
+			time.Now().Add(365*24*time.Hour),
+			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			[]byte{0x04},
+			false,
+		)
+		return err
+	})
 }
