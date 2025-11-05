@@ -2285,11 +2285,13 @@ func (svc *Service) softwareBatchUpload(
 			// unsupported fields. For script packages, the file contents become the
 			// install script, so post_install_script, uninstall_script, and
 			// pre_install_query are not supported.
-			if fleet.IsScriptPackage(installer.Extension) {
+			switch {
+			case fleet.IsScriptPackage(installer.Extension):
 				installer.PostInstallScript = ""
 				installer.UninstallScript = ""
 				installer.PreInstallQuery = ""
-			} else if installer.Extension != "exe" {
+
+			case installer.Extension != "exe":
 				// custom scripts only for exe installers and non-script packages
 				if installer.InstallScript == "" {
 					installer.InstallScript = file.GetInstallScript(installer.Extension)
@@ -2298,7 +2300,8 @@ func (svc *Service) softwareBatchUpload(
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
 				}
-			} else if installer.Extension == "ipa" {
+
+			case installer.Extension == "ipa":
 				installer.PostInstallScript = ""
 				installer.UninstallScript = ""
 				installer.PreInstallQuery = ""
