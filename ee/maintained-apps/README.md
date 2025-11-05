@@ -2,11 +2,10 @@
 
 ## Adding a new app (macOS)
 
-1. Create a new issue using the [New Fleet-maintained app](https://github.com/fleetdm/fleet/issues/new?template=fma-request.md) issue template
-2. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)
-3. Create a new mainfiest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
+1. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)
+2. Create a new mainfiest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
    example, if you wanted to add Box Drive, create the file `inputs/homebrew/box-drive.json`. 
-4. Fill out the file according to the [input schema below](#input-file-schema). For our example Box Drive app, it would look like this:
+3. Fill out the file according to the [input schema below](#input-file-schema). For our example Box Drive app, it would look like this:
 
    ```json
    {
@@ -19,21 +18,19 @@
    }
    ```
 
-5. Run the following command from the root of the Fleet repo to generate the app's output data:
+4. Run the following command from the root of the Fleet repo to generate the app's output data:
 
     ```bash
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
+5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These can be generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
+
 6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/).
 
-7. Open a PR to the `fleet` repository with the above changes.  Connect it to the issue by adding `Fixes #ISSUE_NUMBER` in the description.
+7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
 
-8. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will:
-   1. Review the PR and test the app.  Contributors should be aware of the validation requirements below.
-   2. If validation requirements cannot be met in this PR, the PR will be closed and the associated issue will be prioritized in the g-software group backlog.
-
-9. If the app passes testing, it is approved and merged. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release. App icon progress is tracked in the issue. An addition to Fleet-maintained apps is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
+8. If the app passes automated tests, it is approved and merged. The EM reviews the PR within 1 business day. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release.
 
 ### Input file schema
 
@@ -232,60 +229,6 @@ fleetctl trigger --name maintained_apps
 - Install fails silently: confirm your `installer_type`, `installer_arch`, and `installer_scope` match the selected winget installer; run your PowerShell script manually on a test host
 - Uninstall doesn’t remove the app: prefer explicit uninstall scripts; otherwise, ensure the winget manifest exposes `ProductCode` or `UpgradeCode`
 - Hash mismatch errors: if the upstream manifest is in flux, you can set `ignore_hash: true` in the input JSON (use sparingly)
-
-
-### Validating Fleet-maintained apps additions
-
-1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD) and Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) are automatically added as reviewers.
-   1. The PD is responsible for approving the name and default category
-   2. The EM is repsonsible for validating or assigning a validator
-
-2. Ensure an associated issue exists for the PR.  If not, create one using the `Add Fleet-maintained app` issue template. Move the issue to the `g-software` project and set the status to `In Progress`.  Ensure the PR is linked to the issue.
-
-3. Validate the PR:
-
-   1. Find the app in [Homebrew's GitHub casks](https://github.com/Homebrew/homebrew-cask/tree/main/Casks) and download it locally using `cask.url`.
-   2. Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';`
-   3. Validate and check off items in the `Validation` section of the issue.
-
-4. If the PR passes validation, the validator will also execute the test criteria in the QA section of the issue.  If tests fail, add feedback in the PR comments.  If the test failure(s) cannot be addressed by the contributor, close the PR and move the issue to the Drafting board for prioritization.  If tests pass, the PR is approved and merged.
-
-5. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These can be generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
-
-6. QA ensures the icon is added to Fleet
-
-#### Testing additions to Fleet-maintained apps (no icon)
-
-Use the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
-
-   ```bash
-   https://raw.githubusercontent.com/<repository-name>/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
-   ```
-
-   Make sure you replace the `<PR-branch-name>` and `<repository-name>`
-
-By default, Fleet refreshes the maintained apps catalog on a schedule.  
-To fetch your branch’s catalog immediately (without waiting), run:
-
-```bash
-fleetctl trigger --name maintained_apps
-```
-
-Test criteria:
-
-- [X] App adds successfully to team's library
-- [X] App installs successfully on host
-- [X] App opens succuessfully on host
-- [X] App uninstalls successfully on host
-
-If the tests pass:
-
-- Move issue to `Ready` (icon addition still needed)
-- Approve and merge PR
-
-If testing fails:
-
-- Remove issue from the `g-software` release board, and add issue to the `Drafting` board. Remove the `:release` tag and add the `:product` tag.
 
 ## Updating existing Fleet-maintained apps
 
