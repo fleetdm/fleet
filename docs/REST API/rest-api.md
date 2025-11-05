@@ -9394,7 +9394,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
-- [Create package](#create-package)
+- [Add package](#add-package)
 - [Update package](#update-package)
 - [Update software icon](#update-software-icon)
 - [Download software icon](#download-software-icon)

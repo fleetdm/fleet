@@ -488,7 +488,7 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
-If certificates are valid for less than 30 days, automatically renewal happens halfway through the validity period. For example, if a certificate is valid for 20 days, Fleet wil renew the certificate 10 days before it expires.
+If certificates are valid for less than 30 days, automatic renewal happens halfway through the validity period. For example, if a certificate is valid for 20 days, Fleet will renew the certificate 10 days before it expires.
 
 > Currently, for NDES and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's CN (Common Name) for automatic renewal to work. Since the CN has a maximum length of 64 characters, any characters beyond this limit get truncated, causing the renewal to fail.
 >

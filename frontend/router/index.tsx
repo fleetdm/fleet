@@ -194,8 +194,16 @@ const routes = (
                   to="integrations/mdm"
                 />
                 <Redirect from="integrations/vpp" to="integrations/mdm" />
+                <Redirect
+                  from="integrations/sso"
+                  to="integrations/sso/fleet-users"
+                />
                 <Route
                   path="integrations/:section"
+                  component={AdminIntegrationsPage}
+                />
+                <Route
+                  path="integrations/:section/:subsection"
                   component={AdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>

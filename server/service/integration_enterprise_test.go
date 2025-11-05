@@ -11305,6 +11305,99 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
 }
 
+func checkSoftwareTitle(t *testing.T, ds *mysql.Datastore, title string, source string) uint {
+	var id uint
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`, title, source)
+	})
+	return id
+}
+
+func checkScriptContentsID(t *testing.T, ds *mysql.Datastore, id uint, expectedContents string) {
+	var contents string
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &contents, `SELECT contents FROM script_contents WHERE id = ?`, id)
+	})
+	require.Equal(t, expectedContents, contents)
+}
+
+func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint) {
+	var tid uint
+	if payload.TeamID != nil {
+		tid = *payload.TeamID
+	}
+	var id uint
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, tid, payload.Filename)
+	})
+	require.NotZero(t, id)
+
+	var platform string
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE id = ?`, id)
+	})
+	require.Equal(t, payload.Platform, "linux")
+
+	meta, err := ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
+	require.NoError(t, err)
+
+	if payload.TeamID != nil && *payload.TeamID > 0 {
+		require.Equal(t, *payload.TeamID, *meta.TeamID)
+	} else {
+		require.Nil(t, meta.TeamID)
+	}
+
+	checkScriptContentsID(t, ds, meta.InstallScriptContentID, payload.InstallScript)
+
+	if payload.PostInstallScript != "" {
+		require.NotNil(t, meta.PostInstallScriptContentID)
+		checkScriptContentsID(t, ds, *meta.PostInstallScriptContentID, payload.PostInstallScript)
+	} else {
+		require.Nil(t, meta.PostInstallScriptContentID)
+	}
+
+	require.Equal(t, payload.PreInstallQuery, meta.PreInstallQuery)
+	require.Equal(t, payload.StorageID, meta.StorageID)
+	require.Equal(t, payload.Filename, meta.Name)
+	require.Equal(t, payload.Version, meta.Version)
+	require.Equal(t, checkSoftwareTitle(t, ds, payload.Title, "deb_packages"), *meta.TitleID)
+	require.NotZero(t, meta.UploadedAt)
+
+	// get metadata by team and title ID so we can check labels
+	meta2, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), payload.TeamID, *meta.TitleID, false)
+	require.NoError(t, err)
+
+	// check labels include any
+	require.Len(t, meta2.LabelsIncludeAny, len(payload.LabelsIncludeAny))
+	byName := make(map[string]struct{}, len(meta2.LabelsIncludeAny))
+	for _, l := range meta2.LabelsIncludeAny {
+		byName[l.LabelName] = struct{}{}
+		require.Equal(t, *meta2.TitleID, l.TitleID)
+		require.False(t, l.Exclude)
+	}
+	require.Len(t, byName, len(payload.LabelsIncludeAny))
+	for _, l := range payload.LabelsIncludeAny {
+		_, ok := byName[l]
+		require.True(t, ok)
+	}
+
+	// check labels exclude any
+	require.Len(t, meta2.LabelsExcludeAny, len(payload.LabelsExcludeAny))
+	byName = make(map[string]struct{}, len(meta2.LabelsExcludeAny))
+	for _, l := range meta2.LabelsExcludeAny {
+		byName[l.LabelName] = struct{}{}
+		require.Equal(t, *meta2.TitleID, l.TitleID)
+		require.True(t, l.Exclude)
+	}
+	require.Len(t, byName, len(payload.LabelsExcludeAny))
+	for _, l := range payload.LabelsExcludeAny {
+		_, ok := byName[l]
+		require.True(t, ok)
+	}
+
+	return meta.InstallerID, *meta.TitleID
+}
+
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
 	t := s.T()
 
@@ -11338,99 +11431,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.Equal(t, expectBytes, b)
 	}
 
-	checkSoftwareTitle := func(t *testing.T, title string, source string) uint {
-		var id uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`, title, source)
-		})
-		return id
-	}
-
-	checkScriptContentsID := func(t *testing.T, id uint, expectedContents string) {
-		var contents string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &contents, `SELECT contents FROM script_contents WHERE id = ?`, id)
-		})
-		require.Equal(t, expectedContents, contents)
-	}
-
-	checkSoftwareInstaller := func(t *testing.T, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint) {
-		var tid uint
-		if payload.TeamID != nil {
-			tid = *payload.TeamID
-		}
-		var id uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, tid, payload.Filename)
-		})
-		require.NotZero(t, id)
-
-		var platform string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE id = ?`, id)
-		})
-		require.Equal(t, payload.Platform, "linux")
-
-		meta, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
-		require.NoError(t, err)
-
-		if payload.TeamID != nil && *payload.TeamID > 0 {
-			require.Equal(t, *payload.TeamID, *meta.TeamID)
-		} else {
-			require.Nil(t, meta.TeamID)
-		}
-
-		checkScriptContentsID(t, meta.InstallScriptContentID, payload.InstallScript)
-
-		if payload.PostInstallScript != "" {
-			require.NotNil(t, meta.PostInstallScriptContentID)
-			checkScriptContentsID(t, *meta.PostInstallScriptContentID, payload.PostInstallScript)
-		} else {
-			require.Nil(t, meta.PostInstallScriptContentID)
-		}
-
-		require.Equal(t, payload.PreInstallQuery, meta.PreInstallQuery)
-		require.Equal(t, payload.StorageID, meta.StorageID)
-		require.Equal(t, payload.Filename, meta.Name)
-		require.Equal(t, payload.Version, meta.Version)
-		require.Equal(t, checkSoftwareTitle(t, payload.Title, "deb_packages"), *meta.TitleID)
-		require.NotZero(t, meta.UploadedAt)
-
-		// get metadata by team and title ID so we can check labels
-		meta2, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), payload.TeamID, *meta.TitleID, false)
-		require.NoError(t, err)
-
-		// check labels include any
-		require.Len(t, meta2.LabelsIncludeAny, len(payload.LabelsIncludeAny))
-		byName := make(map[string]struct{}, len(meta2.LabelsIncludeAny))
-		for _, l := range meta2.LabelsIncludeAny {
-			byName[l.LabelName] = struct{}{}
-			require.Equal(t, *meta2.TitleID, l.TitleID)
-			require.False(t, l.Exclude)
-		}
-		require.Len(t, byName, len(payload.LabelsIncludeAny))
-		for _, l := range payload.LabelsIncludeAny {
-			_, ok := byName[l]
-			require.True(t, ok)
-		}
-
-		// check labels exclude any
-		require.Len(t, meta2.LabelsExcludeAny, len(payload.LabelsExcludeAny))
-		byName = make(map[string]struct{}, len(meta2.LabelsExcludeAny))
-		for _, l := range meta2.LabelsExcludeAny {
-			byName[l.LabelName] = struct{}{}
-			require.Equal(t, *meta2.TitleID, l.TitleID)
-			require.True(t, l.Exclude)
-		}
-		require.Len(t, byName, len(payload.LabelsExcludeAny))
-		for _, l := range payload.LabelsExcludeAny {
-			_, ok := byName[l]
-			require.True(t, ok)
-		}
-
-		return meta.InstallerID, *meta.TitleID
-	}
-
 	t.Run("upload no team software installer", func(t *testing.T) {
 		// status is reflected in list hosts responses and counts when filtering by software title and status
 		// create a label to test also the counts per label with the software install status filter
@@ -11458,7 +11458,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
-		_, titleID := checkSoftwareInstaller(t, payload)
+		_, titleID := checkSoftwareInstaller(t, s.ds, payload)
 
 		// check activity
 		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
@@ -11480,7 +11480,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TeamID:            nil,
 		}, http.StatusOK, "")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
+		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 		// patch the software installer to change the labels
@@ -11492,7 +11492,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		expectedPayload := *payload
 		expectedPayload.LabelsIncludeAny = nil
 		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
-		checkSoftwareInstaller(t, &expectedPayload)
+		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
 		// Create a host and assign the label to it
 		host := createOrbitEnrolledHost(t, "linux", "label_host", s.ds)
@@ -11512,7 +11512,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		expectedPayload.PreInstallQuery = "some other pre install query"
 		expectedPayload.LabelsIncludeAny = nil                            // no change
 		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name} // no change
-		checkSoftwareInstaller(t, &expectedPayload)
+		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
 		// update the label to be "include any". This should allow for the installation to happen.
 		var b3 bytes.Buffer
@@ -11530,7 +11530,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		expectedPayload.PreInstallQuery = "some other pre install query"
 		expectedPayload.LabelsIncludeAny = []string{labelResp.Label.Name}
 		expectedPayload.LabelsExcludeAny = nil
-		checkSoftwareInstaller(t, &expectedPayload)
+		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted)
 
@@ -11540,7 +11540,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d}`,
+		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": ""}`,
 			labelResp.Label.ID, labelResp.Label.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
@@ -11588,7 +11588,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
-		installerID, titleID := checkSoftwareInstaller(t, payload)
+		installerID, titleID := checkSoftwareInstaller(t, s.ds, payload)
 
 		// check activity
 		activityData := fmt.Sprintf(
@@ -11706,7 +11706,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
-		installerID, titleID := checkSoftwareInstaller(t, payload)
+		installerID, titleID := checkSoftwareInstaller(t, s.ds, payload)
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(),
@@ -11820,7 +11820,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.NoError(t, err)
 
 		// check the software installer
-		installerID, titleID := checkSoftwareInstaller(t, payload)
+		installerID, titleID := checkSoftwareInstaller(t, s.ds, payload)
 
 		var origPackageIDs string
 		var origExtension string
@@ -21924,4 +21924,51 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		"",
 		0,
 	)
+
+	// Test 9: Set configuration with multiple certificate blocks
+	// This tests that the validation logic properly handles multiple PEM-encoded certificates
+	// Use a second different certificate to simulate a real-world scenario (e.g., certificate chain)
+	secondValidCert := `-----BEGIN CERTIFICATE-----
+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
+-----END CERTIFICATE-----`
+	validCertMultiple := validCert + "\n" + secondValidCert
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCertMultiple), http.StatusOK)
+
+	// Verify the configuration is saved with multiple certificates
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.OktaCertificate.Valid)
+	assert.Equal(t, validCertMultiple, acResp.ConditionalAccess.OktaCertificate.Value)
 }
