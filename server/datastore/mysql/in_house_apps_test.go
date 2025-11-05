@@ -110,7 +110,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	// Install on multiple users with pending, success, failure
 	createInHouseAppInstallRequest(t, ds, host1.ID, installerID, titleID, user1)
 	cmdUUID2 := createInHouseAppInstallRequest(t, ds, host2.ID, installerID, titleID, user1)
-	createInHouseAppInstallResult(t, ds, host2, cmdUUID2, "Acknowledged")
+	createInHouseAppInstallResultVerified(t, ds, host2, cmdUUID2, "Acknowledged")
 	cmdUUID3 := createInHouseAppInstallRequest(t, ds, host3.ID, installerID, titleID, user1)
 	createInHouseAppInstallResult(t, ds, host3, cmdUUID3, "Error")
 
@@ -1243,7 +1243,7 @@ func testBatchSetInHouseInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
 			if payload.ShouldCancelPending != nil {
 				var exists bool
 				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					err := sqlx.GetContext(ctx, q, &exists, `SELECT 1 
+					err := sqlx.GetContext(ctx, q, &exists, `SELECT 1
 						FROM upcoming_activities ua
 						INNER JOIN in_house_app_upcoming_activities ihua
 							ON ua.id = ihua.upcoming_activity_id AND ua.activity_type = 'in_house_app_install'
