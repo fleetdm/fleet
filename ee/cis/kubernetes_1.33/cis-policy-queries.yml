@@ -2,20 +2,21 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Enforce password history' is set to '24' or more passwords
-  platforms: win11
-  platform: windows
+  name: CIS - Ensure that the --profiling argument is set to false
+  platforms: RHEL_version_x
+  platform: linux
   description: |
-    This policy check determines the number of renewed, unique passwords that have to be associated with a user account before you can reuse an old password.
+    Disable profiling, if not needed.
   resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 24 or more passwords:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Enforce password history'
+    Edit the API server pod specification file /etc/kubernetes/manifests/kube-  apiserver.yaml on the Control Plane node and set the below parameter.  --profiling=false
   query: |
-    SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
+    SELECT 1 AS pass
+    FROM processes
+    WHERE name = 'kube-apiserver'
+    AND cmdline LIKE '%--profiling=false%';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: marcosd4h
+  contributors: sharon-fdm
 ---
 1
 ---
