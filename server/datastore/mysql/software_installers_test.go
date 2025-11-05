@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -3264,7 +3265,8 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 	// Duplicate on Team A with different name/title but same hash → reject
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "b.sh", "title-b"))
 	require.Error(t, err)
-	if _, ok := err.(*fleet.InvalidArgumentError); !ok {
+	var iae *fleet.InvalidArgumentError
+	if !errors.As(err, &iae) {
 		t.Fatalf("expected InvalidArgumentError for same-team duplicate hash, got: %T: %v", err, err)
 	}
 
@@ -3279,7 +3281,8 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 	// Global scope second time (duplicate hash) → reject
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global2.sh", "title-g2"))
 	require.Error(t, err)
-	if _, ok := err.(*fleet.InvalidArgumentError); !ok {
+	var iae2 *fleet.InvalidArgumentError
+	if !errors.As(err, &iae2) {
 		t.Fatalf("expected InvalidArgumentError for global duplicate hash, got: %T: %v", err, err)
 	}
 
