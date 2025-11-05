@@ -130,7 +130,7 @@ func TestRequestCertificate(t *testing.T) {
 		Password: ptr.String("test-password"),
 	}
 
-	var useHTTPSigAuth bool
+	useDefaultAuthContext := true
 
 	baseSetupForTests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
@@ -163,10 +163,7 @@ func TestRequestCertificate(t *testing.T) {
 
 		authCtx := &authz_ctx.AuthorizationContext{}
 		ctx := authz_ctx.NewContext(context.Background(), authCtx)
-		if useHTTPSigAuth {
-			authCtx.SetAuthnMethod(authz_ctx.AuthnHTTPMessageSignature)
-			ctx = httpsig.NewContext(ctx, types.HostIdentityCertificate{HostID: ptr.Uint(1), NotValidAfter: time.Now().Add(24 * time.Hour)})
-		} else {
+		if useDefaultAuthContext {
 			authCtx.SetAuthnMethod(authz_ctx.AuthnUserToken)
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		}
@@ -210,10 +207,15 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP, http sig auth", func(t *testing.T) {
-		useHTTPSigAuth = true
-		defer func() { useHTTPSigAuth = false }()
+		useDefaultAuthContext = false
+		defer func() { useDefaultAuthContext = true }()
 
 		svc, ctx := baseSetupForTests()
+
+		authCtx, ok := authz_ctx.FromContext(ctx)
+		require.True(t, ok)
+		authCtx.SetAuthnMethod(authz_ctx.AuthnHTTPMessageSignature)
+		ctx = httpsig.NewContext(ctx, types.HostIdentityCertificate{HostID: ptr.Uint(1), NotValidAfter: time.Now().Add(24 * time.Hour)})
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
