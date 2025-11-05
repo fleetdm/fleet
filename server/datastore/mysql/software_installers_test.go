@@ -3617,5 +3617,4 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, titleID, *software.TitleID)
 	assert.Empty(t, software.DisplayName)
-
 }

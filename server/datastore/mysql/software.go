@@ -352,7 +352,7 @@ SELECT
     s.vendor,
     s.arch,
     s.extension_id,
-		s.upgrade_code,
+    s.upgrade_code,
     hs.last_opened_at
 FROM
     software s
@@ -540,11 +540,11 @@ func (ds *Datastore) getExistingSoftware(
 	incomingChecksumsToTitles map[string]fleet.SoftwareTitle,
 	err error,
 ) {
-	// TODO - the `incoming` argument here should already contain a map of checksum:Software, put
+	// TODO(jacob) - the `incoming` argument here should already contain a map of checksum:Software, put
 	// together by the `nothingChanged` function upstream. Is this redundant?
 	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
 	newChecksumsToSoftware = make(map[string]fleet.Software, len(current))
-	// TODO - below set seems to be the same as above map but without Software values for each key.
+	// TODO(jacob) - below set seems to be the same as above map but without Software values for each key.
 	// Are both necessary, or can we just use the map everywhere?
 	setOfNewSWChecksums := make(map[string]struct{})
 	for uniqueName, s := range incoming {
@@ -604,7 +604,7 @@ func (ds *Datastore) getExistingSoftware(
 //   - One query for software with bundle_identifier.
 //   - One query for software without bundle_identifier.
 //
-// TODO - consider index and appropriate query here for Windows software `upgrade_code`s, similar to
+// TODO(jacob) - consider index and appropriate query here for Windows software `upgrade_code`s, similar to
 // bundle identifier, if needed for optimization
 func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	ctx context.Context,
@@ -624,7 +624,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			bundleIDsToIncomingNames[sw.BundleIdentifier] = sw.Name
 			argsWithBundleIdentifier = append(argsWithBundleIdentifier, sw.BundleIdentifier)
 		} else {
-			// TODO - consider `upgrade_code` here and below if needed for additional specificity
+			// TODO(jacob) - consider `upgrade_code` here and below if needed for additional specificity
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.ExtensionFor)
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
