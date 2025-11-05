@@ -357,7 +357,7 @@
                             <key>name</key>
                             <string>Issue: 🦟Bug report</string>
                             <key>url</key>
-                            <string>https://github.com/fleetdm/fleet/issues/new?assignees=&amp;labels=bug%2C%3Areproduce&amp;projects=&amp;template=bug-report.md&amp;title=</string>
+                            <string>https://github.com/fleetdm/fleet/issues/new?template=bug-report.md</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -490,31 +490,37 @@
                             <key>name</key>
                             <string>🚀 Kanban board (~engineering-initiated)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/73/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/73</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🕸️ Kanban board (#g-website)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/92/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/92</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>💻 Current sprint (#g-mdm)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/58/views/12</string>
-                        </dict>
-                        <dict>
-                            <key>name</key>
-                            <string>🪄 Current sprint (#g-orchestration)</string>
-                            <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/71/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/58</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>📦 Current sprint (#g-software)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/70/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/70</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🪄 Current sprint (#g-orchestration)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/71</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🛡️ Current sprint (#g-security-compliance)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/97</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -539,31 +545,31 @@
                             <key>name</key>
                             <string>🦢 Kanban board (:help-design)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/93/views/2</string>
+                            <string>https://github.com/orgs/fleetdm/projects/93</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🦢 Drafting board (:product)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/67/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/67</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🎁 Kanban board (~feature fest)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/72/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/72</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>💝 Customer requests (prioritized) (~customer request)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/82/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/82</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🗺️ Roadmap</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/87/views/2</string>
+                            <string>https://github.com/orgs/fleetdm/projects/87</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -588,7 +594,7 @@
                             <key>name</key>
                             <string>🌦️ Kanban board (:help-customers)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/79/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/79</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -649,7 +655,7 @@
                             <key>name</key>
                             <string>🦄 Kanban board (#g-unicorns)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/81/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/81</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -698,7 +704,7 @@
                             <key>name</key>
                             <string>🫧 Kanban board (:help-marketing)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/94/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/94</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -723,13 +729,13 @@
                             <key>name</key>
                             <string>🌐 Kanban board (:help-it-and-enablement)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/69/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/69</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🍽️ Kanban board (:help-dogfooding)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/57/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/57</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -766,7 +772,7 @@
                             <key>name</key>
                             <string>🧑‍🚀 Kanban board (:help-people)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/91/views/2</string>
+                            <string>https://github.com/orgs/fleetdm/projects/91</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -785,7 +791,7 @@
                             <key>name</key>
                             <string>Kanban board (:help-finance)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/80/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/80</string>
                         </dict>
                         <dict>
                             <key>name</key>

@@ -445,7 +445,6 @@ const HostSummary = ({
       {isPremiumTier && renderHostTeam()}
       {/* Rendering of OS Settings data */}
       {isOsSettingsDisplayPlatform(platform, os_version) &&
-        isPremiumTier &&
         hostSettings &&
         hostSettings.length > 0 && (
           <DataSet

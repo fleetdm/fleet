@@ -675,6 +675,75 @@ func testDeleteIconsAssociatedWithTitlesWithoutInstallers(t *testing.T, ds *Data
 				require.Contains(t, titleIds, titleID)
 			},
 		},
+		{
+			name: "does not delete icons still associated with an in-house app",
+			before: func(ds *Datastore) {
+				user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+				require.NoError(t, err)
+
+				// create an in-house app that will create two titles
+				payload := fleet.UploadSoftwareInstallerPayload{
+					TeamID:           &team.ID,
+					UserID:           user.ID,
+					Title:            "foo",
+					Filename:         "foo.ipa",
+					BundleIdentifier: "foo.bundle.id",
+					StorageID:        "testingtesting123",
+					Platform:         "ios",
+					Extension:        "ipa",
+					Version:          "1.2.3",
+					ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+				}
+				_, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+				require.NoError(t, err)
+				var softwareInstallerTitleIds []struct {
+					ID uint `db:"title_id"`
+				}
+				err = ds.writer(ctx).Select(&softwareInstallerTitleIds, `SELECT title_id from in_house_apps`)
+				require.NoError(t, err)
+				require.Len(t, softwareInstallerTitleIds, 2) // iha create 2 titles
+				require.Equal(t, titleID, softwareInstallerTitleIds[1].ID)
+
+				_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+					TeamID:    team.ID,
+					TitleID:   titleID,
+					StorageID: "storage-id-1",
+					Filename:  "test-icon-updated.png",
+				})
+				require.NoError(t, err)
+
+				result, err := ds.writer(ctx).ExecContext(ctx, `
+					INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)
+				`, "foo2", "ios_apps", "foo2.bundle.id")
+				require.NoError(t, err)
+				deletedTitleID64, err := result.LastInsertId()
+				deletedTitleID = uint(deletedTitleID64) //nolint:gosec
+				require.NoError(t, err)
+				_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+					TeamID:    team.ID,
+					TitleID:   deletedTitleID,
+					StorageID: "storage-id-1",
+					Filename:  "test-icon-updated.png",
+				})
+				require.NoError(t, err)
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				var titleIds []uint
+				err = ds.writer(ctx).Select(&titleIds, `SELECT software_title_id FROM software_title_icons where team_id = ?`, teamID)
+				require.NoError(t, err)
+				require.Contains(t, titleIds, titleID)
+				require.Contains(t, titleIds, deletedTitleID)
+
+				err = ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, 1)
+				require.NoError(t, err)
+
+				err = ds.writer(ctx).Select(&titleIds, `SELECT software_title_id FROM software_title_icons where team_id = ?`, teamID)
+				require.NoError(t, err)
+				require.Len(t, titleIds, 1)
+				require.Contains(t, titleIds, titleID)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

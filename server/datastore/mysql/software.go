@@ -1275,6 +1275,7 @@ func listSoftwareDB(
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
+
 	}
 
 	return softwares, nil
@@ -1328,6 +1329,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.vendor",
 			"s.arch",
 			"s.application_id",
+			"s.title_id",
 			goqu.I("scp.cpe").As("generated_cpe"),
 		).
 		// Include this in the sub-query in case we want to sort by 'generated_cpe'
@@ -1517,6 +1519,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.vendor",
 			"s.arch",
 			"s.application_id",
+			"s.title_id",
 			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
 			"scv.cve",
 			"scv.created_at",
@@ -1785,6 +1788,30 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 		return nil, nil, err
 	}
 
+	var titleIDs []uint
+	for _, s := range software {
+		if s.TitleID != nil {
+			titleIDs = append(titleIDs, *s.TitleID)
+		}
+	}
+
+	var tmID uint
+	if opt.TeamID != nil {
+		tmID = *opt.TeamID
+	}
+	displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, tmID, titleIDs)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+	}
+
+	for i, s := range software {
+		if s.TitleID != nil {
+			if displayName, ok := displayNames[*s.TitleID]; ok {
+				software[i].DisplayName = displayName
+			}
+		}
+	}
+
 	perPage := opt.ListOptions.PerPage
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
@@ -1849,6 +1876,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.vendor",
 			"s.arch",
 			"s.extension_id",
+			"s.title_id",
 			"scv.cve",
 			"scv.created_at",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
@@ -1929,6 +1957,19 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 
 		if i == 0 {
 			software = result.Software
+		}
+
+		var tmID uint
+		if teamID != nil {
+			tmID = *teamID
+		}
+
+		if software.TitleID != nil {
+			displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *software.TitleID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "getting display name for software")
+			}
+			software.DisplayName = displayName
 		}
 
 		if result.CVE != nil {
@@ -4945,6 +4986,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, teamID, softwareTitleIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -5169,6 +5215,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				softwareTitleRecord.IconUrl = ptr.String(icon.IconUrl())
 			}
 
+			if displayName, ok := displayNames[softwareTitleRecord.ID]; ok {
+				softwareTitleRecord.DisplayName = displayName
+			}
+
 			if _, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {
 				indexOfSoftwareTitle[softwareTitleRecord.ID] = uint(len(deduplicatedList))
 				deduplicatedList = append(deduplicatedList, softwareTitleRecord)
@@ -5257,7 +5307,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 	return wasCanceled, err
 }
 
-func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
+func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
 	// Get the original installation details first, including software title and package info
 	const getDetailsStmt = `
 		SELECT
@@ -5266,6 +5316,7 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			hsi.policy_id,
 			hsi.self_service,
 			hsi.created_at,
+			si.title_id AS software_title_id,
 			si.filename AS software_package,
 			st.name AS software_title
 		FROM host_software_installs hsi
@@ -5280,12 +5331,13 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 		PolicyID            *uint     `db:"policy_id"`
 		SelfService         bool      `db:"self_service"`
 		CreatedAt           time.Time `db:"created_at"`
+		SoftwareTitleID     *uint     `db:"software_title_id"`
 		SoftwarePackage     string    `db:"software_package"`
 		SoftwareTitle       string    `db:"software_title"`
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &details, getDetailsStmt, result.InstallUUID, result.HostID); err != nil {
-		return "", nil, false, ctxerr.Wrap(ctx, err, "get original install details")
+		return "", ctxerr.Wrap(ctx, err, "get original install details")
 	}
 
 	// Generate a deterministic execution ID for the failed attempt record
@@ -5305,12 +5357,15 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			policy_id,
 			self_service,
 			created_at,
+			software_title_id,
+			software_title_name,
+			installer_filename,
 			install_script_exit_code,
 			install_script_output,
 			pre_install_query_output,
 			post_install_script_exit_code,
 			post_install_script_output
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			install_script_exit_code = VALUES(install_script_exit_code),
 			install_script_output = VALUES(install_script_output),
@@ -5327,9 +5382,8 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 		return output
 	}
 
-	var isNewRecord bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertStmt,
+		_, err := tx.ExecContext(ctx, insertStmt,
 			failedExecID,
 			result.HostID,
 			details.SoftwareInstallerID,
@@ -5337,6 +5391,9 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			details.PolicyID,
 			details.SelfService,
 			details.CreatedAt,
+			details.SoftwareTitleID,
+			details.SoftwareTitle,
+			details.SoftwarePackage,
 			result.InstallScriptExitCode,
 			truncateOutput(result.InstallScriptOutput),
 			truncateOutput(result.PreInstallConditionOutput),
@@ -5346,29 +5403,13 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 		if err != nil {
 			return err
 		}
-		// Check if this was an insert (1 row affected) or update (2 rows affected in MySQL ON DUPLICATE KEY UPDATE)
-		rowsAffected, _ := res.RowsAffected()
-		// MySQL returns 1 for insert, 2 for update with ON DUPLICATE KEY UPDATE (if values changed)
-		// 0 if update didn't change anything
-		isNewRecord = rowsAffected == 1
 		return nil
 	})
 	if err != nil {
-		return "", nil, false, ctxerr.Wrap(ctx, err, "create intermediate failure record")
+		return "", ctxerr.Wrap(ctx, err, "create intermediate failure record")
 	}
 
-	// Return the install result details
-	installResult := &fleet.HostSoftwareInstallerResult{
-		HostID:          result.HostID,
-		InstallUUID:     failedExecID,
-		SoftwareTitle:   details.SoftwareTitle,
-		SoftwarePackage: details.SoftwarePackage,
-		UserID:          details.UserID,
-		PolicyID:        details.PolicyID,
-		SelfService:     details.SelfService,
-	}
-
-	return failedExecID, installResult, isNewRecord, nil
+	return failedExecID, nil
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {

@@ -55,6 +55,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
+	"github.com/fleetdm/fleet/v4/pkg/open"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1118,6 +1119,16 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
+
+		// Set the function that will be called to open the SSO window if an enroll
+		// request returns an "end user authentication required" error.
+		orbitClient.SetOpenSSOWindowFunc(func() error {
+			err = open.Browser(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
+			if err != nil {
+				return fmt.Errorf("opening browser: %w", err)
+			}
+			return nil
+		})
 
 		// If the server can't be reached, we want to fail quickly on any blocking network calls
 		// so that desktop can be launched as soon as possible.

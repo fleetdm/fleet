@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "5.1.5.31310",
+      "version": "5.1.6.31527",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.scootersoftware.BeyondCompare';"
       },
-      "installer_url": "https://www.scootersoftware.com/files/BCompareOSX-5.1.5.31310.zip",
+      "installer_url": "https://www.scootersoftware.com/files/BCompareOSX-5.1.6.31527.zip",
       "install_script_ref": "05e6f2ae",
       "uninstall_script_ref": "4ebfda71",
-      "sha256": "9db440c8d813d4448655cc2b2c44b04b8a227a656b7d6ad17db98936b72007f7",
+      "sha256": "77fe22a708f859e3b576bbb014a9895f131c76fcbd38cb3395c673ef01e69376",
       "default_categories": [
         "Developer tools"
       ]
