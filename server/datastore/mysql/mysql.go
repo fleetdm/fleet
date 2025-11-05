@@ -39,7 +39,7 @@ import (
 )
 
 // Compile-time interface check
-var _ activities.ActivityModule = (*Datastore)(nil)
+var _ activities.ActivityRepo = (*Datastore)(nil)
 
 const (
 	defaultSelectLimit   = 1000000
