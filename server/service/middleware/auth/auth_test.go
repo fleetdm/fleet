@@ -131,11 +131,12 @@ func TestHTTPMessageSignAuth(t *testing.T) {
 			} else {
 				authErr := &fleet.AuthFailedError{}
 				authHeaderErr := &fleet.AuthHeaderRequiredError{}
-				if errors.As(err, &authErr) {
+				switch {
+				case errors.As(err, &authErr):
 					assert.Contains(t, authErr.Internal(), tc.Err)
-				} else if errors.As(err, &authHeaderErr) {
+				case errors.As(err, &authHeaderErr):
 					assert.Contains(t, authHeaderErr.Internal(), tc.Err)
-				} else {
+				default:
 					assert.ErrorContains(t, err, tc.Err)
 				}
 			}
