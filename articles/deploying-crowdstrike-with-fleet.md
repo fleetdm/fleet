@@ -36,7 +36,7 @@ To upload Configuration Profiles to your Fleet instance: go to **Controls > OS S
 
 ![Manage configuration profiles](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
 
-### 2. Prepare the activation post-install script
+### 2. Prepare the post-install script
 
 To match a host to your CrowdStrike account, you'll need to run a script after Falcon is installed. You can use the script below for macOS, combined with the Customer ID you grabbed earlier.
 
@@ -69,7 +69,7 @@ For more information on adding software, see the [software deployment guide](htt
 
 ## Linux
 
-### 1. Prepare the activation post-install script
+### 1. Prepare the post-install script
 
 To match a host to your CrowdStrike account, you'll need to run a script after Falcon is installed. You can use the script below for Linux, combined with the Customer ID you grabbed earlier.
 
@@ -103,7 +103,7 @@ For more information on adding software, see the [software deployment guide](htt
 
 ## Windows
 
-### 1. Prepare the activation post-install script
+### 1. Prepare the post-install script
 
 To match a host to your CrowdStrike account, you'll need to run a script after Falcon is installed. You can use the script below for Windows, combined with the Customer ID you grabbed earlier.
 
