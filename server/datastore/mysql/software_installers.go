@@ -231,7 +231,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	// However, if the duplicate-by-hash is for the same title/source on the same team,
 	// let the DB unique (team,title) constraint surface the conflict (so tests expecting
 	// a 409 Conflict with "already exists" still pass).
-	{
+	// Only validate for script packages (.sh/.ps1) where content hash equals functionality.
+	// Binary installers can legitimately share content with different install scripts.
+	if payload.StorageID != "" && fleet.IsScriptPackage(payload.Extension) {
 		var tmID uint
 		if payload.TeamID != nil {
 			tmID = *payload.TeamID

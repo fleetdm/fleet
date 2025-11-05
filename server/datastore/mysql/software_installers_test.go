@@ -3244,7 +3244,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 		require.NoError(t, err)
 		return &fleet.UploadSoftwareInstallerPayload{
 			InstallerFile:   tfr,
-			Extension:       "pkg",
+			Extension:       "sh",
 			StorageID:       sameHash,
 			Filename:        filename,
 			Title:           title,
@@ -3258,28 +3258,53 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 	}
 
 	// Create on Team A → success
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "a.pkg", "title-a"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "a.sh", "title-a"))
 	require.NoError(t, err)
 
 	// Duplicate on Team A with different name/title but same hash → reject
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "b.pkg", "title-b"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "b.sh", "title-b"))
 	require.Error(t, err)
 	if _, ok := err.(*fleet.InvalidArgumentError); !ok {
 		t.Fatalf("expected InvalidArgumentError for same-team duplicate hash, got: %T: %v", err, err)
 	}
 
 	// Same hash on different team → allowed
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamB.ID, "c.pkg", "title-c"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamB.ID, "c.sh", "title-c"))
 	require.NoError(t, err)
 
 	// Global scope first time → allowed
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global1.pkg", "title-g1"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global1.sh", "title-g1"))
 	require.NoError(t, err)
 
 	// Global scope second time (duplicate hash) → reject
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global2.pkg", "title-g2"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global2.sh", "title-g2"))
 	require.Error(t, err)
 	if _, ok := err.(*fleet.InvalidArgumentError); !ok {
 		t.Fatalf("expected InvalidArgumentError for global duplicate hash, got: %T: %v", err, err)
 	}
+
+	// Test that binary packages (.pkg) with duplicate hash ARE allowed
+	mkPkgPayload := func(teamID *uint, filename, title string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("same-binary-bytes"), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:   tfr,
+			Extension:       "pkg",
+			StorageID:       "same-pkg-hash",
+			Filename:        filename,
+			Title:           title,
+			Version:         "1.0",
+			Source:          "apps",
+			Platform:        "darwin",
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			TeamID:          teamID,
+		}
+	}
+
+	// Binary packages with same hash on same team → allowed
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPkgPayload(&teamA.ID, "pkg1.pkg", "title-pkg1"))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPkgPayload(&teamA.ID, "pkg2.pkg", "title-pkg2"))
+	require.NoError(t, err, "binary packages with same hash should be allowed on same team")
 }
