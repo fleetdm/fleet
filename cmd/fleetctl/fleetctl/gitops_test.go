@@ -2379,8 +2379,8 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
-		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
