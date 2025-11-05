@@ -24,7 +24,29 @@ spec:
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
-1
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that the --authorization-mode argument includes RBAC
+  platform: linux
+  description: |
+    Turn on Role Based Access Control.
+  resolution: |
+    Run the following command on the Control Plane node: `ps -ef | grep kube-apiserver` Verify that the --authorization-mode argument exists and is set to a value to include RBAC.
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1
+        FROM processes
+        WHERE name = 'kube-apiserver'
+        AND cmdline LIKE '%--authorization-mode=%RBAC%'
+        )
+      OR NOT EXISTS (
+        SELECT 1 FROM processes WHERE name = 'kube-apiserver'
+        );  
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: harrisonravazzolo
 ---
 2
 ---
