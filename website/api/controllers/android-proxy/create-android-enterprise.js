@@ -93,18 +93,12 @@ module.exports = {
 
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
       // Retrieve the IAM policy for the created pubsub topic.
-      let tryCount = 0;
       let newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
-        if (tryCount > 0) {
-          // Wait a bit before retrying
-          await sails.helpers.flow.pause(1000);
-        }
-        tryCount++;
         let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
           resource: fullPubSubTopicName,
         });
         return getIamPolicyResponse.data;
-      }).retry();
+      }).retry(undefined, [1000, 1500, 2000]);
 
       // Grand Android device policy the right to publish
       // See: https://developers.google.com/android/management/notifications
@@ -118,20 +112,14 @@ module.exports = {
 
       // Update the pubsub topic's IAM policy
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/setIamPolicy
-      tryCount = 0;
       await sails.helpers.flow.build(async () => {
-        if (tryCount > 0) {
-          // Wait a bit before retrying
-          await sails.helpers.flow.pause(1000);
-        }
-        tryCount++;
         await pubsub.projects.topics.setIamPolicy({
           resource: fullPubSubTopicName,
           requestBody: {
             policy: newPubSubTopicIamPolicy
           }
         });
-      }).retry();
+      }).retry(undefined, [1000, 1500, 2000]);
 
       // Create a new subscription for the created pubsub topic.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create
