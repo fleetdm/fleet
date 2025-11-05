@@ -36,6 +36,8 @@ const (
 	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
 	SoftwareTeamIdentifierMaxLength = 10
 
+	SoftwareTitleDisplayNameMaxLength = 255
+
 	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
 	// == 1rune –> 38chars
 	UpgradeCodeExpectedLength = 38

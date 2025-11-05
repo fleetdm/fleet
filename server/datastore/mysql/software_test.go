@@ -5783,7 +5783,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 
 	// Create an intermediate failure record
-	failedExecID, installResult, isNewRecord, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5792,13 +5792,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, failedExecID)
-	require.NotNil(t, installResult)
-	require.True(t, isNewRecord, "First call should create a new record")
-	require.Equal(t, "test-app", installResult.SoftwareTitle)
-	require.Equal(t, "installer.pkg", installResult.SoftwarePackage)
-	require.Equal(t, user.ID, *installResult.UserID)
-	require.Nil(t, installResult.PolicyID)
-	require.False(t, installResult.SelfService)
 
 	// Verify original record is still pending using GetSoftwareInstallResults
 	originalResult, err := ds.GetSoftwareInstallResults(ctx, "original-uuid")
@@ -5814,6 +5807,13 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, *failedResult.InstallScriptExitCode)
 	require.NotNil(t, failedResult.Output)
 	require.Equal(t, "network timeout", *failedResult.Output)
+	// Verify metadata preserved and correct
+	require.Equal(t, "test-app", failedResult.SoftwareTitle)
+	require.Equal(t, "installer.pkg", failedResult.SoftwarePackage)
+	require.NotNil(t, failedResult.UserID)
+	require.Equal(t, user.ID, *failedResult.UserID)
+	require.Nil(t, failedResult.PolicyID)
+	require.False(t, failedResult.SelfService)
 
 	// Verify the created_at timestamp was preserved from the original record
 	var failedRecordCreatedAt time.Time
@@ -5830,7 +5830,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, count)
 
 	// Test idempotency: calling again with same retries_remaining should return same UUID and not create new record
-	failedExecID2, installResult2, isNewRecord2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5839,8 +5839,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, failedExecID, failedExecID2, "Should generate same UUID for same retries_remaining")
-	require.NotNil(t, installResult2)
-	require.False(t, isNewRecord2, "Second call should update existing record")
 
 	// Verify still only 2 records (idempotent)
 	err = ds.writer(ctx).GetContext(ctx, &count, `
@@ -5854,7 +5852,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, "network timeout updated", *updatedResult.Output)
 
 	// Test with different retries_remaining creates new record
-	failedExecID3, _, isNewRecord3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5863,7 +5861,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, failedExecID, failedExecID3, "Should generate different UUID for different retries_remaining")
-	require.True(t, isNewRecord3, "Different retries_remaining should create new record")
 
 	// Verify now have 3 records
 	err = ds.writer(ctx).GetContext(ctx, &count, `

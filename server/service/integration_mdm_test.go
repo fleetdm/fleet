@@ -758,7 +758,6 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
-
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
@@ -14942,7 +14941,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		{Name: "N1", Contents: profile},
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(rawRes.Body)
-	require.Contains(t, errMsg, "_badName is not supported")
+	require.Contains(t, errMsg, "_badName does not exist")
 
 	// ////////////////////////////////
 	// Test a good profile -- happy path
@@ -15694,7 +15693,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(resp.Body)
 	assert.Contains(t, errMsg, "FLEET_VAR_CUSTOM_SCEP_")
-	assert.Contains(t, errMsg, "_scepName is not supported")
+	assert.Contains(t, errMsg, "_scepName does not exist")
 
 	// /////////////////////////////////////////
 	// Add custom SCEP config
