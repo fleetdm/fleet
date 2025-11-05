@@ -71,7 +71,6 @@ spec:
   tags: compliance, CIS, CIS_Level1
   contributors: zwass
 ---
-#4
 apiVersion: v1
 kind: policy
 spec:
