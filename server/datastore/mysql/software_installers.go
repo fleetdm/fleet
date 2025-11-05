@@ -228,6 +228,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	}
 
 	// Enforce team-scoped uniqueness by storage hash, aligning upload behavior with GitOps.
+	// However, if the duplicate-by-hash is for the same title/source on the same team,
+	// let the DB unique (team,title) constraint surface the conflict (so tests expecting
+	// a 409 Conflict with "already exists" still pass).
 	{
 		var tmID uint
 		if payload.TeamID != nil {
@@ -237,11 +240,16 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "check duplicate installer by hash")
 		}
-		if _, exists := teamsByHash[tmID]; exists {
-			return 0, 0, fleet.NewInvalidArgumentError(
-				"software",
-				"Couldn't add software. An installer with identical contents already exists on this team.",
-			)
+		if found, exists := teamsByHash[tmID]; exists {
+			// If the existing installer has the same title and source, allow the insert to proceed
+			// so that the existing UNIQUE (global_or_team_id, title_id) constraint yields a
+			// Conflict error with the expected message.
+			if !(found.Title == payload.Title && found.Source == payload.Source) {
+				return 0, 0, fleet.NewInvalidArgumentError(
+					"software",
+					"Couldn't add software. An installer with identical contents already exists on this team.",
+				)
+			}
 		}
 	}
 
