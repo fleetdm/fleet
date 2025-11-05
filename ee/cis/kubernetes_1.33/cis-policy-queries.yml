@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enforce password history' is set to '24' or more passwords
+  platforms: win11
+  platform: windows
+  description: |
+    This policy check determines the number of renewed, unique passwords that have to be associated with a user account before you can reuse an old password.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 24 or more passwords:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Enforce password history'
+  query: |
+    SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: marcosd4h
+---
+1
+---
+2
+---
+3
+---
+4
+---
+5
+---
+6
+---
+7
+---
+8
+---
+9
