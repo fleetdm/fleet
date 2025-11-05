@@ -541,45 +541,62 @@ func getVulnHostCountQuery(scope CountScope) string {
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
 	// set all counts to 0 to later identify rows to delete
+	startAll := time.Now()
 	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
 	}
+	fmt.Printf("Initialized vulnerability host counts in %s\n", time.Since(startAll).String())
 
+	start := time.Now()
 	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
+	fmt.Printf("Fetched global vulnerability host counts in %s\n", time.Since(start).String())
 
+	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
+	fmt.Printf("Inserted global vulnerability host counts in %s\n", time.Since(start).String())
 
+	start = time.Now()
 	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
+	fmt.Printf("Fetched team vulnerability host counts in %s\n", time.Since(start).String())
 
+	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
+	fmt.Printf("Inserted team vulnerability host counts in %s\n", time.Since(start).String())
 
+	start = time.Now()
 	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
+	fmt.Printf("Fetched no team vulnerability host counts in %s\n", time.Since(start).String())
 
+	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
+	fmt.Printf("Inserted no team vulnerability host counts in %s\n", time.Since(start).String())
+
+	start = time.Now()
 
 	err = ds.cleanupVulnerabilityHostCounts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
 	}
+	fmt.Printf("Cleaned up vulnerability host counts in %s\n", time.Since(start).String())
 
 	return nil
 }
