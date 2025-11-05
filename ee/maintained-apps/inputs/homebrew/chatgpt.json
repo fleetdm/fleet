@@ -1,8 +1,10 @@
 {
    "name": "ChatGPT Desktop",
-   "slug": "chatgpt-desktop/darwin",
+   "slug": "chatgpt/darwin",
    "unique_identifier": "com.openai.chat",
    "token": "chatgpt",
    "installer_format": "pkg",
-   "default_categories": ["Productivity"]
+   "default_categories": [
+      "Productivity"
+   ]
 }

@@ -59,7 +59,7 @@
     },
     {
       "name": "ChatGPT Desktop",
-      "slug": "chatgpt-desktop/darwin",
+      "slug": "chatgpt/darwin",
       "platform": "darwin",
       "unique_identifier": "com.openai.chat",
       "description": "OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
