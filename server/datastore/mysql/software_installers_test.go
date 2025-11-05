@@ -3021,14 +3021,17 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, installers, 2)
 
-	require.Equal(t, installer1NoTeam, installers[0].InstallerID)
-	require.Nil(t, installers[0].TeamID)
+	require.Len(t, installers[0], 1)
+	require.Equal(t, installer1NoTeam, installers[0][0].InstallerID)
+	require.Nil(t, installers[0][0].TeamID)
 
-	require.Equal(t, installer1Team1, installers[1].InstallerID)
-	require.NotNil(t, installers[1].TeamID)
-	require.Equal(t, team1.ID, *installers[1].TeamID)
+	require.Len(t, installers[1], 1)
+	require.Equal(t, installer1Team1, installers[1][0].InstallerID)
+	require.NotNil(t, installers[1][0].TeamID)
+	require.Equal(t, team1.ID, *installers[1][0].TeamID)
 
-	for _, i := range installers {
+	for _, is := range installers {
+		i := is[0]
 		require.Equal(t, "installer1", i.Title)
 		require.Equal(t, "pkg", i.Extension)
 		require.Equal(t, "1.0", i.Version)
@@ -3038,7 +3041,8 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2, "https://example.com/2")
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
-	require.Equal(t, installers[0].InstallerID, installer2NoTeam)
+	require.Len(t, installers[0], 1)
+	require.Equal(t, installers[0][0].InstallerID, installer2NoTeam)
 
 	// in-house hash with invalid url
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, "inhouse", "https://no-such-match")
@@ -3049,7 +3053,8 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, "inhouse", "")
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
-	require.Equal(t, installers[team1.ID].InstallerID, ihaID)
+	require.Len(t, installers[0], 1)
+	require.Equal(t, installers[team1.ID][0].InstallerID, ihaID)
 }
 
 func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
