@@ -33,7 +33,9 @@ describe("Integrations Page", () => {
 
       expect(
         await screen.findAllByText("Mobile device management (MDM)")
-      ).toHaveLength(3); // truncated side nav label, side nav label tooltip, card header
+      ).toHaveLength(1); // card header
+
+      expect(await screen.findAllByText("MDM")).toHaveLength(2); // side nav label, card header
     });
   });
   describe("Conditional access", () => {
