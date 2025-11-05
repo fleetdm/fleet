@@ -229,11 +229,7 @@ const SoftwareOSDetailsPage = ({
       maxVulnerabilities === 0
     ) {
       setIsRefetchingVulnerabilities(true);
-      const timer = setTimeout(() => {
-        setMaxVulnerabilities(undefined);
-      }, 5000);
-
-      return () => clearTimeout(timer);
+      setMaxVulnerabilities(undefined);
     }
   }, [osVersionDetails, maxVulnerabilities]);
 
