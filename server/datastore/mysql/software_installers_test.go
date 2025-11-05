@@ -2981,7 +2981,7 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// add an in-house app to the team
-	ihaID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		TeamID:           &team1.ID,
 		UserID:           user.ID,
 		Title:            "inhouse",
@@ -3053,8 +3053,14 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, "inhouse", "")
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
-	require.Len(t, installers[0], 1)
-	require.Equal(t, installers[team1.ID][0].InstallerID, ihaID)
+	require.Len(t, installers[team1.ID], 2) // ios and ipados
+	require.Equal(t, "inhouse.ipa", installers[team1.ID][0].Filename)
+	require.Equal(t, "inhouse.ipa", installers[team1.ID][1].Filename)
+	var foundPlatforms []string
+	for _, inst := range installers[team1.ID] {
+		foundPlatforms = append(foundPlatforms, inst.Platform)
+	}
+	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
 }
 
 func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
