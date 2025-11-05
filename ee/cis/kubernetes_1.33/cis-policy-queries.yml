@@ -48,8 +48,6 @@ spec:
   tags: compliance, CIS, CIS_Level1
   contributors: harrisonravazzolo
 ---
-2
----
 apiVersion: v1
 kind: policy
 spec:
@@ -97,12 +95,3 @@ spec:
   tags: compliance, CIS, CIS_Level1
   contributors: rsjaklic20
 ---
-5
----
-6
----
-7
----
-8
----
-9
