@@ -30,33 +30,36 @@ spec:
 ---
 3
 ---
-4
----
-5
----
+#4
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS 2.2 - Ensure that the --client-cert-auth argument is set to true
+  name: CIS - Ensure that the scheduler.conf file ownership is set to root:root
   platform: linux
-  description: |
-    Enable client authencation on etcd service.
-  resolution: |
-    Edit the etcd pod specification file /etc/kubernetes/manifests/etcd.yaml on the master node and set the parameter --client-cert-auth="true"
+  description: CIS K8s benchamrk 1.1.16 -> Ensure that the scheduler.conf file ownership is set to root:root.
+  resolution: The scheduler.conf file is the kubeconfig file for the Scheduler. You should set its file ownership to maintain the integrity of the file. The file should be owned by root:root.
   query: |
     SELECT 1 WHERE
-        EXISTS (
-            SELECT 1
-            FROM processes
-            WHERE name = 'etcd'
-            AND cmdline LIKE '%--client-cert-auth=true%'
-        )
+      EXISTS(
+        SELECT 
+          1 as pass 
+        FROM 
+          file 
+        WHERE 
+          path = '/var/lib/rancher/rke2/server/cred/scheduler.kubeconfig' 
+          AND uid = 0 
+          AND gid = 0;
+          )
         OR NOT EXISTS (
-            SELECT 1 FROM processes WHERE name = 'etcd'
-        );
+          SELECT 1 FROM file WHERE path = '/var/lib/rancher/rke2/server/cred/scheduler.kubeconfig'
+          );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: kc9wwh
+  contributors: rsjaklic20
+---
+5
+---
+6
 ---
 7
 ---
