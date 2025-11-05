@@ -72,6 +72,31 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - 1.2.9 - v1.12 - Ensure that the admission control plugin EventRateLimit is set (Manual)
+  platforms: linux
+  platform: linux
+  description: |
+    Limit the rate at which the API server accepts requests.
+    Using EventRateLimit admission control enforces a limit on the number of events that
+    the API Server will accept in a given time slice. A misbehaving workload could
+    overwhelm and DoS the API Server, making it unavailable. This particularly applies to a
+    multi-tenant cluster, where there might be a small percentage of misbehaving tenants
+    which could have a significant impact on the performance of the cluster overall. Hence,
+    it is recommended to limit the rate of events that the API server will accept.
+  resolution: |
+    Follow the Kubernetes documentation and set the desired limits in a configuration file.
+    Then, edit the API server pod specification file /etc/kubernetes/manifests/kube-apiserver.yaml and set the below parameters.
+    '--enable-admission-plugins=...,EventRateLimit,...'
+    '--admission-control-config-file=<path/to/configuration/file>'
+  query: |
+    SELECT 1 WHERE ( SELECT 1 FROM processes where name like "%kube-apiserver%" and cmdline like "%--enable-admission-plugins=%EventRateLimit%" and cmdline like "%--admission-control-config-file=%") OR NOT EXISTS ( SELECT 1 FROM processes where name like "%kube-apiserver%");
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: baic
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure that the scheduler.conf file ownership is set to root:root
   platform: linux
   description: CIS K8s benchamrk 1.1.16 -> Ensure that the scheduler.conf file ownership is set to root:root.
