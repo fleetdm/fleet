@@ -1,0 +1,1 @@
+- change where mdm_enrolled activity is created. It is moved to the Token Update method to ensure the host can recieve additional fleet mdm commands.
