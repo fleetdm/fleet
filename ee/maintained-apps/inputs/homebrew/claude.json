@@ -1,8 +1,10 @@
 {
   "name": "Claude",
-  "slug": "claude-desktop/darwin",
+  "slug": "claude/darwin",
   "unique_identifier": "com.anthropic.claudefordesktop",
   "token": "claude",
   "installer_format": "zip",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Developer tools"
+  ]
 }

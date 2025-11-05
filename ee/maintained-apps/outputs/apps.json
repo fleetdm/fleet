@@ -59,7 +59,7 @@
     },
     {
       "name": "Claude",
-      "slug": "claude-desktop/darwin",
+      "slug": "claude/darwin",
       "platform": "darwin",
       "unique_identifier": "com.anthropic.claudefordesktop",
       "description": "Anthropic's official Claude AI desktop app."
