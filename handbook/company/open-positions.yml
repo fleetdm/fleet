@@ -162,33 +162,6 @@
      # - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 
-- jobTitle: 🦢 Product Designer
-  department: Product Design
-  hiringManagerName: Noah Talerman
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
-  hiringManagerGithubUsername: noahtalerman
-  onTargetEarnings: '$125,000 - $160,000'
-  responsibilities: |
-      - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
-      - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
-      - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
-      - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
-      - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
-  experience: |
-      - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
-      - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
-      - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
-      - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
-      - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
-      - 💖 Proficient in visual design and wireframing tools (we use Figma).
-      - ✍️ Experienced in writing clear, concise product specs for engineering teams.
-      - 📖 Maintain a design system that enables speed for designers and engineers.
-      - 🤝 Collaboration: You work best in a participatory, team-based environment.
-      - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
-      - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - ➕ Bonus: YB2B SaaS background
-
 - jobTitle: 🐋 VP of Sales
   department: Sales
   hiringManagerName: Alex Mitchell
@@ -220,3 +193,54 @@
       - 🧬 Care about delivering an outstanding customer experience and creating a customer-first culture.
       - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
+
+- jobTitle: 🚀 Quality Assurance Engineer
+  department: Engineering
+  hiringManagerName: Sharon Katz
+  hiringManagerGithubUsername: sharon-fdm
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/sharon-katz-45b1b3a/
+  responsibilities: |
+      - ⏫ Work closely with engineering to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
+      - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+      - 🌟 Contribute to the overall success of all [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features that work as intended.
+      - 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
+      - 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
+      - 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
+      - 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
+  experience: |
+      - 💭 3-5 years' of experience in a product quality, QA, or testing role.
+      - 💖 Proficient in creating comprehensive testing plans.
+      - ✍️ Experience working with engineering and product teams in an agile environment.
+      - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams.
+      - 🌐 Experience in manual testing across various devices, platforms, and browsers.
+      - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+      - 🤝 Collaboration: You work best in a participatory, team-based environment.
+      - 🛠️ Technical: You understand the software development processes.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - ➕ Bonus: Cybersecurity or IT background.
+
+
+- jobTitle: 🧩 Software Specialist
+  department: Engineering
+  hiringManagerName: George Karr
+  hiringManagerGithubUsername: georgekarrv
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/george-karr-4977b441/
+  responsibilities: |
+      - 🧰 Package, install, and validate Fleet-maintained applications across supported platforms (macOS, Windows, Linux) to ensure correct functionality and compatibility.
+      - 🔍 Smoke test Fleet releases before and after deployment to confirm key workflows, software installations, and device management features work as intended.
+      - 🤝 Collaborate closely with QA Engineers and developers to reproduce, verify, and document issues discovered during packaging and testing.
+      - 🧪 Create, maintain, and improve app testing scripts or procedures to streamline verification of Fleet-maintained software.
+      - 📦 Maintain a library of packaged apps, keeping metadata, versioning, and test results up to date.
+      - 🧭 Assist with end-to-end validation of new MDM and software management features, ensuring a seamless experience for end users and IT admins.
+      - 🚀 Support QA Engineers during release testing cycles, providing deep expertise in app packaging, configuration, and validation.
+  experience: |
+      - 💼 1-3 years’ experience packaging, testing, and deploying applications in an enterprise or managed-device environment.
+      - 🧩 Hands-on experience creating, modifying, and troubleshooting app packages (PKG, MSI, DMG, etc.).
+      - 🧠 Familiarity with device management tools and workflows (e.g., MDM, Munki, Jamf, Intune, or Fleet).
+      - 🧪 Skilled at smoke testing, regression testing, and identifying root causes of packaging or installation failures.
+      - 🧾 Comfortable documenting detailed test results, bug reports, and packaging notes.
+      - 💬 Excellent collaboration and communication skills for working with engineers and QA teammates.
+      - 🔄 Strong attention to detail and commitment to consistent, reliable testing processes.
+      - ➕ Bonus: Experience with automation or scripting tools (e.g., Bash, Python, PowerShell) for testing or packaging.

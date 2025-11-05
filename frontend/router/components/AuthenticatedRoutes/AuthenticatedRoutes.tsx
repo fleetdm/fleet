@@ -101,6 +101,16 @@ export const AuthenticatedRoutes = ({
   }, [currentUser]);
 
   useDeepEffect(() => {
+    if (location.hash) {
+      const elementToScrollTo = location.hash.slice(1);
+
+      setTimeout(() => {
+        document
+          .getElementById(elementToScrollTo)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+
     window.scrollTo(0, 0);
   }, [location]);
 

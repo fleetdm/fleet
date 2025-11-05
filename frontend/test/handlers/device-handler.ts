@@ -8,6 +8,8 @@ import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
 import { createMockHostCertificate } from "__mocks__/certificatesMock";
+import { createMockMdmCommandResult } from "__mocks__/mdmMock";
+
 import { baseUrl } from "test/test-utils";
 import { IDeviceUserResponse } from "interfaces/host";
 import {
@@ -44,16 +46,6 @@ export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
     );
     return HttpResponse.json(response);
   });
-
-export const defaultDeviceMappingHandler = http.get(
-  baseUrl("/device/:token/device_mapping"),
-  () => {
-    return HttpResponse.json({
-      device_mapping: [createMockDeviceUser()],
-      host_id: 1,
-    });
-  }
-);
 
 export const defaultMacAdminsHandler = http.get(
   baseUrl("/device/:token/macadmins"),
@@ -97,3 +89,31 @@ export const deviceSetupExperienceHandler = (
 export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
   setup_experience_results: { software: [], scripts: [] },
 });
+
+export const getDeviceVppCommandResultHandler = http.get(
+  `/device/:token/software/commands/:uuid/results`,
+  ({ params }) => {
+    const { token, uuid } = params;
+
+    // Map UUIDs to status
+    const statusMap = {
+      "notnow-uuid": "NotNow",
+      "acknowledged-uuid": "Acknowledged",
+      "uuid-failed": "Failed",
+    };
+    const status =
+      statusMap[uuid as "notnow-uuid" | "acknowledged-uuid" | "uuid-failed"] ||
+      "Acknowledged";
+
+    const mdmCommand = createMockMdmCommandResult({
+      command_uuid: uuid as string,
+      status,
+      payload: btoa(`payload for ${uuid}`),
+      result: btoa(`result for ${uuid}`),
+    });
+
+    return HttpResponse.json({
+      results: [mdmCommand],
+    });
+  }
+);

@@ -1,5 +1,5 @@
 import React from "react";
-import { isMacOS, isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
@@ -61,8 +61,13 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locking: {
     title: "LOCK PENDING",
     tagType: "warning",
-    generateTooltip: () =>
-      "Host will lock when it comes online.  If the host is online, it will lock the next time it checks in to Fleet.",
+    generateTooltip: () => (
+      <>
+        Host will lock when it comes online. If the host is
+        <br />
+        online, it will lock the next time it checks in to Fleet.
+      </>
+    ),
   },
   wiped: {
     title: "WIPED",

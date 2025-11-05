@@ -19,9 +19,7 @@ TODO
 
 ### 🛠️ To fix
 <!-- Add the expected fix here. If you're not sure, leave this blank for product to specify.  -->
-TBD
-
-Product designer: _________________________<!-- Who is the product designer to contact if folks have questions about this fix? -->
+TODO
 
 ### 🧑‍💻  Steps to reproduce
 <!-- Provide step-by-step actions of how to recreate this bug in a clean install of Fleet. (This helps others understand and fix it more quickly.) -->

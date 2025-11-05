@@ -34,6 +34,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
   resolveUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -78,6 +79,11 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import {
+  SoftwareIpaInstallDetailsModal,
+  ISoftwareIpaInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -222,6 +228,14 @@ const HostDetailsPage = ({
     packageInstallDetails,
     setPackageInstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    scriptPackageDetails,
+    setScriptPackageDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
+  ] = useState<ISoftwareIpaInstallDetails | null>(null);
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
@@ -681,14 +695,33 @@ const HostDetailsPage = ({
           setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setPackageInstallDetails({
-            ...details,
-            // FIXME: It seems like the backend is not using the correct display name when it returns
-            // upcoming install activities. As a workaround, we'll prefer the display name from
-            // the host object if it's available.
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          if (details?.command_uuid) {
+            setIpaPackageInstallDetails({
+              fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
+              hostDisplayName:
+                host?.display_name || details?.host_display_name || "",
+              appName: details?.name || "",
+              commandUuid: details?.command_uuid,
+            });
+          } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
+            setScriptPackageDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          } else {
+            setPackageInstallDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          }
           break;
         case "uninstalled_software":
           setPackageUninstallDetails({
@@ -746,6 +779,10 @@ const HostDetailsPage = ({
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
     setPackageInstallDetails(null);
+  }, []);
+
+  const onCancelIpaSoftwareInstallDetailsModal = useCallback(() => {
+    setIpaPackageInstallDetails(null);
   }, []);
 
   const onCancelVppInstallDetailsModal = useCallback(() => {
@@ -1026,7 +1063,7 @@ const HostDetailsPage = ({
             <TabPanel>
               {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
-               when we add that feature. */}
+               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
               {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
               isAndroidHost ? (
                 <EmptyTable
@@ -1038,11 +1075,9 @@ const HostDetailsPage = ({
                         newTab
                         text="Learn more"
                         url={
-                          isBYODAccountDrivenUserEnrollment(
-                            host.mdm.enrollment_status
-                          )
-                            ? BYOD_SW_INSTALL_LEARN_MORE_LINK
-                            : ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                          isAndroidHost
+                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
                         }
                       />
                     </>
@@ -1396,6 +1431,24 @@ const HostDetailsPage = ({
             <SoftwareInstallDetailsModal
               details={packageInstallDetails}
               onCancel={onCancelSoftwareInstallDetailsModal}
+            />
+          )}
+          {scriptPackageDetails && (
+            <SoftwareScriptDetailsModal
+              details={scriptPackageDetails}
+              onCancel={() => setScriptPackageDetails(null)}
+            />
+          )}
+          {ipaPackageInstallDetails && (
+            <SoftwareIpaInstallDetailsModal
+              details={{
+                appName: ipaPackageInstallDetails.appName || "",
+                fleetInstallStatus: (ipaPackageInstallDetails.fleetInstallStatus ||
+                  "pending_install") as SoftwareInstallUninstallStatus,
+                hostDisplayName: ipaPackageInstallDetails.hostDisplayName || "",
+                commandUuid: ipaPackageInstallDetails.commandUuid || "",
+              }}
+              onCancel={onCancelIpaSoftwareInstallDetailsModal}
             />
           )}
           {packageUninstallDetails && (

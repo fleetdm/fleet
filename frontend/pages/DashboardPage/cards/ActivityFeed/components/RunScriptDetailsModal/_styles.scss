@@ -17,21 +17,6 @@
     gap: $pad-medium;
   }
 
-  &__status-message {
-    p {
-      display: flex;
-      align-items: center;
-      gap: $pad-small;
-      margin: 0;
-
-      .component__tooltip-wrapper {
-        margin-left: -$pad-xsmall;
-        margin-right: -$pad-xsmall;
-        margin-top: -1px;
-      }
-    }
-  }
-
   &__script-result {
     display: flex;
     flex-direction: column;

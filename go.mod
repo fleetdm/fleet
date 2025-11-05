@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.25.1
+go 1.25.3
 
 require (
 	cloud.google.com/go/pubsub v1.49.0
@@ -89,7 +89,7 @@ require (
 	github.com/klauspost/compress v1.18.0
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.2.3
+	github.com/macadmins/osquery-extension v1.2.7
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
@@ -104,7 +104,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v1.4.2
 	github.com/oschwald/geoip2-golang v1.8.0
-	github.com/osquery/osquery-go v0.0.0-20231130195733-61ac79279aaa
+	github.com/osquery/osquery-go v0.0.0-20250131154556-629f995b6947
 	github.com/pandatix/nvdapi v0.6.4
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -128,7 +128,7 @@ require (
 	github.com/spf13/cast v1.7.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/theupdateframework/go-tuf v0.5.2
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
@@ -143,19 +143,19 @@ require (
 	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.60.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0
-	go.opentelemetry.io/otel v1.37.0
+	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.37.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.37.0
 	go.opentelemetry.io/otel/sdk v1.37.0
-	go.opentelemetry.io/otel/trace v1.37.0
+	go.opentelemetry.io/otel/trace v1.38.0
 	golang.org/x/crypto v0.41.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/image v0.18.0
 	golang.org/x/mod v0.26.0
 	golang.org/x/net v0.43.0
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/sync v0.16.0
-	golang.org/x/sys v0.35.0
+	golang.org/x/sync v0.17.0
+	golang.org/x/sys v0.36.0
 	golang.org/x/term v0.34.0
 	golang.org/x/text v0.28.0
 	golang.org/x/tools v0.35.0
@@ -165,7 +165,6 @@ require (
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
@@ -190,7 +189,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
-	github.com/apache/thrift v0.18.1 // indirect
+	github.com/apache/thrift v0.22.0 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.11 // indirect
@@ -263,7 +262,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
-	github.com/hashicorp/go-version v1.6.0 // indirect
+	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
@@ -334,7 +333,7 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
-	go.opentelemetry.io/otel/metric v1.37.0 // indirect
+	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
@@ -343,6 +342,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 

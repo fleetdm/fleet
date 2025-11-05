@@ -1039,6 +1039,18 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
+  '' AS browser,
+  'npm_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM npm_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
   '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
@@ -3031,7 +3043,7 @@ func buildConfigProfilesWindowsQuery(
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
-	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
 		// replace `/Policy/Config/` with `Policy/Result/`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider

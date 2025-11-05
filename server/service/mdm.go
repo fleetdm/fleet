@@ -41,7 +41,6 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
-	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -1683,143 +1682,6 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	// check that Windows MDM is enabled - the middleware of that endpoint checks
-	// only that any MDM is enabled, maybe it's just macOS
-	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-		return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
-	}
-
-	var teamName string
-	if teamID > 0 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
-	}
-
-	cp := fleet.MDMWindowsConfigProfile{
-		TeamID: &teamID,
-		Name:   profileName,
-		SyncML: data,
-	}
-	if err := cp.ValidateUserProvided(); err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
-			return nil, ctxerr.Wrap(ctx,
-				&fleet.BadRequestError{Message: msg + " To control these settings use disk encryption endpoint."})
-		}
-
-		// this is not great, but since the validations are shared between the CLI
-		// and the API, we must make some changes to error message here.
-		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
-			msg = strings.TrimSpace(msg[:ix])
-		}
-		err := &fleet.BadRequestError{Message: "Couldn't add. " + msg}
-		return nil, ctxerr.Wrap(ctx, err, "validate profile")
-	}
-
-	labelMap, err := svc.validateProfileLabels(ctx, labels)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating labels")
-	}
-	switch labelsMembershipMode {
-	case fleet.LabelsIncludeAny:
-		cp.LabelsIncludeAny = labelMap
-	case fleet.LabelsExcludeAny:
-		cp.LabelsExcludeAny = labelMap
-	default:
-		// default include all
-		cp.LabelsIncludeAll = labelMap
-	}
-
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
-	}
-
-	// Get license for validation
-	lic, err := svc.License(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking license")
-	}
-
-	foundVars, err := validateWindowsProfileFleetVariables(string(cp.SyncML), lic)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	// Collect Fleet variables used in the profile
-	var usesFleetVars []fleet.FleetVarName
-	for varName := range foundVars {
-		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
-	}
-
-	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
-	if err != nil {
-		var existsErr endpoint_utils.ExistsErrorInterface
-		if errors.As(err, &existsErr) {
-			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
-				WithStatus(http.StatusConflict)
-		}
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
-
-	var (
-		actTeamID   *uint
-		actTeamName *string
-	)
-	if teamID > 0 {
-		actTeamID = &teamID
-		actTeamName = &teamName
-	}
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
-			TeamID:      actTeamID,
-			TeamName:    actTeamName,
-			ProfileName: newCP.Name,
-		}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm windows config profile")
-	}
-
-	return newCP, nil
-}
-
-// fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
-// supported in Windows configuration profiles.
-var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
-	fleet.FleetVarHostUUID,
-}
-
-func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
-	foundVars := variables.Find(contents)
-	if len(foundVars) == 0 {
-		return nil, nil
-	}
-
-	// Check for premium license if the profile contains Fleet variables
-	if lic == nil || !lic.IsPremium() {
-		return nil, fleet.ErrMissingLicense
-	}
-
-	// Check if all found variables are supported
-	for varName := range foundVars {
-		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
-			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
-		}
-	}
-	return foundVars, nil
-}
-
 func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
@@ -2044,12 +1906,12 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
-	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
+	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM.EnableCustomOSUpdatesAndFileVault)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
-	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM.EnableCustomOSUpdatesAndFileVault)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
@@ -2081,7 +1943,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
 		varNames := make([]fleet.FleetVarName, 0, len(variables))
-		for varName := range variables {
+		for _, varName := range variables {
 			varNames = append(varNames, fleet.FleetVarName(varName))
 		}
 		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
@@ -2207,7 +2069,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
-) (map[string]map[string]struct{}, error) {
+) (map[string][]string, error) {
 	var err error
 
 	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
@@ -2215,7 +2077,7 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
+	profileVarsByProfIdentifier := make(map[string][]string)
 	for _, p := range appleProfiles {
 		profileVars, err := validateConfigProfileFleetVariables(string(p.Mobileconfig), lic, groupedCAs)
 		if err != nil {
@@ -2224,7 +2086,7 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		profileVarsByProfIdentifier[p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
-		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic)
+		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
 		}
@@ -2330,6 +2192,7 @@ func getAppleProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
+	allowCustomOSUpdatesAndFileVault bool,
 ) (map[int]*fleet.MDMAppleConfigProfile, map[int]*fleet.MDMAppleDeclaration, error) {
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make(map[int]*fleet.MDMAppleConfigProfile, len(profiles))
@@ -2350,7 +2213,7 @@ func getAppleProfiles(
 				return nil, nil, err
 			}
 
-			if err := rawDecl.ValidateUserProvided(); err != nil {
+			if err := rawDecl.ValidateUserProvided(allowCustomOSUpdatesAndFileVault); err != nil {
 				return nil, nil, err
 			}
 
@@ -2448,7 +2311,7 @@ func getAppleProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(allowCustomOSUpdatesAndFileVault); err != nil {
 			var iae *fleet.InvalidArgumentError
 			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 				iae = fleet.NewInvalidArgumentError(prof.Name,
@@ -2505,6 +2368,7 @@ func getWindowsProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
+	enableCustomOSUpdatesAndFileVault bool,
 ) (map[int]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMWindowsConfigProfile, len(profiles))
 
@@ -2548,7 +2412,7 @@ func getWindowsProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(enableCustomOSUpdatesAndFileVault); err != nil {
 			msg := err.Error()
 			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
@@ -3299,7 +3163,7 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	// If an install doesn't have a verification_at or verification_failed_at, then
 	// mark it as failed
-	if err := svc.ds.MarkAllPendingVPPInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
+	if err := svc.ds.MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
 		return ctxerr.Wrap(ctx, err, "marking all pending vpp installs as failed")
 	}
 

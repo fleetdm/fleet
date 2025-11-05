@@ -330,9 +330,53 @@ func (c *TestAppleMDMClient) UserEnroll() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
-	return c.fetchOTAProfile(
-		"/api/latest/fleet/device/" + c.desktopURLToken + "/mdm/apple/manual_enrollment_profile",
-	)
+	request, err := http.NewRequest("GET", c.fleetServerURL+"/api/latest/fleet/device/"+c.desktopURLToken+"/mdm/apple/manual_enrollment_profile", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	// #nosec (this client is used for testing only)
+	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: true,
+	}))
+
+	response, err := cc.Do(request)
+	if err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+
+	var dest struct {
+		EnrollURL string `json:"enroll_url,omitempty"`
+	}
+	err = json.Unmarshal(body, &dest)
+	if err != nil {
+		return fmt.Errorf("unmarshal response: %w", err)
+	}
+
+	if dest.EnrollURL == "" {
+		return errors.New("empty enroll URL in response")
+	}
+
+	urlParsed, err := url.Parse(dest.EnrollURL)
+	if err != nil {
+		return fmt.Errorf("parse enroll URL: %w", err)
+	}
+	q := urlParsed.Query()
+	es := q.Get("enroll_secret")
+	if es == "" {
+		return errors.New("missing enroll_secret in enroll URL")
+	}
+	c.otaEnrollSecret = es
+
+	return c.fetchEnrollmentProfileFromOTAURL()
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {

@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -181,7 +182,9 @@ type Service interface {
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	// When initiated from Orbit, the hostUUID is used to link the SSO
+	// session to a specific host.
+	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
@@ -372,6 +375,8 @@ type Service interface {
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
+	// CleanupExpiredHosts cleans up hosts that have exceeded the expiry window and creates activities for each deletion.
+	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
@@ -387,13 +392,10 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
-	// SetCustomHostDeviceMapping sets the custom email address associated with
-	// the host, which is either set by the fleetd installer at startup (via a
-	// device-authenticated API), or manually by the user (via the
-	// user-authenticated API).
-	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
-	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
-	// The identifier string will be matched against the Hostname, OsqueryHostID, NodeKey, UUID and HardwareSerial fields.
+	// SetHostDeviceMapping sets the email address associated with the host.
+	// The source parameter determines the type: "custom" for manually set
+	// mappings or DeviceMappingIDP for identity provider mappings.
+	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
@@ -435,9 +437,10 @@ type Service interface {
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
-	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool) (*OSVersions, int, *PaginationMetadata, error)
-	// OSVersion returns an operating system and associated host counts
-	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*OSVersion, *time.Time, error)
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool, maxVulnerabilities *int) (*OSVersions, int, *PaginationMetadata, error)
+	// OSVersion returns an operating system and associated host counts. If maxVulnerabilities is provided,
+	// limits the number of vulnerabilities returned while still providing the total count.
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*OSVersion, *time.Time, error)
 
 	// ListHostSoftware lists the software installed or available for install on
 	// the specified host.
@@ -711,6 +714,12 @@ type Service interface {
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
 	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*VPPAppStoreApp, error)
 
+	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
+	GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+
+	// GetInHouseAppPackage downloads the bytes of the given in-house app.
+	GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
+
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//
 	// Per the [spec][1] OTA enrollment is composed of two phases, each
@@ -855,7 +864,7 @@ type Service interface {
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
-	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
+	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)

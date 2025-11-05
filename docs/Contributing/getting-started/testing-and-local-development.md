@@ -362,7 +362,9 @@ docker-compose exec redis redis-cli
 
 ## Testing SSO
 
-Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testing SAML-based SSO locally.
+For end-to-end testing including advanced use cases (e.g. SCIM), [Okta](https://developer.okta.com/signup/) has an Integrator Free Plan available that you can develop against.
+
+For simpler use cases, Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testing SAML-based SSO locally.
 
 ### Configuration
 

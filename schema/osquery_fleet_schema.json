@@ -16415,6 +16415,112 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/managed_policies.yml"
   },
   {
+    "name": "mcp_listening_servers",
+    "notes": "This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).",
+    "description": "Lists processes with listening ports that are responding as [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers via HTTP (Many MCP servers use stdio and will not be detected by this table).  This table queries the `listening_ports` and `processes` tables to find listening ports, then probes each port to identify active MCP servers.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List all MCP servers currently running on the system.\n\n```\nSELECT * FROM mcp_listening_servers;\n```",
+    "columns": [
+      {
+        "name": "pid",
+        "description": "The process ID of the process running the MCP server.",
+        "required": false,
+        "type": "bigint"
+      },
+      {
+        "name": "name",
+        "description": "The name of the process running the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "cmdline",
+        "description": "The full command line of the process running the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "port",
+        "description": "The port number on which the MCP server is listening.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "address",
+        "description": "The network address on which the MCP server is listening (e.g., \"127.0.0.1\", \"0.0.0.0\", \"::1\").",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "protocol_version",
+        "description": "The MCP protocol version supported by the server (e.g., \"2025-06-18\").",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "server_name",
+        "description": "The name identifier of the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "server_title",
+        "description": "The human-readable title of the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "server_version",
+        "description": "The version of the MCP server implementation.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "has_logging",
+        "description": "Indicates if the MCP server supports logging capabilities (1 = true, 0 = false).",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "has_completions",
+        "description": "Indicates if the MCP server supports completion capabilities (1 = true, 0 = false).",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "instructions",
+        "description": "Instructions or description text provided by the MCP server about its purpose and usage.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tools",
+        "description": "JSON array of tools provided by the MCP server, including their names and descriptions.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "prompts",
+        "description": "JSON array of prompts provided by the MCP server, including their names and descriptions.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resources",
+        "description": "JSON array of resources provided by the MCP server, including their URIs, names, and descriptions.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/mcp_listening_servers",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mcp_listening_servers.yml"
+  },
+  {
     "name": "md_devices",
     "description": "Software RAID array settings.",
     "url": "https://fleetdm.com/tables/md_devices",
@@ -24312,6 +24418,275 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/sandboxes.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsandboxes.yml&value=name%3A%20sandboxes%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "santa_allowed",
+    "description": "Logs events for when Santa allowed applications to run on the host. Fleet's agent (fleetd) only stores the most recent 10,000 allowed events.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Show Google Chrome open events, as allowed by Santa.\n\n```\nSELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app';\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 allowed events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
+    "columns": [
+      {
+        "name": "timestamp",
+        "description": "Timestamp of the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "application",
+        "description": "Path to the application",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reason",
+        "description": "Reason for the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sha256",
+        "description": "SHA256 hash of the binary",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_allowed",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_allowed.yml"
+  },
+  {
+    "name": "santa_denied",
+    "description": "Logs events for when Santa denied applications from running on the host. Fleet's agent (fleetd) only stores the most recent 10,000 denied events.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Collect all Santa denied logs from macOS hosts.\n```\nSELECT * FROM santa_denied;\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
+    "columns": [
+      {
+        "name": "timestamp",
+        "description": "Timestamp of the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "application",
+        "description": "Path to the application",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reason",
+        "description": "Reason for the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sha256",
+        "description": "SHA256 hash of the binary",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_denied",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_denied.yml"
+  },
+  {
+    "name": "santa_status",
+    "description": "The output of `santactl status --json` showing current Santa statistics and configuration.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Confirm Santa is running in lockdown mode across all macOS hosts.\n```\nSELECT mode FROM santa_status;\n```",
+    "columns": [
+      {
+        "name": "last_successful_rule",
+        "description": "Last successful rule sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "push_notifications",
+        "description": "Push notifications status",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "bundle_scanning",
+        "description": "Whether bundle scanning is enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "clean_required",
+        "description": "Whether a clean is required (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "server",
+        "description": "Sync server address",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "last_successful_full",
+        "description": "Last successful full sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file_logging",
+        "description": "File logging enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "watchdog_ram_events",
+        "description": "Number of watchdog RAM events",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "driver_connected",
+        "description": "Whether the driver is connected (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "log_type",
+        "description": "Log type (e.g., file)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "watchdog_cpu_events",
+        "description": "Number of watchdog CPU events",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "mode",
+        "description": "Santa mode (e.g., Monitor)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "watchdog_cpu_peak",
+        "description": "Peak CPU usage",
+        "required": false,
+        "type": "double"
+      },
+      {
+        "name": "watchdog_ram_peak",
+        "description": "Peak RAM usage",
+        "required": false,
+        "type": "double"
+      },
+      {
+        "name": "transitive_rules_enabled",
+        "description": "Transitive rules enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "remount_usb_mode",
+        "description": "Remount USB mode",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "block_usb",
+        "description": "Block USB enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "on_start_usb_options",
+        "description": "USB options on start",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "root_cache_count",
+        "description": "Root cache count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "non_root_cache_count",
+        "description": "Non-root cache count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "static_rule_count",
+        "description": "Static rule count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "certificate_rules",
+        "description": "Certificate rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "cdhash_rules",
+        "description": "CDHash rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "transitive_rules_count",
+        "description": "Transitive rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "teamid_rules",
+        "description": "Team ID rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "signingid_rules",
+        "description": "Signing ID rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "compiler_rules",
+        "description": "Compiler rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "binary_rules",
+        "description": "Binary rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "events_pending_upload",
+        "description": "Events pending upload",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "watch_items_enabled",
+        "description": "Watch items enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_status.yml"
   },
   {
     "name": "scheduled_tasks",

@@ -32,6 +32,7 @@ export enum ActivityType {
   UserFailedLogin = "user_failed_login",
   UserCreated = "created_user",
   UserDeleted = "deleted_user",
+  HostDeleted = "deleted_host",
   UserChangedGlobalRole = "changed_user_global_role",
   UserDeletedGlobalRole = "deleted_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
@@ -64,6 +65,9 @@ export enum ActivityType {
   AddedSmallstep = "added_smallstep",
   DeletedSmallstep = "deleted_smallstep",
   EditedSmallstep = "edited_smallstep",
+  AddedCustomEST = "added_custom_est",
+  DeletedCustomEST = "deleted_custom_est",
+  EditedCustomEST = "edited_custom_est",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -130,6 +134,8 @@ export enum ActivityType {
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
+  AddedConditionalAccessOkta = "added_conditional_access_okta",
+  DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -205,6 +211,7 @@ export interface IActivityDetails {
   grace_period_days?: number;
   host_display_name?: string;
   host_display_names?: string[];
+  host_expiry_window?: number;
   host_id?: number;
   host_ids?: number[];
   host_count?: number;
@@ -246,6 +253,7 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
+  triggered_by?: string;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;

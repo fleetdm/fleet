@@ -4584,6 +4584,42 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	require.True(t, ds.UpdateMDMDataFuncInvoked)
 	require.True(t, ds.GetLatestAppleMDMCommandOfTypeFuncInvoked)
 	require.True(t, ds.SetLockCommandForLostModeCheckinFuncInvoked)
+
+	_, err = svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Raw: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>REFETCH-fd23f8ac-1c50-41c7-a5bb-f13633c9ea97</string>
+        <key>QueryResponses</key>
+        <dict>
+                <key>AvailableDeviceCapacity</key>
+                <real>51.260395520000003</real>
+                <key>DeviceCapacity</key>
+                <real>64</real>
+                <key>DeviceName</key>
+                <string>Work iPad</string>
+                <key>OSVersion</key>
+                <string>17.5.1</string>
+                <key>ProductName</key>
+                <string>iPad13,18</string>
+                <key>WiFiMAC</key>
+                <string>ff:ff:ff:ff:ff:ff</string>
+        </dict>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>FFFFFFFF-FFFFFFFFFFFFFFFF</string>
+</dict>
+</plist>`),
+		},
+	)
+	require.NoError(t, err)
 }
 
 func TestUnmarshalAppList(t *testing.T) {
@@ -5180,7 +5216,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+				assert.Contains(t, updatedProfile.Detail, "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
 			},
 		},
 		{
@@ -5197,7 +5233,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -5214,7 +5250,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+				assert.Contains(t, updatedProfile.Detail, "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
 			},
 		},
 		{
@@ -5259,7 +5295,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -5345,7 +5381,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 				}
 			},
 			assert: func(output string) {
-				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
+				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
 				assert.Len(t, targets, 0)
 			},
 		},
@@ -5458,43 +5494,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		vars    []string
 	}{
 		{
-			name: "DigiCert badCA",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_bad", "$FLEET_VAR_DIGICERT_DATA_bad", "Name",
-				"com.apple.security.pkcs12"),
-			errMsg: "_bad is not supported in configuration profiles",
-		},
-		{
-			name:    "DigiCert password missing",
-			profile: digiCertForValidation("password", "$FLEET_VAR_DIGICERT_DATA_caName", "Name", "com.apple.security.pkcs12"),
-			errMsg:  "Missing $FLEET_VAR_DIGICERT_PASSWORD_caName",
-		},
-		{
-			name: "DigiCert data missing",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "data", "Name",
-				"com.apple.security.pkcs12"),
-			errMsg: "Missing $FLEET_VAR_DIGICERT_DATA_caName",
-		},
-		{
-			name: "DigiCert password and data CA names don't match",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName2", "Name",
-				"com.apple.security.pkcs12"),
-			errMsg: "Missing $FLEET_VAR_DIGICERT_DATA_caName in the profile",
-		},
-		{
-			name: "DigiCert password shows up an extra time",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName",
-				"$FLEET_VAR_DIGICERT_PASSWORD_caName",
-				"com.apple.security.pkcs12"),
-			errMsg: "$FLEET_VAR_DIGICERT_PASSWORD_caName is already present in configuration profile",
-		},
-		{
-			name: "DigiCert data shows up an extra time",
-			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName",
-				"$FLEET_VAR_DIGICERT_DATA_caName",
-				"com.apple.security.pkcs12"),
-			errMsg: "$FLEET_VAR_DIGICERT_DATA_caName is already present in configuration profile",
-		},
-		{
 			name: "DigiCert profile is not pkcs12",
 			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName", "Name",
 				"com.apple.security.pkcs13"),
@@ -5531,43 +5530,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName2"),
 			errMsg: "",
 			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "DIGICERT_PASSWORD_caName2", "DIGICERT_DATA_caName2"},
-		},
-		{
-			name: "Custom SCEP badCA",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_bad", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_bad", "Name",
-				"com.apple.security.scep"),
-			errMsg: "_bad is not supported in configuration profiles",
-		},
-		{
-			name:    "Custom SCEP challenge missing",
-			profile: customSCEPForValidation("challenge", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName", "Name", "com.apple.security.scep"),
-			errMsg:  "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
-		},
-		{
-			name: "Custom SCEP url missing",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "https://bozo.com", "Name",
-				"com.apple.security.scep"),
-			errMsg: "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
-		},
-		{
-			name: "Custom SCEP challenge and url CA names don't match",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2",
-				"Name", "com.apple.security.scep"),
-			errMsg: "Missing $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName in the profile",
-		},
-		{
-			name: "Custom SCEP challenge shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
-				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName is already present in configuration profile",
-		},
-		{
-			name: "Custom SCEP url shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
-				"$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName is already present in configuration profile",
 		},
 		{
 			name: "Custom SCEP renewal ID shows up in the wrong place",
@@ -5649,31 +5611,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
 		},
 		{
-			name:    "NDES challenge missing",
-			profile: customSCEPForValidation("challenge", "$FLEET_VAR_NDES_SCEP_PROXY_URL", "Name", "com.apple.security.scep"),
-			errMsg:  fleet.NDESSCEPVariablesMissingErrMsg,
-		},
-		{
-			name: "NDES url missing",
-			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "https://bozo.com", "Name",
-				"com.apple.security.scep"),
-			errMsg: fleet.NDESSCEPVariablesMissingErrMsg,
-		},
-		{
-			name: "NDES challenge shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
-				"$FLEET_VAR_NDES_SCEP_CHALLENGE",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_NDES_SCEP_CHALLENGE is already present in configuration profile",
-		},
-		{
-			name: "NDES url shows up an extra time",
-			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
-				"$FLEET_VAR_NDES_SCEP_PROXY_URL",
-				"com.apple.security.scep"),
-			errMsg: "$FLEET_VAR_NDES_SCEP_PROXY_URL is already present in configuration profile",
-		},
-		{
 			name: "NDES renewal ID shows up in the wrong place",
 			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
@@ -5740,18 +5677,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
 		},
 		{
-			name: "Smallstep challenge is not a fleet variable",
-			profile: customSCEPForValidation("x$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
-				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName\" must be in the SCEP certificate's \"Challenge\" field.",
-		},
-		{
-			name: "Smallstep url is not a fleet variable",
-			profile: customSCEPForValidation("${FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName}", "x${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
-				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName\" must be in the SCEP certificate's \"URL\" field.",
-		},
-		{
 			name: "Smallstep happy path",
 			profile: customSCEPForValidation("${FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName}", "${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
 				"Name", "com.apple.security.scep"),
@@ -5791,6 +5716,18 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
 		},
 		{
+			name: "Smallstep challenge is not a fleet variable",
+			profile: customSCEPForValidation("x$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName\" must be in the SCEP certificate's \"Challenge\" field.",
+		},
+		{
+			name: "Smallstep url is not a fleet variable",
+			profile: customSCEPForValidation("${FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName}", "x${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName\" must be in the SCEP certificate's \"URL\" field.",
+		},
+		{
 			name: "Custom profile with IdP full name var",
 			profile: string(scopedMobileconfigForTest(
 				"FullName Var",
@@ -5812,11 +5749,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				assert.Empty(t, vars)
 			} else {
 				assert.NoError(t, err)
-				gotVars := make([]string, 0, len(vars))
-				for v := range vars {
-					gotVars = append(gotVars, v)
-				}
-				assert.ElementsMatch(t, tc.vars, gotVars)
+				assert.ElementsMatch(t, tc.vars, vars)
 			}
 		})
 	}
