@@ -34,7 +34,7 @@ type Service struct {
 	keyValueStore          fleet.KeyValueStore
 	scepConfigService      fleet.SCEPConfigService
 	digiCertService        fleet.DigiCertService
-	hydrantService         fleet.HydrantService
+	estService             fleet.ESTService
 }
 
 func NewService(
@@ -55,7 +55,7 @@ func NewService(
 	keyValueStore fleet.KeyValueStore,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
-	hydrantService fleet.HydrantService,
+	estService fleet.ESTService,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -81,7 +81,7 @@ func NewService(
 		keyValueStore:          keyValueStore,
 		scepConfigService:      scepConfigService,
 		digiCertService:        digiCertService,
-		hydrantService:         hydrantService,
+		estService:             estService,
 	}
 
 	// Override methods that can't be easily overriden via

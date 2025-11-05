@@ -5116,17 +5116,24 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deleted, 5)
+	require.Len(t, hostDetails, 5)
+	// Verify the host details are correctly populated
+	for _, detail := range hostDetails {
+		require.NotZero(t, detail.ID)
+		require.NotEmpty(t, detail.DisplayName)
+		require.Equal(t, hostExpiryWindow, detail.HostExpiryWindow)
+		// Serial may be empty for some hosts
+	}
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
 
 	// And it doesn't remove more than it should
-	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deleted, 0)
+	require.Len(t, hostDetails, 0)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
@@ -5202,17 +5209,17 @@ func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deleted, 5)
+	require.Len(t, hostDetails, 5)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
 
 	// And it doesn't remove more than it should
-	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deleted, 0)
+	require.Len(t, hostDetails, 0)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
@@ -5348,9 +5355,9 @@ func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
 		require.Equal(t, server.NeverTimestamp, host.DetailUpdatedAt.Format("2006-01-02 15:04:05"))
 	}
 
-	deletedIDs, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	require.Len(t, deletedIDs, 0) // no hosts should be deleted
+	require.Len(t, hostDetails, 0) // no hosts should be deleted
 
 	// soft delete one of the host_dep_assignments
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5363,10 +5370,11 @@ func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	deletedIDs, err = ds.CleanupExpiredHosts(ctx)
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
 	require.NoError(t, err)
-	require.Len(t, deletedIDs, 1)
-	require.Equal(t, hosts[0].ID, deletedIDs[0])
+	require.Len(t, hostDetails, 1)
+	require.Equal(t, hosts[0].ID, hostDetails[0].ID)
+	require.NotEmpty(t, hostDetails[0].DisplayName)
 
 	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1) // only one host should remain
 }
@@ -5462,9 +5470,14 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team2HostExpiryWindow, team2.Config.HostExpirySettings.HostExpiryWindow)
 	require.NoError(t, err)
 
-	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	assert.Len(t, deleted, 6)
+	assert.Len(t, hostDetails, 6)
+	// Extract IDs from hostDetails for validation
+	deleted := make([]uint, len(hostDetails))
+	for i, detail := range hostDetails {
+		deleted[i] = detail.ID
+	}
 	assert.ElementsMatch(t, []uint{1, 2, 6, 8, 9, 11}, deleted)
 	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	count = nil
@@ -5479,9 +5492,9 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 5, count[0])
 
 	// And it doesn't remove more than it should
-	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	hostDetails, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
-	assert.Len(t, deleted, 0)
+	assert.Len(t, hostDetails, 0)
 
 	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 }

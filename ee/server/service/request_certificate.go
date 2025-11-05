@@ -38,11 +38,24 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	if err != nil {
 		return nil, err
 	}
-	if ca.Type != string(fleet.CATypeHydrant) {
-		return nil, &fleet.BadRequestError{Message: "This API currently only supports Hydrant Certificate Authorities."}
+	if ca.Type != string(fleet.CATypeHydrant) && ca.Type != string(fleet.CATypeCustomESTProxy) {
+		return nil, &fleet.BadRequestError{Message: "This API currently only supports Hydrant and EST Certificate Authorities."}
 	}
-	if ca.ClientSecret == nil {
-		return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
+	if ca.Type == string(fleet.CATypeHydrant) {
+		if ca.ClientID == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a username configured."}
+		}
+		if ca.ClientSecret == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
+		}
+	}
+	if ca.Type == string(fleet.CATypeCustomESTProxy) {
+		if ca.Username == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a username configured."}
+		}
+		if ca.Password == nil {
+			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a password configured."}
+		}
 	}
 	certificateRequest, err := svc.parseCSR(ctx, p.CSR)
 	if err != nil {
@@ -96,21 +109,33 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	csrForRequest = strings.ReplaceAll(csrForRequest, "-----END CERTIFICATE REQUEST-----", "")
 	csrForRequest = strings.ReplaceAll(csrForRequest, "\\n", "")
 
-	certificate, err := svc.hydrantService.GetCertificate(ctx, fleet.HydrantCA{
-		Name:         *ca.Name,
-		URL:          *ca.URL,
-		ClientID:     *ca.ClientID,
-		ClientSecret: *ca.ClientSecret,
-	}, csrForRequest)
+	var estCA fleet.ESTProxyCA
+	if ca.Type == string(fleet.CATypeHydrant) {
+		estCA = fleet.ESTProxyCA{
+			Name:     *ca.Name,
+			URL:      *ca.URL,
+			Username: *ca.ClientID,
+			Password: *ca.ClientSecret,
+		}
+	} else {
+		estCA = fleet.ESTProxyCA{
+			Name:     *ca.Name,
+			URL:      *ca.URL,
+			Username: *ca.Username,
+			Password: *ca.Password,
+		}
+	}
+
+	certificate, err := svc.estService.GetCertificate(ctx, estCA, csrForRequest)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Hydrant certificate request failed", "ca_id", ca.ID, "error", err)
+		level.Error(svc.logger).Log("msg", "EST certificate request failed", "ca_id", ca.ID, "error", err)
 		// Bad request may seem like a strange error here but there are many cases where a malformed
 		// CSR can cause this error and Hydrant's API often returns a 5XX error even in these cases
 		// so it is not always possible to distinguish between an error caused by a bad request or
 		// an internal CA error.
-		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Hydrant certificate request failed: %s", err.Error())}
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("EST certificate request failed: %s", err.Error())}
 	}
-	level.Info(svc.logger).Log("msg", "Successfully retrieved a certificate from Hydrant", "ca_id", ca.ID, "idp_username", idpUsername)
+	level.Info(svc.logger).Log("msg", "Successfully retrieved a certificate from EST", "ca_id", ca.ID, "idp_username", idpUsername)
 	// Wrap the certificate in a PEM block for easier consumption by the client
 	return ptr.String("-----BEGIN CERTIFICATE-----\n" + string(certificate.Certificate) + "\n-----END CERTIFICATE-----\n"), nil
 }

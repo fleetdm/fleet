@@ -177,6 +177,29 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	if err != nil {
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
+	isEndUserAuthRequired := appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
+	// If the secret is for a team, get the team config as well.
+	if secret.TeamID != nil {
+		team, err := svc.ds.Team(ctx, *secret.TeamID)
+		if err != nil {
+			return "", fleet.OrbitError{Message: "failed to get team config: " + err.Error()}
+		}
+		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+	}
+
+	if isEndUserAuthRequired {
+		if hostInfo.HardwareUUID == "" {
+			return "", fleet.OrbitError{Message: "failed to get IdP account: hardware uuid is empty"}
+		}
+		// Try to find an IdP account for this host.
+		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
+		if err != nil {
+			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
+		}
+		if idpAccount == nil {
+			return "", fleet.NewOrbitIDPAuthRequiredError()
+		}
+	}
 
 	var stickyEnrollment *string
 	if svc.keyValueStore != nil {
@@ -1381,33 +1404,16 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// If this is an intermediate failure that will be retried, handle it specially
 	if result.RetriesRemaining > 0 {
 		// Create a record while keeping the original pending
-		failedExecID, hsi, isNewRecord, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
+		_, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "save intermediate install failure")
 		}
 
-		// Only create an activity if this is a new record (not a replay of a previous request)
-		if isNewRecord {
-			if err := svc.NewActivity(
-				ctx,
-				nil,
-				fleet.ActivityTypeInstalledSoftware{
-					HostID:              host.ID,
-					HostDisplayName:     host.DisplayName(),
-					SoftwareTitle:       hsi.SoftwareTitle,
-					SoftwarePackage:     hsi.SoftwarePackage,
-					InstallUUID:         failedExecID,
-					Status:              string(result.Status()),
-					Source:              hsi.Source,
-					SelfService:         hsi.SelfService,
-					PolicyID:            nil,
-					PolicyName:          nil,
-					FromSetupExperience: true, // We assume that retries only occur during setup experience
-				},
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for intermediate software installation failure")
-			}
-		}
+		// Don't create activities for intermediate failures during setup experience.
+		// Only the final result (RetriesRemaining == 0) should create an activity.
+		// This prevents multiple activity items from appearing when a package fails
+		// during setup experience with retries enabled.
+		// See https://github.com/fleetdm/fleet/issues/34818
 
 		// Don't update setup experience status for intermediate failures
 		return nil

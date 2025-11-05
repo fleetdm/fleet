@@ -1,0 +1,435 @@
+{
+  "schema_version": 27,
+  "standard_lib_version": 85,
+  "action_runtime_version": 58,
+  "name": "Lock commands (reedtimmer)",
+  "description": null,
+  "guid": "2f37b507a1507029335ea62f62bdabeb",
+  "slug": "lock_commands_reedtimmer",
+  "agents": [
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Run MDM command",
+      "disabled": false,
+      "description": null,
+      "guid": "5b6be7db6ff25450ea25f56f7e88b3a0",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/commands/run",
+        "content_type": "application_json",
+        "method": "post",
+        "payload": {
+          "command": "<<encode_device_location_payload.output.base64_command>>",
+          "host_uuids": [
+            "<<get_host_by_identifier.body.host.uuid>>"
+          ]
+        },
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::RunScriptAgent",
+      "name": "Encode device location payload",
+      "disabled": false,
+      "description": null,
+      "guid": "bb72207360e2dfd370185f77931eb30f",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "language": "python_3_13",
+        "script": "import base64\n\ndef main(input):\n  # Encode to base64\n  xml_bytes = input.encode('utf-8')\n  base64_bytes = base64.b64encode(xml_bytes)\n  \n  return { 'base64_command' : base64_bytes }\n",
+        "requirements": "requests==2.32.5",
+        "input": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n    <key>Command</key>\n    <dict>\n        <key>RequestType</key>\n        <string>DeviceLocation</string>\n    </dict>\n    <key>CommandUUID</key>\n    <string><<UUID()>></string>\n</dict>\n</plist>\n",
+        "timeout": "10",
+        "emit_failure_event": true
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get MDM command results",
+      "disabled": false,
+      "description": null,
+      "guid": "ddb6eb25b83c069871a7a931d3e7d8fc",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/commands/results",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        },
+        "query_params": {
+          "command_uuid": "<<run_mdm_command.body.command_uuid>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "Wait 30 seconds",
+      "disabled": false,
+      "description": "This is required, otherwise the body of the command results will be empty.",
+      "guid": "a29ab043865864d177674a1031a9650a",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "mode": "delay",
+        "seconds": "30"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::RunScriptAgent",
+      "name": "Decode location results",
+      "disabled": false,
+      "description": null,
+      "guid": "873531894cc675e02ca1841d5a2f0478",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "language": "python_3_13",
+        "script": "import base64\nimport plistlib\n\ndef main(input):\n  decoded_bytes = base64.b64decode(input)\n  decoded_string = decoded_bytes.decode('utf-8')\n  \n  decoded_string = plistlib.loads(decoded_string.encode('utf-8'))\n  \n  return { 'location_results' : decoded_string }\n",
+        "requirements": "requests==2.32.5",
+        "input": "<<get_mdm_command_results.body.results[0].result>>",
+        "timeout": "10",
+        "emit_failure_event": true
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get host by identifier",
+      "disabled": false,
+      "description": null,
+      "guid": "99608e60f5db3d61d99b216416f36205",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/hosts/identifier/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Lock host",
+      "disabled": false,
+      "description": null,
+      "guid": "ec16d778f493544b61453023035b4d25",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/hosts/<<get_host_by_identifier.body.host.id>>/lock?view_pin=true",
+        "content_type": "application_json",
+        "method": "post",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get host by identifier",
+      "disabled": false,
+      "description": null,
+      "guid": "920ce9e40b5da4a94a40d3e00f27d44b",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/hosts/identifier/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Unlock host",
+      "disabled": false,
+      "description": null,
+      "guid": "ae4e9ee4314b2de7c0fcaaa741a1aab5",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/hosts/<<get_host_by_identifier.body.host.id>>/unlock",
+        "content_type": "application_json",
+        "method": "post",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get host by identifier",
+      "disabled": false,
+      "description": null,
+      "guid": "6ca388f893194ae1f0a1e46e9ec0f768",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/hosts/identifier/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [
+    {
+      "content": "**Edit before running:**\n- Fleet API key (credential)\n- Fleet URL (resource)\n- Host serial number (resource)",
+      "position": [
+        -210,
+        30
+      ],
+      "guid": "2f39aa56c7a4a503e92b4caad5522a07",
+      "width": 232
+    },
+    {
+      "content": "**Device location**",
+      "position": [
+        480,
+        30
+      ],
+      "guid": "40c84496f04e3c4aff812c8e56d05f6e",
+      "width": 180
+    },
+    {
+      "content": "**Lock host**",
+      "position": [
+        60,
+        30
+      ],
+      "guid": "b46b14239c4b37a7f72b4111d110fa5c",
+      "width": 180
+    },
+    {
+      "content": "**Unlock host**",
+      "position": [
+        270,
+        30
+      ],
+      "guid": "12c81fbb298f3cf52853486069882d17",
+      "width": 180
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 3
+    },
+    {
+      "source": 1,
+      "receiver": 0
+    },
+    {
+      "source": 2,
+      "receiver": 4
+    },
+    {
+      "source": 3,
+      "receiver": 2
+    },
+    {
+      "source": 5,
+      "receiver": 1
+    },
+    {
+      "source": 7,
+      "receiver": 6
+    },
+    {
+      "source": 9,
+      "receiver": 8
+    }
+  ],
+  "diagram_layout": "{\"5b6be7db6ff25450ea25f56f7e88b3a0\":[480,255],\"6ca388f893194ae1f0a1e46e9ec0f768\":[270,105],\"873531894cc675e02ca1841d5a2f0478\":[480,480],\"920ce9e40b5da4a94a40d3e00f27d44b\":[60,105],\"99608e60f5db3d61d99b216416f36205\":[480,105],\"a29ab043865864d177674a1031a9650a\":[480,330],\"ae4e9ee4314b2de7c0fcaaa741a1aab5\":[270,180],\"bb72207360e2dfd370185f77931eb30f\":[480,180],\"ddb6eb25b83c069871a7a931d3e7d8fc\":[480,405],\"ec16d778f493544b61453023035b4d25\":[60,180]}",
+  "story_library_metadata": {},
+  "monitor_failures": false,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 86400,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+  "recipients": [
+    "steven@fleetdm.com"
+  ],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "send_to_stories": [],
+  "exported_at": "2025-10-27T23:53:15Z",
+  "icon": ":world_map:"
+}

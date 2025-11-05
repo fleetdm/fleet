@@ -510,6 +510,28 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			*args = append(*args, encryptedClientSecret)
 		}
 
+	case string(fleet.CATypeCustomESTProxy):
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.Username != nil {
+			updates = append(updates, "username = ?")
+			*args = append(*args, *ca.Username)
+		}
+		if ca.Password != nil {
+			updates = append(updates, "password_encrypted = ?")
+			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
+			}
+			*args = append(*args, encryptedPassword)
+		}
+
 	case string(fleet.CATypeNDESSCEPProxy):
 		if ca.URL != nil {
 			updates = append(updates, "url = ?")

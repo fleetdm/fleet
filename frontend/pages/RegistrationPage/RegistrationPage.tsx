@@ -89,7 +89,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     1: "Set up user",
     2: "Organization details",
     3: "Set Fleet URL",
-    4: "Confirm Configuration",
+    4: "Confirm configuration",
   };
   const header = REGISTRATION_HEADERS[page];
 
