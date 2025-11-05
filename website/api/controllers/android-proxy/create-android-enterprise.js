@@ -122,7 +122,7 @@ module.exports = {
       await sails.helpers.flow.build(async () => {
         if (tryCount > 0) {
           // Wait a bit before retrying
-          await new Promise(r => setTimeout(r, 1000));
+          await sails.helpers.flow.pause(1000);
         }
         tryCount++;
         await pubsub.projects.topics.setIamPolicy({
