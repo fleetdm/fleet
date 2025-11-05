@@ -13,7 +13,10 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { ISoftwareVulnerability } from "interfaces/software";
+import {
+  ISoftwareVulnerability,
+  ROLLING_ARCH_LINUX_NAMES,
+} from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -99,12 +102,7 @@ const generateDefaultTableHeaders = (
     Cell: (cellProps: IVersionCellProps) => {
       const { version, name_only } = cellProps.row.original;
       if (
-        [
-          "Arch Linux",
-          "Arch Linux ARM",
-          "Manjaro Linux",
-          "Manjaro Linux ARM",
-        ].includes(name_only) &&
+        ROLLING_ARCH_LINUX_NAMES.includes(name_only) &&
         version === "rolling"
       ) {
         return (
@@ -145,7 +143,12 @@ const generateDefaultTableHeaders = (
       ) {
         return <TextCell value="Not supported" grey />;
       }
-      return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      return (
+        <VulnerabilitiesCell
+          vulnerabilities={cellProps.cell.value}
+          vulnerabilitiesCount={cellProps.row.original.vulnerabilities_count}
+        />
+      );
     },
   },
   {

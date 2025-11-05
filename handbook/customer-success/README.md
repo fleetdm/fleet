@@ -7,7 +7,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
+| SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
@@ -62,6 +62,20 @@ When on call, CSEs/CSAs will start their day by following these steps to gather 
 1. Search Unthread for open conversations by the customer name.
 2. Search GitHub issues for `label:bug` and `label:customer-codename`.
 3. Debrief with any internal resources in order to gather information if needed, and be prepared to provide a status update.
+
+### Perform morning triage
+
+The first CSE to sign on for the day is responsible for triaging new support issues that were reported after hours. The following actions are a general guideline for what should be checked during morning triage:
+1. Look at all new support requests and immediately respond to any urgent or high-priority issues.
+2. Check the osquery Slack channel/Unthread for support issues.
+3. Check the MacAdmins Slack channel for support issues.
+   > FYI: MacAdmins Slack messages are not populated in Unthread.
+4. Check the "Unassigned" queue in Unthread and re-assign any issues from after hours to the appropriate resource.
+5. Check the "All" queue in Unthread for potential after-hours mis-assigned issues and re-assign them to the appropriate resource.
+6. Look at all customer meetings for the day to check that they can be attended by a CSE/CSA and that there are no scheduling conflicts.
+7. Update the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel that morning triage is complete. Report any escalations or conflicts with customer meetings to the [Manager of Customer Success and Solutions Architecture](https://fleetdm.com/handbook/customer-success#team).
+
+Other CSEs that sign on after morning triage has been completed should check the morning triage thread in the #help-customers Slack channel to learn what items are still outstanding.
 
 
 ### Invite new customer DRI
@@ -188,7 +202,7 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
     - Posted outside of Fleet’s business hours
     - In a specific customer channel (manually designated by customer success)   
 3. (Slack) Notify the sender that the request has been submitted outside of business hours and provide them with options for escalation in the event of a P0 or P1 incident.
-4. (Zapier) Send a text to the VP of CS to begin the emergency request flow if triggered by the original sender. 
+4. (Zapier) Send a text to the SVP of CS to begin the emergency request flow if triggered by the original sender. 
 
 > **Note:** New customer channels that the automation will run in must be configured manually. Submit requests for additions to the Zapier administrator. 
 
@@ -198,7 +212,7 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
 1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
     - [Here is a tutorial on using the self-service method](https://www.loom.com/share/048474d7199048e1bf0c4fc106632129) (internal video)
     - Pre-sales license key DRI is the Director of Solutions Consulting
-    - Post-sales license key DRI is the VP of Customer Success
+    - Post-sales license key DRI is the SVP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 

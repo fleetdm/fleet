@@ -14,6 +14,7 @@ import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
+import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 
 // FIXME: do we care about the order of these? Should we alphabetize them or something?
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
@@ -31,6 +32,10 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     value: "custom_scep_proxy",
   },
   { label: "Smallstep", value: "smallstep" },
+  {
+    label: "Custom EST (Enrollment Over Secure Transport)",
+    value: "custom_est_proxy",
+  },
 ];
 
 /**
@@ -66,8 +71,7 @@ export const generateAddCertAuthorityData = (
   formData: ICertFormData
 ): IAddCertAuthorityBody | undefined => {
   switch (certAuthorityType) {
-    case "ndes_scep_proxy":
-      // eslint-disable-next-line no-case-declarations
+    case "ndes_scep_proxy": {
       const {
         scepURL,
         adminURL,
@@ -82,8 +86,8 @@ export const generateAddCertAuthorityData = (
           password,
         },
       };
-    case "digicert":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "digicert": {
       const {
         name,
         url: digicertUrl,
@@ -104,8 +108,8 @@ export const generateAddCertAuthorityData = (
           certificate_seat_id: certificateSeatId,
         },
       };
-    case "custom_scep_proxy":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "custom_scep_proxy": {
       const {
         name: customSCEPName,
         scepURL: customSCEPUrl,
@@ -118,8 +122,8 @@ export const generateAddCertAuthorityData = (
           challenge,
         },
       };
-    case "hydrant":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "hydrant": {
       const {
         name: hydrantName,
         url,
@@ -134,8 +138,8 @@ export const generateAddCertAuthorityData = (
           client_secret: clientSecret,
         },
       };
-    case "smallstep":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "smallstep": {
       const {
         name: smallstepName,
         scepURL: smallstepScepURL,
@@ -152,8 +156,27 @@ export const generateAddCertAuthorityData = (
           password: smallstepPassword,
         },
       };
+    }
+    case "custom_est_proxy": {
+      const {
+        name: customESTName,
+        url: customESTUrl,
+        username: customESTUsername,
+        password: customESTPassword,
+      } = formData as ICustomESTFormData;
+      return {
+        custom_est_proxy: {
+          name: customESTName,
+          url: customESTUrl,
+          username: customESTUsername,
+          password: customESTPassword,
+        },
+      };
+    }
     default:
-      return undefined;
+      throw new Error(
+        `Unknown certificate authority type: ${certAuthorityType}`
+      );
   }
 };
 

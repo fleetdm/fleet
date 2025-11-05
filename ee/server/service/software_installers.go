@@ -81,7 +81,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
 	payload.UninstallScript = file.Dos2UnixNewlines(payload.UninstallScript)
 
-	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, true); err != nil {
+	failOnBlankScript := !strings.HasSuffix(payload.Filename, ".ipa")
+
+	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
@@ -163,6 +165,15 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if payload.TeamID != nil {
 		tmID = *payload.TeamID
 	}
+
+	if payload.Extension == "ipa" {
+		addedInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &tmID, titleID)
+		if err != nil {
+			return nil, err
+		}
+		return addedInstaller, nil
+	}
+
 	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
@@ -314,6 +325,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
+	// Handle in house apps separately
+	if software.InHouseAppCount == 1 {
+		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
+	}
+
 	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
 	if software.SoftwareInstallersCount != 1 {
 		return nil, &fleet.BadRequestError{
@@ -370,13 +386,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		actTeamID = payload.TeamID
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          actTeamID,
-		SelfService:     existingInstaller.SelfService,
-		SoftwarePackage: &existingInstaller.Name,
-		SoftwareTitleID: payload.TitleID,
-		SoftwareIconURL: existingInstaller.IconUrl,
+		SoftwareTitle:       existingInstaller.SoftwareTitle,
+		TeamName:            teamName,
+		TeamID:              actTeamID,
+		SelfService:         existingInstaller.SelfService,
+		SoftwarePackage:     &existingInstaller.Name,
+		SoftwareTitleID:     payload.TitleID,
+		SoftwareIconURL:     existingInstaller.IconUrl,
+		SoftwareDisplayName: payload.DisplayName,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
@@ -735,19 +752,28 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 	}
 
 	// first, look for a software installer
-	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// no software installer, look for a VPP app
-			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting software app metadata")
-			}
-			return svc.deleteVPPApp(ctx, teamID, meta)
-		}
-		return ctxerr.Wrap(ctx, err, "getting software installer metadata")
+	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
+	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+
+	switch {
+	case errInstaller != nil && !fleet.IsNotFound(errInstaller):
+		return ctxerr.Wrap(ctx, errInstaller, "getting software installer metadata")
+	case errVPP != nil && !fleet.IsNotFound(errVPP):
+		return ctxerr.Wrap(ctx, errVPP, "getting vpp app metadata")
+	case errInHouse != nil && !fleet.IsNotFound(errInHouse):
+		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
-	return svc.deleteSoftwareInstaller(ctx, meta)
+
+	switch {
+	case metaInstaller != nil:
+		return svc.deleteSoftwareInstaller(ctx, metaInstaller)
+	case metaVPP != nil:
+		return svc.deleteVPPApp(ctx, teamID, metaVPP)
+	case metaInHouse != nil:
+		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
+	}
+	return ctxerr.Wrap(ctx, &notFoundError{}, "getting software installer")
 }
 
 func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.VPPAppStoreApp) error {
@@ -800,8 +826,14 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting software installer")
+	if meta.Extension == "ipa" {
+		if err := svc.ds.DeleteInHouseApp(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting in house app")
+		}
+	} else {
+		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting software installer")
+		}
 	}
 
 	var teamName *string
@@ -1091,6 +1123,30 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	// authorize with the host's team
 	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	if mobileAppleDevice {
+		iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
+		}
+
+		if iha != nil {
+			scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
+			}
+
+			if !scoped {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+				}
+			}
+
+			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
+			return ctxerr.Wrap(ctx, err, "insert in house app install")
+		}
+		// it's OK if we didn't find an in-house app; this might be a VPP app, so continue on
 	}
 
 	if !mobileAppleDevice {
@@ -2111,6 +2167,16 @@ func (svc *Service) softwareBatchUpload(
 				installer.InstallerFile = tfr
 				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
+
+				// For script packages (.sh and .ps1), clear unsupported fields early.
+				// Determine extension from filename to validate before metadata extraction.
+				ext := strings.ToLower(filepath.Ext(filename))
+				ext = strings.TrimPrefix(ext, ".")
+				if fleet.IsScriptPackage(ext) {
+					installer.PostInstallScript = ""
+					installer.UninstallScript = ""
+					installer.PreInstallQuery = ""
+				}
 			}
 
 			if p.Slug != nil && *p.Slug != "" {
@@ -2183,8 +2249,15 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// custom scripts only for exe installers
-			if installer.Extension != "exe" {
+			// For script packages (.sh and .ps1), clear unsupported fields
+			// The file contents become the install script, so post_install_script,
+			// uninstall_script, and pre_install_query are not supported.
+			if fleet.IsScriptPackage(installer.Extension) {
+				installer.PostInstallScript = ""
+				installer.UninstallScript = ""
+				installer.PreInstallQuery = ""
+			} else if installer.Extension != "exe" {
+				// custom scripts only for exe installers and non-script packages
 				if installer.InstallScript == "" {
 					installer.InstallScript = file.GetInstallScript(installer.Extension)
 				}

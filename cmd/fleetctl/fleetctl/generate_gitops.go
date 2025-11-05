@@ -859,6 +859,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+		if estCA, ok := result["custom_est_proxy"]; ok && estCA != nil {
+			for _, intg := range estCA.([]any) {
+				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your EST password here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.custom_est_proxy.password",
+				})
+			}
+		}
 		if smallstep, ok := result["smallstep"]; ok && smallstep != nil {
 			for _, intg := range smallstep.([]interface{}) {
 				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your Smallstep password here")
@@ -1021,30 +1030,35 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
 
-	profiles, err := cmd.generateProfiles(teamId, teamName)
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
-		return nil, err
-	}
+	if cmd.AppConfig.MDM.EnabledAndConfigured ||
+		cmd.AppConfig.MDM.WindowsEnabledAndConfigured ||
+		cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
 
-	if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
-		if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-				"custom_settings": profiles["apple_profiles"],
+		profiles, err := cmd.generateProfiles(teamId, teamName)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
+			return nil, err
+		}
+
+		if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
+			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
+					"custom_settings": profiles["apple_profiles"],
+				}
 			}
 		}
-	}
-	if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
-		if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-				"custom_settings": profiles["windows_profiles"],
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
+			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
+					"custom_settings": profiles["windows_profiles"],
+				}
 			}
 		}
-	}
-	if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
-		if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
-				"custom_settings": profiles["android_profiles"],
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
+			if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
+					"custom_settings": profiles["android_profiles"],
+				}
 			}
 		}
 	}
@@ -1427,46 +1441,59 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
-			if softwareTitle.SoftwarePackage.InstallScript != "" {
-				script := softwareTitle.SoftwarePackage.InstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["install_script"] = map[string]interface{}{
-					"path": path,
-				}
-				cmd.FilesToWrite[fileName] = script
-			}
 
-			if softwareTitle.SoftwarePackage.PostInstallScript != "" {
-				script := softwareTitle.SoftwarePackage.PostInstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["post_install_script"] = map[string]interface{}{
-					"path": path,
-				}
-				cmd.FilesToWrite[fileName] = script
-			}
+			// Detect if this is a script package (.sh or .ps1 file)
+			// Script packages have the file contents as the install script internally,
+			// but these fields should NOT be exposed in GitOps YAML as they are not
+			// user-configurable for script packages.
+			isScriptPackage := sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" &&
+				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
+					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
-			if softwareTitle.SoftwarePackage.UninstallScript != "" {
-				script := softwareTitle.SoftwarePackage.UninstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["uninstall_script"] = map[string]interface{}{
-					"path": path,
+			// Only output install_script, post_install_script, uninstall_script, and
+			// pre_install_query for non-script packages
+			if !isScriptPackage {
+				if softwareTitle.SoftwarePackage.InstallScript != "" {
+					script := softwareTitle.SoftwarePackage.InstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["install_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
 				}
-				cmd.FilesToWrite[fileName] = script
-			}
 
-			if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
-				query := softwareTitle.SoftwarePackage.PreInstallQuery
-				fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["pre_install_query"] = map[string]interface{}{
-					"path": path,
+				if softwareTitle.SoftwarePackage.PostInstallScript != "" {
+					script := softwareTitle.SoftwarePackage.PostInstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["post_install_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
 				}
-				cmd.FilesToWrite[fileName] = []map[string]interface{}{{
-					"query": query,
-				}}
+
+				if softwareTitle.SoftwarePackage.UninstallScript != "" {
+					script := softwareTitle.SoftwarePackage.UninstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["uninstall_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
+				}
+
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
+					query := softwareTitle.SoftwarePackage.PreInstallQuery
+					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["pre_install_query"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = []map[string]interface{}{{
+						"query": query,
+					}}
+				}
 			}
 
 			if softwareTitle.SoftwarePackage.SelfService {

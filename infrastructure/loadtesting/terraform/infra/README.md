@@ -185,7 +185,7 @@ terraform workspace delete <workspace_name>
 | [aws_secretsmanager_secret.license](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret) | data source |
 | [aws_secretsmanager_secret_version.enroll_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret_version) | data source |
 | [docker_registry_image.dockerhub](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/data-sources/registry_image) | data source |
-| [git_repository.tf](https://registry.terraform.io/providers/paultyng/git/latest/docs/data-sources/repository) | data source |
+| [git_repository.tf](https://registry.terraform.io/providers/metio/git/latest/docs/data-sources/repository) | data source |
 | [terraform_remote_state.shared](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 
 ## Inputs

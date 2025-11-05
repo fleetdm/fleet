@@ -9,6 +9,7 @@ import {
   IVPPHostSoftware,
   SoftwareUninstallStatus,
   IAppLastInstall,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { Colors } from "styles/var/colors";
 
@@ -294,7 +295,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_script: {
     iconName: "error",
-    displayText: "Failed run",
+    displayText: "Failed",
     tooltip: ({ lastInstalledAt, isSelfService }) => (
       <>
         The script failed to run
@@ -338,6 +339,7 @@ type IInstallStatusCellProps = {
   onShowInventoryVersions?: (software: IHostSoftware) => void;
   onShowUpdateDetails: (software: IHostSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowIpaInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowScriptDetails: (hostSoftware: IHostSoftware) => void;
   onShowVPPInstallDetails: (s: IVPPHostSoftware) => void;
   onShowUninstallDetails: (details: ISWUninstallDetailsParentState) => void;
@@ -385,6 +387,7 @@ const InstallStatusCell = ({
   onShowInventoryVersions,
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowIpaInstallDetails,
   onShowScriptDetails,
   onShowVPPInstallDetails,
   onShowUninstallDetails,
@@ -439,6 +442,10 @@ const InstallStatusCell = ({
           commandUuid: (lastInstall as IAppLastInstall).command_uuid,
         }),
       });
+    }
+    // TODO: Is this the best way to check for IPA installer?
+    if (software.source === "ios_apps" || software.source === "ipados_apps") {
+      onShowIpaInstallDetails(software);
     } else {
       onShowInstallDetails(software);
     }
@@ -491,15 +498,17 @@ const InstallStatusCell = ({
         (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
       recentlyTakenAction;
 
+    const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
+
     // Status groups and their click handlers
     const displayStatusConfig = [
       {
-        condition: true, // Allow click even if no last install to see details modal
-        statuses: ["Failed run", "Run (pending)", "Ran"],
+        condition: isScriptPackage, // Still allows click even if no last install to see details modal
+        statuses: ["Failed", "Run (pending)", "Ran"],
         onClick: onClickScriptStatus,
       },
       {
-        condition: true, // Allow click even if no last install to see details modal
+        condition: !isScriptPackage, // Still allows click even if no last install to see details modal
         statuses: ["Failed", "Install (pending)", "Installed"],
         onClick: onClickInstallStatus,
       },
@@ -516,6 +525,7 @@ const InstallStatusCell = ({
     ];
 
     // Find a matching config for the current display text
+    // Given the condition is met and the display text is in the statuses array
     const match = displayStatusConfig.find(
       ({ condition, statuses }) =>
         condition && statuses.includes(resolvedDisplayText as string)
