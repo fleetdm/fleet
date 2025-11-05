@@ -4986,6 +4986,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, teamID, softwareTitleIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -5208,6 +5213,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			if icon, ok := iconsBySoftwareTitleID[softwareTitleRecord.ID]; ok {
 				softwareTitleRecord.IconUrl = ptr.String(icon.IconUrl())
+			}
+
+			if displayName, ok := displayNames[softwareTitleRecord.ID]; ok {
+				softwareTitleRecord.DisplayName = displayName
 			}
 
 			if _, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {

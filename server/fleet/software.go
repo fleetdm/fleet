@@ -33,6 +33,8 @@ const (
 	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
 	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
 	SoftwareTeamIdentifierMaxLength = 10
+
+	SoftwareTitleDisplayNameMaxLength = 255
 )
 
 type Vulnerabilities []CVE
