@@ -15,7 +15,7 @@ const meta: Meta<typeof TooltipTruncatedText> = {
   },
   decorators: [
     (Story) => (
-      <div style={{ maxWidth: "200px" }}>
+      <div style={{ maxWidth: "200px", padding: "150px", overflow: "visible" }}>
         <Story />
       </div>
     ),
