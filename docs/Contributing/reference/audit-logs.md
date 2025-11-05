@@ -1354,6 +1354,44 @@ This activity contains the following fields:
 }
 ```
 
+## created_certificate
+
+Generated when a user adds a new certificate to a team (or no team).
+
+This activity contains the following fields:
+- "name": Name of the certificate.
+- "team_id": The ID of the team that the certificate is added to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the certificate is added to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "name": "Zero trust certificate",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_certificate
+
+Generated when a user deletes a certificate from a team (or no team).
+
+This activity contains the following fields:
+- "name": Name of the certificate.
+- "team_id": The ID of the team that the certificate is added to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the certificate is added to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "name": "Zero trust certificate",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## installed_software
 
 Generated when a Fleet-maintained app or custom package is installed on a host.
