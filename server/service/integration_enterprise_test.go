@@ -11480,7 +11480,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TeamID:            nil,
 		}, http.StatusOK, "")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
+		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 		// patch the software installer to change the labels
@@ -11540,7 +11540,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d}`,
+		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": ""}`,
 			labelResp.Label.ID, labelResp.Label.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
