@@ -345,16 +345,21 @@ upcoming AS (
 ),
 
 -- select most recent past activities for each host
+-- NOTE if you change this logic make sure to change inHouseAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
 		hihsi.host_id,
 		CASE
-			WHEN ncr.status = :mdm_status_acknowledged THEN
+			WHEN hihsi.verification_at IS NOT NULL THEN
 				:software_status_installed
+			WHEN hihsi.verification_failed_at IS NOT NULL THEN
+				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
+			WHEN ncr.status = :mdm_status_acknowledged THEN
+				:software_status_pending
 			ELSE
-				NULL -- either pending or not installed
+				NULL -- either pending or not installed via in-house App
 		END AS status
 	FROM
 		host_in_house_software_installs hihsi
@@ -838,7 +843,7 @@ WHERE
 `
 
 	const insertNewOrEditedInstaller = `
-INSERT INTO software_installers (
+INSERT INTO in_house_apps (
 	title_id,
 	team_id,
 	global_or_team_id,
@@ -1049,7 +1054,7 @@ WHERE
 				return ctxerr.Errorf(ctx, "labels have not been validated for in-house app with name %s", installer.Filename)
 			}
 
-			wasUpdatedArgs := []interface{}{
+			wasUpdatedArgs := []any{
 				// package update
 				installer.StorageID,
 				// WHERE clause
@@ -1070,7 +1075,7 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
 			}
 
-			args := []interface{}{
+			args := []any{
 				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
 				installer.Source,
 				tmID,
@@ -1218,7 +1223,7 @@ SET
 WHERE
 	command_uuid IN (
 		SELECT command_uuid
-		FROM host_in_house_software_installs 
+		FROM host_in_house_software_installs
 		WHERE
 			verification_at IS NULL AND
 			verification_failed_at IS NULL AND
