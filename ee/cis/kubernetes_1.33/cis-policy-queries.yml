@@ -28,7 +28,27 @@ spec:
 ---
 2
 ---
-3
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS (K8s) 1.1.14 - Ensure that the default administrative credential file ownership is set to root:root
+  platform: linux
+  description: |
+    Ensure that the admin.conf (and super-admin.conf file, where it exists) file ownership is set to root:root.
+  resolution: |
+    Use the chown command to set the file ownership to root:root.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM FILE f
+        JOIN users u USING (uid)
+        JOIN groups g USING (gid)
+      WHERE f.path = '/var/lib/rancher/rke2/server/cred/admin.kubeconfig'
+        AND u.username != 'root'
+        AND g.groupname != 'root'
+    )
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: zwass
 ---
 4
 ---
