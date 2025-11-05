@@ -89,7 +89,11 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: mccormickjw
-  name: CIS - 1.2.9 - v1.12 - Ensure that the admission control plugin EventRateLimit is set (Manual)
+---
+apiVersion: v1
+kind: policy
+spec:
+ name: CIS - 1.2.9 - v1.12 - Ensure that the admission control plugin EventRateLimit is set (Manual)
   platforms: linux
   platform: linux
   description: |
