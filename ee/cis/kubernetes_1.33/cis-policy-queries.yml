@@ -141,3 +141,25 @@ spec:
   tags: compliance, CIS, CIS_Level1
   contributors: rsjaklic20
 ---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS 2.2 - Ensure that the --client-cert-auth argument is set to true (RKE2)
+  platform: linux
+  description: |
+    Ensure that the --client-cert-auth argument is set to true
+  resolution: |
+    By default, RKE2 sets the --client-cert-auth parameter to true.
+  query: |
+    SELECT 1 WHERE
+      NOT EXISTS (
+        SELECT 1 FROM processes WHERE name = 'etcd'
+      )
+      OR EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE path = '/var/lib/rancher/rke2/server/db/etcd/config'
+        AND line LIKE '%client-cert-auth: true%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, RKE2, etcd
+  contributors: kc9wwh
