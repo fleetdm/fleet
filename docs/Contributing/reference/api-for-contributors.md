@@ -1044,7 +1044,7 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Initiate SSO during DEP or Account Driven MDM enrollment
+### Initiate SSO for end-user authentication during macOS, Windows or Linux setup
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
@@ -1056,7 +1056,9 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. |
+| user_identifier | string | body | Passed by Apple for account-driven enrollment.
+| host_uuid | string | body | For Windows or Linux hosts, the hardware UUID of the device to enroll. Leave blank for macOS. 
 
 #### Example
 
