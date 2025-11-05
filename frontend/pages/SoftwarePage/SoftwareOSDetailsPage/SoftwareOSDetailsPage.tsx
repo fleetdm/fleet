@@ -1,6 +1,6 @@
 /** software/os/:id */
 
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, RouteComponentProps } from "react-router";
@@ -169,10 +169,18 @@ const SoftwareOSDetailsPage = ({
     includeNoTeam: true,
   });
 
+  // Track whether we need to fetch all vulnerabilities
+  const [maxVulnerabilities, setMaxVulnerabilities] = useState<
+    number | undefined
+  >(0);
+  const [isRefetchingVulnerabilities, setIsRefetchingVulnerabilities] =
+    useState(false);
+
   const {
     data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
+    isFetching,
   } = useQuery<
     IOSVersionResponse,
     AxiosError,
@@ -184,6 +192,7 @@ const SoftwareOSDetailsPage = ({
         scope: "osVersionDetails",
         os_version_id: osVersionIdFromURL,
         teamId: teamIdForApi,
+        max_vulnerabilities: maxVulnerabilities,
       },
     ],
     ({ queryKey }) => osVersionsAPI.getOSVersion(queryKey[0]),
@@ -200,8 +209,35 @@ const SoftwareOSDetailsPage = ({
           handlePageError(error);
         }
       },
+      onSuccess: () => {
+        // Clear refetching state when the query completes
+        if (isRefetchingVulnerabilities) {
+          setIsRefetchingVulnerabilities(false);
+        }
+      },
     }
   );
+
+  // If we get a non-Linux OS with vulnerabilities, refetch with all vulnerabilities
+  useEffect(() => {
+    if (
+      osVersionDetails &&
+      !isLinuxLike(osVersionDetails.platform) &&
+      osVersionDetails.vulnerabilities_count &&
+      osVersionDetails.vulnerabilities_count > 0 &&
+      maxVulnerabilities === 0
+    ) {
+      setIsRefetchingVulnerabilities(true);
+      const timer = setTimeout(() => {
+        setMaxVulnerabilities(undefined);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [osVersionDetails, maxVulnerabilities]);
+
+  // Show loading spinner during initial load or when refetching vulnerabilities
+  const showLoading = isLoading || isRefetchingVulnerabilities;
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -211,7 +247,7 @@ const SoftwareOSDetailsPage = ({
   );
 
   const renderContent = () => {
-    if (isLoading) {
+    if (showLoading) {
       return <Spinner />;
     }
 
@@ -248,7 +284,7 @@ const SoftwareOSDetailsPage = ({
             {!isLinuxPlatform && (
               <VulnerabilitiesCard
                 osVersion={osVersionDetails}
-                isLoading={isLoading}
+                isLoading={showLoading}
                 router={router}
                 teamIdForApi={teamIdForApi}
               />
@@ -256,7 +292,7 @@ const SoftwareOSDetailsPage = ({
             {isLinuxPlatform && (
               <KernelsCard
                 osVersion={osVersionDetails}
-                isLoading={isLoading}
+                isLoading={showLoading}
                 router={router}
                 teamIdForApi={teamIdForApi}
               />
