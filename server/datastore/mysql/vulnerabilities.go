@@ -540,27 +540,13 @@ func getVulnHostCountQuery(scope CountScope) string {
 }
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
-	// set all counts to 0 to later identify rows to delete
-	startAll := time.Now()
-	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
-	}
-	fmt.Printf("Initialized vulnerability host counts in %s\n", time.Since(startAll).String())
-
+	// Step 1: Calculate all counts in memory (no DB modifications yet)
 	start := time.Now()
 	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
 	fmt.Printf("Fetched global vulnerability host counts in %s\n", time.Since(start).String())
-
-	start = time.Now()
-	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
-	}
-	fmt.Printf("Inserted global vulnerability host counts in %s\n", time.Since(start).String())
 
 	start = time.Now()
 	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount, maxRoutines)
@@ -570,35 +556,50 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRouti
 	fmt.Printf("Fetched team vulnerability host counts in %s\n", time.Since(start).String())
 
 	start = time.Now()
-	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
-	}
-	fmt.Printf("Inserted team vulnerability host counts in %s\n", time.Since(start).String())
-
-	start = time.Now()
 	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
 	fmt.Printf("Fetched no team vulnerability host counts in %s\n", time.Since(start).String())
 
-	start = time.Now()
-	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
-	}
-	fmt.Printf("Inserted no team vulnerability host counts in %s\n", time.Since(start).String())
+	// Combine all counts into single slice for atomic operation
+	allCounts := make([]hostCount, 0, len(globalHostCounts)+len(teamHostCounts)+len(noTeamHostCounts))
+	allCounts = append(allCounts, globalHostCounts...)
+	allCounts = append(allCounts, teamHostCounts...)
+	allCounts = append(allCounts, noTeamHostCounts...)
 
-	start = time.Now()
+	// Step 2: Single transaction - DELETE all + INSERT all + UPDATE timestamp
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Clear all existing counts
+		startAll := time.Now()
+		_, err := tx.ExecContext(ctx, "DELETE FROM vulnerability_host_counts")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing vulnerability host counts")
+		}
+		fmt.Printf("Deleted existing vulnerability host counts in %s\n", time.Since(startAll).String())
 
-	err = ds.cleanupVulnerabilityHostCounts(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
-	}
-	fmt.Printf("Cleaned up vulnerability host counts in %s\n", time.Since(start).String())
+		// Insert all new counts in single operation
+		if len(allCounts) > 0 {
+			start := time.Now()
+			err = ds.atomicInsertHostCounts(ctx, tx, allCounts)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting vulnerability host counts")
+			}
+			fmt.Printf("Insert took %s\n", time.Since(start).String())
+		}
 
-	return nil
+		// Update timestamp to indicate when counts were last refreshed
+		start := time.Now()
+		_, err = tx.ExecContext(ctx, "UPDATE vulnerability_host_counts SET updated_at = NOW()")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating vulnerability host count timestamps")
+		}
+		fmt.Printf("Update took %s\n", time.Since(start).String())
+
+		fmt.Printf("Total vulnerability host counts update took %s\n", time.Since(startAll).String())
+
+		return nil
+	})
 }
 
 type hostCount struct {
@@ -608,23 +609,17 @@ type hostCount struct {
 	GlobalStats bool   `db:"global_stats"`
 }
 
-func (ds *Datastore) cleanupVulnerabilityHostCounts(ctx context.Context) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, "DELETE FROM vulnerability_host_counts WHERE host_count = 0")
-	if err != nil {
-		return fmt.Errorf("deleting zero host count entries: %w", err)
-	}
-
-	return nil
-}
-
-func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCount) error {
+// atomicInsertHostCounts inserts vulnerability host counts within a transaction
+// This is more efficient than batchInsertHostCounts for atomic operations
+func (ds *Datastore) atomicInsertHostCounts(ctx context.Context, tx sqlx.ExtContext, counts []hostCount) error {
 	if len(counts) == 0 {
 		return nil
 	}
 
+	// Since we deleted all records first, we can use simple INSERT instead of INSERT...ON DUPLICATE KEY UPDATE
 	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
-	var insertArgs []interface{}
 
+	// Use smaller chunks within transaction to avoid parameter limits
 	chunkSize := 100
 	for i := 0; i < len(counts); i += chunkSize {
 		end := i + chunkSize
@@ -632,22 +627,19 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 			end = len(counts)
 		}
 
-		valueStrings := make([]string, 0, chunkSize)
+		valueStrings := make([]string, 0, end-i)
+		chunkArgs := make([]interface{}, 0, (end-i)*4)
+
 		for _, count := range counts[i:end] {
 			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
-			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
+			chunkArgs = append(chunkArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
 		}
 
-		insertStmt += strings.Join(valueStrings, ", ")
-		insertStmt += " ON DUPLICATE KEY UPDATE host_count = VALUES(host_count);"
-
-		_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, insertArgs...)
+		fullStmt := insertStmt + strings.Join(valueStrings, ", ")
+		_, err := tx.ExecContext(ctx, fullStmt, chunkArgs...)
 		if err != nil {
-			return fmt.Errorf("inserting host counts: %w", err)
+			return fmt.Errorf("inserting host counts chunk %d-%d: %w", i, end-1, err)
 		}
-
-		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
-		insertArgs = nil
 	}
 
 	return nil
