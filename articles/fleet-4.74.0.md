@@ -36,6 +36,8 @@ Companies that self-host Fleet can now use IAM (Identity and Access Management) 
 
 ## Changes
 
+This release includes breaking changes in the software YAML for GitOps users of Fleet. For more information on these changes, please see [this public document for more information](https://docs.google.com/document/d/1tcRkImYaufjSUoVYKEFukLgFUaCD64pjH7EGIMCy1cA/edit?usp=sharing) and these instructions for migration: https://github.com/fleetdm/fleet/tree/main/tools/gitops-migrate
+
 ### Security engineers
 - Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a Hydrant.
 - Added a check to disallow FLEET_SECRET variables in Apple configuration profile `<PayloadDisplayName>` fields for security.
