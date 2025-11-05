@@ -173,14 +173,15 @@ const SoftwareOSDetailsPage = ({
   const [maxVulnerabilities, setMaxVulnerabilities] = useState<
     number | undefined
   >(0);
-  const [isRefetchingVulnerabilities, setIsRefetchingVulnerabilities] =
-    useState(false);
+  const [
+    isRefetchingVulnerabilities,
+    setIsRefetchingVulnerabilities,
+  ] = useState(false);
 
   const {
     data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
-    isFetching,
   } = useQuery<
     IOSVersionResponse,
     AxiosError,
