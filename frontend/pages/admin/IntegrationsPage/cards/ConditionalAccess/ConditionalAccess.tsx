@@ -1,7 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 
-import { size } from "lodash";
-
 import paths from "router/paths";
 
 import { NotificationContext } from "context/notification";
@@ -11,31 +9,23 @@ import conditionalAccessAPI, {
 } from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
 
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import Button from "components/buttons/Button";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 import { AppContext } from "context/app";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import InfoBanner from "components/InfoBanner";
-import Icon from "components/Icon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { useQuery } from "react-query";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
 import { IConfig } from "interfaces/config";
 
-const baseClass = "conditional-access";
+import IntegrationCard from "./components/IntegrationCard";
+import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 
-const MSETID = "microsoft_entra_tenant_id";
+const baseClass = "conditional-access";
 
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
@@ -99,40 +89,13 @@ const DeleteConditionalAccessModal = ({
   );
 };
 
-// conditions –> UI phases:
-// 	- no config.tenant id –> "form"
-//  - config.tenant id:
-//    - and config.confirmed –> "configured"
-//    - not config.confirmed –> "confirming-configured", hit confirmation endpoint
-//      - confirmation endpoint returns false –> "form", prefilled with current tid
-//      - confirmation endpoint returns true –> "configured"
-//      - conf ep returns error –> DataError, under header
-// 	- form submitted –> "form-submitted", new tab to MS stuff
-//
-
-interface IFormData {
-  [MSETID]: string;
-}
-
-interface IFormErrors {
-  [MSETID]?: string | null;
-}
-
 enum Phase {
-  Form = "form",
-  FormSubmitted = "form-submitted",
+  Loading = "loading",
   ConfirmingConfigured = "confirming-configured",
   ConfirmationError = "confirmation-error",
   Configured = "configured",
+  NotConfigured = "not-configured",
 }
-
-const validate = (formData: IFormData) => {
-  const errs: IFormErrors = {};
-  if (!formData[MSETID]) {
-    errs[MSETID] = "Tenant ID must be present";
-  }
-  return errs;
-};
 
 const ConditionalAccess = () => {
   // HOOKS
@@ -142,8 +105,15 @@ const ConditionalAccess = () => {
     AppContext
   );
 
-  const [phase, setPhase] = useState<Phase>(Phase.Form);
+  const [entraPhase, setEntraPhase] = useState<Phase>(Phase.Loading);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Modal states
+  const [showEntraModal, setShowEntraModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Banner state - shows after form submission, before page refresh
+  const [showAwaitingOAuthBanner, setShowAwaitingOAuthBanner] = useState(false);
 
   // this page is unique in that it triggers a server process that will result in an update to
   // config, but via an endpoint (conditional access) other than the usual PATCH config, so we want
@@ -157,29 +127,14 @@ const ConditionalAccess = () => {
     () => configAPI.loadAll(),
     {
       select: (data: IConfig) => data,
-      enabled: isUpdating && phase === Phase.Configured,
+      enabled: isUpdating,
       onSuccess: (_config) => {
-        if (
-          !_config?.conditional_access?.microsoft_entra_connection_configured
-        ) {
-          setPhase(Phase.Form);
-        }
         setConfig(_config);
         setIsUpdating(false);
       },
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
   );
-
-  const [formData, setFormData] = useState<IFormData>({
-    [MSETID]:
-      contextConfig?.conditional_access?.microsoft_entra_tenant_id || "",
-  });
-  const [formErrors, setFormErrors] = useState<IFormErrors>({});
-  const [
-    showDeleteConditionalAccessModal,
-    setShowDeleteConditionalAccessModal,
-  ] = useState(false);
 
   // "loading" state here is encompassed by phase === Phase.ConfirmingConfigured state, don't need
   // to use useQuery's
@@ -192,16 +147,16 @@ const ConditionalAccess = () => {
   >(["confirmAccess"], conditionalAccessAPI.confirmMicrosoftConditionalAccess, {
     ...DEFAULT_USE_QUERY_OPTIONS,
     // only make this call at the appropriate UI phase
-    enabled: phase === Phase.ConfirmingConfigured && isPremiumTier,
+    enabled: entraPhase === Phase.ConfirmingConfigured && isPremiumTier,
     onSuccess: ({ configuration_completed, setup_error }) => {
       if (configuration_completed) {
-        setPhase(Phase.Configured);
+        setEntraPhase(Phase.Configured);
         renderFlash(
           "success",
           "Successfully verified conditional access integration"
         );
       } else {
-        setPhase(Phase.Form);
+        setEntraPhase(Phase.NotConfigured);
 
         if (
           // IT admin did not complete the consent.
@@ -242,26 +197,43 @@ const ConditionalAccess = () => {
     },
     onError: () => {
       // distinct from successful confirmation response of `false`, this handles an API error
-      setPhase(Phase.ConfirmationError);
+      setEntraPhase(Phase.ConfirmationError);
     },
   });
 
   const {
-    microsoft_entra_tenant_id: contextConfigMsetId,
-    microsoft_entra_connection_configured: contextConfigMseConfigured,
+    microsoft_entra_tenant_id: entraTenantId,
+    microsoft_entra_connection_configured: entraConfigured,
+    okta_idp_id: oktaIdpId,
   } = contextConfig?.conditional_access || {};
 
-  // only checks if tenant id already present in config, not if user added it to the form
+  // Determine if Okta is configured (all 4 fields must be present)
+  const oktaConfigured = !!(
+    oktaIdpId &&
+    contextConfig?.conditional_access?.okta_assertion_consumer_service_url &&
+    contextConfig?.conditional_access?.okta_audience_uri &&
+    contextConfig?.conditional_access?.okta_certificate
+  );
+
+  // Check Entra configuration state
   useEffect(() => {
-    if (contextConfigMsetId) {
-      if (!contextConfigMseConfigured) {
-        setPhase(Phase.ConfirmingConfigured);
+    // Don't check config if we're showing the awaiting OAuth banner
+    if (showAwaitingOAuthBanner) {
+      setEntraPhase(Phase.NotConfigured);
+      return;
+    }
+
+    if (entraTenantId) {
+      if (!entraConfigured) {
+        setEntraPhase(Phase.ConfirmingConfigured);
       } else {
         // tenant id is present and connection is configured
-        setPhase(Phase.Configured);
+        setEntraPhase(Phase.Configured);
       }
+    } else {
+      setEntraPhase(Phase.NotConfigured);
     }
-  }, [contextConfigMsetId, contextConfigMseConfigured]);
+  }, [entraTenantId, entraConfigured, showAwaitingOAuthBanner]);
 
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
@@ -269,146 +241,93 @@ const ConditionalAccess = () => {
 
   // HANDLERS
 
-  const toggleDeleteConditionalAccessModal = () => {
-    setShowDeleteConditionalAccessModal(!showDeleteConditionalAccessModal);
+  const toggleDeleteModal = () => {
+    setShowDeleteModal(!showDeleteModal);
   };
 
-  const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
+  const handleEntraConnect = () => {
+    setShowEntraModal(true);
+  };
 
-    const errs = validate(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
+  const handleEntraModalClose = () => {
+    setShowEntraModal(false);
+  };
+
+  const handleEntraModalSuccess = () => {
+    setShowEntraModal(false);
+    // Show banner instead of immediately refetching config
+    // Config will be checked when user refreshes the page
+    setShowAwaitingOAuthBanner(true);
+  };
+
+  const onDeleteConditionalAccess = () => {
     setIsUpdating(true);
-    try {
-      const {
-        microsoft_authentication_url: msAuthURL,
-      } = await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
-        formData[MSETID]
-      );
-      setIsUpdating(false);
-      setPhase(Phase.FormSubmitted);
-      window.open(msAuthURL);
-    } catch (e) {
-      renderFlash(
-        "error",
-        "Could not update conditional access integration settings."
-      );
-      setIsUpdating(false);
-    }
-  };
-
-  const onDeleteConditionalAccess = async () => {
-    setFormData({ [MSETID]: "" });
     refetchConfig();
   };
 
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    const newErrs = validate(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
+  const handleOktaConnect = () => {
+    // Placeholder for Phase 2 - will be implemented with Okta modal
   };
 
-  const onInputBlur = () => {
-    setFormErrors(validate(formData));
-  };
+  // RENDER
 
   const renderContent = () => {
-    switch (phase) {
-      case Phase.Form:
-        return (
-          <form onSubmit={onSubmit} autoComplete="off">
-            <InputField
-              label="Microsoft Entra tenant ID"
-              helpText={
-                <>
-                  You can find this in your Microsoft Entra admin center.{" "}
-                  <CustomLink
-                    url={`${LEARN_MORE_ABOUT_BASE_LINK}/microsoft-entra-setup`}
-                    text="Learn more"
-                    newTab
-                  />
-                </>
-              }
-              onChange={onInputChange}
-              name={MSETID}
-              value={formData[MSETID]}
-              parseTarget
-              onBlur={onInputBlur}
-              error={formErrors[MSETID]}
-            />
-            <Button
-              type="submit"
-              disabled={!!size(formErrors)}
-              className="button-wrap"
-              isLoading={isUpdating}
-            >
-              Save
-            </Button>
-          </form>
-        );
-      case Phase.FormSubmitted:
-        return (
-          <InfoBanner>
-            To complete your integration, follow the instructions in the other
-            tab, then refresh this page to verify.
-          </InfoBanner>
-        );
-      case Phase.ConfirmingConfigured:
-        // checking integration
-        return <Spinner />;
-      case Phase.ConfirmationError:
-        return <DataError />;
-      case Phase.Configured:
-        return (
-          <InfoBanner color="grey" className={`${baseClass}__success`}>
-            <div className="tenant-id">
-              <Icon name="success" />
-              <b>Microsoft Entra tenant ID:</b>{" "}
-              <TooltipTruncatedText value={formData[MSETID]} />
-            </div>
-            <Button
-              variant="inverse"
-              onClick={toggleDeleteConditionalAccessModal}
-            >
-              Delete
-              <Icon name="trash" />
-            </Button>
-          </InfoBanner>
-        );
-      default:
-        return <Spinner />;
+    if (entraPhase === Phase.ConfirmingConfigured) {
+      return <Spinner />;
     }
+
+    if (entraPhase === Phase.ConfirmationError) {
+      return <DataError />;
+    }
+
+    return (
+      <div className={`${baseClass}__cards`}>
+        <IntegrationCard
+          provider="okta"
+          title="Okta"
+          description="Connect Okta to enable conditional access."
+          isConfigured={oktaConfigured}
+          onConnect={handleOktaConnect}
+          onEdit={handleOktaConnect}
+          onDelete={handleOktaConnect}
+        />
+        <IntegrationCard
+          provider="microsoft-entra"
+          title="Microsoft Entra"
+          description={
+            showAwaitingOAuthBanner
+              ? "To complete your integration, follow the instructions in the other tab, then refresh this page to verify."
+              : "Connect Entra to enable conditional access."
+          }
+          isConfigured={entraPhase === Phase.Configured}
+          isPending={showAwaitingOAuthBanner}
+          isLoading={isUpdating}
+          onConnect={handleEntraConnect}
+          onDelete={toggleDeleteModal}
+        />
+      </div>
+    );
   };
 
   return (
     <div className={baseClass}>
       <SectionHeader title="Conditional access" />
       <p className={`${baseClass}__page-description`}>
-        Block hosts failing any policies from logging in with single sign-on.
-        Enable or disable on the{" "}
+        Block hosts failing policies from logging in with single sign-on. Once
+        connected, enable or disable on the{" "}
         <CustomLink url={paths.MANAGE_POLICIES} text="Policies" /> page.
       </p>
       {renderContent()}
-      {showDeleteConditionalAccessModal && (
+      {showEntraModal && (
+        <EntraConditionalAccessModal
+          onCancel={handleEntraModalClose}
+          onSuccess={handleEntraModalSuccess}
+        />
+      )}
+      {showDeleteModal && (
         <DeleteConditionalAccessModal
           onDelete={onDeleteConditionalAccess}
-          toggleDeleteConditionalAccessModal={
-            toggleDeleteConditionalAccessModal
-          }
+          toggleDeleteConditionalAccessModal={toggleDeleteModal}
         />
       )}
     </div>

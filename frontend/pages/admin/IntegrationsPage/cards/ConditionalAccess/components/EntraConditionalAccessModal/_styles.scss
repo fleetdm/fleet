@@ -1,0 +1,16 @@
+.entra-conditional-access-modal {
+  &__instructions {
+    margin-bottom: $pad-large;
+    font-size: $x-small;
+    line-height: 20px;
+    color: $ui-fleet-black-75;
+  }
+
+  .info-banner {
+    margin-bottom: $pad-large;
+  }
+
+  .form-field__help-text {
+    color: $ui-fleet-black-75;
+  }
+}

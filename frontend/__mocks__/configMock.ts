@@ -115,6 +115,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   conditional_access: {
     microsoft_entra_tenant_id: "123",
     microsoft_entra_connection_configured: true,
+    okta_idp_id: "",
+    okta_assertion_consumer_service_url: "",
+    okta_audience_uri: "",
+    okta_certificate: "",
   },
   host_expiry_settings: {
     host_expiry_enabled: false,

@@ -156,8 +156,14 @@ export interface IConfig {
   // configuration details for conditional access. For enabled/disabled status per team, see
   // subfields under `integrations`
   conditional_access?: {
+    // Microsoft Entra
     microsoft_entra_tenant_id: string;
     microsoft_entra_connection_configured: boolean;
+    // Okta
+    okta_idp_id: string;
+    okta_assertion_consumer_service_url: string;
+    okta_audience_uri: string;
+    okta_certificate: string;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
