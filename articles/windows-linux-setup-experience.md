@@ -2,7 +2,31 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can customize the software that's installed when a new Windows and Linux workstations enroll to Fleet.
+In Fleet, you can customize the out-of-the-box Windows and Linux setup.
+
+Here's what you can configure, and in what order each happen, to your Windows and Linux hosts during setup:
+
+1. Require [end users to authenticate](#end-user-authentication) with your identity provider (IdP).
+
+2. [Install software](#install-software) (App Store apps, custom packages, and Fleet-maintained apps). 
+
+## End user authentication
+
+### End user experience
+
+Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue.
+
+TODO screenshots
+
+> If the Fleet agent (fleetd) installed is older than version 1.50.0, end user authentication won't be enforced.
+
+### Setup
+
+TODO steps to configure
+
+## Install software
+
+### End user experience
 
 Fleet automatically opens the default web browser to show end users software install progress:
 
@@ -20,14 +44,14 @@ To replace the Fleet logo with your organization's logo:
 
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
-> Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users. 
+> Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users.
 
-## Choose software
+### Add software
 
-To pick which software is installed during the setup experience:
+Add setup experience software setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **3. Install software**.
-2. Click on the tab corresponding to the operating system you're configuring: either **macOS**, **Windows**, or **Linux**.
+2. Click on the tab corresponding to the operating system (e.g. Linux).
 3. Click **Add software**, then select or search for the software you want installed during the setup experience.
 4. Press **Save** to save your selection.
 
