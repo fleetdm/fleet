@@ -40,13 +40,3 @@ export const UsedInsideDataSet: Story = {
     ),
   ],
 };
-
-export const InsideACheckboxLabel: Story = {
-  decorators: [
-    (Story) => (
-      <Checkbox>
-        <Story />
-      </Checkbox>
-    ),
-  ],
-};
