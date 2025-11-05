@@ -22,7 +22,7 @@ const getIntegrationSettingsNavItems = (
       Card: Integrations,
     },
     {
-      title: "Mobile device management (MDM)",
+      title: "MDM",
       urlSection: "mdm",
       path: PATHS.ADMIN_INTEGRATIONS_MDM,
       Card: MdmSettings,
