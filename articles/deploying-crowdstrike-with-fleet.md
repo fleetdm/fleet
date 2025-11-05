@@ -21,7 +21,7 @@ This guide will cover how to deploy CrowdStrike Falcon on macOS, Linux and Windo
 
 On the CrowdStrike Falcon dashboard, click the hamburger menu in the top-left corner of the page, then navigate to **Host setup and management** > **Sensor Downloads** (in the **Deploy** section of the menu).
 
-Select the appropriate Falcon Sensor package for your platform and copy the **Customer ID** string found in the **How to install** sidebar on the right side of the page. The Customer ID *must be collected* during the CrowdStrike installation to activate the Falcon application on a host.
+Select the appropriate Falcon Sensor package for your platform and copy the **Customer ID** string found in the **How to install** sidebar on the right side of the page. The **Customer ID** *must be collected* during the CrowdStrike installation to activate the Falcon application on a host.
 
 > For Windows, CrowdStrike offers `.exe` and `.msi` Falcon installers. Selecting the `.msi` package is preferable because it performs a silent, fully-automated installation when using the **Automatic install** option in Fleet.
 
@@ -51,7 +51,7 @@ To upload Configuration Profiles to your Fleet instance: go to **Controls > OS S
 
 ### 2. Create a post-install script
 
-To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the *Customer ID*. Use this script on macOS with the *Customer ID* string copied from your CrowdStrike tenant above:
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on macOS with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 #!/bin/bash
@@ -82,7 +82,7 @@ fi
 
 ### 1. Create a post-install script
 
-To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the *Customer ID*. Use this script on Linux with the *Customer ID* string copied from your CrowdStrike tenant above:
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on Linux with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 #!/bin/bash
@@ -114,7 +114,7 @@ CrowdStrike provides [documentation for additional flags](https://github.com/Cro
 
 ### 1. Create a post-install script
 
-To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the *Customer ID*. Use this script on Windows with the *Customer ID* string copied from your CrowdStrike tenant above:
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on Windows with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 # Set your Customer ID here
