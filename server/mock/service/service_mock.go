@@ -599,6 +599,8 @@ type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMAppleOrWindowsConfiguredFunc func(ctx context.Context) error
 
+type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
+
 type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
 type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
@@ -1708,6 +1710,9 @@ type Service struct {
 
 	VerifyMDMAppleOrWindowsConfiguredFunc        VerifyMDMAppleOrWindowsConfiguredFunc
 	VerifyMDMAppleOrWindowsConfiguredFuncInvoked bool
+
+	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
+	VerifyAnyMDMConfiguredFuncInvoked bool
 
 	MDMAppleUploadBootstrapPackageFunc        MDMAppleUploadBootstrapPackageFunc
 	MDMAppleUploadBootstrapPackageFuncInvoked bool
@@ -4101,6 +4106,13 @@ func (s *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
 	s.VerifyMDMAppleOrWindowsConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyMDMAppleOrWindowsConfiguredFunc(ctx)
+}
+
+func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
+	s.mu.Lock()
+	s.VerifyAnyMDMConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyAnyMDMConfiguredFunc(ctx)
 }
 
 func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
