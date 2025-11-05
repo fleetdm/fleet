@@ -1223,7 +1223,7 @@ SELECT
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path,
-	upgrade_code AS upgrade_code
+  upgrade_code AS upgrade_code
 FROM programs
 UNION
 SELECT
@@ -1234,7 +1234,7 @@ SELECT
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path,
-	'' as upgrade_code
+  '' as upgrade_code
 FROM ie_extensions
 UNION
 SELECT
@@ -1245,7 +1245,7 @@ SELECT
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path,
-	'' as upgrade_code
+  '' as upgrade_code
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -1256,7 +1256,7 @@ SELECT
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path,
-	'' as upgrade_code
+  '' as upgrade_code
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -1267,7 +1267,7 @@ SELECT
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path,
-	'' as upgrade_code
+  '' as upgrade_code
 FROM chocolatey_packages
 `),
 	Platforms:        []string{"windows"},
