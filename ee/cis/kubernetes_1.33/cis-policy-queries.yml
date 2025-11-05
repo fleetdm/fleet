@@ -10,10 +10,16 @@ spec:
   resolution: |
     Edit the API server pod specification file /etc/kubernetes/manifests/kube-  apiserver.yaml on the Control Plane node and set the below parameter.  --profiling=false
   query: |
-    SELECT 1 AS pass
-    FROM processes
-    WHERE name = 'kube-apiserver'
-    AND cmdline LIKE '%--profiling=false%';
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 AS pass
+        FROM processes
+        WHERE name = 'kube-apiserver'
+        AND cmdline LIKE '%--profiling=false%'
+        )
+      OR NOT EXISTS (
+        SELECT 1 FROM processes WHERE name = 'kube-apiserver'
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
