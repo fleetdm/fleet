@@ -33,7 +33,7 @@ describe("Integrations Page", () => {
 
       expect(
         await screen.findAllByText("Mobile device management (MDM)")
-      ).toHaveLength(1);
+      ).toHaveLength(2);
     });
   });
   describe("Conditional access", () => {
