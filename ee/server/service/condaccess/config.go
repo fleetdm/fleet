@@ -19,8 +19,9 @@ func initAssets(ctx context.Context, ds fleet.Datastore) error {
 	}
 	savedAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, expectedAssets, nil)
 	if err != nil {
-		// allow not found errors as it means we're generating the assets for the first time.
-		if !fleet.IsNotFound(err) {
+		// Allow not found errors or partial results (some assets exist, some don't).
+		// If we got some assets back, continue to create the missing ones.
+		if !fleet.IsNotFound(err) && len(savedAssets) == 0 {
 			return fmt.Errorf("loading existing conditional access assets from the database: %w", err)
 		}
 	}
