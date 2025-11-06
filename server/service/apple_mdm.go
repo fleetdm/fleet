@@ -3517,7 +3517,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 
 	var hasSetupExpItems bool
-	if m.AwaitingConfiguration {
+	// TODO : Idea here is only install if !awaitingConfiguration if:
+	// - is iOS/iPadOS
+	// - is a Device based enrollment
+	if m.AwaitingConfiguration || (info.Platform != "darwin" && r.Type == mdm.Device) {
 		// Always run setup experience on non-macOS hosts(i.e. iOS/iPadOS), only run it on macOS if
 		// this is not an ABM MDM migration
 		if info.Platform != "darwin" || !info.MigrationInProgress {

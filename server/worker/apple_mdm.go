@@ -115,6 +115,8 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 		}
 	}
+	// TODO: Trigger VPP installs here similar to what runPostDEPEnrollment does.
+	// No need to worry about the DeviceRelease stuff that runPostDEPEnrollment does.
 
 	return nil
 }
@@ -551,6 +553,8 @@ func (a *AppleMDM) installSoftwareFromVPP(ctx context.Context, host *fleet.Host,
 	if a.VPPInstaller == nil {
 		return "", errors.New("VPP installer not configured")
 	}
+	// TODO: These functions will only work on fleet premium sinec they ultimately come from the EE service - manual enrollment
+	// also works on Fleet Free so take care to anticipate the possibility of a license error here
 	token, err := a.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
 	if err != nil {
 		return "", err
