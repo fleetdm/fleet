@@ -33,14 +33,14 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| [DEP/ABM enrollment](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#dep) (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| [Windows enrollment](https://fleetdm.com/docs/using-fleet/mdm-windows-setup) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Windows enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Windows Autopilot | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Work Profile enrollment (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| [Linux enrollment](https://fleetdm.com/docs/using-fleet/adding-hosts) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| [iOS/iPadOS profile-based enrollment](https://fleetdm.com/docs/using-fleet/mdm-ios-setup) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Account Driven User Enrollment (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
@@ -58,21 +58,21 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| [Setup experience (macOS)](https://fleetdm.com/docs/using-fleet/macos-setup-experience) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Setup experience (macOS) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Setup experience (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Setup experience (Linux) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Configuration [Profiles (macOS)](https://fleetdm.com/docs/using-fleet/mdm-macos-profile) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration [Profiles (iOS/iPadOS)](https://fleetdm.com/docs/using-fleet/mdm-ios-setup#configuration-profiles) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration Profiles (macOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration Profiles (iOS/iPadOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Configuration Profiles (tvOS/VisionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Configuration Profiles (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Configuration Profiles (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| [Remote script execution](https://fleetdm.com/docs/using-fleet/run-scripts) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| [Software deployment](https://fleetdm.com/docs/using-fleet/software) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| [App Store app management](https://fleetdm.com/docs/using-fleet/mdm-app-deployment) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| [Custom package deployment](https://fleetdm.com/docs/using-fleet/software#custom-packages) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Remote script execution | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Software deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| App Store app management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Custom package deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Fleet-maintained apps | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| [Disk encryption management (Apple)](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#macos-filevault) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| [Disk encryption management (Windows)](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#windows-bitlocker) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Disk encryption management (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Disk encryption management (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Disk encryption management (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Certificate management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
@@ -89,20 +89,20 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| [Live query execution](https://fleetdm.com/docs/using-fleet/live-queries) | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| [Scheduled queries](https://fleetdm.com/docs/using-fleet/scheduled-queries) | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| [Software inventory](https://fleetdm.com/docs/using-fleet/software-inventory) | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| [Hardware inventory](https://fleetdm.com/docs/using-fleet/host-details) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Live query execution | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Scheduled queries | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Software inventory | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Hardware inventory | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Device status monitoring | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Geolocation tracking | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Activity feed | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| [Audit logs](https://fleetdm.com/docs/using-fleet/audit-logging) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Audit logs | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Real-time alerts | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Historical data analysis | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Compliance reporting | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| [Vulnerability detection](https://fleetdm.com/docs/using-fleet/vulnerability-processing) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| [CIS Benchmark checks](https://fleetdm.com/docs/using-fleet/policies#cis-benchmarks) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Vulnerability detection | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| CIS Benchmark checks | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Binary authorization | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 
 ---
@@ -133,7 +133,6 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Self-service portal | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Device health checks | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Maintenance windows | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Ticket integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | End user communications | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
@@ -149,10 +148,11 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| Remote wipe | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote lock/wipe (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote lock/wipe (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Device unenrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Offboarding audit trail | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Lock lost/stolen devices | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Activation lock management | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
@@ -261,8 +261,8 @@ Replace placeholders with the current assessment. Look at the overall mix of cat
 
 Example row transformation:
 
-- Before: `| [DEP/ABM enrollment](link) |  |  |  |  |  |`
-- After:  `| [DEP/ABM enrollment](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#dep) (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |`
+- Before: `| DEP/ABM enrollment |  |  |  |  |  |`
+- After:  `| [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |`
 
 This indicates: Current maturity is Complete (🦆), with Complete maintained across all quarters.
 
