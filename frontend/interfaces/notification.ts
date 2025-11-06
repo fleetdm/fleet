@@ -7,10 +7,10 @@ export default PropTypes.shape({
   persistOnPageChange: PropTypes.bool,
 });
 
-export type IAlertType = "success" | "error" | "warning-filled" | null;
+export type IAlertType = "success" | "error" | "warning-filled";
 
 export interface INotification {
-  alertType: IAlertType;
+  alertType: IAlertType | null;
   isVisible: boolean;
   message: JSX.Element | string | null;
   persistOnPageChange?: boolean;
