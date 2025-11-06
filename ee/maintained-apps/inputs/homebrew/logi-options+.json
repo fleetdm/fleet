@@ -4,5 +4,8 @@
   "token": "logi-options+",
   "installer_format": "zip",
   "slug": "logi-options+/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/logi-options-plus-install.sh"
 }
