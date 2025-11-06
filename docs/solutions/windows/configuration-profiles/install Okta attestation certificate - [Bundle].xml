@@ -3,7 +3,7 @@
   <!-- Name of SCEP node -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">node</Format>
@@ -14,7 +14,7 @@
   <!-- Retry count for SCEP installation -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryCount</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryCount</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -26,7 +26,7 @@
   <!-- Retry delay for SCEP installation -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryDelay</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryDelay</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -38,7 +38,7 @@
   <!-- Key Usage - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyUsage</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyUsage</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -50,7 +50,7 @@
   <!-- Key Length - min 2048 for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyLength</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyLength</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -62,7 +62,7 @@
   <!-- Hash Algorithm - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/HashAlgorithm</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/HashAlgorithm</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -74,7 +74,7 @@
   <!-- CN - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/SubjectName</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/SubjectName</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -86,7 +86,7 @@
   <!-- Extended Key Usage - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/EKUMapping</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/EKUMapping</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -98,7 +98,7 @@
   <!-- SCEP Server URL -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/ServerURL</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/ServerURL</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -111,7 +111,7 @@
   <!-- Best practice is not to include special characters. Underscores will break deployment. SCEP: Certificate enroll failed. Result: (The string contains a non-printable character.) -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/Challenge</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/Challenge</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -123,7 +123,7 @@
   <!-- SCEP CA Thumbprint (SHA-256) - Download Okta CA (if using) and specify thumbprint here -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/CAThumbprint</LocURI>
+      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/CAThumbprint</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
