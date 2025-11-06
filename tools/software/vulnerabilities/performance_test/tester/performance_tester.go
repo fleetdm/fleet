@@ -15,7 +15,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 var (
@@ -29,50 +28,10 @@ var (
 // TestFunction represents a datastore method to test
 type TestFunction func(context.Context, *mysql.Datastore) error
 
-// Predefined test functions
+// All available test functions
 var testFunctions = map[string]TestFunction{
 	"UpdateVulnerabilityHostCounts": func(ctx context.Context, ds *mysql.Datastore) error {
-		return ds.UpdateVulnerabilityHostCounts(ctx, 10)
-	},
-	"CleanupExpiredHosts": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, err := ds.CleanupExpiredHosts(ctx)
-		return err
-	},
-	"CountHosts": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, err := ds.CountHosts(ctx, fleet.TeamFilter{User: &fleet.User{}}, fleet.HostListOptions{})
-		return err
-	},
-	"ListHosts": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, err := ds.ListHosts(ctx, fleet.TeamFilter{User: &fleet.User{}}, fleet.HostListOptions{
-			ListOptions: fleet.ListOptions{Page: 0, PerPage: 100},
-		})
-		return err
-	},
-	"ListHosts1000": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, err := ds.ListHosts(ctx, fleet.TeamFilter{User: &fleet.User{}}, fleet.HostListOptions{
-			ListOptions: fleet.ListOptions{Page: 0, PerPage: 1000},
-		})
-		return err
-	},
-	"ListSoftware": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{
-			ListOptions: fleet.ListOptions{Page: 0, PerPage: 100},
-		})
-		return err
-	},
-	"CountSoftware": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, err := ds.CountSoftware(ctx, fleet.SoftwareListOptions{})
-		return err
-	},
-	"ListVulnerabilities": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, _, err := ds.ListVulnerabilities(ctx, fleet.VulnListOptions{
-			ListOptions: fleet.ListOptions{Page: 0, PerPage: 100},
-		})
-		return err
-	},
-	"CountVulnerabilities": func(ctx context.Context, ds *mysql.Datastore) error {
-		_, err := ds.CountVulnerabilities(ctx, fleet.VulnListOptions{})
-		return err
+		return ds.UpdateVulnerabilityHostCounts(ctx, 1)
 	},
 }
 
@@ -244,7 +203,7 @@ func main() {
 		}
 		fmt.Printf("\nExamples:\n")
 		fmt.Printf("  %s -funcs=UpdateVulnerabilityHostCounts -iterations=10\n", os.Args[0])
-		fmt.Printf("  %s -funcs=ListHosts,CountHosts -iterations=5 -details\n", os.Args[0])
+		fmt.Printf("  %s -funcs=UpdateVulnerabilityHostCounts -iterations=5 -details\n", os.Args[0])
 		fmt.Printf("  %s -funcs=UpdateVulnerabilityHostCounts -verbose\n", os.Args[0])
 		fmt.Printf("\n")
 		flag.Usage()
