@@ -5,16 +5,15 @@ In Fleet, you can use labels to scope [software](https://fleetdm.com/guides/depl
 
 Labels can be one of the following types:
 - **Dynamic**: A query-based label applied to any host that returns a result for the label’s query.
+> If you want to change the query or platform on a dynamic label, you must delete the existing label and create a new one.
 - **Manual**: A manually assigned label used to filter selected hosts.
-- **Host vitals**: A Fleet-generated label applied to hosts that match a specific host vital.
-
->Host vitals are currently supported only for IdP host vitals (groups and department) on macOS, iOS, iPadOS, and Android.
+- **Host vitals**: A Fleet-generated label applied to hosts that match a specific host vital (currently IdP group and department on macOS, iOS, iPadOS, and Android).
+> If you want to change the target of a host vitals label, you must delete the existing label and create a new one.
 
 To add or edit a label in Fleet, select the avatar on the right side of the top navigation and select **Labels**.
 
 You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
 
-> For dynamic labels, if you want to change the query or platform, you must delete the existing label and create a new one.
 
 <meta name="articleTitle" value="Labels in Fleet">
 <meta name="authorFullName" value="Noah Talerman">
