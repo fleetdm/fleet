@@ -6395,7 +6395,7 @@ Get information about a bootstrap package that was uploaded to Fleet.
 
 In the response above:
 
-- `token` is the value you can use to [download a bootstrap package](#download-a-bootstrap-package)
+- `token` is the value you can use to [download a bootstrap package](#download-bootstrap-package)
 - `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
 
 
