@@ -94,7 +94,7 @@ func main() {
 	}
 
 	fmt.Println(cert)
-	if err := os.WriteFile(*outPath, []byte(cert), os.ModePerm); err != nil {
+	if err := os.WriteFile(*outPath, []byte(cert), os.FileMode(0644)); err != nil {
 		logger.Err(err).Msg("failed to write output certificate")
 		os.Exit(1)
 	}
@@ -125,7 +125,10 @@ func requestCert(signer *httpsig.Signer, fleetURL string, certificateAuthorityID
 	if err != nil {
 		return "", fmt.Errorf("creating http request: %w", err)
 	}
-	signer.Sign(req)
+
+	if err := signer.Sign(req); err != nil {
+		return "", fmt.Errorf("failed to sign request: %w", err)
+	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
