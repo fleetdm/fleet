@@ -3,5 +3,6 @@
   "slug": "logi-options+/darwin",
   "unique_identifier": "com.logi.optionsplus",
   "token": "logi-options+",
-  "installer_format": "zip"
+  "installer_format": "zip",
+  "default_categories": ["Productivity"]
 } 
