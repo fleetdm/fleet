@@ -23,6 +23,11 @@ TODO
 
 ### 🧑‍💻  Steps to reproduce
 <!-- Provide step-by-step actions of how to recreate this bug in a clean install of Fleet. (This helps others understand and fix it more quickly.) -->
+
+These steps:
+[] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.
+[] Describe the workflow that led to the error, but are not consistently repeatable in multiple Fleet instances. 
+
 1. TODO
 2. TODO
 3. 
