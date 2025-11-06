@@ -126,7 +126,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 
-### Close out completed customer promises
+### Close out a completed customer promise
 
 Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. Document the completion of a customer promise through the following steps:
 1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask the assigned CSM for confirmation from the customer.
