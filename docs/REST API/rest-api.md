@@ -10806,7 +10806,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Modify app store app
+### Update app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
