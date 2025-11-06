@@ -292,6 +292,9 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		return err
 	}
 
+	// Enqueue a job to send any necessary self-service software.
+	// Like Martin said below, this should properly be part of a device lifecycle action.
+
 	// Device may already be present in Fleet if device user removed the MDM profile and then re-enrolled
 	host, err := svc.getExistingHost(ctx, device)
 	if err != nil {
@@ -306,7 +309,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	var enrollmentTokenRequest enrollmentTokenRequest
 	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+		return ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
 	}
 
 	if host != nil {

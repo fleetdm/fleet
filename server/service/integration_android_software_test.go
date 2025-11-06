@@ -28,6 +28,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	appConf.MDM.AndroidEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
+	s.setVPPTokenForTeam(0)
 
 	t.Cleanup(func() {
 		appConf, err := s.ds.AppConfig(context.Background())
@@ -128,9 +129,9 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		"POST",
 		"/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
-		http.StatusUnprocessableEntity,
+		http.StatusInternalServerError,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "platform is required")
+	require.Contains(t, extractServerErrorText(r.Body), "Error: Couldn't add software. com.valid.app.id isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.")
 
 	// Valid application ID format, but app isn't found: should fail
 	// Update mock to return a 404
