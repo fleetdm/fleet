@@ -25,7 +25,12 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isAppleDevice, isLinuxLike } from "interfaces/platform";
+import {
+  isAndroid,
+  isMacOS,
+  isAppleDevice,
+  isLinuxLike,
+} from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
@@ -323,7 +328,7 @@ const DeviceUserPage = ({
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
-    host?.platform === "darwin";
+    isMacOS(host?.platform || "");
 
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
@@ -497,8 +502,8 @@ const DeviceUserPage = ({
       ?.enable_software_inventory;
 
     const showUsersCard =
-      host?.platform === "darwin" ||
-      host?.platform === "android" ||
+      isMacOS(host?.platform || "") ||
+      isAndroid(host?.platform || "") ||
       generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
       generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 

@@ -5,7 +5,8 @@ import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import software, {
+import { isAndroid } from "interfaces/platform";
+import {
   ISoftwarePackage,
   IAppStoreApp,
   isSoftwarePackage,
@@ -205,7 +206,7 @@ const SoftwareInstallerCard = ({
     ? "package"
     : "app-store";
   const isAndroidPlayStoreApp =
-    "platform" in softwareInstaller && softwareInstaller.platform === "android";
+    "platform" in softwareInstaller && isAndroid(softwareInstaller.platform);
   const isFleetMaintainedApp =
     "fleet_maintained_app_id" in softwareInstaller &&
     !!softwareInstaller.fleet_maintained_app_id;

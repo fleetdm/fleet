@@ -16,6 +16,7 @@ import {
   ICategory,
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
 import Button from "components/buttons/Button";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 const baseClass = "software-options-selector";
 
@@ -105,9 +106,8 @@ const SoftwareOptionsSelector = ({
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
-  const isPlatformIosOrIpados =
-    platform === "ios" || platform === "ipados" || isIpaPackage;
-  const isPlatformAndroid = platform === "android";
+  const isPlatformIosOrIpados = isIPadOrIPhone(platform || "") || isIpaPackage;
+  const isPlatformAndroid = isAndroid(platform || "");
   const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
     disableOptions ||

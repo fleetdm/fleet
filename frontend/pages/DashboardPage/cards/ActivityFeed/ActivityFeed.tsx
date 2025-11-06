@@ -9,6 +9,7 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
+import { isAndroid } from "interfaces/platform";
 import {
   resolveUninstallStatus,
   SoftwareInstallUninstallStatus,
@@ -167,7 +168,7 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        details?.platform === "android"
+        isAndroid(details?.platform || "")
           ? setPackageInstallDetails({ ...details }) // Android Play Store installs
           : setVppInstallDetails({ ...details }); // Apple VPP installs
         break;

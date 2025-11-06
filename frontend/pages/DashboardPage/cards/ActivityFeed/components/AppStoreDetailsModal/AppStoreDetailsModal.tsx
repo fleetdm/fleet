@@ -3,6 +3,7 @@
 import React from "react";
 
 import { IActivityDetails } from "interfaces/activity";
+import { isAndroid } from "interfaces/platform";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -38,7 +39,9 @@ const AppStoreDetailsModal = ({
           <DataSet title="Name" value={details.software_title} />
           <DataSet
             title={
-              details.platform === "android" ? "Google Play ID" : "App Store ID"
+              isAndroid(details.platform || "")
+                ? "Google Play ID"
+                : "App Store ID"
             }
             value={details.app_store_id}
           />

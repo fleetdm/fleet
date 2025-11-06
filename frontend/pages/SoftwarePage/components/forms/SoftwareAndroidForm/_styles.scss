@@ -41,9 +41,7 @@
     .card {
       display: flex;
       align-items: flex-start;
-
-      gap: 12px;
-      flex: 1 0 0;
+      flex: 1;
       align-self: stretch;
     }
   }

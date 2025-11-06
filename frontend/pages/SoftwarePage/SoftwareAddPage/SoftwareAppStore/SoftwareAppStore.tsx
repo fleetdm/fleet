@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 import PATHS from "router/paths";
