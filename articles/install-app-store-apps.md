@@ -59,5 +59,4 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-02-28">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-vpp-apps-on-macos-using-fleet-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts.">

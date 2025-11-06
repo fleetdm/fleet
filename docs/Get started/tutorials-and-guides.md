@@ -40,7 +40,7 @@ A collection of guides to help you with Fleet.
 
 [Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet)
 
-[Install App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet)
+[Install App store apps](https://fleetdm.com/guides/install-app-store-apps)
 <!--Admin-->
 [Fleetctl](https://fleetdm.com/guides/fleetctl)
 
