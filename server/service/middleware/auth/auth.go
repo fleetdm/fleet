@@ -44,8 +44,7 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			return next(ctx, request)
 		}
 
-		var sigAuthenticated bool
-		requestPath := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+		requestPath, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 
 		httpSig, sigOk := httpsig.FromContext(ctx)
 		if sigOk && httpsig.IsSigAuthEndpoint(requestPath) {
@@ -55,34 +54,30 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			if httpSig.HostID == nil {
 				return nil, fleet.NewAuthFailedError("identity certificate is not linked to a specific host")
 			}
-			sigAuthenticated = true
-		}
-
-		// if not successful, try again this time with errors
-		sessionKey, seshOk := token.FromContext(ctx)
-
-		if !seshOk && !sigAuthenticated {
-			return nil, fleet.NewAuthHeaderRequiredError("no auth token")
-		}
-
-		if seshOk {
-			v, err := AuthViewer(ctx, string(sessionKey), svc)
-			if err != nil {
-				return nil, err
-			}
-
-			if v.User.IsAdminForcedPasswordReset() {
-				return nil, fleet.ErrPasswordResetRequired
-			}
-
-			ctx = viewer.NewContext(ctx, *v)
-			if ac, ok := authz.FromContext(ctx); ok {
-				ac.SetAuthnMethod(authz.AuthnUserToken)
-			}
-		} else {
 			if ac, ok := authz.FromContext(ctx); ok {
 				ac.SetAuthnMethod(authz.AuthnHTTPMessageSignature)
 			}
+			return next(ctx, request)
+		}
+
+		// if not successful, try again this time with errors
+		sessionKey, ok := token.FromContext(ctx)
+		if !ok {
+			return nil, fleet.NewAuthHeaderRequiredError("no auth token")
+		}
+
+		v, err := AuthViewer(ctx, string(sessionKey), svc)
+		if err != nil {
+			return nil, err
+		}
+
+		if v.User.IsAdminForcedPasswordReset() {
+			return nil, fleet.ErrPasswordResetRequired
+		}
+
+		ctx = viewer.NewContext(ctx, *v)
+		if ac, ok := authz.FromContext(ctx); ok {
+			ac.SetAuthnMethod(authz.AuthnUserToken)
 		}
 		return next(ctx, request)
 	}
