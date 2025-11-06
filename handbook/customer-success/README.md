@@ -129,7 +129,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
 ### Close out completed customer promises
 
 Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. Document the completion of a customer promise through the following steps:
-1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask whoever the assigned CSM is for confirmation.
+1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask the assigned CSM for confirmation from the customer.
 2. If you are notified, please reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
 3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
 4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
