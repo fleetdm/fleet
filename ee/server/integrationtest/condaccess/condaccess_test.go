@@ -42,6 +42,7 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"InvalidChallenge", testInvalidChallenge},
 		{"MissingUUID", testMissingUUID},
 		{"NonExistentHost", testNonExistentHost},
+		{"CertificateRotation", testCertificateRotation},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -347,4 +348,67 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 
 	cert := pkiMsgResp.CertRepMessage.Certificate
 	return httpResp, pkiMsgResp, cert
+}
+
+// testCertificateRotation tests the grace period behavior during certificate rotation.
+// This validates that after a host requests a new certificate via SCEP, both the old and new certificates
+// continue to work for authentication until the grace period expires (cleaned up by periodic job).
+func testCertificateRotation(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Create enrollment secret
+	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
+	require.NoError(t, err)
+
+	// Create a test host
+	host, err := s.DS.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("test-host-rotation"),
+		NodeKey:         ptr.String("test-node-key-rotation"),
+		UUID:            "test-uuid-rotation",
+		Hostname:        "test-hostname-rotation",
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Request first certificate via SCEP (old cert)
+	oldCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+	require.NotNil(t, oldCert)
+
+	// Make HTTP request to IdP SSO endpoint with old cert serial to verify authentication
+	oldSerialHex := fmt.Sprintf("%X", oldCert.SerialNumber)
+	req, err := http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Client-Cert-Serial", oldSerialHex)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "old cert should authenticate via HTTP endpoint")
+
+	// Request new certificate via SCEP (certificate rotation)
+	newCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+	require.NotNil(t, newCert)
+	require.NotEqual(t, oldCert.SerialNumber, newCert.SerialNumber, "new cert should have different serial")
+
+	// CRITICAL TEST: Both old and new certs should work via actual HTTP endpoint (grace period behavior)
+	// This validates that old cert is NOT immediately revoked, allowing grace period for rotation
+	req, err = http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Client-Cert-Serial", oldSerialHex)
+
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "old cert should still work after new cert issued (grace period)")
+
+	newSerialHex := fmt.Sprintf("%X", newCert.SerialNumber)
+	req, err = http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Client-Cert-Serial", newSerialHex)
+
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "new cert should work via HTTP endpoint")
 }

@@ -2,11 +2,7 @@ package condaccess
 
 import (
 	"context"
-	"crypto"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -582,43 +578,4 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 		require.Nil(t, session)
 		require.Equal(t, http.StatusInternalServerError, w.Code)
 	})
-}
-
-// Test helper function for parsing certificates from combined PEM
-func parseCertAndKey(pemData string) (*x509.Certificate, crypto.PrivateKey, error) {
-	var cert *x509.Certificate
-	var key crypto.PrivateKey
-
-	rest := []byte(pemData)
-	for {
-		var block *pem.Block
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			break
-		}
-
-		switch block.Type {
-		case "CERTIFICATE":
-			var err error
-			cert, err = x509.ParseCertificate(block.Bytes)
-			if err != nil {
-				return nil, nil, fmt.Errorf("parse certificate: %w", err)
-			}
-		case "RSA PRIVATE KEY":
-			var err error
-			key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-			if err != nil {
-				return nil, nil, fmt.Errorf("parse RSA private key: %w", err)
-			}
-		}
-	}
-
-	if cert == nil {
-		return nil, nil, errors.New("no certificate found in PEM data")
-	}
-	if key == nil {
-		return nil, nil, errors.New("no private key found in PEM data")
-	}
-
-	return cert, key, nil
 }
