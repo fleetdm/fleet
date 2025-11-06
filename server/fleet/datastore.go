@@ -2441,6 +2441,14 @@ type Datastore interface {
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Conditional access certificates
+
+	// GetConditionalAccessCertHostIDBySerialNumber retrieves the host_id for a valid certificate by serial number.
+	GetConditionalAccessCertHostIDBySerialNumber(ctx context.Context, serial uint64) (uint, error)
+	// GetConditionalAccessCertCreatedAtByHostID retrieves the created_at timestamp of the most recent certificate for a host.
+	GetConditionalAccessCertCreatedAtByHostID(ctx context.Context, hostID uint) (*time.Time, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
 	// NewCertificateAuthority creates a new certificate authority.
 	NewCertificateAuthority(ctx context.Context, ca *CertificateAuthority) (*CertificateAuthority, error)
