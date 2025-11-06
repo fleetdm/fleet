@@ -88,6 +88,19 @@ const validate = (formData: ISsoFormData) => {
 
 export const AUTH_TARGETS_BY_INDEX = ["fleet-users", "end-users"];
 
+const createSsoFormData = (
+  ssoSettings?: IAppConfigFormProps["appConfig"]["sso_settings"]
+): ISsoFormData => ({
+  enableSso: ssoSettings?.enable_sso ?? false,
+  idpName: ssoSettings?.idp_name ?? "",
+  entityId: ssoSettings?.entity_id ?? "",
+  idpImageUrl: ssoSettings?.idp_image_url ?? "",
+  metadata: ssoSettings?.metadata ?? "",
+  metadataUrl: ssoSettings?.metadata_url ?? "",
+  enableSsoIdpLogin: ssoSettings?.enable_sso_idp_login ?? false,
+  enableJitProvisioning: ssoSettings?.enable_jit_provisioning ?? false,
+});
+
 const Sso = ({
   appConfig,
   handleSubmit,
@@ -99,17 +112,9 @@ const Sso = ({
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
   const selectedAuthTarget = subsection as string;
 
-  const [formData, setFormData] = useState<ISsoFormData>({
-    enableSso: appConfig.sso_settings?.enable_sso ?? false,
-    idpName: appConfig.sso_settings?.idp_name ?? "",
-    entityId: appConfig.sso_settings?.entity_id ?? "",
-    idpImageUrl: appConfig.sso_settings?.idp_image_url ?? "",
-    metadata: appConfig.sso_settings?.metadata ?? "",
-    metadataUrl: appConfig.sso_settings?.metadata_url ?? "",
-    enableSsoIdpLogin: appConfig.sso_settings?.enable_sso_idp_login ?? false,
-    enableJitProvisioning:
-      appConfig.sso_settings?.enable_jit_provisioning ?? false,
-  });
+  const [formData, setFormData] = useState<ISsoFormData>(
+    createSsoFormData(appConfig.sso_settings)
+  );
 
   const {
     enableSso,
@@ -127,22 +132,11 @@ const Sso = ({
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
   const [formDirty, setFormDirty] = useState<boolean>(false);
 
-  // Update Fleet users form data when appConfig changes (e.g., after navigation and refetch)
+  // Update SSO settings form data when appConfig changes (e.g., after navigation and refetch)
   // Only update if form is not dirty to avoid overwriting unsaved changes
   useEffect(() => {
     if (!formDirty) {
-      const newData: ISsoFormData = {
-        enableSso: appConfig.sso_settings?.enable_sso ?? false,
-        idpName: appConfig.sso_settings?.idp_name ?? "",
-        entityId: appConfig.sso_settings?.entity_id ?? "",
-        idpImageUrl: appConfig.sso_settings?.idp_image_url ?? "",
-        metadata: appConfig.sso_settings?.metadata ?? "",
-        metadataUrl: appConfig.sso_settings?.metadata_url ?? "",
-        enableSsoIdpLogin:
-          appConfig.sso_settings?.enable_sso_idp_login ?? false,
-        enableJitProvisioning:
-          appConfig.sso_settings?.enable_jit_provisioning ?? false,
-      };
+      const newData = createSsoFormData(appConfig.sso_settings);
       setFormData(newData);
       originalFormData.current = newData;
     }
