@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"testing"
@@ -38,6 +39,8 @@ func TestTeams(t *testing.T) {
 		{"TestTeamsNameUnicode", testTeamsNameUnicode},
 		{"TestTeamsNameEmoji", testTeamsNameEmoji},
 		{"TestTeamsNameSort", testTeamsNameSort},
+		{"TeamIDsWithSetupExperienceIdPEnabled", testTeamIDsWithSetupExperienceIdPEnabled},
+		{"DefaultTeamConfig", testDefaultTeamConfig},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -94,18 +97,90 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Name:   "abc",
 				TeamID: &team.ID,
 				SyncML: []byte(`<Replace></Replace>`),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			dec, err := ds.NewMDMAppleDeclaration(context.Background(), &fleet.MDMAppleDeclaration{
 				Identifier: "decl-1",
 				Name:       "decl-1",
 				TeamID:     &team.ID,
+				RawJSON:    json.RawMessage(`{"Type": "com.apple.configuration.test", "Identifier": "decl-1"}`),
 			})
 			require.NoError(t, err)
 
+			// Add a bunch of data into tables with team IDs that should be cleared when team is deleted
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				res, err := q.ExecContext(context.Background(), fmt.Sprintf(`INSERT INTO software_titles (name, source) VALUES ('MyCoolApp_%s', 'apps')`, tt.name))
+				if err != nil {
+					return err
+				}
+				titleID, _ := res.LastInsertId()
+				_, err = q.ExecContext(
+					context.Background(),
+					`INSERT INTO
+					      mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum)
+				     VALUES (?, ?, ?, ?, ?, ?)`,
+					fmt.Sprintf("uuid_%s", tt.name),
+					0,
+					fmt.Sprintf("TestPayloadIdentifier_%s", tt.name),
+					fmt.Sprintf("TestPayloadName_%s", tt.name),
+					`<?xml version="1.0"`,
+					[]byte("test"),
+				)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(context.Background(), `
+								  INSERT INTO
+								      mdm_windows_configuration_profiles (team_id, name, syncml, profile_uuid)
+								  VALUES (?, ?, ?, ?)`, 0, fmt.Sprintf("TestPayloadName_%s", tt.name), `<?xml version="1.0"`, fmt.Sprintf("uuid_%s", tt.name))
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(context.Background(), `
+								  INSERT INTO
+								      mdm_android_configuration_profiles (profile_uuid, team_id, name, raw_json)
+								  VALUES (?, ?, ?, ?)`, fmt.Sprintf("uuid_%s", tt.name), 0, fmt.Sprintf("TestPayloadName_%s", tt.name), `{"foo": "bar"}`)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?)",
+					team.ID,
+					titleID,
+					"delete_test",
+				)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename) VALUES (?, ?, ?, ?)",
+					team.ID,
+					titleID,
+					"delete_test",
+					"delete_test.png",
+				)
+
+				return err
+			})
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
+
+			// Check that related tables were cleared
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				for _, table := range teamRefs {
+					var count int
+					err := sqlx.GetContext(context.Background(), q, &count, fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE team_id = ?`, table), team.ID)
+					if err != nil {
+						return err
+					}
+					assert.Zero(t, count)
+				}
+				return nil
+			})
 
 			newP, err := ds.Pack(context.Background(), p.ID)
 			require.NoError(t, err)
@@ -210,8 +285,8 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "1", "1", "1", "1", time.Now())
 	host2 := test.NewHost(t, ds, "2", "2", "2", "2", time.Now())
 	host3 := test.NewHost(t, ds, "3", "3", "3", "3", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{host2.ID, host3.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host2.ID, host3.ID})))
 
 	team1.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
@@ -615,6 +690,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 					WindowsSettings: fleet.WindowsSettings{
 						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
 					},
+					AndroidSettings: fleet.AndroidSettings{
+						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
+					},
 				},
 			},
 		})
@@ -649,6 +727,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+			},
+			AndroidSettings: fleet.AndroidSettings{
+				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
 			},
 		}, mdm)
 	})
@@ -736,4 +817,139 @@ func testTeamsNameSort(t *testing.T, ds *Datastore) {
 	for i, item := range teams {
 		assert.Equal(t, item.Name, results[i].Name)
 	}
+}
+
+func testTeamIDsWithSetupExperienceIdPEnabled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// no team exists (well, except "no team" but not enabled there)
+	teamIDs, err := ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.Empty(t, teamIDs)
+
+	// create a couple teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "A"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "B"})
+	require.NoError(t, err)
+
+	// still no team with IdP enabled
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.Empty(t, teamIDs)
+	_, _ = team1, team2
+
+	// enable it for "No team"
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0}, teamIDs)
+
+	// enable it for team1
+	team1.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	_, err = ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0, team1.ID}, teamIDs)
+
+	// enable it for team2
+	team2.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	_, err = ds.SaveTeam(ctx, team2)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0, team1.ID, team2.ID}, teamIDs)
+
+	// disable it for team1
+	team1.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
+	_, err = ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0, team2.ID}, teamIDs)
+
+	// delete team2
+	err = ds.DeleteTeam(ctx, team2.ID)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0}, teamIDs)
+}
+
+func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Test getting default config (should be initialized by migration)
+	config, err := ds.DefaultTeamConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+
+	// Default config should have webhook disabled
+	assert.False(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	assert.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	assert.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+
+	// Test saving a new config
+	newConfig := &fleet.TeamConfig{
+		WebhookSettings: fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:         true,
+				DestinationURL: "https://example.com/webhook",
+				PolicyIDs:      []uint{1, 2, 3},
+				HostBatchSize:  100,
+			},
+		},
+		Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		},
+	}
+
+	err = ds.SaveDefaultTeamConfig(ctx, newConfig)
+	require.NoError(t, err)
+
+	// Verify the config was saved
+	savedConfig, err := ds.DefaultTeamConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, savedConfig)
+
+	assert.True(t, savedConfig.WebhookSettings.FailingPoliciesWebhook.Enable)
+	assert.Equal(t, "https://example.com/webhook", savedConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	assert.Equal(t, []uint{1, 2, 3}, savedConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	assert.Equal(t, 100, savedConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// Test updating existing config
+	updatedConfig := &fleet.TeamConfig{
+		WebhookSettings: fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:         false,
+				DestinationURL: "https://updated.com/webhook",
+				PolicyIDs:      []uint{4, 5},
+				HostBatchSize:  50,
+			},
+		},
+	}
+
+	err = ds.SaveDefaultTeamConfig(ctx, updatedConfig)
+	require.NoError(t, err)
+
+	// Verify the update
+	finalConfig, err := ds.DefaultTeamConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, finalConfig)
+
+	assert.False(t, finalConfig.WebhookSettings.FailingPoliciesWebhook.Enable)
+	assert.Equal(t, "https://updated.com/webhook", finalConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	assert.Equal(t, []uint{4, 5}, finalConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	assert.Equal(t, 50, finalConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 }

@@ -14,6 +14,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
+      windows_require_bitlocker_pin: null
       macos_updates:
         minimum_version: null
         deadline: null
@@ -27,15 +28,18 @@ spec:
         deadline_days: null
         grace_period_days: null
       macos_settings:
-        custom_settings:
+        custom_settings: null
       windows_settings:
-        custom_settings:
+        custom_settings: null
+      android_settings:
+        custom_settings: null
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
         enable_release_device_manually: false
         macos_setup_assistant:
         manual_agent_install:
+        require_all_software_macos: false
         script:
         software:
     scripts: null
@@ -69,9 +73,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
-      macos_updates:
-        minimum_version: "12.3.1"
-        deadline: "2021-12-14"
+      windows_require_bitlocker_pin: null
       ios_updates:
         minimum_version: "17.5"
         deadline: "2022-11-15"
@@ -85,12 +87,15 @@ spec:
         custom_settings:
       windows_settings:
         custom_settings:
+      android_settings:
+        custom_settings:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
         enable_release_device_manually: false
         macos_setup_assistant:
         manual_agent_install:
+        require_all_software_macos: false
         script:
         software:
     scripts: null

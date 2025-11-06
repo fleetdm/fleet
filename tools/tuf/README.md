@@ -168,7 +168,7 @@ GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
 2. Smoke test release on staging.
 3. Push to production:
 ```sh
-ACTION=release-to-production ./tools/tuf/releaser.sh
+ACTION=release-to-production COMPONENT=fleetd VERSION=1.23.0 ./tools/tuf/releaser.sh
 ```
 4. Smoke test release on production.
 
@@ -239,19 +239,35 @@ TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
 ACTION=release-to-production ./tools/tuf/releaser.sh
 ```
 4. Smoke test release on production.
+5. Update osquery schema and flags:
+```sh
+ACTION=update-osquery-schema \
+VERSION=5.19.0 \
+./tools/tuf/releaser.sh
+```
 
 #### Releasing `swiftDialog` to `stable`
 
-> `releaser.sh` doesn't support `swiftDialog` yet.
 > macOS only component
 
-The `swiftDialog` executable can be generated from a macOS host by running:
+1. Download `swiftDialog` from the desired run of https://github.com/fleetdm/fleet/actions/workflows/generate-swift-dialog-targets.yml.
+2. Extract the downloaded `.zip` to `/path/to/swiftDialog.app.tar.gz`
+3. Push to staging:  
 ```sh
-make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+ACTION=release-swiftDialog-to-stable \
+VERSION=2.5.6 \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+SWIFT_DIALOG_PATH=/path/to/swiftDialog.app.tar.gz \
+./tools/tuf/releaser.sh
 ```
+4. Push to production:
 ```sh
-fleetctl updates add --target /path/to/macos/swiftDialog.app.tar.gz --platform macos --name swiftDialog --version 2.2.1 -t edge
-```
+ACTION=release-to-production ./tools/tuf/releaser.sh
+``` 
 
 #### Releasing `nudge` to `stable`
 

@@ -11,11 +11,11 @@
 set -e  # Exit on any error
 
 # Variables
-GITHUB_REPO="harrisonravazzolo/macos-compatibility-ext"
+GITHUB_REPO="allenhouchins/fleet-extensions"
 EXTENSION_DIR="/var/fleet/extensions"
 OSQUERY_DIR="/var/osquery"
 EXTENSIONS_LOAD_FILE="$OSQUERY_DIR/extensions.load"
-EXTENSION_NAME="macos_compatibility_universal.ext"
+EXTENSION_NAME="macos_compatibility.ext"
 EXTENSION_PATH="$EXTENSION_DIR/$EXTENSION_NAME"
 BACKUP_PATH="$EXTENSION_PATH.backup.$(date +%Y%m%d_%H%M%S)"
 
@@ -245,6 +245,27 @@ setup_extensions_load() {
     fi
 }
 
+# Function to remove old extension and its reference from extensions.load
+remove_old_extension() {
+    local old_extension_name="macos_compatibility_universal.ext"
+    local old_extension_path="$EXTENSION_DIR/$old_extension_name"
+    
+    # Remove old extension file if it exists
+    if [[ -f "$old_extension_path" ]]; then
+        log "Removing old extension file: $old_extension_path"
+        rm -f "$old_extension_path"
+    fi
+    
+    # Remove old extension reference from extensions.load if it exists
+    if [[ -f "$EXTENSIONS_LOAD_FILE" ]]; then
+        if grep -q "$old_extension_path" "$EXTENSIONS_LOAD_FILE"; then
+            log "Removing old extension reference from extensions.load"
+            grep -v "$old_extension_path" "$EXTENSIONS_LOAD_FILE" > "$EXTENSIONS_LOAD_FILE.tmp" || true
+            mv "$EXTENSIONS_LOAD_FILE.tmp" "$EXTENSIONS_LOAD_FILE"
+        fi
+    fi
+}
+
 # Function to schedule orbit restart using detached child process or restart immediately
 handle_orbit_restart() {
     if [[ "$IMMEDIATE_RESTART" == "immediate" ]]; then
@@ -330,6 +351,9 @@ main() {
     
     # Create the extensions directory
     create_directory "$EXTENSION_DIR"
+    
+    # Remove old extension and its reference before proceeding
+    remove_old_extension
     
     # Backup existing extension
     backup_existing

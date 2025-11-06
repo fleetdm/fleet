@@ -30,6 +30,7 @@ import (
 	"io"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -326,6 +327,12 @@ var knownBadNames = map[string]struct{}{
 	"SU_TITLE":           {},
 }
 
+var idTranslations = map[string]string{
+	"com.sentinelone.sentinel-agent": "com.sentinelone.SentinelAgent",
+	// This is present in Privileges.pkg/PackageInfo, however, current logic doesn't parse PackageInfo files if Distribution file is present
+	"corp.sap.privileges.pkg": "corp.sap.privileges",
+}
+
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
 	var appVersion string
@@ -457,10 +464,19 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 		}
 	}
 
+	if newID, ok := idTranslations[identifier]; ok {
+		identifier = newID
+	}
+
 	// if package IDs are still empty, use the identifier as the package ID
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)
 	}
+
+	// Sorting package IDs to ensure consistent order
+	// Ex: the uninstall_pkg.sh uses this slice and we want it to
+	// remain consistent/deterministic across generations
+	sort.Strings(packageIDs)
 
 	// for the name, try to use the title and fallback to the bundle
 	// identifier
@@ -579,10 +595,17 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 		}
 	}
 
+	name = strings.TrimSuffix(name, ".app")
+
 	// if we didn't find package IDs, use the identifier as the package ID
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)
 	}
+
+	// Sorting package IDs to ensure consistent order
+	// Ex: the uninstall_pkg.sh uses this slice and we want it to
+	// remain consistent/deterministic across generations
+	sort.Strings(packageIDs)
 
 	return name, identifier, version, packageIDs
 }
@@ -597,7 +620,7 @@ func isValidAppFilePath(input string) (string, bool) {
 	}
 
 	if strings.HasSuffix(file, ".app") {
-		if dir == "Applications/" {
+		if strings.HasPrefix(dir, "Applications/") && strings.HasSuffix(dir, "/") {
 			return file, true
 		}
 	}

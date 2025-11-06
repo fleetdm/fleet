@@ -1,12 +1,14 @@
 .host-software-library-card {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-small;
+  @include vertical-page-tab-panel-layout;
 
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+
+    .button {
+      margin: -$pad-medium 0; // Remove verticle width causing description height to be different on Library v. Inventory
+    }
   }
 
   .table-container {
@@ -46,12 +48,16 @@
   &__item-actions {
     display: flex;
     flex-direction: row;
-    gap: $pad-large;
+    gap: $pad-medium;
     align-items: center;
   }
 
   &__item-action {
-    min-width: 82px;
+    min-width: 90px;
+
+    .component__tooltip-wrapper {
+      margin: 0; // Override 10px vertical margin
+    }
   }
 
   .host-sw-library-table {
@@ -91,8 +97,8 @@
 
               // Undoes vertical click margin found on table container tooltips
               // TODO: Refactor vertical click margin on component level not table level
-              .data-table-block .data-table tbody .component__tooltip-wrapper {
-                margin: 0;
+              .component__tooltip-wrapper {
+                margin: 0; // Override 10px vertical margin
               }
             }
           }

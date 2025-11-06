@@ -134,8 +134,8 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 	return h, err
 }
 
-func (d *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-	h, err := d.Datastore.EnrollHost(ctx, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
+func (d *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+	h, err := d.Datastore.EnrollOsquery(ctx, opts...)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)
@@ -164,14 +164,19 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return err
 }
 
-func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
-	ids, err := d.Datastore.CleanupExpiredHosts(ctx)
+func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+	details, err := d.Datastore.CleanupExpiredHosts(ctx)
 	if err == nil && d.enforceHostLimit > 0 {
+		// Extract IDs from details for redis cleanup
+		ids := make([]uint, len(details))
+		for i, detail := range details {
+			ids[i] = detail.ID
+		}
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return ids, err
+	return details, err
 }
 
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {

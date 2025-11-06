@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.44.65",
+      "version": "4.46.104",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';"
       },
-      "installer_url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.44.65/Slack-4.44.65-macOS.dmg",
+      "installer_url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.46.104/Slack-4.46.104-macOS.dmg",
       "install_script_ref": "2d7c5909",
       "uninstall_script_ref": "b388e22b",
-      "sha256": "08a1536308193a3a5602947ec1f2ae9d49f82ce4595d1c868dcd80d6c4dfbbbd",
+      "sha256": "63428d78ff28845c0f80070a0ceb0f0a321ccff714284dd8b84ec28b48ac6f45",
       "default_categories": [
         "Communication"
       ]

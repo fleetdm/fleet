@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,6 +43,28 @@ const (
 	orgName        = "GitOps Test"
 )
 
+// setupDefaultTeamConfigMocks sets up the mock functions for DefaultTeamConfig operations
+// needed for No Team webhook settings in premium license tests
+func setupDefaultTeamConfigMocks(ds interface{}) {
+	switch d := ds.(type) {
+	case *mock.DataStore:
+		d.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+			return &fleet.TeamConfig{}, nil
+		}
+		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+			return nil
+		}
+	case *mock.Store:
+		// mock.Store embeds DataStore, so we can set the functions on the embedded struct
+		d.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+			return &fleet.TeamConfig{}, nil
+		}
+		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+			return nil
+		}
+	}
+}
+
 func TestGitOpsFilenameValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
 	_, err := RunAppNoChecks([]string{"gitops", "-f", filename})
@@ -55,7 +78,7 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -112,6 +135,9 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -214,9 +240,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	scepConfig := &scep_mock.SCEPConfigService{}
 	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil }
 	digiCertService := &digicert_mock.Service{}
-	digiCertService.VerifyProfileIDFunc = func(_ context.Context, _ fleet.DigiCertIntegration) error { return nil }
+	digiCertService.VerifyProfileIDFunc = func(_ context.Context, _ fleet.DigiCertCA) error { return nil }
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:           license,
@@ -229,7 +255,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -250,6 +276,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
@@ -303,21 +332,6 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
-	ds.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-		switch assetType {
-		case fleet.CAConfigCustomSCEPProxy:
-			return map[string]fleet.CAConfigAsset{
-				"CustomScepProxy2": {
-					Name:  "CustomScepProxy2",
-					Value: []byte("challenge2"),
-					Type:  fleet.CAConfigCustomSCEPProxy,
-				},
-			}, nil
-		default:
-			return nil, &notFoundError{}
-		}
-	}
-
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
@@ -327,6 +341,39 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return nil, nil, nil
 	}
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+		return nil
+	}
+
+	// we'll use to mock datastore persistence
+	var storedCAs fleet.GroupedCertificateAuthorities
+	muStoredCAs := sync.Mutex{}
+
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		muStoredCAs.Lock()
+		defer muStoredCAs.Unlock()
+		if len(ops.Delete) > 0 {
+			storedCAs = fleet.GroupedCertificateAuthorities{}
+		}
+		upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
+		upserts = append(upserts, ops.Add...)
+		upserts = append(upserts, ops.Update...)
+		g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
+		if err != nil {
+			return err
+		}
+		storedCAs = *g
+		return nil
+	}
+
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		require.True(t, includeSecrets) // for gitops flows we expect all calls to include secrets
+
+		muStoredCAs.Lock()
+		defer muStoredCAs.Unlock()
+		return &storedCAs, nil
+	}
+
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
 
@@ -348,12 +395,14 @@ controls:
   ipados_updates:
     deadline: "2023-03-03"
     minimum_version: "18.0"
+  enable_disk_encryption: true
+  windows_require_bitlocker_pin: true
 queries:
 policies:
 labels:
 agent_options:
 org_settings:
-  integrations:
+  certificate_authorities:
     ndes_scep_proxy:
       url: https://ndes.example.com/scep
       admin_url: https://ndes.example.com/admin
@@ -398,45 +447,110 @@ software:
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
+	// Dry run will get existing CAs but won't apply anything
+	assert.True(t, ds.GetGroupedCertificateAuthoritiesFuncInvoked)
+	ds.GetGroupedCertificateAuthoritiesFuncInvoked = false
+	assert.False(t, ds.BatchApplyCertificateAuthoritiesFuncInvoked)
+
 	// Real run
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
-	assert.True(t, savedAppConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.Equal(t, "https://ndes.example.com/scep", savedAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+
 	// GitOps should not overwrite GitOps UI Mode.
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
 
-	assert.True(t, digiCertService.VerifyProfileIDFuncInvoked)
-	require.True(t, savedAppConfig.Integrations.DigiCert.Valid)
-	digicerts := savedAppConfig.Integrations.DigiCert.Value
-	require.Len(t, digicerts, 2)
-	assert.Equal(t, "DigiCert", digicerts[0].Name)
-	assert.Equal(t, "https://one.digicert.com", digicerts[0].URL)
-	assert.Equal(t, "digicert_api_token", digicerts[0].APIToken)
-	assert.Equal(t, "digicert_profile_id", digicerts[0].ProfileID)
-	assert.Equal(t, "digicert_cn", digicerts[0].CertificateCommonName)
-	assert.Equal(t, []string{"digicert_upn"}, digicerts[0].CertificateUserPrincipalNames)
-	assert.Equal(t, "digicert_seat_id", digicerts[0].CertificateSeatID)
-	assert.Equal(t, "DigiCert2", digicerts[1].Name)
-	assert.Equal(t, "https://two.digicert.com", digicerts[1].URL)
-	assert.Equal(t, "digicert_api_token2", digicerts[1].APIToken)
-	assert.Equal(t, "digicert_profile_id2", digicerts[1].ProfileID)
-	assert.Equal(t, "digicert_cn2", digicerts[1].CertificateCommonName)
-	assert.Empty(t, digicerts[1].CertificateUserPrincipalNames)
-	assert.Equal(t, "digicert_seat_id2", digicerts[1].CertificateSeatID)
+	// Check MDM settings
+	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
+	require.True(t, savedAppConfig.MDM.RequireBitLockerPIN.Value)
 
-	require.True(t, savedAppConfig.Integrations.CustomSCEPProxy.Valid)
-	sceps := savedAppConfig.Integrations.CustomSCEPProxy.Value
-	require.Len(t, sceps, 2)
-	assert.Equal(t, "CustomScepProxy", sceps[0].Name)
-	assert.Equal(t, "https://custom.scep.proxy.com", sceps[0].URL)
-	assert.Equal(t, "challenge", sceps[0].Challenge)
-	assert.Equal(t, "CustomScepProxy2", sceps[1].Name)
-	assert.Equal(t, "https://custom.scep.proxy.com2", sceps[1].URL)
-	assert.Equal(t, "challenge2", sceps[1].Challenge)
+	// Check certificate authorities
+	assert.True(t, ds.GetGroupedCertificateAuthoritiesFuncInvoked)
+	assert.True(t, ds.BatchApplyCertificateAuthoritiesFuncInvoked)
+	muStoredCAs.Lock()
+	defer muStoredCAs.Unlock()
+
+	// check ndes
+	require.NotNil(t, storedCAs.NDESSCEP)
+	assert.Equal(t, "https://ndes.example.com/scep", storedCAs.NDESSCEP.URL)
+
+	// check digicert
+	assert.True(t, digiCertService.VerifyProfileIDFuncInvoked)
+	assert.Len(t, storedCAs.DigiCert, 2)
+	digicertByName := make(map[string]fleet.DigiCertCA, 2)
+	for _, d := range storedCAs.DigiCert {
+		digicertByName[d.Name] = d
+	}
+	d1, ok := digicertByName["DigiCert"]
+	assert.True(t, ok)
+	assert.Equal(t, "DigiCert", d1.Name)
+	assert.Equal(t, "https://one.digicert.com", d1.URL)
+	assert.Equal(t, "digicert_api_token", d1.APIToken)
+	assert.Equal(t, "digicert_profile_id", d1.ProfileID)
+	assert.Equal(t, "digicert_cn", d1.CertificateCommonName)
+	assert.Equal(t, []string{"digicert_upn"}, d1.CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id", d1.CertificateSeatID)
+	d2, ok := digicertByName["DigiCert2"]
+	assert.True(t, ok)
+	assert.Equal(t, "DigiCert2", d2.Name)
+	assert.Equal(t, "https://two.digicert.com", d2.URL)
+	assert.Equal(t, "digicert_api_token2", d2.APIToken)
+	assert.Equal(t, "digicert_profile_id2", d2.ProfileID)
+	assert.Equal(t, "digicert_cn2", d2.CertificateCommonName)
+	assert.Empty(t, d2.CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id2", d2.CertificateSeatID)
+
+	// check custom SCEP proxies
+	assert.Len(t, storedCAs.CustomScepProxy, 2)
+	customSCEPByName := make(map[string]fleet.CustomSCEPProxyCA, 2)
+	for _, scep := range storedCAs.CustomScepProxy {
+		customSCEPByName[scep.Name] = scep
+	}
+	cs1, ok := customSCEPByName["CustomScepProxy"]
+	assert.True(t, ok)
+	assert.Equal(t, "CustomScepProxy", cs1.Name)
+	assert.Equal(t, "https://custom.scep.proxy.com", cs1.URL)
+	assert.Equal(t, "challenge", cs1.Challenge)
+	cs2, ok := customSCEPByName["CustomScepProxy2"]
+	assert.True(t, ok)
+	assert.Equal(t, "CustomScepProxy2", cs2.Name)
+	assert.Equal(t, "https://custom.scep.proxy.com2", cs2.URL)
+	assert.Equal(t, "challenge2", cs2.Challenge)
+
+	// // TODO(hca): if/when we have mock hydrant service, add yaml below to tmpFile and include
+	// // following tests
+	// // ```yaml
+	// // hydrant:
+	// //   - name: Hydrant
+	// //     url: https://hydrant.example.com
+	// //     client_id: hydrant_id
+	// //     client_secret: hydrant_secret
+	// //   - name: Hydrant2
+	// //     url: https://hydrant2.example.com
+	// //     client_id: hydrant2_id
+	// //     client_secret: hydrant2_secret
+	// // ````
+
+	// // check hydrant
+	// assert.Len(t, storedCAs.Hydrant, 2)
+	// hydrantByName := make(map[string]fleet.HydrantCA, 2)
+	// for _, h := range storedCAs.Hydrant {
+	// 	hydrantByName[h.Name] = h
+	// }
+	// h1, ok := hydrantByName["Hydrant"]
+	// assert.True(t, ok)
+	// assert.Equal(t, "Hydrant", h1.Name)
+	// assert.Equal(t, "https://hydrant.example.com", h1.URL)
+	// assert.Equal(t, "hydrant_id", h1.ClientID)
+	// assert.Equal(t, "hydrant_secret", h1.ClientSecret)
+	// h2, ok := hydrantByName["Hydrant2"]
+	// assert.True(t, ok)
+	// assert.Equal(t, "Hydrant2", h2.Name)
+	// assert.Equal(t, "https://hydrant2.example.com", h2.URL)
+	// assert.Equal(t, "hydrant2_id", h2.ClientID)
+	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
@@ -461,7 +575,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		return []fleet.ScriptResponse{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -486,6 +600,12 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	team := &fleet.Team{
 		ID:        1,
@@ -505,11 +625,31 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
+	// Track default team config for team 0
+	defaultTeamConfig := &fleet.TeamConfig{}
+
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 0 {
+			// Return a mock team 0 with the default config
+			return &fleet.Team{
+				ID:     0,
+				Name:   fleet.ReservedNameNoTeam,
+				Config: *defaultTeamConfig,
+			}, nil
+		}
 		if tid == team.ID {
 			return savedTeam, nil
 		}
 		return nil, nil
+	}
+
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
 	}
 	var enrolledTeamSecrets []*fleet.EnrollSecret
 	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
@@ -626,6 +766,7 @@ software:
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Empty(t, enrolledTeamSecrets)
+	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
 
 	// The previous run created the team, so let's rerun with an existing team
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
@@ -679,7 +820,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles
@@ -691,6 +832,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
 	}
 
 	// Policies
@@ -966,7 +1110,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles
@@ -979,7 +1123,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
 	}
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &profile, nil
 	}
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -1011,6 +1155,12 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	// Team
 	var savedTeam *fleet.Team
@@ -1157,6 +1307,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	testing_utils.StartSoftwareInstallerServer(t)
 
 	t.Setenv("TEST_TEAM_NAME", teamName)
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
 
 	// Dry run
 	const baseFilename = "team_config_no_paths.yml"
@@ -1183,6 +1335,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	assert.True(t, savedTeam.Config.Features.EnableHostUsers)
 	assert.Equal(t, 30, savedTeam.Config.HostExpirySettings.HostExpiryWindow)
 	assert.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
+	assert.True(t, savedTeam.Config.MDM.RequireBitLockerPIN)
 	assert.Len(t, enrolledSecrets, 2)
 	assert.True(t, policyDeleted)
 	assert.Len(t, appliedPolicySpecs, 5)
@@ -1201,6 +1354,15 @@ func TestGitOpsFullTeam(t *testing.T) {
 	uninstallScriptProcessed := strings.ReplaceAll(file.GetUninstallScript("deb"), "$PACKAGE_ID", packageID)
 	assert.ElementsMatch(t, []string{fmt.Sprintf("echo 'uninstall' %s\n", packageID), uninstallScriptProcessed},
 		[]string{appliedSoftwareInstallers[0].UninstallScript, appliedSoftwareInstallers[1].UninstallScript})
+
+	// Change disk encryption settings
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "false")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "false")
+	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+	require.NotNil(t, savedTeam)
+	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
+	assert.False(t, savedTeam.Config.MDM.RequireBitLockerPIN)
 
 	// Change team name
 	newTeamName := "New Team Name"
@@ -1366,10 +1528,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		assert.Empty(t, macProfiles)
 		assert.Empty(t, winProfiles)
+		assert.Empty(t, macDecls)
+		assert.Empty(t, androidProfiles)
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
@@ -1404,8 +1568,14 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
 
 	testing_utils.AddLabelMocks(ds)
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -1416,11 +1586,31 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		job.ID = 1
 		return job, nil
 	}
+	// Track default team config for team 0
+	defaultTeamConfig := &fleet.TeamConfig{}
+
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 0 {
+			// Return a mock team 0 with the default config
+			return &fleet.Team{
+				ID:     0,
+				Name:   fleet.ReservedNameNoTeam,
+				Config: *defaultTeamConfig,
+			}, nil
+		}
 		if tid == team.ID {
 			return savedTeam, nil
 		}
 		return nil, nil
+	}
+
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
@@ -1500,6 +1690,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
+	}
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
 	}
 
 	createFakeITunesAndVPPServices(t)
@@ -1619,9 +1812,12 @@ software:
 
 	// Dry run again (after team was created by real run)
 	ds.GetVPPTokenByTeamIDFuncInvoked = false
+	ds.GetSoftwareCategoryIDsFuncInvoked = false
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-	// Dry run should not attempt to get the VPP token when applying VPP apps (it may not exist).
-	require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
+	// But we want to verify it does not call a method later, aka. exits early correctly.
+	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	require.False(t, ds.GetSoftwareCategoryIDsFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)
@@ -1684,6 +1880,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
 
 	const (
 		fleetServerURL = "https://fleet.example.com"
@@ -1712,10 +1911,12 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		assert.Empty(t, macProfiles)
 		assert.Empty(t, winProfiles)
+		assert.Empty(t, macDecls)
+		assert.Empty(t, androidProfiles)
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
@@ -1758,11 +1959,31 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		job.ID = 1
 		return job, nil
 	}
+	// Track default team config for team 0
+	defaultTeamConfig := &fleet.TeamConfig{}
+
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 0 {
+			// Return a mock team 0 with the default config
+			return &fleet.Team{
+				ID:     0,
+				Name:   fleet.ReservedNameNoTeam,
+				Config: *defaultTeamConfig,
+			}, nil
+		}
 		if tid == team.ID {
 			return savedTeam, nil
 		}
 		return nil, nil
+	}
+
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
@@ -1808,6 +2029,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
 	}
 
@@ -2161,6 +2385,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2203,6 +2430,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
+
 	// Dry run
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
 	assert.False(t, ds.SaveAppConfigFuncInvoked)
@@ -2232,12 +2462,16 @@ controls:
   scripts:
     - path: ./script.sh
   windows_enabled_and_configured: true
+  android_enabled_and_configured: true
   macos_settings:
     custom_settings:
     - path: ./config.json
   windows_settings:
     custom_settings:
     - path: ./config2.xml
+  android_settings:
+    custom_settings:
+    - path: ./config3.json
 policies:
 name: No team
 software:
@@ -2260,6 +2494,11 @@ software:
 		cspFile, err := os.Create(filepath.Join(noTeamDir, "config2.xml"))
 		require.NoError(t, err)
 		_, err = cspFile.WriteString(`<Replace>bozo</Replace>`)
+		require.NoError(t, err)
+
+		androidFile, err := os.Create(filepath.Join(noTeamDir, "config3.json"))
+		require.NoError(t, err)
+		_, err = androidFile.WriteString(`{"name":"Android profile"}`)
 		require.NoError(t, err)
 
 		scriptFile, err := os.Create(filepath.Join(noTeamDir, "script.sh"))
@@ -2288,6 +2527,8 @@ software:
 		assert.Equal(t, filepath.Base(ddmFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.MacOSSettings.CustomSettings[0].Path))
 		require.Len(t, (*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value, 1)
 		assert.Equal(t, filepath.Base(cspFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value[0].Path))
+		require.Len(t, (*savedAppConfigPtr).MDM.AndroidSettings.CustomSettings.Value, 1)
+		assert.Equal(t, filepath.Base(androidFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.AndroidSettings.CustomSettings.Value[0].Path))
 		assert.True(t, ds.BatchSetScriptsFuncInvoked)
 
 		// Get applied policies for the team
@@ -2372,6 +2613,9 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 				return nil
 			}
 
@@ -2712,6 +2956,9 @@ software:
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 				return nil
 			}
+			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+				return nil
+			}
 
 			args := []string{"gitops"}
 			for _, cfg := range tt.cfgs {
@@ -2846,7 +3093,7 @@ agent_options:
 org_settings:
   features:
     enable_host_users: false
-    enable_software_inventory: true
+    enable_software_inventory: false
     additional_queries:
       query_a: "SELECT 1"
     detail_query_overrides:
@@ -2877,7 +3124,7 @@ software:
 	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileUpdatedFeatures.Name()})
 	require.NoError(t, err)
 	require.False(t, appConfig.Features.EnableHostUsers)
-	require.True(t, appConfig.Features.EnableSoftwareInventory)
+	require.False(t, appConfig.Features.EnableSoftwareInventory)
 
 	// Parse the additional queries into a map.
 	var additionalQueries map[string]string
@@ -2893,7 +3140,7 @@ software:
 	require.NoError(t, err)
 
 	require.False(t, appConfig.Features.EnableHostUsers)
-	require.False(t, appConfig.Features.EnableSoftwareInventory)
+	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
 	require.Nil(t, appConfig.Features.DetailQueryOverrides)
 }
@@ -2932,6 +3179,55 @@ func TestGitOpsSSOSettings(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Nil(t, appConfig.SSOSettings)
+}
+
+func TestGitOpsSSOServerURL(t *testing.T) {
+	tmpDir := t.TempDir()
+	globalFile, err := os.CreateTemp(tmpDir, "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: ` + fleetServerURL + `
+  org_info:
+    org_name: ` + orgName + `
+  sso_settings:
+    entity_id: "test-entity"
+    idp_name: "Test IdP"
+    metadata: "<xml>test-metadata</xml>"
+    enable_sso: true
+    sso_server_url: "https://sso.example.com"
+  secrets:
+    - secret: test-secret
+`)
+	require.NoError(t, err)
+	globalFile.Close()
+
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Run GitOps with SSO settings including sso_url
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, appConfig.SSOSettings)
+	require.Equal(t, "https://sso.example.com", appConfig.SSOSettings.SSOServerURL)
+	require.Equal(t, "test-entity", appConfig.SSOSettings.EntityID)
+	require.True(t, appConfig.SSOSettings.EnableSSO)
 }
 
 func TestGitOpsSMTPSettings(t *testing.T) {
@@ -3120,7 +3416,7 @@ org_settings:
 	// Create an invalid temp PDF file
 	tmpInvalidPDF, err := os.CreateTemp(t.TempDir(), "*.txt")
 	require.NoError(t, err)
-	_, err = tmpPDF.Write([]byte("not-a-pdf"))
+	_, err = tmpInvalidPDF.Write([]byte("not-a-pdf"))
 	require.NoError(t, err)
 	invalidPDFPath, err := filepath.Abs(tmpInvalidPDF.Name())
 	require.NoError(t, err)
@@ -3128,14 +3424,63 @@ org_settings:
 	cases := []struct {
 		name             string
 		cfg              string
-		mockSetup        func(t *testing.T, ds *mock.Store)
+		mockSetup        func(t *testing.T, ds *mock.Store, gitopsDir string)
 		dryRunAssertion  func(t *testing.T, ds *mock.Store, out string, err error)
 		realRunAssertion func(t *testing.T, ds *mock.Store, out string, err error)
 	}{
 		{
 			name: "valid pdf file (no existing EULA uploaded)",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return nil, &notFoundError{} // No existing EULA
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMInsertEULAFuncInvoked)
+			},
+		},
+		{
+			name: "relative path to working dir to pdf file (no existing EULA uploaded)",
+			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return nil, &notFoundError{} // No existing EULA
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.Error(t, err)
+				assert.ErrorContains(t, err, "error uploading EULA: reading eula file:")
+				assert.ErrorContains(t, err, "no such file or directory")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.Error(t, err)
+				assert.ErrorContains(t, err, "error uploading EULA: reading eula file:")
+				assert.ErrorContains(t, err, "no such file or directory")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+		},
+		{
+			name: "relative path to yaml file to pdf file (no existing EULA uploaded)",
+			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./lib/eula.pdf"`),
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				err := os.Mkdir(filepath.Join(dir, "lib"), 0o755)
+				require.NoError(t, err)
+				tmpPDF, err := os.Create(filepath.Join(dir, "lib", "eula.pdf"))
+				require.NoError(t, err)
+				_, err = tmpPDF.Write(pdfContent)
+				require.NoError(t, err)
+				err = tmpPDF.Close()
+				require.NoError(t, err)
+
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
@@ -3154,7 +3499,7 @@ org_settings:
 		{
 			name: "valid new pdf file (different EULA already uploaded)",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
@@ -3178,7 +3523,7 @@ org_settings:
 		{
 			name: "no EULA specified (no existing EULA uploaded)",
 			cfg:  createGlobalGitOpsConfig(""),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
@@ -3199,7 +3544,7 @@ org_settings:
 		{
 			name: "deleting existing EULA",
 			cfg:  createGlobalGitOpsConfig(""),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
@@ -3221,7 +3566,7 @@ org_settings:
 		{
 			name: "not a PDF file",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
@@ -3236,7 +3581,7 @@ org_settings:
 		{
 			name: "uploading the same EULA again",
 			cfg:  createGlobalGitOpsConfig(""),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					hash := sha256.Sum256(pdfContent) // Simulate same EULA
 					return &fleet.MDMEULA{
@@ -3271,13 +3616,13 @@ org_settings:
 				return nil
 			}
 
-			// these mocks are defined in the individual test cases
-			tt.mockSetup(t, ds)
-
 			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
 			_, err = tmpFile.WriteString(tt.cfg)
 			require.NoError(t, err)
+
+			// these mocks are defined in the individual test cases
+			tt.mockSetup(t, ds, filepath.Dir(tmpFile.Name()))
 
 			// Dry run
 			out, err := RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})

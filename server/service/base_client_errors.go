@@ -1,11 +1,13 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -14,6 +16,9 @@ var (
 	ErrUnauthenticated       = errors.New("unauthenticated, or invalid token")
 	ErrPasswordResetRequired = errors.New("Password reset required. Please sign into the Fleet UI to update your password, then log in again with: fleetctl login.")
 	ErrMissingLicense        = errors.New("missing or invalid license")
+	// ErrEndUserAuthRequired is returned when an action (such as enrolling a device)
+	// requires end user authentication
+	ErrEndUserAuthRequired = errors.New("end user authentication required")
 )
 
 type SetupAlreadyErr interface {
@@ -104,15 +109,55 @@ type serverError struct {
 	} `json:"errors"`
 }
 
+// truncateAndDetectHTML truncates a response body to a reasonable length and
+// detects if it's HTML content. Returns the truncated body and whether it's HTML.
+func truncateAndDetectHTML(body []byte, maxLen int) (truncated []byte, isHTML bool) {
+	if len(body) > maxLen {
+		// Use append which is more idiomatic and efficient
+		truncated = append([]byte(nil), body[:maxLen]...)
+		truncated = append(truncated, "..."...)
+	} else {
+		// For small bodies, we can return the slice directly since it will be
+		// converted to string soon anyway and won't hold a large underlying array
+		truncated = body
+	}
+	lowerPrefix := bytes.ToLower(truncated)
+	isHTML = bytes.Contains(lowerPrefix, []byte("<html")) || bytes.Contains(lowerPrefix, []byte("<!doctype"))
+
+	// Return truncated byte slice
+	return truncated, isHTML
+}
+
 func extractServerErrorText(body io.Reader) string {
 	_, reason := extractServerErrorNameReason(body)
 	return reason
 }
 
 func extractServerErrorNameReason(body io.Reader) (string, string) {
+	// Read the body first so we can try to parse it as JSON and fallback to text if needed
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		return "", "failed to read response body"
+	}
+
+	// Try to parse as JSON first
 	var serverErr serverError
-	if err := json.NewDecoder(body).Decode(&serverErr); err != nil {
-		return "", "unknown"
+	if err := json.Unmarshal(bodyBytes, &serverErr); err != nil {
+		// If it's not JSON, it might be HTML or plain text error from a proxy/load balancer
+		const maxLen = 200
+		truncatedBytes, isHTML := truncateAndDetectHTML(bodyBytes, maxLen)
+
+		if isHTML {
+			// Generic HTML response
+			return "", fmt.Sprintf("server returned HTML instead of JSON response, body: %s", truncatedBytes)
+		}
+
+		// Return cleaned up text for non-HTML responses
+		truncated := strings.TrimSpace(string(truncatedBytes))
+		if truncated == "" {
+			return "", "empty response body"
+		}
+		return "", truncated
 	}
 
 	errName := ""

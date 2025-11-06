@@ -47,6 +47,10 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		0,
+		SSORequestData{
+			HostUUID:  "host-uuid-123",
+			Initiator: "test_initiator",
+		},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 300*time.Second, store.sessionLifetime) // check default is used
@@ -61,11 +65,14 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	authReq := inflate(t, encoded)
 	assert.Equal(t, "issuer", authReq.Issuer.Value)
 	assert.Equal(t, "Fleet", authReq.ProviderName)
+	assert.Equal(t, string(saml.EmailAddressNameIDFormat), authReq.NameIDPolicy.Element().Attr[0].Value)
 	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
 
 	ssn := store.session
 	require.NotNil(t, ssn)
 	assert.Equal(t, "/redir", ssn.OriginalURL)
+	assert.Equal(t, "host-uuid-123", ssn.RequestData.HostUUID)
+	assert.Equal(t, "test_initiator", ssn.RequestData.Initiator)
 	assert.Equal(t, 5*time.Minute, store.sessionLifetime)
 
 	var meta saml.EntityDescriptor
@@ -78,6 +85,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		sessionTTL,
+		SSORequestData{},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, store.sessionLifetime)
@@ -104,11 +112,12 @@ type mockStore struct {
 	sessionLifetime time.Duration
 }
 
-func (s *mockStore) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint) error {
+func (s *mockStore) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint, requestData SSORequestData) error {
 	s.session = &Session{
 		RequestID:   requestID,
 		OriginalURL: originalURL,
 		Metadata:    metadata,
+		RequestData: requestData,
 	}
 	s.sessionLifetime = time.Duration(lifetimeSecs) * time.Second // nolint:gosec // dismiss G115
 	return nil

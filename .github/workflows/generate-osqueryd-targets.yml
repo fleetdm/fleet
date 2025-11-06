@@ -24,7 +24,7 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.18.1
+  OSQUERY_VERSION: 5.20.0
 
 permissions:
   id-token: write
@@ -46,11 +46,21 @@ jobs:
         run: |
           make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
 
+      - name: Extract archive for attestation
+        run: |
+          mkdir -p extracted
+          tar -xzf osqueryd.app.tar.gz -C extracted
+
       - name: Attest binary
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: "osqueryd.app.tar.gz"
+          subject-path: "extracted/osquery.app/Contents/MacOS/*"
+
+      - name: Repackage archive
+        run: |
+          cd extracted
+          tar -czf ../osqueryd.app.tar.gz ./*
 
       - name: Upload osqueryd.app.tar.gz
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0

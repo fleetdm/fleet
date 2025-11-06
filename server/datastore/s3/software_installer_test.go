@@ -19,7 +19,7 @@ import (
 )
 
 func TestSoftwareInstaller(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := SetupTestSoftwareInstallerStore(t, "software-installers-unit-test", "prefix")
 
 	// get a non-existing installer

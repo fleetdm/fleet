@@ -397,6 +397,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         mobile_device_management_enrollment_status: {
           enrolled_automated_hosts_count,
           enrolled_manual_hosts_count,
+          enrolled_personal_hosts_count,
           unenrolled_hosts_count,
           pending_hosts_count,
           hosts_count,
@@ -421,6 +422,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           {
             status: "On (automatic)",
             hosts: enrolled_automated_hosts_count,
+          },
+          {
+            status: "On (personal)",
+            hosts: enrolled_personal_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
         ];
@@ -638,7 +643,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
     actionUrl: softwareActionUrl,
     titleDetail: softwareTitleDetail,
-    showTitle: !isSoftwareFetching,
     children: (
       <Software
         errorSoftware={errorSoftware}
@@ -738,7 +742,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               {LearnFleetCard}
             </>
           )}
-        {showSoftwareCard && SoftwareCard}
+        {(isSoftwareFetching || showSoftwareCard) && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
       </div>
@@ -873,7 +877,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     <Spinner />
   ) : (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
@@ -900,6 +904,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             }}
           />
         </div>
+
         <div className={`${baseClass}__host-sections`}>
           <>
             {isHostSummaryFetching ? (
@@ -922,7 +927,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             isUpdating={updatingActivityFeedAutomations}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

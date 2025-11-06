@@ -1066,6 +1066,27 @@ allow {
   action == write
 }
 
+# Any global user can read secret variables.
+#
+# Read permission here is just about being able to read the names and ids, not the content (value).
+allow {
+  object.type == "secret_variable"
+  # We specify all current roles to be secure in case new future role with less permissions is added to the application
+  subject.global_role == [admin, maintainer, gitops, observer_plus, observer][_]
+  action == read
+}
+
+# Any team user can read secret variables.
+#
+# Read permission here is just about being able to read the names and ids, not the content (value).
+allow {
+  object.type == "secret_variable"
+  # If role is admin, gitops, maintainer, observer_plus, or observer on any team.
+  # We specify all current roles to be secure in case new future role with less permissions is added to the application
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops, observer_plus, observer][_]
+  action == read
+}
+
 ##
 # Android
 ##
@@ -1093,5 +1114,22 @@ allow {
 allow {
   object.type == "conditional_access_microsoft"
   subject.global_role == admin
+  action == write
+}
+
+##
+# Certificate Authorities
+##
+# Global admins and GitOps can configure, read and list certificate Authorities
+allow {
+  object.type == "certificate_authority"
+  subject.global_role == [admin, gitops][_]
+  action == [read, write, list][_]
+}
+
+# Global admins and maintainers can write a certificate request
+allow {
+  object.type == "certificate_request"
+  subject.global_role == [admin, maintainer][_]
   action == write
 }

@@ -22,15 +22,6 @@ interface IHeaderProps {
   };
 }
 
-interface IDataColumn {
-  title: string;
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-}
-
 const munkiVersionsTableHeaders = [
   {
     title: "Version",

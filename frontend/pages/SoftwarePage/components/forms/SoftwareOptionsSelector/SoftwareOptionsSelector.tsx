@@ -49,7 +49,7 @@ const CategoriesSelector = ({
         })}
       </div>
       <Button
-        variant="text-link"
+        variant="inverse"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >
@@ -76,6 +76,10 @@ interface ISoftwareOptionsSelector {
   isExePackage?: boolean;
   /** Tarball packages do not have ability to select automatic install */
   isTarballPackage?: boolean;
+  /** Script only packages do not have ability to select automatic install */
+  isScriptPackage?: boolean;
+  /** IPA packages do not have ability to select automatic install or self-service */
+  isIpaPackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
   disableOptions?: boolean;
@@ -92,19 +96,29 @@ const SoftwareOptionsSelector = ({
   isCustomPackage,
   isExePackage,
   isTarballPackage,
+  isScriptPackage,
+  isIpaPackage,
   isEditingSoftware,
   disableOptions = false,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
-  const isPlatformIosOrIpados = platform === "ios" || platform === "ipados";
+  const isPlatformIosOrIpados =
+    platform === "ios" || platform === "ipados" || isIpaPackage;
   const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
-    disableOptions || isPlatformIosOrIpados || isExePackage || isTarballPackage;
+    disableOptions ||
+    isPlatformIosOrIpados ||
+    isExePackage ||
+    isTarballPackage ||
+    isScriptPackage;
 
-  /** Tooltip only shows when enabled or for exe/tar.gz packages */
+  /** Tooltip only shows when enabled or for exe/tar.gz/sh/ps1 packages */
   const showAutomaticInstallTooltip =
-    !isAutomaticInstallDisabled || isExePackage || isTarballPackage;
+    !isAutomaticInstallDisabled ||
+    isExePackage ||
+    isTarballPackage ||
+    isScriptPackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
     if (isExePackage || isTarballPackage) {
       return (
@@ -114,6 +128,17 @@ const SoftwareOptionsSelector = ({
           automatically install{" "}
           {isExePackage ? ".exe packages" : ".tar.gz archives"}, add a custom
           policy and enable the install software automation on the{" "}
+          <b>Policies</b> page.
+        </>
+      );
+    }
+
+    if (isScriptPackage) {
+      return (
+        <>
+          Fleet can&apos;t create a policy to detect existing installations of
+          payload-free packages. To automatically install these packages, add a
+          custom policy and enable the install software automation on the{" "}
           <b>Policies</b> page.
         </>
       );
@@ -130,8 +155,8 @@ const SoftwareOptionsSelector = ({
       {isPlatformIosOrIpados && (
         <p>
           Currently, self-service and automatic installation are not available
-          for iOS and iPadOS. Manually install on the <b>Host details</b> page
-          for each host.
+          for iOS and iPadOS. Today, you can manually install on the{" "}
+          <b>Host details</b> page for each host.
         </p>
       )}
       <div className={`${baseClass}__self-service`}>
@@ -174,6 +199,7 @@ const SoftwareOptionsSelector = ({
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
             text="Learn more"
             newTab
+            variant="banner-link"
           />
         </InfoBanner>
       )}

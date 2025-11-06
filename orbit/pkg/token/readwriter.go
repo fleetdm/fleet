@@ -4,23 +4,39 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
+
+// Mutex to ensure that starting/stopping the rotation goroutine is concurrency safe.
+// Since we don't expect multiple instances of ReadWriter, and the lock will be held
+// for a very short time, a package-level mutex is sufficient.
+var rotationWatchersMu sync.Mutex
 
 type remoteUpdaterFunc func(token string) error
 
 type ReadWriter struct {
 	*Reader
-	remoteUpdate remoteUpdaterFunc
+	remoteUpdate        remoteUpdaterFunc
+	rotationWatchers    []chan struct{}
+	checkTokenFunc      func(token string) error
+	localCheckDuration  time.Duration
+	remoteCheckDuration time.Duration
+	rotationStopCh      chan struct{}
 }
 
-func NewReadWriter(path string) *ReadWriter {
+func NewReadWriter(path string, checkTokenFunc func(token string) error) *ReadWriter {
 	return &ReadWriter{
-		Reader: &Reader{Path: path},
+		Reader:              &Reader{Path: path},
+		checkTokenFunc:      checkTokenFunc,
+		localCheckDuration:  30 * time.Second,
+		remoteCheckDuration: 5 * time.Minute,
 	}
 }
 
@@ -58,7 +74,6 @@ func (rw *ReadWriter) Rotate() error {
 	err = retry.Do(func() error {
 		return rw.Write(id)
 	}, retry.WithMaxAttempts(attempts), retry.WithInterval(interval))
-
 	if err != nil {
 		return fmt.Errorf("saving token after %d attempts: %w", attempts, err)
 	}
@@ -109,4 +124,111 @@ func (rw *ReadWriter) Write(id string) error {
 
 func (rw *ReadWriter) setChmod() error {
 	return os.Chmod(rw.Path, constant.DefaultWorldReadableFileMode)
+}
+
+func (rw *ReadWriter) StartRotation() func() {
+	// Create a channel that this caller can use to signal they want to stop
+	// watching for rotations.
+	stopCh := make(chan struct{})
+	// Append it to the list of watchers.
+	rotationWatchersMu.Lock()
+	rw.rotationWatchers = append(rw.rotationWatchers, stopCh)
+	watchersCount := len(rw.rotationWatchers)
+	rotationWatchersMu.Unlock()
+
+	if watchersCount == 1 {
+		log.Info().Msg("token rotation is enabled")
+
+		// Create a channel we can use to stop the rotation goroutine.
+		rw.rotationStopCh = make(chan struct{})
+
+		go func() {
+			// This timer is used to check if the token should be rotated if at
+			// least one hour has passed since the last modification of the token
+			// file.
+			//
+			// This is better than using a ticker that ticks every hour because the
+			// we can't ensure the tick actually runs every hour (eg: the computer is
+			// asleep).
+			localCheckDuration := rw.localCheckDuration
+			localCheckTicker := time.NewTicker(localCheckDuration)
+			defer localCheckTicker.Stop()
+
+			// This timer is used to periodically check if the token is valid. The
+			// server might deem a toked as invalid for reasons out of our control,
+			// for example if the database is restored to a back-up or if somebody
+			// manually invalidates the token in the db.
+			remoteCheckDuration := rw.remoteCheckDuration
+			remoteCheckTicker := time.NewTicker(remoteCheckDuration)
+			defer remoteCheckTicker.Stop()
+
+			for {
+				select {
+				case <-rw.rotationStopCh:
+					log.Info().Msg("token rotation stopped")
+					return
+				case <-localCheckTicker.C:
+					localCheckTicker.Reset(localCheckDuration)
+
+					log.Debug().Msgf("initiating local token check, cached mtime: %s", rw.GetMtime())
+					hasChanged, err := rw.HasChanged()
+					if err != nil {
+						log.Error().Err(err).Msg("error checking if token has changed")
+					}
+
+					exp, remain := rw.HasExpired()
+
+					// rotate if the token file has been modified, if the token is
+					// expired or if it is very close to expire.
+					if hasChanged || exp || remain <= time.Second {
+						log.Info().Msg("token TTL expired, rotating token")
+
+						if err := rw.Rotate(); err != nil {
+							log.Error().Err(err).Msg("error rotating token")
+						}
+					} else if remain > 0 && remain < localCheckDuration {
+						// check again when the token will expire, which will happen
+						// before the next rotation check
+						localCheckTicker.Reset(remain)
+						log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
+					}
+
+				case <-remoteCheckTicker.C:
+					log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
+					if err := rw.checkTokenFunc(rw.GetCached()); err != nil {
+						log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
+
+						if err := rw.Rotate(); err != nil {
+							log.Error().Err(err).Msg("error rotating token")
+						}
+					}
+				}
+			}
+		}()
+	}
+
+	// Start goroutine to handle this caller's stop signal.
+	go func() {
+		<-stopCh
+		// Remove this caller's stop channel from the list of watchers.
+		rotationWatchersMu.Lock()
+		rw.rotationWatchers = slices.DeleteFunc(rw.rotationWatchers, func(ch chan struct{}) bool {
+			return ch == stopCh
+		})
+		shouldStop := len(rw.rotationWatchers) == 0
+		rotationWatchersMu.Unlock()
+
+		// If all callers have signaled to stop, signal the main rotation goroutine to stop.
+		if shouldStop {
+			close(rw.rotationStopCh)
+		}
+	}()
+
+	// Return a function that the caller can use to stop watching for rotations.
+	var closeOnce sync.Once
+	return func() {
+		closeOnce.Do(func() {
+			close(stopCh)
+		})
+	}
 }

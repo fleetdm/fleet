@@ -32,6 +32,7 @@
 			},
 			"mdm": {
 				"enable_disk_encryption": false,
+				"windows_require_bitlocker_pin": false,
 				"macos_updates": {
 					"minimum_version": null,
 					"deadline": null
@@ -58,9 +59,13 @@
 					"enable_release_device_manually": false,
 					"script": null,
 					"software": null,
-					"manual_agent_install": null
+					"manual_agent_install": null,
+					"require_all_software_macos": false
 				},
 				"windows_settings": {
+					"custom_settings": null
+				},
+				"android_settings": {
 					"custom_settings": null
 				}
 			},
@@ -119,6 +124,7 @@
 			},
 			"mdm": {
 				"enable_disk_encryption": false,
+				"windows_require_bitlocker_pin": false,
 				"macos_updates": {
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"
@@ -145,9 +151,13 @@
 					"enable_release_device_manually": false,
 					"script": null,
 					"software": null,
-					"manual_agent_install": null
+					"manual_agent_install": null,
+					"require_all_software_macos": false
 				},
 				"windows_settings": {
+					"custom_settings": null
+				},
+				"android_settings": {
 					"custom_settings": null
 				}
 			},

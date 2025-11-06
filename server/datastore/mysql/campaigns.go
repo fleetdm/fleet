@@ -11,6 +11,22 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Campaign cleanup constants (private to this package)
+const (
+	// campaignTargetsCleanupBatchSize is the batch size for deleting campaign targets
+	campaignTargetsCleanupBatchSize int = 10000
+
+	// campaignTargetsCleanupMinPerRun is the minimum number of targets to delete in a single run
+	campaignTargetsCleanupMinPerRun uint = 50000
+
+	// campaignTargetsCleanupPercentPerRun is the percentage of total eligible targets to delete per run
+	// We delete 10% of eligible targets or the minimum, whichever is larger
+	campaignTargetsCleanupPercentPerRun = 0.10 // 10%
+
+	// campaignTargetsCleanupBatchSleep is the sleep duration between deletion batches to avoid overloading the database
+	campaignTargetsCleanupBatchSleep = 100 * time.Millisecond
+)
+
 func (ds *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	args := []any{camp.QueryID, camp.Status, camp.UserID}
 
@@ -195,4 +211,106 @@ func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now t
 		return 0, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
 	return uint(exp), nil //nolint:gosec // dismiss G115
+}
+
+// CleanupCompletedCampaignTargets removes campaign targets for campaigns that have been
+// completed for more than the specified duration. This helps improve campaign performance by
+// cleaning up historical data that is no longer needed.
+func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error) {
+	// First, count total eligible targets to determine cleanup limit
+	const countStmt = `
+		SELECT COUNT(*)
+		FROM distributed_query_campaign_targets dqct
+		INNER JOIN distributed_query_campaigns dqc 
+			ON dqc.id = dqct.distributed_query_campaign_id
+		WHERE dqc.status = ?
+		AND dqc.updated_at < ?
+	`
+
+	var totalEligible uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalEligible, countStmt, fleet.QueryComplete, olderThan)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting eligible campaign targets for cleanup")
+	}
+
+	if totalEligible == 0 {
+		return 0, nil
+	}
+
+	// Calculate max to delete: 10% of eligible or minimum 50k, whichever is larger
+	// BUT never more than what actually exists
+	maxToDelete := uint(float64(totalEligible) * campaignTargetsCleanupPercentPerRun)
+	if maxToDelete < campaignTargetsCleanupMinPerRun {
+		maxToDelete = campaignTargetsCleanupMinPerRun
+	}
+	// Don't try to delete more than what exists
+	if maxToDelete > totalEligible {
+		maxToDelete = totalEligible
+	}
+
+	// Select targets to delete. We select targets from campaigns that:
+	// 1. Have status = QueryComplete
+	// 2. Were updated before the olderThan timestamp
+	const selectTargetsStmt = `
+		SELECT dqct.id
+		FROM distributed_query_campaign_targets dqct
+		INNER JOIN distributed_query_campaigns dqc 
+			ON dqc.id = dqct.distributed_query_campaign_id
+		WHERE dqc.status = ?
+		AND dqc.updated_at < ?
+		ORDER BY dqct.id
+		LIMIT ?
+	`
+
+	var totalDeleted uint
+
+	// Process deletions in batches to avoid locking issues and memory problems
+	for totalDeleted < maxToDelete {
+		// Adjust batch size if we're close to the max limit
+		batchSize := campaignTargetsCleanupBatchSize
+		if remaining := maxToDelete - totalDeleted; remaining < uint(campaignTargetsCleanupBatchSize) {
+			batchSize = int(remaining)
+		}
+
+		var targetIDs []uint
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &targetIDs, selectTargetsStmt,
+			fleet.QueryComplete, olderThan, batchSize)
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "selecting campaign targets for cleanup")
+		}
+
+		// If no more targets to delete, we're done
+		if len(targetIDs) == 0 {
+			break
+		}
+
+		// Delete the batch of targets (max 10,000 at a time, well below MySQL's 65,535 placeholder limit)
+		deleteStmt := `DELETE FROM distributed_query_campaign_targets WHERE id IN (?)`
+		query, args, err := sqlx.In(deleteStmt, targetIDs)
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "building delete query for campaign targets")
+		}
+
+		result, err := ds.writer(ctx).ExecContext(ctx, query, args...)
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "deleting campaign targets")
+		}
+
+		deleted, err := result.RowsAffected()
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "getting rows affected for campaign targets deletion")
+		}
+
+		totalDeleted += uint(deleted) //nolint:gosec // dismiss G115
+
+		// If we found less than the batch size, we're done (no more rows to delete)
+		if len(targetIDs) < batchSize {
+			break
+		}
+
+		// Sleep briefly between batches to avoid overloading the database.
+		time.Sleep(campaignTargetsCleanupBatchSleep)
+	}
+
+	return totalDeleted, nil
 }

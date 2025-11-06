@@ -6,19 +6,13 @@ import React, {
   useEffect,
 } from "react";
 import { format } from "date-fns";
-import {
-  useQuery,
-  RefetchOptions,
-  RefetchQueryFilters,
-  QueryObserverResult,
-} from "react-query";
+import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import scriptAPI, { IHostScriptsResponse } from "services/entities/scripts";
+import scriptAPI from "services/entities/scripts";
 import { IHostScript } from "interfaces/script";
-import { IApiError, getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -43,16 +37,15 @@ type PartialOrFullHostScript =
 
 interface IScriptDetailsModalProps {
   onCancel: () => void;
+  /** optional onClose to allow both "go back" behavior and "close" behavior depending on context */
+  onClose?: () => void;
   onDelete?: () => void;
   runScriptHelpText?: boolean;
   showHostScriptActions?: boolean;
-  setRunScriptRequested?: (value: boolean) => void;
-  hostId?: number | null;
+  onClickRun?: (script: IHostScript) => void;
   hostTeamId?: number | null;
-  refetchHostScripts?: <TPageData>(
-    options?: (RefetchOptions & RefetchQueryFilters<TPageData>) | undefined
-  ) => Promise<QueryObserverResult<IHostScriptsResponse, IApiError>>;
-  selectedScriptDetails?: PartialOrFullHostScript | IPaginatedListScript;
+  selectedScriptId?: number;
+  selectedScriptDetails?: PartialOrFullHostScript | IPaginatedListScript | null;
   selectedScriptContent?: string;
   isLoadingScriptContent?: boolean;
   isScriptContentError?: Error | null;
@@ -65,13 +58,13 @@ interface IScriptDetailsModalProps {
 
 const ScriptDetailsModal = ({
   onCancel,
+  onClose,
   onDelete,
+  onClickRun,
   runScriptHelpText = false,
   showHostScriptActions = false,
-  setRunScriptRequested,
-  hostId,
   hostTeamId,
-  refetchHostScripts,
+  selectedScriptId,
   selectedScriptDetails,
   selectedScriptContent,
   isLoadingScriptContent,
@@ -98,7 +91,9 @@ const ScriptDetailsModal = ({
 
   // handle multiple possibilities for `selectedScriptDetails`
   let scriptId: number | null = null;
-  if (selectedScriptDetails) {
+  if (selectedScriptId) {
+    scriptId = selectedScriptId;
+  } else if (selectedScriptDetails) {
     if ("script_id" in selectedScriptDetails) {
       scriptId = selectedScriptDetails.script_id;
     } else if ("id" in selectedScriptDetails) {
@@ -157,57 +152,29 @@ const ScriptDetailsModal = ({
 
   const onSelectMoreActions = useCallback(
     async (action: string, script: IHostScript) => {
-      if (hostId && !!setRunScriptRequested && !!refetchHostScripts) {
-        switch (action) {
-          case "showRunDetails": {
-            if (script.last_execution?.execution_id) {
-              onClickRunDetails &&
-                onClickRunDetails(script.last_execution?.execution_id);
-            }
-            break;
+      switch (action) {
+        case "showRunDetails": {
+          if (script.last_execution?.execution_id) {
+            onClickRunDetails &&
+              onClickRunDetails(script.last_execution?.execution_id);
           }
-          case "run": {
-            try {
-              setRunScriptRequested && setRunScriptRequested(true);
-              await scriptAPI.runScript({
-                host_id: hostId,
-                script_id: script.script_id,
-              });
-              renderFlash(
-                "success",
-                "Script is running or will run when the host comes online."
-              );
-              refetchHostScripts();
-
-              onCancel(); // Running a script returns to previous state
-            } catch (e) {
-              renderFlash("error", getErrorReason(e));
-              setRunScriptRequested(false);
-            }
-            break;
-          }
-          default: // do nothing
+          break;
         }
+        case "run": {
+          // should always be present if these actions are visible
+          onClickRun && onClickRun(script);
+          break;
+        }
+        default: // do nothing
       }
     },
-    [
-      hostId,
-      onClickRunDetails,
-      setRunScriptRequested,
-      refetchHostScripts,
-      renderFlash,
-      onCancel,
-    ]
+    [onClickRunDetails, onClickRun]
   );
 
   const shouldShowFooter =
     !isLoadingScriptContent && selectedScriptDetails !== undefined;
 
   const renderFooter = () => {
-    if (!shouldShowFooter) {
-      return null;
-    }
-
     return (
       <ModalFooter
         isTopScrolling={isTopScrolling}
@@ -317,12 +284,12 @@ const ScriptDetailsModal = ({
       className={baseClass}
       title={selectedScriptDetails?.name || "Script details"}
       width="large"
-      onExit={onCancel}
+      onExit={onClose ?? onCancel}
       isHidden={isHidden}
     >
       <>
         {renderContent()}
-        {shouldShowFooter ? renderFooter() : undefined}
+        {shouldShowFooter && renderFooter()}
       </>
     </Modal>
   );

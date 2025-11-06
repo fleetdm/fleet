@@ -3,12 +3,13 @@ package mysql
 import (
 	"context"
 	"encoding/base64"
+	"testing"
+	"time"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -74,7 +75,7 @@ func testDeleteLUKSData(t *testing.T, ds *Datastore) {
 	randomBits := base64.StdEncoding.EncodeToString([]byte(uuid.New().String()))
 	var keySlot uint = 1
 
-	err = ds.SaveLUKSData(ctx, hostOne, randomBits, randomBits, keySlot)
+	_, err = ds.SaveLUKSData(ctx, hostOne, randomBits, randomBits, keySlot)
 	require.NoError(t, err)
 
 	// Try to delete a non-existent LUKS key

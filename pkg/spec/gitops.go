@@ -19,6 +19,72 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+type ParseTypeError struct {
+	Filename string   // The name of the file being parsed
+	Keys     []string // The complete path to the field
+	Field    string   // The field we tried to assign to
+	Type     string   // The type that we want to have
+	Value    string   // The type of the value that we received
+	err      error    // The original error
+}
+
+func (e *ParseTypeError) Error() string {
+	var keyPath []string
+	keyPath = append(keyPath, e.Keys...)
+	if e.Field != "" {
+		var clearFields []string
+		fields := strings.Split(e.Field, ".")
+	fieldcheck:
+		for _, field := range fields {
+			for _, r := range field {
+				// Any field name that contains an upper case letter is probably an embedded struct,
+				// remove it from the field path to reduce end user confusion
+				if unicode.IsUpper(r) {
+					continue fieldcheck
+				}
+			}
+			clearFields = append(clearFields, field)
+		}
+		keyPath = append(keyPath, strings.Join(clearFields, "."))
+	}
+	return fmt.Sprintf("Couldn't edit \"%s\" at \"%s\", expected type %s but got %s", e.Filename, strings.Join(keyPath, "."), e.Type, e.Value)
+}
+
+func (e *ParseTypeError) Unwrap() error {
+	return e.err
+}
+
+func MaybeParseTypeError(filename string, keysPath []string, err error) error {
+	unmarshallErr := &json.UnmarshalTypeError{}
+	if errors.As(err, &unmarshallErr) {
+		return &ParseTypeError{
+			Filename: filename,
+			Keys:     keysPath,
+			Field:    unmarshallErr.Field,
+			Type:     unmarshallErr.Type.String(),
+			Value:    unmarshallErr.Value,
+			err:      err,
+		}
+	}
+
+	return fmt.Errorf("failed to unmarshal file \"%s\" key \"%s\": %w", filename, strings.Join(keysPath, "."), err)
+}
+
+// YamlUnmarshal unmarshals YAML bytes into JSON and then into the output struct. We have to do this
+// because the yaml package stringifys the JSON parsing error before returning it, so we can't
+// extract field information to produce a helpful error for users.
+func YamlUnmarshal(yamlBytes []byte, out any) error {
+	jsonBytes, err := yaml.YAMLToJSON(yamlBytes)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal YAML to JSON: %w", err)
+	}
+	if err := json.Unmarshal(jsonBytes, out); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON bytes: %w", err)
+	}
+
+	return nil
+}
+
 type BaseItem struct {
 	Path *string `json:"path"`
 }
@@ -37,7 +103,11 @@ type GitOpsControls struct {
 	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
 	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
 
+	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
+	AndroidSettings             interface{} `json:"android_settings"`
+
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  interface{} `json:"windows_require_bitlocker_pin,omitempty"`
 
 	Scripts []BaseItem `json:"scripts"`
 
@@ -49,7 +119,8 @@ func (c GitOpsControls) Set() bool {
 		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
-		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0
+		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0 ||
+		c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
 }
 
 type Policy struct {
@@ -94,10 +165,25 @@ type SoftwarePackage struct {
 	fleet.SoftwarePackageSpec
 }
 
+func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) (fleet.SoftwarePackageSpec, error) {
+	if spec.Icon.Path != "" || spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
+		spec.PostInstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" || spec.PreInstallQuery.Path != "" {
+		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+	}
+
+	packageLevel.Categories = spec.Categories
+	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
+	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
+	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	packageLevel.SelfService = spec.SelfService
+
+	return packageLevel, nil
+}
+
 type Software struct {
-	Packages            []SoftwarePackage               `json:"packages"`
-	AppStoreApps        []fleet.TeamSpecAppStoreApp     `json:"app_store_apps"`
-	FleetMaintainedApps []fleet.FleetMaintainedAppsSpec `json:"fleet_maintained_apps"`
+	Packages            []SoftwarePackage           `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
 }
 
 type GitOps struct {
@@ -119,7 +205,7 @@ type GitOps struct {
 type GitOpsSoftware struct {
 	Packages            []*fleet.SoftwarePackageSpec
 	AppStoreApps        []*fleet.TeamSpecAppStoreApp
-	FleetMaintainedApps []*fleet.FleetMaintainedAppsSpec
+	FleetMaintainedApps []*fleet.MaintainedAppSpec
 }
 
 type Logf func(format string, a ...interface{})
@@ -162,22 +248,23 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		if teamOk || teamSettingsOk {
 			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
-			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
+			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, filePath, multiError)
 		}
 	case teamOk:
-		multiError = parseName(teamRaw, result, multiError)
+		multiError = parseName(teamRaw, result, filePath, multiError)
 		if result.IsNoTeam() {
-			if teamSettingsOk {
-				multiError = multierror.Append(multiError, fmt.Errorf("cannot set 'team_settings' on 'No team' file: %q", filePath))
-			}
 			if filepath.Base(filePath) != "no-team.yml" {
 				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'No team' must be named 'no-team.yml'", filePath))
+			}
+			// For No Team, we allow team_settings but only process webhook_settings from it
+			if teamSettingsOk {
+				multiError = parseNoTeamSettings(teamSettingsRaw, result, filePath, multiError)
 			}
 		} else {
 			if !teamSettingsOk {
 				multiError = multierror.Append(multiError, errors.New("'team_settings' is required when 'name' is provided"))
 			} else {
-				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
+				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, filePath, multiError)
 			}
 		}
 	default:
@@ -194,26 +281,26 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 		result.Labels = make([]*fleet.LabelSpec, 0)
 	} else {
-		multiError = parseLabels(top, result, baseDir, multiError)
+		multiError = parseLabels(top, result, baseDir, filePath, multiError)
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, multiError, filePath)
-	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
-	multiError = parseQueries(top, result, baseDir, logFn, multiError)
+	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
+	multiError = parseQueries(top, result, baseDir, logFn, filePath, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
-		multiError = parseSoftware(top, result, baseDir, multiError)
+		multiError = parseSoftware(top, result, baseDir, filePath, multiError)
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
-	multiError = parsePolicies(top, result, baseDir, multiError)
+	multiError = parsePolicies(top, result, baseDir, filePath, multiError)
 
 	return result, multiError.ErrorOrNil()
 }
 
-func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error) *multierror.Error {
+func parseName(raw json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
 	if err := json.Unmarshal(raw, &result.TeamName); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal name: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"name"}, err))
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
 		return multierror.Append(multiError, errors.New("team 'name' is required"))
@@ -242,10 +329,10 @@ func isNoTeam(teamName string) bool {
 
 const noTeam = "No team"
 
-func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &orgSettingsTop); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal org_settings: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 	}
 	noError := true
 	if orgSettingsTop.Path != nil {
@@ -263,10 +350,10 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 				)
 			} else {
 				var pathOrgSettings BaseItem
-				if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathOrgSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err),
+						multiError, MaybeParseTypeError(*orgSettingsTop.Path, []string{"org_settings"}, err),
 					)
 				} else {
 					if pathOrgSettings.Path != nil {
@@ -283,9 +370,9 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 		}
 	}
 	if noError {
-		if err := yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
+		if err := YamlUnmarshal(raw, &result.OrgSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal org settings: %v", err))
+			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
 		}
@@ -294,10 +381,10 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 	return multiError
 }
 
-func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	var teamSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &teamSettingsTop); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal team_settings: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
 	}
 	noError := true
 	if teamSettingsTop.Path != nil {
@@ -315,10 +402,10 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, mult
 				)
 			} else {
 				var pathTeamSettings BaseItem
-				if err := yaml.Unmarshal(fileBytes, &pathTeamSettings); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathTeamSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal team settings file %s: %v", *teamSettingsTop.Path, err),
+						multiError, MaybeParseTypeError(*teamSettingsTop.Path, []string{"team_settings"}, err),
 					)
 				} else {
 					if pathTeamSettings.Path != nil {
@@ -335,13 +422,116 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, mult
 		}
 	}
 	if noError {
-		if err := yaml.Unmarshal(raw, &result.TeamSettings); err != nil {
+		if err := YamlUnmarshal(raw, &result.TeamSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal team settings: %v", err))
+			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
+			// Validate webhook settings for regular teams
+			multiError = validateTeamWebhookSettings(result.TeamSettings, multiError)
 		}
 	}
+	return multiError
+}
+
+// validateTeamWebhookSettings validates webhook settings for regular teams
+func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if webhookSettings, hasWebhook := teamSettings["webhook_settings"]; hasWebhook && webhookSettings != nil {
+		webhookMap, ok := webhookSettings.(map[string]any)
+		if !ok {
+			return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object or null"))
+		}
+
+		// Validate failing_policies_webhook if present
+		if fpw, hasFPW := webhookMap["failing_policies_webhook"]; hasFPW && fpw != nil {
+			fpwMap, ok := fpw.(map[string]any)
+			if !ok {
+				multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object or null"))
+			} else {
+				// Validate failing_policies_webhook structure
+				if err := validateFailingPoliciesWebhook(fpwMap, "team_settings.webhook_settings.failing_policies_webhook"); err != nil {
+					multiError = multierror.Append(multiError, err)
+				}
+			}
+		}
+
+		// Could add validation for other webhook types here in the future
+		// e.g., host_status_webhook, vulnerabilities_webhook, etc.
+	}
+	return multiError
+}
+
+// validateFailingPoliciesWebhook validates the failing_policies_webhook configuration.
+// It ensures policy_ids is an array if present.
+func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error {
+	// Validate policy_ids is an array if present
+	if policyIDs, hasPolicyIDs := fpwMap["policy_ids"]; hasPolicyIDs && policyIDs != nil {
+		// Check if it's an array
+		_, isArray := policyIDs.([]any)
+		if !isArray {
+			return fmt.Errorf("'%s.policy_ids' must be an array, got %T", keyPath, policyIDs)
+		}
+	}
+	return nil
+}
+
+// parseNoTeamSettings parses team_settings for "No Team" files, but only processes webhook_settings
+func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
+	// Parse the raw JSON into a map to extract only webhook_settings
+	var teamSettingsMap map[string]interface{}
+	if err := json.Unmarshal(raw, &teamSettingsMap); err != nil {
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
+	}
+
+	// For No Team, only webhook_settings is allowed in team_settings
+	// Jira/Zendesk integrations are not supported in gitops: https://github.com/fleetdm/fleet/issues/20287
+	// Check for any other keys and error if found
+	for key := range teamSettingsMap {
+		if key != "webhook_settings" {
+			multiError = multierror.Append(multiError,
+				fmt.Errorf("unsupported team_settings option '%s' for 'No team' - only 'webhook_settings' is allowed", key))
+		}
+	}
+
+	// Initialize TeamSettings if nil
+	if result.TeamSettings == nil {
+		result.TeamSettings = make(map[string]interface{})
+	}
+
+	// For No Team, we only care about webhook_settings
+	if webhookRaw, ok := teamSettingsMap["webhook_settings"]; ok {
+		// Handle null webhook_settings (which means clear webhook settings)
+		if webhookRaw == nil {
+			// Store as nil to indicate webhook settings should be cleared
+			result.TeamSettings["webhook_settings"] = nil
+		} else {
+			webhookMap, ok := webhookRaw.(map[string]any)
+			if !ok {
+				return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object or null"))
+			}
+			for key := range webhookMap {
+				if key != "failing_policies_webhook" {
+					multiError = multierror.Append(multiError,
+						fmt.Errorf("unsupported webhook_settings option '%s' for 'No team'; only 'failing_policies_webhook' is allowed", key))
+				}
+			}
+			// If present, ensure failing_policies_webhook is an object or null
+			if fpw, ok := webhookMap["failing_policies_webhook"]; ok && fpw != nil {
+				fpwMap, ok := fpw.(map[string]any)
+				if !ok {
+					multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object or null"))
+				} else {
+					// Validate failing_policies_webhook structure
+					if err := validateFailingPoliciesWebhook(fpwMap, "team_settings.webhook_settings.failing_policies_webhook"); err != nil {
+						multiError = multierror.Append(multiError, err)
+					}
+				}
+			}
+			// Store the webhook settings for later processing
+			result.TeamSettings["webhook_settings"] = webhookMap
+		}
+	}
+
 	return multiError
 }
 
@@ -395,7 +585,7 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	return multiError
 }
 
-func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
+func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
 		if ok {
@@ -407,7 +597,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	}
 	var agentOptionsTop BaseItem
 	if err := json.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
-		multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal agent_options: %v", err))
+		multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"agent_options"}, err))
 	} else {
 		if agentOptionsTop.Path == nil {
 			result.AgentOptions = &agentOptionsRaw
@@ -424,9 +614,9 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 				)
 			} else {
 				var pathAgentOptions BaseItem
-				if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathAgentOptions); err != nil {
 					return multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+						multiError, MaybeParseTypeError(*agentOptionsTop.Path, []string{"agent_options"}, err),
 					)
 				}
 				if pathAgentOptions.Path != nil {
@@ -436,10 +626,10 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 					)
 				}
 				var raw json.RawMessage
-				if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
+				if err := YamlUnmarshal(fileBytes, &raw); err != nil {
 					// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 					return multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+						multiError, MaybeParseTypeError(*agentOptionsTop.Path, []string{"agent_options"}, err),
 					)
 				}
 				result.AgentOptions = &raw
@@ -458,7 +648,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 
 	var controlsTop GitOpsControls
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(yamlFilename, []string{"controls"}, err))
 	}
 	controlsTop.Defined = true
 	controlsFilePath := yamlFilename
@@ -515,7 +705,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 		err = json.Unmarshal(data, &macOSSettings)
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
 		}
 
 		for i := range macOSSettings.CustomSettings {
@@ -537,7 +727,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 		err = json.Unmarshal(data, &windowsSettings)
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "windows_settings"}, err))
 		}
 		if windowsSettings.CustomSettings.Valid {
 			for i := range windowsSettings.CustomSettings.Value {
@@ -549,6 +739,31 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.WindowsSettings = windowsSettings
+	}
+
+	if result.Controls.AndroidSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.AndroidSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var androidSettings fleet.AndroidSettings
+		data, err := json.Marshal(result.Controls.AndroidSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.android_settings: %v", err))
+		}
+		err = json.Unmarshal(data, &androidSettings)
+		if err != nil {
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "android_settings"}, err))
+		}
+
+		if androidSettings.CustomSettings.Valid {
+			for i := range androidSettings.CustomSettings.Value {
+				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &androidSettings.CustomSettings.Value[i], result)
+				if err != nil {
+					return multierror.Append(multiError, err)
+				}
+			}
+		}
+		// Since we already unmarshalled and updated the path, we need to update the result struct.
+		result.Controls.AndroidSettings = androidSettings
 	}
 
 	return multiError
@@ -574,8 +789,8 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	}
 
 	var pathControls GitOpsControls
-	if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
-		return fmt.Errorf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err)
+	if err := YamlUnmarshal(fileBytes, &pathControls); err != nil {
+		return MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err)
 	}
 	if pathControls.Path != nil {
 		return fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path)
@@ -620,7 +835,7 @@ func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
 	return resolved, nil
 }
 
-func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	labelsRaw, ok := top["labels"]
 
 	// This shouldn't happen as we check for the property earlier,
@@ -631,10 +846,9 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 
 	var labels []Label
 	if err := json.Unmarshal(labelsRaw, &labels); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"labels"}, err))
 	}
 	for _, item := range labels {
-		item := item
 		if item.Path == nil {
 			result.Labels = append(result.Labels, &item.LabelSpec)
 		} else {
@@ -651,8 +865,8 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				)
 			} else {
 				var pathLabels []*Label
-				if err := yaml.Unmarshal(fileBytes, &pathLabels); err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels file %s: %v", *item.Path, err))
+				if err := YamlUnmarshal(fileBytes, &pathLabels); err != nil {
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"labels"}, err))
 					continue
 				}
 				for _, pq := range pathLabels {
@@ -675,8 +889,14 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		if l.Name == "" {
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
-		if l.Query == "" && len(l.Hosts) == 0 && l.HostVitalsCriteria == nil {
-			multiError = multierror.Append(multiError, errors.New("a SQL query, hosts list or host vitals criteria is required for each label"))
+
+		if l.LabelMembershipType != fleet.LabelMembershipTypeManual && l.Query == "" && l.HostVitalsCriteria == nil {
+			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
+		}
+
+		// Manual labels can have empty hosts lists, just make sure we initialize the empty list
+		if l.LabelMembershipType == fleet.LabelMembershipTypeManual && l.Hosts == nil {
+			l.Hosts = []string{}
 		}
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
@@ -709,17 +929,16 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 	return multiError
 }
 
-func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	policiesRaw, ok := top["policies"]
 	if !ok {
 		return multierror.Append(multiError, errors.New("'policies' key is required"))
 	}
 	var policies []Policy
 	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
 	for _, item := range policies {
-		item := item
 		if item.Path == nil {
 			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
@@ -745,8 +964,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				)
 			} else {
 				var pathPolicies []*Policy
-				if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies file %s: %v", *item.Path, err))
+				if err := YamlUnmarshal(fileBytes, &pathPolicies); err != nil {
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"policies"}, err))
 					continue
 				}
 				for _, pp := range pathPolicies {
@@ -862,20 +1081,35 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-		if err := yaml.Unmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			return fmt.Errorf("failed to unmarshal install_software.package_path file %s: %v", policy.InstallSoftware.PackagePath, err)
+		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
+			// see if the issue is that a package path was passed in that references multiple packages
+			var multiplePackages []fleet.SoftwarePackageSpec
+			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
+				return fmt.Errorf("file %q does not contain a valid software package definition", policy.InstallSoftware.PackagePath)
+			}
+
+			if len(multiplePackages) > 1 {
+				return fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", policy.InstallSoftware.PackagePath)
+			}
+
+			policyInstallSoftwareSpec = multiplePackages[0]
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
-			if pkg.URL == policyInstallSoftwareSpec.URL {
+			if (pkg.URL != "" && pkg.URL == policyInstallSoftwareSpec.URL) || (pkg.SHA256 != "" && pkg.SHA256 == policyInstallSoftwareSpec.SHA256) {
 				installerOnTeamFound = true
 				break
 			}
 		}
 		if !installerOnTeamFound {
-			return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+			if policyInstallSoftwareSpec.URL != "" {
+				return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+			}
+			return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
 		}
+
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
+		policy.InstallSoftware.HashSHA256 = policyInstallSoftwareSpec.SHA256
 	}
 
 	if policy.InstallSoftware.AppStoreID != "" {
@@ -894,7 +1128,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	return nil
 }
 
-func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
+func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	queriesRaw, ok := top["queries"]
 	if result.IsNoTeam() {
 		if ok {
@@ -906,10 +1140,9 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	}
 	var queries []Query
 	if err := json.Unmarshal(queriesRaw, &queries); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"queries"}, err))
 	}
 	for _, item := range queries {
-		item := item
 		if item.Path == nil {
 			result.Queries = append(result.Queries, &item.QuerySpec)
 		} else {
@@ -926,8 +1159,8 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 				)
 			} else {
 				var pathQueries []*Query
-				if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries file %s: %v", *item.Path, err))
+				if err := YamlUnmarshal(fileBytes, &pathQueries); err != nil {
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"queries"}, err))
 					continue
 				}
 				for _, pq := range pathQueries {
@@ -976,7 +1209,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
-func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if result.global() {
 		if ok && string(softwareRaw) != "null" {
@@ -988,20 +1221,10 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	var software Software
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
-			var typeErr *json.UnmarshalTypeError
-			if errors.As(err, &typeErr) {
-				typeErrField := typeErr.Field
-				if typeErrField == "" {
-					// UnmarshalTypeError.Field is empty when trying to set an invalid type on the root node.
-					typeErrField = "software"
-				}
-				return multierror.Append(multiError, fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErrField, typeErr.Type.String(), typeErr.Value))
-			}
-			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
+			return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"software"}, err))
 		}
 	}
 	for _, item := range software.AppStoreApps {
-		item := item
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
 			continue
@@ -1012,100 +1235,161 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
+		item = item.ResolvePaths(baseDir)
+
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
-	for _, item := range software.FleetMaintainedApps {
-		item := item
-		if item.Slug == "" {
+	for _, maintainedAppSpec := range software.FleetMaintainedApps {
+		if maintainedAppSpec.Slug == "" {
 			multiError = multierror.Append(multiError, errors.New("fleet maintained app slug is required"))
 			continue
 		}
 
-		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, item.Slug))
+		if len(maintainedAppSpec.LabelsExcludeAny) > 0 && len(maintainedAppSpec.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
 			continue
 		}
 
-		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &item)
+		maintainedAppSpec = maintainedAppSpec.ResolveSoftwarePackagePaths(baseDir)
+
+		// handle secrets
+		if maintainedAppSpec.InstallScript.Path != "" {
+			if err := gatherFileSecrets(result, maintainedAppSpec.InstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if maintainedAppSpec.PostInstallScript.Path != "" {
+			if err := gatherFileSecrets(result, maintainedAppSpec.PostInstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if maintainedAppSpec.UninstallScript.Path != "" {
+			if err := gatherFileSecrets(result, maintainedAppSpec.UninstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+
+		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
 	}
-	for _, item := range software.Packages {
-		var softwarePackageSpec fleet.SoftwarePackageSpec
-		if item.Path != nil {
-			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *item.Path)
-			fileBytes, err := os.ReadFile(softwarePackageSpec.ReferencedYamlPath)
+	for _, teamLevelPackage := range software.Packages {
+		// A single item in Packages can result in multiple SoftwarePackageSpecs being generated
+		var softwarePackageSpecs []*fleet.SoftwarePackageSpec
+		if teamLevelPackage.Path != nil {
+			yamlPath := resolveApplyRelativePath(baseDir, *teamLevelPackage.Path)
+			fileBytes, err := os.ReadFile(yamlPath)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
 			// Replace $var and ${var} with env values.
 			fileBytes, err = ExpandEnvBytes(fileBytes)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
-			if err := yaml.Unmarshal(fileBytes, &softwarePackageSpec); err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal software package file %s: %v", *item.Path, err))
+			var singlePackageSpec SoftwarePackage
+			singlePackageSpec.ReferencedYamlPath = yamlPath
+			if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
+				if singlePackageSpec.IncludesFieldsDisallowedInPackageFile() {
+					multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
+					continue
+				}
+				softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec.SoftwarePackageSpec)
+			} else if err = YamlUnmarshal(fileBytes, &softwarePackageSpecs); err == nil {
+				// Failing that, try to unmarshal as a list of SoftwarePackageSpecs
+				for i, spec := range softwarePackageSpecs {
+					if spec.IncludesFieldsDisallowedInPackageFile() {
+						multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
+						continue
+					}
+
+					softwarePackageSpecs[i].ReferencedYamlPath = yamlPath
+				}
+			} else {
+				// If we reached here, we couldn't unmarshal as either format.
+				multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, err))
 				continue
 			}
 
-			softwarePackageSpec = resolveSoftwarePackagePaths(filepath.Dir(softwarePackageSpec.ReferencedYamlPath), softwarePackageSpec)
+			for i, spec := range softwarePackageSpecs {
+				softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
+				softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
+				if err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
+				softwarePackageSpecs[i] = &softwarePackageSpec
+			}
 		} else {
-			softwarePackageSpec = resolveSoftwarePackagePaths(baseDir, item.SoftwarePackageSpec)
-		}
-		if softwarePackageSpec.InstallScript.Path != "" {
-			if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
-				multiError = multierror.Append(multiError, err)
-				continue
-			}
-		}
-		if softwarePackageSpec.PostInstallScript.Path != "" {
-			if err := gatherFileSecrets(result, softwarePackageSpec.PostInstallScript.Path); err != nil {
-				multiError = multierror.Append(multiError, err)
-				continue
-			}
-		}
-		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
-			multiError = multierror.Append(multiError, fmt.Errorf("hash_256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
-			continue
-		}
-		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
-			continue
-		}
-		if softwarePackageSpec.UninstallScript.Path != "" {
-			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
-				multiError = multierror.Append(multiError, err)
-				continue
-			}
-		}
-		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
-			continue
-		}
-		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
-			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
-			continue
-		}
-		parsedUrl, err := url.Parse(softwarePackageSpec.URL)
-		if err != nil {
-			multiError = multierror.Append(multiError, fmt.Errorf("software URL %s is not a valid URL", softwarePackageSpec.URL))
-			continue
+			softwarePackageSpec := teamLevelPackage.SoftwarePackageSpec.ResolveSoftwarePackagePaths(baseDir)
+			softwarePackageSpecs = append(softwarePackageSpecs, &softwarePackageSpec)
 		}
 
-		if softwarePackageSpec.InstallScript.Path == "" || softwarePackageSpec.UninstallScript.Path == "" {
-			// URL checks won't catch everything, but might as well include a lightweight check here to fail fast if it's
-			// certain that the package will fail later.
-			if strings.HasSuffix(parsedUrl.Path, ".exe") {
-				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+		for i, softwarePackageSpec := range softwarePackageSpecs {
+			if softwarePackageSpec.InstallScript.Path != "" {
+				if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
+			}
+			if softwarePackageSpec.PostInstallScript.Path != "" {
+				if err := gatherFileSecrets(result, softwarePackageSpec.PostInstallScript.Path); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
+			}
+			if softwarePackageSpec.UninstallScript.Path != "" {
+				if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
+			}
+			if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
+				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
 				continue
 			}
-			if strings.HasSuffix(parsedUrl.Path, ".tar.gz") || strings.HasSuffix(parsedUrl.Path, ".tgz") {
-				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+			if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
+				multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
 				continue
 			}
-		}
+			if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
+				errorMessage := "at least one of hash_sha256 or url is required for each software package"
+				if softwarePackageSpec.ReferencedYamlPath != "" {
+					errorMessage += fmt.Sprintf("; missing in %s", softwarePackageSpec.ReferencedYamlPath)
+				}
+				if len(softwarePackageSpecs) > 1 {
+					errorMessage += fmt.Sprintf(", list item #%d", i+1)
+				}
 
-		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
+				multiError = multierror.Append(multiError, errors.New(errorMessage))
+				continue
+			}
+			if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
+				multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
+				continue
+			}
+			parsedUrl, err := url.Parse(softwarePackageSpec.URL)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s is not a valid URL", softwarePackageSpec.URL))
+				continue
+			}
+			if softwarePackageSpec.InstallScript.Path == "" || softwarePackageSpec.UninstallScript.Path == "" {
+				// URL checks won't catch everything, but might as well include a lightweight check here to fail fast if it's
+				// certain that the package will fail later.
+				if strings.HasSuffix(parsedUrl.Path, ".exe") {
+					multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+					continue
+				} else if strings.HasSuffix(parsedUrl.Path, ".tar.gz") || strings.HasSuffix(parsedUrl.Path, ".tgz") {
+					multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+					continue
+				}
+			}
+
+			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
+		}
 	}
 
 	return multiError
@@ -1123,23 +1407,6 @@ func gatherFileSecrets(result *GitOps, filePath string) error {
 	}
 
 	return nil
-}
-
-func resolveSoftwarePackagePaths(baseDir string, softwareSpec fleet.SoftwarePackageSpec) fleet.SoftwarePackageSpec {
-	if softwareSpec.PreInstallQuery.Path != "" {
-		softwareSpec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, softwareSpec.PreInstallQuery.Path)
-	}
-	if softwareSpec.InstallScript.Path != "" {
-		softwareSpec.InstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.InstallScript.Path)
-	}
-	if softwareSpec.PostInstallScript.Path != "" {
-		softwareSpec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.PostInstallScript.Path)
-	}
-	if softwareSpec.UninstallScript.Path != "" {
-		softwareSpec.UninstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.UninstallScript.Path)
-	}
-
-	return softwareSpec
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {

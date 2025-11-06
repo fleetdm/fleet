@@ -82,7 +82,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 	defer installerTFR.Close()
 
-	gotHash, err := maintained_apps.SHA256FromInstallerFile(installerTFR)
+	gotHash, err := file.SHA256FromTempFileReader(installerTFR)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
 	}
@@ -123,12 +123,27 @@ func (svc *Service) AddFleetMaintainedApp(
 		appName = app.Name
 	}
 
+	version := app.Version
+	if version == "latest" { // download URL isn't version-pinned; extract version from installer
+		meta, err := file.ExtractInstallerMetadata(installerTFR)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "extracting installer metadata")
+		}
+
+		// reset the reader (it was consumed to extract metadata)
+		if err := installerTFR.Rewind(); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "resetting installer file reader")
+		}
+
+		version = meta.Version
+	}
+
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:         installerTFR,
 		Title:                 appName,
 		UserID:                vc.UserID(),
 		TeamID:                teamID,
-		Version:               app.Version,
+		Version:               version,
 		Filename:              filename,
 		Platform:              app.Platform,
 		Source:                app.Source(),

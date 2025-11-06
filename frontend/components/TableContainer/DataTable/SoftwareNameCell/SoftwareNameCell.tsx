@@ -8,6 +8,7 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import LinkCell from "../LinkCell";
+import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
 const baseClass = "software-name-cell";
 
@@ -137,8 +138,8 @@ interface ISoftwareNameCellProps {
   hasInstaller?: boolean;
   isSelfService?: boolean;
   automaticInstallPoliciesCount?: number;
-  /** e.g. app_store_app's override default icons with URLs */
-  iconUrl?: string;
+  /** e.g. custom icons & app_store_app's override default icons with URLs */
+  iconUrl?: string | null;
 }
 
 const SoftwareNameCell = ({
@@ -152,23 +153,21 @@ const SoftwareNameCell = ({
   automaticInstallPoliciesCount,
   iconUrl,
 }: ISoftwareNameCellProps) => {
+  const icon = <SoftwareIcon name={name} source={source} url={iconUrl} />;
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
-    return (
-      <LinkCell
-        tooltipTruncate
-        prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
-        value={name}
-      />
-    );
+    return <LinkCell tooltipTruncate prefix={icon} value={name} />;
   }
 
   // Non-clickable cell if no router/path (e.g. My device page > SelfService)
   if (!router || !path) {
     return (
       <div className={baseClass}>
-        <SoftwareIcon name={name} source={source} url={iconUrl} />
-        <span className="software-name">{name}</span>
+        <TooltipTruncatedTextCell
+          prefix={icon}
+          value={name}
+          className="software-name"
+        />
       </div>
     );
   }
@@ -185,7 +184,7 @@ const SoftwareNameCell = ({
       path={path}
       tooltipTruncate
       customOnClick={onClickSoftware}
-      prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
+      prefix={icon}
       value={name}
       suffix={
         hasInstaller ? (

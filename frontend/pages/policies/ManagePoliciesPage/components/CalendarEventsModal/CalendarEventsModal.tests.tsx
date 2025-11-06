@@ -2,7 +2,7 @@ import React from "react";
 
 import { http, HttpResponse } from "msw";
 import { noop } from "lodash";
-import { fireEvent, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 import createMockPolicy from "__mocks__/policyMock";
 import mockServer from "test/mock-server";

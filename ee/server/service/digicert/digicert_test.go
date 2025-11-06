@@ -29,7 +29,7 @@ func TestTimeout(t *testing.T) {
 	}))
 	defer mockDigiCertServer.Close()
 
-	config := fleet.DigiCertIntegration{
+	config := fleet.DigiCertCA{
 		URL:       mockDigiCertServer.URL,
 		APIToken:  "api_token",
 		ProfileID: profileID,

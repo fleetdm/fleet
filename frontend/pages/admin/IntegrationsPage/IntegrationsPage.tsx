@@ -33,7 +33,7 @@ const IntegrationsPage = ({
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
-  const { section } = params;
+  const { section, subsection } = params;
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   // // // settings that live under the integrations page
@@ -47,6 +47,7 @@ const IntegrationsPage = ({
     () => configAPI.loadAll(),
     {}
   );
+
   /** The common submission logic for settings that are rendered on the Integrations page, but use
    * the common configAPI.update method, the same one used by cards of the OrgSettingsPage */
   const onUpdateSettings = useCallback(
@@ -65,8 +66,10 @@ const IntegrationsPage = ({
         await configAPI.update(diff);
         renderFlash("success", "Successfully updated settings.");
         refetchConfig();
+        return true;
       } catch (err: unknown) {
         renderFlash("error", "Could not update settings");
+        return false;
       } finally {
         setIsUpdatingSettings(false);
       }
@@ -103,6 +106,7 @@ const IntegrationsPage = ({
               handleSubmit={onUpdateSettings}
               isPremiumTier={isPremiumTier}
               isUpdatingSettings={isUpdatingSettings}
+              subsection={subsection}
             />
           ) : (
             <Spinner />

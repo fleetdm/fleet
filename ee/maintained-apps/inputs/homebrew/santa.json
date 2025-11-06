@@ -1,0 +1,8 @@
+{
+  "name": "Santa",
+  "unique_identifier": "com.northpolesec.santa",
+  "token": "santa",
+  "installer_format": "dmg",
+  "slug": "santa/darwin",
+  "default_categories": ["Productivity"]
+}

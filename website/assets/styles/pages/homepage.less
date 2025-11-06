@@ -21,7 +21,7 @@
     text-transform: uppercase;
     font-family: 'Roboto Mono';
     font-weight: 400;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 120%;
     color: @core-fleet-black-75;
     margin-bottom: 8px;
@@ -48,11 +48,11 @@
   }
 
   [purpose='homepage-hero'] {
-    padding-top: 120px;
+    padding-top: 64px;
     padding-left: 64px;
     padding-bottom: 120px;
     max-width: 1200px;
-    height: 498px;
+    height: 448px;
   }
   [purpose='ticker-container'] {
     overflow: hidden;
@@ -82,11 +82,20 @@
     }
   }
   [purpose='hero-text'] {
-    max-width: 474px;
+    max-width: 500px;
     text-align: left;
     h1 {
       max-width: 640px;
       margin-bottom: 16px;
+    }
+    h4 {
+      color: #515774;
+      font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 24px;
+      text-transform: uppercase;
     }
     p {
       max-width: 412px;
@@ -97,6 +106,43 @@
       display: flex;
       flex-direction: row;
     }
+  }
+
+  [purpose='hero-quote-author'] {
+    margin-top: 24px;
+    margin-bottom: 32px;
+    [purpose='hero-quote-profile-image'] {
+      margin-right: 16px;
+      img {
+        height: 72px;
+      }
+    }
+    [purpose='quote-author-info'] {
+      [purpose='quote-author-name'] {
+        color: var(--text-text-brand, #192147);
+
+        /* Body XS (bold) */
+        font-family: Inter;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 18px; /* 150% */
+        margin-bottom: 0px;
+      }
+      [purpose='quote-author-title'] {
+        color: var(--text-text-primary, #515774);
+        font-family: Inter;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 18px;
+        margin-bottom: 0px;
+      }
+
+
+
+    }
+
   }
 
   [purpose='button-row'] {
@@ -112,11 +158,11 @@
     [purpose='cta-button'] {
       cursor: pointer;
       margin-right: 32px;
-      background: @core-vibrant-red;
+      background: @core-vibrant-green;
       border-radius: 8px;
       padding-left: 32px;
       padding-right: 32px;
-      height: 40px;
+      height: 44px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -146,8 +192,8 @@
     max-width: 1200px;
     padding-left: 60px;
     padding-right: 60px;
-    margin-top: 24px;
-    margin-bottom: 120px;
+    margin-top: 64px;
+    margin-bottom: 64px;
     [parasails-component='logo-carousel'] {
       margin-bottom: 0px;
     }
@@ -293,7 +339,7 @@
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    margin-bottom: 128px;
+    margin-bottom: 160px;
     [purpose='feature-image'] {
       img {
         width: 578px;
@@ -337,7 +383,7 @@
     flex-direction: row;
     justify-content: center;
     margin-top: 48px;
-    margin-bottom: 48px;
+    margin-bottom: 120px;
     text-decoration: none;
     h4 {
       color: #192147;
@@ -389,62 +435,15 @@
       align-items: center;
     }
   }
-
-  [purpose='quote'] {
-    max-width: 580px;
-    margin-left: auto;
-    margin-right: auto;
-    padding-bottom: 80px;
-    padding-top: 32px;
+  [purpose='testimonials-header'] {
+    margin-top: 80px;
     text-align: center;
-    text-decoration: none;
   }
-  [purpose='quote-logo'] {
-    height: 32px;
-    // margin-bottom: 16px;
-    margin-left: auto;
-    margin-right: auto;
-
-  }
-  [purpose='quote-text'] {
-    color: @core-fleet-black-75;
-    text-align: center;
-    font-size: 18px;
-    font-style: italic;
-    font-weight: 400;
-    line-height: 150%;
-    margin-bottom: 0px;
-    padding: 24px 0px;
-  }
-  [purpose='quote-attribution'] {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    [purpose='quote-author-image'] {
-      height: 48px;
-      margin-bottom: 16px;
-      border-radius: 50%;
-    }
-    [purpose='name'] {
-      color: @core-fleet-black-75;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 150%;
-      margin-bottom: 0px;
-    }
-    [purpose='job-title'] {
-      color: @core-fleet-black-75;
-      margin-bottom: 0px;
-      font-size: 12px;
-      font-weight: 400;
-      line-height: 150%;
+  [parasails-component='scrollable-tweets'] {
+    [purpose='tweets'] {
+      margin-top: 40px;
     }
   }
-
-
-
-
 
 
 
@@ -503,11 +502,11 @@
   [purpose='comparison-table-header'] {
     font-size: 16px;
     color: @core-fleet-black;
-    div {
-      padding: 12px 24px;
+    [purpose='comparison-column'] {
+      padding: 12px 16px;
     }
     [purpose='comparison-selector'] {
-      width: 152px;
+      width: 168px;
       height: 48px;
       border-radius: 8px;
       padding: 0px 12px;
@@ -519,7 +518,7 @@
       white-space: nowrap;
     }
     [purpose='comparison-selector-dropwdown'] {
-      width: 152px;
+      width: 168px;
       cursor: pointer;
       font-size: 14px;
       padding: 0px;
@@ -546,7 +545,6 @@
     p {
       font-size: 12px;
       margin-bottom: 0px;
-      white-space: nowrap;
     }
   }
   [purpose='fleet-column'] {
@@ -807,7 +805,7 @@
       gap: 4px;
       align-self: stretch;
       border-radius: 4px;
-      background: #FF5C83;
+      background: #009A7D;
       height: 37px;
       width: 92px;
 
@@ -928,8 +926,8 @@
     }
     [purpose='homepage-hero'] {
       max-width: 100%;
-      padding-top: 80px;
-      padding-bottom: 80px;
+      padding-top: 64px;
+      padding-bottom: 32px;
       height: 418px;
     }
     [purpose='hero-background-image'] {
@@ -1115,12 +1113,40 @@
 
     }
     [purpose='hero-logos'] {
+      margin-bottom: 64px;
+    }
+    [purpose='statistics'] {
       margin-bottom: 80px;
+      [purpose='statistics-column'] {
+        display: flex;
+        flex-direction: column;
+        width: 227px;
+      }
+      [purpose='countries'] {
+        border-right: none;
+        padding: 16px 32px;
+
+      }
+      [purpose='customers'] {
+        padding: 16px 32px;
+      }
+      [purpose='devices'] {
+        padding: 16px 32px;
+      }
+      [purpose='response-time'] {
+        padding: 16px 32px;
+      }
+
     }
     [purpose='hero-text'] {
       min-width: unset;
       p {
         max-width: 465px;
+      }
+      [purpose='button-row'] {
+        [purpose='cta-button'] {
+          width: 45%;
+        }
       }
     }
     [purpose='page-section'] {
@@ -1154,36 +1180,6 @@
         }
       }
     }
-
-    [purpose='quote'] {
-      padding-bottom: 32px;
-    }
-
-
-    [purpose='statistics'] {
-      [purpose='statistics-column'] {
-        display: flex;
-        flex-direction: column;
-        width: 227px;
-      }
-      [purpose='countries'] {
-        border-right: none;
-        padding: 16px 32px;
-
-      }
-      [purpose='customers'] {
-        padding: 16px 32px;
-      }
-      [purpose='devices'] {
-        padding: 16px 32px;
-      }
-      [purpose='response-time'] {
-        padding: 16px 32px;
-      }
-
-    }
-
-
 
     [purpose='three-column-features'] {
       margin-bottom: 120px;
@@ -1248,7 +1244,7 @@
         gap: 4px;
         align-self: stretch;
         border-radius: 4px;
-        background: #FF5C83;
+        background: #009A7D;
         height: 37px;
         width: 100%;
         font-family: Inter;
@@ -1290,9 +1286,6 @@
     h1 {
       font-size: 32px;
     }
-    h4 {
-      font-size: 14px;
-    }
     [purpose='option-container'] {
       height: 38.4px;
     }
@@ -1318,6 +1311,11 @@
     [purpose='hero-text'] {
       width: 100%;
       max-width: 100%;
+      [purpose='button-row'] {
+        [purpose='cta-button'] {
+          width: unset;
+        }
+      }
     }
     [purpose='feature-with-image'] {
       flex-direction: column;
@@ -1470,9 +1468,9 @@
       font-size: 28px;
       line-height: 120%;
     }
-    h4 {
-      font-size: 12px;
-    }
+    // h4 {
+    //   font-size: 12px;
+    // }
     [purpose='announcement-banner'] {
       br {
         display: block;
@@ -1491,8 +1489,7 @@
       padding-top: 44px;
       padding-left: 16px;
       padding-right: 17px;
-      padding-bottom: 187px;
-      height: 520px;
+      padding-bottom: 217px;
       [purpose='option-container'] {
         height: 33.6px;
       }

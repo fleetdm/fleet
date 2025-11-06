@@ -13,11 +13,10 @@ import {
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 import {
-  ApplePlatform,
-  APPLE_PLATFORM_DISPLAY_NAMES,
   HostPlatform,
-  isIPadOrIPhone,
   isAndroid,
+  PLATFORM_DISPLAY_NAMES,
+  isVulnUnsupportedPlatform,
 } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
@@ -42,6 +41,28 @@ const baseClass = "host-software-table";
 interface IHostSoftwareRowProps extends Row {
   original: IHostSoftware;
 }
+
+interface IEmptyComponentProps {
+  hasVulnFilters: boolean;
+  platform: HostPlatform;
+  searchQuery: string;
+}
+
+const EmptyComponent = React.memo(
+  ({ hasVulnFilters, platform, searchQuery }: IEmptyComponentProps) => {
+    const vulnFilterAndNotSupported =
+      hasVulnFilters && isVulnUnsupportedPlatform(platform);
+    return vulnFilterAndNotSupported ? (
+      <VulnsNotSupported platformText={PLATFORM_DISPLAY_NAMES[platform]} />
+    ) : (
+      <EmptySoftwareTable
+        noSearchQuery={searchQuery === ""}
+        platform={platform}
+      />
+    );
+  }
+);
+
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
@@ -53,12 +74,10 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
-  routeTemplate?: string;
-  pathPrefix: string;
   vulnFilters: ISoftwareVulnFiltersParams;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
 }
 
 const HostSoftwareTable = ({
@@ -72,12 +91,10 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
-  routeTemplate,
-  pathPrefix,
   vulnFilters,
   onAddFiltersClick,
   isMyDevicePage,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
 }: IHostSoftwareTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -149,17 +166,6 @@ const HostSoftwareTable = ({
     return <TableCount name="items" count={count} />;
   }, [count, isSoftwareNotDetected]);
 
-  const memoizedEmptyComponent = useCallback(() => {
-    const vulnFilterAndNotSupported = isIPadOrIPhone(platform);
-    return vulnFilterAndNotSupported ? (
-      <VulnsNotSupported
-        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
-      />
-    ) : (
-      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
-    );
-  }, [platform, searchQuery]);
-
   // Determines if a user should be able to filter or search in the table
   const hasData = data && data.software.length > 0;
   const hasQuery = searchQuery !== "";
@@ -170,24 +176,10 @@ const HostSoftwareTable = ({
 
   const onClickMyDeviceRow = useCallback(
     (row: IHostSoftwareRowProps) => {
-      onShowSoftwareDetails(row.original);
+      onShowInventoryVersions(row.original);
     },
-    [onShowSoftwareDetails]
+    [onShowInventoryVersions]
   );
-
-  if (isAndroid(platform)) {
-    return (
-      <EmptyTable
-        header="Software is not supported for this host"
-        info={
-          <>
-            Interested in viewing software for Android hosts?{" "}
-            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-          </>
-        }
-      />
-    );
-  }
 
   const renderCustomFiltersButton = () => {
     return (
@@ -200,8 +192,8 @@ const HostSoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="core-fleet-blue" />
+        <Button variant="inverse" onClick={onAddFiltersClick}>
+          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>
@@ -223,7 +215,13 @@ const HostSoftwareTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        emptyComponent={memoizedEmptyComponent}
+        emptyComponent={() => (
+          <EmptyComponent
+            hasVulnFilters={hasVulnFilters}
+            platform={platform}
+            searchQuery={searchQuery}
+          />
+        )}
         customFiltersButton={
           showFilterHeaders ? renderCustomFiltersButton : undefined
         }

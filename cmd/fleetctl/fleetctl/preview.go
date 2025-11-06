@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -24,19 +25,19 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
-	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/go-github/v37/github"
 	"github.com/mitchellh/go-ps"
+	"github.com/rs/zerolog"
 	"github.com/urfave/cli/v2"
 )
 
 type dockerComposeVersion int
 
 const (
-	standardQueryLibraryUrl   = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
 	licenseKeyFlagName        = "license-key"
 	tagFlagName               = "tag"
 	previewConfigFlagName     = "preview-config"
@@ -45,7 +46,7 @@ const (
 	osquerydChannel           = "osqueryd-channel"
 	updateURL                 = "update-url"
 	updateRootKeys            = "update-roots"
-	stdQueryLibFilePath       = "std-query-lib-file-path"
+	starterLibraryFilePath    = "starter-library-file-path"
 	previewConfigPathFlagName = "preview-config-path"
 	disableOpenBrowser        = "disable-open-browser"
 
@@ -145,8 +146,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Value: "",
 			},
 			&cli.StringFlag{
-				Name:  stdQueryLibFilePath,
-				Usage: "Use custom standard query library yml file (used for development/testing)",
+				Name:  starterLibraryFilePath,
+				Usage: "Use custom starter library yml file (used for development/testing)",
 				Value: "",
 			},
 			&cli.StringFlag{
@@ -370,37 +371,23 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			client.SetToken(token)
 
-			fmt.Println("Loading standard query library...")
-			var buf []byte
-			if fp := c.String(stdQueryLibFilePath); fp != "" {
-				var err error
-				buf, err = os.ReadFile(fp)
-				if err != nil {
-					return fmt.Errorf("failed to read standard query library file %q: %w", fp, err)
-				}
-			} else {
-				var err error
-				buf, err = downloadStandardQueryLibrary()
-				if err != nil {
-					return fmt.Errorf("failed to download standard query library: %w", err)
-				}
+			fmt.Println("Loading starter library...")
+
+			logger := kitlog.NewNopLogger()
+			if c.Bool(debugFlagName) {
+				logger = kitlog.NewLogfmtLogger(os.Stderr)
 			}
 
-			specs, err := spec.GroupFromBytes(buf)
-			if err != nil {
-				return err
-			}
-			logf := func(format string, a ...interface{}) {
-				fmt.Fprintf(c.App.Writer, format, a...)
-			}
-			// this only applies standard queries, the base directory is not used,
-			// so pass in the current working directory.
-			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
-			teamsScripts := make(map[string][]fleet.ScriptResponse)
-			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
-			_, _, _, _, err = client.ApplyGroup(c.Context, false, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
-			if err != nil {
-				return err
+			if err := service.ApplyStarterLibrary(
+				c.Context,
+				address,
+				token,
+				logger,
+				fleethttp.NewClient,
+				service.NewClient,
+				nil, // No mock ApplyGroup for production code
+			); err != nil {
+				return fmt.Errorf("failed to apply starter library: %w", err)
 			}
 
 			// disable analytics collection and enable software inventory for preview
@@ -429,16 +416,18 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error disabling analytics collection in app config: %w", err)
 			}
 
+			fmt.Println()
 			fmt.Println("Fleet will now log you into the UI automatically.")
 			fmt.Println("You can also open the UI at this URL: http://localhost:1337/previewlogin.")
-			fmt.Println("Email:", email)
-			fmt.Println("Password:", password)
+			fmt.Println("Email:\033[1m", email, "\033[0m")
+			fmt.Println("Password:\033[1m", password, "\033[0m")
+			fmt.Println()
 
 			if !c.Bool(noHostsFlagName) {
 				fmt.Println("Enrolling local host...")
 
 				orbitDir := filepath.Join(previewDir, "orbit")
-				if err := downloadOrbitAndStart(orbitDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel), c.String(updateURL), c.String(updateRootKeys)); err != nil {
+				if err := downloadOrbitAndStart(orbitDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel), c.String(updateURL), c.String(updateRootKeys), c.Bool(debugFlagName)); err != nil {
 					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
 				}
 
@@ -574,26 +563,15 @@ func downloadFromFleetRepo(
 	return nil
 }
 
-func downloadStandardQueryLibrary() ([]byte, error) {
-	resp, err := http.Get(standardQueryLibraryUrl)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %d", resp.StatusCode)
-	}
-	buf, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response body: %w", err)
-	}
-	return buf, nil
-}
-
 func waitStartup() error {
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
 
 	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
+
+	spin := spinner.New([]string{"|", "/", "-", "\\"}, 250*time.Millisecond)
+	spin.Start()
+	defer spin.Stop()
 
 	if err := backoff.Retry(
 		func() error {
@@ -679,6 +657,12 @@ func previewStopCommand() *cli.Command {
 				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
+			fmt.Println("Stopping services...")
+
+			spin := spinner.New([]string{"|", "/", "-", "\\"}, 250*time.Millisecond)
+			spin.Start()
+			defer spin.Stop()
+
 			out, err := compose.Command("stop").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -703,6 +687,9 @@ func previewStopCommand() *cli.Command {
 			if err := stopOrbit(orbitDir); err != nil {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
+
+			// Spinner stop can be called multiple times, just make sure we don't spin over the message
+			spin.Stop()
 
 			fmt.Println("Fleet preview server and dependencies stopped. Start again with fleetctl preview.")
 
@@ -810,7 +797,7 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
-func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel, updateURL, updateRoots string) error {
+func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel, updateURL, updateRoots string, debug bool) error {
 	if err := os.MkdirAll(destDir, constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("create orbit directory %q: %w", destDir, err)
 	}
@@ -848,6 +835,10 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		updateOpt.RootKeys = updateRoots
 	}
 
+	if !debug {
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	}
+
 	if _, err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)
 	}
@@ -857,11 +848,16 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		return fmt.Errorf("failed to locate executable for %s: %w", constant.OrbitTUFTargetName, err)
 	}
 
+	dbgFlag := "--debug=false"
+	if debug {
+		dbgFlag = "--debug=true"
+	}
+
 	cmd := exec.Command(orbitPath,
 		"--root-dir", destDir,
 		"--fleet-url", address,
 		"--insecure",
-		"--debug",
+		dbgFlag,
 		"--enroll-secret", enrollSecret,
 		"--orbit-channel", orbitChannel,
 		"--osqueryd-channel", osquerydChannel,

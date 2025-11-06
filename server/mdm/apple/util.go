@@ -26,15 +26,6 @@ func newPrivateKey() (*rsa.PrivateKey, error) {
 	return rsa.GenerateKey(rand.Reader, rsaKeySize)
 }
 
-// EncodeCertPEM returns PEM-endcoded certificate data.
-func EncodeCertPEM(cert *x509.Certificate) []byte {
-	block := pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert.Raw,
-	}
-	return pem.EncodeToMemory(&block)
-}
-
 func EncodeCertRequestPEM(cert *x509.CertificateRequest) []byte {
 	pemBlock := &pem.Block{
 		Type:    "CERTIFICATE REQUEST",
@@ -43,15 +34,6 @@ func EncodeCertRequestPEM(cert *x509.CertificateRequest) []byte {
 	}
 
 	return pem.EncodeToMemory(pemBlock)
-}
-
-// EncodePrivateKeyPEM returns PEM-encoded private key data
-func EncodePrivateKeyPEM(key *rsa.PrivateKey) []byte {
-	block := pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
-	}
-	return pem.EncodeToMemory(&block)
 }
 
 // GenerateRandomPin generates a `lenght`-digit PIN number that takes into

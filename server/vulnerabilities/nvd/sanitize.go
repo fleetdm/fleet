@@ -238,6 +238,8 @@ func targetSW(s *fleet.Software) string {
 		return "windows"
 	case "vscode_extensions":
 		return "visual_studio_code"
+	case "jetbrains_plugins":
+		return "intellij"
 	}
 	return "*"
 }

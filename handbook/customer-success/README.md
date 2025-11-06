@@ -7,18 +7,18 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
+| SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
-| Customer Solutions Architect (CSA)    | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_ <br> [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_ <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_
+| Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
+| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 | Customer Success Manager (CSM)        | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
-| Customer Support Engineer (CSE)       | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups) 
-
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
 
 ## Contact us
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1)).
-  - Any Fleet team member can [view the kanban board](https://github.com/fleetdm/fleet#workspaces/-g-customer-success-642c83a53e96760014c978bd/board) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/79) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 
@@ -27,9 +27,19 @@ This handbook page details processes specific to working [with](#contact-us) and
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 
 
+### Respond to a "Contact us" job application submission
+
+1. Applications for open roles at Fleet come through the "Contact us" form.
+2. The contact form generates a new ticket in Unthread. 
+3. Within 4 business hours, the assigned CSE sends an email from their Gmail account to the applicant using the suggested response template under "Applying for open position" [in this internal file](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=695748028#gid=695748028). Remember that contact form messages cannot be replied to in Unthread. 
+5. CC the Interim Head of People on all job application emails.
+6. Remember to include the title of the position being applied for, as is requested in the response template.
+7. Add a closure note or include copy of your response as an internal note in the unthread ticket, and close the ticket.
+
+
 ### Assign a customer codename
 
-Occasionally, we will need to track public issues for customers and prospects who wish to remain anonymous on our public issue tracker. To do this: 
+We track public issues for customers and prospects who wish to remain anonymous on our public issue tracker. To do this: 
 
 1. The team member creating the issue will choose an appropriate minor planet name from this [minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
 2. Create a label in the fleetdm/fleet and fleetdm/confidential repos which can be attached to current and future issues for the customer or prospect. As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
@@ -44,16 +54,37 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 3. Update notes for which version of Fleet the customer is running (if self-hosted)
 4. Follow ups to the agenda from the previous call or Slack
 5. Provide updates to open feature requests (can be done monthly or quarterly)
-6. Provide updates to open bug reports
 
 
- ### Invite new customer DRI
+### Gather status updates for open issues
+
+When on call, CSEs/CSAs will start their day by following these steps to gather status updates for open issues:
+1. Search Unthread for open conversations by the customer name.
+2. Search GitHub issues for `label:bug` and `label:customer-codename`.
+3. Debrief with any internal resources in order to gather information if needed, and be prepared to provide a status update.
+
+### Perform morning triage
+
+The first CSE to sign on for the day is responsible for triaging new support issues that were reported after hours. The following actions are a general guideline for what should be checked during morning triage:
+1. Look at all new support requests and immediately respond to any urgent or high-priority issues.
+2. Check the osquery Slack channel/Unthread for support issues.
+3. Check the MacAdmins Slack channel for support issues.
+   > FYI: MacAdmins Slack messages are not populated in Unthread.
+4. Check the "Unassigned" queue in Unthread and re-assign any issues from after hours to the appropriate resource.
+5. Check the "All" queue in Unthread for potential after-hours mis-assigned issues and re-assign them to the appropriate resource.
+6. Look at all customer meetings for the day to check that they can be attended by a CSE/CSA and that there are no scheduling conflicts.
+7. Update the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel that morning triage is complete. Report any escalations or conflicts with customer meetings to the [Manager of Customer Success and Solutions Architecture](https://fleetdm.com/handbook/customer-success#team).
+
+Other CSEs that sign on after morning triage has been completed should check the morning triage thread in the #help-customers Slack channel to learn what items are still outstanding.
+
+
+### Invite new customer DRI
 
 Sometimes there is a change in the champion within the customer's organization.
 1. Get an introduction to the new DRIs including names, roles, contact information.
 2. Make sure they're in the Slack channel.
 3. Invite them to the *Success* meetings.
-4. In the first meeting understand their proficiency level of osquery.
+4. In the first meeting understand their proficiency level with Fleet.
     1. Make sure the meeting time is still convenient for their team. 
     2. Understand their needs and goals for visibility.
     3. Offer training to get them up to speed.
@@ -95,13 +126,22 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 
-### Create customer support issue
+### Close out a completed customer promise
 
-Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
-- Make sure the issue has a "customer request" label or "customer-codename" label.
-  - Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
-- "+" prefixed labels (e.g., "+more info please") indicate we are waiting on an answer from an external community member who does not work at Fleet or that no further action is needed from the Fleet team until an external community member, who doesn't work at Fleet, replies with a comment. At this point, our bot will automatically remove the +-prefixed label.
-1. Required details that will help speed up time to resolution:
+Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. Document the completion of a customer promise through the following steps:
+1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask the assigned CSM for confirmation from the customer.
+2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
+3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
+4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
+5. Once you have received email confirmation of the completed promise, you may then close out the related issue in GitHub.
+
+
+### File a customer bug report
+
+Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure to do the following:
+- Include a "customer-codename" label.
+  - [Search the confidential repo labels](https://github.com/fleetdm/confidential/labels) for an existing codename or [create a new one](https://github.com/fleetdm/confidential/labels) if one does not exist.
+- Include required details that will help speed up time to resolution:
     - Fleet server version
     - Agent version 
         - Osquery or fleetd?
@@ -109,7 +149,8 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
     - Web browser
     - Expected behavior
     - Actual behavior
-2. Details that are nice to have but not required. These may be requested by Fleet support as needed:
+- Mandatory to include reproduction steps. If a Fleet team member is unable to reproduce the issue, include the steps that were taken by the customer that resulted in the issue occurring. It is also helpful to grab a Gong snippet of the issue as experienced by the customer. 
+- Include additional details that are nice to have but not required. These may be requested by Fleet engineering as needed:
     - Amount of total hosts
     - Amount of online hosts
     - Amount of scheduled queries
@@ -126,13 +167,31 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
 
+### Escalate a customer bug report
+
+1. When a CSE suspects that a customer is impacted by a bug, a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) is filed immediately.
+2. Remove `:incoming` and `:reproduce` labels, and include the `~investigate` [label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A~investigate) and the `:help-customers` label.
+3. All suspected bug reports with the `~investigate` label are reviewed on the `:help-customers` stand-up daily. The Manager of CSE/CSA will acknowledge the bug report with a comment in the issue. 
+4. If a bug appears on stand-up for a second business day, the label is removed. Any available logs, reproduction steps, and details are updated on the issue.
+    1. If we are able to reproduce the bug, the issue can be sent straight to the `:product` drafting board for review and triage by the Head of Product Design.
+    2. If we are unable to reproduce the bug, the `:incoming` and `:reproduce` labels should be added back in so the bug can be triaged by the QA team.
+
+
+### Timebox an investigation
+
+During the window of time available to investigate an issue, use the resources at your disposal such as:
+  - Request applicable logs from the customer.
+  - Jump on a Zoom call with the customer if it would help gather reproduction steps (coordinate with the CSM).
+  - Block time on your calendar (maximum 1 hour at a time) to dig into the issue further.
+  - Escalate to other CSE's or CSA's.
+  - Contact the developer on-call.
+
+
 ### Contact the developer on-call
 
 The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0&range=F2 ). The developer on-call is responsible for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the CSE team cannot address.
 - To reach the developer on-call for assistance, mention them in Fleet Slack using `@oncall` in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) channel. 
   - Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
-
-> **Note:** Additional help can be obtained by messaging a [Solutions Consultant](https://fleetdm.com/handbook/sales#team) in the [#help-solutions-consulting channel](https://fleetdm.slack.com/archives/C05HZ2LHEL8).
 
 - An automated weekly [on-call handoff](https://fleetdm.com/handbook/engineering#handoff) Slack thread in #g-engineering provides the opportunity to discuss highlights, improvements, and hand off ongoing issues.
 
@@ -153,7 +212,7 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
     - Posted outside of Fleet’s business hours
     - In a specific customer channel (manually designated by customer success)   
 3. (Slack) Notify the sender that the request has been submitted outside of business hours and provide them with options for escalation in the event of a P0 or P1 incident.
-4. (Zapier) Send a text to the VP of CS to begin the emergency request flow if triggered by the original sender. 
+4. (Zapier) Send a text to the SVP of CS to begin the emergency request flow if triggered by the original sender. 
 
 > **Note:** New customer channels that the automation will run in must be configured manually. Submit requests for additions to the Zapier administrator. 
 
@@ -163,7 +222,7 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
 1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
     - [Here is a tutorial on using the self-service method](https://www.loom.com/share/048474d7199048e1bf0c4fc106632129) (internal video)
     - Pre-sales license key DRI is the Director of Solutions Consulting
-    - Post-sales license key DRI is the VP of Customer Success
+    - Post-sales license key DRI is the SVP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
@@ -190,9 +249,14 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) adds the `~customer request` label to the feature request issue and files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-Sometimes during drafting or after the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring wireframes or released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-customer-success` label.
+After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
 
 If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
+
+### Manage DNS records
+
+Fleet-managed DNS records are maintained in Cloudflare using Terraform.  
+See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
 
 
 ## Rituals

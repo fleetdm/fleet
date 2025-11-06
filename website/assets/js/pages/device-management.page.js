@@ -4,16 +4,17 @@ parasails.registerPage('device-management-page', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: '',
-    comparisonMode: 'sccm',
+    comparisonMode: 'omnissa',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
-      omnissa: 'Omnissa (WS1)',
+      omnissa: 'Workspace ONE',
       intune: 'Intune',
       tanium: 'Tanium',
       ansible: 'Ansible',
       puppet: 'Puppet',
-      chef: 'Chef'
+      chef: 'Chef',
+      patchmypc: 'PatchMyPC'
     }
   },
 
@@ -55,9 +56,6 @@ parasails.registerPage('device-management-page', {
       }
       if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
-      }
-      if(window.analytics !== undefined) {
-        analytics.track('fleet_website__swag_request');
       }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0#from_page=device-managment');
     },

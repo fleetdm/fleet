@@ -2,9 +2,13 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
-import { IHostAppStoreApp, IHostSoftware } from "interfaces/software";
+import {
+  IHostSoftwareWithUiStatus,
+  IHostAppStoreApp,
+  IHostSoftware,
+  IVPPHostSoftware,
+} from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
@@ -12,23 +16,29 @@ import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import InstallerActionCell from "../InstallerActionCell";
-import InstallStatusCell from "../../Software/InstallStatusCell";
 
-type ISoftwareTableConfig = Column<IHostSoftware>;
-type ITableHeaderProps = IHeaderProps<IHostSoftware>;
-type ITableStringCellProps = IStringCellProps<IHostSoftware>;
+import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import HostInstallerActionCell from "../HostInstallerActionCell";
+import InstallStatusCell from "../../Software/InstallStatusCell";
+import { installStatusSortType } from "../../Software/helpers";
+
+type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
+type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
+type ITableStringCellProps = IStringCellProps<IHostSoftwareWithUiStatus>;
 type IInstalledStatusCellProps = CellProps<
-  IHostSoftware,
-  IHostSoftware["status"]
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["ui_status"]
 >;
 type IVersionsCellProps = CellProps<
-  IHostSoftware,
-  IHostSoftware["installed_versions"]
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["installed_versions"]
 >;
-type IActionCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
+type IActionCellProps = CellProps<
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["status"]
+>;
 
 interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
@@ -37,9 +47,16 @@ interface IHostSWLibraryTableHeaders {
   teamId: number;
   hostMDMEnrolled?: boolean;
   baseClass: string;
-  onShowSoftwareDetails?: (software?: IHostSoftware) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
-  onClickInstallAction: (softwareId: number) => void;
+  onShowInventoryVersions?: (software?: IHostSoftware) => void;
+  onShowUpdateDetails: (software?: IHostSoftware) => void;
+  onSetSelectedHostSWInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWIpaInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWScriptDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWUninstallDetails: (
+    details?: ISWUninstallDetailsParentState
+  ) => void;
+  onSetSelectedVPPInstallDetails: (s: IVPPHostSoftware) => void;
+  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
   onClickUninstallAction: (softwareId: number) => void;
   isHostOnline: boolean;
   hostName: string;
@@ -54,12 +71,16 @@ export const generateHostSWLibraryTableHeaders = ({
   teamId,
   hostMDMEnrolled,
   baseClass,
-  onShowSoftwareDetails,
-  onShowUninstallDetails,
+  onShowInventoryVersions,
+  onShowUpdateDetails,
+  onSetSelectedHostSWInstallDetails,
+  onSetSelectedHostSWIpaInstallDetails,
+  onSetSelectedHostSWScriptDetails,
+  onSetSelectedHostSWUninstallDetails,
+  onSetSelectedVPPInstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
   isHostOnline,
-  hostName,
 }: IHostSWLibraryTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -73,6 +94,7 @@ export const generateHostSWLibraryTableHeaders = ({
           id,
           name,
           source,
+          icon_url,
           app_store_app,
           software_package,
         } = cellProps.row.original;
@@ -93,7 +115,7 @@ export const generateHostSWLibraryTableHeaders = ({
           <SoftwareNameCell
             name={name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}
@@ -107,13 +129,19 @@ export const generateHostSWLibraryTableHeaders = ({
     {
       Header: () => <HeaderCell disableSortBy value="Status" />,
       disableSortBy: true,
-      accessor: "status",
+      accessor: "ui_status",
+      sortType: installStatusSortType,
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
         return (
           <InstallStatusCell
             software={original}
-            onShowSoftwareDetails={onShowSoftwareDetails}
-            onShowUninstallDetails={onShowUninstallDetails}
+            onShowInventoryVersions={onShowInventoryVersions}
+            onShowUpdateDetails={onShowUpdateDetails}
+            onShowInstallDetails={onSetSelectedHostSWInstallDetails}
+            onShowIpaInstallDetails={onSetSelectedHostSWIpaInstallDetails}
+            onShowScriptDetails={onSetSelectedHostSWScriptDetails}
+            onShowVPPInstallDetails={onSetSelectedVPPInstallDetails}
+            onShowUninstallDetails={onSetSelectedHostSWUninstallDetails}
             isHostOnline={isHostOnline}
           />
         );
@@ -152,14 +180,16 @@ export const generateHostSWLibraryTableHeaders = ({
     },
     {
       Header: "Actions",
-      accessor: (originalRow) => originalRow.status,
+      accessor: (originalRow) => originalRow.ui_status,
       disableSortBy: true,
       Cell: (cellProps: IActionCellProps) => {
         return (
-          <InstallerActionCell
+          <HostInstallerActionCell
             software={cellProps.row.original}
             onClickInstallAction={onClickInstallAction}
-            onClickUninstallAction={onClickUninstallAction}
+            onClickUninstallAction={() =>
+              onClickUninstallAction(cellProps.row.original.id)
+            }
             baseClass={baseClass}
             hostScriptsEnabled={hostScriptsEnabled}
             hostMDMEnrolled={hostMDMEnrolled}

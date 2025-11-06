@@ -1,4 +1,4 @@
-name: Code sign Windows binaries with DigiCert KeyLocker KSP
+name: Code sign Windows binaries with DigiCert KeyLocker KSP, optionally attest
 
 on:
   workflow_call:
@@ -17,6 +17,11 @@ on:
         required: false
         default: 'signed-windows'
         type: string
+      attest:
+        description: 'Whether to run attestation on the signed binary'
+        required: false
+        type: boolean
+        default: false
     secrets:
       DIGICERT_KEYLOCKER_CERTIFICATE:
         required: true
@@ -31,6 +36,8 @@ on:
 
 permissions:
   contents: read
+  id-token: write # required for attestations
+  attestations: write # required for attestations
 
 jobs:
   code-sign-windows:
@@ -89,6 +96,13 @@ jobs:
           copy unsigned.exe signed.exe
           signtool.exe verify /v /pa ${{ inputs.filename }}
         shell: cmd
+
+      - name: Attest binary
+        if: ${{ inputs.attest }}
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: ${{ inputs.filename }}
 
       - name: Upload signed artifact
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3

@@ -78,21 +78,23 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10+, Server 2012+    |
-| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Debian 11+ |
-| ChromeOS   | 112.0.5615.134+                        |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy |
+| ChromeOS   | 112.0.5615.134+                         |
+| Android    | 13+                                     |
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
 ## Some notes on compatibility
 
 ### Tables
+
 Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
 
 If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
 
 ### Linux
 
-Fleet Desktop is supported on Ubuntu, Fedora, and Debian.
+Fleet Desktop is supported on Ubuntu, Fedora, Debian, and Arch Linux, and Omarchy.
 
 Fedora and Debian hosts require a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) for Fleet Desktop.
 
@@ -226,7 +228,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 
 #### What are my options for storing the osquery logs?
 
-Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
+Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
 Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
 `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
@@ -637,7 +639,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.36, 8.4.5, and 9.3.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36, 8.4.6, and 9.4.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 
@@ -700,7 +702,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36 and 8.4.2](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47)
+Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36, 8.4.6, and 9.4.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51)
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 

@@ -13,7 +13,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#refresh-event-calendar"
   dri: "irenareedy"
   autoIssue:   
-    labels: [ "#g-digital-experience" ]
+    labels: [ ":help-marketing" ]
     repo: fleet
 -
   task: "Settle event strategy"
@@ -30,33 +30,22 @@
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#optimize-ads-through-experimentation"
   dri: "mikermcneil"
 -
-  task: "Process pending swag requests from the website" # Title that will actually show in rituals table
+  task: "Process pending swag requests" # Title that will actually show in rituals table
   startedOn: "2025-04-02" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Daily" # must be supported by
   description: "Complete draft orders." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#process-pending-swag-requests-from-the-website" #URL used to highlight "description:" test in table
-  dri: "onasismunro" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  dri: "irenareedy" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
 - 
   task: "Publish ☁️🌈 Sprint demos"
   startedOn: "2023-11-03"
   frequency: "Triweekly"
   description: "Every release cycle, upload the ☁️🌈 Sprint demos video to YouTube"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#upload-to-youtube"
-  dri: "onasismunro"
-- 
-  task: "Measure intent signals"
-  startedOn: "2024-08-09"
-  frequency: "Daily"
-  description: "Measure intent signals and update Salesforce"
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#measure-intent-signals"
-  dri: "onasismunro"
-- 
-  task: "Research accounts"
-  startedOn: "2024-08-09"
-  frequency: "Daily"
-  description: "Research 10 research-ready accounts starting with this Salesforce report (https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002MuC52AK/view) and advance them to 'Ads running'"
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#research-an-account"
-  dri: "onasismunro"
+  dri: "irenareedy"
+  autoIssue:   
+    labels: [ ":help-marketing" ]
+    repo: "confidential"
 -
   task: "Check ongoing events"
   startedOn: "2024-10-21"
@@ -64,4 +53,40 @@
   description: "Check event issues and complete steps."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
   dri: "irenareedy"
-
+-
+  task: "Check that there is sufficient availability for scheduling demos via fleetdm.com/contact"
+  startedOn: "2024-10-25"
+  frequency: "Weekly"
+  description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
+  moreInfoUrl: ""
+  dri: "irenareedy"
+-
+  task: "Prepare Let's get you set up meeting notes"
+  startedOn: "2025-05-30"
+  frequency: "Weekly"
+  description: "Before each group call, copy the attendees from the Lets get you set up! (group office hours) calendar event and paste them into the correct section of the [Let's get you set up! meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#prepare-lets-get-you-set-up-meeting-notes"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"
+-
+  task: "Update content calendar"
+  startedOn: "2025-08-04"
+  frequency: "Weekly"
+  description: "Every Monday, the Content Specialist will verify that the next two weeks of content are completely planned and the content calendar is updated."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=390351382#gid=390351382"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"
+-
+  task: "Update KPIs"
+  startedOn: "2025-08-08"
+  frequency: "Weekly"
+  description: "Every Friday, the Content Specialist will fill out the weekly marketing KPIs."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"

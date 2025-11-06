@@ -1,5 +1,8 @@
 packages:
-  - hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
+  - categories:
+    - Browsers
+    hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
+    setup_experience: true
     install_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-install
     labels_include_any:
@@ -18,3 +21,7 @@ app_store_apps:
     labels_exclude_any:
      - Label C
      - Label D
+    categories:
+    - Productivity
+    - Utilities
+    self_service: true

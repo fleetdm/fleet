@@ -145,7 +145,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 
 	// create an orbit host, assign to team
 	hostInTeam := createOrbitEnrolledHost(t, "linux", "orbit-host-team", s.ds)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &createTeamResp.Team.ID, []uint{hostInTeam.ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&createTeamResp.Team.ID, []uint{hostInTeam.ID})))
 
 	// Create a software installation request
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, titleID), installSoftwareRequest{},

@@ -197,6 +197,21 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "visual_studio_code"
 			},
 		},
+		// When we're inventorying the Steam launcher for Dota, version recorded is 1.0,
+		// which shows a bunch of false positive CVEs. See #34323.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2020-7949": {},
+				"CVE-2020-7950": {},
+				"CVE-2020-7951": {},
+				"CVE-2020-7952": {},
+				"CVE-2020-9005": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "valvesoftware" && cpeMeta.Product == "dota_2" &&
+					cpeMeta.TargetSW == "macos" && (cpeMeta.Version == "1\\.0" || cpeMeta.Version == "1\\.0\\.0")
+			},
+		},
 		// Issue #18733 incorrect CPEs that should be matching
 		// visual studio code extensions
 		CPEMatchingRule{
@@ -217,15 +232,6 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell"
-			},
-		},
-		// CVE-2025-21171 only affects RC versions of PowerShell, see https://github.com/PowerShell/Announcements/issues/72
-		CPEMatchingRule{
-			CVEs: map[string]struct{}{
-				"CVE-2025-21171": {},
-			},
-			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
-				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == ""
 			},
 		},
 		// Old macos CPEs without version constraints that should be ignored

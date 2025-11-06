@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -47,10 +48,15 @@ const (
 	defaultTeamFeaturesExpiration      = 1 * time.Minute
 	teamMDMConfigKey                   = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration     = 1 * time.Minute
+	defaultTeamConfigKey               = "DefaultTeamConfig"
+	defaultDefaultTeamConfigExpiration = 1 * time.Minute
 	queryByNameKey                     = "QueryByName:team:%d:%s"
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
+	yaraRuleCachePrefix                = "YaraRuleByName:"
+	yaraRuleByNameKey                  = yaraRuleCachePrefix + "%s"
+	defaultYaraRuleByNameExpiration    = 1 * time.Minute
 	// NOTE: MDM assets are cached using their checksum as well, as it's
 	// important for them to always be fresh if they changed (see cachedi
 	// mplementation below for details)
@@ -114,8 +120,10 @@ type cachedMysql struct {
 	teamAgentOptionsExp  time.Duration
 	teamFeaturesExp      time.Duration
 	teamMDMConfigExp     time.Duration
+	defaultTeamConfigExp time.Duration
 	queryByNameExp       time.Duration
 	queryResultsCountExp time.Duration
+	yaraRuleByNameExp    time.Duration
 	mdmConfigAssetExp    time.Duration
 }
 
@@ -169,9 +177,21 @@ func WithQueryResultsCountExpiration(d time.Duration) Option {
 	}
 }
 
+func WithYaraRuleByNameExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.yaraRuleByNameExp = d
+	}
+}
+
 func WithMDMConfigAssetExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.mdmConfigAssetExp = d
+	}
+}
+
+func WithDefaultTeamConfigExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.defaultTeamConfigExp = d
 	}
 }
 
@@ -185,8 +205,10 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		teamAgentOptionsExp:  defaultTeamAgentOptionsExpiration,
 		teamFeaturesExp:      defaultTeamFeaturesExpiration,
 		teamMDMConfigExp:     defaultTeamMDMConfigExpiration,
+		defaultTeamConfigExp: defaultDefaultTeamConfigExpiration,
 		queryByNameExp:       defaultQueryByNameExpiration,
 		queryResultsCountExp: defaultQueryResultsCountExpiration,
+		yaraRuleByNameExp:    defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:    defaultMDMConfigAssetExpiration,
 	}
 	for _, fn := range opts {
@@ -447,4 +469,70 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 	}
 
 	return cachedAssets, nil
+}
+
+func (ds *cachedMysql) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
+	if x, found := ds.c.Get(ctx, defaultTeamConfigKey); found {
+		if cfg, ok := x.(*fleet.TeamConfig); ok {
+			return cfg, nil
+		}
+	}
+
+	cfg, err := ds.Datastore.DefaultTeamConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, defaultTeamConfigKey, cfg, ds.defaultTeamConfigExp)
+
+	return cfg, nil
+}
+
+func (ds *cachedMysql) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
+	err := ds.Datastore.SaveDefaultTeamConfig(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate the cache
+	ds.c.Delete(defaultTeamConfigKey)
+
+	return nil
+}
+
+func (ds *cachedMysql) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	key := fmt.Sprintf(yaraRuleByNameKey, name)
+
+	if x, found := ds.c.Get(ctx, key); found {
+		if rule, ok := x.(*fleet.YaraRule); ok {
+			return rule, nil
+		}
+	}
+
+	rule, err := ds.Datastore.YaraRuleByName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, key, rule, ds.yaraRuleByNameExp)
+
+	return rule, nil
+}
+
+func (ds *cachedMysql) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
+	err := ds.Datastore.ApplyYaraRules(ctx, rules)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate all cached YARA rules
+	// We need to flush all because we don't know which rules were added/removed/modified
+	items := ds.c.Items()
+	for k := range items {
+		if strings.HasPrefix(k, yaraRuleCachePrefix) {
+			ds.c.Delete(k)
+		}
+	}
+
+	return nil
 }

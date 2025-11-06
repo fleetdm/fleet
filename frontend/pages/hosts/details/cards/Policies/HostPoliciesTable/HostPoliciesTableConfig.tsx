@@ -5,10 +5,10 @@ import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { noop } from "lodash";
 
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import POLICY_STATUS_TO_INDICATOR_PARAMS from "components/policies/helpers";
 
 interface IEnhancedHostPolicy extends IHostPolicy {
   status: PolicyStatus | null;
@@ -54,21 +54,9 @@ const getPolicyStatus = (policy: IHostPolicy): PolicyStatus | null => {
   return null;
 };
 
-const POLICY_STATUS_TO_INDICATOR_PARAMS: Record<
-  PolicyStatus,
-  [IndicatorStatus, string]
-> = {
-  pass: ["success", "Pass"],
-  fail: ["failure", "Fail"],
-  actionRequired: ["actionRequired", "Action required"],
-};
-
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generatePolicyTableHeaders = (
-  togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void,
-  currentTeamId?: number
-): IDataColumn[] => {
+const generatePolicyTableHeaders = (currentTeamId?: number): IDataColumn[] => {
   return [
     {
       title: "Name",
@@ -78,7 +66,14 @@ const generatePolicyTableHeaders = (
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
 
-        return <LinkCell customOnClick={noop} tooltipTruncate value={name} />;
+        return (
+          <LinkCell
+            className="w400"
+            customOnClick={noop}
+            tooltipTruncate
+            value={name}
+          />
+        );
       },
     },
     {

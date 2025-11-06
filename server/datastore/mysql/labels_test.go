@@ -34,13 +34,15 @@ func TestBatchHostnamesLarge(t *testing.T) {
 		large = append(large, strconv.Itoa(i))
 	}
 	batched := batchHostnames(large)
-	require.Equal(t, 6, len(batched))
-	assert.Equal(t, large[:20_000], batched[0])
-	assert.Equal(t, large[20_000:40_000], batched[1])
-	assert.Equal(t, large[40_000:60_000], batched[2])
-	assert.Equal(t, large[60_000:80_000], batched[3])
-	assert.Equal(t, large[80_000:100_000], batched[4])
-	assert.Equal(t, large[100_000:110_000], batched[5])
+	require.Equal(t, 8, len(batched))
+	assert.Equal(t, large[:15_000], batched[0])
+	assert.Equal(t, large[15_000:30_000], batched[1])
+	assert.Equal(t, large[30_000:45_000], batched[2])
+	assert.Equal(t, large[45_000:60_000], batched[3])
+	assert.Equal(t, large[60_000:75_000], batched[4])
+	assert.Equal(t, large[75_000:90_000], batched[5])
+	assert.Equal(t, large[90_000:105_000], batched[6])
+	assert.Equal(t, large[105_000:110_000], batched[7])
 }
 
 func TestBatchHostIdsSmall(t *testing.T) {
@@ -97,6 +99,7 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
+		{"ApplyLabelSpecsWithPlatformChange", testApplyLabelSpecsWithPlatformChange},
 		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
 	}
 	// call TruncateTables first to remove migration-created labels
@@ -115,7 +118,10 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	var host *fleet.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(context.Background(), false, fmt.Sprint(i), "", "", fmt.Sprint(i), nil, 0)
+		host, err = db.EnrollOsquery(context.Background(),
+			fleet.WithEnrollOsqueryHostID(fmt.Sprint(i)),
+			fleet.WithEnrollOsqueryNodeKey(fmt.Sprint(i)),
+		)
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
@@ -315,17 +321,17 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Platform:        "darwin",
 	})
 	require.Nil(t, err)
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2, nil))
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
-	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "") // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji, "") // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji, "", false) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "") // enrollment: unenrolled
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -492,7 +498,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	team2, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
+	require.NoError(t, db.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
@@ -598,7 +604,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, db.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	l1 := fleet.LabelSpec{
 		ID:    1,
@@ -746,8 +752,8 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 			SeenTime:        time.Now(),
 			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
 			NodeKey:         ptr.String(strconv.Itoa(i)),
-			UUID:            strconv.Itoa(i),
-			Hostname:        strconv.Itoa(i),
+			UUID:            fmt.Sprintf("uuid%s", strconv.Itoa(i)),
+			Hostname:        fmt.Sprintf("host%s", strconv.Itoa(i)),
 		})
 		require.Nil(t, err)
 	}
@@ -784,6 +790,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	err := ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
 	require.Nil(t, err)
 
+	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"}
 	return expectedSpecs
 }
 
@@ -922,7 +929,10 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 }
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
-	host, err := db.EnrollHost(context.Background(), false, "0", "", "", "0", nil, 0)
+	host, err := db.EnrollOsquery(context.Background(),
+		fleet.WithEnrollOsqueryHostID("0"),
+		fleet.WithEnrollOsqueryNodeKey("0"),
+	)
 	require.NoError(t, err, "enrollment should succeed")
 
 	host.Platform = "rhel"
@@ -1648,10 +1658,11 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
 		windowsEnroll(t, db, h)
-		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
 	}
 	// add disk encryption key for h1
-	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1, "test-key", "", ptr.Bool(true)))
+	_, err = db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1, "test-key", "", ptr.Bool(true))
+	require.NoError(t, err)
 	// add disk encryption for h1
 	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true))
 
@@ -1856,8 +1867,8 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 2)
-	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
-	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
 
 	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
 	require.NoError(t, err)
@@ -1963,9 +1974,9 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 3)
-	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
-	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
-	require.Equal(t, host3.Hostname, labelSpec.Hosts[2])
+	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
+	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2]) //nolint:gosec // dismiss G115
 }
 
 func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
@@ -1998,6 +2009,15 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 		Platform:       "windows",
 	})
 	require.NoError(t, err)
+	host4, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("4"),
+		NodeKey:        ptr.String("4"),
+		UUID:           "uuid4",
+		Hostname:       "boop.local",
+		HardwareSerial: "hwd4",
+		Platform:       "linux",
+	})
+	require.NoError(t, err)
 
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 		{
@@ -2007,6 +2027,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 				"foo.local",
 				"hwd2",
 				"uuid3",
+				strconv.Itoa(int(host4.ID)), //nolint:gosec // dismiss G115
 			},
 		},
 	})
@@ -2014,10 +2035,144 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 3)
+	require.Len(t, hosts, 4)
 	require.Equal(t, host1.ID, hosts[0].ID)
 	require.Equal(t, host2.ID, hosts[1].ID)
 	require.Equal(t, host3.ID, hosts[2].ID)
+	require.Equal(t, host4.ID, hosts[3].ID)
+}
+
+func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create hosts with different platforms
+	hostDarwin1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("darwin1"),
+		NodeKey:        ptr.String("darwin1"),
+		UUID:           "darwin-uuid-1",
+		Hostname:       "darwin1.local",
+		HardwareSerial: "darwin-serial-1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	hostDarwin2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("darwin2"),
+		NodeKey:        ptr.String("darwin2"),
+		UUID:           "darwin-uuid-2",
+		Hostname:       "darwin2.local",
+		HardwareSerial: "darwin-serial-2",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	hostWindows1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("windows1"),
+		NodeKey:        ptr.String("windows1"),
+		UUID:           "windows-uuid-1",
+		Hostname:       "windows1.local",
+		HardwareSerial: "windows-serial-1",
+		Platform:       "windows",
+	})
+	require.NoError(t, err)
+
+	hostLinux1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("linux1"),
+		NodeKey:        ptr.String("linux1"),
+		UUID:           "linux-uuid-1",
+		Hostname:       "linux1.local",
+		HardwareSerial: "linux-serial-1",
+		Platform:       "linux",
+	})
+	require.NoError(t, err)
+
+	// Test 1: Create a dynamic label for darwin platform
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "darwin",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// Get the label ID
+	labels, err := ds.LabelsByName(ctx, []string{"platform_test_label"})
+	require.NoError(t, err)
+	label := labels["platform_test_label"]
+	require.NotNil(t, label)
+	require.Equal(t, "darwin", label.Platform)
+
+	// Add hosts to the label to simulate existing memberships
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostDarwin1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostDarwin2, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostWindows1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostLinux1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+
+	// Verify all hosts are in the label
+	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 4)
+
+	// Test 2: Change platform to windows - all memberships are cleared
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "windows",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// All memberships should be cleared (label query will repopulate with windows hosts on next execution)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+	// Re-seed membership to ensure this step exercises clearing again
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostWindows1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+
+	// Test 3: Change platform to empty (all platforms) - all memberships are cleared
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// All memberships should be cleared (label query will repopulate on next execution)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// Add all hosts back
+	for _, h := range []*fleet.Host{hostDarwin1, hostDarwin2, hostLinux1} {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	}
+
+	// Test 4: Change from empty to specific platform (linux) - all memberships are cleared
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "linux",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// All memberships should be cleared (label query will repopulate with linux hosts on next execution)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
 }
 
 type TestHostVitalsLabel struct {
@@ -2074,8 +2229,8 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	var id uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		result, err := q.ExecContext(context.Background(),
-			"INSERT INTO labels (name, description, platform, label_type, label_membership_type) VALUES (?, ?, ?, ?, ?)",
-			"test host vitals label", "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals)
+			"INSERT INTO labels (name, description, platform, label_type, label_membership_type, query) VALUES (?, ?, ?, ?, ?, ?)",
+			"test host vitals label", "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "")
 		if err != nil {
 			return err
 		}

@@ -5,7 +5,9 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -19,10 +21,13 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog"
 )
 
-var ErrUnsupportedType = errors.New("unsupported file type")
-var ErrInvalidTarball = errors.New("not a valid .tar.gz archive")
+var (
+	ErrUnsupportedType = errors.New("unsupported file type")
+	ErrInvalidTarball  = errors.New("not a valid .tar.gz archive")
+)
 
 type InstallerMetadata struct {
 	Name             string
@@ -31,6 +36,7 @@ type InstallerMetadata struct {
 	SHASum           []byte
 	Extension        string
 	PackageIDs       []string
+	UpgradeCode      string
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the
@@ -58,6 +64,8 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		meta, err = ExtractXARMetadata(tfr)
 	case "msi":
 		meta, err = ExtractMSIMetadata(tfr)
+	case "ipa":
+		meta, err = ExtractIPAMetadata(tfr)
 	case "tar.gz":
 		meta, err = ValidateTarball(tfr)
 		if err != nil {
@@ -89,6 +97,9 @@ func typeFromBytes(br *bufio.Reader) (string, error) {
 	// will capture standalone gz files but will fail on tar read attempt, so good enough
 	case hasPrefix(br, []byte{0x1f, 0x8b}):
 		return "tar.gz", nil
+	case hasPrefix(br, []byte{0x50, 0x4B, 0x03, 0x04}):
+		// TODO(JVE): we need to validate against the filename as well
+		return "ipa", nil
 	case hasPrefix(br, []byte("MZ")):
 		if blob, _ := br.Peek(0x3e); len(blob) == 0x3e {
 			reloc := binary.LittleEndian.Uint16(blob[0x3c:0x3e])
@@ -204,7 +215,7 @@ func ExtractFilenameFromURLPath(p string, defaultExtension string) string {
 // a package. destDir should be provided by the code rather than user input to
 // avoid directory traversal attacks. maxFileSize indicates how large we want
 // to allow the max file size to be when decompressing, as a zip bomb mitigation.
-func ExtractTarGz(path string, destDir string, maxFileSize int64) error {
+func ExtractTarGz(path string, destDir string, maxFileSize int64, logger zerolog.Logger) error {
 	tarGzFile, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open %q: %w", path, err)
@@ -245,6 +256,11 @@ func ExtractTarGz(path string, destDir string, maxFileSize int64) error {
 			}
 		case tar.TypeReg:
 			err := func() error {
+				// Make sure parent directory exists
+				if err := os.MkdirAll(filepath.Dir(targetPath), constant.DefaultDirMode); err != nil {
+					return fmt.Errorf("ensure parent dir exists %q: %w", header.Name, err)
+				}
+
 				outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, header.FileInfo().Mode())
 				if err != nil {
 					return fmt.Errorf("failed to create %q: %w", header.Name, err)
@@ -276,7 +292,22 @@ func ExtractTarGz(path string, destDir string, maxFileSize int64) error {
 				return err
 			}
 		default:
-			return fmt.Errorf("unknown flag type %q: %d", header.Name, header.Typeflag)
+			logger.Warn().Msgf("skipping unknown tar header flag type %d: %q", header.Typeflag, header.Name)
 		}
 	}
+}
+
+func SHA256FromTempFileReader(tfr *fleet.TempFileReader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, tfr); err != nil {
+		return "", err
+	}
+
+	hashString := hex.EncodeToString(h.Sum(nil))
+
+	if err := tfr.Rewind(); err != nil {
+		return "", err
+	}
+
+	return hashString, nil
 }

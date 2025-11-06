@@ -13,6 +13,7 @@ import deviceAPI, {
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
@@ -20,7 +21,6 @@ import { convertParamsToSnakeCase } from "utilities/url";
 
 import { AppContext } from "context/app";
 
-import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -35,8 +35,9 @@ import {
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
+import { getSoftwareSubheader } from "./helpers";
 
-const baseClass = "software-card";
+const baseClass = "host-software-card";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
@@ -56,9 +57,11 @@ interface IHostSoftwareProps {
   queryParams: HostSoftwareQueryParams;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
+  /** Used to show custom Software card header */
+  hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -118,14 +121,14 @@ const HostSoftware = ({
   queryParams,
   pathname,
   hostTeamId = 0,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
+  hostMdmEnrollmentStatus = null,
 }: IHostSoftwareProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const isUnsupported =
-    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
+  const isUnsupported = isIPadOrIPhone(platform) && queryParams.vulnerable; // no Android software and no vulnerable software for iOS
 
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
@@ -183,7 +186,7 @@ const HostSoftware = ({
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No DUP for iPad/iPhone
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No My Device Page for iPad/iPhone
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -252,9 +255,10 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           teamId: hostTeamId,
-          onClickMoreDetails: onShowSoftwareDetails,
+          onShowInventoryVersions,
+          platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowSoftwareDetails]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading
@@ -301,10 +305,9 @@ const HostSoftware = ({
               max_cvss_score: queryParams.max_cvss_score,
             })}
             onAddFiltersClick={toggleSoftwareFiltersModal}
-            pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
-            onShowSoftwareDetails={onShowSoftwareDetails}
+            onShowInventoryVersions={onShowInventoryVersions}
           />
         )}
         {showSoftwareFiltersModal && (
@@ -326,27 +329,36 @@ const HostSoftware = ({
 
   if (isMyDevicePage) {
     return (
-      <Card
-        className={baseClass}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
+      <div className={baseClass}>
         <CardHeader
           header="Software"
-          subheader="Software installed on your device"
+          subheader={getSoftwareSubheader({
+            platform,
+            isMyDevicePage: true,
+            hostMdmEnrollmentStatus,
+          })}
         />
         {renderHostSoftware()}
-      </Card>
+      </div>
     );
   }
 
   return (
     <div className={baseClass}>
-      <CardHeader subheader="Software installed on this host" />
+      {!isAndroid(platform) && (
+        <CardHeader
+          subheader={getSoftwareSubheader({
+            platform,
+            isMyDevicePage: false,
+            hostMdmEnrollmentStatus,
+          })}
+        />
+      )}
       {renderHostSoftware()}
     </div>
   );
 };
 
+// TODO - name this consistently, it is confusing. This same component is called `SoftwareInventoryCard` one place,
+// `SoftwareCard` another, and `HostSoftware` here.
 export default React.memo(HostSoftware);

@@ -65,16 +65,10 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		dslogger = log.NewNopLogger()
 	}
 
-	// set SQL mode to ANSI, as it's a special mode equivalent to:
-	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
-	// ONLY_FULL_GROUP_BY
-	//
-	// Per the docs:
-	// > This mode changes syntax and behavior to conform more closely to
-	// standard SQL.
-	//
-	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
+	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
+	// This ensures we catch data truncation errors and other strict behaviors during testing
+	// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(common_mysql.TestSQLMode), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -85,7 +79,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
 			Logger:              log.NewNopLogger(),
-			SqlMode:             "ANSI",
+			SqlMode:             common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
@@ -203,11 +197,25 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
+
 					stmt = fmt.Sprintf(`CREATE TABLE %s.%s LIKE %s.%s`, replicaDB, tbl, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
-					stmt = fmt.Sprintf(`INSERT INTO %s.%s SELECT * FROM %s.%s`, replicaDB, tbl, testName, tbl)
+
+					// Build query to avoid inserting into GENERATED columns
+					var columns string
+					columnsStmt := fmt.Sprintf(`SELECT
+                                                  GROUP_CONCAT(column_name ORDER BY ordinal_position)
+                                                FROM information_schema.columns
+                                                WHERE table_schema = '%s' AND table_name = '%s'
+												  AND NOT (EXTRA LIKE '%%GENERATED%%' AND EXTRA NOT LIKE '%%DEFAULT_GENERATED%%');`, replicaDB, tbl)
+					err = replica.GetContext(ctx, &columns, columnsStmt)
+					require.NoError(t, err)
+
+					stmt = fmt.Sprintf(`INSERT INTO %s.%s (%s)
+                                        SELECT %s
+                                        FROM %s.%s;`, replicaDB, tbl, columns, columns, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
@@ -619,11 +627,12 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 	certPEM := assets[fleet.MDMAssetABMCert].Value
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
@@ -651,7 +660,11 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 			"Content-Description: S/MIME Encrypted Message\r\n"+
 			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: []byte(tokenBytes), OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   []byte(tokenBytes),
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 	return tok
 }
@@ -674,7 +687,11 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 	err = ds.InsertMDMConfigAssets(context.Background(), assets, nil)
 	require.NoError(t, err)
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   tokenBytes,
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 
 	appCfg, err := ds.AppConfig(context.Background())
@@ -692,11 +709,12 @@ func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
 	require.NoError(t, err)
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)

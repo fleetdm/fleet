@@ -1,14 +1,19 @@
-/*
- * NOTE: This is an example of how to configure your mock service.
- * Be sure to copy this file into `../mocks` and only edit that copy!
- * Also please check the README for how to use the mock service :)
- */
-
 import RESPONSES from "./responses";
 
-type IResponses = Record<string, Record<string, Record<string, unknown>>>;
+type MockResponse = Record<string, unknown>;
 
-const DELAY = 5000;
+type MockResponseFunction = (
+  url: string,
+  data?: any
+) => MockResponse | Promise<MockResponse>;
+
+export type MockEndpointHandler = MockResponse | MockResponseFunction;
+
+interface IResponses {
+  [httpMethod: string]: MockEndpointHandler;
+}
+
+const DELAY = 500;
 
 const ENDPOINT = "/latest/fleet";
 
@@ -36,6 +41,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "queries?team_id=13": RESPONSES.teamQueries,
     "queries/113/report?order_key=host_name&order_direction=asc":
       RESPONSES.queryReport,
+    "custom_variables?page=*&per_page=*": RESPONSES.secrets,
   },
   POST: {
     // request body is ISelectedTargets
@@ -56,6 +62,10 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       platform: "linux",
     },
     "autofill/policies": RESPONSES.aiAutofillPolicy,
+    custom_variables: RESPONSES.addSecret,
+  },
+  DELETE: {
+    "custom_variables/*": RESPONSES.deleteSecret,
   },
 } as IResponses;
 

@@ -12,7 +12,7 @@ import (
 
 var _ fleet.OsqueryService = (*TLSService)(nil)
 
-type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
+type EnrollOsqueryFunc func(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
 
 type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error)
 
@@ -29,8 +29,8 @@ type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
 
 type TLSService struct {
-	EnrollAgentFunc        EnrollAgentFunc
-	EnrollAgentFuncInvoked bool
+	EnrollOsqueryFunc        EnrollOsqueryFunc
+	EnrollOsqueryFuncInvoked bool
 
 	AuthenticateHostFunc        AuthenticateHostFunc
 	AuthenticateHostFuncInvoked bool
@@ -56,11 +56,11 @@ type TLSService struct {
 	mu sync.Mutex
 }
 
-func (s *TLSService) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error) {
+func (s *TLSService) EnrollOsquery(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error) {
 	s.mu.Lock()
-	s.EnrollAgentFuncInvoked = true
+	s.EnrollOsqueryFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollAgentFunc(ctx, enrollSecret, hostIdentifier, hostDetails)
+	return s.EnrollOsqueryFunc(ctx, enrollSecret, hostIdentifier, hostDetails)
 }
 
 func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error) {

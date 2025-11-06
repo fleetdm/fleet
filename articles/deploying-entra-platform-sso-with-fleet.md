@@ -37,7 +37,7 @@ Next, find the **Extensible Single Sign-On** payload from the list of available 
 
 Before we start to add values to the payload, double-check to make sure that only macOS is selected in the toolbar at the top of the iMazing window. Some of the keys we’ll be using are macOS only and won’t appear if iOS, tvOS, or watchOS are also selected.
 
->Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. If you wish, you can instead use Password, which prompts the user for their local account password to authenticate with the IdP and keeps it in sync with the IdP.
+>Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. Secure Enclave is the default key storage for all new device registrations [since august 2025](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage) .
 
 Enter the following values for the specified keys:\
 **Extension identifier:** com.microsoft.CompanyPortalMac.ssoextension \
@@ -130,17 +130,17 @@ Uploading the profile to a team in Fleet will automatically deliver it to all ma
 ## End user experience
 When the Company Portal app and Platform SSO configuration profile are deployed to a host, the end user will receive a notification that says **Registration Required: Please register with your identity provider**. You should direct your end users to interact with this notification by clicking the **Register** button that appears when they hover their mouse over the notification.
 
-![Registration Notification](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-registration-notification.png)
+![Registration Notification](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-registration-notification-370x83@2x.png)
 
 After clicking the register button in the notification, a Platform Single Sign-On Registration window will appear. After clicking **Continue**, the user will be prompted for the password they use to log into their Mac (this might be different than their Entra ID password).
 
-![Registration Window](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-register-window.png)
+![Registration Window](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-register-window-592x740@2x.png)
 
 Next, they’ll be prompted to sign into Microsoft Entra ID. This is what associates the user’s device to their Microsoft Entra ID account.
 
 Lastly, they’ll be prompted to enable the Company Portal app to be used as a Passkey. The notification will direct them to System Settings and enable the toggle next to the Company Portal app.
 
-![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey.gif)
+![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey-717x605@2x.gif)
 
 Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the entire authentication using the Secure Enclave-backed key.
 

@@ -13,13 +13,17 @@ spec:
   activity_expiry_settings:
     activity_expiry_enabled: false
     activity_expiry_window: 0
+  conditional_access:
+    microsoft_entra_tenant_id: ""
+    microsoft_entra_connection_configured: false
+    okta_idp_id: null
+    okta_assertion_consumer_service_url: null
+    okta_audience_uri: null
+    okta_certificate: null
   integrations:
     conditional_access_enabled: null
-    custom_scep_proxy: null
-    digicert: null
     google_calendar: null
     jira: null
-    ndes_scep_proxy: null
     zendesk: null
   mdm:
     android_enabled_and_configured: false
@@ -31,6 +35,7 @@ spec:
     enabled_and_configured: true
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     macos_migration:
       enable: false
@@ -40,11 +45,14 @@ spec:
       custom_settings: null
     windows_settings:
       custom_settings: null
+    android_settings:
+      custom_settings: null
     macos_setup:
       bootstrap_package: %s
       enable_end_user_authentication: false
       macos_setup_assistant: %s
       manual_agent_install: null
+      require_all_software_macos: false
       enable_release_device_manually: false
       script: null
       software: null
@@ -106,6 +114,7 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
+    sso_server_url: ""
   vulnerability_settings:
     databases_path: ""
   webhook_settings:

@@ -567,6 +567,7 @@
       "darwin"
     ],
     "description": "Returns device and login information parsed from the \"app-sso platform -s\" command (\"Platform SSO\" extensions).",
+    "examples": "Check Platform SSO configuration by getting the device ID and and user principal name (UPN).\n\n```\nSELECT device_id, user_principal_name FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'; \n```",
     "columns": [
       {
         "name": "extension_identifier",
@@ -2420,6 +2421,32 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/bitlocker_info.yml"
   },
   {
+    "name": "bitlocker_key_protectors",
+    "description": "Returns what BitLocker key protectors are setup on the system.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "platforms": [
+      "windows"
+    ],
+    "columns": [
+      {
+        "name": "drive_letter",
+        "description": "The drive letter of the volume.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key_protector_type",
+        "required": false,
+        "type": "integer",
+        "description": "An unsigned integer that specifies the type of key protector.\nSee https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume#parameters\nfor a list of possible values.\n"
+      }
+    ],
+    "examples": "Determine whether 'C:' encryption key is protected by TPM and PIN\n```\nSELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type = 4;\n```",
+    "url": "https://fleetdm.com/tables/bitlocker_key_protectors",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/bitlocker_key_protectors.yml"
+  },
+  {
     "name": "block_devices",
     "description": "Block (buffered access) device file nodes: disks, ramdisks, and DMG containers.",
     "url": "https://fleetdm.com/tables/block_devices",
@@ -2439,7 +2466,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": true
       },
       {
         "name": "parent",
@@ -2462,6 +2489,15 @@
       {
         "name": "model",
         "description": "Block device model string identifier",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "serial",
+        "description": "Disk serial number",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -3859,7 +3895,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\nExamples of [malicious Chrome extensions](https://palant.info/2023/06/08/another-cluster-of-potentially-malicious-chrome-extensions/)\n\nLoosely restricted extension permissions can be an [indicator of malicious intent](https://developer.chrome.com/docs/extensions/reference/api/permissions)\n\nTracking browser extensions in an organization can help with:\n\n  - Compliance audits: Ensure extensions comply with company policies\n  - Security training: Educate users about Chrome extension risks\n  - Incident response: Identify suspicious or vulnerable extensions",
-    "examples": "\nBecause browser data lives in user space, this query uses a join to include a UID: \n\n```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nThis query shows Chrome extensions that have full access to HTTPS browsing;\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
+    "examples": "\nBecause browser data lives in user space, this query uses a join to include a UID: \n\n```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nThis query shows Chrome extensions that have full access to HTTPS browsing;\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u INNER JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -4396,7 +4432,7 @@
       },
       {
         "name": "rotation",
-        "description": "The orientation of the display.",
+        "description": "The rotation of the display (0, 90, 180, or 270 degrees). This field is -1 if display rotation is not supported.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -6194,6 +6230,48 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dconf_read.yml"
   },
   {
+    "name": "deb_package_files",
+    "description": "Installed files from DEB packages that are currently installed on the system.",
+    "url": "https://fleetdm.com/tables/deb_package_files",
+    "platforms": [
+      "linux"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "columns": [
+      {
+        "name": "package",
+        "description": "DEB package name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "path",
+        "description": "File path within the package",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "admindir",
+        "description": "libdpkg admindir. Defaults to /var/lib/dpkg",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/deb_package_files.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fdeb_package_files.yml&value=name%3A%20deb_package_files%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
     "name": "deb_packages",
     "description": "The installed DEB package database.",
     "url": "https://fleetdm.com/tables/deb_packages",
@@ -6830,7 +6908,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": true
       },
       {
         "name": "uuid",
@@ -11292,7 +11370,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
-    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\n\nSee Firefox extensions by user as well as information about their creator and\nautomatic update status.\n\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
+    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\n\nSee Firefox extensions by user as well as information about their creator and\nautomatic update status.\n\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u INNER JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
     "columns": [
       {
         "name": "uid",
@@ -11575,6 +11653,145 @@
     ],
     "url": "https://fleetdm.com/tables/fleetd_logs",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_logs.yml"
+  },
+  {
+    "name": "fleetd_pacman_packages",
+    "platforms": [
+      "linux"
+    ],
+    "description": "List the packages installed using the `pacman` package manager.",
+    "columns": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "Name of the package"
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "Version of the package"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "required": false,
+        "description": "The description of the package"
+      },
+      {
+        "name": "arch",
+        "type": "text",
+        "required": false,
+        "description": "The CPU architecture of the package"
+      },
+      {
+        "name": "url",
+        "type": "text",
+        "required": false,
+        "description": "The upstream URL of the package"
+      },
+      {
+        "name": "licenses",
+        "type": "text",
+        "required": false,
+        "description": "The software license of the package"
+      },
+      {
+        "name": "groups",
+        "type": "text",
+        "required": false,
+        "description": "The package groups that the package is part of"
+      },
+      {
+        "name": "provides",
+        "type": "text",
+        "required": false,
+        "description": "An array of “virtual provisions” this package provides"
+      },
+      {
+        "name": "depends_on",
+        "type": "text",
+        "required": false,
+        "description": "An array of packages this package depends on to run"
+      },
+      {
+        "name": "optional_deps",
+        "type": "text",
+        "required": false,
+        "description": "An array of packages (and accompanying reasons) that are not essential for base functionality, but may be necessary to make full use of the contents of this package"
+      },
+      {
+        "name": "required_by",
+        "type": "text",
+        "required": false,
+        "description": "An array of packages that depend on this package"
+      },
+      {
+        "name": "optional_for",
+        "type": "text",
+        "required": false,
+        "description": "An array of packages that list this package an an optional dependency"
+      },
+      {
+        "name": "conflicts_with",
+        "type": "text",
+        "required": false,
+        "description": "An array of packages that will conflict with this package"
+      },
+      {
+        "name": "replaces",
+        "type": "text",
+        "required": false,
+        "description": "An array of packages this package should replace"
+      },
+      {
+        "name": "installed_size",
+        "type": "text",
+        "required": false,
+        "description": "The size of the package once installed"
+      },
+      {
+        "name": "packager",
+        "type": "text",
+        "required": false,
+        "description": "The maintainer of the package"
+      },
+      {
+        "name": "build_date",
+        "type": "text",
+        "required": false,
+        "description": "The date the package was built"
+      },
+      {
+        "name": "install_date",
+        "type": "text",
+        "required": false,
+        "description": "The date the package was installed"
+      },
+      {
+        "name": "install_reason",
+        "type": "text",
+        "required": false,
+        "description": "The reason the package was installed"
+      },
+      {
+        "name": "install_script",
+        "type": "text",
+        "required": false,
+        "description": "Whether or not the package uses an install script"
+      },
+      {
+        "name": "validated_by",
+        "type": "text",
+        "required": false,
+        "description": "How the package was validated"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/fleetd_pacman_packages",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_pacman_packages.yml"
   },
   {
     "name": "gatekeeper",
@@ -13243,6 +13460,78 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/iptables.yml"
+  },
+  {
+    "name": "jetbrains_plugins",
+    "description": "JetBrains IDEs plugins.",
+    "url": "https://fleetdm.com/tables/jetbrains_plugins",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from users cross join jetbrains_plugins using (uid)\n```",
+    "columns": [
+      {
+        "name": "product_type",
+        "description": "The product type (Valid values: CLion, DataGrip, GoLand, IntelliJIdea, IntelliJIdeaCommunityEdition, PhpStorm, PyCharm, PyCharmCommunityEdition, ReSharper, Rider, RubyMine, RustRover, WebStorm)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uid",
+        "description": "The local user that owns the plugin",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "name",
+        "description": "Name of the plugin (Title Case)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "version",
+        "description": "Version of the plugin",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "vendor",
+        "description": "The vendor name or organization id that authored the plugin",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "The path on the filesystem for the plugin. This may be a folder or a jar filename",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/jetbrains_plugins.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fjetbrains_plugins.yml&value=name%3A%20jetbrains_plugins%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "kernel_extensions",
@@ -16079,6 +16368,112 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/managed_policies.yml"
+  },
+  {
+    "name": "mcp_listening_servers",
+    "notes": "This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).",
+    "description": "Lists processes with listening ports that are responding as [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers via HTTP (Many MCP servers use stdio and will not be detected by this table).  This table queries the `listening_ports` and `processes` tables to find listening ports, then probes each port to identify active MCP servers.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List all MCP servers currently running on the system.\n\n```\nSELECT * FROM mcp_listening_servers;\n```",
+    "columns": [
+      {
+        "name": "pid",
+        "description": "The process ID of the process running the MCP server.",
+        "required": false,
+        "type": "bigint"
+      },
+      {
+        "name": "name",
+        "description": "The name of the process running the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "cmdline",
+        "description": "The full command line of the process running the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "port",
+        "description": "The port number on which the MCP server is listening.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "address",
+        "description": "The network address on which the MCP server is listening (e.g., \"127.0.0.1\", \"0.0.0.0\", \"::1\").",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "protocol_version",
+        "description": "The MCP protocol version supported by the server (e.g., \"2025-06-18\").",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "server_name",
+        "description": "The name identifier of the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "server_title",
+        "description": "The human-readable title of the MCP server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "server_version",
+        "description": "The version of the MCP server implementation.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "has_logging",
+        "description": "Indicates if the MCP server supports logging capabilities (1 = true, 0 = false).",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "has_completions",
+        "description": "Indicates if the MCP server supports completion capabilities (1 = true, 0 = false).",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "instructions",
+        "description": "Instructions or description text provided by the MCP server about its purpose and usage.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tools",
+        "description": "JSON array of tools provided by the MCP server, including their names and descriptions.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "prompts",
+        "description": "JSON array of prompts provided by the MCP server, including their names and descriptions.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resources",
+        "description": "JSON array of resources provided by the MCP server, including their URIs, names, and descriptions.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/mcp_listening_servers",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mcp_listening_servers.yml"
   },
   {
     "name": "md_devices",
@@ -23063,7 +23458,7 @@
         "name": "days_to_expiration",
         "type": "integer",
         "required": false,
-        "description": "How many days are left for the expiration of the current password."
+        "description": "Synonym for expires_every_n_days (not typically set in macOS 10.15+)."
       },
       {
         "name": "history_depth",
@@ -23308,6 +23703,76 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fquicklook_cache.yml&value=name%3A%20quicklook_cache%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "recent_files",
+    "description": "Recently files (as displayed in Start Menu or File Explorer).",
+    "url": "https://fleetdm.com/tables/recent_files",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nSELECT recent_files.* FROM users CROSS JOIN recent_files USING (uid) WHERE mtime > unixepoch('now') - 3600\n```",
+    "columns": [
+      {
+        "name": "uid",
+        "description": "The local user ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "filename",
+        "description": "The name of the file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "The full path of the file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type",
+        "description": "Display type for the file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "mtime",
+        "description": "Last modification time of the shortcut (usually corresponds to last opened time for the file)",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "shortcut_path",
+        "description": "Path to the shortcut where Windows stores the recent file data",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/recent_files.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Frecent_files.yml&value=name%3A%20recent_files%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
     "name": "registry",
     "description": "The Windows Registry is a database that stores Windows application data and low-level Windows settings like driver, security, service, system and user information. The `registry` osquery table expresses the data in the Windows Registry.",
     "url": "https://fleetdm.com/tables/registry",
@@ -23489,7 +23954,7 @@
   },
   {
     "name": "rpm_package_files",
-    "description": "RPM packages that are currently installed on the host system.",
+    "description": "Installed files from RPM packages that are currently installed on the system.",
     "url": "https://fleetdm.com/tables/rpm_package_files",
     "platforms": [
       "linux"
@@ -23753,7 +24218,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires a `JOIN` operation.\n\nQuery explanation:\n\n- The `safari_extensions` table has a row for each installed extension\n- Each row has a column with the `uid` of the user who installed the extension\n- Each `uid` from the `safari_extensions` table is matched in the `users` table to collect Safari extensions in the output data for all user accounts on the Mac by the `JOIN`\n\nLinks:\n\n- Apple dcoumentaion on Safari Extensions: https://support.apple.com/en-us/102343\n- CROSS JOIN SQLite tutorial: https://www.sqlitetutorial.net/sqlite-cross-join/\n- [Fleet documentation on joining against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n- Fleet users table: https://fleetdm.com/tables/users",
+    "notes": "Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires [giving osquery full disk access](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos) and a [`JOIN` against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table).\n\nQuery explanation:\n\n- The `safari_extensions` table has a row for each installed extension\n- Each row has a column with the `uid` of the user who installed the extension\n- Each `uid` from the `safari_extensions` table is matched in the `users` table to collect Safari extensions in the output data for all user accounts on the Mac by the `JOIN`\n\nLinks:\n\n- [Apple documentation on Safari Extensions](https://support.apple.com/en-us/102343)",
     "examples": "Collect Safari extensions for all Mac users:\n\n```\nSELECT * FROM users CROSS JOIN safari_extensions USING (uid);\n```",
     "columns": [
       {
@@ -23908,6 +24373,275 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/sandboxes.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsandboxes.yml&value=name%3A%20sandboxes%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "santa_allowed",
+    "description": "Logs events for when Santa allowed applications to run on the host. Fleet's agent (fleetd) only stores the most recent 10,000 allowed events.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Show Google Chrome open events, as allowed by Santa.\n\n```\nSELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app';\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 allowed events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
+    "columns": [
+      {
+        "name": "timestamp",
+        "description": "Timestamp of the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "application",
+        "description": "Path to the application",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reason",
+        "description": "Reason for the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sha256",
+        "description": "SHA256 hash of the binary",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_allowed",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_allowed.yml"
+  },
+  {
+    "name": "santa_denied",
+    "description": "Logs events for when Santa denied applications from running on the host. Fleet's agent (fleetd) only stores the most recent 10,000 denied events.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Collect all Santa denied logs from macOS hosts.\n```\nSELECT * FROM santa_denied;\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits",
+    "columns": [
+      {
+        "name": "timestamp",
+        "description": "Timestamp of the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "application",
+        "description": "Path to the application",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reason",
+        "description": "Reason for the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sha256",
+        "description": "SHA256 hash of the binary",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_denied",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_denied.yml"
+  },
+  {
+    "name": "santa_status",
+    "description": "The output of `santactl status --json` showing current Santa statistics and configuration.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Confirm Santa is running in lockdown mode across all macOS hosts.\n```\nSELECT mode FROM santa_status;\n```",
+    "columns": [
+      {
+        "name": "last_successful_rule",
+        "description": "Last successful rule sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "push_notifications",
+        "description": "Push notifications status",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "bundle_scanning",
+        "description": "Whether bundle scanning is enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "clean_required",
+        "description": "Whether a clean is required (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "server",
+        "description": "Sync server address",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "last_successful_full",
+        "description": "Last successful full sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file_logging",
+        "description": "File logging enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "watchdog_ram_events",
+        "description": "Number of watchdog RAM events",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "driver_connected",
+        "description": "Whether the driver is connected (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "log_type",
+        "description": "Log type (e.g., file)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "watchdog_cpu_events",
+        "description": "Number of watchdog CPU events",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "mode",
+        "description": "Santa mode (e.g., Monitor)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "watchdog_cpu_peak",
+        "description": "Peak CPU usage",
+        "required": false,
+        "type": "double"
+      },
+      {
+        "name": "watchdog_ram_peak",
+        "description": "Peak RAM usage",
+        "required": false,
+        "type": "double"
+      },
+      {
+        "name": "transitive_rules_enabled",
+        "description": "Transitive rules enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "remount_usb_mode",
+        "description": "Remount USB mode",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "block_usb",
+        "description": "Block USB enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "on_start_usb_options",
+        "description": "USB options on start",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "root_cache_count",
+        "description": "Root cache count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "non_root_cache_count",
+        "description": "Non-root cache count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "static_rule_count",
+        "description": "Static rule count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "certificate_rules",
+        "description": "Certificate rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "cdhash_rules",
+        "description": "CDHash rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "transitive_rules_count",
+        "description": "Transitive rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "teamid_rules",
+        "description": "Team ID rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "signingid_rules",
+        "description": "Signing ID rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "compiler_rules",
+        "description": "Compiler rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "binary_rules",
+        "description": "Binary rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "events_pending_upload",
+        "description": "Events pending upload",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "watch_items_enabled",
+        "description": "Watch items enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_status.yml"
   },
   {
     "name": "scheduled_tasks",
@@ -25488,6 +26222,15 @@
         "hidden": false,
         "required": false,
         "index": false
+      },
+      {
+        "name": "entitlements",
+        "description": "JSON representation of the code signing entitlements",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/signature.yml"
@@ -26761,9 +27504,56 @@
           "Windows",
           "Linux"
         ]
+      },
+      {
+        "name": "emulated_cpu_type",
+        "description": "Emulated CPU type",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_info.yml"
+  },
+  {
+    "name": "system_profiler",
+    "description": "The system_profiler osquery table collects data from the macOS system profiler utility and returns it in JSON format.",
+    "url": "https://fleetdm.com/tables/system_profiler",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "The macOS system_profiler binary reports on the hardware and software configuration of a Mac. It generates detailed, plain text, XML or json reports which can be exported from the Terminal or generated as .spx files and read by the macOS System Information.app based on \"data types\". \n\nThe system_profiler output is a rich source of data containing unique, per device hardware and software attributes which have many uses for enhancing Mac management.\n\nThe following data types are available from the system_profiler binary as of macOS 26:\n\n- SPParallelATADataType\n- SPUniversalAccessDataType\n- SPSecureElementDataType\n- SPApplicationsDataType\n- SPAudioDataType\n- SPBluetoothDataType\n- SPCameraDataType\n- SPCardReaderDataType\n- SPiBridgeDataType\n- SPDeveloperToolsDataType\n- SPDiagnosticsDataType\n- SPDisabledSoftwareDataType\n- SPDiscBurningDataType\n- SPEthernetDataType\n- SPExtensionsDataType\n- SPFibreChannelDataType\n- SPFirewallDataType\n- SPFontsDataType\n- SPFrameworksDataType\n- SPDisplaysDataType\n- SPHardwareDataType\n- SPInstallHistoryDataType\n- SPInternationalDataType\n- SPNetworkLocationDataType\n- SPLogsDataType\n- SPManagedClientDataType\n- SPMemoryDataType\n- SPNVMeDataType\n- SPNetworkDataType\n- SPPCIDataType\n- SPParallelSCSIDataType\n- SPPowerDataType\n- SPPrefPaneDataType\n- SPPrintersSoftwareDataType\n- SPPrintersDataType\n- SPConfigurationProfileDataType\n- SPRawCameraDataType\n- SPLegacySoftwareDataType\n- SPSASDataType\n- SPSerialATADataType\n- SPSPIDataType\n- SPSmartCardsDataType\n- SPSoftwareDataType\n- SPStartupItemDataType\n- SPStorageDataType\n- SPSyncServicesDataType\n- SPThunderboltDataType\n- SPUSBHostDataType\n- SPNetworkVolumeDataType\n- SPAirPortDataType\n\nBecause this table returns JSON values, the [SQLite JSON functions](https://sqlite.org/json1.html) are useful for parsing and transforming results.",
+    "examples": "\nCollect Mac Activation Lock Status:\n\n```\nSELECT json_extract (value,'$[0].activation_lock_status') AS activation_lock_status\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Mac Hardware UUID (platform_uuid):\n\n```\nSELECT json_extract (value,'$[0].platform_UUID') AS hardware_uuid\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Mac Serial Number:\n\n```\nSELECT json_extract (value,'$[0].serial_number') AS serial_number\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Audio Devices:\n\n```\nSELECT each.value->>'_name' AS name, each.value->>'coreaudio_device_manufacturer' AS manufacturer\nFROM system_profiler sp, JSON_EACH(sp.value->'[0]._items') each\nWHERE data_type = 'SPAudioDataType';\n```",
+    "columns": [
+      {
+        "name": "data_type",
+        "description": "The system profiler data type (e.g., SPHardwareDataType)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": true,
+        "index": true
+      },
+      {
+        "name": "value",
+        "description": "A JSON representation of the full result dictionary for the data type",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_profiler.yml"
   },
   {
     "name": "system_state",
@@ -28700,7 +29490,7 @@
       },
       {
         "name": "vscode_edition",
-        "description": "VSCode or VSCode Insiders",
+        "description": "The VSCode edition (vscode, vscode_insiders, vscodium, vscodium_insiders, cursor, windsurf, trae)",
         "type": "text",
         "notes": "",
         "hidden": false,

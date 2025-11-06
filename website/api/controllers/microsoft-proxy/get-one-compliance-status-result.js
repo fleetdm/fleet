@@ -24,6 +24,7 @@ module.exports = {
 
 
   exits: {
+    success: { description: 'A compliance status update result was returned to the Fleet instance.', outputType: {} },
     tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'}
   },
 
@@ -52,6 +53,11 @@ module.exports = {
       return new Error({error: `An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
 
+    // Log responses from Micrsoft APIs for Fleet's integration
+    if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+      sails.log.info(`Microsoft proxy: get-one-compliance-status-result retrievied a complaince status result: ${complianceStatusResultResponse.body}`);
+    }
+
     let parsedComplianceUpdateResponse;
     try {
       parsedComplianceUpdateResponse = JSON.parse(complianceStatusResultResponse.body);
@@ -64,7 +70,7 @@ module.exports = {
     };
     // If the status is "Failed", attach the error details to the response body.
     if(parsedComplianceUpdateResponse.Status === 'Failed') {
-      result.details = parsedComplianceUpdateResponse.ErrorDetail;
+      result.detail = parsedComplianceUpdateResponse.ErrorDetail;
     }
     // All done.
     return result;

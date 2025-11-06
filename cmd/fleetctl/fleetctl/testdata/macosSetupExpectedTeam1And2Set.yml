@@ -14,9 +14,12 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
+      windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
       windows_settings:
+        custom_settings: null
+      android_settings:
         custom_settings: null
       macos_setup:
         bootstrap_package: %s
@@ -24,6 +27,7 @@ spec:
         macos_setup_assistant: %s
         manual_agent_install: null
         enable_release_device_manually: false
+        require_all_software_macos: false
         script: null
         software: null
       macos_updates:
@@ -60,6 +64,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
+      windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
       windows_settings:

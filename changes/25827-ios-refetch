@@ -1,2 +1,0 @@
-- Fixed issue where iOS devices were not refetching at the expected cadence when re-enrolled without first
-  deleting the host.

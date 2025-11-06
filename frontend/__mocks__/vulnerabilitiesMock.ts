@@ -31,6 +31,7 @@ const DEFAULT_VULNERABILITY_DETAILS: IVulnerabilityResponse = {
       hosts_count: 5,
       resolved_in_version: "2",
       generated_cpes: [],
+      kernels: [],
     },
   ],
   software: [

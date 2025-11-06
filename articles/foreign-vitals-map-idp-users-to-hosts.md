@@ -1,13 +1,18 @@
-# Foreign vitals: map IdP users to hosts
+# Foreign host vitals: Identity provider (IdP) username, groups, and department
 
-![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img.png)
+![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png)
 
 _Available in Fleet Premium._
 
-To add IdP host vitals, like the end user's groups and full name, follow steps for your IdP. 
+Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/docs/configuration/yaml-files#variables) or criteria for [labels](https://fleetdm.com/guides/managing-labels-in-fleet).
 
-Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), more are coming soon.
+Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
+Fleet gathers IdP host vitals when an end user authenticates during these enrollment scenarios:
+- Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
+- Manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts.
+
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
 
 ## Okta
 
@@ -24,7 +29,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 3. Select **SAML 2.0** option and select **Next**.
 4. On the **General Settings** page, add a friendly **App name** (e.g Fleet SCIM), and select **Next**.
 5. On the **SAML Settings** page, add any URL to the **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
-> Okta requires us to setup SAML settings in order to setup a SCIM integration. Since we don't need SAML right now, you can set the URL to anything like "example.fleetdm.com".
+> Okta requires setting up SAML to set up SCIM. Since we don't need SAML right now, you can set the URL to something arbitrary, e.g "example.fleetdm.com".
 6. On the **Feedback** page, provide feedback if you want, and select **Finish**.
 7. Select the **General** tab in your newly created app and then select **Edit** in **App Settings**.
 8. For **Provisioning**, select **SCIM** and select **Save**.
@@ -37,24 +42,35 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 4. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
 5. For the **Authentication Mode**, select **HTTP Header**.
 6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in Okta's **Authorization** field.
-7. Select the **Test Connector Configuration** button. You should see success message in Okta.
-8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
+
+> For example, `fleetctl user create --name 'SCIM User' --email 'scim@example.com' --password 'hunter2' --api-only --global-role maintainer`
+
+7. Select the **Test Connector Configuration** button. You should see a success message pop up in Okta. You can close this message.
+8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from Okta.
 9. Back in Okta, select **Save**.
 10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-11. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes.
-![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping.png)
-
+11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Delete the rest of the attributes.
+![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
 #### Step 3: Map users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
-1. In OKta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
-2. On the same page, select the **Rules** tab. Create a rule that will assign users to your  "Fleet human-device mapping" group.
-![Okta group rule](../website/assets/images/articles/okta-scim-group-rules.png)
-3. In the main menu, select **Applications > Applications**  and select your new SCIM app. Then, select the **Assignments** tab.
-4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Then, select **Done**. Now all users that you assigned to the  "Fleet human-device mapping" group will be provisioned to Fleet.
-5. On the same page, select **Push Groups** tab. Then, select **Push Groups > Find groups by name** and add all groups that you assigned to "Fleet human-device mapping" group previously (make sure that **Push group memberships immediately** is selected). All groups will be provisioned in Fleet, and Fleet will map those groups to users.
+1. In Okta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
+2. On the same page, select the **Rules** tab. Select **Add Rule** to create a rule that will assign users to your "Fleet human-device mapping" group.
+![Okta group rule](../website/assets/images/articles/okta-scim-group-rules-1000x522@2x.png)
+3. After saving your new rule, select **Activate** from the **Actions** menu to populate users into the human-device mapping group.
+4. In the Okta main menu, select **Applications > Applications** and select your new SCIM app. Then, select the **Assignments** tab.
+5. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group, then **Save and Go Back**, then **Done**. Now all users that you assigned to the "Fleet human-device mapping" group will be provisioned to Fleet.
+6. On the same page, select the **Push Groups** tab. Then, select **Push Groups > Find groups by name** and add all groups that you assigned to "Fleet human-device mapping" group previously (make sure that **Push group memberships immediately** is selected). All groups will be provisioned in Fleet, and Fleet will map those groups to users.
+
+#### Troubleshooting
+
+If you find that identity information (e.g full name or groups) is missing on the host, and the host has an IdP username assigned to it:
+
+1. In Okta, select **Directory > People**, find the affected user, and make sure that it has all the fields required by Fleet (username, first name, and last name).
+2. If all required fields are present, then go to **Applications > Applications**, select your app, then go to the **Provisioning** tab and select **To App**. Scroll to the bottom of the page and make sure that `userName`, `givenName`, and `familyName` have a value assigned to them.
+3. Otherwise, make sure that all settings from the instructions above were set correctly.
 
 ## Microsoft Entra ID
 
@@ -76,7 +92,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 
 1. From the side menu, select **Provisioning**.
 2. In **Get started with application provisioning** section, select **Connect your application**.
-3. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
+3. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim?aadOptscim062020`.
 4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
 5. Select the **Test connection** button. You should see success message.
 6. Select **Create** and, after successful creation, you'll be redirected to the overview page.
@@ -84,15 +100,13 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 #### Step 3: Map users and groups to hosts in Fleet
 
 1. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
-2. Ensure that the attributes `displayName`, `members`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
-    saved, select close icon on the top right corner.
-![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes.png)    
-3. Select **Provision Microsoft Entra ID Users**.
-4. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon in the top right corner.
-![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
-5. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
-6. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
-7. From the side menu, select **Overview** and select **Start provisioning**.
+![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes-504x134@2x.png)    
+2. Select **Provision Microsoft Entra ID Users**.
+3. Ensure that the attributes `userName`, `givenName`, `familyName`, `department`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon in the top right corner.
+![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes-480x160@2x.png)  
+4. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
+5. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
+6. From the side menu, select **Overview** and select **Start provisioning**.
 
 It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To speed this up, you can use the "Provision on demand" option in Microsoft Entra ID.
 
@@ -218,20 +232,23 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 
 1. From the side menu, select **Directory > Federation and Social login**.
 2. Select **Create**, **LDAP Source**, and **Next**.
-3. Add a friendly name (e.g. "Google LDA"P").
+3. Add a friendly name (e.g. "Google LDAP").
 4. Make sure that **Enable**, **Sync users** and **Sync groups** are toggled on.
 5. In the **Server URL** enter `ldap://ldap.google.com`. For more information, refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
 6. For the **TLS client authentication certificate**, select your certificate created in 2nd section (Google LDAP certificate)
 7. For the **Bind CN**, enter the username that you saved in the first step. For **Bind Password**, enter the password you saved.
 8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dc=yourcompany,dc=com).
 9. For the **User Property Mappings,** remove all selected properties by clicking the "X" icon, and select all user properties that we created in the left box and select the ">" icon between boxes.
-![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings.png)
+![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings-960x270@2x.png)
 10. For the **Group Property Mappings**, remove all selected properties by clicking the "X" icon, and select all group properties that we created in the left box and select the ">" icon between boxes.
-![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings.png)
+![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings-960x270@2x.png)
 11. Under **Additional settings**, enter values below:
-**User object filter** > `(objectClass=person)`,  **Group object filter** > `(objectClass= groupOfNames)`, **Group membership field** > `member`, **Object uniqueness field** > `objectSid`
-13. Select **Finish** to save your configuration. 
-14. After a few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
+    - **User object filter** > `(objectClass=person)`
+    - **Group object filter** > `(objectClass= groupOfNames)`
+    - **Group membership field** > `member`
+    - **Object uniqueness field** > `objectSid`  
+12. Select **Finish** to save your configuration. 
+13. After a few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
 
 #### Step 5: Map users to hosts in Fleet
 
@@ -246,27 +263,28 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 9. Select **Create** to add the application.
 10. After a few minutes, you should see users mapped to hosts in Fleet.
 
+## Other IdPs
+
+IdPs generally require a Fleet SCIM URL and API token:
+
+- SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
+- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
+
+Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with `userName` as the unique identifier. Fleet uses the `userName` attribute to map to IdP groups and department.
+
+Fleet also supports the `department` attribute. Delete all other attributes.
+
+To map groups, configure your IdP to provision (push) them to Fleet.
+
 ## Verify connection
 
 After following the steps above, you should be able to see the latest requests from your IdP to Fleet if you navigate to **Settings > Integrations > Identity Provider (IdP)**. 
 
-To verify that user information is added to a host, go to the host that has IdP username assigned, and verify that **Full name (IdP)** and **Groups (IdP)** are populated correctly.
-
-> Currently, the IdP username is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the [end user authenticates](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-setup) with the IdP and the DEP profile has `await_device_configured` set to `true` (default in the [automatic enrollment profile](https://fleetdm.com/guides/macos-setup-experience#step-1-create-an-automatic-enrollment-profile)).
-
-### Troubleshooting
-
-If you find that information from IdP (e.g full name or groups) is missing on the host, and the host has IdP username assigned to it, follow the steps below to resolve.
-
-1. Please first go to Okta, select **Directory > People**, find user that is
-missing information and make sure that it has all the fields required by Fleet (username, first name, and
-last name).
-2. If all required fields are present, then go to **Applications > Applications > fleet_scim_application > Provisioning > To App**, then scroll to the bottom of the page and make sure that `userName`, `givenName`, and `familyName` have a value assigned to them.
-3. Otherwise, make sure that all settings from the instructions above were set correctly.
+To verify that user information is added to a host, go to the host that has an IdP username assigned and verify that **Full name (IdP)**, **Department (IdP)**, and **Groups (IdP)** are populated correctly.
 
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="authorFullName" value="Marko Lisica">
-<meta name="publishedOn" value="2025-04-11">
+<meta name="publishedOn" value="2025-11-05">
 <meta name="articleTitle" value="Foreign vitals: map IdP users to hosts">
-<meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png">
 <meta name="category" value="guides">

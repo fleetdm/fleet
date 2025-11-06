@@ -10,7 +10,7 @@
     <div purpose="docs-template" class="container-fluid p-0">
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0"><%= thisPage.title %></h1>
       <div purpose="edit-button-container">
-          <a :purpose="thisPage.title !== 'FAQ' ? 'edit-button' : 'faq-edit-button'" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank" no-icon>
+          <a purpose="edit-button" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank" no-icon>
             <i class="fa fa-pencil"></i>Edit page
           </a>
       </div>
@@ -32,7 +32,7 @@
           <a purpose="subpage-link" href="/docs/contributing" target="_blank" no-icon>Contribute</a>
           <a purpose="subpage-link" href="/releases" no-icon>Release notes</a>
           <a purpose="subpage-link" href="/support" no-icon>Support</a>
-          <a purpose="subpage-link" href="/contact">Take a tour</a>
+          <a purpose="subpage-link" href="/contact">Get a demo</a>
           <a purpose="subpage-link" href="/better">“Why is Fleet on my computer?”</a>
         </div>
         <div class="d-none d-lg-block left-cta" purpose="swag-cta" v-if="showSwagForm && ['REST API', 'Fleet server configuration'].includes(thisPage.title)">
@@ -48,9 +48,9 @@
         </div>
       </div>
 
-        <div purpose="right-sidebar" class="order-first order-lg-last  right-sidebar" v-if="!thisPage.title.includes('FAQ') && !_.isEmpty(subtopics)">
+        <div purpose="right-sidebar" class="order-first order-lg-last right-sidebar" v-if="!thisPage.title.includes('FAQ')">
           <div class="d-none d-lg-block">
-            <p purpose="subtopics-heading" class="font-weight-bold">On this page:</p>
+            <p purpose="subtopics-heading" class="font-weight-bold" v-if="!_.isEmpty(subtopics)">On this page:</p>
             <div purpose="subtopics" v-if="!_.isEmpty(subtopics)">
               <a purpose="subtopic-link" v-for="(subtopic, index) in subtopics" :href="subtopic.url">{{subtopic.title}}</a>
               <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm && !['REST API', 'Fleet server configuration'].includes(thisPage.title)">
@@ -66,7 +66,7 @@
               </div>
             </div>
           </div>
-          <div class="d-block d-lg-none" >
+          <div class="d-block d-lg-none" v-if="!_.isEmpty(subtopics)">
             <div purpose="mobile-custom-select" class="d-flex flex-row justify-content-between" @click="clickOpenMobileSubtopicsNav()">
               <div><p class="mb-0">On this page</p></div>
               <div><img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the table of contents"></div>
@@ -89,7 +89,7 @@
               )
             )
           ) %>
-          <div purpose="docs-start-cta" class="d-flex flex-column flex-sm-row justify-content-between">
+<!--           <div purpose="docs-start-cta" class="d-flex flex-column flex-sm-row justify-content-between">
             <div purpose="docs-start-cta-image" class="col-sm-6 col-md-5 col-lg-6"></div>
             <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center text-center">
               <% if(!me){ %>
@@ -110,7 +110,7 @@
                 <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
               <%}%>
             </div>
-          </div>
+          </div> -->
         </div>
 
       </div>
@@ -141,7 +141,7 @@
       <a purpose="modal-nav-link" href="/docs/contributing" target="_blank" no-icon>Contribute</a>
       <a purpose="modal-nav-link" href="/releases" no-icon>Release notes</a>
       <a purpose="modal-nav-link" href="/support" no-icon>Support</a>
-      <a purpose="modal-nav-link" href="/contact">Take a tour</a>
+      <a purpose="modal-nav-link" href="/contact">Get a demo</a>
       <a purpose="modal-nav-link" href="/better">“Why is Fleet on my computer?”</a>
     </div>
   </modal>
@@ -154,5 +154,6 @@
       </div>
     </modal>
   </div>
+  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

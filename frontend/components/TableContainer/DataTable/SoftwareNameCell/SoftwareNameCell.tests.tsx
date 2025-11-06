@@ -15,7 +15,7 @@ const defaultProps = {
 describe("SoftwareNameCell icon rendering", () => {
   // 2 "No installer" tests
   it("does not show icon when no installer (Software Title page)", () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(<SoftwareNameCell {...defaultProps} />);
     expect(screen.queryByTestId("install-icon")).toBeNull();
     expect(screen.queryByTestId("user-icon")).toBeNull();
@@ -24,7 +24,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("does not show icon when no installer (Host Inventory)", () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(<SoftwareNameCell {...defaultProps} pageContext="hostDetails" />);
     expect(screen.queryByTestId("install-icon")).toBeNull();
     expect(screen.queryByTestId("user-icon")).toBeNull();
@@ -36,7 +36,7 @@ describe("SoftwareNameCell icon rendering", () => {
 
   // 3 "has installer" tests
   it("shows install icon for manual installer (Software Title page)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(<SoftwareNameCell {...defaultProps} hasInstaller />);
     const icon = screen.getByTestId("install-icon");
     await userEvent.hover(icon);
@@ -48,7 +48,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("shows install icon for manual installer (Host Inventory)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -62,7 +62,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("does not show install icon for manual installer (Host Library) as every software on that page will have an installer", () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -75,7 +75,7 @@ describe("SoftwareNameCell icon rendering", () => {
 
   // 3 "self service installer" tests
   it("shows user icon for self-service software (Software Title page)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(<SoftwareNameCell {...defaultProps} hasInstaller isSelfService />);
     const icon = screen.getByTestId("user-icon");
     await userEvent.hover(icon);
@@ -85,7 +85,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("shows user icon for self-service software (Host Inventory)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -102,7 +102,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("shows user icon for self-service software (Host Library)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -120,7 +120,7 @@ describe("SoftwareNameCell icon rendering", () => {
 
   // 3 "auto installer" tests
   it("shows refresh icon for auto-install software (Software Title page)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -136,7 +136,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("shows refresh icon for auto-install software (Host Inventory)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -153,7 +153,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("shows refresh icon for auto-install software (Host Library)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -171,7 +171,7 @@ describe("SoftwareNameCell icon rendering", () => {
 
   // 3 "self service + auto installer" tests
   it("shows automatic-self-service icon for self-service + auto-install (Software Title page)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -191,7 +191,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("shows automatic-self-service icon for self-service + auto-install (Host Inventory)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
@@ -212,7 +212,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   it("shows automatic-self-service icon for self-service + auto-install (Host Library)", async () => {
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}

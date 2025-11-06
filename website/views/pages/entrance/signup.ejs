@@ -1,6 +1,6 @@
 <div id="signup" v-cloak>
   <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/funding-announcement" target="_blank">🎉 Fleet raises $27M for<br> open device management </animated-arrow-button>
+    <animated-arrow-button arrow-color="white" text-color="white" href="/contact">Free MDM migration service</animated-arrow-button>
   </div>
   <div purpose="page-container" class="container">
     <div purpose="page-heading">
@@ -27,11 +27,11 @@
                 <div class="invalid-feedback" v-if="formErrors.password === 'required'">Please enter a password.</div>
                 <p class="mt-2 small"> Minimum length is 8 characters</p>
               </div>
-              <div class="form-group">
+<!--               <div class="form-group">
                 <label for="organization">Organization *</label>
                 <input tabindex="3" class="form-control" id="organization" type="text"  :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" @input="typeClearOneFormError('organization')">
                 <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
-              </div>
+              </div> -->
               <div class="row">
                 <div class="col-12 col-sm-6 pr-sm-2">
                   <div class="form-group">
@@ -60,7 +60,7 @@
             <blockquote purpose="tip" v-if="cloudError === 'invalidEmailDomain'">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
-                <p>Don’t want have a work email? Try a local demo of <a href="/try-fleet">Fleet Free</a> instead.</p>
+                <p>Don’t have a work email? Try a local demo of <a href="/try-fleet">Fleet Free</a> instead.</p>
               </div>
             </blockquote>
             <cloud-error purpose="cloud-error" v-if="cloudError && !['emailAlreadyInUse', 'invalidEmailDomain'].includes(cloudError)"></cloud-error>

@@ -103,11 +103,11 @@ module.exports = {
       }//ﬁ
       if (Object.keys(searchBy).length >= 1) {
         // [?] https://dashboard.coresignal.com/get-started
-        let matchingLinkedinPersonIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/member/search/filter', searchBy, {
+        let matchingLinkedinPersonIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/employee_base/search/filter', searchBy, {
           apikey: `${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
-          sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          sails.log.warn(`When searching for enrichment information for a user (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}) the Coresignal API responded with an error: `, err);
           return [];
         });
         linkedinPersonIdOrUrlSlug = matchingLinkedinPersonIds[0];
@@ -119,22 +119,22 @@ module.exports = {
 
     if (linkedinPersonIdOrUrlSlug) {
       // [?] https://dashboard.coresignal.com/get-started
-      let matchingPersonInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v2/member/collect/'+encodeURIComponent(linkedinPersonIdOrUrlSlug), {}, {
+      let matchingPersonInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v2/employee_base/collect/'+encodeURIComponent(linkedinPersonIdOrUrlSlug), {}, {
         apikey: `${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
-        sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        sails.log.warn(`When retrieving enrichment information for a user (LinkedIn Id or Slug: ${linkedinPersonIdOrUrlSlug}), the Coresignal API responded with an error: `, err);
         return undefined;
       });
 
       if (matchingPersonInfo) {
 
-        require('assert')(Array.isArray(matchingPersonInfo.member_experience_collection));
+        require('assert')(Array.isArray(matchingPersonInfo.experience));
         let matchingWorkExperience;
         if(organization){
           // If organization was provided, we know it is listed in this person's work experience so we'll use it to filter the results.
           matchingWorkExperience = (
-            matchingPersonInfo.member_experience_collection.filter((workExperience) =>
+            matchingPersonInfo.experience.filter((workExperience) =>
               !workExperience.deleted &&
               !workExperience.date_to &&
               workExperience.company_name === organization
@@ -143,7 +143,7 @@ module.exports = {
         } else {
           // Otherwise, we'll use the top experience on this user's profile.
           matchingWorkExperience = (
-            matchingPersonInfo.member_experience_collection.filter((workExperience) =>
+            matchingPersonInfo.experience.filter((workExperience) =>
               !workExperience.deleted &&
               workExperience.order_in_profile === 1 &&
               !workExperience.date_to
@@ -160,7 +160,7 @@ module.exports = {
         }
 
         person = {
-          linkedinUrl: matchingPersonInfo.canonical_url.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+          linkedinUrl: matchingPersonInfo.profile_url.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
           firstName: matchingPersonInfo.first_name,
           lastName: matchingPersonInfo.last_name,
           organization: matchedOrganizationName || '',
@@ -184,40 +184,85 @@ module.exports = {
 
 
 
-
     // Now look up the employer.
     //
     // [?] Either use the matched linkedin company page ID from above,
     //     or if no match, then try to find the linkedin company page ID
     //     by other means.  If nothing works, then give up and don't enrich.
     if (!matchingLinkedinCompanyPageId) {
-      let searchBy = {};
-      if (emailDomain) {
-        searchBy.website = emailDomain;
+      // Create an empty Elasticsearch query. We'll add queries to it based the provided inputs.
+      // [?] https://docs.coresignal.com/company-api/clean-company-api/endpoints/elasticsearch-dsl#elasticsearch-schema-1
+      let baseSearchQuery = {
+        query: {
+          bool: {
+            should: [],
+            minimum_should_match: 1, // eslint-disable-line camelcase
+          }
+        },
+        sort: ['size_employees_count'],// [?] https://docs.coresignal.com/company-api/clean-company-api/endpoints/elasticsearch-dsl
+      };
+
+      if(organization) {
+        // If an organization was provided, add a queries that search by company name.
+        baseSearchQuery.query.bool.should.push({
+          dis_max: {// eslint-disable-line camelcase
+            queries: [
+              { match_phrase: { name: { query: organization } } },// eslint-disable-line camelcase
+            ]
+          }
+        });
       }//ﬁ
-      if (organization) {
-        searchBy.name = organization;
+
+      if(emailDomain) {
+        // If an email address was provided, add a query that uses the person's emailDomain to search company websites.
+        baseSearchQuery.query.bool.should.push({
+          dis_max: {// eslint-disable-line camelcase
+            queries: [
+              { match_phrase: { 'websites_resolved': { query: `https://www.${emailDomain}` } } },// eslint-disable-line camelcase
+              { match_phrase: { 'websites_resolved': { query: `https://${emailDomain}` } } },// eslint-disable-line camelcase
+              { match_phrase: { 'websites_resolved.domain_only': { query: `${emailDomain}` } } },// eslint-disable-line camelcase
+            ]
+          }
+        });
       }//ﬁ
-      if (Object.keys(searchBy).length >= 1) {
+
+      if (baseSearchQuery.query.bool.should.length >= 1) {
         // [?] https://dashboard.coresignal.com/get-started
-        let matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_base/search/filter', searchBy, {
+        let matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_clean/search/es_dsl', baseSearchQuery, {
           apikey: `${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
-          sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          sails.log.warn(`When searching for enrichment information for a user's organization (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}) the Coresignal API responded with an error: `, err);
           return [];
         });
 
         // If name and domain were used for searching the org, yet no matches found,
         // try searching again, but this time w/o the org name.
-        if (matchingLinkedinCompanyPageIds.length === 0 && searchBy.name && searchBy.website) {
-          delete searchBy.name;
-          // [?] https://dashboard.coresignal.com/get-started
-          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_base/search/filter', searchBy, {
+        if (matchingLinkedinCompanyPageIds.length === 0 && organization) {
+          baseSearchQuery = {
+            query: {
+              bool: {
+                should: [{
+                  dis_max: {// eslint-disable-line camelcase
+                    tie_breaker: 0.0,// eslint-disable-line camelcase
+                    queries: [
+                      { match_phrase: { 'websites_resolved': { query: `https://www.${emailDomain}`, boost: 14 } } },// eslint-disable-line camelcase
+                      { match_phrase: { 'websites_resolved': { query: `https://${emailDomain}`, boost: 12 } } },// eslint-disable-line camelcase
+                      { match_phrase: { 'websites_resolved.domain_only': { query: `${emailDomain}`, boost: 8 } } },// eslint-disable-line camelcase
+                    ]
+                  }
+                }],
+                minimum_should_match: 1,// eslint-disable-line camelcase
+              }
+            },
+            sort: ['_score'],
+          };
+          // [?] https://docs.coresignal.com/company-api/clean-company-api/endpoints/elasticsearch-dsl
+          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_clean/search/es_dsl', baseSearchQuery, {
             apikey: `${sails.config.custom.iqSecret}`,
             'content-type': 'application/json'
           }).tolerate((err)=>{
-            sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+            sails.log.warn(`When searching for enrichment information for a user's organization (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}) the Coresignal API responded with an error: `, err);
             return [];
           });
         }//ﬁ
@@ -226,6 +271,7 @@ module.exports = {
       }//ﬁ
     }//ﬁ
 
+
     let employer;
     if (matchingLinkedinCompanyPageId) {
       // [?] https://dashboard.coresignal.com/get-started
@@ -233,7 +279,7 @@ module.exports = {
         apikey: `${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
-        sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        sails.log.warn(`When retrieving enrichment information about a user's organization (LinkedIn page ID: ${matchingLinkedinCompanyPageId}) the Coresignal API responded with an error: `, err);
         return undefined;
       });
       if (matchingCompanyPageInfo) {

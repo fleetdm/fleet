@@ -11,22 +11,22 @@ export interface ISideNavItem<T> {
   title: string;
   urlSection: string;
   path: string;
-  Card: (props: T) => JSX.Element;
+  Card: React.ComponentType<T>;
 }
 
-interface ISideNavProps {
-  navItems: ISideNavItem<IAppConfigFormProps>[];
+interface ISideNavProps<T> {
+  navItems: ISideNavItem<T>[];
   activeItem: string;
-  CurrentCard: JSX.Element;
+  CurrentCard: React.ReactNode;
   className?: string;
 }
 
-const SideNav = ({
+function SideNav<T = IAppConfigFormProps>({
   navItems,
   activeItem,
   CurrentCard,
   className,
-}: ISideNavProps) => {
+}: ISideNavProps<T>) {
   const classes = classnames(baseClass, className);
 
   return (
@@ -48,6 +48,6 @@ const SideNav = ({
       </div>
     </div>
   );
-};
+}
 
 export default SideNav;

@@ -45,6 +45,7 @@ func TestScim(t *testing.T) {
 		{"ScimUsersExist", testScimUsersExist},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1836,9 +1837,9 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 
 	// insert the relationship between profile and variables
 	varsPerProfile := map[string][]string{
-		profUsername.ProfileUUID: {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart},
-		profGroup.ProfileUUID:    {fleet.FleetVarHostEndUserIDPGroups},
-		profAll.ProfileUUID:      {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart, fleet.FleetVarHostEndUserIDPGroups},
+		profUsername.ProfileUUID: {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
+		profGroup.ProfileUUID:    {string(fleet.FleetVarHostEndUserIDPGroups)},
+		profAll.ProfileUUID:      {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
 	}
 	for profUUID, vars := range varsPerProfile {
 		for _, v := range vars {
@@ -1937,7 +1938,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", GivenName: ptr.String("A")})
+	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: ptr.String("A")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2141,11 +2142,11 @@ func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	// create a team and make host2 part of that team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host2.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID}))
 	require.NoError(t, err)
 
 	// create some profiles with/without vars on the team
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []string{fleet.FleetVarHostEndUserIDPGroups})
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 	require.NoError(t, err)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", team.ID), nil)
 	require.NoError(t, err)
@@ -2211,13 +2212,15 @@ func assertHostProfileOpStatus(t *testing.T, ds *Datastore, hostUUID string, wan
 	require.NoError(t, err)
 	appleProfs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
 	require.NoError(t, err)
+	androidProfs, err := ds.GetHostMDMAndroidProfiles(ctx, hostUUID)
+	require.NoError(t, err)
 
 	type commonHostProf struct {
 		Status      fleet.MDMDeliveryStatus
 		Type        fleet.MDMOperationType
 		ProfileUUID string
 	}
-	profs := make([]commonHostProf, 0, len(appleProfs)+len(winProfs))
+	profs := make([]commonHostProf, 0, len(appleProfs)+len(winProfs)+len(androidProfs))
 	for _, wp := range winProfs {
 		var status fleet.MDMDeliveryStatus
 		if wp.Status == nil {
@@ -2242,6 +2245,19 @@ func assertHostProfileOpStatus(t *testing.T, ds *Datastore, hostUUID string, wan
 			ProfileUUID: ap.ProfileUUID,
 			Status:      status,
 			Type:        ap.OperationType,
+		})
+	}
+	for _, anp := range androidProfs {
+		var status fleet.MDMDeliveryStatus
+		if anp.Status == nil {
+			status = fleet.MDMDeliveryPending
+		} else {
+			status = *anp.Status
+		}
+		profs = append(profs, commonHostProf{
+			ProfileUUID: anp.ProfileUUID,
+			Status:      status,
+			Type:        anp.OperationType,
 		})
 	}
 
@@ -2343,48 +2359,133 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	assert.True(t, exist, "Large batch with only existing users should return true")
 }
 
-func forceSetWindowsHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMWindowsConfigProfile, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
+func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// empty status string means set to NULL
-	var actualStatus *fleet.MDMDeliveryStatus
-	if status != "" {
-		actualStatus = &status
+	// Create test SCIM users
+	user1 := fleet.ScimUser{
+		UserName:   "mapping-test-user1",
+		ExternalID: ptr.String("ext-mapping-123"),
+		GivenName:  ptr.String("Test"),
+		FamilyName: ptr.String("User1"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user1@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Engineering"),
 	}
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
-				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
-			VALUES
-				(?, ?, ?, ?, ?, UNHEX(MD5(?)), ?)
-			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type)
-			`,
-			hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.SyncML, profile.ProfileUUID)
-		return err
-	})
-}
-
-func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMAppleDeclaration, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
-	ctx := t.Context()
-
-	// empty status string means set to NULL
-	var actualStatus *fleet.MDMDeliveryStatus
-	if status != "" {
-		actualStatus = &status
+	user2 := fleet.ScimUser{
+		UserName:   "mapping-test-user2",
+		ExternalID: ptr.String("ext-mapping-456"),
+		GivenName:  ptr.String("Test"),
+		FamilyName: ptr.String("User2"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user2@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Sales"),
 	}
 
+	var err error
+	user1.ID, err = ds.CreateScimUser(ctx, &user1)
+	require.NoError(t, err)
+
+	user2.ID, err = ds.CreateScimUser(ctx, &user2)
+	require.NoError(t, err)
+
+	hostID1 := uint(1)
+	hostID2 := uint(2)
+
+	// Create new host-SCIM user mapping
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	require.NoError(t, err)
+
+	// Verify the mapping was created
+	var scimUserID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
-				(declaration_identifier, host_uuid, status, operation_type, token, declaration_name, declaration_uuid)
-			VALUES
-				(?, ?, ?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type)
-			`,
-			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
-		return err
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
 	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Test 2: Update existing host-SCIM user mapping
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user2.ID)
+	require.NoError(t, err)
+
+	// Verify the mapping was updated (should now point to user2)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user2.ID, scimUserID)
+
+	// Verify there's only one mapping for this host
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			"SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, 1, count)
+
+	// Test 3: Create mapping for a different host
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID2, user1.ID)
+	require.NoError(t, err)
+
+	// Verify both hosts have mappings
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID2)
+	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Verify total mappings
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			"SELECT COUNT(*) FROM host_scim_user")
+	})
+	assert.Equal(t, 2, count)
+
+	// Update mapping back to original user for hostID1
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	require.NoError(t, err)
+
+	// Verify hostID1 now maps to user1
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Error case - non-existent SCIM user
+	nonExistentUserID := uint(999999)
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, nonExistentUserID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "foreign key constraint")
+
+	// Verify that failing update didn't change existing mapping
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user1.ID, scimUserID) // Should still be user1
+
+	// Verify the mapping can be queried via ScimUserByHostID
+	result, err := ds.ScimUserByHostID(ctx, hostID1)
+	require.NoError(t, err)
+	assert.Equal(t, user1.ID, result.ID)
+	assert.Equal(t, "mapping-test-user1", result.UserName)
+
+	result, err = ds.ScimUserByHostID(ctx, hostID2)
+	require.NoError(t, err)
+	assert.Equal(t, user1.ID, result.ID)
+	assert.Equal(t, "mapping-test-user1", result.UserName)
 }

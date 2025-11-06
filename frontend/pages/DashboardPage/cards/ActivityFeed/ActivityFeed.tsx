@@ -3,11 +3,19 @@ import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
 
+import paths from "router/paths";
+
 import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
+import {
+  resolveUninstallStatus,
+  SoftwareInstallUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
+
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -15,17 +23,20 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 
-import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
-import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
 import VppDetailsModal from "./components/VPPDetailsModal";
-import ScriptBatchSummaryModal from "./components/ScriptBatchSummaryModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -51,12 +62,20 @@ const ActivityFeed = ({
     setPackageInstallDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
-    packageUninstallDetails,
-    setPackageUninstallDetails,
+    scriptPackageDetails,
+    setScriptPackageDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
-    appInstallDetails,
-    setAppInstallDetails,
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
+  const [
+    vppInstallDetails,
+    setVppInstallDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
     activityAutomationDetails,
@@ -67,10 +86,6 @@ const ActivityFeed = ({
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
   const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
-  const [
-    scriptBatchExecutionDetails,
-    setScriptBatchExecutionDetails,
-  ] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -117,11 +132,7 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = ({
-    type,
-    details,
-    created_at,
-  }: IShowActivityDetailsData) => {
+  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
         queryShown.current = details?.query_sql ?? "";
@@ -135,13 +146,25 @@ const ActivityFeed = ({
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
-        setPackageInstallDetails({ ...details });
+        if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
+          setScriptPackageDetails({ ...details });
+        } else {
+          details?.command_uuid
+            ? setIpaPackageInstallDetails({ ...details })
+            : setPackageInstallDetails({ ...details });
+        }
         break;
       case ActivityType.UninstalledSoftware:
-        setPackageUninstallDetails({ ...details });
+        setPackageUninstallDetails({
+          ...details,
+          softwareName: details?.software_title || "",
+          uninstallStatus: resolveUninstallStatus(details?.status),
+          scriptExecutionId: details?.script_execution_id || "",
+          hostDisplayName: details?.host_display_name,
+        });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setAppInstallDetails({ ...details });
+        setVppInstallDetails({ ...details });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -158,7 +181,12 @@ const ActivityFeed = ({
         setVppDetails({ ...details });
         break;
       case ActivityType.RanScriptBatch:
-        setScriptBatchExecutionDetails({ ...details, created_at });
+      case ActivityType.CanceledScriptBatch:
+        router.push(
+          paths.CONTROLS_SCRIPTS_BATCH_DETAILS(
+            details?.batch_execution_id || ""
+          )
+        );
         break;
       default:
         break;
@@ -245,16 +273,41 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
+      {scriptPackageDetails && (
+        <SoftwareScriptDetailsModal
+          details={scriptPackageDetails}
+          onCancel={() => setScriptPackageDetails(null)}
+        />
+      )}
+      {ipaPackageInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          details={{
+            appName: ipaPackageInstallDetails.software_title || "",
+            fleetInstallStatus: (ipaPackageInstallDetails.status ||
+              "pending_install") as SoftwareInstallUninstallStatus,
+            hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
+            commandUuid: ipaPackageInstallDetails.command_uuid || "",
+          }}
+          onCancel={() => setIpaPackageInstallDetails(null)}
+        />
+      )}
       {packageUninstallDetails && (
         <SoftwareUninstallDetailsModal
-          details={packageUninstallDetails}
+          {...packageUninstallDetails}
+          hostDisplayName={packageUninstallDetails.hostDisplayName || ""}
           onCancel={() => setPackageUninstallDetails(null)}
         />
       )}
-      {appInstallDetails && (
-        <AppInstallDetailsModal
-          details={appInstallDetails}
-          onCancel={() => setAppInstallDetails(null)}
+      {vppInstallDetails && (
+        <VppInstallDetailsModal
+          details={{
+            appName: vppInstallDetails.software_title || "",
+            fleetInstallStatus: (vppInstallDetails.status ||
+              "pending_install") as SoftwareInstallUninstallStatus,
+            hostDisplayName: vppInstallDetails.host_display_name || "",
+            commandUuid: vppInstallDetails.command_uuid || "",
+          }}
+          onCancel={() => setVppInstallDetails(null)}
         />
       )}
       {activityAutomationDetails && (
@@ -273,13 +326,6 @@ const ActivityFeed = ({
         <VppDetailsModal
           details={vppDetails}
           onCancel={() => setVppDetails(null)}
-        />
-      )}
-      {scriptBatchExecutionDetails && (
-        <ScriptBatchSummaryModal
-          scriptBatchExecutionDetails={scriptBatchExecutionDetails}
-          onCancel={() => setScriptBatchExecutionDetails(null)}
-          router={router}
         />
       )}
     </div>

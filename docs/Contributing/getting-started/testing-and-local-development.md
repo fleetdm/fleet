@@ -163,6 +163,18 @@ To run MySQL integration tests, set environment variables as follows:
 MYSQL_TEST=1 make test-go
 ```
 
+#### Configuring MySQL test port
+
+By default, the test MySQL instance uses port 3307. You can customize this port using the `FLEET_MYSQL_TEST_PORT` environment variable.
+
+For example, to use a different port:
+
+```sh
+export FLEET_MYSQL_TEST_PORT=3327
+docker-compose up -d mysql_test
+MYSQL_TEST=1 make test-go
+```
+
 ### Email tests
 
 To run email related integration tests using MailHog set environment as follows:
@@ -350,7 +362,9 @@ docker-compose exec redis redis-cli
 
 ## Testing SSO
 
-Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testing SAML-based SSO locally.
+For end-to-end testing including advanced use cases (e.g. SCIM), [Okta](https://developer.okta.com/signup/) has an Integrator Free Plan available that you can develop against.
+
+For simpler use cases, Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testing SAML-based SSO locally.
 
 ### Configuration
 
@@ -760,8 +774,9 @@ To use the workflow, follow these steps:
 
 #### Building a signed fleetd-base installer from `local TUF` and signing with Apple Developer Account
 
-1. Build fleetd base pkg installer from your [local TUF](https://github.com/fleetdm/fleet/blob/HEAD/docs/Contributing/Run-Locally-Built-Fleetd.md) service by running the following command after the local TUF repository is generated `fleetctl package --type=pkg --update-roots=$(fleetctl updates roots --path ./test_tuf) --disable-open-folder --debug --update-url=$LOCAL_TUF_URL --enable-scripts --use-system-configuration`.
-2. Obtain a `Developer ID Installer Certificate`:
+1. Set up a [local TUF](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md#run). Include swiftDialog (`SWIFT_DIALOG=1`). Make sure your local TUF is accessible via a public `$LOCAL_TUF_URL`.
+2. Build fleetd base pkg installer from your local TUF service by running the following command after the local TUF repository is generated `fleetctl package --type=pkg --update-roots=$(fleetctl updates roots --path ./test_tuf) --disable-open-folder --debug --update-url=$LOCAL_TUF_URL --enable-scripts --use-system-configuration`.
+3. Obtain a `Developer ID Installer Certificate`:
 - Sign in to your Apple Developer account.
 - Navigate to "Certificates, IDs, & Profiles".
 - Click on "Certificates" and then click the "+" button to create a new certificate.
@@ -769,15 +784,15 @@ To use the workflow, follow these steps:
 - Install the downloaded certificate to your keychain.
 - Locate the certificate in your Keychain and confirm everything looks correct. Run this command to confirm you see it listed `security find-identity -v`
   - If the security  command does not show your newly added certificate you may need to install the `Developer ID - G2 (Expiring 09/17/2031 00:00:00 UTC)` certificate from [Apple PKI](https://www.apple.com/certificateauthority/). 
-3. Sign your pkg with the `productsign` command replacing the placeholders with your actual values:
+4. Sign your pkg with the `productsign` command replacing the placeholders with your actual values:
 
 `productsign --sign "Developer ID Installer: Your Apple Account Name (serial number)" <path_to_unpacked_files> <path_to_signed_package.pkg>`
 
 Example: `productsign --sign "Developer ID Installer: PezHub (5F863R529J)" fleet-osquery.pkg signed-fleetd.pkg`
 
-4. Check the signature by running `pkgutil --check-signature signed-fleetd.pkg`
-5. Rename your signed pkg `mv signed-fleetd.pkg fleet-base.pkg`
-6. Create the manifest:
+5. Check the signature by running `pkgutil --check-signature signed-fleetd.pkg`
+6. Rename your signed pkg `mv signed-fleetd.pkg fleet-base.pkg`
+7. Create the manifest:
 - Get the SHA-256 checksum of your pkg `shasum -a 256 path/to/your.pkg`
 - Create a .plist with your SHA-256 hash and the URL where you plan to host the fleet pkg and save it as `fleetd-base-manifest.plist`
 
@@ -809,7 +824,7 @@ Example:
 </plist>
 ```
 
-7. Serve the `fleet-base.pkg` and `fleetd-base-manifest.plist`
+8. Serve the `fleet-base.pkg` and `fleetd-base-manifest.plist`
 
 
 #### Serving the signed fleetd-base.pkg installer

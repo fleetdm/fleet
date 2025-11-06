@@ -63,7 +63,7 @@ To get the latest version of a Fleet-maintained app,
 2. Re-add it from the Fleet-maintained list on the **Software** page.
 3. Install the new version of the app via one of the three methods above.
 
-A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/25636).
+A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/32993).
 
 ## Manage apps with GitOps
 
@@ -79,7 +79,7 @@ Fleet:
 
 - verifies, installs, uninstalls & tests all Fleet-maintained apps alongside the install and uninstall scripts we generate
 - transforms data from multiple sources, including [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) and [WinGet manifests](https://github.com/microsoft/winget-pkgs/tree/master/manifests), into [standardized manifests](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/), checking data sources [multiple times per day](https://github.com/fleetdm/fleet/blob/main/.github/workflows/ingest-maintained-apps.yml)
-- fetches the [full maintained apps list](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json) from GitHub daily (or when you run `fleetctl trigger --name=maintained_apps`)
+- fetches the [full maintained apps list](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json) from GitHub hourly (or when you run `fleetctl trigger --name=maintained_apps`; interval was daily prior to Fleet 4.71.0)
 - fetches an individual app's manifest when the **Add** button is pressed from the maintained apps list in the UI, and when an individual app is [retrieved](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-maintained-app) or [added](https://fleetdm.com/docs/rest-api/rest-api#add-fleet-maintained-app) via the REST API
 - DOES NOT directly pull data from WinGet or Homebrew to end-user devices
 

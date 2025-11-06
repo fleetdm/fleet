@@ -18,7 +18,7 @@ interface IEulaListItemProps {
 
 const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
   const onOpenEula = () => {
-    window.open(`/api/${endpoints.MDM_EULA(eulaData.token)}`, "_blank");
+    window.open(`/api${endpoints.MDM_EULA(eulaData.token)}`, "_blank");
   };
 
   return (
@@ -42,25 +42,24 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
       >
         <Button
           className={`${baseClass}__list-item-button`}
-          variant="text-icon"
+          variant="icon"
           onClick={onOpenEula}
         >
           <Icon
             name="external-link"
             size="medium"
             className={`${baseClass}__external-icon`}
-            color="ui-fleet-black-75"
           />
         </Button>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button
               className={`${baseClass}__list-item-button`}
-              variant="text-icon"
+              variant="icon"
               onClick={() => onDelete()}
               disabled={disableChildren}
             >
-              <Icon name="trash" color="ui-fleet-black-75" />
+              <Icon name="trash" />
             </Button>
           )}
         />

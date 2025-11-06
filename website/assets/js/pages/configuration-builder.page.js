@@ -54,6 +54,10 @@ parasails.registerPage('configuration-builder', {
     // For the profile builder
     configurationBuilderFormData: {},
     configurationBuilderFormRules: {},
+
+    currentSelectedCategoryForDownload: '',
+    configurationBuilderFormDataByCategory: {},
+    configurationBuilderByCategoryFormRules: {},
     // For the download modal
     downloadProfileFormRules: {
       name: {required: true},
@@ -61,251 +65,1706 @@ parasails.registerPage('configuration-builder', {
     downloadProfileFormData: {},
     profileFilename: undefined,
     profileDescription: undefined,
-    // mac OS payloads.
-    macosCategoriesAndPayloads: [
-      {
-        categoryName: 'Privacy & security',
-        categorySlug: 'macos-privacy-and-security',
-        subcategories: [
-          {
-            subcategoryName: 'Device lock',
-            subcategorySlug: 'macos-device-lock',
-            description: 'Settings related to screen lock and passwords.',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
-            payloads: [
-              {
-                name: 'Require device password',
-                uniqueSlug: 'macos-enable-force-pin',
-                tooltip: 'Require a password to unlock the device',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'forcePIN',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
-                },
-              },
-              {
-                name: 'Allow simple password',
-                uniqueSlug: 'macos-enable-allow-simple-pin',
-                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowSimple',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
-                },
-              },
-              {
-                name: 'Max inactivity time before device locks',
-                uniqueSlug: 'macos-max-inactivity',
-                tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 4,
-                  minValue: 0,
-                  maxValue: 60,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxInactivity',
-                },
-              },
-              {
-                name: 'Minimum password length',
-                uniqueSlug: 'macos-min-length',
-                tooltip: 'The minimum overall length of the passcode.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 16,
-                  unitLabel: 'characters'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minLength',
-                },
-              },
-              {
-                name: 'Require alphanumeric password',
-                uniqueSlug: 'macos-require-alphanumeric-password',
-                tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'requireAlphanumeric',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
-                },
-              },
-              {
-                name: 'Change passcode at next login',
-                uniqueSlug: 'macos-change-at-next-auth',
-                tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'changeAtNextAuth',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
-                },
-              },
-              {
-                name: 'Maximum number of failed attempts',
-                uniqueSlug: 'macos-max-failed-attempts',
-                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 11,
-                  minValue: 2,
-                  maxValue: 11,
-                  unitLabel: 'attempts'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxFailedAttempts',
-                },
-              },
-              {
-                name: 'Max grace period',
-                uniqueSlug: 'macos-max-grace-period',
-                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxGracePeriod',
-                },
-              },
-              {
-                name: 'Max passcode age',
-                uniqueSlug: 'macos-max-pin-age',
-                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'days'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxPINAgeInDays',
-                },
-              },
-              {
-                name: 'Minimum complex characters',
-                uniqueSlug: 'macos-min-complex-characters',
-                tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 4,
-                  unitLabel: 'characters'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minComplexChars',
-                },
-              },
-              {
-                name: 'Minutes until failed login reset',
-                uniqueSlug: 'macos-minutes-until-failed-login-reset',
-                tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 4,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'minutesUntilFailedLoginReset',
-                },
-              },
-              {
-                name: 'Passcode history',
-                uniqueSlug: 'macos-passcode-history',
-                tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  minValue: 1,
-                  maxValue: 50,
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'pinHistory',
-                },
-              },
-            ],
-          }
-        ]
-      },
-    ],
+    // Note: macOS and iOS payloads have been commented out while we focus on Windows & Android.
+    // macOS payloads.
+    // macosCategoriesAndPayloads: [
+    //   {
+    //     categoryName: 'Privacy & security',
+    //     categorySlug: 'macos-privacy-and-security',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'Device lock',
+    //         subcategorySlug: 'macos-device-lock',
+    //         description: 'Settings related to screen lock and passwords.',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
+    //         payloads: [
+    //           {
+    //             name: 'Require device password',
+    //             uniqueSlug: 'macos-enable-force-pin',
+    //             tooltip: 'Require a password to unlock the device',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'forcePIN',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum inactivity time before device locks',
+    //             uniqueSlug: 'macos-max-inactivity',
+    //             tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 4,
+    //               minValue: 0,
+    //               maxValue: 60,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxInactivity',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum password length',
+    //             uniqueSlug: 'macos-min-length',
+    //             tooltip: 'The minimum overall length of the passcode.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 16,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minLength',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow simple password',
+    //             uniqueSlug: 'macos-enable-allow-simple-pin',
+    //             tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowSimple',
+    //             },
+    //           },
+    //           {
+    //             name: 'Require alphanumeric password',
+    //             uniqueSlug: 'macos-require-alphanumeric-password',
+    //             tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'requireAlphanumeric',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum complex characters',
+    //             uniqueSlug: 'macos-min-complex-characters',
+    //             tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 4,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minComplexChars',
+    //             },
+    //           },
+    //           {
+    //             name: 'Change passcode at next login',
+    //             uniqueSlug: 'macos-change-at-next-auth',
+    //             tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'changeAtNextAuth',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum grace period',
+    //             uniqueSlug: 'macos-max-grace-period',
+    //             tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxGracePeriod',
+    //             },
+    //           },
+    //           {
+    //             name: 'Passcode history',
+    //             uniqueSlug: 'macos-passcode-history',
+    //             tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 1,
+    //               maxValue: 50,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'pinHistory',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum passcode age',
+    //             uniqueSlug: 'macos-max-pin-age',
+    //             tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'days'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxPINAgeInDays',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum number of failed attempts',
+    //             uniqueSlug: 'macos-max-failed-attempts',
+    //             tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 11,
+    //               minValue: 2,
+    //               maxValue: 11,
+    //               unitLabel: 'attempts'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxFailedAttempts',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minutes until failed login reset',
+    //             uniqueSlug: 'macos-minutes-until-failed-login-reset',
+    //             tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 4,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minutesUntilFailedLoginReset',
+    //             },
+    //           },
+    //         ],
+    //       },
+    //       {
+    //         subcategoryName: 'Restrictions',
+    //         subcategorySlug: 'macos-restrictions',
+    //         description: 'Settings that configures restrictions on a device..',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+    //         docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+    //         payloads: [
+    //           {
+    //             name: 'Allow erasing all content and settings',
+    //             uniqueSlug: 'macos-disable-erase-content',
+    //             tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowEraseContentAndSettings',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow device name modification',
+    //             uniqueSlug: 'macos-enable-device-name-modification',
+    //             tooltip: 'If false, the system prevents the user from changing the device name.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowDeviceNameModification',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow UI configuration profile installation',
+    //             uniqueSlug: 'macos-allow-configuration-profile-installation',
+    //             tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowUIConfigurationProfileInstallation',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow content caching',
+    //             uniqueSlug: 'macos-allow-content-caching',
+    //             tooltip: 'If false, the system disables content caching.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowContentCaching',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow camera',
+    //             uniqueSlug: 'macos-allow-camera',
+    //             tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in macOS 10.11 and later. Support for this restriction on unsupervised devices is deprecated.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowCamera',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow AirDrop',
+    //             uniqueSlug: 'macos-allow-airdrop',
+    //             tooltip: 'If false, the system disables AirDrop. Available in macOS 10.13 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowAirDrop',
+    //             },
+    //           },
+    //         ]
+    //       }
+    //       // {
+    //       //   subcategoryName: 'FileVault',
+    //       //   subcategorySlug: 'macos-filevault',
+    //       //   description: 'Settings related disk encryption on macOS devices.',
+    //       //   learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/fdefilevault',
+    //       //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+    //       //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+    //       //   payloads: [
+    //       //     // {// TODO: how do we want to accept this value?
+    //       //     //   name: 'Filevault certificate',
+    //       //     //   uniqueSlug: 'macos-filevault-certificate',
+    //       //     //   tooltip: 'The DER-encoded certificate data if the system creates an institutional recovery key. This key isn’t supported on Macs with Apple silicon.',
+    //       //     //   category: 'FileVault',
+    //       //     //   payload: 'FDEFileVault',
+    //       //     //   payloadType: 'com.apple.MCX.FileVault2',
+    //       //     //   formInput: {
+    //       //     //     type: 'text',
+    //       //     //   },
+    //       //     //   formOutput: {
+    //       //     //     settingFormat: 'data',
+    //       //     //     settingKey: 'Certificate',
+    //       //     //   },
+    //       //     // },
+    //       //     {
+    //       //       name: 'Enable FileVault',
+    //       //       uniqueSlug: 'macos-enable-filevault',
+    //       //       tooltip: 'Enables FileVault on macOS devices. Payloads that enable filevault sent through MDM need to either include full authentication information in the payload or have the Defer option set to true.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'Enable',
+    //       //         trueValue: 'On',
+    //       //         falseValue: 'Off'
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Create FileVault recovery key',
+    //       //       uniqueSlug: 'macos-use-recovery-key',
+    //       //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UseRecoveryKey',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Show recovery key to user after enabling FileVault',
+    //       //       uniqueSlug: 'macos-show-recovery-key',
+    //       //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UseRecoveryKey',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Open directory username',
+    //       //       uniqueSlug: 'macos-filevault-od-username',
+    //       //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'text',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'Username',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Open directory password',
+    //       //       uniqueSlug: 'macos-filevault-od-password',
+    //       //       tooltip: 'The password of the Open Directory user to add to FileVault. Use the "Ask end-user for missing information" key to prompt for this information.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'text',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'Password',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Ask end-user for missing information',
+    //       //       uniqueSlug: 'macos-filevault-ask-for-missing-info',
+    //       //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UserEntersMissingInfo',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Defer FileVault activation',
+    //       //       uniqueSlug: 'macos-defer-filevault-activation',
+    //       //       tooltip: 'If true, the system defers enabling FileVault until the designated user logs out. Only a local user or a mobile account user can enable FileVault.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'Defer',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Disable requests to enable FileVault when users log out.',
+    //       //       uniqueSlug: 'macos-disable-filevault-activiation-log-out',
+    //       //       tooltip: 'If true, the system prevents requests to enable FileVault at user logout time.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'DeferDontAskAtUserLogout',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Maximum number of times users can defer',
+    //       //       uniqueSlug: 'macos-filevault-max-bypass-attempts',
+    //       //       tooltip: 'The maximum number of times users can bypass enabling FileVault before the system requires the user to enable it to log in. If the value is 0, the system requires the user to enable FileVault the next time they attempt to log in. Set this key to -1 to disable this feature.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'number',
+    //       //         maxValue: 9999,
+    //       //         minValue: -1,
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'integer',
+    //       //         settingKey: 'DeferForceAtUserLoginMaxBypassAttempts',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Specify a path to FileVault recovery key',
+    //       //       uniqueSlug: 'macos-filevault-recovery-key',
+    //       //       tooltip: 'The path to the location of the recovery key and computer information property list.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'text',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'string',
+    //       //         settingKey: 'OutputPath',
+    //       //       },
+    //       //     },
+    //       //     {
+    //       //       name: 'Store recovery key in keychain',
+    //       //       uniqueSlug: 'macos-filevault-recovery-key-in-keychain',
+    //       //       tooltip: 'If true and you don’t include certificate information in this payload, the system uses the keychain created at /Library/Keychains/FileVaultMaster.keychain when it adds the institutional recovery key.',
+    //       //       category: 'FileVault',
+    //       //       payload: 'FDEFileVault',
+    //       //       payloadType: 'com.apple.MCX.FileVault2',
+    //       //       formInput: {
+    //       //         type: 'boolean',
+    //       //       },
+    //       //       formOutput: {
+    //       //         settingFormat: 'boolean',
+    //       //         settingKey: 'UseKeychain',
+    //       //       },
+    //       //     },
+    //       //     // {
+    //       //     //   name: 'Certificate UUID',
+    //       //     //   uniqueSlug: 'macos-filevault-certificate-uuid',
+    //       //     //   tooltip: 'The UUID of the payload within the same profile containing the asymmetric recovery key certificate payload.',
+    //       //     //   category: 'FileVault',
+    //       //     //   payload: 'FDEFileVault',
+    //       //     //   payloadType: 'com.apple.MCX.FileVault2',
+    //       //     //   formInput: {
+    //       //     //     type: 'text',
+    //       //     //   },
+    //       //     //   formOutput: {
+    //       //     //     settingFormat: 'string',
+    //       //     //     settingKey: 'PayloadCertificateUUID',
+    //       //     //   },
+    //       //     // },
+    //       //   ],
+    //       // },
+    //     ]
+    //   },
+    //   {
+    //     categoryName: 'Software & updates',
+    //     categorySlug: 'macos-software-and-updates',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'Gatekeeper',
+    //         subcategorySlug: 'macos-gatekeeper',
+    //         description: 'Settings related to Gatekeeper',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/systempolicycontrol',
+    //         payloads: [
+    //           {
+    //             name: 'Enable Gatekeeper',
+    //             uniqueSlug: 'macos-enable-gatekeeper',
+    //             tooltip: 'If true, enables Gatekeeper. If false, disables Gatekeeper.',
+    //             category: 'Gatekeeper',
+    //             payload: 'Control',
+    //             payloadType: 'com.apple.systempolicy.control',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableAssessment',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow identified developers',
+    //             uniqueSlug: 'macos-allow-identified-developers',
+    //             tooltip: 'If true, enables Gatekeeper’s “Mac App Store and identified developers” option. \n If false, enables Gatekeeper’s “Mac App Store” option.',
+    //             category: 'Gatekeeper',
+    //             payload: 'Control',
+    //             payloadType: 'com.apple.systempolicy.control',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AllowIdentifiedDevelopers',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable XProtect malware upload',
+    //             uniqueSlug: 'macos-enable-xprotect-malware-upload',
+    //             tooltip: 'If false, prevents Gatekeeper from prompting the user to upload blocked malware to Apple for purposes of improving malware detection.',
+    //             category: 'Gatekeeper',
+    //             payload: 'Control',
+    //             payloadType: 'com.apple.systempolicy.control',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableXProtectMalwareUpload',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //     ]
+    //   },
+    //   {
+    //     categoryName: 'Network',
+    //     categorySlug: 'macos-network',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'WiFi',
+    //         subcategorySlug: 'macos-wifi',
+    //         description: 'Settings related to wireless network configuration on macOS',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
+    //         payloads: [
+    //           {
+    //             name: 'Network SSID',
+    //             uniqueSlug: 'macos-wifi-ssid',
+    //             tooltip: 'The SSID of the Wi-Fi network to use.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'SSID_STR',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network password',
+    //             uniqueSlug: 'macos-wifi-password',
+    //             tooltip: 'The password for the access point.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'Password',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network encryption type',
+    //             uniqueSlug: 'macos-wifi-encryption-type',
+    //             tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               options: [
+    //                 {
+    //                   name: 'WEP',
+    //                   value: 'WEP'
+    //                 },
+    //                 {
+    //                   name: 'WPA',
+    //                   value: 'WPA'
+    //                 },
+    //                 {
+    //                   name: 'WPA2',
+    //                   value: 'WPA2',
+    //                 },
+    //                 {
+    //                   name: 'WPA3',
+    //                   value: 'WPA3',
+    //                 },
+    //                 {
+    //                   name: 'Any',
+    //                   value: 'Any',
+    //                 },
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None',
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'EncryptionType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Join network automatically',
+    //             uniqueSlug: 'macos-wifi-auto-join',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AutoJoin',
+    //             },
+    //           },
+    //           {
+    //             name: 'Hidden network',
+    //             uniqueSlug: 'macos-wifi-hidden-network',
+    //             tooltip: 'If true, defines this network as hidden.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'HIDDEN_NETWORK',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable IPV6',
+    //             uniqueSlug: 'macos-wifi-enable-ipv6',
+    //             tooltip: 'If true, enables IPv6 on this interface.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableIPv6',
+    //             },
+    //           },
+    //           {
+    //             name: 'Domain name',
+    //             uniqueSlug: 'macos-wifi-domain-name',
+    //             tooltip: 'The primary domain of the tunnel. Available in macOS 10.9 and later.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'DomainName',
+    //             },
+    //           },
+    //           {
+    //             name: 'Treat network as a hotspot',
+    //             uniqueSlug: 'macos-wifi-hotspot',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'IsHotspot',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow connection to roaming service providers',
+    //             uniqueSlug: 'macos-wifi-service-provider-roaming',
+    //             tooltip: 'If true, allows connection to roaming service providers.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ServiceProviderRoamingEnabled',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network HESSID',
+    //             uniqueSlug: 'macos-wifi-hessid',
+    //             tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'HESSID',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy type',
+    //             uniqueSlug: 'macos-wifi-proxy-type',
+    //             tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               controlsOtherFields: true,
+    //               options: [
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None'
+    //                 },
+    //                 {
+    //                   name: 'Manual',
+    //                   value: 'Manual',
+    //                   alsoSelectedWhenSet: [
+    //                     'macos-wifi-proxy-server',
+    //                     'macos-wifi-proxy-server-port',
+    //                   ]
+    //                 },
+    //                 {
+    //                   name: 'Auto',
+    //                   value: 'Auto',
+    //                   alsoSelectedWhenSet: [
+    //                     'macos-wifi-proxy-pac-url',
+    //                     'macos-wifi-proxy-pac-fallback',
+    //                   ]
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server address',
+    //             uniqueSlug: 'macos-wifi-proxy-server',
+    //             tooltip: 'The proxy server’s network address.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyServer',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server port',
+    //             uniqueSlug: 'macos-wifi-proxy-server-port',
+    //             tooltip: 'The proxy server’s port number.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 0,
+    //               maxValue: 65535,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'ProxyServerPort',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server username',
+    //             uniqueSlug: 'macos-wifi-proxy-server-username',
+    //             tooltip: 'The user name used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyUsername',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server password',
+    //             uniqueSlug: 'macos-wifi-proxy-server-password',
+    //             tooltip: 'The password used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPassword',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy PAC URL',
+    //             uniqueSlug: 'macos-wifi-proxy-pac-url',
+    //             tooltip: 'The URL of the PAC file that defines the proxy configuration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPACURL',
+    //             },
+    //           },
+    //           {
+    //             name: `Allow connections if a Proxy\'s PAC file is unreachable`,
+    //             uniqueSlug: 'macos-wifi-proxy-pac-fallback',
+    //             tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ProxyPACFallbackAllowed',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //       {
+    //         subcategoryName: 'Firewall',
+    //         subcategorySlug: 'macos-firewall',
+    //         description: 'Settings related to the built-in firewall on macOS',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/firewall',
+    //         payloads: [
+    //           {
+    //             name: 'Enable firewall',
+    //             uniqueSlug: 'macos-enable-firewall',
+    //             tooltip: 'If true, the system enables the firewall.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableFirewall',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow built-in applications',
+    //             uniqueSlug: 'macos-firewall-allow-signed',
+    //             tooltip: 'If true, the system allows built-in software to receive incoming connections. Available in macOS 12.3 and later.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AllowSigned',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow signed applications',
+    //             uniqueSlug: 'macos-firewall-allow-signed-apps',
+    //             tooltip: 'If true, the system allows downloaded signed software to receive incoming connections. Available in macOS 12.3 and later.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AllowSignedApp',
+    //             },
+    //           },
+    //           {
+    //             name: 'Block all incoming connections',
+    //             uniqueSlug: 'macos-firewall-block-incoming',
+    //             tooltip: 'If true, the system enables blocking all incoming connections.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'BlockAllIncoming',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable stealth mode',
+    //             uniqueSlug: 'macos-firewall-enable-stealth-mode',
+    //             tooltip: 'If true, the system enables stealth mode.',
+    //             category: 'Firewall',
+    //             payload: 'Firewall',
+    //             payloadType: 'com.apple.security.firewall',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableStealthMode',
+    //             },
+    //           },
+    //           // { TODO: add support for specifying arrays of objects.
+    //           //   name: 'Allow/block specified applications',
+    //           //   uniqueSlug: 'macos-firewall-application-list',
+    //           //   tooltip: 'If true, the system enables stealth mode.',
+    //           //   category: 'Firewall',
+    //           //   payload: 'Firewall',
+    //           //   payloadType: 'com.apple.security.firewall',
+    //           //   formInput: {
+    //           //     type: 'array',
+    //           //     unitLabel: 'Bundle identifier'
+    //           //   },
+    //           //   formOutput: {
+    //           //     settingFormat: 'list',
+    //           //     settingKey: 'Applications',
+    //           //     trueValue: '<true/>',
+    //           //     falseValue: '<false/>',
+    //           //   },
+    //           // },
+    //         ]
+    //       }
+    //     ]
+    //   }
+    // ],
+    //ios payloads
+    // iosCategoriesAndPayloads: [
+    //   {
+    //     categoryName: 'Privacy & security',
+    //     categorySlug: 'ios-privacy-and-security',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'Device lock',
+    //         subcategorySlug: 'ios-device-lock',
+    //         description: 'Settings related to screen lock and passwords.',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
+    //         payloads: [
+    //           {
+    //             name: 'Require device password',
+    //             uniqueSlug: 'ios-enable-force-pin',
+    //             tooltip: 'Require a password to unlock the device',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'forcePIN',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum inactivity time before device locks',
+    //             uniqueSlug: 'ios-max-inactivity',
+    //             tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 4,
+    //               minValue: 0,
+    //               maxValue: 60,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxInactivity',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum password length',
+    //             uniqueSlug: 'ios-min-length',
+    //             tooltip: 'The minimum overall length of the passcode.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 16,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minLength',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow simple password',
+    //             uniqueSlug: 'ios-enable-allow-simple-pin',
+    //             tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowSimple',
+    //             },
+    //           },
+    //           {
+    //             name: 'Require alphanumeric password',
+    //             uniqueSlug: 'ios-require-alphanumeric-password',
+    //             tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'requireAlphanumeric',
+    //             },
+    //           },
+    //           {
+    //             name: 'Minimum complex characters',
+    //             uniqueSlug: 'ios-min-complex-characters',
+    //             tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 4,
+    //               unitLabel: 'characters'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'minComplexChars',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum grace period',
+    //             uniqueSlug: 'ios-max-grace-period',
+    //             tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'minutes'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxGracePeriod',
+    //             },
+    //           },
+    //           {
+    //             name: 'Passcode history',
+    //             uniqueSlug: 'ios-passcode-history',
+    //             tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 1,
+    //               maxValue: 50,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'pinHistory',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum passcode age',
+    //             uniqueSlug: 'ios-max-pin-age',
+    //             tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 0,
+    //               minValue: 0,
+    //               maxValue: 999,
+    //               unitLabel: 'days'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxPINAgeInDays',
+    //             },
+    //           },
+    //           {
+    //             name: 'Maximum number of failed attempts',
+    //             uniqueSlug: 'ios-max-failed-attempts',
+    //             tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in iOS, the system securely erases all data and settings.',
+    //             category: 'Device lock',
+    //             payload: 'Passcode',
+    //             payloadType: 'com.apple.mobiledevice.passwordpolicy',
+    //             formInput: {
+    //               type: 'number',
+    //               defaultValue: 11,
+    //               minValue: 2,
+    //               maxValue: 11,
+    //               unitLabel: 'attempts'
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'maxFailedAttempts',
+    //             },
+    //           },
+    //         ],
+    //       },
+    //       {
+    //         subcategoryName: 'Restrictions',
+    //         subcategorySlug: 'ios-restrictions',
+    //         description: 'Settings that configures restrictions on a device.',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+    //         payloads: [
+    //           {
+    //             name: 'Allow erasing all content and settings',
+    //             uniqueSlug: 'ios-disable-erase-content',
+    //             tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI. Available in iOS 8 and later. Requires a supervised device.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowEraseContentAndSettings',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow device name modification',
+    //             uniqueSlug: 'ios-enable-device-name-modification',
+    //             tooltip: 'If false, the system prevents the user from changing the device name. Available in iOS 9 and later. Requires a supervised device.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowDeviceNameModification',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow UI configuration profile installation',
+    //             uniqueSlug: 'ios-allow-configuration-profile-installation',
+    //             tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.  Available in iOS 6 and later. Requires a supervised device.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowUIConfigurationProfileInstallation',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow camera',
+    //             uniqueSlug: 'ios-allow-camera',
+    //             tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in iOS 4 and later. Support for this restriction on unsupervised devices is deprecated.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowCamera',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow AirDrop',
+    //             uniqueSlug: 'ios-allow-airdrop',
+    //             tooltip: 'If false, the system disables AirDrop. Available in iOS 12 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowAirDrop',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow opening documents created by managed apps in unmanaged apps.',
+    //             uniqueSlug: 'ios-allow-open-from-managed',
+    //             tooltip: 'If false, documents in managed apps and accounts open only in other managed apps and accounts. Available in iOS 7 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowOpenFromManagedToUnmanaged',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow opening documents created by unmanaged apps in managed apps.',
+    //             uniqueSlug: 'ios-allow-open-from-unmanaged',
+    //             tooltip: 'If false, documents in unmanaged apps and accounts open only in other unmanaged apps and accounts. Available in iOS 7 and later.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'allowOpenFromUnmanagedToManaged',
+    //             },
+    //           },
+    //           {
+    //             name: 'Apply managed app restrictions to clipboard functionality.',
+    //             uniqueSlug: 'ios-managed-clipboard',
+    //             tooltip: 'If true, copy-and-paste functionality is limited by the "Allow opening documents created by unmanaged apps in managed apps" and "Allow opening documents created by managed apps in unmanaged apps." restrictions.',
+    //             category: 'Restrictions',
+    //             payload: 'Restrictions',
+    //             payloadType: 'com.apple.applicationaccess',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'requireManagedPasteboard',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //     ]
+    //   },
+
+    //   {
+    //     categoryName: 'Network',
+    //     categorySlug: 'ios-network',
+    //     subcategories: [
+    //       {
+    //         subcategoryName: 'WiFi',
+    //         subcategorySlug: 'ios-wifi',
+    //         description: 'Settings related to wireless network configuration on iOS',
+    //         learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
+    //         payloads: [
+    //           {
+    //             name: 'Network SSID',
+    //             uniqueSlug: 'ios-wifi-ssid',
+    //             tooltip: 'The SSID of the Wi-Fi network to use.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'SSID_STR',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network password',
+    //             uniqueSlug: 'ios-wifi-password',
+    //             tooltip: 'The password for the access point.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'Password',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network encryption type',
+    //             uniqueSlug: 'ios-wifi-encryption-type',
+    //             tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               options: [
+    //                 {
+    //                   name: 'WEP',
+    //                   value: 'WEP'
+    //                 },
+    //                 {
+    //                   name: 'WPA',
+    //                   value: 'WPA'
+    //                 },
+    //                 {
+    //                   name: 'WPA2',
+    //                   value: 'WPA2',
+    //                 },
+    //                 {
+    //                   name: 'WPA3',
+    //                   value: 'WPA3',
+    //                 },
+    //                 {
+    //                   name: 'Any',
+    //                   value: 'Any',
+    //                 },
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None',
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'EncryptionType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Join network automatically',
+    //             uniqueSlug: 'ios-wifi-auto-join',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'AutoJoin',
+    //             },
+    //           },
+    //           {
+    //             name: 'Hidden network',
+    //             uniqueSlug: 'ios-wifi-hidden-network',
+    //             tooltip: 'If true, defines this network as hidden.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'HIDDEN_NETWORK',
+    //             },
+    //           },
+    //           {
+    //             name: 'Enable IPV6',
+    //             uniqueSlug: 'ios-wifi-enable-ipv6',
+    //             tooltip: 'If true, enables IPv6 on this interface.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'EnableIPv6',
+    //             },
+    //           },
+    //           {
+    //             name: 'Domain name',
+    //             uniqueSlug: 'ios-wifi-domain-name',
+    //             tooltip: 'The primary domain of the tunnel.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'DomainName',
+    //             },
+    //           },
+    //           {
+    //             name: 'Treat network as a hotspot',
+    //             uniqueSlug: 'ios-wifi-hotspot',
+    //             tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'IsHotspot',
+    //             },
+    //           },
+    //           {
+    //             name: 'Allow connection to roaming service providers',
+    //             uniqueSlug: 'ios-wifi-service-provider-roaming',
+    //             tooltip: 'If true, allows connection to roaming service providers.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ServiceProviderRoamingEnabled',
+    //             },
+    //           },
+    //           {
+    //             name: 'Network HESSID',
+    //             uniqueSlug: 'ios-wifi-hessid',
+    //             tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'HESSID',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy type',
+    //             uniqueSlug: 'ios-wifi-proxy-type',
+    //             tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'radio',
+    //               controlsOtherFields: true,
+    //               options: [
+    //                 {
+    //                   name: 'None',
+    //                   value: 'None'
+    //                 },
+    //                 {
+    //                   name: 'Manual',
+    //                   value: 'Manual',
+    //                   alsoSelectedWhenSet: [
+    //                     'ios-wifi-proxy-server',
+    //                     'ios-wifi-proxy-server-port',
+    //                   ]
+    //                 },
+    //                 {
+    //                   name: 'Auto',
+    //                   value: 'Auto',
+    //                   alsoSelectedWhenSet: [
+    //                     'ios-wifi-proxy-pac-url',
+    //                     'ios-wifi-proxy-pac-fallback',
+    //                   ]
+    //                 },
+    //               ]
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyType',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server address',
+    //             uniqueSlug: 'ios-wifi-proxy-server',
+    //             tooltip: 'The proxy server’s network address.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyServer',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server port',
+    //             uniqueSlug: 'ios-wifi-proxy-server-port',
+    //             tooltip: 'The proxy server’s port number.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'number',
+    //               minValue: 0,
+    //               maxValue: 65535,
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'integer',
+    //               settingKey: 'ProxyServerPort',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server username',
+    //             uniqueSlug: 'ios-wifi-proxy-server-username',
+    //             tooltip: 'The user name used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyUsername',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy server password',
+    //             uniqueSlug: 'ios-wifi-proxy-server-password',
+    //             tooltip: 'The password used to authenticate to the proxy server.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPassword',
+    //             },
+    //           },
+    //           {
+    //             name: 'Proxy PAC URL',
+    //             uniqueSlug: 'ios-wifi-proxy-pac-url',
+    //             tooltip: 'The URL of the PAC file that defines the proxy configuration.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'text',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'string',
+    //               settingKey: 'ProxyPACURL',
+    //             },
+    //           },
+    //           {
+    //             name: `Allow connections if a proxy\'s PAC file is unreachable`,
+    //             uniqueSlug: 'ios-wifi-proxy-pac-fallback',
+    //             tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
+    //             category: 'WiFi',
+    //             payload: 'WiFi',
+    //             payloadGroup: 'Proxy',
+    //             payloadType: 'com.apple.wifi.managed',
+    //             formInput: {
+    //               type: 'boolean',
+    //             },
+    //             formOutput: {
+    //               settingFormat: 'boolean',
+    //               settingKey: 'ProxyPACFallbackAllowed',
+    //             },
+    //           },
+    //         ]
+    //       },
+    //     ]
+    //   }
+    // ],
     // windows payloads
     windowsCategoriesAndPayloads: [
+      {
+        categoryName: 'Date & time',
+        categorySlug: 'windows-date-and-time',
+        subcategorySlug: 'windows-date-and-time',
+        subcategoryName: 'Date & time',
+        description: 'Settings related to screen lock and passwords.',
+        learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
+        payloads: [
+          {
+            name: 'Allow users to change date and time settings',
+            uniqueSlug: 'windows-device-lock-enable-device-lock',
+            tooltip: 'Allows the user to change date and time settings.',
+            category: 'Date & time',
+            supportedAccessTypes: ['add', 'replace'],
+            formInput: {
+              type: 'boolean',
+            },
+            formOutput: {
+              settingFormat: 'int',
+              settingTarget: './Device/Vendor/MSFT/Policy/Config/Settings/AllowDateTime',
+              trueValue: 1,
+              falseValue: 0,
+            },
+          },
+        ],
+      },
       {
         categoryName: 'Privacy & security',
         categorySlug: 'windows-privacy-and-security',
@@ -379,7 +1838,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max inactivity time before device locks',
+                name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks',
                 category: 'Device lock',
                 tooltip: 'The number of seconds a device can remain inactive before a password is required to unlock the device.',
@@ -402,7 +1861,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max inactivity time before device locks with external display',
+                name: 'Maximum inactivity time before device locks with external display',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks-with-external-display',
                 category: 'Device lock',
                 tooltip: 'The number of seconds a device can remain inactive while using an external monitor before a password is required to unlock the device.',
@@ -458,7 +1917,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max failed attempts',
+                name: 'Maximum failed attempts',
                 tooltip: 'The number of authentication failures allowed before the device will be wiped. A value of 0 disables device wipe functionality.',
                 uniqueSlug: 'windows-device-lock-max-failed-attempts',
                 category: 'Device lock',
@@ -482,7 +1941,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max password age',
+                name: 'Maximum password age',
                 tooltip: `Determines the period of time (in days) that a password can be used before the system requires the user to change it. You can set passwords to expire after a number of days between 1 and 999, or you can specify that passwords never expire by setting the number of days to 0.`,
                 uniqueSlug: 'windows-device-lock-max-password-age',
                 category: 'Device lock',
@@ -661,9 +2120,3180 @@ parasails.registerPage('configuration-builder', {
                 },
               },
             ],
-          }
+          },
+          {
+            subcategoryName: 'SmartScreen',
+            subcategorySlug: 'windows-smartscreen',
+            description: 'Windows Defender SmartScreen provides warning messages to help protect users from potential phishing scams and malicious software.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-smartscreen',
+            payloads: [
+              {
+                name: 'Enable SmartScreen in Microsoft Edge',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-enable-smartscreen-in-edge',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'Microsoft Edge',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Browser/AllowSmartScreen',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow users to bypass Windows Defender SmartScreen prompts for sites',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-enable-smartscreen-bypass-in-edge',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'Microsoft Edge',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Browser/PreventSmartScreenPromptOverride',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Enable SmartScreen in File Explorer',
+                tooltip: `Allows IT Admins to configure SmartScreen for Windows.`,
+                uniqueSlug: 'windows-enable-smartscreen-in-shell',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'File explorer',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableSmartScreenInShell',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow users to bypass Windows Defender SmartScreen prompts for files',
+                tooltip: `Allows IT Admins to control whether users can ignore SmartScreen warnings and run malicious files.`,
+                uniqueSlug: 'windows-prevent-override-for-files-in-shell',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'File explorer',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/PreventOverrideForFilesInShell',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Configure app install control',
+                tooltip: `Allows IT Admins to control whether users are allowed to install apps from places other than the Microsoft Store.`,
+                uniqueSlug: 'windows-configure-app-install-control',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'App installation',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Users can download and install files from anywhere on the web',
+                      value: 0
+                    },
+                    {
+                      name: 'Users can only install apps from the Microsoft Store',
+                      value: 1
+                    },
+                    {
+                      name: 'Let users know that there\'s a comparable app in the Store',
+                      value: 2,
+                    },
+                    {
+                      name: 'Warn users before installing apps from outside the Store',
+                      value: 3,
+                    }
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableAppInstallControl',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'Personalization',
+            subcategorySlug: 'windows-personalization',
+            description: 'Settings for personalizing a Windows devices.',// TODO: improve/rewrite.
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
+            payloads: [
+              {
+                name: 'Allow personalization policies on non-EDU versions of Windows',
+                tooltip: `Allows Personalization CSPs to be deployed on non-Enterprise versions of Windows. Setting this value to true triggers the action to configure a device as education environment. Thorough testing is crucial to ensure it does not disrupt workflows or create compatibility issues.`,
+                uniqueSlug: 'windows-allow-personalization-policies',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/SharedPC/SetEduPolicies',
+                  trueValue: true,
+                  falseValue: false,
+                },
+              },
+              {
+                name: 'Set wallpaper from a URL',
+                tooltip: `Sets a device's wallpaper from a URL.`,
+                uniqueSlug: 'windows-set-wallpaper-url',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-allow-personalization-policies',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Vendor/MSFT/Personalization/DesktopImageUrl',
+                },
+              },
+              {
+                name: 'Set lockscreen image from a URL',
+                tooltip: `Sets a device's lockscreen image from a URL.`,
+                uniqueSlug: 'windows-set-lockscreen-url',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-allow-personalization-policies',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Vendor/MSFT/Personalization/LockScreenImageUrl',
+                },
+              },
+              {
+                name: 'Set device name',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-set-device-name',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/DeviceName',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'Functionality',
+            subcategorySlug: 'windows-functionality',
+            description: 'Settings that restrict specific windows features',// TODO: improve/rewrite.
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
+            payloads: [
+              {
+                name: 'Disable AI data analysis',
+                tooltip: `Whether snapshots of the screen can be saved for use with Recall. By default, snapshots for Recall aren't enabled. IT administrators can't, on their own, enable saving snapshots on behalf of their users. If you set this policy to disabled, end users will have a choice to save snapshots of their screen and use Recall to find things they've seen on their device.`,
+                uniqueSlug: 'windows-disable-ai-analysis',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/WindowsAI/DisableAIDataAnalysis',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable clipboard history',
+                tooltip: `Whether the history of clipboard contents can be stored in memory.`,
+                uniqueSlug: 'windows-disable-clipboard-history',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowClipboardHistory',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable Cortana',
+                tooltip: `Whether Cortana is allowed on the device`,
+                uniqueSlug: 'windows-disable-cortana',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable screen capture',
+                tooltip: `Whether screen capture is disabled on the device.`,
+                uniqueSlug: 'windows-disable-screen-capture',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowScreenCapture',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable Windows spotlight',
+                tooltip: `Whether to turn off all Windows spotlight features.`,
+                uniqueSlug: 'windows-disable-windows-spotlight',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './User/Vendor/MSFT/Policy/Config/Experience/AllowWindowsSpotlight',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable OneDrive',
+                tooltip: `Prevent apps and features from working with files on OneDrive`,
+                uniqueSlug: 'windows-disable-onedrive',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable quick setting panel',
+                tooltip: `Remove the quick settings from the bottom right area on the taskbar.`,
+                uniqueSlug: 'windows-disable-quick-settings',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './User/Vendor/MSFT/Policy/Config/Start/DisableControlCenter',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+            ],
+          },
+          // {
+          //   subcategoryName: 'BitLocker',
+          //   subcategorySlug: 'windows-bitlocker',
+          //   description: 'Use BitLocker to encrypt drives and protect data on your device.',
+          //   learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp',
+          //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+          //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+          //   payloads: [
+          //     {
+          //       name: 'Enable BitLocker for operating system drives',
+          //       uniqueSlug: 'windows-enable-bitlocker-for-os-drives',
+          //       tooltip: 'Require encryption to be turned on using BitLocker.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'int',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
+          //         trueValue: 1,
+          //         falseValue: 0,
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption type for operating system drives',
+          //       uniqueSlug: 'windows-enforce-encryption-type-for-os-drives',
+          //       tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //             trueValue: '<enabled/>',
+          //             falseValue: '<enabled/>',
+          //           },
+          //           {
+          //             type: 'radio',
+          //             label: 'Encryption type',
+          //             slug: 'encryptionType',
+          //             options: [
+          //               {
+          //                 name: 'Allow user to choose encryption type',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Full encryption',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Used space only encryption.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEncryptionType',
+          //         outputTemplate: `<%= enabled %><data id="OSEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce startup authentication',
+          //       uniqueSlug: 'windows-enforce-startup-authentication',
+          //       tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup',
+          //             slug: 'tpmStartup',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup key',
+          //             slug: 'tpmStartupKey',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup PIN',
+          //             slug: 'tpmStartupPin',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup key and PIN',
+          //             slug: 'tpmStartupKeyAndPin',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             slug: 'allowBitlockerWithoutTpm',
+          //             label: 'Allow BitLocker without a compatible TPM',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication',
+          //         outputTemplate:`<%= enabled %><data id="ConfigureNonTPMStartupKeyUsage_Name" value="<%= allowBitlockerWithoutTpm %>"/><data id="ConfigureTPMStartupKeyUsageDropDown_Name" value="<%= tpmStartupKey %>"/><data id="ConfigurePINUsageDropDown_Name" value="<%= tpmStartupPin %>"/><data id="ConfigureTPMPINKeyUsageDropDown_Name" value="<%= tpmStartupKeyAndPin %>"/><data id="ConfigureTPMUsageDropDown_Name" value="<%= tpmStartup %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce enhanced startup PINs',
+          //       uniqueSlug: 'windows-enforce-enhanced-startup-pin',
+          //       tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN',
+          //         trueValue: '<enabled/>',
+          //         falseValue: '<disabled/>',
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce recovery options for operating system drives',
+          //       uniqueSlug: 'windows-enforce-system-drive-recovery-options',
+          //       tooltip: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 256-bit recovery key',
+          //             slug: 'recoveryKey',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 48-digit recovery password',
+          //             slug: 'recoveryPassword',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Store BitLocker recovery information on Active Directory',
+          //             slug: 'storeOnActiveDirectory',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Choose what recovery information to store on Active Directory',
+          //             slug: 'whatToStoreOnActiveDirectory',
+          //             options: [
+          //               {
+          //                 name: 'Store recovery passwords and key packages.',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Store recovery passwords only.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+          //             slug: 'doNotEnableUntilStored',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow data recovery agent',
+          //             slug: 'allowDataRecoveryAgent',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Omit recovery options from BitLocker setup wizard',
+          //             slug: 'hideRecoveryPage',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRecoveryOptions',
+          //         outputTemplate:`<%= enabled %><data id="OSAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="OSRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="OSRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="OSHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="OSActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="OSActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="OSRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enable BitLocker for fixed data drives',
+          //       uniqueSlug: 'windows-enable-bitlocker-for-fixed-data-drives',
+          //       tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+          //         trueValue: '<enabled/>',
+          //         falseValue: '<disabled/>',
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption type for fixed data drives',
+          //       uniqueSlug: 'windows-enforce-encryption-type-for-fixed-data-drives',
+          //       tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //             trueValue: '<enabled/>',
+          //             falseValue: '<enabled/>',
+          //           },
+          //           {
+          //             type: 'radio',
+          //             label: 'Encryption type',
+          //             slug: 'encryptionType',
+          //             options: [
+          //               {
+          //                 name: 'Allow user to choose encryption type',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Full encryption',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Used space only encryption.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesEncryptionType',
+          //         outputTemplate: `<%= enabled %><data id="FDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce recovery options for operating system drives',
+          //       uniqueSlug: 'windows-enforce-fixed-data-drive-recovery-options',
+          //       tooltip: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 256-bit recovery key',
+          //             slug: 'recoveryKey',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 48-digit recovery password',
+          //             slug: 'recoveryPassword',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Store BitLocker recovery information on Active Directory',
+          //             slug: 'storeOnActiveDirectory',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Choose what recovery information to store on Active Directory',
+          //             slug: 'whatToStoreOnActiveDirectory',
+          //             options: [
+          //               {
+          //                 name: 'Store recovery passwords and key packages.',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Store recovery passwords only.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+          //             slug: 'doNotEnableUntilStored',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow data recovery agent',
+          //             slug: 'allowDataRecoveryAgent',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Omit recovery options from BitLocker setup wizard',
+          //             slug: 'hideRecoveryPage',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRecoveryOptions',
+          //         outputTemplate:`<%= enabled %><data id="FDVAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="FDVRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="FDVRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="FDVHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="FDVActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="FDVActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="FDVRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Deny write access to fixed data drives not protected by BitLocker',
+          //       uniqueSlug: 'windows-deny-wrtie-access-to-fixed-data-drives',
+          //       tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer. If you enable this policy setting, all fixed data drives that aren\'t BitLocker-protected will be mounted as read-only.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+          //         trueValue: '<enabled/>',
+          //         falseValue: '<disabled/>',
+          //       },
+          //     },
+          //     {
+          //       name: 'Enable BitLocker for removable data drives',
+          //       uniqueSlug: 'windows-enable-bitlocker-for-removeable-data-drives',
+          //       tooltip: 'This policy setting controls the use of BitLocker on removable data drives.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow users to apply BitLocker protection on removable data drives',
+          //             slug: 'allowApplyBitlocker',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow users to suspend and decrypt BitLocker on removable data drives',
+          //             slug: 'allowDisableBitlocker',
+          //           },
+          //         ],
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesConfigureBDE',
+          //         outputTemplate:`<%= enabled %><data id="RDVAllowBDE_Name" value="<%= allowApplyBitlocker %>"/><data id="RDVDisableBDE_Name" value="<%= allowDisableBitlocker %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption type for removable data drives',
+          //       uniqueSlug: 'windows-enforce-encryption-type-for-removeable-drives',
+          //       tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //             trueValue: '<enabled/>',
+          //             falseValue: '<enabled/>',
+          //           },
+          //           {
+          //             type: 'radio',
+          //             label: 'Encryption type',
+          //             slug: 'encryptionType',
+          //             options: [
+          //               {
+          //                 name: 'Allow user to choose encryption type',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Full encryption',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Used space only encryption.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesEncryptionType',
+          //         outputTemplate: `<%= enabled %><data id="RDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Deny write access to removable data drives not protected by BitLocker',
+          //       uniqueSlug: 'windows-deny-write-access-to-removeable-data-drives',
+          //       tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Deny write access to devices configured in another organization',
+          //             slug: 'crossOrg',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesRequireEncryption',
+          //         outputTemplate: `<%= enabled %><data id="RDVCrossOrg" value="<%= crossOrg %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption method',
+          //       uniqueSlug: 'windows-enforce-encryption-method',
+          //       tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Operating system drives',
+          //             slug: 'osEncryptionType',
+          //             options: [
+          //               {
+          //                 name: 'AES-CBC 128',
+          //                 value: 3
+          //               },
+          //               {
+          //                 name: 'AES-CBC 256',
+          //                 value: 4,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 128',
+          //                 value: 6,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 256',
+          //                 value: 7,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Fixed data drives',
+          //             slug: 'fixedDriveEncryptionType',
+          //             options: [
+          //               {
+          //                 name: 'AES-CBC 128',
+          //                 value: 3
+          //               },
+          //               {
+          //                 name: 'AES-CBC 256',
+          //                 value: 4,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 128',
+          //                 value: 6,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 256',
+          //                 value: 7,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Removable data drives',
+          //             slug: 'removeableDriveEncryptionType',
+          //             options: [
+          //               {
+          //                 name: 'AES-CBC 128',
+          //                 value: 3
+          //               },
+          //               {
+          //                 name: 'AES-CBC 256',
+          //                 value: 4,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 128',
+          //                 value: 6,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 256',
+          //                 value: 7,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/EncryptionMethodByDriveType',
+          //         outputTemplate: `<%= enabled %><data id="EncryptionMethodWithXtsOsDropDown_Name" value="<%= osEncryptionType %>"/><data id="EncryptionMethodWithXtsFdvDropDown_Name" value="<%= fixedDriveEncryptionType %>"/><data id="EncryptionMethodWithXtsRdvDropDown_Name" value="<%= removeableDriveEncryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Configure recovery password rotation',
+          //       uniqueSlug: 'windows-configure-recover-password-roration',
+          //       tooltip: 'Allows Admin to configure Numeric Recovery Password Rotation upon use for OS and fixed drives on Entra ID and hybrid domain joined devices.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'radio',
+          //         label: 'Encryption type',
+          //         options: [
+          //           {
+          //             name: 'Disable password rotation',
+          //             value: 0
+          //           },
+          //           {
+          //             name: 'Enable password rotation for Azure AD-joined devices',
+          //             value: 1
+          //           },
+          //           {
+          //             name: 'Enable password rotation for Azure AD-joined and hybrid-joined devices',
+          //             value: 2,
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'int',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/ConfigureRecoveryPasswordRotation',
+          //       },
+          //     },
+          //   ],
+          // }
         ]
       },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'windows-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Applications',
+            subcategorySlug: 'windows-applications',
+            description: 'Settings related to applications and the Windows store.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-applicationmanagement',
+            payloads: [
+              {
+                name: 'Allow all trusted apps',
+                tooltip: `This policy setting allows you to manage the installation of trusted line-of-business (LOB) or developer-signed packaged Microsoft Store apps.
+                If you enable this policy setting, you can install any LOB or developer-signed packaged Microsoft Store app (which must be signed with a certificate chain that can be successfully validated by the local computer).
+
+                If you disable or don't configure this policy setting, you can't install LOB or developer-signed packaged Microsoft Store apps.`,
+                uniqueSlug: 'windows-allow-all-trusted-apps',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAllTrustedApps',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow automatic updates for Microsoft store apps',
+                tooltip: 'Specifies whether automatic update of apps from Microsoft Store are allowed.',
+                uniqueSlug: 'windows-allow-app-store-auto-updates',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAppStoreAutoUpdate',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow automatic app archiving',
+                tooltip: `This policy setting controls whether the system can archive infrequently used apps.
+
+                If you enable this policy setting, then the system will periodically check for and archive infrequently used apps.
+
+                If you disable this policy setting, then the system won't archive any apps.
+
+                If you don't configure this policy setting (default), then the system will follow default behavior, which is to periodically check for and archive infrequently used apps, and the user will be able to configure this setting themselves.`,
+                uniqueSlug: 'windows-allow-automatic-app-archiving',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAutomaticAppArchiving',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow developer unlock',
+                tooltip: `Allows or denies development of Microsoft Store applications and installing them directly from an IDE. If you enable this setting and enable the "Allow all trusted apps to install" Group Policy, you can develop Microsoft Store apps and install them directly from an IDE. If you disable or don't configure this setting, you can't develop Microsoft Store apps or install them directly from an IDE. `,
+                uniqueSlug: 'windows-allow-developer-unlock',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowDeveloperUnlock',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow shared user app data',
+                tooltip: `Manages a Windows app's ability to share data between users who have installed the app.
+                If you enable this policy, a Windows app can share app data with other instances of that app. Data is shared through the SharedLocal folder. This folder is available through the Windows.Storage API.
+
+                If you disable this policy, a Windows app can't share app data with other instances of that app. If this policy was previously enabled, any previously shared app data will remain in the SharedLocal folder.`,
+                uniqueSlug: 'windows-allow-shared-user-app-data',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowSharedUserAppData',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Block app installation for non-admin users',
+                tooltip: `Manages non-Administrator users' ability to install Windows app packages.
+                If enabled, non-Administrators will be unable to initiate installation of Windows app packages. Administrators who wish to install an app will need to do so from an Administrator context
+                If disabled or not confgiured, all users will be able to initiate installation of Windows app packages.`,
+                uniqueSlug: 'windows-block-non-admin-user-install',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/BlockNonAdminUserInstall',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable Microsoft store originated applications',
+                tooltip: `Disable turns off the launch of all apps from the Microsoft Store that came pre-installed or were downloaded. The Microsoft Store will also be disabled.`,
+                uniqueSlug: 'windows-disabled-store-originated-apps',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/DisableStoreOriginatedApps',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow user control of installation options',
+                tooltip: 'This policy setting permits users to change installation options that typically are available only to system administrators.',
+                uniqueSlug: 'windows-allow-user-control-over-install',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAllowUserControlOverInstall',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Always install with elevated privleges',
+                tooltip: 'This policy setting directs Windows Installer to use elevated permissions when it installs any program on the system.',
+                uniqueSlug: 'windows-always-install-with-elevated-permissions',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAlwaysInstallWithElevatedPrivileges',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Restrict application data to system volume',
+                tooltip: `Prevent users' app data from moving to another location when an app is moved or installed on another location.`,
+                uniqueSlug: 'windows-restrict-app-data-to-system-volume',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/RestrictAppDataToSystemVolume',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Restrict applications to system volume',
+                tooltip: 'This policy setting allows you to manage installing Windows apps on additional volumes such as secondary partitions, USB drives, or SD cards.',
+                uniqueSlug: 'windows-restrict-apps-to-system-volume',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/RestrictAppToSystemVolume',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+            ]
+          },
+          {
+            subcategoryName: 'Updates',
+            subcategorySlug: 'windows-updates',
+            description: 'Settings related to Windows updates',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update',
+            payloads: [
+              {
+                name: 'Allow non-Microsoft-signed updates',
+                uniqueSlug: 'windows-updates-allow-non-signed',
+                tooltip: 'Allows the IT admin to manage whether Automatic Updates accepts updates signed by entities other than Microsoft when the update is found at the UpdateServiceUrl location.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Not allowed or not configured. Updates from an intranet Microsoft update service location must be signed by Microsoft.',
+                      value: 0
+                    },
+                    {
+                      name: `Allowed. Accepts updates received through an intranet Microsoft update service location, if they're signed by a certificate found in the 'Trusted Publishers' certificate store of the local computer.`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowNonMicrosoftSignedUpdate',
+                },
+              },
+              {
+                name: 'Allow optional updates',
+                uniqueSlug: 'windows-update-allow-optional-updates',
+                tooltip: 'This policy enables devices to get optional updates including gradual feature rollouts',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Don't receive optional updates.`,
+                      value: 0
+                    },
+                    {
+                      name: `Automatically receive optional updates (including gradual feature rollouts).`,
+                      value: 1
+                    },
+                    {
+                      name: `Automatically receive optional updates.`,
+                      value: 2
+                    },
+                    {
+                      name: `Users can select which optional updates to receive.`,
+                      value: 3
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowOptionalContent',
+                },
+              },
+              {
+                name: 'Specify feature branch readiness level',
+                uniqueSlug: 'windows-updates-feature-branch',
+                tooltip: 'This policy enables devices to get optional updates including gradual feature rollouts',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Insider build - fast`,
+                      value: 2
+                    },
+                    {
+                      name: `Windows Insider build - slow`,
+                      value: 4
+                    },
+                    {
+                      name: ` Release Windows Insider build`,
+                      value: 8
+                    },
+                    {
+                      name: `Semi-Annual enterprise channel preview`,
+                      value: 16
+                    },
+                    {
+                      name: `Semi-Annual enterprise channel.`,
+                      value: 32
+                    },
+                    {
+                      name: `Release preview of quality updates only.`,
+                      value: 64
+                    },
+                    {
+                      name: `Canary channel.`,
+                      value: 1128
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowOptionalContent',
+                },
+              },
+              {
+                name: 'Defer feature updates',
+                uniqueSlug: 'windows-update-defer-feature-updates',
+                tooltip: 'This policy enables devices to defer taking the next Feature Update available for their current product.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 365,
+                  unitLabel: 'days',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DeferFeatureUpdatesPeriodInDays',
+                },
+              },
+              {
+                name: 'Defer quality updates',
+                uniqueSlug: 'windows-update-defer-quality-updates',
+                tooltip: 'This policy enables devices to defer taking the next Quality Update available for their current product.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 30,
+                  unitLabel: 'days',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DeferQualityUpdatesPeriodInDays',
+                },
+              },
+              {
+                name: 'Exclude drivers in quality updates',
+                uniqueSlug: 'windows-exclude-drivers-in-quality-update',
+                tooltip: `Enable this policy to not include drivers with Windows quality updates. If you disable or don't configure this policy, Windows Update will include updates that have a Driver classification.`,
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ExcludeWUDriversInQualityUpdate',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow Windows insider preview builds',
+                uniqueSlug: 'windows-update-preview-builds',
+                tooltip: 'Used to manage Windows 10 Insider Preview builds.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Disable Preview builds.`,
+                      value: 0
+                    },
+                    {
+                      name: `Disable Preview builds once the next release is public.`,
+                      value: 1
+                    },
+                    {
+                      name: `Enable Preview builds.`,
+                      value: 2
+                    },
+                    {
+                      name: `Preview builds is left to user selection.`,
+                      value: 3
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Pause feature updates',
+                uniqueSlug: 'windows-updates-pause-feature-updates',
+                tooltip: 'If enabled, Windows feature updates will be paused for 60 days from when this policy is set',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Don't pause feature updates`,
+                      value: 0
+                    },
+                    {
+                      name: `Pause feature updates for 60 days.`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify a date to pause feature updates',
+                uniqueSlug: 'windows-updates-pause-feature-updates-date',
+                tooltip: 'If configured, Windows will pause feature updates on a specified date. The value of this settings must be a YYYY-MM-DD formated date.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    return val.match(/\d\d\d\d-\d\d-\d\d/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter a date that is formatted as YYYY-MM-DD'
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdatesStartTime',
+                },
+              },
+              {
+                name: 'Pause quality updates',
+                uniqueSlug: 'windows-updates-pause-quality-updates',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the public profile',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Don't pause quality updates`,
+                      value: 0
+                    },
+                    {
+                      name: `Quality updates are paused for 35 days.`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify a date to pause quality updates',
+                uniqueSlug: 'windows-updates-pause-quality-updates-date',
+                tooltip: 'If configured, Windows will pause quality updates on a specified date. The value of this settings must be a YYYY-MM-DD formated date.',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    return val.match(/\d\d\d\d-\d\d-\d\d/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter a date that is formatted as YYYY-MM-DD'
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseQualityUpdatesStartTime',
+                },
+              },
+              {
+                name: 'Specify a Windows product version',
+                uniqueSlug: 'windows-updates-specify-product-version',
+                tooltip: 'Specify the product version associated with the target feature update you would like your device(s) to move to',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    console.log(val.match(/^windows\s\d\d/gi), val.match(/^\d+/));
+                    return val.match(/^windows\s\d\d/gi) || val.match(/^\d+/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter the full name of a Windows version or a version number. e.g., for Windows 11, you can enter either Windows 11, or just 11.'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-specify-release-version',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ProductVersion',
+                },
+              },
+              {
+                name: 'Specify a Windows release version',
+                uniqueSlug: 'windows-updates-specify-release-version',
+                tooltip: 'Specify the release version associated with the target feature update you would like your device(s) to move to',
+                category: 'Updates',
+                payloadGroup: 'Windows update service',
+                supportedAccessTypes: ['replace', 'add'],
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-specify-product-version',
+                  }
+                ],
+                formInput: {
+                  type: 'text',
+                  customFormRule: (val)=>{
+                    return val.match(/\d{4}/);
+                  },
+                  customFormRuleErrorMessage: 'Please enter a release version. e.g., 1909'
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/TargetReleaseVersion',
+                },
+              },
+              {
+                name: 'Disable Windows update service',
+                uniqueSlug: 'windows-updates-disable-update-service',
+                tooltip: 'Whether the device can use Microsoft Update, Windows Server Update Services, or Microsoft Store. Even when Windows Update is configured to receive updates from an intranet update service, it will periodically retrieve information from the public Windows Update service to enable future connections to Windows Update, and other services like Microsoft Update or the Microsoft Store. Enabling this policy will disable that functionality, and may cause connection to public services such as the Microsoft Store to stop working.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowUpdateService',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+              },
+              {
+                name: 'Windows update service detection frequency',
+                uniqueSlug: 'windows-updates-detection-frequency',
+                tooltip: 'Specifies the hours that Windows will use to determine how long to wait before checking for available updates. The exact wait time is a sum of the specific value and a random variant of 0-4 hours.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 22,
+                  minValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DetectionFrequency',
+                },
+              },
+              {
+                name: 'Disable enforcing TLS certificate pinning for Windows Update client',
+                uniqueSlug: 'windows-updates-tls-certificate-pinning',
+                tooltip: 'Enforce TLS certificate pinning for the Windows Update client.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/DoNotEnforceEnterpriseTLSCertPinningForUpdateDetection',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Fill empty content URLs',
+                uniqueSlug: 'windows-updates-fill-empty-content-urls',
+                tooltip: 'Allows Windows Update Agent to determine the download URL when it\'s missing from the metadata. This scenario will occur when intranet update service stores the metadata files but the download contents are stored in the ISV file cache.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/FillEmptyContentUrls',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Set update source for driver updates.',
+                uniqueSlug: 'windows-driver-updates-source',
+                tooltip: `Configure this policy to specify whether to receive Windows Driver Updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.`,
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForDriverUpdates',
+                },
+              },
+              {
+                name: 'Set update source for feature updates.',
+                uniqueSlug: 'windows-feature-updates-source',
+                tooltip: 'Configure this policy to specify whether to receive Windows Feature Updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForFeatureUpdates',
+                },
+              },
+              {
+                name: 'Set update source for quality updates.',
+                uniqueSlug: 'windows-quality-updates-source',
+                tooltip: 'Configure this policy to specify whether to receive Windows Quality Updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForQualityUpdates',
+                },
+              },
+              {
+                name: 'Set update source for other updates.',
+                uniqueSlug: 'windows-other-updates-source',
+                tooltip: 'Configure this policy to specify whether to receive other updates from Windows Update endpoint, managed by Windows Update for Business policies, or through your configured Windows Server Update Service server.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Windows Update`,
+                      value: 0
+                    },
+                    {
+                      name: `Windows Server Update Services`,
+                      value: 1
+                    },
+                  ]
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetPolicyDrivenUpdateSourceForOtherUpdates',
+                },
+              },
+              {
+                name: 'Configure update service URL',
+                uniqueSlug: 'windows-updates-update-service-url',
+                tooltip: 'Allows the device to check for updates from a WSUS server instead of Microsoft Update. This is useful for on-premises MDMs that need to update devices that can\'t connect to the Internet.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/UpdateServiceUrl',
+                },
+              },
+              {
+                name: 'Configure alternate update service URL',
+                uniqueSlug: 'windows-updates-alternate-update-service-url',
+                tooltip: 'Specifies an alternate intranet server to host updates from Microsoft Update.',
+                category: 'Updates',
+                payloadGroup: 'Windows server update service',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-update-service-url',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-other-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-driver-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-feature-updates-source',
+                  },
+                  {
+                    dependingOnSettingSlug: 'windows-quality-updates-source',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/UpdateServiceUrlAlternate',
+                },
+              },
+              {
+                name: 'Configure start of active hours for automatic updates',
+                uniqueSlug: 'windows-updates-active-hours-start',
+                tooltip: 'If you enable this policy, the PC won\'t automatically restart after updates during active hours. The PC will attempt to restart outside of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 23,
+                  minValue: 0,
+                  defaultValue: 8
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-active-hours-end',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursStart',
+                },
+              },
+              {
+                name: 'Configure end of active hours for automatic updates',
+                uniqueSlug: 'windows-updates-active-hours-end',
+                tooltip: 'If you enable this policy, the PC won\'t automatically restart after updates during active hours. The PC will attempt to restart outside of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 23,
+                  minValue: 0,
+                  defaultValue: 17
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-active-hours-start',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd',
+                },
+              },
+              {
+                name: 'Configure max range of active hours for automatic updates',
+                uniqueSlug: 'windows-updates-active-hours-max-range',
+                tooltip: 'Enable this policy to specify the maximum number of hours from the start time that users can set their active hours. The max active hours range can be set between 8 and 18 hours. If you disable or don\'t configure this policy, the default max active hours range will be used.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  maxValue: 18,
+                  minValue: 8,
+                  defaultValue: 18
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd',
+                },
+              },
+              {
+                name: 'Configure update notifications during active hours',
+                uniqueSlug: 'windows-updates-configure-active-hours-notification',
+                tooltip: 'This policy allows you to define what Windows update notifications users see during configured active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Notifications disabled`,
+                      value: 0
+                    },
+                    {
+                      name: `Notifications enabled`,
+                      value: 1
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/NoUpdateNotificationsDuringActiveHours',
+                },
+              },
+              {
+                name: 'Configure automatic updates',
+                uniqueSlug: 'windows-updates-configure-automatic-updates',
+                tooltip: 'Enables the IT admin to manage automatic update behavior to scan, download, and install updates.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Notify the user before downloading the update.`,
+                      value: 0
+                    },
+                    {
+                      name: `Automatically install the update and then notify the user to schedule a device restart. `,
+                      value: 1
+                    },
+                    {
+                      name: `Automatically install and restart.`,
+                      value: 2
+                    },
+                    {
+                      name: `Automatically install and restart at a specified time. The IT specifies the installation day and time. If no day and time are specified, the default is 3 AM daily.`,
+                      value: 3
+                    },
+                    {
+                      name: `Automatically install and restart without end-user control.`,
+                      value: 4
+                    },
+                    {
+                      name: `Turn off automatic updates.`,
+                      value: 5
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate',
+                },
+              },
+              {
+                name: 'Allow updates to be downloaded automatically over metered connections',
+                uniqueSlug: 'windows-updates-download-over-metered-connection',
+                tooltip: 'Enabling this policy will automatically download updates, even over metered data connections (charges may apply)',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowAutoWindowsUpdateDownloadOverMeteredNetwork',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Install updates for other Microsoft products',
+                uniqueSlug: 'windows-updates-install-other-microsoft-updates',
+                tooltip: 'Allows an IT admin to manage whether to scan for app updates from Microsoft Update.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowMUUpdateService',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Enable features introduced via servicing that are off by default',
+                uniqueSlug: 'windows-updates-enable-introduced-features',
+                tooltip: 'Enable features introduced via servicing (outside of the annual feature update) that are off by default for devices that have their Windows updates managed.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowTemporaryEnterpriseFeatureControl',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Specify deadline for automatic updates and restarts for feature updates',
+                uniqueSlug: 'windows-updates-feature-update-deadline',
+                tooltip: 'Number of days before feature updates are installed on devices automatically regardless of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 30,
+                  defaultValue: 2,
+                  unitLabel: 'days'
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify feature update deadline grace period',
+                uniqueSlug: 'windows-updates-feature-update-deadline-grace-period',
+                tooltip: 'Minimum number of days from update installation until restarts occur automatically for feature updates.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 7,
+                  defaultValue: 7,
+                  unitLabel: 'days'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-feature-update-deadline',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriodForFeatureUpdates',
+                },
+              },
+              {
+                name: 'Specify deadline for automatic updates and restarts for quality updates',
+                uniqueSlug: 'windows-updates-quality-update-deadline',
+                tooltip: 'Number of days before quality updates are installed on devices automatically regardless of active hours.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 30,
+                  defaultValue: 7,
+                  unitLabel: 'days'
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForQualityUpdates',
+                },
+              },
+              {
+                name: 'Specify quality update deadline grace period',
+                uniqueSlug: 'windows-updates-quality-update-deadline-grace-period',
+                tooltip: 'Minimum number of days from update installation until restarts occur automatically for quality updates.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 7,
+                  defaultValue: 2,
+                  unitLabel: 'days'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-updates-quality-update-deadline',
+                  },
+                ],
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriod',
+                },
+              },
+              {
+                name: 'Remove access to "Pause updates" feature',
+                uniqueSlug: 'windows-updates-disable-pause-updates',
+                tooltip: 'Allows IT admins to remove end-user access to "Pause updates" feature.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetDisablePauseUXAccess',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Remove access to use all Windows Update features',
+                uniqueSlug: 'windows-updates-disable-pause-updates',
+                tooltip: 'Allows IT admins to remove end-user access to Windows Update scan.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetDisableUXWUAccess',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Set power policy for cart restarts',
+                uniqueSlug: 'windows-updates-disable-pause-updates',
+                tooltip: 'Enabling this policy for EDU devices that remain on carts overnight will skip power checks to ensure update reboots will happen at the scheduled install time. This setting is designed for education devices that remain in carts overnight that are left in sleep mode. It isn\'t designed for 1:1 devices.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/SetEDURestart',
+                  trueValue: 1,
+                  falseValue: 0
+                },
+              },
+              {
+                name: 'Configure update notifications',
+                uniqueSlug: 'windows-updates-configure-active-hours-notification',
+                tooltip: 'This policy allows you to define what Windows Update notifications users see.',
+                category: 'Updates',
+                payloadGroup: 'End user experience',
+                supportedAccessTypes: ['replace', 'add'],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: `Use the default Windows Update notifications.`,
+                      value: 0
+                    },
+                    {
+                      name: `Turn off all notifications, excluding restart warnings.`,
+                      value: 1
+                    },
+                    {
+                      name: `Turn off all notifications, including restart warnings.`,
+                      value: 2
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/UpdateNotificationLevel',
+                },
+              },
+            ],
+          }
+        ],
+      },
+      {
+        categoryName: 'Network',
+        categorySlug: 'windows-network',
+        subcategories: [
+          {
+            subcategoryName: 'Firewall',
+            subcategorySlug: 'windows-firewall',
+            description: 'Settings related to Windows Defender Firewall.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/firewall-csp',
+            payloads: [
+              {
+                name: 'Enable firewall on Domain profile',
+                uniqueSlug: 'windows-firewall-enabled-domain',
+                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Domain profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on Domain profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-domain',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Domain profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/DomainProfile/AllowLocalPolicyMerge',
+                },
+              },
+              {
+                name: 'Enable firewall on private profile',
+                uniqueSlug: 'windows-firewall-enabled-private',
+                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Private profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on private profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-private',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the private profile',
+                category: 'Firewall',
+                payloadGroup: 'Private profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PrivateProfile/AllowLocalPolicyMerge',
+                },
+              },
+              {
+                name: 'Enable firewall on public profile',
+                uniqueSlug: 'windows-firewall-enabled-public',
+                tooltip: 'Enables windows defender firewall on the device\'s private profile',
+                category: 'Firewall',
+                payloadGroup: 'Public profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on public profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-public',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the public profile',
+                category: 'Firewall',
+                payloadGroup: 'Public profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalPolicyMerge',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'WiFi',
+            subcategorySlug: 'windows-wifi',
+            description: 'Settings related to wireless networks on Windows devices.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/wifi-csp',
+            payloads: [
+              {
+                name: 'Add WiFi network (device scope)',
+                uniqueSlug: 'windows-wifi-add-network',
+                tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
+                category: 'Wi-Fi',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'text',
+                      name: 'Network SSID',
+                      slug: 'ssid',
+                    },
+                    {
+                      type: 'text',
+                      name: 'Network password',
+                      slug: 'password',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Encryption type',
+                      slug: 'networkEncryptionType',
+                      options: [
+                        // { // TODO: these values are hidden because they require a different keyType value. https://learn.microsoft.com/en-us/windows/win32/nativewifi/wlan-profileschema-sharedkey-security-element#keymaterial
+                        //   name: 'Open',
+                        //   value: 'open'
+                        // },
+                        // {
+                        //   name: 'Shared',
+                        //   value: 'shared',
+                        // },
+                        // {
+                        //   name: 'WPA Enterprise',
+                        //   value: 'WPA',
+                        // },
+                        {
+                          name: 'WPA Personal',
+                          value: 'WPAPSK',
+                        },
+                        // {
+                        //   name: 'WPA2 Enterprise',
+                        //   value: 'WPA2',
+                        // },
+                        {
+                          name: 'WPA2 Personal',
+                          value: 'WPA2PSK',
+                        },
+                        {
+                          name: 'WPA3 Personal',
+                          value: `WPA3SAE`,
+                        },
+                        // {
+                        //   name: 'WPA3 Enterprise 192-bit mode authentication.',
+                        //   value: 'WPA3ENT192',
+                        // },
+                        // {
+                        //   name: 'WPA3 Enterprise',
+                        //   value: 'WPA2PSK',
+                        // },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Automatically connect to network',
+                      slug: 'connectionMode',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTargetTemplate: `./Device/Vendor/MSFT/WiFi/Profile/<%= ssid %>/WlanXml`,
+                  outputTemplate: `<![CDATA[<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name><%= ssid %></name><SSIDConfig><SSID><name><%= ssid %></name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode><%= connectionMode %></connectionMode><MSM><security><authEncryption><authentication><%= networkEncryptionType %></authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial><%= password %></keyMaterial></sharedKey></security></MSM></WLANProfile>]]>`,
+                  valuesToTransform: {
+                    'connectionMode': {
+                      true: 'auto',
+                      false: 'manual',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Add WiFi network (user scope)',
+                uniqueSlug: 'windows-wifi-add-network-user-scope',
+                tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
+                category: 'Wi-Fi',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'text',
+                      name: 'Network SSID',
+                      slug: 'ssid',
+                    },
+                    {
+                      type: 'text',
+                      name: 'Network password',
+                      slug: 'password',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Encryption type',
+                      slug: 'networkEncryptionType',
+                      options: [
+                        // { // TODO: these values are hidden because they require a different keyType value. https://learn.microsoft.com/en-us/windows/win32/nativewifi/wlan-profileschema-sharedkey-security-element#keymaterial
+                        //   name: 'Open',
+                        //   value: 'open'
+                        // },
+                        // {
+                        //   name: 'Shared',
+                        //   value: 'shared',
+                        // },
+                        // {
+                        //   name: 'WPA Enterprise',
+                        //   value: 'WPA',
+                        // },
+                        {
+                          name: 'WPA Personal',
+                          value: 'WPAPSK',
+                        },
+                        // {
+                        //   name: 'WPA2 Enterprise',
+                        //   value: 'WPA2',
+                        // },
+                        {
+                          name: 'WPA2 Personal',
+                          value: 'WPA2PSK',
+                        },
+                        {
+                          name: 'WPA3 Personal',
+                          value: `WPA3SAE`,
+                        },
+                        // {
+                        //   name: 'WPA3 Enterprise 192-bit mode authentication.',
+                        //   value: 'WPA3ENT192',
+                        // },
+                        // {
+                        //   name: 'WPA3 Enterprise',
+                        //   value: 'WPA2PSK',
+                        // },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Automatically connect to network',
+                      slug: 'connectionMode',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTargetTemplate: `./User/Vendor/MSFT/WiFi/Profile/<%= ssid %>/WlanXml`,
+                  outputTemplate: `<![CDATA[<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name><%= ssid %></name><SSIDConfig><SSID><name><%= ssid %></name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode><%= connectionMode %></connectionMode><MSM><security><authEncryption><authentication><%= networkEncryptionType %></authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial><%= password %></keyMaterial></sharedKey></security></MSM></WLANProfile>]]>`,
+                  valuesToTransform: {
+                    'connectionMode': {
+                      true: 'auto',
+                      false: 'manual',
+                    },
+                  }
+                },
+              },
+            ],
+          },
+        ],
+      },
+
+    ],
+    // Android payloads
+    androidCategoriesAndPayloads: [
+      {
+        categoryName: 'Privacy & security',
+        categorySlug: 'android-privacy-and-security',
+        subcategories: [
+          {
+            subcategoryName: 'Device lock',
+            subcategorySlug: 'android-device-lock',
+            description: 'Settings related to screen lock and passwords.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Maximum inactivity time before device locks',
+                uniqueSlug: 'android-max-inactivity',
+                tooltip: 'Maximum time in milliseconds for user activity until the device locks. A value of 0 means there is no restriction.',
+                category: 'Device lock',
+                payloadGroup: 'Screen lock',
+
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'milliseconds'
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'maximumTimeToLock',
+                },
+              },
+              {
+                name: 'Password history length',
+                uniqueSlug: 'android-password-history',
+                tooltip: `The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'passwords'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordHistoryLength',
+                },
+              },
+              {
+                name: 'Maximum number of failed attempts before device is wiped.',
+                uniqueSlug: 'android-password-max-failed-attempts',
+                tooltip: `Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'attempts'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.maximumFailedPasswordsForWipe',
+                },
+              },
+              {
+                name: 'Password scope',
+                uniqueSlug: 'android-password-scope',
+                tooltip: `The scope that the password requirement applies to.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'SCOPE_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Device',
+                      value: 'SCOPE_DEVICE'
+                    },
+                    {
+                      name: 'Work profile',
+                      value: 'SCOPE_PROFILE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'passwordRequirements.passwordScope',
+                },
+              },
+              {
+                name: 'Amount of time after unlocking before a password is required again',
+                uniqueSlug: 'android-require-password-unlock-timeout',
+                tooltip: `The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED'
+                    },
+                    {
+                      name: `Device's default`,
+                      value: 'USE_DEFAULT_DEVICE_TIMEOUT'
+                    },
+                    {
+                      name: 'Every 24 hours',
+                      value: 'REQUIRE_EVERY_DAY',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'passwordRequirements.requirePasswordUnlock',
+                },
+              },
+              {
+                name: 'Enforce password complexity',
+                uniqueSlug: 'android-password-complexity',
+                tooltip: 'Password quality requirements.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'The device must be secured with a low-security biometric recognition technology, at minimum. This includes technologies that can recognize the identity of an individual that are roughly equivalent to a 3-digit PIN',
+                      value: 'BIOMETRIC_WEAK'
+                    },
+                    {
+                      name: 'A password is required, but there are no restrictions on what the password must contain.',
+                      value: 'SOMETHING'
+                    },
+                    {
+                      name: 'Numeric - The password must contain numeric characters.',
+                      value: 'NUMERIC',
+                    },
+                    {
+                      name: 'Complex numeric - The password must contain numeric characters with no repeating (4444) or ordered (1234, 4321, 2468) sequences.',
+                      value: 'NUMERIC_COMPLEX',
+                    },
+                    {
+                      name: 'Alphabetic - The password must contain alphabetic (or symbol) characters.',
+                      value: 'ALPHABETIC',
+                    },
+                    {
+                      name: 'Alphanumeric - The password must contain both numeric and alphabetic (or symbol) characters.',
+                      value: 'ALPHANUMERIC',
+                    },
+                    {
+                      name: 'Complex - The password must meet the requirments set by this policy',
+                      value: 'COMPLEX',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'passwordRequirements.passwordQuality',
+                },
+              },
+              {
+                name: 'Minimum password length',
+                uniqueSlug: 'android-min-password-length',
+                tooltip: 'The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password complexity is set to numeric, complex numeric, alphabetic, alphanumeric, or complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLength',
+                },
+              },
+              {
+                name: 'Minimum number of letters in password',
+                uniqueSlug: 'android-min-password-letters',
+                tooltip: 'Minimum number of letters required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'letters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLetters',
+                },
+              },
+              {
+                name: 'Minimum number of lower case letters in password',
+                uniqueSlug: 'android-min-password-letters-lower-case',
+                tooltip: 'Minimum number of lower case letters required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'lower case letters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLowerCase',
+                },
+              },
+              {
+                name: 'Minimum number of upper case letters in password',
+                uniqueSlug: 'android-min-password-letters-upper-case',
+                tooltip: 'Minimum number of upper case letters required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'lower case letters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumUpperCase',
+                },
+              },
+              {
+                name: 'Minimum number of non-letter characters in password',
+                uniqueSlug: 'android-min-password-non-letters',
+                tooltip: 'Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumNonLetter',
+                },
+              },
+              {
+                name: 'Minimum number of numerical digits in password',
+                uniqueSlug: 'android-min-password-numeric',
+                tooltip: 'Minimum number of numerical digits required in the password. Only enforced when password complexity is set is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'digits'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumNumeric',
+                },
+              },
+              {
+                name: 'Minimum number of symbols in password',
+                uniqueSlug: 'android-min-password-symbols',
+                tooltip: 'Minimum number of symbols required in the password. Only enforced when password complexity is set is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'symbols'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumSymbols',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'Restrictions',
+            subcategorySlug: 'android-restrictions',
+            description: 'Settings related to restricting actions on an Android device.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Disable factory reset',
+                uniqueSlug: 'android-factory-reset-disabled',
+                tooltip: 'Whether factory resetting from settings is disabled.',
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'factoryResetDisabled',
+                },
+              },
+              {
+                name: 'Disable mounting physical external media',
+                uniqueSlug: 'android-disable-external-media-mount',
+                tooltip: `Whether the user mounting physical external media is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'mountPhysicalMediaDisabled',
+                },
+              },
+              {
+                name: 'Disable bluetooth',
+                uniqueSlug: 'android-disable-bluetooth',
+                tooltip: `Whether bluetooth is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying bluetooth configuration',
+                uniqueSlug: 'android-disable-bluetooth-config',
+                tooltip: `Whether configuring bluetooth is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable bluetooth contact sharing',
+                uniqueSlug: 'android-disable-contact-sharing',
+                tooltip: `Whether bluetooth contact sharing is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothContactSharingDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying cell broadcast configuration',
+                uniqueSlug: 'android-disable-cell-broadcast-config',
+                tooltip: `Whether configuring cell broadcast is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'cellBroadcastsConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying mobile network configuration',
+                uniqueSlug: 'android-disable-mobile-network-config',
+                tooltip: `Whether configuring mobile networks is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'mobileNetworksConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying VPN configuration',
+                uniqueSlug: 'android-disable-vpn-config',
+                tooltip: `Prevents users from adding, modifying, or removing VPN configurations in Settings.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'vpnConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable resetting network settings',
+                uniqueSlug: 'android-disable-reset-network',
+                tooltip: `Whether resetting network settings is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'networkResetDisabled',
+                },
+              },
+              {
+                name: 'Disable outgoing NFC connections',
+                uniqueSlug: 'android-disable-outgoing-nfc',
+                tooltip: `Whether using NFC to beam data from apps is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'outgoingBeamDisabled',
+                },
+              },
+              {
+                name: 'Disable outgoing calls',
+                uniqueSlug: 'android-disable-outgoing-calls',
+                tooltip: `Whether outgoing calls are disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'outgoingCallsDisabled',
+                },
+              },
+              {
+                name: 'Disable SMS messages',
+                uniqueSlug: 'android-disable-sms',
+                tooltip: `Whether sending and receiving SMS messages is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'smsDisabled',
+                },
+              },
+              {
+                name: 'Disable location sharing',
+                uniqueSlug: 'android-disable-location-sharing',
+                tooltip: `Whether location sharing is disabled. This setting is supported for both fully managed devices and personally owned work profiles.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'shareLocationDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying user credentials',
+                uniqueSlug: 'android-disable-modify-user-credentials',
+                tooltip: `Whether configuring user credentials is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'credentialsConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable adding users',
+                uniqueSlug: 'android-disable-add-users',
+                tooltip: `Whether adding new users and profiles is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'addUserDisabled',
+                },
+              },
+              {
+                name: 'Disable removing users',
+                uniqueSlug: 'android-disable-remove-users',
+                tooltip: `Whether removing other users is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'removeUserDisabled',
+                },
+              },
+              {
+                name: 'Disable adding and removing accounts',
+                uniqueSlug: 'android-disable-modifying-accounts',
+                tooltip: `Whether adding or removing accounts is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'modifyAccountsDisabled',
+                },
+              },
+              {
+                name: 'Disable screen capture',
+                uniqueSlug: 'android-disable-screen-capture',
+                tooltip: `Whether screen capture is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'screenCaptureDisabled',
+                },
+              },
+              // FUTURE: settings that would fit into this category:
+              // setUserIconDisabled
+              // setWallpaperDisabled
+              // dataRoamingDisabled
+              // funDisabled
+              // cameraAccess « https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#cameraaccess
+              // microphoneAccess « https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#microphoneaccess
+              // keyguardDisabled
+              // adjustVolumeDisabled
+              // createWindowsDisabled
+              // installAppsDisabled & uninstallAppsDisabled « In applications settings
+            ],
+          },
+        ]
+      },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'android-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Applications',
+            subcategorySlug: 'android-applications',
+            description: 'Settings related to Applications and the Google play store on Android devices.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Apply device-wide app update policy',
+                uniqueSlug: 'android-app-auto-update-policy',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'APP_AUTO_UPDATE_POLICY_UNSPECIFIED'
+                    },
+                    {
+                      name: 'The user can control auto-updates.',
+                      value: 'CHOICE_TO_THE_USER'
+                    },
+                    {
+                      name: 'Apps are never auto-updated',
+                      value: 'NEVER',
+                    },
+                    {
+                      name: 'Apps are auto-updated over Wi-Fi only.',
+                      value: 'WIFI_ONLY',
+                    },
+                    {
+                      name: 'Apps are auto-updated at any time.',
+                      value: 'ALWAYS',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'appAutoUpdatePolicy',
+                },
+              },
+              {
+                name: 'Disable app installation',
+                uniqueSlug: 'android-disable-app-install',
+                tooltip: `Whether user installation of apps is disabled.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'installAppsDisabled',
+                },
+              },
+              {
+                name: 'Disable app uninstallation',
+                uniqueSlug: 'android-disable-app-uninstall',
+                tooltip: `Whether user uninstallation of applications is disabled.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'uninstallAppsDisabled',
+                },
+              },
+              {
+                name: 'Allow installation of untrusted applications',
+                uniqueSlug: 'android-untrusted-apps',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'UNTRUSTED_APPS_POLICY_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Disallow untrusted app installs on entire device.',
+                      value: 'DISALLOW_INSTALL'
+                    },
+                    {
+                      name: 'For devices with work profiles, allow untrusted app installs in the device\'s personal profile only.',
+                      value: 'ALLOW_INSTALL_IN_PERSONAL_PROFILE_ONLY',
+                    },
+                    {
+                      name: 'Allow untrusted app installs on entire device.',
+                      value: 'ALLOW_INSTALL_DEVICE_WIDE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'advancedSecurityOverrides.untrustedAppsPolicy',
+                },
+              },
+              {
+                name: 'Enforce Google Play protect verification',
+                uniqueSlug: 'android-google-play-protect',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Enforce app verification.',
+                      value: 'VERIFY_APPS_ENFORCED'
+                    },
+                    {
+                      name: 'Allows the user to choose whether to enable app verification.',
+                      value: 'VERIFY_APPS_USER_CHOICE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'advancedSecurityOverrides.googlePlayProtectVerifyApps',
+                },
+              },
+            ]
+          }
+        ]
+      }
     ],
   },
 
@@ -684,6 +5314,7 @@ parasails.registerPage('configuration-builder', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    // Platform select form submission
     handleSubmittingPlatformSelectForm: async function() {
       this.selectedPlatform = this.platformSelectFormData.platform;
       this.step = 'configuration-builder';
@@ -691,32 +5322,116 @@ parasails.registerPage('configuration-builder', {
     typeFilterSettings: async function() {
       // TODO.
     },
+    // Controls which category is expanded in the left sidebar.
     clickExpandCategory: function(category) {
       this.expandedCategory = category;
     },
+    // Download modal form submission
     handleSubmittingDownloadProfileForm: async function() {
       this.syncing = true;
-      if(this.selectedPlatform === 'windows') {
-        await this.buildWindowsProfile();
-      } else if(this.selectedPlatform === 'macos') {
-        await this.buildMacOSProfile();
+      if(this.currentSelectedCategoryForDownload) {
+        // this.currentSelectedCategoryForDownload = undefined;
+        if(this.selectedPlatform === 'windows') {
+          await this.buildWindowsProfile(this.selectedOptionsInAPayload);
+        } else if(['macos', 'ios'].includes(this.selectedPlatform)) {
+          await this.buildAppleProfile(this.selectedOptionsInAPayload);
+        }
+      } else {
+        if(this.selectedPlatform === 'windows') {
+          await this.buildWindowsProfile(this.selectedPayloads);
+        } else if(['macos', 'ios'].includes(this.selectedPlatform)) {
+          await this.buildAppleProfile(this.selectedPayloads);
+        } else if(this.selectedPlatform === 'android') {
+          await this.buildAndroidProfile(this.selectedPayloads);
+        }
       }
     },
-    buildWindowsProfile: function() {
+    // Download modal form submission (single payload)
+    handleSubmittingSinglePayloadDownloadProfileForm: async function() {
+      this.syncing = true;
+
+      if(this.selectedPlatform === 'windows') {
+        await this.buildWindowsProfile(this.selectedPayloads);
+      } else if(['macos', 'ios'].includes(this.selectedPlatform)) {
+        await this.buildAppleProfile(this.selectedPayloads);
+      }
+    },
+    buildAndroidProfile: function(selectedPayloads) {
+      let thisProfile = {
+        name: this.downloadProfileFormData.name,
+        version: this.downloadProfileFormData.version,
+      };
+      let payloadsToUse = _.clone(selectedPayloads);
+      for(let payload of payloadsToUse ){
+        if(payload.formOutput.settingFormat === 'number'){
+          let formDataCastToANumber = Number(this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+          _.set(thisProfile, payload.formOutput.settingTargetPath, formDataCastToANumber);
+        } else {
+          _.set(thisProfile, payload.formOutput.settingTargetPath, this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+        }
+      }
+      let profileDownloadUrl = URL.createObjectURL(new Blob([JSON.stringify(thisProfile)], { type: 'text/json;' }));
+      let exportDownloadLink = document.createElement('a');
+      exportDownloadLink.href = profileDownloadUrl;
+      exportDownloadLink.download = `${this.downloadProfileFormData.name}.json`;
+      exportDownloadLink.click();
+      URL.revokeObjectURL(profileDownloadUrl);
+      this.syncing = false;
+    },
+    buildWindowsProfile: function(payloadsToUse) {
       let xmlString = '';
       // Iterate through the selcted payloads
-      for(let payload of this.selectedPayloads) {
+      for(let payload of payloadsToUse) {
         let payloadToAdd = _.clone(payload);
         // Get the selected access type for this payload
         let accessType = this.configurationBuilderFormData[payload.uniqueSlug+'-access-type'];
-        // Get the selected value for this payload
-        let value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
-        // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
-        if(payload.formInput.type === 'boolean'){
-          if(value) {
-            value = payload.formOutput.trueValue;
+        let value;
+        // If a payload uses a settingTargetTemplate, build the settting target value and add it to the payload.
+        if(payloadToAdd.formOutput.settingTargetTemplate) {
+          let templateToUseForSettingTarget = _.template(payloadToAdd.formOutput.settingTargetTemplate);
+          let formDataForThisPayloadToBuildTheSettingTarget = {};
+          if(payload.formInput.type === 'multifield') {
+            for(let input of payload.formInput.inputs) {
+              if(payload.formOutput.valuesToTransform && payload.formOutput.valuesToTransform[input.slug]){
+                formDataForThisPayloadToBuildTheSettingTarget[input.slug] = encodeURIComponent(payload.formOutput.valuesToTransform[input.slug][this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]]);
+              } else {
+                formDataForThisPayloadToBuildTheSettingTarget[input.slug] = encodeURIComponent(this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]);
+              }
+            }
           } else {
-            value = payload.formOutput.falseValue;
+            formDataForThisPayloadToBuildTheSettingTarget[payloadToAdd.uniqueSlug] = encodeURIComponent(this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+          }
+          payloadToAdd.formOutput.settingTarget = _.trim(templateToUseForSettingTarget(formDataForThisPayloadToBuildTheSettingTarget));
+        }
+        if(payload.formInput.type === 'multifield') {
+          // If the payload's formInput type is multifield, we'll need to combine the values for this payload.
+          // build a dictionary of formData where each key is the input's slug.
+          if(!payload.formOutput.outputTemplate){
+            throw new Error('Consistency violation, a multifield form input is missing a template value', payload);
+          }
+          let formDataForThisPayload = {};
+          for(let input of payload.formInput.inputs) {
+            if(payload.formOutput.valuesToTransform && payload.formOutput.valuesToTransform[input.slug]){
+              formDataForThisPayload[input.slug] = payload.formOutput.valuesToTransform[input.slug][this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]];
+            } else {
+              formDataForThisPayload[input.slug] = this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug];
+            }
+          }
+          // Now we'll pass the formData into the formOutput's template string.
+          let templateToUse = _.template(payload.formOutput.outputTemplate);
+          value = _.trim(templateToUse(formDataForThisPayload));
+        } else {
+          // Get the selected value for this payload
+          value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
+          // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
+          if(payload.formInput.type === 'boolean'){
+            if(payload.formOutput.trueValue !== undefined) {
+              if(value) {
+                value = payload.formOutput.trueValue;
+              } else {
+                value = payload.formOutput.falseValue;
+              }
+            }
           }
         }
         payloadToAdd.formData = {accessType, value};
@@ -731,7 +5446,7 @@ parasails.registerPage('configuration-builder', {
       URL.revokeObjectURL(xmlDownloadUrl);
       this.syncing = false;
     },
-    buildMacOSProfile: function() {
+    buildAppleProfile: function(selectedPayloads) {
       let xmlString = `
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -740,9 +5455,10 @@ parasails.registerPage('configuration-builder', {
 <key>PayloadContent</key>
 <array>
 `;
+      let payloadstoUse = _.clone(selectedPayloads);
       // Iterate through the selcted payloads
       // group selected payloads by their payload type value.
-      let payloadsToCreateDictonariesFor = _.groupBy(this.selectedPayloads, 'payloadType');
+      let payloadsToCreateDictonariesFor = _.groupBy(payloadstoUse, 'payloadType');
       for(let optionsInTheSamePayload in payloadsToCreateDictonariesFor) {
         // First build the payloadDisplayName, payloadIdentifier, payloadType, payloadUUID, and payloadVersion keys.
 
@@ -763,16 +5479,20 @@ parasails.registerPage('configuration-builder', {
           let payloadToAdd = _.clone(payloadOption);
           let value = this.configurationBuilderFormData[payloadOption.uniqueSlug+'-value'];
           if(payloadOption.formInput.type === 'boolean') {
-            if(value) {
-              value = payloadOption.formOutput.trueValue;
-            } else {
-              value = payloadOption.formOutput.falseValue;
+            // If a payload option has a nested trueValue and falseValue, then this boolean will not necessarily represent true/false values.
+            // If that is the case, then modify the value to be the value they represent in the form.
+            if(payloadOption.formOutput.trueValue !== undefined) {
+              if(value) {
+                value = payloadOption.formOutput.trueValue;
+              } else {
+                value = payloadOption.formOutput.falseValue;
+              }
             }
           }
           dictionaryStringForThisPayload += `<key>${payloadToAdd.formOutput.settingKey}</key>
 `;
           if(payloadToAdd.formOutput.settingFormat === 'boolean'){
-            dictionaryStringForThisPayload += `${value}
+            dictionaryStringForThisPayload += `<${value}/>
 `;
           } else {
             dictionaryStringForThisPayload += `<${payloadToAdd.formOutput.settingFormat}>${value}</${payloadToAdd.formOutput.settingFormat}>
@@ -797,8 +5517,6 @@ parasails.registerPage('configuration-builder', {
 <string>${this.downloadProfileFormData.uuid}</string>
 <key>PayloadVersion</key>
 <integer>1</integer>
-<key>TargetDeviceType</key>
-<integer>5</integer>
 </dict>
 </plist>`;
       let xmlDownloadUrl = URL.createObjectURL(new Blob([_.trim(xmlString)], { type: 'text/xml;' }));
@@ -809,23 +5527,34 @@ parasails.registerPage('configuration-builder', {
       URL.revokeObjectURL(xmlDownloadUrl);
       this.syncing = false;
     },
+    // When users click the "remove all" button at the top of the payload card.
     clickRemoveOneCategoryPayloadOptions: function(category) {
       let optionsToRemove = this.selectedPayloadsGroupedByCategory[category];
       this.selectedPayloadsGroupedByCategory = _.without(this.selectedPayloadsGroupedByCategory, category);
       for(let option of optionsToRemove){
+        if(option.formInput.type === 'multifield') {
+          for(let input of option.formInput.inputs){
+            delete this.configurationBuilderFormRules[option.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderFormData[option.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-'+input.slug];
+          }
+        } else{
+          delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
+          delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
+          delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-value'];
+        }
         let newSelectedPayloads = _.without(this.selectedPayloads, option);
         this.selectedPayloadSettings[option.uniqueSlug] = false;
         this.selectedPayloads = _.uniq(newSelectedPayloads);
-        delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
-        delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
         if(this.selectedPlatform === 'windows') {
           delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
           delete this.configurationBuilderFormData[option.uniqueSlug+'-access-type'];
+          delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-access-type'];
         }
       }
-      this.selectedPayloadsGroupedByCategory = _.groupBy(this.payloadOptionsToDisplay, 'category');
-      console.log(this.selectedPayloadsGroupedByCategory);
+      this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
     },
+    // When users click the "remove" button under a single payload option.
     clickRemovePayloadOption: function(option) {
       let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: option.uniqueSlug});
       // check the alsoAutoSetWhenSelected value of the payload we're removing.
@@ -834,20 +5563,33 @@ parasails.registerPage('configuration-builder', {
       this.selectedPayloads = _.uniq(newSelectedPayloads);
       this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
+      delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
+      delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-value'];
       if(this.selectedPlatform === 'windows') {
         delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
+        delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-access-type'];
       }
     },
+    // When users click the download all button.
     handleSubmittingConfigurationBuilderForm: function() {
-      if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1) {
+      if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1 && this.selectedPlatform !== 'android') {
+        // If there is more than one payload in this profile, show a warning in a modal.
         this.modal = 'multiple-payloads-selected';
       } else {
         this.openDownloadModal();
       }
     },
+    // When users click the downlaod button on a paylaod card.
+    handleSubmittingSinglePayloadConfigurationBuilderForm: function() {
+      let payloadsInThisCategory = _.filter(this.selectedPayloads, (payload)=>{
+        return payload.category === this.currentSelectedCategoryForDownload;
+      });
+      this.selectedOptionsInAPayload = payloadsInThisCategory;
+      this.openDownloadModal();
+    },
     openDownloadModal: function() {
       this.modal = 'download-profile';
-      if(this.selectedPlatform === 'macos'){
+      if(['macos', 'ios'].includes(this.selectedPlatform)) {
         this.downloadProfileFormRules = {
           name: {required: true},
           uuid: {required: true},
@@ -855,6 +5597,11 @@ parasails.registerPage('configuration-builder', {
         };
         // Generate a uuid to prefill for the download profile form.
         this.downloadProfileFormData.uuid = crypto.randomUUID();
+      } else if(this.selectedPlatform === 'android') {
+        this.downloadProfileFormRules = {
+          name: {required: true},
+          version: { required: true }
+        };
       }
       this._enableToolTips();
     },
@@ -876,14 +5623,33 @@ parasails.registerPage('configuration-builder', {
         });
       }, 400);
     },
+    clickAutoSelectWhenSet: async function(formInput) {
+      if(formInput.alsoSelectedWhenSet){
+        for(let autoSelectedPayload of formInput.alsoSelectedWhenSet ) {
+          let payloadToAddSlug = autoSelectedPayload;
+          let payloadToAdd = _.find(this.selectedPayloadCategory.payloads, {uniqueSlug: payloadToAddSlug});
+          this.selectedPayloads.push(payloadToAdd);
+          this.autoSelectedPayloadSettings[payloadToAddSlug] = true;
+          this.selectedPayloadSettings[payloadToAddSlug] = true;
+          this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
+          if(this.selectedPlatform === 'windows') {
+            this.configurationBuilderFormRules[payloadToAddSlug+'-access-type'] = {required: true};
+          }
+        }
+      }
+      this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
+      await this.forceRender();
+    },
+    clickSetCurrentSelectedCategory: async function(category) {
+      this.currentSelectedCategoryForDownload = category;
+      // console.log(category);
+    },
     clickSelectPayload: async function(payloadSlug) {
       if(!this.selectedPayloadSettings[payloadSlug]){
-        // if(this.selectedPlatform === 'windows'){
-        //   payloadsToUse = this.windowsCategoriesAndPayloads;
-        // } else if(this.selectedPlatform === 'macos') {
-        //   payloadsToUse = this.macosCategoriesAndPayloads;
-        // }
         let selectedPayload = _.find(this.selectedPayloadCategory.payloads, {uniqueSlug: payloadSlug}) || {};
+        if(!this.configurationBuilderByCategoryFormRules[selectedPayload.category]) {
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category] = {};
+        }
         if(selectedPayload.alsoAutoSetWhenSelected) {
           for(let autoSelectedPayload of selectedPayload.alsoAutoSetWhenSelected ) {
             let payloadToAddSlug = autoSelectedPayload.dependingOnSettingSlug;
@@ -892,40 +5658,82 @@ parasails.registerPage('configuration-builder', {
             this.$set(this.configurationBuilderFormData, payloadToAddSlug+'-value', autoSelectedPayload.dependingOnSettingValue);
             this.autoSelectedPayloadSettings[payloadToAddSlug] = true;
             this.selectedPayloadSettings[payloadToAddSlug] = true;
-            this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
+            if(payloadToAdd.formInput.customFormRule){
+              this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true, custom: payloadToAdd.formInput.customFormRule};
+            } else {
+              this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
+            }
             if(this.selectedPlatform === 'windows') {
               this.configurationBuilderFormRules[payloadToAddSlug+'-access-type'] = {required: true};
+              if(payloadToAdd.supportedAccessTypes.length === 1){
+                this.configurationBuilderFormData[payloadToAddSlug+'-access-type'] = payloadToAdd.supportedAccessTypes[0];
+              }
             }
           }
         }
         this.selectedPayloads.push(selectedPayload);
         this.selectedPayloads = _.uniq(this.selectedPayloads);
-        this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
-        if(selectedPayload.formInput.type === 'boolean'){
-          // default boolean inputs to false.
-          this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
-        } else if(selectedPayload.formInput.type === 'number') {
-          this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
+        if(selectedPayload.formInput.type === 'multifield') {
+          for(let input of selectedPayload.formInput.inputs){
+            this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
+            this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
+            if(input.type === 'boolean' || input.type === 'booleanWithLabel'){
+              // default boolean inputs to false.
+              this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-'+input.slug] = false;
+            } else if(input.type === 'number') {
+              this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-'+input.slug] = input.defaultValue;
+            }
+
+          }
+        } else {
+          this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-value'] = {required: true};
+          if(selectedPayload.formInput.customFormRule){
+            this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true, custom: selectedPayload.formInput.customFormRule};
+          }
+          if(selectedPayload.formInput.type === 'boolean'){
+            // default boolean inputs to false.
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
+          } else if(selectedPayload.formInput.type === 'number') {
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
+          }
         }
+
         if(this.selectedPlatform === 'windows') {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-access-type'] = {required: true};
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-access-type'] = {required: true};
+          if(selectedPayload.supportedAccessTypes.length === 1){
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-access-type'] = selectedPayload.supportedAccessTypes[0];
+          }
         }
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
         this.selectedPayloadSettings[payloadSlug] = true;
-        // console.log(this.configurationBuilderFormData);
+
       } else {
         // Remove the payload option and all dependencies
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
         // check the alsoAutoSetWhenSelected value of the payload we're removing.
         let newSelectedPayloads = _.without(this.selectedPayloads, payloadToRemove);
-        delete this.configurationBuilderFormRules[payloadSlug+'-value'];
+        if(payloadToRemove.formInput.type === 'multifield') {
+          for(let input of payloadToRemove.formInput.inputs){
+            delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-'+input.slug];
+          }
+        } else {
+          delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-value'];
+          delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-value'];
+          delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-value'];
+        }
         if(this.selectedPlatform === 'windows') {
+          delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-access-type'];
           delete this.configurationBuilderFormRules[payloadSlug+'-access-type'];
         }
         this.selectedPayloadSettings[payloadSlug] = false;
         this.selectedPayloads = _.uniq(newSelectedPayloads);
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       }
+      await this._enableToolTips();
       await this.forceRender();
     },
     clickOpenResetFormModal: function() {
@@ -962,6 +5770,10 @@ parasails.registerPage('configuration-builder', {
       await this.forceRender();
     },
     closeModal: function() {
+      this.modal = undefined;
+    },
+    closeDownloadModal: function() {
+      this.downloadProfileFormData = {};
       this.modal = undefined;
     },
     _getWindowsXmlPayloadString: function(payload) {

@@ -2,6 +2,7 @@ package gitops
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-json-experiment/json/v1"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -472,6 +472,30 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	dirPath, err := filepath.Abs(filepath.Clean(dirPath))
 	require.NoError(t, err)
 
+	apiToken := "digicert_api_token" // nolint:gosec // G101: Potential hardcoded credentials
+	profileID := "digicert_profile_id"
+	certCN := "digicert_cn"
+	certSeatID := "digicert_seat_id"
+	_, err = s.DS.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type:                          string(fleet.CATypeDigiCert),
+		Name:                          ptr.String("DigiCert"),
+		URL:                           &digiCertServer.URL,
+		APIToken:                      &apiToken,
+		ProfileID:                     &profileID,
+		CertificateCommonName:         &certCN,
+		CertificateUserPrincipalNames: &[]string{"digicert_upn"},
+		CertificateSeatID:             &certSeatID,
+	})
+	require.NoError(t, err)
+	challenge := "challenge"
+	_, err = s.DS.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("CustomScepProxy"),
+		URL:       &scepServer.URL,
+		Challenge: &challenge,
+	})
+	require.NoError(t, err)
+
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = globalFile.WriteString(fmt.Sprintf(`
@@ -486,7 +510,7 @@ org_settings:
   org_info:
     org_name: Fleet
   secrets:
-  integrations:
+  certificate_authorities:
     digicert:
       - name: DigiCert
         url: %s
@@ -501,7 +525,11 @@ org_settings:
         challenge: challenge
 policies:
 queries:
-`, dirPath, digiCertServer.URL, scepServer.URL+"/scep"))
+`,
+		dirPath,
+		digiCertServer.URL,
+		scepServer.URL+"/scep",
+	))
 	require.NoError(t, err)
 
 	// Set the required environment variables
@@ -511,11 +539,12 @@ queries:
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
 
-	appConfig, err := s.DS.AppConfig(context.Background())
+	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)
-	require.True(t, appConfig.Integrations.DigiCert.Valid)
-	require.Len(t, appConfig.Integrations.DigiCert.Value, 1)
-	digicertCA := appConfig.Integrations.DigiCert.Value[0]
+
+	// check digicert
+	require.Len(t, groupedCAs.DigiCert, 1)
+	digicertCA := groupedCAs.DigiCert[0]
 	require.Equal(t, "DigiCert", digicertCA.Name)
 	require.Equal(t, digiCertServer.URL, digicertCA.URL)
 	require.Equal(t, fleet.MaskedPassword, digicertCA.APIToken)
@@ -524,12 +553,12 @@ queries:
 	require.Equal(t, []string{"digicert_upn"}, digicertCA.CertificateUserPrincipalNames)
 	require.Equal(t, "digicert_seat_id", digicertCA.CertificateSeatID)
 	gotProfileMu.Lock()
-	require.True(t, gotProfile)
+	require.False(t, gotProfile) // external digicert service was NOT called because stored config was not modified
 	gotProfileMu.Unlock()
 
-	require.True(t, appConfig.Integrations.CustomSCEPProxy.Valid)
-	require.Len(t, appConfig.Integrations.CustomSCEPProxy.Value, 1)
-	customSCEPProxyCA := appConfig.Integrations.CustomSCEPProxy.Value[0]
+	// check custom SCEP proxy
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	customSCEPProxyCA := groupedCAs.CustomScepProxy[0]
 	require.Equal(t, "CustomScepProxy", customSCEPProxyCA.Name)
 	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
 	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
@@ -537,6 +566,63 @@ queries:
 	profiles, _, err := s.DS.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, profiles, 1)
+
+	// now modify the stored config and confirm that external digicert service is called
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+    digicert:
+      - name: DigiCert
+        url: %s
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: [%q]
+        certificate_seat_id: digicert_seat_id
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: %s
+        challenge: challenge
+policies:
+queries:
+`,
+		dirPath,
+		digiCertServer.URL,
+		"digicert_upn_2", // minor modification to stored config so gitops run is not a no-op and triggers call to external digicert service
+		scepServer.URL+"/scep",
+	))
+	require.NoError(t, err)
+
+	// Apply configs
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+
+	// check digicert
+	require.Len(t, groupedCAs.DigiCert, 1)
+	digicertCA = groupedCAs.DigiCert[0]
+	require.Equal(t, "DigiCert", digicertCA.Name)
+	require.Equal(t, digiCertServer.URL, digicertCA.URL)
+	require.Equal(t, fleet.MaskedPassword, digicertCA.APIToken)
+	require.Equal(t, "digicert_profile_id", digicertCA.ProfileID)
+	require.Equal(t, "digicert_cn", digicertCA.CertificateCommonName)
+	require.Equal(t, []string{"digicert_upn_2"}, digicertCA.CertificateUserPrincipalNames)
+	require.Equal(t, "digicert_seat_id", digicertCA.CertificateSeatID)
+	gotProfileMu.Lock()
+	require.True(t, gotProfile) // external digicert service was called because stored config was modified
+	gotProfileMu.Unlock()
 
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
@@ -557,10 +643,11 @@ queries:
 
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
-	appConfig, err = s.DS.AppConfig(context.Background())
+
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), true)
 	require.NoError(t, err)
-	assert.Empty(t, appConfig.Integrations.DigiCert.Value)
-	assert.Empty(t, appConfig.Integrations.CustomSCEPProxy.Value)
+	assert.Empty(t, groupedCAs.DigiCert)
+	assert.Empty(t, groupedCAs.CustomScepProxy)
 }
 
 // TestUnsetConfigurationProfileLabels tests the removal of labels associated with a
@@ -921,6 +1008,290 @@ software:
 	require.ErrorAs(t, err, &nfe)
 }
 
+// Helper function to get No Team webhook settings from the database
+func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
+	cfg, err := ds.DefaultTeamConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	return cfg.WebhookSettings.FailingPoliciesWebhook
+}
+
+// Helper function to verify No Team webhook settings match expected values
+func verifyNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore, expected fleet.FailingPoliciesWebhookSettings) {
+	actual := getNoTeamWebhookSettings(ctx, t, ds)
+
+	require.Equal(t, expected.Enable, actual.Enable)
+	if expected.Enable {
+		require.Equal(t, expected.DestinationURL, actual.DestinationURL)
+		require.Equal(t, expected.HostBatchSize, actual.HostBatchSize)
+		require.ElementsMatch(t, expected.PolicyIDs, actual.PolicyIDs)
+	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestNoTeamWebhookSettings() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	var webhookSettings fleet.FailingPoliciesWebhookSettings
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Create a global config file
+	const globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: global_secret
+policies:
+queries:
+`
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	// Create a no-team.yml file with webhook settings
+	const noTeamTemplateWithWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://example.com/no-team-webhook
+      host_batch_size: 50
+      policy_ids:
+        - 1
+        - 2
+        - 3
+`
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(noTeamTemplateWithWebhook)
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	// Test dry-run first
+	output := fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+
+	// Check that webhook settings are mentioned in the output
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "would've applied webhook settings for 'No team'")
+
+	// Apply the configuration (non-dry-run)
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+
+	// Verify the output mentions webhook settings were applied
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings were actually applied by checking the database
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable:         true,
+		DestinationURL: "https://example.com/no-team-webhook",
+		HostBatchSize:  50,
+		PolicyIDs:      []uint{1, 2, 3},
+	})
+
+	// Test updating webhook settings
+	const noTeamTemplateUpdatedWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: false
+      destination_url: https://updated.example.com/webhook
+      host_batch_size: 100
+      policy_ids:
+        - 4
+        - 5
+`
+
+	noTeamFileUpdated, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileUpdated.WriteString(noTeamTemplateUpdatedWebhook)
+	require.NoError(t, err)
+	err = noTeamFileUpdated.Close()
+	require.NoError(t, err)
+	noTeamFilePathUpdated := filepath.Join(filepath.Dir(noTeamFileUpdated.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileUpdated.Name(), noTeamFilePathUpdated)
+	require.NoError(t, err)
+
+	// Apply the updated configuration
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathUpdated})
+
+	// Verify the output still mentions webhook settings were applied
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings were updated
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable:         false,
+		DestinationURL: "https://updated.example.com/webhook",
+		HostBatchSize:  100,
+		PolicyIDs:      []uint{4, 5},
+	})
+
+	// Test removing webhook settings entirely
+	const noTeamTemplateNoWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+`
+
+	noTeamFileNoWebhook, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileNoWebhook.WriteString(noTeamTemplateNoWebhook)
+	require.NoError(t, err)
+	err = noTeamFileNoWebhook.Close()
+	require.NoError(t, err)
+	noTeamFilePathNoWebhook := filepath.Join(filepath.Dir(noTeamFileNoWebhook.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileNoWebhook.Name(), noTeamFilePathNoWebhook)
+	require.NoError(t, err)
+
+	// Apply configuration without webhook settings
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathNoWebhook})
+
+	// Verify webhook settings are mentioned as being applied (they're applied as nil to clear)
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings were cleared
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable: false,
+	})
+
+	// Test case: team_settings exists but webhook_settings is nil
+	// First, set webhook settings again
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook was set
+	webhookSettings = getNoTeamWebhookSettings(ctx, t, s.DS)
+	require.True(t, webhookSettings.Enable)
+
+	// Now apply config with team_settings but no webhook_settings
+	const noTeamTemplateTeamSettingsNoWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+`
+	noTeamFileTeamNoWebhook, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileTeamNoWebhook.WriteString(noTeamTemplateTeamSettingsNoWebhook)
+	require.NoError(t, err)
+	err = noTeamFileTeamNoWebhook.Close()
+	require.NoError(t, err)
+	noTeamFilePathTeamNoWebhook := filepath.Join(filepath.Dir(noTeamFileTeamNoWebhook.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileTeamNoWebhook.Name(), noTeamFilePathTeamNoWebhook)
+	require.NoError(t, err)
+
+	// Apply configuration with team_settings but no webhook_settings
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathTeamNoWebhook})
+
+	// Verify webhook settings are cleared
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings are disabled
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable: false,
+	})
+
+	// Test case: webhook_settings exists but failing_policies_webhook is nil
+	// First, set webhook settings again
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook was set
+	webhookSettings = getNoTeamWebhookSettings(ctx, t, s.DS)
+	require.True(t, webhookSettings.Enable)
+
+	// Now apply config with webhook_settings but no failing_policies_webhook
+	const noTeamTemplateWebhookNoFailing = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+  webhook_settings:
+`
+	noTeamFileWebhookNoFailing, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileWebhookNoFailing.WriteString(noTeamTemplateWebhookNoFailing)
+	require.NoError(t, err)
+	err = noTeamFileWebhookNoFailing.Close()
+	require.NoError(t, err)
+	noTeamFilePathWebhookNoFailing := filepath.Join(filepath.Dir(noTeamFileWebhookNoFailing.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileWebhookNoFailing.Name(), noTeamFilePathWebhookNoFailing)
+	require.NoError(t, err)
+
+	// Apply configuration with webhook_settings but no failing_policies_webhook
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathWebhookNoFailing})
+
+	// Verify webhook settings are cleared
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings are disabled
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable: false,
+	})
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefaultYAML() {
 	t := s.T()
 	ctx := context.Background()
@@ -1269,4 +1640,341 @@ queries:
 	require.NoError(t, err)
 	require.Equal(t, secretVariables[0].Name, secretName)
 	require.Equal(t, secretVariables[0].Value, secretValue)
+}
+
+// TestEnvSubstitutionInProfiles tests that only FLEET_SECRET_ prefixed env vars are saved as secrets
+func (s *enterpriseIntegrationGitopsTestSuite) TestEnvSubstitutionInProfiles() {
+	t := s.T()
+	ctx := t.Context()
+	tempDir := t.TempDir()
+
+	// Create a test configuration profile with both valid and invalid secret references
+	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDisplayName</key>
+            <string>Test Profile</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleet.test.env</string>
+            <key>PayloadType</key>
+            <string>Configuration</string>
+            <key>PayloadUUID</key>
+            <string>12345678-1234-1234-1234-123456789012</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>TestSecretValue</key>
+            <string>$FLEET_SECRET_TEST_SECRET</string>
+            <key>TestInvalidSecret</key>
+            <string>$FLEET_DUO_CERTIFICATE_SECRET</string>
+            <key>TestPlainValue</key>
+            <string>$HOME</string>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleet.test.env</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>12345678-1234-1234-1234-123456789012</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>`
+
+	// Write the profile to a file
+	profilePath := filepath.Join(tempDir, "test-profile.mobileconfig")
+	err := os.WriteFile(profilePath, []byte(profileContent), 0o644) //nolint:gosec // test code
+	require.NoError(t, err)
+
+	// Create a GitOps config file that references the profile
+	// Note: Environment variables in the YAML config itself get expanded,
+	// but not in the referenced profile files
+	gitopsConfig := fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: %s
+  secrets:
+    - secret: test_secret
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+queries: []
+policies: []
+`, s.Server.URL, profilePath)
+
+	configPath := filepath.Join(tempDir, "gitops.yml")
+	err = os.WriteFile(configPath, []byte(gitopsConfig), 0o644) //nolint:gosec // test code
+	require.NoError(t, err)
+
+	// Create a GitOps user
+	gitOpsUser := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, gitOpsUser)
+
+	// Set the environment variable for the valid secret
+	t.Setenv("FLEET_SECRET_TEST_SECRET", "super_secret_value_123")
+	t.Setenv("FLEET_DUO_CERTIFICATE_SECRET", "should_not_be_saved")
+	t.Setenv("HOME", "also_not_saved")
+
+	// Run GitOps dry-run - should fail without the required secret
+	// First, unset the environment variable to trigger the error
+	_ = os.Unsetenv("FLEET_SECRET_TEST_SECRET")
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath, "--dry-run"})
+	require.ErrorContains(t, err, "FLEET_SECRET_TEST_SECRET")
+
+	// Set the env var again and run for real
+	t.Setenv("FLEET_SECRET_TEST_SECRET", "super_secret_value_123")
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+
+	// Verify that the secret was saved to the server
+	secrets, err := s.DS.GetSecretVariables(ctx, []string{"TEST_SECRET"})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "TEST_SECRET", secrets[0].Name)
+	assert.Equal(t, "super_secret_value_123", secrets[0].Value)
+
+	// Verify that non-FLEET_SECRET_ variables were NOT saved
+	notSaved, err := s.DS.GetSecretVariables(ctx, []string{"DUO_CERTIFICATE_SECRET", "HOME"})
+	require.NoError(t, err)
+	assert.Empty(t, notSaved, "Non-FLEET_SECRET_ variables should not be saved")
+
+	// Verify that the profile content has the expected substitutions:
+	// - $FLEET_SECRET_* variables should remain as-is (substituted at delivery time)
+	// - Other env vars should be expanded during GitOps
+	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+
+	foundProfile := false
+	for _, profile := range profiles {
+		t.Logf("Found profile: %s", profile.Name)
+		if strings.Contains(profile.Name, "test-profile") || strings.Contains(profile.Identifier, "com.fleet.test.env") {
+			foundProfile = true
+			// $FLEET_SECRET_* variables should NOT be expanded (they're expanded at delivery time)
+			assert.Contains(t, string(profile.Mobileconfig), "$FLEET_SECRET_TEST_SECRET")
+			// Non-FLEET_SECRET_/FLEET_VAR_ variables SHOULD be expanded during GitOps
+			assert.Contains(t, string(profile.Mobileconfig), "should_not_be_saved") // Value of $FLEET_DUO_CERTIFICATE_SECRET
+			assert.Contains(t, string(profile.Mobileconfig), "also_not_saved")      // Value of $HOME
+			// The original variable names should NOT be present
+			assert.NotContains(t, string(profile.Mobileconfig), "$FLEET_DUO_CERTIFICATE_SECRET")
+			assert.NotContains(t, string(profile.Mobileconfig), "$HOME")
+			break
+		}
+	}
+	assert.True(t, foundProfile, "Profile should be uploaded to the server")
+}
+
+// TestFleetSecretInDataTag tests that FLEET_SECRET_ variables in <data> tags of Apple profiles
+// are handled properly.
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetSecretInDataTag() {
+	t := s.T()
+	tempDir := t.TempDir()
+	ctx := context.Background()
+
+	// Sample certificate in base64 format (this is a dummy test certificate)
+	testCertBase64 := `MIIDaTCCAlGgAwIBAgIUNQLezMUpmZK18DcLKt/XTRcLlK8wDQYJKoZIhvcNAQELBQAwRDEfMB0GA1UEAwwWRHVtbXkgVGVzdCBDZXJ0aWZpY2F0ZTEUMBIGA1UECgwLRXhhbXBsZSBPcmcxCzAJBgNVBAYTAlVTMB4XDTI1MDgxOTE3NDMwN1oXDTI2MDgxOTE3NDMwN1owRDEfMB0GA1UEAwwWRHVtbXkgVGVzdCBDZXJ0aWZpY2F0ZTEUMBIGA1UECgwLRXhhbXBsZSBPcmcxCzAJBgNVBAYTAlVTMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA07Np/w5WpFVLlMKX3dZSxwo+c2uwP2glTN0HA5c/6UOQRR9c91yoGGJsD4pfqhtIMSTFw7po3n/PjhGDe/WH+utK+ZIcD0nGD6SvmOggyoohHs81eIOjJAEJjxzhk7eLTVpUI2EnPe/24ei/dgkK59As9qQyH/y+CoR8JIYbNCJH5YLC2Pa44V84QWa2I5DHKUKrUXo9WsrRp1N1JjyaG/6hxLBJZ69e0QTrxxScboreRqVUR6oIEJRTchB+rDG5dxXzCQE6/F8N3qR76t23wd3CLmrcXoEc1P2P331Qzi0KXNXjdJFf0plmfRkT/IWgfM81Vfon1QwENwRSBNmPfQIDAQABo1MwUTAdBgNVHQ4EFgQU9q7SDfQRbJ31snRt2sZzx5sdEpYwHwYDVR0jBBgwFoAU9q7SDfQRbJ31snRt2sZzx5sdEpYwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAYwH42JP45SnZejSF74OcYt8fp08jCWHOiFC3QEo3cROXVn6AWjEbzuQpOxRWF9EizNA83c4E6I+kQVztiuv9bUKGuLFeYb9lUZe8HOvH+j22MtGvZrDPygsJc8TavdkxAsu6OiNQZrYiCFzixkKS9b5p/1B93GBh62OFnV1nUBS8PzAZhOAyJ8UcEhr+GNzZG99/wOkcB0uwxmIb8x8sB3KnQ0qef/qnmgeWxlJlDc/SZ2/4PgtaluZ+noDfNPzaQn4eJNnBz0OTqZ9yuKALeE1WHk8U13zSdc1GNVLhXOrEHegPK5bBmA/lpIQ6HrkwUX7MJ3vK0AD3LjaTzXltDQ==`
+
+	// Create a test team first
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{
+		Name: "Test Team for Secret in Data Tag",
+	})
+	require.NoError(t, err)
+
+	// Create a profile with $FLEET_SECRET_DUO_CERTIFICATE in a <data> tag
+	// This mimics the real-world scenario where the certificate should be base64 encoded
+	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+                <key>PayloadType</key>
+                <string>com.apple.security.root</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+                <key>PayloadIdentifier</key>
+                <string>com.example.test.cert</string>
+                <key>PayloadUUID</key>
+                <string>11111111-2222-3333-4444-555555555555</string>
+                <key>PayloadDisplayName</key>
+                <string>Test Root Certificate</string>
+                <key>PayloadContent</key>
+                <data>$FLEET_SECRET_DUO_CERTIFICATE</data>
+            </dict>
+        </array>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadIdentifier</key>
+        <string>com.example.test.profile</string>
+        <key>PayloadUUID</key>
+        <string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+        <key>PayloadDisplayName</key>
+        <string>Test MDM Profile with Base64</string>
+    </dict>
+</plist>`
+
+	// Write the profile to a file
+	profilePath := filepath.Join(tempDir, "rootcert-secret.mobileconfig")
+	err = os.WriteFile(profilePath, []byte(profileContent), 0o644) //nolint:gosec
+	require.NoError(t, err)
+
+	// Create a team GitOps config file that references the profile
+	teamConfig := fmt.Sprintf(`
+name: %s
+team_settings:
+  secrets:
+    - secret: test_secret
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+queries:
+policies:
+software:
+`, team.Name, profilePath)
+
+	configPath := filepath.Join(tempDir, "team-gitops.yml")
+	err = os.WriteFile(configPath, []byte(teamConfig), 0o644) //nolint:gosec
+	require.NoError(t, err)
+
+	// Create a GitOps user
+	gitOpsUser := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, gitOpsUser)
+
+	// Set the environment variable with the base64-encoded certificate
+	t.Setenv("FLEET_SECRET_DUO_CERTIFICATE", testCertBase64)
+
+	// The fix expands FLEET_SECRET_ variables for validation only, allowing the profile to be parsed
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath, "--dry-run"})
+	require.NoError(t, err, "GitOps dry-run should succeed with the fix")
+
+	// Also test without dry-run to confirm it works
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+	require.NoError(t, err, "GitOps should succeed with the fix")
+
+	// Verify that the profile stored on the server still has the unexpanded variable
+	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	// The stored profile should still contain the unexpanded variable, not the actual secret
+	require.Contains(t, string(profiles[0].Mobileconfig), "$FLEET_SECRET_DUO_CERTIFICATE",
+		"Profile should still contain unexpanded FLEET_SECRET variable")
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := fleet.User{
+		Name:       "Admin User",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.DS.NewUser(context.Background(), &user)
+	require.NoError(t, err)
+
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Add some hosts
+	host1, err := s.DS.NewHost(context.Background(), &fleet.Host{
+		UUID:           "uuid-1",
+		Hostname:       "host1",
+		Platform:       "linux",
+		HardwareSerial: "serial1",
+	})
+	require.NoError(t, err)
+	host2, err := s.DS.NewHost(context.Background(), &fleet.Host{
+		UUID:           "uuid-2",
+		Hostname:       "host2",
+		Platform:       "linux",
+		HardwareSerial: "serial2",
+	})
+	require.NoError(t, err)
+	host3, err := s.DS.NewHost(context.Background(), &fleet.Host{
+		UUID:           "uuid-3",
+		Hostname:       "host3",
+		Platform:       "linux",
+		HardwareSerial: "serial3",
+	})
+	require.NoError(t, err)
+	host4, err := s.DS.NewHost(context.Background(), &fleet.Host{
+		UUID:           "uuid-4",
+		Hostname:       "host4",
+		Platform:       "linux",
+		HardwareSerial: "serial4",
+	})
+	require.NoError(t, err)
+	// Add a host whose UUID starts with the ID of host4 (probably ID 4,
+	// but get it from the record just in case.)
+	// host4 should _not_ be added to the label (see issue #34236).
+	host5, err := s.DS.NewHost(context.Background(), &fleet.Host{
+		UUID:           fmt.Sprintf("%duuid-5", host4.ID),
+		Hostname:       "dummy",
+		Platform:       "linux",
+		HardwareSerial: "dummy",
+	})
+	require.NoError(t, err)
+
+	// Create a global file
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+queries:
+labels:
+  - name: my-label
+    label_membership_type: manual
+    hosts: 
+    - %s
+    - %s
+    - %d
+    - %s
+    - dummy
+`, host1.Hostname, host2.HardwareSerial, host3.ID, host5.UUID))
+	require.NoError(t, err)
+
+	// Apply the configs
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	// Verify the label was created and has the correct hosts
+	labels, err := s.DS.LabelsByName(ctx, []string{"my-label"})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	label := labels["my-label"]
+	// Get the hosts for the label
+	labelHosts, err := s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labelHosts, 4)
+	// Get the IDs of the hosts
+	var labelHostIDs []uint
+	for _, h := range labelHosts {
+		labelHostIDs = append(labelHostIDs, h.ID)
+	}
+	// Verify the correct hosts were added to the label
+	require.ElementsMatch(t, labelHostIDs, []uint{host1.ID, host2.ID, host3.ID, host5.ID})
 }

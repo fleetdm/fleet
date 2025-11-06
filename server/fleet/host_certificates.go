@@ -93,9 +93,9 @@ func NewHostCertificateRecord(
 		Serial:                    cert.SerialNumber.Text(16),
 		SigningAlgorithm:          cert.SignatureAlgorithm.String(),
 		SubjectCommonName:         cert.Subject.CommonName,
-		SubjectCountry:            firstOrEmpty(cert.Subject.Country),            // TODO: confirm methodology
-		SubjectOrganization:       firstOrEmpty(cert.Subject.Organization),       // TODO: confirm methodology
-		SubjectOrganizationalUnit: firstOrEmpty(cert.Subject.OrganizationalUnit), // TODO: confirm methodology
+		SubjectCountry:            firstOrEmpty(cert.Subject.Country),                    // TODO: confirm methodology
+		SubjectOrganization:       firstOrEmpty(cert.Subject.Organization),               // TODO: confirm methodology
+		SubjectOrganizationalUnit: strings.Join(cert.Subject.OrganizationalUnit, "+OU="), // NOTE: concatenation approach matches what we've observed osquery to do when there are multiple OU values
 		IssuerCommonName:          cert.Issuer.CommonName,
 		IssuerCountry:             firstOrEmpty(cert.Issuer.Country),            // TODO: confirm methodology
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
@@ -216,26 +216,49 @@ type MDMAppleErrorChainItem struct {
 func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
 	str = strings.TrimSpace(str)
 	str = strings.Trim(str, "/")
+
+	str = strings.ReplaceAll(str, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
 	parts := strings.Split(str, "/")
 
+	if len(parts) == 1 {
+		// Try to split into parts based on +
+		parts = strings.Split(str, "+")
+	}
+
+	ouParts := []string{}
 	var details HostCertificateNameDetails
 	for _, part := range parts {
-		kv := strings.Split(part, "=")
-		if len(kv) != 2 {
+		key, value, found := strings.Cut(part, "=")
+
+		if !found {
 			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", str)
 		}
 
-		switch strings.ToUpper(kv[0]) {
+		value = strings.ReplaceAll(strings.Trim(value, " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
+
+		switch strings.ToUpper(key) {
 		case "C":
-			details.Country = strings.Trim(kv[1], " ")
+			details.Country = strings.Trim(value, " ")
 		case "O":
-			details.Organization = strings.Trim(kv[1], " ")
+			details.Organization = strings.Trim(value, " ")
 		case "OU":
-			details.OrganizationalUnit = strings.Trim(kv[1], " ")
+			// osquery is inconsistent in how it reports certs with multiple OUs; sometimes it
+			// concatenates them all joined by `+OU=` separator within the same `/` delimited
+			// string, other times it provides multiple `/` delimited strings that each contain
+			// distinct OU values. For example, compare the following two lines:
+			//   /OU=SomeValue/OU=fleet-a3d5d6f4c-819e-4159-9a42-0d6243a80ff8/CN=SomeName
+			//   /OU=SomeValue+OU=fleet-a0c039413-d0c7-4b1f-9488-b93c865351ac/CN=SomeName
+			//
+			// To handle both cases, we collect all OU values and join them with `+OU=` below.
+			// We should probably reconsider our approaches for normalization of cert data
+			// across the board.
+			// FIXME: How should this work with the edge case covered by PR 33152 (see line 224 above)?
+			ouParts = append(ouParts, strings.Trim(value, " "))
 		case "CN":
-			details.CommonName = strings.Trim(kv[1], " ")
+			details.CommonName = strings.Trim(value, " ")
 		}
 	}
+	details.OrganizationalUnit = strings.Join(ouParts, "+OU=")
 
 	return &details, nil
 }

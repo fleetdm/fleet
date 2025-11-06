@@ -101,6 +101,21 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 }
 
 func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) (unlockPIN string, err error) {
+	// Check for existing pending lock command first
+	existingCmd, existingPIN, err := svc.storage.GetPendingLockCommand(ctx, host.UUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking for pending lock command")
+	}
+
+	// If a pending lock command exists, just send a push notification and return the existing PIN
+	if existingCmd != nil {
+		if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "sending notifications for existing DeviceLock")
+		}
+		return existingPIN, nil
+	}
+
+	// No pending lock, create a new one
 	unlockPIN = GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -125,6 +140,29 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 	}
 
 	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, unlockPIN); err != nil {
+		// Check if another request just created a lock
+		type conflictInterface interface {
+			IsConflict() bool
+		}
+		if c, ok := err.(conflictInterface); ok && c.IsConflict() {
+			// Another goroutine won the race, fetch the command that was created
+			existingCmd, existingPIN, err := svc.storage.GetPendingLockCommand(ctx, host.UUID)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting existing lock after race condition")
+			}
+			if existingCmd != nil {
+				// Send push notification for the existing command and return its PIN
+				if pushErr := svc.SendNotifications(ctx, []string{host.UUID}); pushErr != nil {
+					// Log the push error but still return the PIN since the command exists
+					// The push can be retried on subsequent requests
+					ctxerr.Handle(ctx, ctxerr.Wrap(ctx, pushErr, "failed to send push notification after lock race"))
+					return existingPIN, nil
+				}
+				return existingPIN, nil
+			}
+			// This shouldn't happen, but if we can't find the command, return the original error
+			return "", ctxerr.Wrap(ctx, err, "lock command conflict but no existing command found")
+		}
 		return "", ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
 	}
 
@@ -133,6 +171,68 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 	}
 
 	return unlockPIN, nil
+}
+
+func (svc *MDMAppleCommander) EnableLostMode(ctx context.Context, host *fleet.Host, commandUUID string, orgName string) error {
+	msg := fmt.Sprintf("This device is locked. It belongs to %s.", orgName)
+	cmdPayload := commandPayload{
+		CommandUUID: commandUUID,
+		Command: map[string]any{
+			"RequestType": "EnableLostMode",
+			"Message":     msg,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling EnableLostMode payload")
+	}
+	raw := string(rawBytes)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+
+	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, ""); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for EnableLostMode")
+	}
+
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for EnableLostMode")
+	}
+
+	return nil
+}
+
+func (svc *MDMAppleCommander) DisableLostMode(ctx context.Context, host *fleet.Host, commandUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>DisableLostMode</string>
+	</dict>
+</dict>
+</plist>`, commandUUID)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command for DisableLostMode")
+	}
+
+	if err := svc.storage.EnqueueDeviceUnlockCommand(ctx, host, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing device unlock command for DisableLostMode")
+	}
+
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for DisableLostMode")
+	}
+
+	return nil
 }
 
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
@@ -298,6 +398,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>OSVersion</string>
             <string>WiFiMAC</string>
             <string>ProductName</string>
+			<string>IsMDMLostModeEnabled</string>
         </array>
         <key>RequestType</key>
         <string>DeviceInformation</string>

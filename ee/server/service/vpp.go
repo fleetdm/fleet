@@ -72,19 +72,21 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		// Currently only macOS is supported for self-service. Don't
 		// import vpp apps as self-service for ios or ipados
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-			AppStoreID:       payload.AppStoreID,
-			SelfService:      false,
-			Platform:         fleet.IOSPlatform,
-			LabelsExcludeAny: payload.LabelsExcludeAny,
-			LabelsIncludeAny: payload.LabelsIncludeAny,
-			Categories:       payload.Categories,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        false,
+			InstallDuringSetup: payload.InstallDuringSetup,
+			Platform:           fleet.IOSPlatform,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}, {
-			AppStoreID:       payload.AppStoreID,
-			SelfService:      false,
-			Platform:         fleet.IPadOSPlatform,
-			LabelsExcludeAny: payload.LabelsExcludeAny,
-			LabelsIncludeAny: payload.LabelsIncludeAny,
-			Categories:       payload.Categories,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        false,
+			InstallDuringSetup: payload.InstallDuringSetup,
+			Platform:           fleet.IPadOSPlatform,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -96,18 +98,18 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}}...)
 	}
 
-	if dryRun {
-		// On dry runs return early because the VPP token might not exist yet
-		// and we don't want to apply the VPP apps.
-		return nil, nil
-	}
-
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
 		token, err := svc.getVPPToken(ctx, teamID)
 		if err != nil {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
+		}
+
+		if dryRun {
+			// If we're doing a dry run, we stop here and return no error to avoid making any changes.
+			// That way we validate if a VPP token is available even on dry runs keeping it consistent.
+			return nil, nil
 		}
 
 		for _, payload := range payloadsWithPlatform {
@@ -150,7 +152,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 		var missingAssets []string
 
-		assets, err := vpp.GetAssets(token, nil)
+		assets, err := vpp.GetAssets(ctx, token, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unable to retrieve assets")
 		}
@@ -170,6 +172,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
 			return nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 		}
+	}
+
+	if dryRun {
+		// If we're doing a dry run, we stop here and return no error to avoid making any changes.
+		// Another dry run check is inside the payload size > 0 statement.
+		return nil, nil
 	}
 
 	if len(vppAppTeams) > 0 {
@@ -201,6 +209,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
+	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
+		return nil, err // returned error already includes context that we could include here
+	}
+
 	if len(vppAppTeams) == 0 {
 		return []fleet.VPPAppResponse{}, nil
 	}
@@ -218,7 +235,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		return nil, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
 
-	assets, err := vpp.GetAssets(vppToken, nil)
+	assets, err := vpp.GetAssets(ctx, vppToken, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching Apple VPP assets")
 	}
@@ -368,7 +385,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
 
-	assets, err := vpp.GetAssets(vppToken, &vpp.AssetFilter{AdamID: appID.AdamID})
+	assets, err := vpp.GetAssets(ctx, vppToken, &vpp.AssetFilter{AdamID: appID.AdamID})
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "retrieving VPP asset")
 	}
@@ -401,9 +418,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if exists {
-			return 0, ctxerr.New(ctx,
-				fmt.Sprintf("Error: Couldn't add software. %s already has software available for install on the %s team.",
-					assetMD.TrackName, teamName))
+			return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+					assetMD.TrackName, teamName),
+			}, "vpp app conflicts with existing software installer")
 		}
 	}
 
@@ -672,6 +690,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		Platform:         meta.Platform,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		SoftwareIconURL:  meta.IconURL,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for update app store app")

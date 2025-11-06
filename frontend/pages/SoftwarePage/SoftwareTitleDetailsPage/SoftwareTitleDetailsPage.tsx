@@ -145,14 +145,17 @@ const SoftwareTitleDetailsPage = ({
       addedTimestamp,
       status,
       isSelfService,
+      isScriptPackage,
     } = getInstallerCardInfo(title);
 
     return (
       <SoftwareInstallerCard
         softwareTitleName={softwareTitleName}
+        isScriptPackage={isScriptPackage}
         softwareInstaller={softwarePackage}
         name={name}
         version={version}
+        iconUrl={title.icon_url}
         addedTimestamp={addedTimestamp}
         status={status}
         isSelfService={isSelfService}
@@ -177,6 +180,12 @@ const SoftwareTitleDetailsPage = ({
         isAvailableForInstall={isAvailableForInstall}
         isLoading={isSoftwareTitleLoading}
         router={router}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        softwareInstaller={
+          isAvailableForInstall
+            ? getInstallerCardInfo(title).softwarePackage
+            : undefined
+        }
       />
     );
   };

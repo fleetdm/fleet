@@ -47,6 +47,7 @@ export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
   enable_disk_encryption: boolean;
+  windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
   only supported apple mdm, so thats why it's name the way it is. */
@@ -76,6 +77,7 @@ export interface IMdmConfig {
     macos_setup_assistant: string | null;
     enable_release_device_manually: boolean | null;
     manual_agent_install: boolean | null;
+    require_all_software_macos: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
@@ -88,7 +90,10 @@ export interface IMdmConfig {
 // values if the device is assigned to a team, e.g., features.enable_software_inventory reflects the
 // team config, if applicable, rather than the global config.
 export interface IDeviceGlobalConfig {
-  mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  mdm: {
+    enabled_and_configured: boolean;
+    require_all_software_macos: boolean | null;
+  };
   features: Pick<IConfigFeatures, "enable_software_inventory">;
 }
 
@@ -146,6 +151,7 @@ export interface IConfig {
     enable_sso_idp_login: boolean;
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
+    sso_server_url?: string;
   };
   // configuration details for conditional access. For enabled/disabled status per team, see
   // subfields under `integrations`

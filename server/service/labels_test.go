@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -219,6 +220,20 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	// all good
 	err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
 	require.NoError(t, err)
+
+	// trying to add a regular label with the same name as a built-in label should fail
+	for name := range fleet.ReservedLabelNames() {
+		err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{
+				Name:        name,
+				Description: description,
+				Query:       query,
+				LabelType:   fleet.LabelTypeRegular,
+			},
+		})
+		assert.ErrorContains(t, err,
+			fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
+	}
 
 	const errorMessage = "cannot modify or add built-in label"
 	// not ok -- built-in label name doesn't exist

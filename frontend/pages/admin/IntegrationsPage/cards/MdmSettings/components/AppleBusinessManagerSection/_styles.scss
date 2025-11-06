@@ -1,0 +1,7 @@
+.apple-business-manager-section {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxlarge;
+  }
+}

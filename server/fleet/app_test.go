@@ -271,51 +271,6 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 	}
 }
 
-func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
-	tests := []struct {
-		name                        string
-		macOSEnabledAndConfigured   bool
-		windowsEnabledAndConfigured bool
-		expectedResult              bool
-	}{
-		{
-			name:                        "None enabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: false,
-			expectedResult:              false,
-		},
-		{
-			name:                        "MacOS enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: false,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Both enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: true,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Windows enabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: true,
-			expectedResult:              true,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			mdm := MDM{
-				EnabledAndConfigured:        test.macOSEnabledAndConfigured,
-				WindowsEnabledAndConfigured: test.windowsEnabledAndConfigured,
-			}
-			result := mdm.AtLeastOnePlatformEnabledAndConfigured()
-			require.Equal(t, test.expectedResult, result)
-		})
-	}
-}
-
 func TestFeaturesCopy(t *testing.T) {
 	t.Run("nil receiver", func(t *testing.T) {
 		var f *Features

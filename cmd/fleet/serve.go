@@ -25,6 +25,9 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -33,6 +36,7 @@ import (
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -57,6 +61,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -81,6 +86,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
@@ -144,12 +150,18 @@ the way that the Fleet server works.
 			// Init tracing
 			if config.Logging.TracingEnabled {
 				ctx := context.Background()
-				client := otlptracegrpc.NewClient()
+				client := otlptracegrpc.NewClient(
+					// Enable gzip compression to reduce message size
+					otlptracegrpc.WithCompressor("gzip"),
+				)
 				otlpTraceExporter, err := otlptrace.New(ctx, client)
 				if err != nil {
 					initFatal(err, "Failed to initialize tracing")
 				}
-				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
+					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
+				)
 				tracerProvider := sdktrace.NewTracerProvider(
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
@@ -179,6 +191,26 @@ the way that the Fleet server works.
 						"setting server URL prefix",
 					)
 				}
+			}
+
+			// Handle server private key configuration - either direct or via AWS Secrets Manager
+			if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
+				initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
+			}
+
+			// Retrieve private key from AWS Secrets Manager if specified
+			if config.Server.PrivateKeySecretArn != "" {
+				privateKey, err := configpkg.RetrieveSecretsManagerSecret(
+					context.Background(),
+					config.Server.PrivateKeySecretArn,
+					config.Server.PrivateKeySecretRegion,
+					config.Server.PrivateKeySecretSTSAssumeRoleArn,
+					config.Server.PrivateKeySecretSTSExternalID,
+				)
+				if err != nil {
+					initFatal(err, "retrieve private key from secrets manager")
+				}
+				config.Server.PrivateKey = privateKey
 			}
 
 			if len(config.Server.PrivateKey) > 0 {
@@ -237,6 +269,16 @@ the way that the Fleet server works.
 				if dev {
 					os.Exit(1)
 				}
+			case fleet.NeedsFleetv4732Fix:
+				printFleetv4732FixNeededMessage()
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
+			case fleet.UnknownFleetv4732State:
+				printFleetv4732UnknownStateMessage(migrationStatus.StatusCode)
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
 			case fleet.SomeMigrationsCompleted:
 				tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
 				printMissingMigrationsWarning(tables, data)
@@ -264,6 +306,10 @@ the way that the Fleet server works.
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
 				UseTLS:                    config.Redis.UseTLS,
+				Region:                    config.Redis.Region,
+				CacheName:                 config.Redis.CacheName,
+				StsAssumeRoleArn:          config.Redis.StsAssumeRoleArn,
+				StsExternalID:             config.Redis.StsExternalID,
 				ConnTimeout:               config.Redis.ConnectTimeout,
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
@@ -396,7 +442,7 @@ the way that the Fleet server works.
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-			task := async.NewTask(ds, redisPool, clock.C, config.Osquery)
+			task := async.NewTask(ds, redisPool, clock.C, &config)
 
 			if config.Sentry.Dsn != "" {
 				v := version.Version()
@@ -423,6 +469,11 @@ the way that the Fleet server works.
 				} else {
 					geoIP = maxmind
 				}
+			}
+
+			if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
+				config.MDM.EnableCustomOSUpdatesAndFileVault = false
+				level.Warn(logger).Log("msg", "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
 			}
 
 			mdmStorage, err := mds.NewMDMAppleMDMStorage()
@@ -698,6 +749,8 @@ the way that the Fleet server works.
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
+			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
 				ctx,
@@ -723,9 +776,10 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
-				eeservice.NewSCEPConfigService(logger, nil),
-				digicert.NewService(digicert.WithLogger(logger)),
+				scepConfigMgr,
+				digiCertService,
 				conditionalAccessMicrosoftProxy,
+				redis_key_value.New(redisPool),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -736,6 +790,8 @@ the way that the Fleet server works.
 				ds,
 				svc,
 				config.License.Key,
+				config.Server.PrivateKey,
+				ds,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -743,8 +799,10 @@ the way that the Fleet server works.
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
+			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
+				hydrantService := est.NewService(est.WithLogger(logger))
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
@@ -782,6 +840,11 @@ the way that the Fleet server works.
 					bootstrapPackageStore = bstore
 					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 
+					softwareTitleIconStore, err = s3.NewSoftwareTitleIconStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 software title icon store")
+					}
+					level.Info(logger).Log("msg", "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -790,12 +853,27 @@ the way that the Fleet server works.
 					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
 					if err != nil {
 						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
-						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
+						softwareInstallStore = failing.NewFailingSoftwareInstallerStore()
 					} else {
 						softwareInstallStore = store
 						level.Info(logger).Log("msg",
 							"using local filesystem software installer store, this is not suitable for production use", "directory",
 							installerDir)
+					}
+
+					iconDir := os.TempDir()
+					if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
+						iconDir = dir
+					}
+					iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+					if err != nil {
+						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software title icon store")
+						softwareTitleIconStore = failing.NewFailingSoftwareTitleIconStore()
+					} else {
+						softwareTitleIconStore = iconStore
+						level.Warn(logger).Log("msg",
+							"using local filesystem software title icon store, this is not suitable for production use", "directory",
+							iconDir)
 					}
 				}
 
@@ -813,8 +891,12 @@ the way that the Fleet server works.
 					profileMatcher,
 					softwareInstallStore,
 					bootstrapPackageStore,
+					softwareTitleIconStore,
 					distributedLock,
 					redis_key_value.New(redisPool),
+					scepConfigMgr,
+					digiCertService,
+					hydrantService,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -862,6 +944,14 @@ the way that the Fleet server works.
 				); err != nil {
 					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
 				}
+
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cronUpgradeCodeSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
+					},
+				); err != nil {
+					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUpgradeCodeSoftwareMigration))
+				}
 			}
 
 			if config.Server.FrequentCleanupsEnabled {
@@ -878,7 +968,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore,
+						ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore,
 					)
 				},
 			); err != nil {
@@ -894,9 +984,16 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
+				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(
+				func() (fleet.CronSchedule, error) {
+					return newBatchActivitiesSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+				initFatal(err, "failed to register batch activities schedule")
 			}
 
 			vulnerabilityScheduleDisabled := false
@@ -925,7 +1022,8 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore)
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}
@@ -934,6 +1032,12 @@ the way that the Fleet server works.
 				return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
 			}); err != nil {
 				initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger, config.Server.URLPrefix)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_apple_service_discovery schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -960,6 +1064,37 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAndroidMDMProfileManagerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+					config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_android_profile_manager schedule")
+			}
+
+			// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAndroidMDMDeviceReconcilerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+					config.License.Key,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
+			}); err != nil {
+				initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
 					instanceID,
@@ -974,7 +1109,7 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
@@ -1029,6 +1164,13 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register host vitals label membership schedule")
 			}
 
+			// Start the service that marks activities as completed.
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newBatchActivityCompletionCheckerSchedule(ctx, instanceID, ds, logger)
+			}); err != nil {
+				initFatal(err, "failed to register batch activity completion checker schedule")
+			}
+
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
@@ -1072,6 +1214,14 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
+			var httpSigVerifier func(http.Handler) http.Handler
+			if license.IsPremium() {
+				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+				if err != nil {
+					initFatal(err, "initializing HTTP signature verifier")
+				}
+			}
+
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
@@ -1085,8 +1235,9 @@ the way that the Fleet server works.
 				if config.MDM.SSORateLimitPerMinute > 0 {
 					extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
 				}
+				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
-				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
+				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
 					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
@@ -1134,14 +1285,14 @@ the way that the Fleet server works.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
-			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
-			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
+			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
+			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/"), config)))
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
-				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
 
@@ -1180,6 +1331,8 @@ the way that the Fleet server works.
 					mdmCheckinAndCommandService,
 					ddmService,
 					commander,
+					appCfg.ServerSettings.ServerURL,
+					config,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
@@ -1187,11 +1340,23 @@ the way that the Fleet server works.
 
 			if license.IsPremium() {
 				// SCEP proxy (for NDES, etc.)
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil, &config); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
-				if err = scim.RegisterSCIM(rootMux, ds, svc, logger); err != nil {
+				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 					initFatal(err, "setup SCIM")
+				}
+				// Host identify SCEP feature only works if a private key has been set up
+				if len(config.Server.PrivateKey) > 0 {
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
+					if err != nil {
+						initFatal(err, "setup host identity SCEP depot")
+					}
+					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
+						initFatal(err, "setup host identity SCEP")
+					}
+				} else {
+					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
 				}
 			}
 
@@ -1199,12 +1364,12 @@ the way that the Fleet server works.
 				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
-					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
+					service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)),
 				))
 			} else {
 				if config.Prometheus.BasicAuth.Disable {
 					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
-					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)))
 				} else {
 					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
 				}
@@ -1289,6 +1454,31 @@ the way that the Fleet server works.
 					}
 				}
 
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
+					// For customers using large profiles and/or large numbers of profiles, the
+					// server needs time to completely read the request body and also to process
+					// all the side effects of a potentially large number of profiles being changed
+					// across a large number of hosts, so set the timeouts a bit higher than default
+					rc := http.NewResponseController(rw)
+					if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
+					}
+					if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
+					}
+				}
+
 				apiHandler.ServeHTTP(rw, req)
 			})
 			// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
@@ -1297,30 +1487,13 @@ the way that the Fleet server works.
 			rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
-			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
-			rootMux.Handle("/", frontendHandler)
+			rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+			rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 			debugHandler := &debugMux{
 				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
 			}
-			rootMux.Handle("/debug/", debugHandler)
-
-			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
-				// test that we can load this
-				_, err := os.ReadFile(path)
-				if err != nil {
-					initFatal(err, "loading FLEET_TEST_PAGE_PATH")
-				}
-				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
-					testPage, err := os.ReadFile(path)
-					if err != nil {
-						rw.WriteHeader(http.StatusNotFound)
-						return
-					}
-					rw.Write(testPage) //nolint:errcheck
-					rw.WriteHeader(http.StatusOK)
-				})
-			}
+			rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
 			if debug {
 				// Add debug endpoints with a random
@@ -1441,6 +1614,22 @@ func printMissingMigrationsWarning(tables []int64, data []int64) {
 		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 		"################################################################################\n",
 		tablesAndDataToString(tables, data), os.Args[0])
+}
+
+func printFleetv4732FixNeededMessage() {
+	fmt.Printf("################################################################################\n"+
+		"# WARNING:\n"+
+		"#   Your Fleet database has misnumbered migrations introduced in some released\n"+
+		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n"+
+		"#   migrations. Please back up your data before continuing.\n"+
+		"#\n"+
+		"#   Run `%s prepare db` to perform migrations.\n"+
+		"#\n"+
+		"#   To run the server without performing migrations:\n"+
+		"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
+		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+		"################################################################################\n", os.Args[0])
 }
 
 func initLicense(config configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {

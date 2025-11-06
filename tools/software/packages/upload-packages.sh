@@ -4,16 +4,26 @@ set -euo pipefail
 shopt -s nullglob
 
 usage() {
-  echo "Usage: $0 -u FLEET_URL -t TEAM_ID -k API_TOKEN -f FOLDERPATH"
+  echo "Usage: $0 -u FLEET_URL -t TEAM_ID -k API_TOKEN -f FOLDERPATH [-a]"
+  echo ""
+  echo "Options:"
+  echo "  -u FLEET_URL     The Fleet server URL"
+  echo "  -t TEAM_ID       The team ID"
+  echo "  -k API_TOKEN     The API token for authentication"
+  echo "  -f FOLDERPATH    Path to the folder containing packages"
+  echo "  -a               Enable automatic installation (optional)"
   exit 1
 }
 
-while getopts "u:t:k:f:" opt; do
+AUTO_INSTALL=false
+
+while getopts "u:t:k:f:a" opt; do
   case ${opt} in
     u ) API_URL="$OPTARG" ;;
     t ) TEAM_ID="$OPTARG" ;;
     k ) API_TOKEN="$OPTARG" ;;
     f ) FOLDER="$OPTARG" ;;
+    a ) AUTO_INSTALL=true ;;
     * ) usage ;;
   esac
 done
@@ -44,6 +54,7 @@ for file in "${files[@]}"; do
     -H "Authorization: Bearer $API_TOKEN"
     -F "software=@${file}"
     -F "team_id=$TEAM_ID"
+    -F "automatic_install=$AUTO_INSTALL"
   )
 
   if [[ "$ext" == "exe" ]]; then

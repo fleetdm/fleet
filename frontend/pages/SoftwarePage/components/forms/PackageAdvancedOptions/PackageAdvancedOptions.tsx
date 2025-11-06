@@ -29,6 +29,9 @@ const PKG_TYPE_TO_ID_TEXT = {
   rpm: "package name",
   msi: "product code",
   exe: "software name",
+  sh: "package name",
+  ps1: "package name",
+  ipa: "software name",
 } as const;
 
 const getInstallScriptTooltip = (pkgType: PackageType) => {
@@ -90,7 +93,7 @@ const getUninstallScriptTooltip = (pkgType: PackageType) => {
 
 const getUninstallHelpText = (pkgType: PackageType) => {
   if (isFleetMaintainedPackageType(pkgType)) {
-    return "Currently, shell scripts are supported.";
+    return "Currently, only shell scripts are supported.";
   }
 
   if (pkgType === "exe") {
@@ -112,7 +115,22 @@ const getUninstallHelpText = (pkgType: PackageType) => {
   if (pkgType === "tar.gz") {
     return (
       <>
-        Currently, shell scripts are supported.{" "}
+        Currently, only shell scripts are supported.{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
+          text="Learn more about uninstall scripts"
+          newTab
+        />
+      </>
+    );
+  }
+
+  if (pkgType === "msi") {
+    return (
+      <>
+        $UPGRADE_CODE will be populated with the .msi&apos;s upgrade code if
+        available, and $PACKAGE_ID will be populated with its product code,
+        after the software is added. {getSupportedScriptTypeText(pkgType)}{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
           text="Learn more about uninstall scripts"

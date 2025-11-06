@@ -22,7 +22,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         searchQuery=""
         page={0}
@@ -51,7 +51,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
@@ -83,7 +83,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 1, name: "Some team" }}
         isPremiumTier
         searchQuery=""
@@ -114,7 +114,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery="shouldn't match anything"
@@ -146,7 +146,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testCriticalPolicy]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
@@ -184,7 +184,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testInheritedPolicy]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
@@ -222,7 +222,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testGlobalPolicy]}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
@@ -263,14 +263,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={policiesList}
         isLoading={false}
-        onDeletePolicyClick={noop}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        canAddOrDeletePolicy
+        canAddOrDeletePolicies
         hasPoliciesToDelete
         count={policiesList.length}
       />

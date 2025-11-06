@@ -155,9 +155,9 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 			break
 		}
 	}
-
 	if !versionFound {
-		return errors.New("invalid discover message: Request.RequestVersion")
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q not in supported versions %v",
+			req.Body.Discover.Request.RequestVersion, syncml.SupportedEnrollmentVersions)
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values
@@ -1012,6 +1012,10 @@ type SyncMLCmd struct {
 	// AddCommands is a catch-all for any nested <Add> commands,
 	// which can be found under <Atomic> elements.
 	AddCommands []SyncMLCmd `xml:"Add,omitempty"`
+
+	// ExecCommands is a catch-all for any nested <Exec> commands,
+	// which can be found under <Atomic> elements.
+	ExecCommands []SyncMLCmd `xml:"Exec,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1421,6 +1425,18 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 	}
 
 	return ""
+}
+
+// GetNormalizedTargetDataForVerification returns the first protocol commands target data
+// and normalizes for verification processes
+func (cmd *SyncMLCmd) GetNormalizedTargetDataForVerification() string {
+	content := cmd.GetTargetData()
+
+	content = strings.TrimSpace(content)
+	content = strings.TrimPrefix(content, "<![CDATA[")
+	content = strings.TrimSuffix(content, "]]>")
+
+	return content
 }
 
 func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {

@@ -8,8 +8,8 @@ import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
 import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
-import Sso from "../OrgSettingsPage/cards/Sso";
-import GlobalHostStatusWebhook from "../OrgSettingsPage/cards/GlobalHostStatusWebhook";
+import Sso from "./cards/Sso";
+import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
 const getIntegrationSettingsNavItems = (
   isManagedCloud: boolean
@@ -22,7 +22,7 @@ const getIntegrationSettingsNavItems = (
       Card: Integrations,
     },
     {
-      title: "Mobile device management (MDM)",
+      title: "MDM",
       urlSection: "mdm",
       path: PATHS.ADMIN_INTEGRATIONS_MDM,
       Card: MdmSettings,
@@ -40,12 +40,11 @@ const getIntegrationSettingsNavItems = (
       Card: ChangeManagement,
     },
     {
-      title: "Single sign-on options",
+      title: "Single sign-on (SSO)",
       urlSection: "sso",
-      path: PATHS.ADMIN_INTEGRATIONS_SSO,
+      path: PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
       Card: Sso,
     },
-
     {
       title: "Certificates",
       urlSection: "certificates",

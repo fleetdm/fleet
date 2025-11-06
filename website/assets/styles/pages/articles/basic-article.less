@@ -234,6 +234,7 @@
     padding-right: 64px;
     display: flex;
     flex-direction: column;
+    min-width: 0px;
   }
   [purpose='article-title'] {
     padding-top: 64px;
@@ -634,37 +635,50 @@
       }
     }
     blockquote {
-      margin: 24px 0 32px 40px;
       display: block;
       position: relative;
     }
     [purpose='quote'] {
+      margin: 72px 0 32px 0px;
       font-style: italic;
-      line-height: 36px;
-      font-size: 24px;
+      line-height: 150%;
+      font-size: 20px;
       max-width: 640px;
-
       p {
         margin-top: 8px;
       }
     }
     [purpose='large-quote'] {
+      margin: 72px 0 32px 0px;
       font-style: italic;
-      line-height: 24px;
+      line-height: 150%;
+      margin-bottom: 24px;
       font-size: 16px;
+      p:last-of-type {
+        margin-bottom: 0px;
+      }
+      strong {
+        color: #515774;
+        font-family: Inter;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 18px;
+      }
     }
     [purpose='large-quote']::before, [purpose='quote']::before {
       content: ' ';
-      background-image: url('/images/icon-quote-mark-22x18@2x.png');
-      background-size: 22px 18px;
+      background-image: url('/images/icon-quote-21x17@2x.png');
+      background-repeat: no-repeat;
+      background-size: 21px 17px;
       display: block;
       position: relative;
-      top: 24px;
-      left: -40px;
-      width: 22px;
-      height: 18px;
+      top: -16px;
+      left: 0px;
+      width: 21px;
+      height: 17px;
     }
-    [purpose='attribution-quote'] {
+    [purpose='attribution-quote'], [purpose='large-quote'] {
       margin: 72px 0 32px 0px;
       p {
         font-style: italic;
@@ -833,6 +847,9 @@
     }
     [purpose='article-title'] {
       padding-top: 60px;
+    }
+    [purpose='docs-links'] {
+      display: none;
     }
     [purpose='article-content'] {
       padding-bottom: 0px;

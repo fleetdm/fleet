@@ -41,6 +41,14 @@
       "activity_expiry_enabled": false,
       "activity_expiry_window": 0
     },
+    "conditional_access": {
+      "microsoft_entra_tenant_id": "",
+      "microsoft_entra_connection_configured": false,
+      "okta_idp_id": null,
+      "okta_assertion_consumer_service_url": null,
+      "okta_audience_uri": null,
+      "okta_certificate": null
+    },
     "features": {
       "enable_host_users": true,
       "enable_software_inventory": false
@@ -55,6 +63,7 @@
       "enabled_and_configured": false,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
+      "windows_require_bitlocker_pin": null,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null
@@ -87,9 +96,13 @@
         "enable_release_device_manually": false,
         "script": null,
         "software": null,
-        "manual_agent_install": null
+        "manual_agent_install": null,
+        "require_all_software_macos": false
       },
       "windows_settings": {
+        "custom_settings": null
+      },
+      "android_settings": {
         "custom_settings": null
       },
       "end_user_authentication": {
@@ -111,7 +124,8 @@
       "metadata_url": "",
       "idp_name": "",
       "enable_sso": false,
-      "enable_sso_idp_login": false
+      "enable_sso_idp_login": false,
+      "sso_server_url": ""
     },
     "fleet_desktop": {
       "transparency_url": "https://fleetdm.com/transparency"
@@ -147,9 +161,6 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
-      "ndes_scep_proxy": null,
-      "custom_scep_proxy": null,
-      "digicert": null,
       "conditional_access_enabled": null
     },
     "update_interval": {

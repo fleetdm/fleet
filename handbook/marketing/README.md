@@ -7,22 +7,27 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Interim Head of Marketing         | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-
+| Interim Head of Marketing          | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
+| Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/65) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/digital-experience#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/ceo#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 
 ## Responsibilities
 
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
-For responsibilities and rituals directly responsible by an Account Development Representative (ADR), follow [this outline](https://docs.google.com/document/d/1gdjvqE8KGUC1fSWMWgNz8kn_R2i_MBg9ZxNrpnI4zGY/edit?tab=t.0).
+
+
+### Prepare "Let's get you set up!" meeting notes
+
+Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
 
 
 ### Refresh event calendar
@@ -34,7 +39,7 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 
 ### Begin or modify an advertising campaign
 
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://github.com/orgs/fleetdm/projects/65).
+Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93).
 
 To propose an ad, or a change to an ad:
 1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
@@ -43,16 +48,6 @@ To propose an ad, or a change to an ad:
 4. Add your proposed ads to the ["🧫 Experiment review" agenda](https://docs.google.com/document/d/1e2TFsV0JFFym7MvCUrJR1Wr2DVmqUgboKYFUXBEmCyI/edit#heading=h.kvp9pcc0kkq) (private Google doc) and attend the next episode.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 5. Make revisions and re-attend the meeting as needed until the planned change is executed.
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
-
-
-### Measure intent signals
-
-To measure and process intent signals, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#process-intent-signals).  
-
-
-### Research an account
-
-to research an account, follow the steps in the follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#research-an-account) and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/marketing#measure-intent-signals).
 
 
 ### Promote a post on LinkedIn
@@ -79,13 +74,13 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
  Fleet's [Head of Marketing](https://fleetdm.com/handbook/marketing#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
 
 1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
-  - target buying situation of the audience
-  - who from Fleet will attend
-  - the training plan for Fleet attendees
-  - which talk proposal Fleet will submit
-  - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
-  - estimated budget, including sponsorship or airfare, and lodging for attendees
-2. Set up and attend a 30m meeting with the Head of Marketing and CEO:
+  - Target buying situation of the audience.
+  - Who from Fleet will attend.
+  - The training plan for Fleet attendees.
+  - Which talk proposal Fleet will submit.
+  - All event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties.
+  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
+2. Set up and attend a 30m meeting with the Head of Marketing, Head of Finance and Manager of Training and Enablement.
   - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
@@ -133,26 +128,16 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
   - Pens and sticky note pads are ordered through TODO.
 
 
-### Monitor the help-create-contact channel
-
-When Fleeties need a contact created in Fleet's CRM but are unable to do so in the moment, they'll send a message to the ["#help-create-contact" channel](https://fleetdm.slack.com/archives/C091MLXQKQV) in Slack. Use the following steps to add the profile to Fleet's CRM:
-1. Add the `:eyes` emoji (👀) to the Slack thread. 
-2. Log in to Salesforce and navigate to the contact tab, click "New".
-3. Create the contact from research and the context left in the channel. If the account doesn't exist, then it will also need to be created and researched.
-4. Add any additional context to the "Description" field. 
-5. Once the contact and account exist in Salesforce, reply to the thread with the contact URL from Salesforce and add the `white-check-mark` emoji (✅) to indicate you're done.
-
-
 ### Process pending swag requests from the website
 
 On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
 To do this:
-1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful
+1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful.
 2. Look for an order status of "Draft" and click that order.
 3. Copy the address displayed in the draft order. Close the modal.
 4. Under "Order list", there's a search box for customers that you will need to paste the address.
 5. The results should only display one order. Any additional could be duplicate orders or those made in error.
-6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
+6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment."
 
 
 ### Request swag
@@ -160,6 +145,7 @@ There are many times in which community members, customers, and contributors are
 1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
 2. Provide order details (e.g. expected shirt size, name, and shipping details).
 3. Decide if you'd like to include a personalized message and attach it to the issue.
+
 
 ### Fulfill a swag request
 
@@ -198,9 +184,9 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
 - Fill out relevant information such as title, description, thumbnail, playlists, audience, and [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing).
-- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video Title.
-- Set the visibility to "Public"
-- Share video link on social media
+- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video title.
+- Set the visibility to "Public".
+- Share video link on social media.
 
 
 ### Create a podcast episode

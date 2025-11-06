@@ -1,5 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+
+import { renderWithSetup } from "test/test-utils";
 import HostHeader from "./HostHeader";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
@@ -19,7 +21,7 @@ describe("HostHeader", () => {
         summaryData={defaultSummaryData}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     expect(screen.getByText("Test Host")).toBeInTheDocument();
@@ -32,7 +34,7 @@ describe("HostHeader", () => {
         summaryData={{ ...defaultSummaryData, detail_updated_at: undefined }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
         deviceUser
       />
     );
@@ -45,7 +47,7 @@ describe("HostHeader", () => {
         summaryData={{ ...defaultSummaryData, platform: "android" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
@@ -57,7 +59,7 @@ describe("HostHeader", () => {
         summaryData={{ ...defaultSummaryData, status: "offline" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     const refetchButton = screen.getByRole("button", { name: /refetch/i });
@@ -70,7 +72,7 @@ describe("HostHeader", () => {
         summaryData={defaultSummaryData}
         showRefetchSpinner
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     expect(screen.getByText(/Fetching fresh vitals/i)).toBeInTheDocument();
@@ -83,35 +85,57 @@ describe("HostHeader", () => {
         summaryData={defaultSummaryData}
         showRefetchSpinner={false}
         onRefetchHost={onRefetchHost}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     fireEvent.click(screen.getByText("Refetch"));
     expect(onRefetchHost).toHaveBeenCalled();
   });
 
-  it("shows tooltip when host is offline", () => {
-    render(
+  it("shows tooltip when host is offline", async () => {
+    const { user } = renderWithSetup(
       <HostHeader
         summaryData={{ ...defaultSummaryData, status: "offline" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
-    expect(screen.getByText(/an offline host/i)).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Refetch"));
+
+    expect(await screen.findByText(/an offline host/i)).toBeInTheDocument();
   });
 
-  it("renders device status tag and tooltip if hostMdmDeviceStatus is set", () => {
-    render(
+  it("prioritises showing host status tooltips over offline tooltips on the refetch button", async () => {
+    const { user } = renderWithSetup(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, status: "offline" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"locked" as HostMdmDeviceStatusUIState}
+      />
+    );
+
+    await user.hover(screen.getByText("Refetch"));
+
+    expect(await screen.findByText(/a locked host/i)).toBeInTheDocument();
+  });
+
+  it("renders device status tag and tooltip if hostMdmDeviceStatus is set", async () => {
+    const { user } = renderWithSetup(
       <HostHeader
         summaryData={defaultSummaryData}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"locked" as HostMdmDeviceStatusUIState}
       />
     );
-    expect(screen.getByText(/a locked host/i)).toBeInTheDocument();
+
+    await user.hover(screen.getByText("LOCKED"));
+
+    expect(await screen.findByText(/Host is locked/i)).toBeInTheDocument();
   });
 });

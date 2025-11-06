@@ -1,4 +1,4 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useMemo } from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 
@@ -34,9 +34,19 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "Scripts",
     pathname: PATHS.CONTROLS_SCRIPTS,
   },
+  {
+    name: "Variables",
+    pathname: PATHS.CONTROLS_VARIABLES,
+  },
 ];
 
-const subNavQueryParams = ["page", "order_key", "order_direction"] as const;
+// params to strip when navigating between tabs
+const subNavQueryParams = [
+  "page",
+  "order_key",
+  "order_direction",
+  "status",
+] as const;
 
 interface IManageControlsPageProps {
   children: JSX.Element;
@@ -54,8 +64,11 @@ interface IManageControlsPageProps {
   router: InjectedRouter; // v3
 }
 
-const getTabIndex = (path: string): number => {
-  return controlsSubNav.findIndex((navItem) => {
+const getTabIndex = (
+  permittedControlsSubNav: IControlsSubNavItem[],
+  path: string
+): number => {
+  return permittedControlsSubNav.findIndex((navItem) => {
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
@@ -73,7 +86,13 @@ const ManageControlsPage = ({
 }: IManageControlsPageProps): JSX.Element => {
   const page = parseInt(location?.query?.page || "", 10) || 0;
 
-  const { config, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
+  const {
+    config,
+    isOnGlobalTeam,
+    isPremiumTier,
+    isGlobalAdmin,
+    isTeamAdmin,
+  } = useContext(AppContext);
 
   const {
     currentTeamId,
@@ -93,9 +112,19 @@ const ManageControlsPage = ({
     },
   });
 
+  const permittedControlsSubNav = useMemo(() => {
+    let renderedSubNav = controlsSubNav;
+    if (!isGlobalAdmin && !isTeamAdmin) {
+      renderedSubNav = controlsSubNav.filter((navItem) => {
+        return navItem.name !== "OS updates";
+      });
+    }
+    return renderedSubNav;
+  }, [isGlobalAdmin, isTeamAdmin]);
+
   const navigateToNav = useCallback(
     (i: number): void => {
-      const navPath = controlsSubNav[i].pathname;
+      const navPath = permittedControlsSubNav[i].pathname;
       // remove query params related to the prior tab
       const newParams = new URLSearchParams(location?.search);
       subNavQueryParams.forEach((p) => newParams.delete(p));
@@ -107,7 +136,7 @@ const ManageControlsPage = ({
           .concat(location?.hash || "")
       );
     },
-    [location, router]
+    [location, router, permittedControlsSubNav]
   );
 
   const renderBody = () => {
@@ -115,11 +144,14 @@ const ManageControlsPage = ({
       <div>
         <TabNav>
           <Tabs
-            selectedIndex={getTabIndex(location?.pathname || "")}
+            selectedIndex={getTabIndex(
+              permittedControlsSubNav,
+              location?.pathname || ""
+            )}
             onSelect={navigateToNav}
           >
             <TabList>
-              {controlsSubNav.map((navItem) => {
+              {permittedControlsSubNav.map((navItem) => {
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
                     <TabText>{navItem.name}</TabText>
@@ -167,13 +199,11 @@ const ManageControlsPage = ({
   );
 
   return (
-    <MainContent>
-      <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-wrap`}>
-          <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
-        </div>
-        {renderBody()}
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__header-wrap`}>
+        <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
       </div>
+      {renderBody()}
     </MainContent>
   );
 };

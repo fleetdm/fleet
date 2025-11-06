@@ -16,9 +16,11 @@ import {
   isOsSettingsDisplayPlatform,
   platformSupportsDiskEncryption,
 } from "interfaces/platform";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
@@ -102,7 +104,14 @@ const getHostDiskEncryptionTooltipMessage = (
     return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
   }
 
-  if (platform === "rhel" || platform === "ubuntu") {
+  if (
+    platform === "rhel" ||
+    platform === "ubuntu" ||
+    platform === "arch" ||
+    platform === "archarm" ||
+    platform === "manjaro" ||
+    platform === "manjaro-arm"
+  ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"
     ];
@@ -168,15 +177,31 @@ const HostSummary = ({
   );
 
   const renderDiskSpaceSummary = () => {
+    // Hide disk space field if storage measurement is not supported (sentinel value -1)
+    if (
+      typeof summaryData.gigs_disk_space_available === "number" &&
+      summaryData.gigs_disk_space_available < 0
+    ) {
+      return null;
+    }
+
+    const title = isAndroidHost ? (
+      <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
+        Disk space
+      </TooltipWrapper>
+    ) : (
+      "Disk space"
+    );
+
     return (
       <DataSet
-        title="Disk space"
+        title={title}
         value={
           <DiskSpaceIndicator
-            baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
-            id={`disk-space-tooltip-${summaryData.id}`}
+            gigsTotalDiskSpace={summaryData.gigs_total_disk_space}
+            gigsAllDiskSpace={summaryData.gigs_all_disk_space}
             platform={platform}
             tooltipPosition="bottom"
           />
@@ -230,8 +255,22 @@ const HostSummary = ({
   const renderOperatingSystemSummary = () => {
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
+      const version = summaryData.os_version;
+      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
+        // wrap a tooltip around the "rolling" suffix
+        <>
+          {version.slice(0, -8)}
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      ) : (
+        version
+      );
       return (
-        <DataSet title="Operating system" value={summaryData.os_version} />
+        <DataSet
+          title="Operating system"
+          value={versionForRender}
+          className={`${baseClass}__os-data-set`}
+        />
       );
     }
 
@@ -383,7 +422,6 @@ const HostSummary = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       {!isIosOrIpadosHost && !isAndroidHost && (
@@ -407,7 +445,6 @@ const HostSummary = ({
       {isPremiumTier && renderHostTeam()}
       {/* Rendering of OS Settings data */}
       {isOsSettingsDisplayPlatform(platform, os_version) &&
-        isPremiumTier &&
         hostSettings &&
         hostSettings.length > 0 && (
           <DataSet

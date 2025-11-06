@@ -6,7 +6,7 @@
         <h1>Manage software consistently</h1>
         <p purpose="hero-text">Pick from a curated software catalog or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.</p>
         <div purpose="button-row" class="d-flex justify-content-start">
-          <a class="btn btn-primary" purpose="contact-button" href="/contact">Talk to an engineer</a>
+          <a class="btn btn-primary" purpose="contact-button" href="/contact">Get a demo</a>
           <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
@@ -16,6 +16,7 @@
             <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="0" class="active">
               <h5>Built-in, zero-touch installs</h5>
               <p>Install software and run scripts during setup without the need for third-party tools.</p>
+              <p><a href="/device-management" @click="goto('/device-management')">More about device management</a></p>
             </div>
             <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="1">
               <h5>Self-service on any OS</h5>
@@ -156,7 +157,7 @@
                 <p>Automatically match CVEs to your operating systems, apps, extensions, browser plugins, Python libraries, everything.</p>
               </div>
               <div purpose="feature-link">
-                <animated-arrow-button href="/tables">Explore data</animated-arrow-button>
+                <animated-arrow-button href="/orchestration">Explore orchestration</animated-arrow-button>
               </div>
             </div>
           </div>
@@ -214,16 +215,17 @@
     <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
   </div>
   <div purpose="page-container" class="py-0">
-    <div purpose="section-heading" class="text-center">
+    <div purpose="bottom-cta">
       <h4>Software management</h4>
       <h2>Manage software consistently</h2>
-      <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
-        <a class="btn btn-primary" purpose="contact-button" href="/contact">Show me</a>
+      <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
+        <a class="btn btn-primary" purpose="contact-button" href="/contact">Get a demo</a>
         <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

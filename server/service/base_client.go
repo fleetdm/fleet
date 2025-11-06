@@ -53,6 +53,9 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 		if strings.Contains(errText, "password reset required") {
 			return ErrPasswordResetRequired
 		}
+		if strings.Contains(errText, "END_USER_AUTH_REQUIRED") {
+			return ErrEndUserAuthRequired
+		}
 		return ErrUnauthenticated
 	case http.StatusPaymentRequired:
 		return ErrMissingLicense
@@ -81,7 +84,13 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 				return fmt.Errorf("reading response body: %w", err)
 			}
 			if err := json.Unmarshal(b, &responseDest); err != nil {
-				return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, b)
+				const maxBodyLen = 200
+				truncatedBytes, isHTML := truncateAndDetectHTML(b, maxBodyLen)
+
+				if isHTML {
+					return fmt.Errorf("decode %s %s response: %w, (server returned HTML instead of JSON), body: %s", verb, path, err, truncatedBytes)
+				}
+				return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, truncatedBytes)
 			}
 			if e, ok := responseDest.(fleet.Errorer); ok {
 				if e.Error() != nil {
@@ -137,6 +146,7 @@ func newBaseClient(
 	rootCA, urlPrefix string,
 	fleetClientCert *tls.Certificate,
 	capabilities fleet.CapabilityMap,
+	signerWrapper func(*http.Client) *http.Client,
 ) (*baseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
@@ -184,6 +194,9 @@ func newBaseClient(
 	}
 
 	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
+	if signerWrapper != nil {
+		httpClient = signerWrapper(httpClient)
+	}
 	client := &baseClient{
 		baseURL:            baseURL,
 		http:               httpClient,

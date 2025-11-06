@@ -7,6 +7,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,
         name: "Test Software",
+        icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
           labels_include_any: null,
@@ -45,6 +46,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           pending: 8,
           failed: 3,
         },
+        isScriptPackage: false,
         isSelfService: true,
       });
     });
@@ -52,10 +54,11 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,
         name: "Test Software",
+        icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: null,
         app_store_app: {
-          app_store_id: 1,
+          app_store_id: "1",
           name: "Test App",
           created_at: "2020-01-01T00:00:00.000Z",
           latest_version: "1.0.1",
@@ -85,6 +88,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           pending: 5,
           failed: 3,
         },
+        isScriptPackage: false,
         isSelfService: false,
       });
     });

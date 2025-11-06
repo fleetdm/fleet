@@ -37,10 +37,10 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		require.NotNil(t, teamID)
-		require.Equal(t, uint(99), *teamID)
-		require.Equal(t, []uint{42}, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		require.NotNil(t, params.TeamID)
+		require.Equal(t, uint(99), *params.TeamID)
+		require.Equal(t, []uint{42}, params.HostIDs)
 		return nil
 	}
 
@@ -73,9 +73,9 @@ func TestHostsTransferByHosts(t *testing.T) {
 	assert.True(t, ds.NewActivityFuncInvoked)
 
 	// Now, transfer out of the team.
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		assert.Nil(t, teamID)
-		assert.Equal(t, []uint{42}, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		assert.Nil(t, params.TeamID)
+		assert.Equal(t, []uint{42}, params.HostIDs)
 		return nil
 	}
 	ds.NewActivityFuncInvoked = false
@@ -109,10 +109,10 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		require.NotNil(t, teamID)
-		require.Equal(t, uint(99), *teamID)
-		require.Equal(t, []uint{32, 12}, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		require.NotNil(t, params.TeamID)
+		require.Equal(t, uint(99), *params.TeamID)
+		require.Equal(t, []uint{32, 12}, params.HostIDs)
 		return nil
 	}
 
@@ -145,9 +145,9 @@ func TestHostsTransferByLabel(t *testing.T) {
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 
 	// Now, transfer out of the team.
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		assert.Nil(t, teamID)
-		require.Equal(t, []uint{32, 12}, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		assert.Nil(t, params.TeamID)
+		require.Equal(t, []uint{32, 12}, params.HostIDs)
 		return nil
 	}
 	ds.NewActivityFuncInvoked = false
@@ -180,10 +180,10 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		require.NotNil(t, teamID)
-		require.Equal(t, uint(99), *teamID)
-		require.Equal(t, []uint{32, 12}, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		require.NotNil(t, params.TeamID)
+		require.Equal(t, uint(99), *params.TeamID)
+		require.Equal(t, []uint{32, 12}, params.HostIDs)
 		return nil
 	}
 
@@ -240,10 +240,10 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		require.NotNil(t, teamID)
-		require.Equal(t, uint(99), *teamID)
-		require.Equal(t, []uint{32, 12}, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		require.NotNil(t, params.TeamID)
+		require.Equal(t, uint(99), *params.TeamID)
+		require.Equal(t, []uint{32, 12}, params.HostIDs)
 		return nil
 	}
 

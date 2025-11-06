@@ -1,52 +1,55 @@
-// Used on: Dashboard > activity, Host details > past activity
+import React, { useState } from "react";
+import { AxiosError } from "axios";
+import { useQuery } from "react-query";
+import { formatDistanceToNow } from "date-fns";
+
+import deviceUserAPI from "services/entities/device_user";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
+import {
+  IHostSoftwareWithUiStatus,
+  isPendingStatus,
+  SoftwareUninstallStatus,
+} from "interfaces/software";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
-import { formatDistanceToNow } from "date-fns";
-import { IActivityDetails } from "interfaces/activity";
-import { isPendingStatus, SoftwareInstallStatus } from "interfaces/software";
-import React from "react";
-import { useQuery } from "react-query";
-import { AxiosError } from "axios";
-import deviceUserAPI from "services/entities/device_user";
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import RevealButton from "components/buttons/RevealButton";
 import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
+import { renderContactOption } from "../SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 
 const baseClass = "software-uninstall-details-modal";
 
-export type ISoftwareUninstallDetails = Pick<
-  IActivityDetails,
-  "script_execution_id" | "host_display_name" | "software_title" | "status"
-> & { deviceAuthToken?: string };
-// TODO - rely on activity created_at for timestamp? what else?
-
 interface IUninstallStatusMessage {
-  host_display_name: string;
-  // TODO - improve status typing
-  status: string;
-  software_title: string;
-  timestamp: string;
+  hostDisplayName: string;
+  status: SoftwareUninstallStatus;
+  softwareName: string;
+  softwarePackageName?: string;
+  timestamp?: string;
+  isMyDevicePage: boolean;
+  contactUrl?: string;
 }
 
-const StatusMessage = ({
-  host_display_name,
+export const StatusMessage = ({
+  hostDisplayName,
   status,
-  software_title,
+  softwareName,
+  softwarePackageName,
   timestamp,
+  isMyDevicePage,
+  contactUrl,
 }: IUninstallStatusMessage) => {
-  const formattedHost = host_display_name ? (
-    <b>{host_display_name}</b>
-  ) : (
-    "the host"
-  );
+  const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
 
   const isPending = isPendingStatus(status);
   const displayTimeStamp =
@@ -56,116 +59,227 @@ const StatusMessage = ({
           addSuffix: true,
         })})`
       : "";
-  return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon
-        name={
-          INSTALL_DETAILS_STATUS_ICONS[status as SoftwareInstallStatus] ??
-          "pending-outline"
-        }
-      />
+
+  const renderStatusCopy = () => {
+    const prefix = (
+      <>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{softwareName}</b>
+      </>
+    );
+    let suffix = null;
+    if (isMyDevicePage) {
+      if (status === "failed_uninstall") {
+        suffix = <>. You can retry{renderContactOption(contactUrl)}</>;
+      }
+    } else {
+      // host details page
+      suffix = (
+        <>
+          {softwarePackageName && <> ({softwarePackageName})</>} from{" "}
+          {formattedHost}
+          {status === "pending_uninstall" ? " when it comes online" : ""}
+          {displayTimeStamp}.
+        </>
+      );
+    }
+    return (
       <span>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
-        from {formattedHost}
-        {isPending ? " when it comes online" : ""}
-        {displayTimeStamp}.
+        {prefix}
+        {suffix}
       </span>
-    </div>
+    );
+  };
+  return (
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"}
+      message={renderStatusCopy()}
+    />
   );
 };
 
-const SoftwareUninstallDetails = ({
-  script_execution_id = "",
-  host_display_name = "",
-  software_title = "",
-  status = "",
+interface IModalButtonsProps {
+  uninstallStatus: SoftwareUninstallStatus;
+  deviceAuthToken?: string;
+  onCancel: () => void;
+  onRetry?: (s: IHostSoftwareWithUiStatus) => void;
+  hostSoftware?: IHostSoftwareWithUiStatus;
+}
+
+export const ModalButtons = ({
+  uninstallStatus,
   deviceAuthToken,
-}: ISoftwareUninstallDetails) => {
-  const { data: scriptResult, isLoading, isError, error } = useQuery<
+  onCancel,
+  onRetry,
+  hostSoftware,
+}: IModalButtonsProps) => {
+  const onClickRetry = () => {
+    if (onRetry && hostSoftware) {
+      onRetry(hostSoftware);
+    }
+    onCancel();
+  };
+
+  if (deviceAuthToken && uninstallStatus === "failed_uninstall") {
+    return (
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button variant="inverse" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={onClickRetry}>
+              Retry
+            </Button>
+          </>
+        }
+      />
+    );
+  }
+
+  return (
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+  );
+};
+
+export interface ISWUninstallDetailsParentState {
+  softwareName: string;
+  uninstallStatus: SoftwareUninstallStatus;
+  scriptExecutionId: string;
+  softwarePackageName?: string;
+  /** Optional since may come from dedicated state, may come from elsewhere */
+  hostDisplayName?: string;
+
+  /** Optional since My Device Page only */
+  hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
+}
+export interface ISoftwareUninstallDetailsModalProps {
+  hostDisplayName: string;
+  softwareName: string;
+  uninstallStatus: SoftwareUninstallStatus;
+  scriptExecutionId: string;
+  onCancel: () => void;
+  softwarePackageName?: string;
+
+  /** My Device Page only */
+  onRetry?: (s: IHostSoftwareWithUiStatus) => void;
+  hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
+  deviceAuthToken?: string;
+  contactUrl?: string;
+}
+const SoftwareUninstallDetailsModal = ({
+  hostDisplayName,
+  softwareName,
+  softwarePackageName,
+  uninstallStatus,
+  scriptExecutionId,
+  onCancel,
+
+  onRetry,
+  hostSoftware,
+  deviceAuthToken,
+  contactUrl,
+}: ISoftwareUninstallDetailsModalProps) => {
+  const [showDetails, setShowDetails] = useState(false);
+
+  const toggleDetails = () => setShowDetails((prev) => !prev);
+
+  const { data: uninstallResult, isLoading, isError, error } = useQuery<
     IScriptResultResponse,
     AxiosError
   >(
-    ["uninstallResult", script_execution_id],
+    ["uninstallResult", scriptExecutionId],
     () => {
       return deviceAuthToken
         ? deviceUserAPI.getSoftwareUninstallResult(
             deviceAuthToken,
-            script_execution_id
+            scriptExecutionId
           )
-        : scriptsAPI.getScriptResult(script_execution_id);
+        : scriptsAPI.getScriptResult(scriptExecutionId);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      // are 4xx errors other than 404 expected intermittently?
       retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+      // Prevent any error UI with pending uninstall
+      enabled: uninstallStatus !== "pending_uninstall",
     }
   );
 
-  if (isLoading) {
-    return <Spinner />;
-  } else if (isError && error?.status === 404) {
+  const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    } else if (isError && error?.status === 404) {
+      return (
+        <DataError
+          description="These uninstall details are no longer available."
+          excludeIssueLink
+        />
+      );
+    } else if (isError) {
+      return <DataError description="Close this modal and try again." />;
+    } else if (!uninstallResult && uninstallStatus !== "pending_uninstall") {
+      // FIXME: Find a better solution for this.
+      return <DataError description="No data returned." />;
+    }
+
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!uninstallResult?.script_contents || !!uninstallResult?.output) &&
+      uninstallStatus !== "pending_uninstall";
+
     return (
-      <DataError
-        description="Uninstall details are no longer available for this activity."
-        excludeIssueLink
-      />
-    );
-  } else if (isError) {
-    return <DataError description="Close this modal and try again." />;
-  } else if (!scriptResult) {
-    // FIXME: Find a better solution for this.
-    return <DataError description="No data returned." />;
-  }
-  status = status === "failed" ? "failed_uninstall" : status;
-
-  return (
-    <>
-      <StatusMessage
-        host_display_name={host_display_name}
-        status={status}
-        software_title={software_title}
-        timestamp={scriptResult.created_at}
-      />
-      {!isPendingStatus(status) && scriptResult && (
-        <>
+      <div className={`${baseClass}__modal-content`}>
+        <StatusMessage
+          hostDisplayName={hostDisplayName || ""}
+          status={
+            (uninstallStatus || "pending_uninstall") as SoftwareUninstallStatus
+          }
+          softwareName={softwareName}
+          softwarePackageName={softwarePackageName}
+          timestamp={uninstallResult?.created_at}
+          isMyDevicePage={!!deviceAuthToken}
+          contactUrl={contactUrl}
+        />
+        {showDetailsButton && (
+          <RevealButton
+            isShowing={showDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleDetails}
+          />
+        )}
+        {showDetails && uninstallResult?.script_contents && (
           <Textarea label="Uninstall script content:" variant="code">
-            {scriptResult.script_contents}
+            {uninstallResult.script_contents}
           </Textarea>
+        )}
+        {showDetails && uninstallResult?.output && (
           <Textarea label="Uninstall script output:" variant="code">
-            {scriptResult.output}
+            {uninstallResult.output}
           </Textarea>
-        </>
-      )}
-    </>
-  );
-};
+        )}
+      </div>
+    );
+  };
 
-const SoftwareUninstallDetailsModal = ({
-  details,
-  onCancel,
-  deviceAuthToken,
-}: {
-  details: ISoftwareUninstallDetails;
-  onCancel: () => void;
-  deviceAuthToken?: string;
-}) => {
   return (
     <Modal
       title="Uninstall details"
       onExit={onCancel}
       onEnter={onCancel}
-      width="large"
       className={baseClass}
     >
       <>
-        <div className={`${baseClass}__modal-content`}>
-          <SoftwareUninstallDetails
-            {...details}
-            deviceAuthToken={deviceAuthToken}
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
+        {renderContent()}
+        <ModalButtons
+          uninstallStatus={uninstallStatus}
+          deviceAuthToken={deviceAuthToken}
+          onCancel={onCancel}
+          onRetry={onRetry}
+          hostSoftware={hostSoftware}
+        />
       </>
     </Modal>
   );

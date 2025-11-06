@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -24,7 +25,7 @@ const (
 	FailingPolicyZendesk FailingPolicyAutomationType = "zendesk"
 )
 
-// FailingPolicyAutomationConfig holds the configuration for proessing a
+// FailingPolicyAutomationConfig holds the configuration for processing a
 // failing policy to send to the configured automation.
 type FailingPolicyAutomationConfig struct {
 	AutomationType FailingPolicyAutomationType
@@ -50,39 +51,20 @@ func TriggerFailingPoliciesAutomation(
 	}
 
 	// build the global automation configuration
-	var globalCfg FailingPolicyAutomationConfig
+	globalAutomationCfg, err := buildFailingPolicyAutomationConfig(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build global automation config")
+	}
 
-	globalAutomation := getActiveAutomation(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations)
-	if globalAutomation != "" {
-		level.Debug(logger).Log("global_failing_policy", "enabled", "automation", globalAutomation)
+	if globalAutomationCfg.AutomationType != "" {
+		level.Debug(logger).Log("global_failing_policy", "enabled", "automation", globalAutomationCfg.AutomationType)
 	} else {
 		level.Debug(logger).Log("global_failing_policy", "disabled")
 	}
 
-	if globalAutomation != "" {
-		// if global failing policies automation is enabled, keep a set of
-		// policies for which the automation must run.
-		globalCfg.AutomationType = globalAutomation
-		globalSettings := appConfig.WebhookSettings.FailingPoliciesWebhook
-
-		polIDs := make(map[uint]bool, len(globalSettings.PolicyIDs))
-		for _, pID := range globalSettings.PolicyIDs {
-			polIDs[pID] = true
-		}
-		globalCfg.PolicyIDs = polIDs
-
-		if globalAutomation == FailingPolicyWebhook {
-			wurl, err := url.Parse(globalSettings.DestinationURL)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "parse global webhook url: %s", globalSettings.DestinationURL)
-			}
-			globalCfg.WebhookURL = wurl
-			globalCfg.HostBatchSize = globalSettings.HostBatchSize
-		}
-	}
-
 	// prepare the per-team configuration caches
 	getTeam := makeTeamConfigCache(ds, appConfig.Integrations)
+	getDefaultTeamConfig := makeDefaultTeamConfigCache(ds, appConfig.Integrations, logger)
 
 	policySets, err := failingPoliciesSet.ListSets()
 	if err != nil {
@@ -102,8 +84,51 @@ func TriggerFailingPoliciesAutomation(
 			return ctxerr.Wrapf(ctx, err, "get policy: %d", policyID)
 		}
 
-		if policy.TeamID != nil {
-			// handle team policy
+		// Determine which configuration to use based on policy's team
+		switch {
+		case policy.TeamID == nil:
+			// Global policy - use global config
+			if !globalAutomationCfg.PolicyIDs[policy.ID] {
+				level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
+				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+				}
+				continue
+			}
+
+			if err := sendFunc(policy, globalAutomationCfg); err != nil {
+				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
+			}
+		case *policy.TeamID == 0:
+			// "No Team" policy - use default team config
+			cfg, err := getDefaultTeamConfig(ctx)
+			if err != nil {
+				// Error already logged in getDefaultTeamConfig
+				continue
+			}
+
+			if cfg.AutomationType == "" {
+				level.Debug(logger).Log("msg", "default team automation disabled", "policyID", policyID)
+				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+				}
+				continue
+			}
+
+			if !cfg.PolicyIDs[policy.ID] {
+				level.Debug(logger).Log("msg", "skipping failing policy, not found in default team policy IDs", "policyID", policyID)
+				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+				}
+				continue
+			}
+
+			if err := sendFunc(policy, cfg); err != nil {
+				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
+			}
+
+		default:
+			// Regular team policy - use team config
 			teamCfg, err := getTeam(ctx, *policy.TeamID)
 			switch {
 			case errors.Is(err, sql.ErrNoRows):
@@ -119,6 +144,10 @@ func TriggerFailingPoliciesAutomation(
 			}
 
 			if teamCfg.AutomationType == "" {
+				level.Debug(logger).Log("msg", "team automation disabled", "teamID", *policy.TeamID, "policyID", policyID)
+				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+				}
 				continue
 			}
 
@@ -133,24 +162,40 @@ func TriggerFailingPoliciesAutomation(
 			if err := sendFunc(policy, teamCfg); err != nil {
 				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
 			}
-			continue
-		}
-
-		// handle global policy
-		if !globalCfg.PolicyIDs[policy.ID] {
-			level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
-			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
-			}
-			continue
-		}
-
-		if err := sendFunc(policy, globalCfg); err != nil {
-			level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
 		}
 	}
 
 	return nil
+}
+
+func buildFailingPolicyAutomationConfig(webhookSettings fleet.FailingPoliciesWebhookSettings, intgs fleet.Integrations) (FailingPolicyAutomationConfig, error) {
+	cfg := FailingPolicyAutomationConfig{}
+
+	automation := getActiveAutomation(webhookSettings, intgs)
+	if automation == "" {
+		return cfg, nil
+	}
+
+	cfg.AutomationType = automation
+
+	// Build policy IDs map
+	polIDs := make(map[uint]bool, len(webhookSettings.PolicyIDs))
+	for _, pID := range webhookSettings.PolicyIDs {
+		polIDs[pID] = true
+	}
+	cfg.PolicyIDs = polIDs
+
+	// Parse webhook URL if needed
+	if automation == FailingPolicyWebhook {
+		wurl, err := url.Parse(webhookSettings.DestinationURL)
+		if err != nil {
+			return cfg, fmt.Errorf("parse webhook url %s: %w", webhookSettings.DestinationURL, err)
+		}
+		cfg.WebhookURL = wurl
+		cfg.HostBatchSize = webhookSettings.HostBatchSize
+	}
+
+	return cfg, nil
 }
 
 func makeTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations) func(ctx context.Context, teamID uint) (FailingPolicyAutomationConfig, error) {
@@ -172,31 +217,54 @@ func makeTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations) fun
 			return cfg, ctxerr.Wrap(ctx, err, "map team integrations to global integrations")
 		}
 
-		teamAutomation := getActiveAutomation(team.Config.WebhookSettings.FailingPoliciesWebhook, intgs)
-		teamCfg := FailingPolicyAutomationConfig{
-			AutomationType: teamAutomation,
+		teamCfg, err := buildFailingPolicyAutomationConfig(team.Config.WebhookSettings.FailingPoliciesWebhook, intgs)
+		if err != nil {
+			return cfg, ctxerr.Wrap(ctx, err, "build team automation config")
 		}
 
-		if teamAutomation != "" {
-			settings := team.Config.WebhookSettings.FailingPoliciesWebhook
-			polIDs := make(map[uint]bool, len(settings.PolicyIDs))
-			for _, pID := range settings.PolicyIDs {
-				polIDs[pID] = true
-			}
-			teamCfg.PolicyIDs = polIDs
-
-			if teamAutomation == FailingPolicyWebhook {
-				wurl, err := url.Parse(settings.DestinationURL)
-				if err != nil {
-					return cfg, ctxerr.Wrapf(ctx, err, "parse webhook url: %s", settings.DestinationURL)
-				}
-				teamCfg.WebhookURL = wurl
-				teamCfg.HostBatchSize = settings.HostBatchSize
-			}
-		}
 		teamCfgs[teamID] = teamCfg
-
 		return teamCfg, nil
+	}
+}
+
+func makeDefaultTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations, logger kitlog.Logger) func(ctx context.Context) (FailingPolicyAutomationConfig, error) {
+	var cached *FailingPolicyAutomationConfig
+	var cachedErr error
+
+	return func(ctx context.Context) (FailingPolicyAutomationConfig, error) {
+		// Return cached result if already loaded
+		if cached != nil || cachedErr != nil {
+			if cachedErr != nil {
+				return FailingPolicyAutomationConfig{}, cachedErr
+			}
+			return *cached, nil
+		}
+
+		// Load default team configuration
+		var cfg FailingPolicyAutomationConfig
+		defaultTeamConfig, err := ds.DefaultTeamConfig(ctx)
+		if err != nil {
+			cachedErr = err
+			level.Error(logger).Log("msg", "failed to get default team config", "err", err)
+			return cfg, err
+		}
+
+		intgs, err := defaultTeamConfig.Integrations.MatchWithIntegrations(globalIntgs)
+		if err != nil {
+			cachedErr = err
+			level.Error(logger).Log("msg", "failed to match default team integrations", "err", err)
+			return cfg, err
+		}
+
+		cfg, err = buildFailingPolicyAutomationConfig(defaultTeamConfig.WebhookSettings.FailingPoliciesWebhook, intgs)
+		if err != nil {
+			// Log error but don't fail - just disable automation
+			level.Error(logger).Log("msg", "failed to build default team automation config", "err", err)
+			cfg = FailingPolicyAutomationConfig{} // Return empty config
+		}
+
+		cached = &cfg
+		return cfg, nil
 	}
 }
 

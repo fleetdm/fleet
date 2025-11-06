@@ -1,10 +1,16 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
 import { IDeviceSoftware } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  getPathWithQueryParams,
+} from "utilities/url";
+
+import { IMdmCommandResult } from "interfaces/mdm";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -36,9 +42,24 @@ export interface IGetDeviceCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export interface IGetDeviceCertsRequestParams extends IListOptions {
+  token: string;
+}
+
+export interface IGetVppInstallCommandResultsResponse {
+  results: IMdmCommandResult[];
+}
+export interface IGetSetupExperienceStatusesResponse {
+  setup_experience_results: {
+    software: ISetupStep[];
+    scripts: ISetupStep[];
+  };
+}
+
+export interface IGetSetupExperienceStatusesParams {
   token: string;
 }
 
@@ -76,9 +97,13 @@ export default {
     const { DEVICE_SOFTWARE } = endpoints;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, scope, ...rest } = params;
-    const queryString = buildQueryStringFromParams(rest);
-    return sendRequest("GET", `${DEVICE_SOFTWARE(id)}?${queryString}`);
+
+    const path = getPathWithQueryParams(DEVICE_SOFTWARE(id), rest);
+    return sendRequest("GET", path);
   },
+
+  // getSoftwareIcon doesn't need its own service function because the logic is encapsulated in
+  // softwareAPI.getSoftwareIconFromApiUrl in /entities/software.ts
 
   installSelfServiceSoftware: (
     deviceToken: string,
@@ -124,7 +149,10 @@ export default {
   },
 
   /** Gets more info on VPP install for device user */
-  getVppCommandResult: (deviceToken: string, uuid: string) => {
+  getVppCommandResult: (
+    deviceToken: string,
+    uuid: string
+  ): Promise<IGetVppInstallCommandResultsResponse> => {
     const { DEVICE_VPP_COMMAND_RESULTS } = endpoints;
     const path = DEVICE_VPP_COMMAND_RESULTS(deviceToken, uuid);
 
@@ -147,5 +175,24 @@ export default {
     })}`;
 
     return sendRequest("GET", path);
+  },
+
+  getSetupExperienceStatuses: ({
+    token,
+  }: IGetSetupExperienceStatusesParams): Promise<IGetSetupExperienceStatusesResponse> => {
+    const { DEVICE_SETUP_EXPERIENCE_STATUSES } = endpoints;
+    const path = DEVICE_SETUP_EXPERIENCE_STATUSES(token);
+    return sendRequest("POST", path);
+  },
+
+  resendProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_RESEND_PROFILE } = endpoints;
+    const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
+    return sendRequest("POST", path);
+  },
+
+  getMdmManualEnrollUrl: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
   },
 };

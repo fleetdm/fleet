@@ -1,7 +1,6 @@
 .section-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: $pad-xlarge;
 
   &__left-header {
     display: flex;
@@ -15,15 +14,18 @@
 
   &__sub-title {
     &--grey {
+      font-size: $x-small;
       @include grey-text;
     }
   }
 
   h2 {
-    margin: 0;
-    font-weight: $regular;
     font-size: $medium;
     width: 100%;
-    color: $core-fleet-black;
+  }
+
+  // GOAL: rely on gap instead of these bottom margins
+  &__no-margin {
+    margin: 0;
   }
 }

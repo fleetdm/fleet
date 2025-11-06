@@ -18,6 +18,10 @@ import {
 } from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import CustomLink from "components/CustomLink";
+
 /**
  * helper function to generate error message for secret variables based
  * on the error reason.
@@ -169,7 +173,13 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
 export const SELF_SERVICE_TOOLTIP = (
   <>
     End users can install from <br />
-    <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
+    <b>Fleet Desktop</b> &gt; <b>Self-service</b>. <br />
+    <CustomLink
+      newTab
+      text="Learn more"
+      variant="tooltip-link"
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
+    />
   </>
 );
 
@@ -183,4 +193,29 @@ export const getAutomaticInstallPoliciesCount = (
     return app_store_app.automatic_install_policies?.length || 0;
   }
   return 0;
+};
+
+// Helper to check safe image src
+// Used in SoftwareDetailsSummary in the EditIconModal
+export const isSafeImagePreviewUrl = (url?: string | null) => {
+  if (typeof url !== "string" || !url) return false;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    // Allow only blob:, data: (for images), or https/http
+    if (
+      parsed.protocol === "blob:" ||
+      parsed.protocol === "data:" ||
+      parsed.protocol === "https:" ||
+      parsed.protocol === "http:"
+    ) {
+      // Optionally, for data: URLs, ensure it's an image mime
+      if (parsed.protocol === "data:" && !/^data:image\/png/.test(url)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 };

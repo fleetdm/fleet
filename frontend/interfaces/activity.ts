@@ -3,6 +3,7 @@ import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ISchedulableQueryStats } from "./schedulable_query";
+import { SoftwareSource } from "./software";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -31,6 +32,7 @@ export enum ActivityType {
   UserFailedLogin = "user_failed_login",
   UserCreated = "created_user",
   UserDeleted = "deleted_user",
+  HostDeleted = "deleted_host",
   UserChangedGlobalRole = "changed_user_global_role",
   UserDeletedGlobalRole = "deleted_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
@@ -57,9 +59,21 @@ export enum ActivityType {
   AddedCustomScepProxy = "added_custom_scep_proxy",
   DeletedCustomScepProxy = "deleted_custom_scep_proxy",
   EditedCustomScepProxy = "edited_custom_scep_proxy",
+  AddedHydrant = "added_hydrant",
+  DeletedHydrant = "deleted_hydrant",
+  EditedHydrant = "edited_hydrant",
+  AddedSmallstep = "added_smallstep",
+  DeletedSmallstep = "deleted_smallstep",
+  EditedSmallstep = "edited_smallstep",
+  AddedCustomEST = "added_custom_est",
+  DeletedCustomEST = "deleted_custom_est",
+  EditedCustomEST = "edited_custom_est",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
+  CreatedAndroidProfile = "created_android_profile",
+  DeletedAndroidProfile = "deleted_android_profile",
+  EditedAndroidProfile = "edited_android_profile",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -83,6 +97,8 @@ export enum ActivityType {
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   RanScriptBatch = "ran_script_batch",
+  ScheduledScriptBatch = "scheduled_script_batch",
+  CanceledScriptBatch = "canceled_script_batch",
   AddedScript = "added_script",
   UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
@@ -118,9 +134,15 @@ export enum ActivityType {
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
+  AddedConditionalAccessOkta = "added_conditional_access_okta",
+  DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
+  EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
+  CreatedCustomVariable = "created_custom_variable",
+  DeletedCustomVariable = "deleted_custom_variable",
+  EditedSetupExperienceSoftware = "edited_setup_experience_software",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -143,7 +165,9 @@ export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.LockedHost
+  | ActivityType.UnlockedHost;
 
 export interface IActivity {
   created_at: string;
@@ -182,13 +206,16 @@ export interface IActivityDetails {
   deadline_days?: number;
   deadline?: string;
   email?: string;
+  enrollment_id?: string | null; // unique identifier for MDM BYOD enrollments; null for other enrollments
   global?: boolean;
   grace_period_days?: number;
   host_display_name?: string;
   host_display_names?: string[];
+  host_expiry_window?: number;
   host_id?: number;
   host_ids?: number[];
   host_count?: number;
+  canceled_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
@@ -196,12 +223,12 @@ export interface IActivityDetails {
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
   location?: string; // name of location associated with VPP token
-  mdm_platform?: "microsoft" | "apple";
+  mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
   name?: string;
   pack_id?: number;
   pack_name?: string;
-  platform?: Platform; // software platform
+  platform?: Platform; // OS platform
   policy_id?: number;
   policy_name?: string;
   profile_identifier?: string;
@@ -218,6 +245,7 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;
   status?: string;
@@ -225,7 +253,9 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
+  triggered_by?: string;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
+  custom_variable_name?: string;
 }

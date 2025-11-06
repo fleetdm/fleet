@@ -1,0 +1,152 @@
+name: "🧪 Testing & QA"
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_TESTING_AND_QA_ENROLL_SECRET
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  update_channels:
+    osqueryd: edge
+    orbit: edge
+    desktop: edge
+controls:
+  enable_disk_encryption: true
+  scripts:
+    # macOS scripts
+    - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    # Windows scripts
+    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    # Linux scripts
+    - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
+    - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+policies:
+  # macOS policies
+  - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  # Linux policies
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+queries:
+software:
+  packages:
+    # Linux apps
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "Debian-based Linux hosts"
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "RPM-based Linux hosts"
+    - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "Debian-based Linux hosts"
+    - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "RPM-based Linux hosts"
+  fleet_maintained_apps:
+    # macOS apps
+    - slug: 1password/darwin # 1Password for macOS
+      self_service: true
+    - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
+      self_service: true
+    - slug: adobe-creative-cloud/darwin # Adobe Creative Cloud for macOS
+      self_service: true
+    - slug: beyond-compare/darwin # Beyond Compare for macOS
+      self_service: true
+    - slug: box-drive/darwin # Box Drive for macOS
+      self_service: true
+    - slug: brave-browser/darwin # Brave for macOS
+      self_service: true
+    - slug: cloudflare-warp/darwin # Cloudflare WARP for macOS
+      self_service: true
+    - slug: cursor/darwin # Cursor for macOS
+      self_service: true
+    - slug: dcv-viewer/darwin # Amazon DCV for macOS
+      self_service: true
+    - slug: docker/darwin # Docker Desktop for macOS
+      self_service: true
+    - slug: figma/darwin # Figma for macOS
+      self_service: true
+    - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+    - slug: intune-company-portal/darwin # Company Portal for macOS
+      self_service: true
+    - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
+      self_service: true
+    - slug: microsoft-excel/darwin # Microsoft Excel for macOS
+      self_service: true
+    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
+      self_service: true
+    - slug: microsoft-word/darwin # Microsoft Word for macOS
+      self_service: true
+    - slug: notion/darwin # Notion for macOS
+      self_service: true
+    - slug: omnissa-horizon-client/darwin # Omnissa Horizon Client for macOS
+      self_service: true
+    - slug: p4v/darwin # P4V for macOS
+      self_service: true
+    - slug: postman/darwin # Postman for macOS
+      self_service: true
+    - slug: santa/darwin # Santa for macOS
+      self_service: true
+    - slug: slack/darwin # Slack for macOS
+      self_service: true
+    - slug: teamviewer/darwin # TeamViewer for macOS
+      self_service: true
+    - slug: visual-studio-code/darwin # Microsoft Visual Studio Code for macOS
+      self_service: true
+    - slug: vnc-viewer/darwin # VNC Viewer for macOS
+      self_service: true
+    - slug: whatsapp/darwin # WhatsApp for macOS
+      self_service: true
+    - slug: yubico-yubikey-manager/darwin # Yubikey Manager for macOS
+      self_service: true
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+    # Windows apps
+    - slug: box-drive/windows # Box Drive for Windows
+      self_service: true
+    - slug: brave-browser/windows # Brave for Windows
+      self_service: true
+    - slug: cloudflare-warp/windows # Cloudflare WARP for Windows
+      self_service: true
+    - slug: cursor/windows # Cursor for Windows
+      self_service: true
+    - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+    - slug: teamviewer/windows # TeamViewer for Windows
+      self_service: true
+    - slug: visual-studio-code/windows # Microsoft Visual Studio Code for Windows
+      self_service: true

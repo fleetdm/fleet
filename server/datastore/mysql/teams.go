@@ -64,6 +64,21 @@ func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Te
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
+	if tid == 0 {
+		if withExtras {
+			return nil, ctxerr.Errorf(ctx, "withExtras argument not supported for team ID 0")
+		}
+		config, err := defaultTeamConfigDB(ctx, q)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "default team config")
+		}
+		return &fleet.Team{
+			ID:     0,
+			Name:   fleet.ReservedNameNoTeam,
+			Config: *config,
+		}, nil
+	}
+
 	stmt := `
 		SELECT ` + teamColumns + ` FROM teams
 			WHERE id = ?
@@ -104,6 +119,18 @@ func saveTeamSecretsDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team)
 	return applyEnrollSecretsDB(ctx, q, &team.ID, team.Secrets)
 }
 
+// teamRefs are the tables referenced by teams.
+// These tables are cleared when the team is deleted.
+// Analogous to hostRefs.
+var teamRefs = []string{
+	"mdm_apple_configuration_profiles",
+	"mdm_windows_configuration_profiles",
+	"mdm_apple_declarations",
+	"mdm_android_configuration_profiles",
+	"software_title_icons",
+	"software_title_display_names",
+}
+
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Delete team policies first, because policies can have associated installers and scripts
@@ -123,19 +150,11 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_configuration_profiles for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_windows_configuration_profiles for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_declarations WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_declarations for team %d", tid)
+		for _, table := range teamRefs {
+			_, err = tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE team_id=?`, table), tid)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting %s for team %d", table, tid)
+			}
 		}
 
 		return nil
@@ -488,4 +507,72 @@ func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedInt
 		}
 	}
 	return rows.Err()
+}
+
+func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error) {
+	const stmt = `
+		SELECT
+			id
+		FROM
+			teams
+		WHERE
+			config IS NOT NULL AND
+			config->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+
+		UNION
+
+		SELECT
+			0
+		FROM
+			app_config_json
+		WHERE
+			json_value->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+`
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select team IDs with setup experience IdP enabled")
+	}
+	return teamIDs, nil
+}
+
+// DefaultTeamConfig returns the configuration for "No Team" hosts.
+func (ds *Datastore) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
+	return defaultTeamConfigDB(ctx, ds.reader(ctx))
+}
+
+func defaultTeamConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.TeamConfig, error) {
+	config := &fleet.TeamConfig{}
+	var bytes []byte
+	err := sqlx.GetContext(ctx, q, &bytes,
+		`SELECT json_value FROM default_team_config_json LIMIT 1`)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Return empty config if no record exists (shouldn't happen after migration)
+			return &fleet.TeamConfig{}, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting default team config")
+	}
+
+	err = json.Unmarshal(bytes, config)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling default team config")
+	}
+	return config, nil
+}
+
+// SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
+func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
+	// Create a copy to avoid saving unsupported fields such as scripts and software
+	configCopy := config.Copy()
+	configBytes, err := json.Marshal(&configCopy)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling config")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?)
+		 ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+		configBytes,
+	)
+	return ctxerr.Wrap(ctx, err, "save default team config")
 }

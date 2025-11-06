@@ -6,8 +6,15 @@ import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
-import { isAndroid, isMobilePlatform } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleDevice,
+  isMobilePlatform,
+} from "interfaces/platform";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -61,6 +68,7 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     users.length === 4
       ? users
           .slice(-4)
+
           .map((u) => u.email)
           .reverse()
       : users
@@ -171,7 +179,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "hostname",
     id: "hostname",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {
@@ -230,6 +238,18 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
+
+      // Show "---" for ABM devices with Pending enrollment status
+      if (
+        cellProps.row.original.mdm?.enrollment_status === "Pending" &&
+        isAppleDevice(cellProps.row.original.platform)
+      ) {
+        const tooltip = {
+          tooltipText: getHostStatusTooltipText("---"),
+        };
+        return <StatusIndicator value="---" tooltip={tooltip} />;
+      }
+
       const value = cellProps.cell.value;
       const tooltip = {
         tooltipText: getHostStatusTooltipText(value),
@@ -265,23 +285,25 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
       const {
-        id,
         platform,
         percent_disk_space_available,
+        gigs_disk_space_available,
+        gigs_total_disk_space,
+        gigs_all_disk_space,
       } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
-          baseClass="gigs_disk_space_available__cell"
-          gigsDiskSpaceAvailable={cellProps.cell.value}
+          inTableCell
+          gigsDiskSpaceAvailable={gigs_disk_space_available}
           percentDiskSpaceAvailable={percent_disk_space_available}
-          id={`disk-space__${id}`}
+          gigsTotalDiskSpace={gigs_total_disk_space}
+          gigsAllDiskSpace={gigs_all_disk_space}
           platform={platform}
         />
       );
@@ -297,10 +319,22 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "os_version",
     id: "os_version",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
-      <TextCell value={cellProps.cell.value} />
-    ),
+    // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      const os_version = cellProps.cell.value;
+      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(
+        os_version
+      ) ? (
+        // wrap a tooltip around the "rolling" suffix
+        <>
+          {os_version.slice(0, -8)}&nbsp;
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      ) : (
+        os_version
+      );
+      return <TooltipTruncatedTextCell value={versionForRender} />;
+    },
   },
   {
     title: "Osquery",
@@ -611,7 +645,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => {
       // TODO(android): is iOS/iPadOS supported?
-      if (isAndroid(cellProps.row.original.platform)) {
+      if (
+        isAndroid(cellProps.row.original.platform) ||
+        isBYODAccountDrivenUserEnrollment(
+          cellProps.row.original.mdm.enrollment_status
+        )
+      ) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;

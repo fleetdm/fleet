@@ -77,6 +77,8 @@ type withServer struct {
 	cachedTokens   map[string]string // email -> auth token
 
 	lq *live_query_mock.MockLiveQuery
+
+	redisPool fleet.RedisPool
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -85,11 +87,12 @@ func (ts *withServer) SetupSuite(dbName string) {
 	rs := pubsub.NewInmemQueryResults()
 	cfg := config.TestConfig()
 	cfg.Osquery.EnrollCooldown = 0
+	redisPool := redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false)
 	opts := &TestServerOpts{
 		Rs:          rs,
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
-		Pool:        redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false),
+		Pool:        redisPool,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = kitlog.NewNopLogger()
@@ -99,6 +102,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
 	ts.cachedAdminToken = ts.token
+	ts.redisPool = redisPool
 }
 
 func (ts *withServer) TearDownSuite() {
@@ -139,6 +143,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM in_house_apps;")
 		return err
 	})
 
@@ -199,7 +208,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
-	err = ts.ds.ReconcileSoftwareTitles(ctx)
+	err = ts.ds.CleanupSoftwareTitles(ctx)
 	require.NoError(t, err)
 	err = ts.ds.SyncHostsSoftwareTitles(ctx, time.Now())
 	require.NoError(t, err)
@@ -412,6 +421,17 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+	requestParams := initiateMDMSSORequest{
+		Initiator:      "account_driven_enroll",
+		UserIdentifier: username + "@example.com",
+	}
+	body, err := json.Marshal(requestParams)
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
 func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID string) string {
 	t := ts.s.T()
 	res := ts.loginSSOUserIDPInitiated(
@@ -446,6 +466,10 @@ func (ts *withServer) doWithClient(
 }
 
 func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) *http.Response {
+	return ts.loginSSOUserWithBody(username, password, basePath, callbackStatus, []byte(`{}`))
+}
+
+func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
@@ -462,7 +486,7 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	)
 
 	var resIni initiateSSOResponse
-	httpResponse := ts.doWithClient(client, "POST", basePath, []byte(`{}`), http.StatusOK, nil)
+	httpResponse := ts.doWithClient(client, "POST", basePath, requestBody, http.StatusOK, nil)
 	err = json.NewDecoder(httpResponse.Body).Decode(&resIni)
 	require.NoError(ts.s.T(), err)
 	require.NoError(ts.s.T(), resIni.Error())
@@ -493,8 +517,8 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
 	samlResponse := string(matches[1])
 
-	ssoURL := basePath + "/callback"
-	res := ts.doWithClient(client, "POST", ssoURL, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
+	callbackUrl := basePath + "/callback"
+	res := ts.doWithClient(client, "POST", callbackUrl, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
 
 	return res
 }
@@ -652,19 +676,26 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 ) {
 	t.Helper()
 
-	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-	// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
-	if errors.Is(err, os.ErrNotExist) {
-		var err2 error
-		tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
-		if err2 == nil {
-			err = nil
+	// Determine which file to use: either provided by test or opened from testdata
+	var installerFile io.Reader
+	if payload.InstallerFile == nil {
+		// Open file from testdata and close it when done
+		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+		// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
+		if errors.Is(err, os.ErrNotExist) {
+			var err2 error
+			tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
+			if err2 == nil {
+				err = nil
+			}
 		}
+		require.NoError(t, err)
+		defer tfr.Close()
+		installerFile = tfr
+	} else {
+		// Use the file provided by the test
+		installerFile = payload.InstallerFile
 	}
-	require.NoError(t, err)
-	defer tfr.Close()
-
-	payload.InstallerFile = tfr
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -672,7 +703,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	// add the software field
 	fw, err := w.CreateFormFile("software", payload.Filename)
 	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
+	n, err := io.Copy(fw, installerFile)
 	require.NoError(t, err)
 	require.NotZero(t, n)
 
@@ -785,6 +816,7 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("categories", c))
 		}
 	}
+	require.NoError(t, w.WriteField("display_name", payload.DisplayName))
 
 	w.Close()
 

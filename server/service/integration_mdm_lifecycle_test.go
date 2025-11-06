@@ -32,6 +32,7 @@ import (
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -420,7 +421,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Run("programmatic enrollment", func(t *testing.T) {
 				host, device := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-				err := s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+				err := s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 				require.NoError(t, err)
 				assertAction(t, host, device, tt.Action)
 			})
@@ -441,7 +442,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				device.DeviceID = host.UUID
 				require.NoError(t, device.Enroll())
 
-				err = s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+				err = s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 				require.NoError(t, err)
 
 				assertAction(t, host, device, tt.Action)
@@ -516,7 +517,7 @@ func (s *integrationMDMTestSuite) recordAppleHostStatus(
 ) ([]*micromdm.CommandPayload, getHostMDMSummaryResponse, getHostMDMResponseTest) {
 	t := s.T()
 
-	s.runWorker()
+	s.runWorkerUntilDone()
 	s.awaitTriggerProfileSchedule(t)
 
 	var cmds []*micromdm.CommandPayload
@@ -569,6 +570,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 		&fleet.MDMAppleBootstrapPackage{Bytes: bp, Name: "pkg.pkg", TeamID: 0},
 		http.StatusOK,
 		"",
+		false,
 	)
 
 	// enable disk encryption
@@ -657,7 +659,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// add a device that's manually enrolled
 	desktopToken := uuid.New().String()
@@ -691,6 +693,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 			true,
 			fleet.WellKnownMDMFleet,
 			"foo",
+			false,
 		),
 	)
 	require.NoError(t, err)
@@ -711,6 +714,28 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		`, migratedDevice.UUID)
 		return err
 	})
+
+	// Add an account driven user enrollment device
+	iPhoneHwModel := "iPhone14,2"
+	iphoneUser := &fleet.MDMIdPAccount{
+		Email:    "iphone_user@example.com",
+		Fullname: "iPhone User",
+		Username: "iphone_user@example.com",
+	}
+	err = s.ds.InsertMDMIdPAccount(ctx, iphoneUser)
+	require.NoError(t, err)
+	iphoneUser, err = s.ds.GetMDMIdPAccountByEmail(ctx, iphoneUser.Email)
+	require.NoError(t, err)
+	require.NotNil(t, iphoneUser)
+	require.Equal(t, iphoneUser.Email, "iphone_user@example.com")
+
+	iPhoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		iPhoneHwModel,
+		iphoneUser.UUID,
+	)
+	require.NoError(t, iPhoneMdmDevice.Enroll())
+	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, iphoneUser.Email)
 
 	// add global profiles
 	globalProfiles := [][]byte{
@@ -771,6 +796,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Equal(t, expectedProfiles+2, ackAllCommands(automaticEnrolledDevice, true, true))
 	require.Equal(t, expectedProfiles+2, ackAllCommands(automaticEnrolledDeviceWithRef, true, true))
 	require.Equal(t, expectedProfiles+1, ackAllCommands(migratedDevice, true, false))
+	require.Equal(t, expectedProfiles-1, ackAllCommands(iPhoneMdmDevice, false, false)) // one less profile because no iOS means no fleetd
 
 	// simulate a device with two certificates by re-enrolling one of them
 	err = manualEnrolledDevice.Enroll()
@@ -808,13 +834,17 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
+	cmd, err = iPhoneMdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
 	expireCerts := func() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 	              UPDATE nano_cert_auth_associations
 	              SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
-	              WHERE id IN (?, ?, ?, ?)
-		`, manualHost.UUID, automaticEnrolledDevice.UUID, automaticEnrolledDeviceWithRef.UUID, migratedDevice.UUID)
+	              WHERE id IN (?, ?, ?, ?, ?)
+		`, manualHost.UUID, automaticEnrolledDevice.UUID, automaticEnrolledDeviceWithRef.UUID, migratedDevice.UUID, iPhoneMdmDevice.EnrollmentID())
 			return err
 		})
 	}
@@ -826,7 +856,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
-	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string, wantProfile string) {
+	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string, wantProfile string, wantManagedAppleID string) {
 		var renewCmd *mdm.Command
 		cmd, err := device.Idle()
 		require.NoError(t, err)
@@ -839,7 +869,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		require.NoError(t, plist.Unmarshal(renewCmd.Raw, &fullCmd))
 
 		if wantProfile == "" {
-			s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef)
+			s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef, wantManagedAppleID)
 		} else {
 			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
 			require.NoError(t, err)
@@ -863,9 +893,10 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		require.Nil(t, cmd)
 	}
 
-	checkRenewCertCommand(manualEnrolledDevice, "", "")
-	checkRenewCertCommand(automaticEnrolledDevice, "", "")
-	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "")
+	checkRenewCertCommand(manualEnrolledDevice, "", "", "")
+	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
+	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
 
 	// migrated device doesn't receive any commands because
 	// `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE` is not set
@@ -877,7 +908,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString([]byte("<foo></foo>")))
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
-	checkRenewCertCommand(migratedDevice, "", "<foo></foo>")
+	checkRenewCertCommand(migratedDevice, "", "<foo></foo>", "")
 
 	// another cron run shouldn't enqueue more commands
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
@@ -899,11 +930,16 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
+	cmd, err = iPhoneMdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
 	// devices renew their SCEP cert by re-enrolling.
 	require.NoError(t, manualEnrolledDevice.Enroll())
 	require.NoError(t, automaticEnrolledDevice.Enroll())
 	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
 	require.NoError(t, migratedDevice.Enroll())
+	require.NoError(t, iPhoneMdmDevice.Enroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
@@ -922,6 +958,10 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
+	cmd, err = iPhoneMdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
 	// run crons again, no new commands are enqueued
 	s.runWorker()
 	s.awaitTriggerProfileSchedule(t)
@@ -929,6 +969,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Equal(t, 0, ackAllCommands(automaticEnrolledDevice, false, false))
 	require.Equal(t, 0, ackAllCommands(automaticEnrolledDeviceWithRef, false, false))
 	require.Equal(t, 0, ackAllCommands(migratedDevice, false, false))
+	require.Equal(t, 0, ackAllCommands(iPhoneMdmDevice, false, false))
 
 	// handle the case of a host being deleted, see https://github.com/fleetdm/fleet/issues/19149
 	expireCerts()
@@ -939,8 +980,9 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
-	checkRenewCertCommand(automaticEnrolledDevice, "", "")
-	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "")
+	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
+	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
 
 	// migrated device is still marked as migrated
 	var stillMigrated bool
@@ -955,24 +997,6 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	t := s.T()
-
-	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-		foundInstallFleetdCommand := false
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-				foundInstallFleetdCommand = true
-				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-			}
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-		require.Equal(t, wantCommand, foundInstallFleetdCommand)
-	}
 
 	triggerRefetchCron := func(hostID uint) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1059,7 +1083,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, false)
+	checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 	// mu.Lock()
 	// require.Len(t, recordedPushes, 1)

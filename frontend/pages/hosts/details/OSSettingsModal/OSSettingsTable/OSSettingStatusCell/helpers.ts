@@ -65,8 +65,8 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
         innerProps.isDiskEncryptionProfile
           ? "The hosts will receive the MDM command to turn on disk encryption " +
             "when the hosts come online."
-          : "The host will receive the MDM command to apply the setting when the " +
-            "host comes online.",
+          : "The host is running the MDM command to apply settings or will run it " +
+            "when the host comes online.",
     },
     action_required: {
       statusText: "Action required (pending)",
@@ -87,8 +87,8 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
         innerProps.isDiskEncryptionProfile
           ? "The host will receive the MDM command to remove the disk encryption profile when the " +
             "host comes online."
-          : "The host will receive the MDM command to remove the setting when the host " +
-            "comes online.",
+          : "The host is running the MDM command to remove settings or will run " +
+            "it when the host comes online.",
     },
     action_required: null, // should not be reached
     verified: null, // should not be reached
@@ -106,7 +106,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
 type WindowsDiskEncryptionDisplayConfig = Omit<
   OperationTypeOption,
   // windows disk encryption does not have these states
-  "action_required" | "success" | "acknowledged"
+  "success" | "acknowledged"
 >;
 
 export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {
@@ -128,6 +128,12 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
     iconName: "pending-outline",
     tooltip: () =>
       "The host will receive the MDM command to turn on disk encryption when the host comes online.",
+  },
+  action_required: {
+    statusText: "Action required (pending)",
+    iconName: "pending-outline",
+    tooltip: () =>
+      "Disk encryption is on, but the user has not set a BitLocker PIN yet.",
   },
   failed: {
     statusText: "Failed",

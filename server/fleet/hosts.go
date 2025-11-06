@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -64,7 +65,8 @@ const (
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
 	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
+	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
+	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
 )
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
@@ -337,7 +339,10 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
-	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	// GigsTotalDiskSpace and GigsAllDiskSpace as defined by `server > service > osquery_utils >
+	// queries.go > hostDetailQueries.disk_space_unix`
+	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -345,6 +350,13 @@ type Host struct {
 	// response if the host does not have disk encryption enabled. It is also
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
+
+	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.
+	// We need this because the escrow process for macOS is driven by detail queries
+	// (see 'mdm_disk_encryption_key_file_darwin' and 'mdm_disk_encryption_key_file_lines_darwin' queries) and
+	// we want to be able to record an activity whenever a disk encryption key is escrowed (which is handled at the
+	// service layer).
+	DiskEncryptionKeyEscrowed bool `json:"-" db:"-" csv:"-"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
@@ -385,6 +397,11 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+
+	// nil -> field isn't loaded
+	// true -> at least one non-revoked cert exists
+	// false -> we know there is no cert
+	HasHostIdentityCert *bool `json:"-" db:"has_host_identity_cert" csv:"-"`
 }
 
 type HostForeignVitalGroup struct {
@@ -517,6 +534,10 @@ type MDMHostData struct {
 	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
 	// decode an encryption key for the host.
 	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
+	// EncryptionKeyArchived indicates if an archived encryption key exists for the host.
+	// It is not filled in by all host-returning methods (currently only populated if
+	// svc.getHostDetails is called).
+	EncryptionKeyArchived *bool `json:"encryption_key_archived,omitempty" db:"encryption_key_archived" csv:"-"`
 
 	// this is set to nil if the key exists but decryptable is NULL in the db, 1
 	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
@@ -607,10 +628,11 @@ func (s DiskEncryptionStatus) IsValid() bool {
 type BatchScriptExecutionStatus string
 
 const (
-	BatchScriptExecutionRan       BatchScriptExecutionStatus = "ran"
-	BatchScriptExecutionPending   BatchScriptExecutionStatus = "pending"
-	BatchScriptExecutionErrored   BatchScriptExecutionStatus = "errored"
-	BatchScriptExecutionCancelled BatchScriptExecutionStatus = "cancelled"
+	BatchScriptExecutionRan          BatchScriptExecutionStatus = "ran"
+	BatchScriptExecutionPending      BatchScriptExecutionStatus = "pending"
+	BatchScriptExecutionErrored      BatchScriptExecutionStatus = "errored"
+	BatchScriptExecutionCanceled     BatchScriptExecutionStatus = "canceled"
+	BatchScriptExecutionIncompatible BatchScriptExecutionStatus = "incompatible"
 )
 
 func (s BatchScriptExecutionStatus) IsValid() bool {
@@ -619,7 +641,8 @@ func (s BatchScriptExecutionStatus) IsValid() bool {
 		BatchScriptExecutionRan,
 		BatchScriptExecutionPending,
 		BatchScriptExecutionErrored,
-		BatchScriptExecutionCancelled:
+		BatchScriptExecutionIncompatible,
+		BatchScriptExecutionCanceled:
 		return true
 	default:
 		return false
@@ -796,7 +819,9 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
+	return h.Platform == "ubuntu" ||
+		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -942,6 +967,16 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
+func (h *Host) PlatformSupportsRpmPackages() bool {
+	_, ok := HostRpmPackageOSs[h.Platform]
+	return ok
+}
+
+func (h *Host) PlatformSupportsDebPackages() bool {
+	_, ok := HostDebPackageOSs[h.Platform]
+	return ok
+}
+
 // SupportsOsquery returns whether the device runs osquery.
 func (h *Host) SupportsOsquery() bool {
 	return PlatformSupportsOsquery(h.Platform)
@@ -953,28 +988,79 @@ func PlatformSupportsOsquery(platform string) bool {
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
+// IMPORTANT: When updating this, also make sure to update HOST_LINUX_PLATFORMS in frontend code.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
+	"linux",
+	"ubuntu",
+	"debian",
+	"rhel",
+	"centos",
+	"sles",
+	"kali",
+	"gentoo",
+	"amzn",
+	"pop",
+	"arch",
+	"linuxmint",
+	"void",
+	"nixos",
+	"endeavouros",
+	"manjaro",
+	"manjaro-arm",
+	"opensuse-leap",
+	"opensuse-tumbleweed",
+	"tuxedo",
+	"neon",
+	"archarm",
+}
+
+// HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
+var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
+	"arch":        {},
+	"archarm":     {},
+	"gentoo":      {},
+	"void":        {},
+	"nixos":       {},
+	"endeavouros": {},
+	"manjaro":     {},
+	"manjaro-arm": {},
+}
+
+// HostDebPackageOSs are the list of known Linux platforms that support DEB packages
+var HostDebPackageOSs = map[string]struct{}{
+	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
+	"ubuntu":    {},
+	"debian":    {},
+	"kali":      {},
+	"pop":       {},
+	"linuxmint": {},
+	"tuxedo":    {},
+	"neon":      {},
+}
+
+// HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
+var HostRpmPackageOSs = map[string]struct{}{
+	"linux":               {}, // let RPMs through if we're looking at a generic Linux host
+	"rhel":                {},
+	"centos":              {},
+	"sles":                {},
+	"amzn":                {},
+	"opensuse-leap":       {},
+	"opensuse-tumbleweed": {},
 }
 
 func IsLinux(hostPlatform string) bool {
-	for _, linuxPlatform := range HostLinuxOSs {
-		if linuxPlatform == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(HostLinuxOSs, hostPlatform)
+}
+
+func IsApplePlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
-	for _, p := range unixLikeOSs {
-		if p == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(unixLikeOSs, hostPlatform)
 }
 
 // PlatformFromHost converts the given host platform into
@@ -1023,6 +1109,7 @@ func ExpandPlatform(platform string) []string {
 const (
 	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
 	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
+	DeviceMappingIDP                  = "idp"              // set by user via PUT /hosts/{id}/device_mapping with source=idp
 	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
 	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
 
@@ -1052,6 +1139,7 @@ type HostMDM struct {
 	ServerURL              string  `db:"server_url" json:"-" csv:"-"`
 	InstalledFromDep       bool    `db:"installed_from_dep" json:"-" csv:"-"`
 	IsServer               bool    `db:"is_server" json:"-" csv:"-"`
+	IsPersonalEnrollment   bool    `db:"is_personal_enrollment" json:"-" csv:"-"`
 	MDMID                  *uint   `db:"mdm_id" json:"-" csv:"-"`
 	Name                   string  `db:"name" json:"-" csv:"-"`
 	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
@@ -1115,7 +1203,9 @@ func MDMNameFromServerURL(serverURL string) string {
 
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
-	case h.Enrolled && !h.InstalledFromDep:
+	case h.Enrolled && !h.InstalledFromDep && h.IsPersonalEnrollment:
+		return "On (personal)"
+	case h.Enrolled && !h.InstalledFromDep && !h.IsPersonalEnrollment:
 		return "On (manual)"
 	case h.Enrolled && h.InstalledFromDep:
 		return "On (automatic)"
@@ -1191,6 +1281,7 @@ type AggregatedMunkiIssue struct {
 type AggregatedMDMStatus struct {
 	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
 	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	EnrolledPersonalHostsCount  int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
 	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
 	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
@@ -1253,10 +1344,18 @@ type VulnerableOS struct {
 	ResolvedInVersion *string `json:"resolved_in_version"`
 }
 
+// Kernel represents a Linux kernel found on a host.
+type Kernel struct {
+	ID              uint     `json:"id"`
+	Version         string   `json:"version"`
+	Vulnerabilities []string `json:"vulnerabilities"`
+	HostsCount      uint     `json:"hosts_count"`
+}
+
 type OSVersion struct {
 	// ID is the unique id of the operating system.
 	ID uint `json:"id,omitempty"`
-	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	// OSVersionID is a unique NameOnly/Version combination for the operating system.
 	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
@@ -1275,7 +1374,18 @@ type OSVersion struct {
 	// in NVD (macOS only)
 	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	// For Linux-based operating systems, these are vulnerabilities associated with the Linux kernel.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
+	// VulnerabilitiesCount is the total count of vulnerabilities for this OS version.
+	// This is useful when vulnerabilities are limited but the total count is needed.
+	VulnerabilitiesCount int `json:"vulnerabilities_count"`
+	// Kernels is a list of Linux kernels found on this operating system.
+	// This list is only populated for Linux-based operating systems.
+	// Vulnerabilities are pulled based on the software entries for the kernels.
+	// Kernels are associated based on enrolled hosts with the selected OS version.
+	// NOTE: The aggregate os_versions endpoint should not return this field.
+	// Uses a pointer to distinguish between nil (omit field) and empty slice (show as []).
+	Kernels *[]*Kernel `json:"kernels,omitempty"`
 }
 
 type HostDetailOptions struct {
@@ -1293,6 +1403,7 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
+	HostID             uint   `json:"-" db:"host_id"`
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
@@ -1301,6 +1412,7 @@ type HostMDMCheckinInfo struct {
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
 	Platform              string `json:"-" db:"platform"`
 }
 
@@ -1356,7 +1468,7 @@ type HostLite struct {
 	ID                  uint      `db:"id"`
 	TeamID              *uint     `db:"team_id"`
 	Hostname            string    `db:"hostname"`
-	OsqueryHostID       string    `db:"osquery_host_id"`
+	OsqueryHostID       *string   `db:"osquery_host_id"`
 	NodeKey             string    `db:"node_key"`
 	UUID                string    `db:"uuid"`
 	HardwareSerial      string    `db:"hardware_serial"`
@@ -1424,4 +1536,92 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// AddHostsToTeamParams contains the parameters to use when calling AddHostsToTeam.
+type AddHostsToTeamParams struct {
+	TeamID  *uint
+	HostIDs []uint
+	// A large number of hosts could be changing teams at once,
+	// so we need to batch this operation to prevent excessive locks
+	BatchSize uint
+}
+
+// NewAddHostsToTeamParams creates a new AddHostsToTeamParams instance, setting the BatchSize to a
+// sensible default.
+func NewAddHostsToTeamParams(teamID *uint, hostIDs []uint) *AddHostsToTeamParams {
+	return &AddHostsToTeamParams{
+		TeamID:    teamID,
+		HostIDs:   hostIDs,
+		BatchSize: 10_000,
+	}
+}
+
+// WithBatchSize overrides the default BatchSize with the provided value.
+func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTeamParams {
+	params.BatchSize = batchSize
+	return params
+}
+
+func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
+	if err != nil && !IsNotFound(err) {
+		return nil, fmt.Errorf("get scim user by host id: %w", err)
+	}
+
+	var endUsers []HostEndUser
+	if scimUser != nil {
+		endUser := HostEndUser{
+			IdpUserName:      scimUser.UserName,
+			IdpFullName:      scimUser.DisplayName(),
+			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
+		}
+
+		if scimUser.ExternalID != nil {
+			endUser.IdpID = *scimUser.ExternalID
+		}
+		for _, group := range scimUser.Groups {
+			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		if scimUser.Department != nil {
+			endUser.Department = *scimUser.Department
+		}
+		endUsers = append(endUsers, endUser)
+	}
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get host device mapping: %w", err)
+	}
+
+	if len(deviceMapping) > 0 {
+		endUser := HostEndUser{}
+		for _, email := range deviceMapping {
+			switch {
+			case (email.Source == DeviceMappingMDMIdpAccounts || email.Source == DeviceMappingIDP) && len(endUsers) == 0:
+				// If SCIM data is missing, we still populate IdpUserName if present.
+				// For DeviceMappingIDP source, this is the user-provided IDP username.
+				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
+				endUser.IdpUserName = email.Email
+			case email.Source != DeviceMappingMDMIdpAccounts && email.Source != DeviceMappingIDP:
+				// Only add to OtherEmails if it's not an IDP source
+				endUser.OtherEmails = append(endUser.OtherEmails, *email)
+			}
+		}
+		if len(endUsers) > 0 {
+			endUsers[0].OtherEmails = endUser.OtherEmails
+		} else {
+			endUsers = append(endUsers, endUser)
+		}
+	}
+
+	return endUsers, nil
+}
+
+// DeletedHostDetails contains details about a host that has been deleted.
+type DeletedHostDetails struct {
+	ID               uint
+	DisplayName      string
+	Serial           string
+	HostExpiryWindow int
 }

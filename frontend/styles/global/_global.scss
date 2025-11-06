@@ -4,15 +4,19 @@ html {
   // Because iOS hates us we must fight to the death!
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   // End Apple War
+  // Because scrollbar widths hate us and we must prevent it taking up viewport width
+  scrollbar-gutter: stable;
+  // Ends War with Chrome and FF only
 }
 
 body {
-  color: $core-fleet-black;
+  color: $ui-fleet-black-75;
   padding: 0;
   margin: 0;
   font-family: "Inter", sans-serif;
   font-size: $medium;
   height: 100%;
+  line-height: 1.5;
 }
 
 html,
@@ -35,6 +39,19 @@ h1,
 h2,
 h3 {
   line-height: 1.2;
+  color: $core-fleet-black;
+  font-weight: 600;
+  margin: 0;
+}
+
+h1 {
+  font-size: $large;
+  &.page-header {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    position: relative;
+  }
 }
 
 p {
@@ -43,14 +60,6 @@ p {
   // multiline paragraphs.
   line-height: 1.5;
   font-size: $x-small;
-}
-
-h1 {
-  font-size: $large;
-  font-weight: $regular;
-  letter-spacing: -0.5px;
-  color: $core-fleet-black;
-  margin: 0;
 }
 
 a {
@@ -63,7 +72,7 @@ b {
 
 .__react_component_tooltip {
   a {
-    color: $core-white;
+    color: $core-fleet-white;
   }
 }
 
@@ -84,7 +93,7 @@ form,
 .form {
   display: flex;
   flex-direction: column;
-  gap: $large;
+  gap: $gap-form;
   align-items: flex-start;
 
   > * {
@@ -93,16 +102,12 @@ form,
 
   .button-wrap {
     margin: 0;
-    margin-top: $pad-medium; // 24px gap between form fields + this additional 16px = style-guide specified 40px between form submit and above field
     display: flex;
     gap: $pad-medium;
   }
 
   .button {
     width: auto;
-    &--text-icon {
-      @include form-button-extra-clickable-area-compensation;
-    }
   }
 
   p {
@@ -118,12 +123,13 @@ form,
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: $pad-small;
+  gap: $gap-form-component;
 
   &__label {
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
+    line-height: $line-height;
 
     // compensate for height added by tooltip wrapper underline
     .component__tooltip-wrapper__underline {
@@ -133,6 +139,10 @@ form,
 
     &--error {
       color: $core-vibrant-red;
+    }
+
+    .custom-link {
+      margin-bottom: 0;
     }
   }
 
@@ -155,7 +165,7 @@ form,
     }
     code {
       color: $core-vibrant-blue;
-      background-color: $ui-light-grey;
+      background-color: $core-fleet-white;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
@@ -170,6 +180,12 @@ form,
 
   &--slider {
     margin-bottom: 0;
+  }
+
+  &:last-of-type {
+    &.form-field--checkbox {
+      gap: 0;
+    }
   }
 }
 
@@ -198,7 +214,7 @@ input {
 pre {
   padding: $pad-large;
   background-color: $core-fleet-black;
-  color: $core-white;
+  color: $core-fleet-white;
   border-radius: 4px;
   white-space: pre-wrap;
 
@@ -215,7 +231,7 @@ pre {
     color: magenta;
   }
   .key {
-    color: $core-white;
+    color: $core-fleet-white;
   }
 }
 
@@ -227,6 +243,7 @@ hr {
 }
 
 dl {
+  @include vertical-data-set-layout;
   margin: 0;
   padding: 0;
 }

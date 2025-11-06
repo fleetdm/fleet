@@ -2,11 +2,11 @@ package fleet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,34 +28,6 @@ type SoftwareInstallerStore interface {
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 	Sign(ctx context.Context, fileID string) (string, error)
-}
-
-// FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
-// that fails all operations. It is used when S3 is not configured and the
-// local filesystem store could not be setup.
-type FailingSoftwareInstallerStore struct{}
-
-func (FailingSoftwareInstallerStore) Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error) {
-	return nil, 0, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Put(ctx context.Context, installerID string, content io.ReadSeeker) error {
-	return errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID string) (bool, error) {
-	return false, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
-	// do not fail for the failing store's cleanup, as unlike the other store
-	// methods, this will be called even if software installers are otherwise not
-	// used (by the cron job).
-	return 0, nil
-}
-
-func (FailingSoftwareInstallerStore) Sign(_ context.Context, _ string) (string, error) {
-	return "", errors.New("software installer store not properly configured")
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -80,6 +52,8 @@ type SoftwareInstallDetails struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// SoftwareInstallerURL contains the details to download the software installer from CDN.
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
+	MaxRetries uint `json:"max_retries,omitempty"`
 }
 
 type SoftwareInstallerURL struct {
@@ -99,6 +73,8 @@ type SoftwareInstaller struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Extension is the file extension of the software package, inferred from package contents.
 	Extension string `json:"-" db:"extension"`
 	// Version is the version of the software package.
@@ -107,6 +83,8 @@ type SoftwareInstaller struct {
 	Platform string `json:"platform" db:"platform"`
 	// PackageIDList is a comma-separated list of packages extracted from the installer
 	PackageIDList string `json:"-" db:"package_ids"`
+	// UpgradeCode is the (optional) upgrade code included in an MSI
+	UpgradeCode string `json:"-" db:"upgrade_code"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -150,6 +128,8 @@ type SoftwareInstaller struct {
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
 	Categories []string `json:"categories"`
+
+	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -165,7 +145,30 @@ type SoftwarePackageResponse struct {
 	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
 	// ID of the Fleet Maintained App this package uses, if any
 	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+
+	//// Custom icon fields (blank if not set)
+
+	// IconHash is the SHA256 hash of the icon server-side
+	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
+	// IconFilename is the filename of the icon server-side
+	IconFilename string `json:"icon_filename" db:"icon_filename"`
+	// LocalIconHash is the SHA256 hash of the icon specified in YAML
+	LocalIconHash string `json:"-" db:"-"`
+	// LocalIconPath is the path to the icon specified in YAML
+	LocalIconPath string `json:"-" db:"-"`
 }
+
+func (p SoftwarePackageResponse) GetTeamID() uint {
+	if p.TeamID == nil {
+		return 0
+	}
+	return *p.TeamID
+}
+func (p SoftwarePackageResponse) GetTitleID() *uint        { return p.TitleID }
+func (p SoftwarePackageResponse) GetIconHash() string      { return p.IconHash }
+func (p SoftwarePackageResponse) GetIconFilename() string  { return p.IconFilename }
+func (p SoftwarePackageResponse) GetLocalIconHash() string { return p.LocalIconHash }
+func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconPath }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
@@ -178,6 +181,123 @@ type VPPAppResponse struct {
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
 	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+
+	//// Custom icon fields (blank if not set)
+
+	// IconHash is the SHA256 hash of the icon server-side
+	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
+	// IconFilename is the filename of the icon server-side
+	IconFilename string `json:"icon_filename" db:"icon_filename"`
+	// LocalIconHash is the SHA256 hash of the icon specified in YAML
+	LocalIconHash string `json:"-" db:"-"`
+	// LocalIconPath is the path to the icon specified in YAML
+	LocalIconPath string `json:"-" db:"-"`
+}
+
+func (v VPPAppResponse) GetTeamID() uint {
+	if v.TeamID == nil {
+		return 0
+	}
+	return *v.TeamID
+}
+func (v VPPAppResponse) GetTitleID() *uint        { return v.TitleID }
+func (v VPPAppResponse) GetIconHash() string      { return v.IconHash }
+func (v VPPAppResponse) GetIconFilename() string  { return v.IconFilename }
+func (v VPPAppResponse) GetLocalIconHash() string { return v.LocalIconHash }
+func (v VPPAppResponse) GetLocalIconPath() string { return v.LocalIconPath }
+
+type CanHaveSoftwareIcon interface {
+	GetTeamID() uint
+	GetTitleID() *uint
+	GetIconHash() string
+	GetIconFilename() string
+	GetLocalIconHash() string
+	GetLocalIconPath() string
+}
+
+type IconFileUpdate struct {
+	TitleID uint
+	Path    string
+}
+type IconMetaUpdate struct {
+	TitleID uint
+	Path    string
+	Hash    string
+}
+
+type IconGitOpsSettings struct {
+	ConcurrentUploads int
+	ConcurrentUpdates int
+	UploadedHashes    []string
+}
+type IconChanges struct {
+	TeamID                    uint
+	UploadedHashes            []string
+	IconsToUpload             []IconFileUpdate
+	IconsToUpdate             []IconMetaUpdate
+	TitleIDsToRemoveIconsFrom []uint
+}
+
+func (c IconChanges) WithUploadedHashes(hashes []string) IconChanges {
+	c.UploadedHashes = append(c.UploadedHashes, hashes...)
+
+	return c
+}
+
+func (c IconChanges) WithSoftware(packages []SoftwarePackageResponse, vppApps []VPPAppResponse) IconChanges {
+	// build a slice of software to avoid copypasta
+	software := make([]CanHaveSoftwareIcon, 0, len(packages)+len(vppApps))
+	for i := range packages {
+		software = append(software, packages[i])
+	}
+	for i := range vppApps {
+		software = append(software, vppApps[i])
+	}
+
+	// don't (duplicate) upload (of) icons that we don't need to
+	for _, sw := range software {
+		teamID := sw.GetTeamID()
+		if teamID != 0 {
+			c.TeamID = teamID
+		}
+
+		if h := sw.GetIconHash(); h != "" && !slices.Contains(c.UploadedHashes, h) {
+			c.UploadedHashes = append(c.UploadedHashes, h)
+		}
+	}
+
+	for _, sw := range software {
+		if sw.GetTitleID() == nil {
+			continue
+		}
+
+		localHash := sw.GetLocalIconHash()
+		if localHash == "" { // desired state: no custom icon
+			if h := sw.GetIconHash(); h != "" {
+				c.TitleIDsToRemoveIconsFrom = append(c.TitleIDsToRemoveIconsFrom, *sw.GetTitleID())
+			}
+			continue
+		} // else local icon hash is set
+
+		localPath := sw.GetLocalIconPath()
+		if localHash == sw.GetIconHash() && filepath.Base(localPath) == sw.GetIconFilename() {
+			continue // no-op; icons match
+		} // else we need to either upload the icon or point the software title to it
+
+		if !slices.Contains(c.UploadedHashes, localHash) { // icon wasn't uploaded so we need to upload it
+			c.IconsToUpload = append(c.IconsToUpload, IconFileUpdate{TitleID: *sw.GetTitleID(), Path: localPath})
+			c.UploadedHashes = append(c.UploadedHashes, localHash) // only upload a given icon once
+			continue
+		} // else we have the icon server-side already and just need to update the name
+
+		c.IconsToUpdate = append(c.IconsToUpdate, IconMetaUpdate{
+			TitleID: *sw.GetTitleID(),
+			Path:    localPath,
+			Hash:    localHash,
+		})
+	}
+
+	return c
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -260,6 +380,8 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
+	// Source is the osquery source for this software (e.g., "sh_packages", "ps1_packages").
+	Source *string `json:"source" db:"source"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
@@ -378,6 +500,7 @@ type UploadSoftwareInstallerPayload struct {
 	URL                  string
 	FleetMaintainedAppID *uint
 	PackageIDs           []string
+	UpgradeCode          string
 	UninstallScript      string
 	Extension            string
 	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
@@ -432,6 +555,7 @@ type UpdateSoftwareInstallerPayload struct {
 	Filename          string
 	Version           string
 	PackageIDs        []string
+	UpgradeCode       string
 	LabelsIncludeAny  []string // names of "include any" labels
 	LabelsExcludeAny  []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
@@ -439,6 +563,8 @@ type UpdateSoftwareInstallerPayload struct {
 	ValidatedLabels *LabelIdentsWithScope
 	Categories      []string
 	CategoryIDs     []uint
+	// DisplayName is an end-user friendly name.
+	DisplayName string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -464,6 +590,12 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "pkg_packages", nil
 	case "tar.gz":
 		return "tgz_packages", nil
+	case "ipa":
+		return "ipa", nil
+	case "sh":
+		return "sh_packages", nil
+	case "ps1":
+		return "ps1_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -472,15 +604,24 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm", "tar.gz":
+	case "deb", "rpm", "tar.gz", "sh":
 		return "linux", nil
-	case "exe", "msi":
+	case "exe", "msi", "ps1":
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
+	case "ipa": // TODO(JVE): what about iPads? Can we get the platforms from the Info.plist file?
+		return "ios", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
+}
+
+// IsScriptPackage returns true if the extension represents a script package
+// (.sh or .ps1 files where the file contents become the install script).
+func IsScriptPackage(ext string) bool {
+	ext = strings.TrimPrefix(ext, ".")
+	return ext == "sh" || ext == "ps1"
 }
 
 // HostSoftwareWithInstaller represents the list of software installed on a
@@ -489,9 +630,12 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
+	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
+	DisplayName       string                          `json:"display_name" db:"display_name"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.
@@ -508,6 +652,18 @@ func (h *HostSoftwareWithInstaller) IsPackage() bool {
 
 func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
 	return h.AppStoreApp != nil
+}
+
+func (h *HostSoftwareWithInstaller) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if h.IconUrl != nil && *h.IconUrl != "" {
+		matched := SoftwareTitleIconURLRegex.MatchString(*h.IconUrl)
+		if matched {
+			icon := SoftwareTitleIcon{SoftwareTitleID: h.ID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			h.IconUrl = ptr.String(deviceIconURL)
+		}
+	}
 }
 
 type AutomaticInstallPolicy struct {
@@ -530,7 +686,6 @@ type SoftwarePackageOrApp struct {
 	Version       string                 `json:"version"`
 	Platform      string                 `json:"platform"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
-	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`
@@ -542,18 +697,19 @@ type SoftwarePackageOrApp struct {
 }
 
 type SoftwarePackageSpec struct {
-	URL               string                `json:"url"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+	URL                string                `json:"url"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
 
 	// FMA
-	Slug             *string `json:"slug"`
-	AutomaticInstall *bool   `json:"automatic_install"`
+	Slug *string `json:"slug"`
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
@@ -568,19 +724,72 @@ type SoftwarePackageSpec struct {
 	Categories         []string `json:"categories"`
 }
 
-type FleetMaintainedAppsSpec struct {
-	Slug             string   `json:"slug"`
-	AutomaticInstall *bool    `json:"automatic_install"`
-	SelfService      bool     `json:"self_service"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
-	Categories       []string `json:"categories"`
+func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {
+	spec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, spec.PreInstallQuery.Path)
+	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
+	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
+	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+
+	return spec
+}
+
+func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
+		spec.SelfService || spec.InstallDuringSetup.Valid
+}
+
+func resolveApplyRelativePath(baseDir string, path string) string {
+	if path != "" && baseDir != "" && !filepath.IsAbs(path) {
+		return filepath.Join(baseDir, path)
+	}
+
+	return path
+}
+
+type MaintainedAppSpec struct {
+	Slug               string                `json:"slug"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	Categories         []string              `json:"categories"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
+}
+
+func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
+	return SoftwarePackageSpec{
+		Slug:               &spec.Slug,
+		PreInstallQuery:    spec.PreInstallQuery,
+		InstallScript:      spec.InstallScript,
+		PostInstallScript:  spec.PostInstallScript,
+		UninstallScript:    spec.UninstallScript,
+		SelfService:        spec.SelfService,
+		LabelsIncludeAny:   spec.LabelsIncludeAny,
+		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		InstallDuringSetup: spec.InstallDuringSetup,
+		Icon:               spec.Icon,
+	}
+}
+
+func (spec MaintainedAppSpec) ResolveSoftwarePackagePaths(baseDir string) MaintainedAppSpec {
+	spec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, spec.PreInstallQuery.Path)
+	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
+	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
+	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+
+	return spec
 }
 
 type SoftwareSpec struct {
-	Packages            optjson.Slice[SoftwarePackageSpec]     `json:"packages,omitempty"`
-	FleetMaintainedApps optjson.Slice[FleetMaintainedAppsSpec] `json:"fleet_maintained_apps,omitempty"`
-	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
+	FleetMaintainedApps optjson.Slice[MaintainedAppSpec]   `json:"fleet_maintained_apps,omitempty"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
@@ -634,6 +843,11 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+
+	// RetriesRemaining indicates how many retries are left for this installation.
+	// When > 0, the server should treat this as an intermediate failure and assume
+	// another attempt is in progress. This field helps make retry handling idempotent.
+	RetriesRemaining uint `json:"retries_remaining,omitempty"`
 }
 
 // Status returns the status computed from the result payload. It should match the logic

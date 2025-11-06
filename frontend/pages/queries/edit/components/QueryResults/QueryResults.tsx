@@ -185,7 +185,7 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Show query <Icon name="eye" />
@@ -198,11 +198,11 @@ const QueryResults = ({
               ? onExportErrorsResults
               : onExportQueryResults
           }
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export {tableType}
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" />
           </>
         </Button>
       </div>
@@ -295,7 +295,7 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              <TabText count={errors?.length} isErrorCount>
+              <TabText count={errors?.length} countVariant="alert">
                 {NAV_TITLES.ERRORS}
               </TabText>
             </Tab>

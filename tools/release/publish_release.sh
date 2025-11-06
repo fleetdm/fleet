@@ -501,6 +501,10 @@ tag() {
         git tag $next_tag
         git push origin $next_tag
 
+        # The v4.XX.YY tag is used for publishing Fleet's Go module (https://go.dev/doc/modules/publishing).
+        git tag $next_ver
+        git push origin $next_ver
+
         # This lets us wait for github actions to trigger
         # we are specifically waiting for goreleaser to start
         # off the `tag` branch ie: fleet-v4.47.2 to watch until it completes
@@ -531,10 +535,22 @@ publish() {
             gh release edit --draft=false --latest $next_tag
 
             if [ "$skip_deploy_dogfood" = "false" ]; then
-                gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+                if [ "$force" = "false" ]; then
+                    read -r -p "Are you ABSOLUTELY SURE you want to deploy to Dogfood right now?? Check for demo's: [y/n]" response
+                        case "$response" in
+                                [yY][eE][sS]|[yY])
+                                        gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+                                        show_spinner 200
+                                        dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
+                                        echo
+                                        ;;
+                                *)
+                                        dogfood_deploy="skipped"
+                                        echo
+                                        ;;
+                        esac
+                fi
             fi
-            show_spinner 200
-            dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
             latest_npm=$(npm view fleetctl --json | jq -r '.version' | sed -e 's/^v//')
             latest_local=$(jq -r '.version' tools/fleetctl-npm/package.json | sed -e 's/^v//')
 
@@ -547,7 +563,7 @@ publish() {
             fi
 
 
-            issues=$(gh issue list -m $target_milestone --json number | jq -r '.[] | .number')
+            issues=$(gh issue list -L 500 -m $target_milestone --json number | jq -r '.[] | .number')
             for iss in $issues; do
                 is_story=$(gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story)
                 # close all non-stories
@@ -735,7 +751,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 
     total_prs=()
 
-    issue_list=$(gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
+    issue_list=$(gh issue list -L 500 --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
 
     if [[ "$issue_list" == "" && "$dry_run" == "false" ]]; then
         echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
@@ -852,6 +868,8 @@ if [[ "$failed" == "false" ]]; then
         git checkout main 
         git pull origin main
         ask "Are you on main? [y/n]"
+        changelog_and_versions "$update_changelog_prepare_branch"-main main
+        git checkout $target_branch
     else
         echo "DRYRUN: Would have switched to main and pulled latest"
     fi

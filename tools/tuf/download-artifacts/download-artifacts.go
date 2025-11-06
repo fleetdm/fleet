@@ -230,7 +230,7 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 		}
 	} else {
 		// Create all needed directories
-		if os.MkdirAll(filepath.Dir(finalPath), 0o755) != nil {
+		if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
 			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
 		}
 
@@ -281,11 +281,27 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 			break
 		}
 		fmt.Printf("Workflow not available yet, it might be queued, retrying in 60s...\n")
+		fmt.Printf("Looking for workflow: %s\n", workflowName)
+		fmt.Printf("Looking for branch/tag: %s\n", headBranch)
+		fmt.Printf("Recent workflow runs found:\n")
+		for i, wr := range workflowRuns.WorkflowRuns {
+			if i >= 5 {
+				break
+			}
+			fmt.Printf("  - Branch: %s, Status: %s, Conclusion: %s, URL: %s\n", *wr.HeadBranch, *wr.Status, wr.GetConclusion(), *wr.HTMLURL)
+		}
 		time.Sleep(60 * time.Second)
 	}
 	if workflowRun == nil {
 		return fmt.Errorf("workflow with tag %s not found", headBranch)
 	}
+	fmt.Printf("Found workflow run:\n")
+	fmt.Printf("  Workflow: %s\n", workflowName)
+	fmt.Printf("  Branch/Tag: %s\n", headBranch)
+	fmt.Printf("  Run ID: %d\n", *workflowRun.ID)
+	fmt.Printf("  Status: %s\n", *workflowRun.Status)
+	fmt.Printf("  Conclusion: %s\n", workflowRun.GetConclusion())
+	fmt.Printf("  URL: %s\n", *workflowRun.HTMLURL)
 	var urls map[string]string
 	for {
 		artifactList, _, err := gc.Actions.ListWorkflowRunArtifacts(ctx, "fleetdm", "fleet", *workflowRun.ID, nil)
@@ -313,6 +329,24 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 			break
 		}
 		fmt.Printf("All artifacts are not available yet, the workflow might still be running, retrying in 60s...\n")
+		fmt.Printf("Workflow Run ID: %d\n", *workflowRun.ID)
+		fmt.Printf("Workflow Run URL: %s\n", *workflowRun.HTMLURL)
+		fmt.Printf("Artifacts found (%d/5):\n", len(urls))
+		for platform := range urls {
+			fmt.Printf("  ✓ %s (%s)\n", platform, artifactNames[platform])
+		}
+		var missing []string
+		for platform, artifactName := range artifactNames {
+			if _, found := urls[platform]; !found {
+				missing = append(missing, fmt.Sprintf("  ✗ %s (%s)", platform, artifactName))
+			}
+		}
+		if len(missing) > 0 {
+			fmt.Printf("Artifacts missing:\n")
+			for _, m := range missing {
+				fmt.Printf("%s\n", m)
+			}
+		}
 		time.Sleep(60 * time.Second)
 	}
 	if len(urls) != 5 {
