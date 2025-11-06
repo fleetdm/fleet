@@ -6,5 +6,6 @@
    "installer_format": "pkg",
    "default_categories": [
       "Productivity"
-   ]
+   ],
+   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/chatgpt-install.sh"
 }
