@@ -587,6 +587,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [Edit certificate authority (CA)](#edit-certificate-authority-ca)
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
+- [Get certificate](#get-certificate)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Request certificate](#request-certificate)
 
@@ -800,6 +801,54 @@ Get details of the certificate authority.
     "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+}
+```
+
+### Get certificate
+
+Get details of the certificate added to Fleet.
+
+`GET /api/v1/fleet/certificates/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | path | **Required**. The ID of the certificate. |
+| host_id   | integer | query | ID of the host.If included, variables in `subject_name` will be replaced with host's values. |
+
+#### Request headers
+
+This endpoint accepts node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
+
+The `Authorization` header must be formatted as follows:
+
+```
+Authorization: Node key <node_key>
+```
+
+#### Example
+
+`GET /api/v1/fleet/certificates/1`
+
+##### Request headers
+
+```http
+Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authority_id": 2,
+  "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+  "created_at": "2025-11-04T00:00:00Z",
+  "id": 1,
+  "name": "wifi-certificate",
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 }
 ```
 
