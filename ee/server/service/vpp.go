@@ -352,7 +352,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	// Validate platform
 	if appID.Platform == "" {
-		return 0, fleet.NewInvalidArgumentError("platform", "platform is required")
+		appID.Platform = fleet.MacOSPlatform
 	}
 
 	if !appID.Platform.IsValidInstallableDevicePlatform() {
