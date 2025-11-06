@@ -819,7 +819,7 @@ Get details of the certificate added to Fleet.
 
 #### Request headers
 
-This endpoint accepts node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with Bearer token.
+This endpoint accepts the node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with a Bearer token.
 
 The `Authorization` header must be formatted as follows:
 
