@@ -1,4 +1,4 @@
-# Fleet 4.76.0 | TODO
+# Fleet 4.76.0 | Self-service scripts, JetBrains/Cursor/Windsurf vulnerabilities, and more
 
 <div purpose="embedded-content">
    <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
@@ -8,11 +8,33 @@ Fleet 4.76.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- TODO
+- Self-service scripts
+- Vulnerabilities for Cursor, Windsurf, and JetBrains extensions
+- Improved macOS, iOS, and iPadOS setup experience
+- Android software inventory
+- Lock (Lost Mode) for iOS and iPadOS
 
-### TODO
+### Self-service scripts
 
-TODO
+You can now create custom Linux and Windows packages that include just a script (aka payload-free packages). This is perfect for self-service utilities or bundling multiple scripts as part of your out-of-the-box setup experience. TODO
+
+### Vulnerabilities for JetBrains, Cursor, and Windsurf extensions
+
+Vulnerabilities (CVEs) in all Cursor, Windsurf, other VSCode forks, and JetBrains IDE extensions now show up in the **Software**, **Host details**, and **My device** pages. Gain better coverage of high-risk developer tools.
+
+### Improved macOS, iOS, and iPadOS setup experience
+
+During out-of-the-box macOS setup, if critical software fails to install during setup, Fleet now cancels the process and shows an error. This ensures end users run through setup again and, if they're still running into issues, contact IT before moving forward. This helps avoid misconfigured hosts in production.
+
+For iOS and iPadoS, installing apps on company-owned iPhones and iPads during enrollment is now supported. Perfect for instantly setting up kiosk devices, shared iPads, or Zoom rooms without manual intervention.
+
+### Android software inventory
+
+You can now see applications installed in the work profile on personally-owned (BYOD) Android hosts. This gives you visibility into the apps users install within their managed workspace.
+
+### Lock (Lost Mode) for iOS and iPadOS
+
+You can now remotely enable or disable [Lost Mode](https://support.apple.com/guide/security/managed-lost-mode-and-remote-wipe-secc46f3562c/web#:~:text=locked%20or%20erased.-,Managed%20Lost%20Mode,-If%20a%20supervised) on company-owned iPhones and iPads. If a host goes missing, you can lock it down fast and protect sensitive data.
 
 ## Changes
 
