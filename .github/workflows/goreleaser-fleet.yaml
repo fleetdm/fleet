@@ -3,7 +3,7 @@ name: goreleaser
 on:
   push:
     tags:
-      - "fleet-v*"
+      - "fleet-*"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:

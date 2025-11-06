@@ -8,7 +8,7 @@ name: Publish go module
 on:
   push:
     tags:
-      - "v4.*"
+      - "fleet-v*"
 
 defaults:
   run:
