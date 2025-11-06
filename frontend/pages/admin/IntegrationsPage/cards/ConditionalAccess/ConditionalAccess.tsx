@@ -24,32 +24,56 @@ import { IConfig } from "interfaces/config";
 
 import IntegrationCard from "./components/IntegrationCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
+import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
 
 const baseClass = "conditional-access";
 
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
-  onDelete: () => void;
+  onDelete: (config: IConfig) => void;
+  provider: "microsoft-entra" | "okta";
 }
 
 const DeleteConditionalAccessModal = ({
   toggleDeleteConditionalAccessModal,
   onDelete,
+  provider,
 }: IDeleteConditionalAccessModal) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const providerName =
+    provider === "microsoft-entra" ? "Microsoft Entra" : "Okta";
 
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
-      renderFlash("success", "Successfully disconnected from Microsoft Entra.");
+      let updatedConfig;
+      if (provider === "microsoft-entra") {
+        await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
+        updatedConfig = await configAPI.loadAll();
+      } else {
+        // For Okta, clear all fields via config API
+        updatedConfig = await configAPI.update({
+          conditional_access: {
+            okta_idp_id: "",
+            okta_assertion_consumer_service_url: "",
+            okta_audience_uri: "",
+            okta_certificate: "",
+            // Preserve existing Microsoft Entra settings
+            microsoft_entra_tenant_id:
+              config?.conditional_access?.microsoft_entra_tenant_id || "",
+          },
+        });
+      }
+      renderFlash("success", `Successfully disconnected from ${providerName}.`);
       toggleDeleteConditionalAccessModal();
-      onDelete();
+      onDelete(updatedConfig);
     } catch {
       renderFlash(
         "error",
-        "Could not disconnect from Microsoft Entra, please try again."
+        `Could not disconnect from ${providerName}, please try again.`
       );
     }
     setIsDeleting(false);
@@ -59,11 +83,11 @@ const DeleteConditionalAccessModal = ({
     <Modal
       title="Delete"
       onExit={toggleDeleteConditionalAccessModal}
-      onEnter={onDelete}
+      onEnter={handleDelete}
     >
       <>
         <p>
-          Fleet will be disconnected from Microsoft Entra and will stop blocking
+          Fleet will be disconnected from {providerName} and will stop blocking
           end users from logging in with single sign-on.
         </p>
         <div className="modal-cta-wrap">
@@ -110,7 +134,11 @@ const ConditionalAccess = () => {
 
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
+  const [showOktaModal, setShowOktaModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteProvider, setDeleteProvider] = useState<
+    "microsoft-entra" | "okta"
+  >("microsoft-entra");
 
   // Banner state - shows after form submission, before page refresh
   const [showAwaitingOAuthBanner, setShowAwaitingOAuthBanner] = useState(false);
@@ -122,19 +150,15 @@ const ConditionalAccess = () => {
 
   // see frontend/docs/patterns.md > ### Reading and updating configs for why this is atypical
 
-  const { refetch: refetchConfig } = useQuery<IConfig, Error, IConfig>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      select: (data: IConfig) => data,
-      enabled: isUpdating,
-      onSuccess: (_config) => {
-        setConfig(_config);
-        setIsUpdating(false);
-      },
-      ...DEFAULT_USE_QUERY_OPTIONS,
-    }
-  );
+  useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+    select: (data: IConfig) => data,
+    enabled: isUpdating,
+    onSuccess: (_config) => {
+      setConfig(_config);
+      setIsUpdating(false);
+    },
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
 
   // "loading" state here is encompassed by phase === Phase.ConfirmingConfigured state, don't need
   // to use useQuery's
@@ -260,13 +284,32 @@ const ConditionalAccess = () => {
     setShowAwaitingOAuthBanner(true);
   };
 
-  const onDeleteConditionalAccess = () => {
-    setIsUpdating(true);
-    refetchConfig();
+  const onDeleteConditionalAccess = (updatedConfig: IConfig) => {
+    setConfig(updatedConfig);
+    setIsUpdating(false);
   };
 
   const handleOktaConnect = () => {
-    // Placeholder for Phase 2 - will be implemented with Okta modal
+    setShowOktaModal(true);
+  };
+
+  const handleOktaModalClose = () => {
+    setShowOktaModal(false);
+  };
+
+  const handleOktaModalSuccess = (updatedConfig: IConfig) => {
+    setShowOktaModal(false);
+    setConfig(updatedConfig);
+  };
+
+  const handleEntraDelete = () => {
+    setDeleteProvider("microsoft-entra");
+    setShowDeleteModal(true);
+  };
+
+  const handleOktaDelete = () => {
+    setDeleteProvider("okta");
+    setShowDeleteModal(true);
   };
 
   // RENDER
@@ -289,7 +332,7 @@ const ConditionalAccess = () => {
           isConfigured={oktaConfigured}
           onConnect={handleOktaConnect}
           onEdit={handleOktaConnect}
-          onDelete={handleOktaConnect}
+          onDelete={handleOktaDelete}
         />
         <IntegrationCard
           provider="microsoft-entra"
@@ -303,7 +346,7 @@ const ConditionalAccess = () => {
           isPending={showAwaitingOAuthBanner}
           isLoading={isUpdating}
           onConnect={handleEntraConnect}
-          onDelete={toggleDeleteModal}
+          onDelete={handleEntraDelete}
         />
       </div>
     );
@@ -324,10 +367,17 @@ const ConditionalAccess = () => {
           onSuccess={handleEntraModalSuccess}
         />
       )}
+      {showOktaModal && (
+        <OktaConditionalAccessModal
+          onCancel={handleOktaModalClose}
+          onSuccess={handleOktaModalSuccess}
+        />
+      )}
       {showDeleteModal && (
         <DeleteConditionalAccessModal
           onDelete={onDeleteConditionalAccess}
           toggleDeleteConditionalAccessModal={toggleDeleteModal}
+          provider={deleteProvider}
         />
       )}
     </div>

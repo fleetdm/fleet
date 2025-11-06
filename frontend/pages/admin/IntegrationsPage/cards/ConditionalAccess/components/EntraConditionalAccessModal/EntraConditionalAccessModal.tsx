@@ -115,7 +115,6 @@ const EntraConditionalAccessModal = ({
               text="guide"
               newTab
             />
-            .
           </p>
           <InputField
             label="Microsoft Entra tenant ID"
