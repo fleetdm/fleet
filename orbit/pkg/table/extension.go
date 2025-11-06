@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_listening_servers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/yaml_to_json"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -165,6 +166,8 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 				return mcp_listening_servers.Generate(ctx, queryContext, opts.Socket)
 			},
 		),
+
+		table.NewPlugin("yaml_to_json", yaml_to_json.Columns(), yaml_to_json.GenerateFunc),
 	}
 	return plugins
 }
