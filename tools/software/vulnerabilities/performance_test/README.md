@@ -21,7 +21,6 @@ go run seeder/volume_vuln_seeder.go [options]
 - `-cves=N` - Total number of unique CVEs in the system (default: 500)
 - `-software=N` - Total number of unique software packages (default: 500)
 - `-help` - Show help information
-- `-profile=FILE` - Enable CPU profiling and save to file (e.g. 'cpu.prof')
 - `-verbose` - Enable verbose timing output for each step
 
 **Example:**

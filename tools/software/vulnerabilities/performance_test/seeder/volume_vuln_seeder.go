@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
-	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func retryOnDeadlock(operation func() error, maxRetries int) error {
@@ -33,6 +32,7 @@ func retryOnDeadlock(operation func() error, maxRetries int) error {
 		if strings.Contains(err.Error(), "Deadlock found") || strings.Contains(err.Error(), "1213") {
 			if attempt < maxRetries {
 				// Exponential backoff with jitter
+				// #nosec G404 - weak random is acceptable for retry backoff
 				backoff := time.Duration(10+rand.Intn(50)) * time.Millisecond * time.Duration(1<<attempt)
 				time.Sleep(backoff)
 				continue
@@ -71,24 +71,6 @@ var cvePatterns = []string{
 	"CVE-2024-%04d", "CVE-2023-%04d", "CVE-2022-%04d", "CVE-2021-%04d",
 }
 
-func createTestHost(ctx context.Context, ds *mysql.Datastore, identifier string, teamID *uint) (*fleet.Host, error) {
-	base := fleet.Host{
-		UUID:            identifier,
-		Hostname:        identifier,
-		NodeKey:         ptr.String(identifier),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		PrimaryIP:       "192.168.1.100",
-		PrimaryMac:      "00:11:22:33:44:55",
-		Platform:        "ubuntu",
-		OSVersion:       "Ubuntu 20.04.6 LTS",
-		TeamID:          teamID,
-	}
-	return ds.NewHost(ctx, &base)
-}
-
 // batchCreateHosts creates multiple hosts in batches for better performance
 func batchCreateHosts(ctx context.Context, ds *mysql.Datastore, hostCount int, teams []*fleet.Team, verbose bool) ([]*fleet.Host, error) {
 	batchSize := 100 // Insert 100 hosts per transaction
@@ -122,27 +104,27 @@ func batchCreateHosts(ctx context.Context, ds *mysql.Datastore, hostCount int, t
 			osqueryHostID := fmt.Sprintf("osquery-host-%d", i)
 			placeholders = append(placeholders, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
-				osqueryHostID, // osquery_host_id
-				now,           // detail_updated_at
-				now,           // label_updated_at
-				now,           // policy_updated_at
-				identifier,    // node_key
-				identifier,    // hostname
-				identifier,    // computer_name
-				identifier,    // uuid
-				"ubuntu",      // platform
-				"",            // platform_like
-				"",            // osquery_version
+				osqueryHostID,        // osquery_host_id
+				now,                  // detail_updated_at
+				now,                  // label_updated_at
+				now,                  // policy_updated_at
+				identifier,           // node_key
+				identifier,           // hostname
+				identifier,           // computer_name
+				identifier,           // uuid
+				"ubuntu",             // platform
+				"",                   // platform_like
+				"",                   // osquery_version
 				"Ubuntu 20.04.6 LTS", // os_version
-				0,             // uptime
-				0,             // memory
-				teamID,        // team_id
-				0,             // distributed_interval
-				0,             // logger_tls_period
-				0,             // config_tls_refresh
-				false,         // refetch_requested
-				"",            // hardware_serial
-				nil,           // refetch_critical_queries_until (can be NULL)
+				0,                    // uptime
+				0,                    // memory
+				teamID,               // team_id
+				0,                    // distributed_interval
+				0,                    // logger_tls_period
+				0,                    // config_tls_refresh
+				false,                // refetch_requested
+				"",                   // hardware_serial
+				nil,                  // refetch_critical_queries_until (can be NULL)
 			)
 		}
 
@@ -325,6 +307,7 @@ func batchInstallSoftware(ctx context.Context, ds *mysql.Datastore, hosts []*fle
 			host := hosts[i]
 
 			// Each host gets 20-80% of the software
+			// #nosec G404 - weak random is acceptable for test data generation
 			pct := 0.2 + rand.Float64()*0.6
 			hostSoftwareCount := int(float64(len(vulnerableSoftware)) * pct)
 
@@ -393,7 +376,8 @@ func generateVulnerableSoftware(softwareCount int) []fleet.Software {
 	for i := range softwareCount {
 		// Create vulnerable software
 		software = append(software, fleet.Software{
-			Name:    fmt.Sprintf("vulnerable-package-%d", i),
+			Name: fmt.Sprintf("vulnerable-package-%d", i),
+			// #nosec G404 - weak random is acceptable for test data generation
 			Version: fmt.Sprintf("1.%d.0", rand.Intn(100)),
 			Source:  "Package (deb)",
 		})
@@ -405,7 +389,9 @@ func generateVulnerableSoftware(softwareCount int) []fleet.Software {
 func generateCVEs(cveCount int) []string {
 	var cves []string
 	for i := 0; i < cveCount; i++ {
+		// #nosec G404 - weak random is acceptable for test data generation
 		yearIdx := rand.Intn(len(cvePatterns))
+		// #nosec G404 - weak random is acceptable for test data generation
 		cveID := fmt.Sprintf(cvePatterns[yearIdx], rand.Intn(9999)+1)
 		cves = append(cves, cveID)
 	}
@@ -441,12 +427,13 @@ func seedSoftwareCVEs(ctx context.Context, ds *mysql.Datastore, cves []string) e
 	}
 
 	if len(softwareIDs) == 0 {
-		return fmt.Errorf("no software found - run seedVulnerabilities first")
+		return errors.New("no software found - run seedVulnerabilities first")
 	}
 
 	// Insert software_cve mappings
 	for i, cve := range cves {
 		// Each CVE affects 1-3 software packages
+		// #nosec G404 - weak random is acceptable for test data generation
 		affectedCount := 1 + rand.Intn(3)
 		for j := 0; j < affectedCount && j < len(softwareIDs); j++ {
 			softwareID := softwareIDs[(i+j)%len(softwareIDs)]
@@ -513,6 +500,7 @@ func seedOSVulnerabilities(ctx context.Context, ds *mysql.Datastore, cves []stri
 
 	// Insert OS vulnerabilities (about 30% of CVEs affect OS)
 	for i, cve := range cves {
+		// #nosec G404 - weak random is acceptable for test data generation
 		if rand.Float64() < 0.3 { // 30% chance this CVE affects OS
 			osID := osIDs[i%len(osIDs)]
 			err := retryOnDeadlock(func() error {
@@ -606,7 +594,6 @@ func seedVulnerabilities(ctx context.Context, ds *mysql.Datastore, hostCount, te
 	return nil
 }
 
-
 func main() {
 	var (
 		hostCount     = flag.Int("hosts", 100, "Number of hosts to create")
@@ -614,7 +601,6 @@ func main() {
 		cveCount      = flag.Int("cves", 500, "Total number of unique CVEs in the system")
 		softwareCount = flag.Int("software", 500, "Total number of unique software packages (each host gets 20-80% randomly)")
 		help          = flag.Bool("help", false, "Show help information")
-		profile       = flag.String("profile", "", "Enable CPU profiling and save to file (e.g. 'cpu.prof')")
 		verbose       = flag.Bool("verbose", false, "Enable verbose timing output for each step")
 	)
 	flag.Parse()
@@ -637,20 +623,6 @@ func main() {
 		fmt.Printf("\n")
 		flag.Usage()
 		return
-	}
-
-	// Enable CPU profiling if requested
-	if *profile != "" {
-		f, err := os.Create(*profile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer f.Close()
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal(err)
-		}
-		defer pprof.StopCPUProfile()
-		fmt.Printf("CPU profiling enabled, writing to %s\n", *profile)
 	}
 
 	ctx := context.Background()
