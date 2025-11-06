@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -209,6 +210,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 		return nil
 	}
 	ds.Store.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.Store.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 	return &ds
