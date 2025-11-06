@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -112,6 +113,12 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	level.Info(s.logger).Log(
+		"msg", "received SSO request",
+		"method", r.Method,
+		"remote_addr", r.RemoteAddr,
+	)
+
 	// Extract certificate serial number from header (set by load balancer)
 	serialStr := r.Header.Get("X-Client-Cert-Serial")
 	if serialStr == "" {
@@ -140,6 +147,8 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
+	level.Debug(s.logger).Log("msg", "found host for certificate", "host_id", hostID, "serial", serial)
 
 	// Load AppConfig for IdP configuration
 	appConfig, err := s.ds.AppConfig(ctx)
@@ -178,6 +187,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ServeSSO handles SAML AuthnRequest parsing, generates assertion, and returns response
+	level.Debug(s.logger).Log("msg", "calling SAML IdP ServeSSO", "host_id", hostID)
 	idp.ServeSSO(w, r)
 }
 
@@ -207,10 +217,17 @@ type deviceHealthSessionProvider struct {
 
 // GetSession is called by the SAML library to get session information for the SAML assertion.
 // It performs device health checks and returns appropriate session data or error.
-// The req parameter is currently unused but required by the saml.SessionProvider interface.
 func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest) *saml.Session {
-	_ = req // unused but required by interface
 	ctx := r.Context()
+
+	// Extract NameID (email/username) from the SAML AuthnRequest
+	// Okta sends this to identify which user is authenticating
+	nameID := ""
+	if req != nil && req.Request.Subject != nil && req.Request.Subject.NameID != nil {
+		nameID = req.Request.Subject.NameID.Value
+	}
+
+	level.Debug(p.logger).Log("msg", "processing SAML session", "host_id", p.hostID)
 
 	// Load host to get team ID
 	hostLite, err := p.ds.HostLite(ctx, p.hostID)
@@ -243,8 +260,12 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
 	}
 
-	// Create a minimal Host for ListPoliciesForHost (only ID is needed)
-	host := &fleet.Host{ID: p.hostID}
+	// Create a minimal Host for ListPoliciesForHost
+	// Platform is required for policy filtering
+	host := &fleet.Host{
+		ID:       p.hostID,
+		Platform: hostLite.Platform,
+	}
 
 	// Get all policies for the host
 	policies, err := p.ds.ListPoliciesForHost(ctx, host)
@@ -278,15 +299,102 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	}
 
 	// Device is compliant - return session for SAML assertion
-	// The NameID should be unique per device. We use the host ID as the identifier.
-	level.Debug(p.logger).Log("msg", "device is compliant, generating SAML assertion", "host_id", p.hostID)
-	return &saml.Session{
-		NameID: fmt.Sprintf("host-%d", p.hostID),
-		// UserName can be used to identify the device in Okta
-		UserName: fmt.Sprintf("fleet-device-%d", p.hostID),
-		// Groups can be used for additional authorization in Okta if needed
-		Groups: []string{"fleet-managed"},
+	// The NameID must match what Okta sent in the AuthnRequest (typically user email)
+	// If no NameID was provided in the request, fall back to host-based identifier
+	if nameID == "" {
+		nameID = fmt.Sprintf("host-%d", p.hostID)
+		level.Debug(p.logger).Log("msg", "no NameID in request, using host-based identifier", "name_id", nameID)
 	}
+
+	session := &saml.Session{
+		NameID: nameID,
+	}
+
+	level.Info(p.logger).Log(
+		"msg", "device is compliant, generating SAML assertion",
+		"host_id", p.hostID,
+	)
+
+	return session
+}
+
+// oktaServiceProviderProvider implements saml.ServiceProviderProvider to provide
+// Okta service provider metadata to the IdP.
+type oktaServiceProviderProvider struct {
+	ds     fleet.Datastore
+	logger kitlog.Logger
+}
+
+// GetServiceProvider returns the Okta service provider metadata.
+// The serviceProviderID parameter is the entityID from the SAML AuthnRequest,
+// which should match the Okta Audience URI from the configuration.
+func (p *oktaServiceProviderProvider) GetServiceProvider(r *http.Request, serviceProviderID string) (*saml.EntityDescriptor, error) {
+	ctx := r.Context()
+
+	// Load AppConfig to get Okta settings
+	appConfig, err := p.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load app config: %w", err)
+	}
+
+	// Validate Okta configuration exists
+	if appConfig.ConditionalAccess == nil ||
+		appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value == "" ||
+		appConfig.ConditionalAccess.OktaAudienceURI.Value == "" {
+		return nil, os.ErrNotExist
+	}
+
+	// Check if the requested service provider ID (entityID) matches our configured Okta Audience URI
+	if serviceProviderID != appConfig.ConditionalAccess.OktaAudienceURI.Value {
+		level.Debug(p.logger).Log("msg", "service provider ID mismatch",
+			"requested", serviceProviderID,
+			"configured", appConfig.ConditionalAccess.OktaAudienceURI.Value)
+		return nil, os.ErrNotExist
+	}
+
+	// Build EntityDescriptor for Okta service provider
+	acsURL, err := url.Parse(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+	if err != nil {
+		return nil, fmt.Errorf("parse assertion consumer service URL: %w", err)
+	}
+
+	descriptor := saml.SPSSODescriptor{
+		AssertionConsumerServices: []saml.IndexedEndpoint{
+			{
+				Binding:  "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+				Location: acsURL.String(),
+				Index:    0,
+			},
+		},
+	}
+
+	// Parse Okta's certificate if provided (for validating signed AuthnRequests)
+	if appConfig.ConditionalAccess.OktaCertificate.Value != "" {
+		oktaCert, err := parseCertificateBytes([]byte(appConfig.ConditionalAccess.OktaCertificate.Value))
+		if err != nil {
+			return nil, fmt.Errorf("parse okta certificate: %w", err)
+		}
+
+		descriptor.SSODescriptor.RoleDescriptor.KeyDescriptors = []saml.KeyDescriptor{
+			{
+				Use: "signing",
+				KeyInfo: saml.KeyInfo{
+					X509Data: saml.X509Data{
+						X509Certificates: []saml.X509Certificate{
+							{Data: base64.StdEncoding.EncodeToString(oktaCert.Raw)},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	entityDescriptor := &saml.EntityDescriptor{
+		EntityID:         appConfig.ConditionalAccess.OktaAudienceURI.Value,
+		SPSSODescriptors: []saml.SPSSODescriptor{descriptor},
+	}
+
+	return entityDescriptor, nil
 }
 
 // buildIdentityProvider creates a SAML IdentityProvider using the Fleet server URL.
@@ -338,12 +446,13 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	// Build IdentityProvider
 	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device
 	idp := &saml.IdentityProvider{
-		Key:             key,
-		SignatureMethod: dsig.RSASHA256SignatureMethod,
-		Logger:          samlLogger,
-		Certificate:     cert,
-		MetadataURL:     *metadataURL,
-		SSOURL:          *ssoURL,
+		Key:                     key,
+		SignatureMethod:         dsig.RSASHA256SignatureMethod,
+		Logger:                  samlLogger,
+		Certificate:             cert,
+		MetadataURL:             *metadataURL,
+		SSOURL:                  *ssoURL,
+		ServiceProviderProvider: &oktaServiceProviderProvider{ds: s.ds, logger: s.logger},
 	}
 
 	return idp, nil
@@ -408,4 +517,17 @@ func parseCertAndKeyBytes(certPEM, keyPEM []byte) (*x509.Certificate, crypto.Pri
 	}
 
 	return cert, key, nil
+}
+
+// parseCertificateBytes parses a PEM-encoded certificate.
+func parseCertificateBytes(certPEM []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(certPEM)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, errors.New("failed to decode certificate PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse certificate: %w", err)
+	}
+	return cert, nil
 }
