@@ -1,6 +1,6 @@
 # 🧭 Product maturity assessment
 
-Fleet provides comprehensive device management across the entire device lifecycle. Some stages and features are more mature than others. To convey the state of our feature set and be transparent with our customers, we use a maturity framework for categories and stages.
+Fleet provides comprehensive device management across the entire computing lifecycle, from enrollment through configuration, monitoring, maintenance, and offboarding. As we continue to evolve and expand our capabilities, different stages and features are at varying levels of maturity. This assessment provides transparency into Fleet's current state and roadmap, helping customers, prospects, and internal teams understand where we excel today and where we're investing for the future. We use a structured maturity framework that evaluates both individual categories (specific features and capabilities) and overall stages (major lifecycle areas) to give a clear picture of Fleet's product maturity.
 
 ## Maturity legend
 
@@ -8,22 +8,21 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 - 🥚 **Planned**: Not yet implemented in Fleet, but on our roadmap
 - 🐣 **Minimal**: A minimal foundation so people can see where we're going and to validate customer need
-- 🐥 **Viable**: Used by customers to solve real production problems
-- 🦆 **Complete**: Contains a competitive feature set sufficient to meet enterprise requirements and displace a device management competitor
+- 🐥 **Viable**: Used by customers to solve real problems
+- 🦆 **Complete**: Contains a competitive feature set sufficient to displace other device management tools
 - 🦢 **Lovable**: Provides an elevated experience that customers love
 
 **Stage lifecycle**
 
 - Early Development (most categories Planned/Minimal)
 - Core Capabilities Available (key platforms/categories Viable)
-- Production Ready (majority Viable/Complete)
-- Enterprise Ready (mostly Complete, competitive feature set)
+- Enterprise Ready (majority Viable/Complete, competitive feature set)
 - Market Competitive (Complete across all major use cases)
 - Market Leading (Lovable in key areas, Complete elsewhere)
 
 ---
 
-## Device lifecycle stages
+## Computing lifecycle stages
 
 ### Enroll
 
@@ -34,23 +33,23 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| [DEP/ABM enrollment](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#dep) (Apple) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| ASM enrollment (Apple) | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| [Windows enrollment](https://fleetdm.com/docs/using-fleet/mdm-windows-setup) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Windows Autopilot | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Work Profile enrollment (Android) | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Automatic Device Enrollment (Android) | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| [Linux enrollment](https://fleetdm.com/docs/using-fleet/adding-hosts) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [iOS/iPadOS profile-based enrollment](https://fleetdm.com/docs/using-fleet/mdm-ios-setup) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Account Driven User Enrollment (Apple) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Account Driven Device Enrollment (Apple) | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| ChromeOS enrollment | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
+| [DEP/ABM enrollment](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#dep) (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| [Windows enrollment](https://fleetdm.com/docs/using-fleet/mdm-windows-setup) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Windows Autopilot | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Work Profile enrollment (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| [Linux enrollment](https://fleetdm.com/docs/using-fleet/adding-hosts) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| [iOS/iPadOS profile-based enrollment](https://fleetdm.com/docs/using-fleet/mdm-ios-setup) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Account Driven User Enrollment (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
 
 ### Configure
 
-**Stage lifecycle**: Production Ready
+**Stage lifecycle**: Enterprise Ready
 
 **Analyst reports**
 
@@ -59,44 +58,23 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| [Setup experience (macOS)](https://fleetdm.com/docs/using-fleet/macos-setup-experience) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Setup experience (Windows) | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Setup experience (Linux) | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Configuration [Profiles (macOS)](https://fleetdm.com/docs/using-fleet/mdm-macos-profile) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Configuration [Profiles (iOS/iPadOS)](https://fleetdm.com/docs/using-fleet/mdm-ios-setup#configuration-profiles) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Configuration Profiles (tvOS/VisionOS/watchOS) | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| Configuration Profiles (Windows) | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Configuration Profiles (Android) | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| [Remote script execution](https://fleetdm.com/docs/using-fleet/run-scripts) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [Software deployment](https://fleetdm.com/docs/using-fleet/software) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [App Store app management](https://fleetdm.com/docs/using-fleet/mdm-app-deployment) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [Custom package deployment](https://fleetdm.com/docs/using-fleet/software#custom-packages) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Fleet-maintained apps | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| [FileVault](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#macos-filevault) management | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [BitLocker](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#windows-bitlocker) management | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| LUKS management | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [Certificate management](https://fleetdm.com/guides/ndes-scep-proxy) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-
----
-
-### Secure
-
-**Stage lifecycle**: Production Ready
-
-**Analyst reports**
-
-- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)   / [GDrive](https://drive.google.com/file/d/1R_2d02Jex1Jv-ZBrK9PuZk-bxxTcq6Uk/view?usp=drive_link)
-
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| [Vulnerability detection](https://fleetdm.com/docs/using-fleet/vulnerability-processing) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [Policy automation](https://fleetdm.com/docs/using-fleet/policies) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Binary authorization | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| [CIS Benchmark checks](https://fleetdm.com/docs/using-fleet/policies#cis-benchmarks) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [Custom security policies](https://fleetdm.com/docs/using-fleet/policies) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Threat detection | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Zero Trust integration | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Conditional Access | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
+| [Setup experience (macOS)](https://fleetdm.com/docs/using-fleet/macos-setup-experience) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Setup experience (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Setup experience (Linux) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Configuration [Profiles (macOS)](https://fleetdm.com/docs/using-fleet/mdm-macos-profile) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration [Profiles (iOS/iPadOS)](https://fleetdm.com/docs/using-fleet/mdm-ios-setup#configuration-profiles) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration Profiles (tvOS/VisionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Configuration Profiles (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Configuration Profiles (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| [Remote script execution](https://fleetdm.com/docs/using-fleet/run-scripts) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| [Software deployment](https://fleetdm.com/docs/using-fleet/software) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| [App Store app management](https://fleetdm.com/docs/using-fleet/mdm-app-deployment) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| [Custom package deployment](https://fleetdm.com/docs/using-fleet/software#custom-packages) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Fleet-maintained apps | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| [Disk encryption management (Apple)](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#macos-filevault) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| [Disk encryption management (Windows)](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#windows-bitlocker) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Disk encryption management (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Certificate management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -111,24 +89,27 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| [Live query execution](https://fleetdm.com/docs/using-fleet/live-queries) | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** |
-| [Scheduled queries](https://fleetdm.com/docs/using-fleet/scheduled-queries) | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** |
-| [Software inventory](https://fleetdm.com/docs/using-fleet/software-inventory) | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** |
-| [Hardware inventory](https://fleetdm.com/docs/using-fleet/host-details) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Device status monitoring | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Geolocation tracking | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Activity feed | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| [Audit logs](https://fleetdm.com/docs/using-fleet/audit-logging) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Custom dashboards | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| Real-time alerts | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Historical data analysis | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Compliance reporting | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
+| [Live query execution](https://fleetdm.com/docs/using-fleet/live-queries) | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| [Scheduled queries](https://fleetdm.com/docs/using-fleet/scheduled-queries) | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| [Software inventory](https://fleetdm.com/docs/using-fleet/software-inventory) | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| [Hardware inventory](https://fleetdm.com/docs/using-fleet/host-details) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Device status monitoring | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Geolocation tracking | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Activity feed | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| [Audit logs](https://fleetdm.com/docs/using-fleet/audit-logging) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Real-time alerts | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Historical data analysis | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Compliance reporting | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| [Vulnerability detection](https://fleetdm.com/docs/using-fleet/vulnerability-processing) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| [CIS Benchmark checks](https://fleetdm.com/docs/using-fleet/policies#cis-benchmarks) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Binary authorization | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 
 ---
 
 ### Maintain
 
-**Stage lifecycle**: Production Ready
+**Stage lifecycle**: Enterprise Ready
 
 **Analyst reports**
 
@@ -139,21 +120,21 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| OS update management (macOS) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| OS update management (iPhone/iPadOS) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| OS update management (tvOS/visionOS/watchOS) | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| OS update management (Windows) | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| OS update management (Linux) | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| OS update management (Android) | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| Patch management | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Remote lock | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Remote restart | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Remote support tools | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| Self-service portal | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Device health checks | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Maintenance windows | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Ticket integration | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| End user communications | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
+| OS update management (macOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| OS update management (iPhone/iPadOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| OS update management (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| OS update management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| OS update management (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Patch management | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Remote lock | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote restart | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Remote support tools | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Self-service portal | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Device health checks | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Maintenance windows | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Ticket integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| End user communications | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
 
@@ -168,11 +149,11 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| Remote wipe | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Device unenrollment | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Offboarding audit trail | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Lock lost/stolen devices | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| Activation lock management | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
+| Remote wipe | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Device unenrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Offboarding audit trail | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Lock lost/stolen devices | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Activation lock management | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
 
@@ -184,37 +165,38 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 | Platform | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| macOS | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Windows | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Linux (Ubuntu) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Linux (RHEL) | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Linux (Debian) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Linux (Arch) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Linux (SUSE) | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Android | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** | 🐣 **Minimal** |
-| tvOS/visionOS/watchOS | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
-| iOS/iPadOS | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| ChromeOS | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
+| macOS | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Windows | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (Debian) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Linux (Arch) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Linux (SUSE) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Android | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| iOS/iPadOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| ChromeOS | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 
 ---
 
 ### Integrate
 
-**Stage lifecycle**: Market Competitive
+**Stage lifecycle**: Market Leading
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| REST API | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** |
-| Webhooks | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| SSO/SAML | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Google Workspace Calendar | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Slack integration | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Jira integration | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Zendesk integration | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Splunk integration | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** | 🐥 **Viable** |
-| Terraform provider | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| GitOps support | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** | 🦢 **Lovable** |
-| ServiceNow integration | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
+| REST API | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Webhooks | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| SSO/SAML | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Google Workspace Calendar | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Entra Conditional Access | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Slack integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Jira integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Zendesk integration | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Splunk integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Terraform provider | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| GitOps support | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| ServiceNow integration | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
 
@@ -224,11 +206,11 @@ Fleet provides comprehensive device management across the entire device lifecycl
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| Self-managed deployment | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Fleet cloud | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Docker deployment | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Kubernetes deployment | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** | 🦆 **Complete** |
-| Multi-tenancy | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** | 🥚 **Planned** |
+| Self-managed deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Fleet cloud | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Docker deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Kubernetes deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Multi-tenancy | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
 
@@ -263,8 +245,7 @@ Choose the best description for the stage overall based on the mix of category m
 
 - Early Development (most categories Planned/Minimal)
 - Core Capabilities Available (key platforms/categories Viable)
-- Production Ready (majority Viable/Complete)
-- Enterprise Ready (mostly Complete, competitive feature set)
+- Enterprise Ready (majority Viable/Complete, competitive feature set)
 - Market Competitive (Complete across all major use cases)
 - Market Leading (Lovable in key areas, Complete elsewhere)
 
@@ -274,15 +255,16 @@ Replace placeholders with the current assessment. Look at the overall mix of cat
 
 1. Stage lifecycle: Replace the placeholder with the current stage-level assessment
 2. Analyst reports: Add any relevant mentions (optional)
-3. On our roadmap: List planned features that map to Planned categories (optional)
-4. Category maturity table: For each category row, set Current and projections for future quarters (Q1–Q4)
+3. Category maturity table: For each category row, set Current maturity (emoji only) and projections for future quarters (Q1–Q4)
+   - Category name: Include a link to Fleet documentation if available, or plain text if not
+   - Maturity columns: Use only emojis (🥚 🐣 🐥 🦆 🦢) without text labels
 
 Example row transformation:
 
 - Before: `| [DEP/ABM enrollment](link) |  |  |  |  |  |`
-- After:  `| 🐥 [DEP/ABM enrollment](https://fleetdm.com/docs/using-fleet/mdm-setup#dep) | 🦆 | 🦆 | 🦢 | 🦢 | 🦢 |`
+- After:  `| [DEP/ABM enrollment](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#dep) (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |`
 
-This indicates: Current is Viable, targeting Complete then Lovable over time.
+This indicates: Current maturity is Complete (🦆), with Complete maintained across all quarters.
 
 ### Tips for projections
 
@@ -301,12 +283,10 @@ Common patterns:
 
 ### Quarterly review checklist
 
-1. Update velocity metrics (last 3 months)
-2. Advance categories that met goals; adjust projections as needed
-3. Move shipped features from "On our roadmap" to "Since YYYY Fleet added"
-4. Update stage lifecycle if overall maturity improved
-5. Update links and replace any `(link)` placeholders
-6. Update the "Last updated" date in your PR description
+1. Advance categories that met goals; adjust projections as needed
+2. Update stage lifecycle if overall maturity improved based on category changes
+3. Review and update category names to reflect current naming conventions
+4. Update the "Last updated" date in your PR description
 
 ### Governance
 
