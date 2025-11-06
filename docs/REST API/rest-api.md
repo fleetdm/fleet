@@ -9790,8 +9790,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software icon](#get-sowftware-icon)
 - [Delete software icon](#delete-sowftware-icon)
 - [List App Store apps](#list-app-store-apps)
-- [Add App Store app](#add-app-store-app)
-- [Modify App Store app](#modify-app-store-app)
+- [Add app store app](#add-app-store-app)
+- [Modify app store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -10754,7 +10754,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 }
 ```
 
-### Add App Store app
+### Add app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -10806,12 +10806,12 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Modify App Store app
+### Modify app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
-Modify App Store (VPP) app's options.
+Modify Apple or Google App Store apps.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
