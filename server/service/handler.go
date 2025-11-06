@@ -987,7 +987,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This endpoint is unauthenticated and is used by to retrieve the MDM enrollment Terms of Use
 	neWindowsMDM.GET(microsoft_mdm.MDE2TOSPath, mdmMicrosoftTOSEndpoint, MDMWebContainer{})
 
-	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
+	// These endpoints are for unauthenticated and made from orbit, and add the orbit capabilities header.
+	neOrbit := newOrbitNoAuthEndpointer(svc, opts, r, apiVersions...)
+	neOrbit.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
 
 	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app", getInHouseAppPackageEndpoint, getInHouseAppPackageRequest{})
 	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app/manifest", getInHouseAppManifestEndpoint, getInHouseAppManifestRequest{})
