@@ -114,7 +114,12 @@ func TestRegisterIdP(t *testing.T) {
 	ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false)
 
 	mux := http.NewServeMux()
-	err := RegisterIdP(mux, ds, logger, cfg)
+	// Try with nil config
+	err := RegisterIdP(mux, ds, logger, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "fleet config is nil")
+
+	err = RegisterIdP(mux, ds, logger, cfg)
 	require.NoError(t, err)
 
 	t.Run("metadata endpoint registered", func(t *testing.T) {
@@ -129,18 +134,8 @@ func TestRegisterIdP(t *testing.T) {
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
 		require.Equal(t, http.StatusSeeOther, w.Code)
-		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
+		require.Equal(t, certificateErrorURL, w.Header().Get("Location"))
 	})
-}
-
-func TestRegisterIdP_NilConfig(t *testing.T) {
-	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
-	mux := http.NewServeMux()
-
-	err := RegisterIdP(mux, ds, logger, nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "fleet config is nil")
 }
 
 func TestServeMetadata(t *testing.T) {
@@ -284,7 +279,7 @@ func TestServeSSO(t *testing.T) {
 		svc.serveSSO(w, req)
 
 		require.Equal(t, http.StatusSeeOther, w.Code)
-		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
+		require.Equal(t, certificateErrorURL, w.Header().Get("Location"))
 	})
 
 	t.Run("invalid certificate serial format", func(t *testing.T) {
@@ -297,7 +292,7 @@ func TestServeSSO(t *testing.T) {
 		svc.serveSSO(w, req)
 
 		require.Equal(t, http.StatusSeeOther, w.Code)
-		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
+		require.Equal(t, certificateErrorURL, w.Header().Get("Location"))
 	})
 
 	t.Run("certificate not found in database", func(t *testing.T) {
@@ -314,7 +309,7 @@ func TestServeSSO(t *testing.T) {
 		svc.serveSSO(w, req)
 
 		require.Equal(t, http.StatusSeeOther, w.Code)
-		require.Equal(t, "https://fleetdm.com/okta-conditional-access-error", w.Header().Get("Location"))
+		require.Equal(t, certificateErrorURL, w.Header().Get("Location"))
 		require.True(t, ds.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked)
 	})
 
@@ -603,7 +598,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 
 		require.Nil(t, session)
 		require.Equal(t, http.StatusSeeOther, w.Code)
-		require.Equal(t, "https://fleetdm.com/remediate", w.Header().Get("Location"))
+		require.Equal(t, remediateURL, w.Header().Get("Location"))
 	})
 
 	t.Run("returns 500 when HostLite fails", func(t *testing.T) {

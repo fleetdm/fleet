@@ -28,6 +28,11 @@ const (
 	idpMetadataPath = "/api/fleet/conditional_access/idp/metadata"
 	idpSSOPath      = "/api/fleet/conditional_access/idp/sso"
 	idpSSOPrefix    = "okta."
+
+	// URL to redirect users when they have failing conditional access policies and need to remediate their device
+	remediateURL = "https://fleetdm.com/remediate"
+	// URL to redirect users when there's a certificate error during Okta conditional access authentication
+	certificateErrorURL = "https://fleetdm.com/okta-conditional-access-error"
 )
 
 // notFoundError implements fleet.NotFoundError interface for conditional access IdP errors.
@@ -123,7 +128,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	serialStr := r.Header.Get("X-Client-Cert-Serial")
 	if serialStr == "" {
 		level.Error(s.logger).Log("msg", "missing client certificate serial", "remote_addr", r.RemoteAddr)
-		http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 		return
 	}
 
@@ -131,7 +136,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	serial, err := parseSerialNumber(serialStr)
 	if err != nil {
 		level.Error(s.logger).Log("msg", "invalid certificate serial format", "serial", serialStr, "err", err)
-		http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 		return
 	}
 
@@ -140,7 +145,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			level.Error(s.logger).Log("msg", "certificate not recognized", "serial", serial, "err", err)
-			http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
 		level.Error(s.logger).Log("msg", "failed to lookup host by certificate serial", "serial", serial, "err", err)
@@ -171,7 +176,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			level.Error(s.logger).Log("msg", "IdP certificate or key not found", "err", err)
-			http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
 		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
@@ -234,7 +239,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			level.Error(p.logger).Log("msg", "host not found", "host_id", p.hostID, "err", err)
-			http.Redirect(w, r, "https://fleetdm.com/okta-conditional-access-error", http.StatusSeeOther)
+			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return nil
 		}
 		level.Error(p.logger).Log("msg", "failed to load host", "host_id", p.hostID, "err", err)
@@ -294,7 +299,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			"host_id", p.hostID,
 			"failing_conditional_access_policies_count", failingConditionalAccessCount,
 		)
-		http.Redirect(w, r, "https://fleetdm.com/remediate", http.StatusSeeOther)
+		http.Redirect(w, r, remediateURL, http.StatusSeeOther)
 		return nil
 	}
 
@@ -306,16 +311,14 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		level.Debug(p.logger).Log("msg", "no NameID in request, using host-based identifier", "name_id", nameID)
 	}
 
-	session := &saml.Session{
-		NameID: nameID,
-	}
-
 	level.Info(p.logger).Log(
 		"msg", "device is compliant, generating SAML assertion",
 		"host_id", p.hostID,
 	)
 
-	return session
+	return &saml.Session{
+		NameID: nameID,
+	}
 }
 
 // oktaServiceProviderProvider implements saml.ServiceProviderProvider to provide
