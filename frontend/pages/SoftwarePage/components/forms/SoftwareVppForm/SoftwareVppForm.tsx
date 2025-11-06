@@ -154,7 +154,7 @@ const SoftwareVppForm = ({
   );
 
   const [formValidation, setFormValidation] = useState<IFormValidation>({
-    isValid: !!softwareVppForEdit, // Disables submit if Application ID is
+    isValid: !!softwareVppForEdit, // Disables submit before VPP to add is selected
   });
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
