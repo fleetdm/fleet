@@ -102,7 +102,9 @@ func main() {
 
 type requestCertificateResponse struct {
 	Certificate string `json:"certificate"`
-	Err         any    `json:"error"`
+	Errors      []struct {
+		Reason string `json:"reason"`
+	} `json:"errors"`
 }
 
 func requestCert(signer *httpsig.Signer, fleetURL string, certificateAuthorityID uint, csr string) (string, error) {
@@ -142,8 +144,11 @@ func requestCert(signer *httpsig.Signer, fleetURL string, certificateAuthorityID
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("request failed with status code %d", res.StatusCode)
-
+		var reason string
+		if len(certRes.Errors) > 0 {
+			reason = ": " + certRes.Errors[0].Reason
+		}
+		return "", fmt.Errorf("request failed with status code %d%s", res.StatusCode, reason)
 	}
 
 	return certRes.Certificate, nil
