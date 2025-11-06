@@ -37,13 +37,13 @@ func TestInitAssets(t *testing.T) {
 	// Extract assets by name
 	caCertAsset, foundCACert := savedAssets[fleet.MDMAssetConditionalAccessCACert]
 	caKeyAsset, foundCAKey := savedAssets[fleet.MDMAssetConditionalAccessCAKey]
-	idpCertAsset, foundIDPCert := savedAssets[fleet.MDMAssetConditionalAccessIDPCert]
-	idpKeyAsset, foundIDPKey := savedAssets[fleet.MDMAssetConditionalAccessIDPKey]
+	idpCertAsset, foundIdPCert := savedAssets[fleet.MDMAssetConditionalAccessIDPCert]
+	idpKeyAsset, foundIdPKey := savedAssets[fleet.MDMAssetConditionalAccessIDPKey]
 
 	require.True(t, foundCACert, "Should have CA cert")
 	require.True(t, foundCAKey, "Should have CA key")
-	require.True(t, foundIDPCert, "Should have IdP cert")
-	require.True(t, foundIDPKey, "Should have IdP key")
+	require.True(t, foundIdPCert, "Should have IdP cert")
+	require.True(t, foundIdPKey, "Should have IdP key")
 
 	// Verify cert is valid PEM
 	pemBlock, _ := pem.Decode(caCertAsset.Value)
@@ -106,8 +106,8 @@ func TestInitAssets(t *testing.T) {
 	// Save original values for idempotency check
 	originalCACertValue := caCertAsset.Value
 	originalCAKeyValue := caKeyAsset.Value
-	originalIDPCertValue := idpCertAsset.Value
-	originalIDPKeyValue := idpKeyAsset.Value
+	originalIdPCertValue := idpCertAsset.Value
+	originalIdPKeyValue := idpKeyAsset.Value
 
 	// Second initialization - should not regenerate
 	err = initAssets(ctx, ds)
@@ -121,6 +121,6 @@ func TestInitAssets(t *testing.T) {
 	// Verify all values are unchanged (idempotent)
 	assert.Equal(t, originalCACertValue, secondAssets[fleet.MDMAssetConditionalAccessCACert].Value, "CA cert should not be regenerated")
 	assert.Equal(t, originalCAKeyValue, secondAssets[fleet.MDMAssetConditionalAccessCAKey].Value, "CA key should not be regenerated")
-	assert.Equal(t, originalIDPCertValue, secondAssets[fleet.MDMAssetConditionalAccessIDPCert].Value, "IdP cert should not be regenerated")
-	assert.Equal(t, originalIDPKeyValue, secondAssets[fleet.MDMAssetConditionalAccessIDPKey].Value, "IdP key should not be regenerated")
+	assert.Equal(t, originalIdPCertValue, secondAssets[fleet.MDMAssetConditionalAccessIDPCert].Value, "IdP cert should not be regenerated")
+	assert.Equal(t, originalIdPKeyValue, secondAssets[fleet.MDMAssetConditionalAccessIDPKey].Value, "IdP key should not be regenerated")
 }

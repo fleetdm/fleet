@@ -10,16 +10,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-type conditionalAccessGetIDPSigningCertRequest struct{}
+type conditionalAccessGetIdPSigningCertRequest struct{}
 
-type conditionalAccessGetIDPSigningCertResponse struct {
+type conditionalAccessGetIdPSigningCertResponse struct {
 	CertPEM []byte
 	Err     error `json:"error,omitempty"`
 }
 
-func (r conditionalAccessGetIDPSigningCertResponse) Error() error { return r.Err }
+func (r conditionalAccessGetIdPSigningCertResponse) Error() error { return r.Err }
 
-func (r conditionalAccessGetIDPSigningCertResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r conditionalAccessGetIdPSigningCertResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.CertPEM)), 10))
 	w.Header().Set("Content-Type", "application/x-pem-file")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -33,17 +33,17 @@ func (r conditionalAccessGetIDPSigningCertResponse) HijackRender(ctx context.Con
 	}
 }
 
-func conditionalAccessGetIDPSigningCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	certPEM, err := svc.ConditionalAccessGetIDPSigningCert(ctx)
+func conditionalAccessGetIdPSigningCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	certPEM, err := svc.ConditionalAccessGetIdPSigningCert(ctx)
 	if err != nil {
-		return conditionalAccessGetIDPSigningCertResponse{Err: err}, nil
+		return conditionalAccessGetIdPSigningCertResponse{Err: err}, nil
 	}
-	return conditionalAccessGetIDPSigningCertResponse{
+	return conditionalAccessGetIdPSigningCertResponse{
 		CertPEM: certPEM,
 	}, nil
 }
 
-func (svc *Service) ConditionalAccessGetIDPSigningCert(ctx context.Context) (certPEM []byte, err error) {
+func (svc *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {
 	// Check user is authorized to read conditional access Okta IdP certificate
 	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPCert{}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")

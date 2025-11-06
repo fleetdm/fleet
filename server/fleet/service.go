@@ -1345,9 +1345,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Okta conditional access
 
-	// ConditionalAccessGetIDPSigningCert returns the Okta IdP signing certificate (public key only)
+	// ConditionalAccessGetIdPSigningCert returns the Okta IdP signing certificate (public key only)
 	// for administrators to download and configure in Okta.
-	ConditionalAccessGetIDPSigningCert(ctx context.Context) (certPEM []byte, err error)
+	ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities

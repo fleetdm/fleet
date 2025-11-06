@@ -425,18 +425,18 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	// Build metadata URL
 	metadataURL, err := url.Parse(serverURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(context.Background(), err, "parse server URL for metadata")
+		return nil, ctxerr.Wrap(ctx, err, "parse server URL for metadata")
 	}
 	metadataURL = metadataURL.JoinPath(idpMetadataPath)
 
 	// Build SSO URL (uses okta.* subdomain or dev override)
 	ssoServerURL, err := buildSSOServerURL(serverURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(context.Background(), err, "build SSO server URL")
+		return nil, ctxerr.Wrap(ctx, err, "build SSO server URL")
 	}
 	ssoURL, err := url.Parse(ssoServerURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(context.Background(), err, "parse SSO server URL")
+		return nil, ctxerr.Wrap(ctx, err, "parse SSO server URL")
 	}
 	ssoURL = ssoURL.JoinPath(idpSSOPath)
 

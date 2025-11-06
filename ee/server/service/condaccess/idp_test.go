@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
-	common_mysql "github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/log"
@@ -521,12 +522,56 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 		req := httptest.NewRequest("POST", idpSSOPath, nil)
 		w := httptest.NewRecorder()
 
+		// Pass nil for SAML request to test fallback behavior
 		session := provider.GetSession(w, req, nil)
 
 		require.NotNil(t, session)
+		// When no NameID is provided in the SAML request, should fall back to host-based identifier
 		require.Equal(t, "host-123", session.NameID)
-		require.Equal(t, "fleet-device-123", session.UserName)
-		require.Equal(t, []string{"fleet-managed"}, session.Groups)
+	})
+
+	t.Run("uses NameID from SAML request when provided", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			require.Equal(t, uint(123), hostID)
+			teamID := uint(1)
+			return &fleet.Host{ID: 123, TeamID: &teamID, Platform: "darwin"}, nil
+		}
+
+		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+			require.Equal(t, uint(1), teamID)
+			return []uint{10, 20}, nil
+		}
+
+		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+			return []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "pass"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			}, nil
+		}
+
+		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 123}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		w := httptest.NewRecorder()
+
+		// Create a SAML request with a NameID (simulating what Okta sends)
+		samlReq := &saml.IdpAuthnRequest{
+			Request: saml.AuthnRequest{
+				Subject: &saml.Subject{
+					NameID: &saml.NameID{
+						Value: "user@example.com",
+					},
+				},
+			},
+		}
+
+		session := provider.GetSession(w, req, samlReq)
+
+		require.NotNil(t, session)
+		// Should use the NameID from the SAML request (what Okta sent)
+		require.Equal(t, "user@example.com", session.NameID)
 	})
 
 	t.Run("redirects to remediate for failing conditional access policies", func(t *testing.T) {

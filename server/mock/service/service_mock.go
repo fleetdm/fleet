@@ -826,7 +826,7 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
-type ConditionalAccessGetIDPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
+type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
@@ -2057,8 +2057,8 @@ type Service struct {
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
 
-	ConditionalAccessGetIDPSigningCertFunc        ConditionalAccessGetIDPSigningCertFunc
-	ConditionalAccessGetIDPSigningCertFuncInvoked bool
+	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
+	ConditionalAccessGetIdPSigningCertFuncInvoked bool
 
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
@@ -4915,11 +4915,11 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
 }
 
-func (s *Service) ConditionalAccessGetIDPSigningCert(ctx context.Context) (certPEM []byte, err error) {
+func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {
 	s.mu.Lock()
-	s.ConditionalAccessGetIDPSigningCertFuncInvoked = true
+	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConditionalAccessGetIDPSigningCertFunc(ctx)
+	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

@@ -21,7 +21,7 @@ func (k *kitlogAdapter) Print(v ...interface{}) {
 }
 
 func (k *kitlogAdapter) Println(v ...interface{}) {
-	level.Info(k.logger).Log("msg", fmt.Sprintln(v...))
+	level.Info(k.logger).Log("msg", fmt.Sprint(v...))
 }
 
 func (k *kitlogAdapter) Fatal(v ...interface{}) {
@@ -33,7 +33,7 @@ func (k *kitlogAdapter) Fatalf(format string, v ...interface{}) {
 }
 
 func (k *kitlogAdapter) Fatalln(v ...interface{}) {
-	level.Error(k.logger).Log("msg", fmt.Sprintln(v...))
+	level.Error(k.logger).Log("msg", fmt.Sprint(v...))
 }
 
 func (k *kitlogAdapter) Panic(v ...interface{}) {
@@ -49,7 +49,7 @@ func (k *kitlogAdapter) Panicf(format string, v ...interface{}) {
 }
 
 func (k *kitlogAdapter) Panicln(v ...interface{}) {
-	msg := fmt.Sprintln(v...)
+	msg := fmt.Sprint(v...)
 	level.Error(k.logger).Log("msg", msg)
 	panic(msg)
 }

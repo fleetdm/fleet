@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
@@ -54,15 +55,15 @@ func initAssets(ctx context.Context, ds fleet.Datastore) error {
 			})
 		}
 
-		if err := ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil {
+		if err := ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil && !mysql.IsDuplicate(err) {
 			return fmt.Errorf("inserting conditional access SCEP assets: %w", err)
 		}
 	}
 
 	// Check if IdP assets need to be created
-	_, hasIDPCert := savedAssets[fleet.MDMAssetConditionalAccessIDPCert]
-	_, hasIDPKey := savedAssets[fleet.MDMAssetConditionalAccessIDPKey]
-	if !hasIDPCert || !hasIDPKey {
+	_, hasIdPCert := savedAssets[fleet.MDMAssetConditionalAccessIDPCert]
+	_, hasIdPKey := savedAssets[fleet.MDMAssetConditionalAccessIDPKey]
+	if !hasIdPCert || !hasIdPKey {
 		// Create IdP cert and key for SAML signing
 		idpCert := depot.NewCACert(
 			depot.WithYears(10),
@@ -86,7 +87,7 @@ func initAssets(ctx context.Context, ds fleet.Datastore) error {
 			})
 		}
 
-		if err := ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil {
+		if err := ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil && !mysql.IsDuplicate(err) {
 			return fmt.Errorf("inserting conditional access IdP assets: %w", err)
 		}
 	}
