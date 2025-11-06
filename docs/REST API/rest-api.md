@@ -9465,9 +9465,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Update software icon](#update-software-icon)
 - [Download software icon](#download-software-icon)
 - [Delete software icon](#delete-software-icon)
-- [List App Store apps](#list-app-store-apps)
-- [Add App Store app](#add-app-store-app)
-- [Update App Store app](#update-app-store-app)
+- [List Apple App Store apps](#list-apple-app-store-apps)
+- [Add app store app](#add-app-store-app)
+- [Update app store app](#update-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Create Fleet-maintained app](#create-fleet-maintained-app)
@@ -9498,7 +9498,7 @@ Get a list of all software.
 | vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
-| packages_only           | boolean | query | _Available in Fleet Premium_. If `true` or `1`, only lists packages available for install (without App Store apps).  |
+| packages_only           | boolean | query | _Available in Fleet Premium_. If `true` or `1`, only lists packages available for install (without app store apps).  |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
@@ -9890,7 +9890,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-#### Example (App Store app)
+#### Example (app store app)
 
 `GET /api/v1/fleet/software/titles/15?team_id=3`
 
@@ -10405,7 +10405,7 @@ Content-Type: image/png
 
 _Available in Fleet Premium._
 
-Download the icon added via [Update software icon](#update-software-icon) or icon from App Store (VPP). **This endpoint requires authentication.**
+Download the icon added via [Update software icon](#update-software-icon) or icon from the Apple App Store. **This endpoint requires authentication.**
 
 `GET /api/v1/fleet/software/titles/:id/icon`
 
@@ -10460,11 +10460,11 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 
 `Status: 204`
 
-### List App Store apps
+### List Apple App Store apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-Returns the list of Apple App Store (VPP) that can be added to the specified team. If an app is already added to the team, it's excluded from the list.
+Returns the list of Apple App Store (VPP) apps that can be added to the specified team. If an app is already added to the team, it's excluded from the list.
 
 `GET /api/v1/fleet/software/app_store_apps`
 
@@ -10510,7 +10510,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 }
 ```
 
-### Add App Store app
+### Add app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -10561,7 +10561,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Update App Store app
+### Update app store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -10575,7 +10575,7 @@ Modify Apple App Store (VPP) or Google Play app's options.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
+| team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play Store app from the specified team.  |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page (currently only macOS). Software with no categories will still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
@@ -10829,7 +10829,7 @@ Body: <blob>
 
 _Available in Fleet Premium._
 
-Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
 
 Package installs time out after 1 hour.
 
@@ -10884,7 +10884,7 @@ _Available in Fleet Premium._
 
 Get the results of a Fleet-maintained app or custom package install. To get uninstall results, use the [List activities](#list-activities) and [Get script result](#get-script-result) API endpoints.
 
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
+To get the results of an app store app install for macOS, iOS, and iPadOS hosts, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install app store apps.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
