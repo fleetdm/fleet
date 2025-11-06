@@ -73,6 +73,7 @@ This does not start with the required prefix`
 	require.ErrorContains(t, err, "Check constraint 'conditional_access_scep_certificates_chk_1' is violated")
 
 	// Test 3: Certificate PEM starting with wrong prefix should also fail
+	// nolint:gosec,G101
 	wrongPrefixCertPEM := `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAtN...
 -----END RSA PRIVATE KEY-----`
