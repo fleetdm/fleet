@@ -540,7 +540,6 @@ func getVulnHostCountQuery(scope CountScope) string {
 }
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
-	// Step 1: Calculate all counts in memory (no DB modifications yet)
 	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
@@ -556,13 +555,11 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRouti
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
 
-	// Combine all counts into single slice
 	allCounts := make([]hostCount, 0, len(globalHostCounts)+len(teamHostCounts)+len(noTeamHostCounts))
 	allCounts = append(allCounts, globalHostCounts...)
 	allCounts = append(allCounts, teamHostCounts...)
 	allCounts = append(allCounts, noTeamHostCounts...)
 
-	// Step 2: Atomic table swap approach
 	return ds.atomicTableSwapVulnerabilityCounts(ctx, allCounts)
 }
 
@@ -578,9 +575,7 @@ type hostCount struct {
 // 2. Atomically rename tables to swap them
 // 3. Clean up old table
 func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, counts []hostCount) error {
-	// Step 1: Ensure swap table exists and populate it with new data
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Ensure swap table exists
 		err := ds.ensureSwapTableExists(ctx, tx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "ensuring swap table exists")
@@ -592,7 +587,6 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 			return ctxerr.Wrap(ctx, err, "clearing swap table")
 		}
 
-		// Populate swap table with new data
 		if len(counts) > 0 {
 			err = ds.insertHostCountsIntoTable(ctx, tx, counts, "vulnerability_host_counts_swap")
 			if err != nil {
@@ -606,8 +600,7 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 		return err
 	}
 
-	// Step 2: Atomic table swap using RENAME TABLE
-	// This is atomic - either both renames succeed or both fail
+	// Atomic table swap using RENAME TABLE
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `
 			RENAME TABLE
@@ -618,13 +611,13 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 			return ctxerr.Wrap(ctx, err, "atomic table swap")
 		}
 
-		// Step 3: Clean up old table (drop it)
+		// Clean up old table (drop it)
 		_, err = tx.ExecContext(ctx, "DROP TABLE vulnerability_host_counts_old")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "dropping old table")
 		}
 
-		// Step 4: Recreate empty swap table for next run
+		// Recreate empty swap table for next run
 		_, err = tx.ExecContext(ctx, `
 			CREATE TABLE vulnerability_host_counts_swap (
 				cve varchar(255) NOT NULL,
@@ -658,10 +651,7 @@ func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtC
 	// Use smaller chunks to avoid parameter limits
 	chunkSize := 100
 	for i := 0; i < len(counts); i += chunkSize {
-		end := i + chunkSize
-		if end > len(counts) {
-			end = len(counts)
-		}
+		end := min(i+chunkSize, len(counts))
 
 		valueStrings := make([]string, 0, end-i)
 		chunkArgs := make([]interface{}, 0, (end-i)*4)
