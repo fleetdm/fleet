@@ -1354,6 +1354,23 @@ This activity contains the following fields:
 }
 ```
 
+## edited_certificate
+
+Generated when a user edits the certificates of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the certificate is added to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the certificate is added to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## installed_software
 
 Generated when a Fleet-maintained app or custom package is installed on a host.
