@@ -158,8 +158,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: 0.0.1  # ${{ inputs.version }}
-          name: "🦩 0.0.1"  # ${{ inputs.version }}"
+          tag_name: ${{ inputs.version }}
+          name: "🦩 ${{ inputs.version }}"
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
