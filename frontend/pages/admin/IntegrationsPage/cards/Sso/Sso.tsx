@@ -140,7 +140,8 @@ const Sso = ({
       setFormData(newData);
       originalFormData.current = newData;
     }
-  }, [appConfig.sso_settings, formDirty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appConfig.sso_settings]);
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
@@ -209,7 +210,8 @@ const Sso = ({
       setEndUserFormData(newData);
       originalEndUserFormData.current = newData;
     }
-  }, [appConfig?.mdm?.end_user_authentication, formDirty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appConfig?.mdm?.end_user_authentication]);
 
   const handleTabChange = useCallback(
     (index: number) => {
