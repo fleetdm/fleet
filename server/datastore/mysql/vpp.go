@@ -566,7 +566,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 	var vppTokenID *uint
 	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
-		if !fleet.IsNotFound(err) {
+		if !fleet.IsNotFound(err) || app.Platform != fleet.AndroidPlatform {
 			return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
 		}
 	}
