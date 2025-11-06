@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -127,6 +127,27 @@ const Sso = ({
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
   const [formDirty, setFormDirty] = useState<boolean>(false);
 
+  // Update Fleet users form data when appConfig changes (e.g., after navigation and refetch)
+  // Only update if form is not dirty to avoid overwriting unsaved changes
+  useEffect(() => {
+    if (!formDirty) {
+      const newData: ISsoFormData = {
+        enableSso: appConfig.sso_settings?.enable_sso ?? false,
+        idpName: appConfig.sso_settings?.idp_name ?? "",
+        entityId: appConfig.sso_settings?.entity_id ?? "",
+        idpImageUrl: appConfig.sso_settings?.idp_image_url ?? "",
+        metadata: appConfig.sso_settings?.metadata ?? "",
+        metadataUrl: appConfig.sso_settings?.metadata_url ?? "",
+        enableSsoIdpLogin:
+          appConfig.sso_settings?.enable_sso_idp_login ?? false,
+        enableJitProvisioning:
+          appConfig.sso_settings?.enable_jit_provisioning ?? false,
+      };
+      setFormData(newData);
+      originalFormData.current = newData;
+    }
+  }, [appConfig.sso_settings, formDirty]);
+
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
@@ -185,6 +206,16 @@ const Sso = ({
     newFormDataIdp(appConfig?.mdm?.end_user_authentication)
   );
   const originalEndUserFormData = useRef(endUserFormData);
+
+  // Update end user form data when appConfig changes (e.g., after navigation and refetch)
+  // Only update if form is not dirty to avoid overwriting unsaved changes
+  useEffect(() => {
+    if (!formDirty) {
+      const newData = newFormDataIdp(appConfig?.mdm?.end_user_authentication);
+      setEndUserFormData(newData);
+      originalEndUserFormData.current = newData;
+    }
+  }, [appConfig?.mdm?.end_user_authentication, formDirty]);
 
   const handleTabChange = useCallback(
     (index: number) => {
