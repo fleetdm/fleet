@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -10,9 +10,18 @@ import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TabText from "components/TabText";
+import TabNav from "components/TabNav";
+import PATHS from "router/paths";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
+import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
+import {
+  IFormDataIdp,
+  newFormDataIdp,
+} from "../IdentityProviders/components/EndUserAuthSection/helpers";
 
 const baseClass = "app-config-form";
 
@@ -77,13 +86,18 @@ const validate = (formData: ISsoFormData) => {
   return errors;
 };
 
+export const AUTH_TARGETS_BY_INDEX = ["fleet-users", "end-users"];
+
 const Sso = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
   isUpdatingSettings,
+  router,
+  subsection,
 }: IAppConfigFormProps): JSX.Element => {
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
+  const selectedAuthTarget = subsection as string;
 
   const [formData, setFormData] = useState<ISsoFormData>({
     enableSso: appConfig.sso_settings?.enable_sso ?? false,
@@ -108,7 +122,10 @@ const Sso = ({
     enableJitProvisioning,
   } = formData;
 
+  const originalFormData = useRef(formData);
+
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
+  const [formDirty, setFormDirty] = useState<boolean>(false);
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
@@ -125,13 +142,14 @@ const Sso = ({
       }
     });
     setFormErrors(errsToSet);
+    setFormDirty(true);
   };
 
   const onInputBlur = () => {
     setFormErrors(validate(formData));
   };
 
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const errs = validate(formData);
@@ -157,11 +175,42 @@ const Sso = ({
       },
     };
 
-    handleSubmit(formDataToSubmit);
+    if (await handleSubmit(formDataToSubmit)) {
+      setFormDirty(false);
+      originalFormData.current = { ...formData };
+    }
   };
 
-  return (
-    <SettingsSection title="Single sign-on (SSO)">
+  const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
+    newFormDataIdp(appConfig?.mdm?.end_user_authentication)
+  );
+  const originalEndUserFormData = useRef(endUserFormData);
+
+  const handleTabChange = useCallback(
+    (index: number) => {
+      if (
+        formDirty &&
+        // eslint-disable-next-line no-alert
+        !confirm("Switch tabs?\n\nChanges you made will not be saved.")
+      ) {
+        return;
+      }
+
+      setFormDirty(false);
+      setFormData(originalFormData.current);
+      setEndUserFormData(originalEndUserFormData.current);
+      const newSubsection = AUTH_TARGETS_BY_INDEX[index];
+      router.push(
+        newSubsection === "end-users"
+          ? PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS
+          : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS
+      );
+    },
+    [formDirty, router]
+  );
+
+  const renderFleetSsoTab = () => {
+    return (
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
@@ -282,6 +331,37 @@ const Sso = ({
           )}
         />
       </form>
+    );
+  };
+
+  const renderEndUserSsoTab = () => (
+    <EndUserAuthSection
+      setDirty={setFormDirty}
+      formData={endUserFormData}
+      setFormData={setEndUserFormData}
+      originalFormData={originalEndUserFormData}
+    />
+  );
+
+  return (
+    <SettingsSection title="Single sign-on (SSO)">
+      <TabNav secondary>
+        <Tabs
+          selectedIndex={AUTH_TARGETS_BY_INDEX.indexOf(selectedAuthTarget)}
+          onSelect={handleTabChange}
+        >
+          <TabList>
+            <Tab>
+              <TabText>Fleet users</TabText>
+            </Tab>
+            <Tab>
+              <TabText>End users</TabText>
+            </Tab>
+          </TabList>
+          <TabPanel key="fleet-users">{renderFleetSsoTab()}</TabPanel>
+          <TabPanel key="end-users">{renderEndUserSsoTab()}</TabPanel>
+        </Tabs>
+      </TabNav>
     </SettingsSection>
   );
 };

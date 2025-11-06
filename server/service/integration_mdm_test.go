@@ -758,7 +758,6 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
-
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
@@ -14342,7 +14341,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "invalid identifier")
 	// Non-Apple config profile (missing leading 'a')
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CwbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -14634,7 +14633,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "invalid identifier")
 	// Non-Apple config profile (missing leading 'a')
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CwbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -14942,7 +14941,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		{Name: "N1", Contents: profile},
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(rawRes.Body)
-	require.Contains(t, errMsg, "_badName is not supported")
+	require.Contains(t, errMsg, "_badName does not exist")
 
 	// ////////////////////////////////
 	// Test a good profile -- happy path
@@ -15006,7 +15005,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, ca.CertificateUserPrincipalNames, stringSlice)
 	digiCertServer.certReqMu.Unlock()
-	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
+	certProf, err := s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
 	require.NoError(t, err)
 	require.NotNil(t, certProf.NotValidAfter)
 	assert.Equal(t, digiCertServer.notAfter, *certProf.NotValidAfter)
@@ -15219,13 +15218,13 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	assert.Equal(t, host.HardwareSerial+" idp@example.com", certificate.Subject.CommonName)
 
-	prof, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
+	prof, err := s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
 	require.NoError(t, err)
 	require.NotNil(t, prof)
 	assert.NotNil(t, prof.NotValidAfter)
 	assert.Equal(t, fleet.CAConfigDigiCert, prof.Type)
 	assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
-	prof, err = s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "FleetVars")
+	prof, err = s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "FleetVars")
 	require.NoError(t, err)
 	require.NotNil(t, prof)
 	assert.NotNil(t, prof.NotValidAfter)
@@ -15663,7 +15662,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 			hostProf.Identifier: &hostProf,
 		}
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
-		prof, err := s.ds.GetHostMDMCertificateProfile(context.Background(), host.UUID, wantProfUUID, wantCAName)
+		prof, err := s.ds.GetAppleHostMDMCertificateProfile(context.Background(), host.UUID, wantProfUUID, wantCAName)
 		require.NoError(t, err)
 		require.NotNil(t, prof)
 		require.Equal(t, wantCAName, prof.CAName)
@@ -15694,7 +15693,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(resp.Body)
 	assert.Contains(t, errMsg, "FLEET_VAR_CUSTOM_SCEP_")
-	assert.Contains(t, errMsg, "_scepName is not supported")
+	assert.Contains(t, errMsg, "_scepName does not exist")
 
 	// /////////////////////////////////////////
 	// Add custom SCEP config

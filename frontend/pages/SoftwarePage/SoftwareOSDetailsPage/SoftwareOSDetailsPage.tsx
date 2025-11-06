@@ -1,6 +1,6 @@
 /** software/os/:id */
 
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, RouteComponentProps } from "react-router";
@@ -169,6 +169,11 @@ const SoftwareOSDetailsPage = ({
     includeNoTeam: true,
   });
 
+  // Track whether we need to fetch all vulnerabilities
+  const [maxVulnerabilities, setMaxVulnerabilities] = useState<
+    number | undefined
+  >(0);
+
   const {
     data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
@@ -184,6 +189,7 @@ const SoftwareOSDetailsPage = ({
         scope: "osVersionDetails",
         os_version_id: osVersionIdFromURL,
         teamId: teamIdForApi,
+        max_vulnerabilities: maxVulnerabilities,
       },
     ],
     ({ queryKey }) => osVersionsAPI.getOSVersion(queryKey[0]),
@@ -198,6 +204,19 @@ const SoftwareOSDetailsPage = ({
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
+        }
+      },
+      onSuccess: (data) => {
+        const {
+          os_version: { platform, vulnerabilities_count },
+        } = data;
+        if (
+          !isLinuxLike(platform) &&
+          vulnerabilities_count &&
+          vulnerabilities_count > 0 &&
+          maxVulnerabilities === 0
+        ) {
+          setMaxVulnerabilities(undefined);
         }
       },
     }

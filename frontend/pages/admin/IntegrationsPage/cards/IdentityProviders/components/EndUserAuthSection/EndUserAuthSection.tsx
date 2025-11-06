@@ -1,4 +1,9 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, {
+  MutableRefObject,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 import { AxiosResponse } from "axios";
 
 import { expandErrorReasonRequired } from "interfaces/errors";
@@ -8,9 +13,7 @@ import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink/CustomLink";
 import Button from "components/buttons/Button/Button";
-import SettingsSection from "pages/admin/components/SettingsSection";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -19,20 +22,28 @@ import {
   IFormDataIdp,
   IFormErrorsIdp,
   isMissingAnyRequiredField,
-  newFormDataIdp,
   validateFormDataIdp,
 } from "./helpers";
 
 const baseClass = "end-user-auth-section";
 
-const EndUserAuthSection = () => {
+export interface IEndUserAuthSectionProps {
+  setDirty: (dirty: boolean) => void;
+  formData: IFormDataIdp;
+  setFormData: React.Dispatch<React.SetStateAction<IFormDataIdp>>;
+  originalFormData: MutableRefObject<IFormDataIdp>;
+}
+
+const EndUserAuthSection = ({
+  setDirty,
+  formData,
+  setFormData,
+  originalFormData,
+}: IEndUserAuthSectionProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const { renderFlash } = useContext(NotificationContext);
-  const [formData, setFormData] = useState(
-    newFormDataIdp(config?.mdm?.end_user_authentication)
-  );
   const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
   const enableSaveButton =
@@ -44,6 +55,7 @@ const EndUserAuthSection = () => {
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
       const newData = { ...formData, [name]: value?.trim() || "" };
       setFormData(newData);
+      setDirty(true);
 
       const newErrors = validateFormDataIdp(newData);
       if (!newErrors) {
@@ -59,7 +71,7 @@ const EndUserAuthSection = () => {
         setFormErrors(newErrors);
       }
     },
-    [formData, formErrors]
+    [formData, setFormData, formErrors, setDirty]
   );
 
   const onBlur = useCallback(() => {
@@ -84,6 +96,8 @@ const EndUserAuthSection = () => {
           },
         });
         renderFlash("success", "Successfully updated end user authentication!");
+        originalFormData.current = { ...formData };
+        setDirty(false);
       } catch (err) {
         const ae = (typeof err === "object" ? err : {}) as AxiosResponse;
         if (ae.status === 422) {
@@ -96,7 +110,7 @@ const EndUserAuthSection = () => {
         renderFlash("error", "Couldn't update. Please try again.");
       }
     },
-    [formData, renderFlash]
+    [formData, renderFlash, setDirty]
   );
 
   const renderContent = () => {
@@ -107,14 +121,12 @@ const EndUserAuthSection = () => {
     return (
       <form>
         <p>
-          Connect Fleet to your identity provider to require end users to
-          authenticate when they first set up their macOS, iOS, iPadOS, and
-          Android hosts.{" "}
-          <CustomLink
-            url="https://fleetdm.com/learn-more-about/end-user-authentication"
-            text="Learn more"
-            newTab
-          />
+          If enabled in{" "}
+          <strong>
+            Controls &gt; Setup experience &gt; End user authentication
+          </strong>
+          , end users will be required to authenticate when they first set up
+          their host.
         </p>
         <div
           className={`form ${
@@ -194,13 +206,7 @@ const EndUserAuthSection = () => {
     return null;
   }
 
-  return (
-    <div className={baseClass}>
-      <SettingsSection title="End user authentication">
-        {renderContent()}
-      </SettingsSection>
-    </div>
-  );
+  return <div className={baseClass}>{renderContent()}</div>;
 };
 
 export default EndUserAuthSection;

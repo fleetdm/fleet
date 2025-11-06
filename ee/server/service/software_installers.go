@@ -386,13 +386,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		actTeamID = payload.TeamID
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          actTeamID,
-		SelfService:     existingInstaller.SelfService,
-		SoftwarePackage: &existingInstaller.Name,
-		SoftwareTitleID: payload.TitleID,
-		SoftwareIconURL: existingInstaller.IconUrl,
+		SoftwareTitle:       existingInstaller.SoftwareTitle,
+		TeamName:            teamName,
+		TeamID:              actTeamID,
+		SelfService:         existingInstaller.SelfService,
+		SoftwarePackage:     &existingInstaller.Name,
+		SoftwareTitleID:     payload.TitleID,
+		SoftwareIconURL:     existingInstaller.IconUrl,
+		SoftwareDisplayName: payload.DisplayName,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {

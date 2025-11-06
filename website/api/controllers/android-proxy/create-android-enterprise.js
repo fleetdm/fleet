@@ -91,14 +91,24 @@ module.exports = {
         }
       });
 
+      // Debugging case: Log the actual token scopes in use.
+      const accessTokenObj = await authClient.getAccessToken();
+      const rawToken = accessTokenObj.token || accessTokenObj; // depending on version
+      // eslint-disable-next-line no-undef
+      const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${rawToken}`);
+      const tokenInfo = await tokenInfoRes.json();
+      sails.log.debug('Token scopes actually in use:', tokenInfo.scope);
+
+
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
       // Retrieve the IAM policy for the created pubsub topic.
+      // !IMPORTANT: This should not be wrapped in a sails.helpers.flow.build, as we've seen issues with it not working properly.
       let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
         resource: fullPubSubTopicName,
       });
       let newPubSubTopicIamPolicy = getIamPolicyResponse.data;
 
-      // Grand Android device policy the right to publish
+      // Grant Android device policy the right to publish
       // See: https://developers.google.com/android/management/notifications
       // Default the policy bindings to an empty array if it is not set.
       newPubSubTopicIamPolicy.bindings = newPubSubTopicIamPolicy.bindings || [];
@@ -110,12 +120,14 @@ module.exports = {
 
       // Update the pubsub topic's IAM policy
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/setIamPolicy
-      await pubsub.projects.topics.setIamPolicy({
-        resource: fullPubSubTopicName,
-        requestBody: {
-          policy: newPubSubTopicIamPolicy
-        }
-      });
+      await sails.helpers.flow.build(async () => {
+        await pubsub.projects.topics.setIamPolicy({
+          resource: fullPubSubTopicName,
+          requestBody: {
+            policy: newPubSubTopicIamPolicy
+          }
+        });
+      }).retry(undefined, [1000, 1500, 2000]);
 
       // Create a new subscription for the created pubsub topic.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create

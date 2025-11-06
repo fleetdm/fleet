@@ -127,9 +127,12 @@
     white-space: normal;
     background-color: transparent;
     overflow: hidden;
+    font-size: $x-small;
   }
 
   &__policy-name {
+   font-size:$large;
+
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
     }
