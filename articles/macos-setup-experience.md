@@ -177,13 +177,14 @@ Add setup experience software:
 3. Press **Save** to save your selection.
 
 To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
-#### Blocking setup on failed software installs
 
-You may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
+#### Stop setup on failed software installs
 
-1. Click **Show advanced options** on the Install Software screen.
-2. Check the "Cancel setup if software install fails" checkbox.
-3. Press **Save**. 
+For macOS hosts, you can configure the setup experience to stop if any software item fails to install:
+
+1. In **Controls > Setup experience > Install software > macOS**, select **Show advanced options**.
+2. Check the **Cancel setup if software install fails** checkbox.
+3. Select **Save**. 
 
 When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
 
