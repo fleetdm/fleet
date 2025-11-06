@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,6 +44,7 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"MissingUUID", testMissingUUID},
 		{"NonExistentHost", testNonExistentHost},
 		{"CertificateRotation", testCertificateRotation},
+		{"GetIDPSigningCert", testGetIDPSigningCert},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -412,4 +414,40 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 	resp.Body.Close()
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "new cert should work via HTTP endpoint")
+}
+
+// testGetIDPSigningCert tests retrieving the IdP signing certificate via the API endpoint.
+func testGetIDPSigningCert(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Make HTTP request to get IdP signing certificate
+	req, err := http.NewRequestWithContext(ctx, "GET", s.Server.URL+"/api/latest/fleet/conditional_access/idp/signing_cert", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode, "should return 200 OK")
+
+	// Verify content type
+	require.Equal(t, "application/x-pem-file", resp.Header.Get("Content-Type"))
+	require.Equal(t, "attachment; filename=\"fleet-idp-signing-cert.pem\"", resp.Header.Get("Content-Disposition"))
+
+	// Read certificate content
+	certPEM, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NotEmpty(t, certPEM)
+
+	// Parse and verify it's a valid certificate
+	block, _ := pem.Decode(certPEM)
+	require.NotNil(t, block, "should be valid PEM")
+	require.Equal(t, "CERTIFICATE", block.Type)
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+
+	// Verify certificate subject contains IdP
+	require.Contains(t, cert.Subject.CommonName, "IdP", "certificate should be for IdP")
 }
