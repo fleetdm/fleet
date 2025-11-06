@@ -16,13 +16,13 @@ Together, these components create a self-healing enforcement loop that ensures p
 
 One way to harden the installer is to apply registry values through a PowerShell script. These values help prevent uninstallation or tampering of protected applications.
 
-[Windows hardening PowerShell script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/scripts/windows-fleet-hardening.ps1)
+[Windows hardening PowerShell script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/prevent%20uninstall%20or%20modification%20of%20Fleet%20osquery%20%E2%80%93%20%5BNoRemove%2C%20NoModify%5D.ps1)
 
 ## Policies in Fleet
 
 A Fleet policy confirms that the hardened registry key exists. If the key is missing, the policy fails, triggering automation to rerun the script. Once applied, the policy becomes compliant. If tampering occurs later, the cycle repeats.
 
-[Fleet policy for Windows hardening](https://github.com/fleetdm/fleet/blob/main/docs/solutions/policies/windows-fleet-hardening.policies.yml)
+[Fleet policy for Windows hardening](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/policies/windows-fleet-hardening.policies.yml)
 
 > Note: On first run, this policy intentionally fails to ensure automation executes the hardening script.
 
@@ -30,7 +30,7 @@ A Fleet policy confirms that the hardened registry key exists. If the key is mis
 
 A Windows configuration profile can prevent devices from unenrolling from MDM. This is a separate measure from the policy and script but adds another layer of protection.
 
-[Block MDM unenrollment configuration profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/configuration-profiles/BlockMDMUnenrollment.xml)
+[Block MDM unenrollment configuration profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/Disallow%20manual%20MDM%20unenrollment%20-%20%5BAllowManualMDMUnenrollment%5D.xml)
 
 [Microsoft CSP reference](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#allowmanualmdmunenrollment): The `AllowManualMDMUnenrollment` CSP is only supported on certain versions of Windows. Verify compatibility before deployment.
 
