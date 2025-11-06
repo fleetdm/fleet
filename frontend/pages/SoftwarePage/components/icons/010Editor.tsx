@@ -2,7 +2,7 @@ import * as React from "react";
 
 import type { SVGProps } from "react";
 
-const 010Editor = (props: SVGProps<SVGSVGElement>) => (
+const ZeroOneZeroEditor = (props: SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={32} height={32} {...props}>
     <image
       width={32}
@@ -11,4 +11,4 @@ const 010Editor = (props: SVGProps<SVGSVGElement>) => (
     />
   </svg>
 );
-export default 010Editor;
+export default ZeroOneZeroEditor;
