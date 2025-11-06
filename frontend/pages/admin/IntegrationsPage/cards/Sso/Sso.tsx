@@ -140,6 +140,8 @@ const Sso = ({
       setFormData(newData);
       originalFormData.current = newData;
     }
+    // formDirty is intentionally excluded from dependencies to prevent unnecessary re-runs
+    // when form becomes dirty/clean without appConfig changing
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appConfig.sso_settings]);
 
@@ -210,6 +212,8 @@ const Sso = ({
       setEndUserFormData(newData);
       originalEndUserFormData.current = newData;
     }
+    // formDirty is intentionally excluded from dependencies to prevent unnecessary re-runs
+    // when form becomes dirty/clean without appConfig changing
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appConfig?.mdm?.end_user_authentication]);
 
