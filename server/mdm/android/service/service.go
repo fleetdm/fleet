@@ -72,7 +72,6 @@ func NewServiceWithClient(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
-	// fleetSvc fleet.Service,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
 	activityModule activities.ActivityModule,
@@ -82,17 +81,28 @@ func NewServiceWithClient(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	return &Service{
-		logger:           logger,
-		authz:            authorizer,
-		ds:               ds,
-		androidAPIClient: client,
-		// fleetSvc:          fleetSvc,
+	svc := &Service{
+		logger:            logger,
+		authz:             authorizer,
+		ds:                ds,
+		androidAPIClient:  client,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 		fleetDS:           fleetDS,
 		activityModule:    activityModule,
-	}, nil
+	}
+
+	// OK to use background context here because this function is only called during server bootstrap
+	// Setting the secret here ensures that we don't have to configure it in lots of different places
+	// when using the proxy client.
+	ctx := context.Background()
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	return svc, nil
 }
 
 func NewAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {

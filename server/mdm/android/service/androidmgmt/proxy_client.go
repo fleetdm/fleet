@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
@@ -283,11 +284,52 @@ func isErrorCode(err error, code int) bool {
 }
 
 func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
-	// TODO(JVE): do we need to implement this? I think so
-	return nil, nil
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+
+	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
+	call := p.mgmt.Enterprises.Applications.Get(path).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+
+	fmt.Printf("call.Header(): %v\n", call.Header())
+	app, err := call.Do()
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+		var gapiErr *googleapi.Error
+		if errors.As(err, &gapiErr) {
+			if gapiErr.Code == http.StatusNotFound {
+				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
+			}
+		}
+		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
+	}
+	return app, nil
+
 }
 
 func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
-	// TODO(JVE): do we need to implement this? I think so
-	return nil, nil
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+
+	call := p.mgmt.Enterprises.List().Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: []*androidmanagement.ApplicationPolicyChange{
+			{
+				Application: appPolicy,
+			},
+		},
+	}
+	ret, err := p.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		// TODO(JVE): does it make sense to return an error here?
+		return nil, err
+	case err != nil:
+		return nil, ctxerr.Wrapf(ctx, err, "modifying application policy %s", policyName)
+	}
+	return ret.Policy, nil
 }
