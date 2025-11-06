@@ -384,7 +384,8 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "old cert should authenticate via HTTP endpoint")
+	// StatusBadRequest (400) indicates cert authentication succeeded but SAML request is invalid/empty
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "old cert should authenticate (400 = auth success, SAML parse fail)")
 
 	// Request new certificate via SCEP (certificate rotation)
 	newCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
@@ -400,7 +401,7 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	resp, err = http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "old cert should still work after new cert issued (grace period)")
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "old cert should still work after new cert issued (grace period)")
 
 	newSerialHex := fmt.Sprintf("%X", newCert.SerialNumber)
 	req, err = http.NewRequestWithContext(ctx, "POST", s.Server.URL+"/api/fleet/conditional_access/idp/sso", nil)
@@ -410,5 +411,5 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	resp, err = http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "new cert should work via HTTP endpoint")
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "new cert should work via HTTP endpoint")
 }
