@@ -1,4 +1,4 @@
-# Fleet 4.76.0 | Self-service scripts, JetBrains/Cursor/Windsurf vulnerabilities, and more
+# Fleet 4.76.0 | Self-service scripts, JetBrains/Cursor/Windsurf vulnerabilities, and more...
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/2hJ7yZTBaVY?si=11HG8r-mS1iF9fma" frameborder="0" allowfullscreen></iframe>
