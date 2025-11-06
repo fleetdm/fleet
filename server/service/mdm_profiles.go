@@ -154,7 +154,7 @@ type CustomSCEPVarsFound struct {
 // Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
 // This allows the Admin to override the SCEP challenge in the profile.
 func (cs *CustomSCEPVarsFound) Ok() bool {
-	if cs == nil {
+	if cs == nil || !cs.found {
 		return true
 	}
 	if len(cs.challengeCA) != len(cs.urlCA) {
@@ -177,7 +177,7 @@ func (cs *CustomSCEPVarsFound) Ok() bool {
 }
 
 func (cs *CustomSCEPVarsFound) Found() bool {
-	return cs.found
+	return cs != nil && cs.found
 }
 
 func (cs *CustomSCEPVarsFound) RenewalOnly() bool {
@@ -201,7 +201,7 @@ func (cs *CustomSCEPVarsFound) ErrorMessage() string {
 	}
 	if !cs.supportsRenewal && (len(cs.challengeCA) == 0 || len(cs.urlCA) == 0) {
 		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME> and $FLEET_VAR_%s<CA_NAME> variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix)
-	} else if (!cs.renewalIdFound && cs.supportsRenewal) && (len(cs.challengeCA) == 0 || len(cs.urlCA) == 0) {
+	} else if (!cs.renewalIdFound && cs.supportsRenewal) || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
 		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
 	}
 
@@ -231,6 +231,7 @@ func (cs *CustomSCEPVarsFound) SetURL(value string) (*CustomSCEPVarsFound, bool)
 	}
 	_, alreadyPresent := cs.urlCA[value]
 	cs.urlCA[value] = struct{}{}
+	cs.found = true
 	return cs, !alreadyPresent
 }
 
@@ -245,6 +246,7 @@ func (cs *CustomSCEPVarsFound) SetChallenge(value string) (*CustomSCEPVarsFound,
 	}
 	_, alreadyPresent := cs.challengeCA[value]
 	cs.challengeCA[value] = struct{}{}
+	cs.found = true
 	return cs, !alreadyPresent
 }
 
@@ -256,6 +258,7 @@ func (cs *CustomSCEPVarsFound) SetRenewalID() (*CustomSCEPVarsFound, bool) {
 	}
 	alreadyPresent := cs.renewalIdFound
 	cs.renewalIdFound = true
+	cs.found = true
 	return cs, !alreadyPresent
 }
 
@@ -375,8 +378,6 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 	if len(fleetVars) == 0 {
 		return nil
 	}
-
-	fmt.Println(fleetVars)
 
 	// Check for premium license if the profile contains Fleet variables
 	if lic == nil || !lic.IsPremium() {
