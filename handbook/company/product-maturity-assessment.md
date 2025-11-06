@@ -29,7 +29,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 **Stage lifecycle**: Enterprise Ready
 
 **Analyst reports**
-- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)   / [GDrive](https://drive.google.com/file/d/1R_2d02Jex1Jv-ZBrK9PuZk-bxxTcq6Uk/view?usp=drive_link)
+- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
@@ -53,8 +53,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Analyst reports**
 
-- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)   / [GDrive](https://drive.google.com/file/d/1R_2d02Jex1Jv-ZBrK9PuZk-bxxTcq6Uk/view?usp=drive_link)
-
+- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
@@ -84,8 +83,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Analyst reports**
 
-- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)   / [GDrive](https://drive.google.com/file/d/1R_2d02Jex1Jv-ZBrK9PuZk-bxxTcq6Uk/view?usp=drive_link)
-
+- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
@@ -113,8 +111,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Analyst reports**
 
-- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)   / [GDrive](https://drive.google.com/file/d/1R_2d02Jex1Jv-ZBrK9PuZk-bxxTcq6Uk/view?usp=drive_link)
-- Gartner: [Innovation Insight: Autonomous Endpoint Management - 2025-01-15](https://www.gartner.com/en/documents/6081995)   / [GDrive](https://drive.google.com/file/d/1frZKBwUWed0b2Lr2n1Z6rRbHTnnLSFvw/view?usp=drive_link)
+- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
+- Gartner: [Innovation Insight: Autonomous Endpoint Management - 2025-01-15](https://www.gartner.com/en/documents/6081995)
 
 
 
@@ -143,8 +141,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Analyst reports**
 
-- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)   / [GDrive](https://drive.google.com/file/d/1R_2d02Jex1Jv-ZBrK9PuZk-bxxTcq6Uk/view?usp=drive_link)
-
+- Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
