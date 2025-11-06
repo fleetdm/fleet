@@ -357,9 +357,6 @@ const SoftwareVppForm = ({
     <form className={baseClass} onSubmit={onFormSubmit}>
       {isLoading && <div className={`${baseClass}__overlay`} />}
       <div className={contentWrapperClasses}>
-        {!softwareVppForEdit && (
-          <p>Apple App Store apps purchased via Apple Business Manager:</p>
-        )}
         <div className={formContentClasses}>
           <>{renderContent()}</>
         </div>
