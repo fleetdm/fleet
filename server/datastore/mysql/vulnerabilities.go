@@ -541,65 +541,29 @@ func getVulnHostCountQuery(scope CountScope) string {
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
 	// Step 1: Calculate all counts in memory (no DB modifications yet)
-	start := time.Now()
 	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
-	fmt.Printf("Fetched global vulnerability host counts in %s\n", time.Since(start).String())
 
-	start = time.Now()
 	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
-	fmt.Printf("Fetched team vulnerability host counts in %s\n", time.Since(start).String())
 
-	start = time.Now()
 	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
-	fmt.Printf("Fetched no team vulnerability host counts in %s\n", time.Since(start).String())
 
-	// Combine all counts into single slice for atomic operation
+	// Combine all counts into single slice
 	allCounts := make([]hostCount, 0, len(globalHostCounts)+len(teamHostCounts)+len(noTeamHostCounts))
 	allCounts = append(allCounts, globalHostCounts...)
 	allCounts = append(allCounts, teamHostCounts...)
 	allCounts = append(allCounts, noTeamHostCounts...)
 
-	// Step 2: Single transaction - DELETE all + INSERT all + UPDATE timestamp
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Clear all existing counts
-		startAll := time.Now()
-		_, err := tx.ExecContext(ctx, "DELETE FROM vulnerability_host_counts")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "clearing vulnerability host counts")
-		}
-		fmt.Printf("Deleted existing vulnerability host counts in %s\n", time.Since(startAll).String())
-
-		// Insert all new counts in single operation
-		if len(allCounts) > 0 {
-			start := time.Now()
-			err = ds.atomicInsertHostCounts(ctx, tx, allCounts)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting vulnerability host counts")
-			}
-			fmt.Printf("Insert took %s\n", time.Since(start).String())
-		}
-
-		// Update timestamp to indicate when counts were last refreshed
-		start := time.Now()
-		_, err = tx.ExecContext(ctx, "UPDATE vulnerability_host_counts SET updated_at = NOW()")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating vulnerability host count timestamps")
-		}
-		fmt.Printf("Update took %s\n", time.Since(start).String())
-
-		fmt.Printf("Total vulnerability host counts update took %s\n", time.Since(startAll).String())
-
-		return nil
-	})
+	// Step 2: Atomic table swap approach
+	return ds.atomicTableSwapVulnerabilityCounts(ctx, allCounts)
 }
 
 type hostCount struct {
@@ -609,17 +573,89 @@ type hostCount struct {
 	GlobalStats bool   `db:"global_stats"`
 }
 
-// atomicInsertHostCounts inserts vulnerability host counts within a transaction
-// This is more efficient than batchInsertHostCounts for atomic operations
-func (ds *Datastore) atomicInsertHostCounts(ctx context.Context, tx sqlx.ExtContext, counts []hostCount) error {
+// atomicTableSwapVulnerabilityCounts implements atomic table swap pattern
+// 1. Populate swap table with new data
+// 2. Atomically rename tables to swap them
+// 3. Clean up old table
+func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, counts []hostCount) error {
+	// Step 1: Ensure swap table exists and populate it with new data
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Ensure swap table exists
+		err := ds.ensureSwapTableExists(ctx, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "ensuring swap table exists")
+		}
+
+		// Clear swap table (in case of previous failed run)
+		_, err = tx.ExecContext(ctx, "DELETE FROM vulnerability_host_counts_swap")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing swap table")
+		}
+
+		// Populate swap table with new data
+		if len(counts) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts, "vulnerability_host_counts_swap")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table")
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Step 2: Atomic table swap using RENAME TABLE
+	// This is atomic - either both renames succeed or both fail
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+			RENAME TABLE
+				vulnerability_host_counts TO vulnerability_host_counts_old,
+				vulnerability_host_counts_swap TO vulnerability_host_counts
+		`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+
+		// Step 3: Clean up old table (drop it)
+		_, err = tx.ExecContext(ctx, "DROP TABLE vulnerability_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "dropping old table")
+		}
+
+		// Step 4: Recreate empty swap table for next run
+		_, err = tx.ExecContext(ctx, `
+			CREATE TABLE vulnerability_host_counts_swap (
+				cve varchar(255) NOT NULL,
+				team_id int unsigned NOT NULL DEFAULT 0,
+				host_count int unsigned NOT NULL DEFAULT 0,
+				global_stats tinyint(1) NOT NULL DEFAULT 0,
+				created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+				updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (cve, team_id, global_stats),
+				INDEX idx_team_id (team_id),
+				INDEX idx_global_stats (global_stats),
+				INDEX idx_updated_at (updated_at)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+		`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "recreating swap table")
+		}
+
+		return nil
+	})
+}
+
+// insertHostCountsIntoTable inserts counts into specified table
+func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtContext, counts []hostCount, tableName string) error {
 	if len(counts) == 0 {
 		return nil
 	}
 
-	// Since we deleted all records first, we can use simple INSERT instead of INSERT...ON DUPLICATE KEY UPDATE
-	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
+	insertStmt := fmt.Sprintf("INSERT INTO %s (team_id, cve, host_count, global_stats) VALUES ", tableName)
 
-	// Use smaller chunks within transaction to avoid parameter limits
+	// Use smaller chunks to avoid parameter limits
 	chunkSize := 100
 	for i := 0; i < len(counts); i += chunkSize {
 		end := i + chunkSize
@@ -638,11 +674,27 @@ func (ds *Datastore) atomicInsertHostCounts(ctx context.Context, tx sqlx.ExtCont
 		fullStmt := insertStmt + strings.Join(valueStrings, ", ")
 		_, err := tx.ExecContext(ctx, fullStmt, chunkArgs...)
 		if err != nil {
-			return fmt.Errorf("inserting host counts chunk %d-%d: %w", i, end-1, err)
+			return fmt.Errorf("inserting host counts chunk %d-%d into %s: %w", i, end-1, tableName, err)
 		}
 	}
 
 	return nil
+}
+
+// ensureSwapTableExists creates the swap table if it doesn't exist
+func (ds *Datastore) ensureSwapTableExists(ctx context.Context, tx sqlx.ExtContext) error {
+	_, err := tx.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS vulnerability_host_counts_swap (
+			cve varchar(255) NOT NULL,
+			team_id int unsigned NOT NULL DEFAULT 0,
+			host_count int unsigned NOT NULL DEFAULT 0,
+			global_stats tinyint(1) NOT NULL DEFAULT 0,
+			created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+			updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE KEY cve_team_id_global_stats (cve, team_id, global_stats)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+	`)
+	return err
 }
 
 func (ds *Datastore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
