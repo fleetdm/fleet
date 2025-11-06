@@ -131,18 +131,21 @@ const Sso = ({
 
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
   const [formDirty, setFormDirty] = useState<boolean>(false);
+  const formDirtyRef = useRef(formDirty);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    formDirtyRef.current = formDirty;
+  }, [formDirty]);
 
   // Update SSO settings form data when appConfig changes (e.g., after navigation and refetch)
   // Only update if form is not dirty to avoid overwriting unsaved changes
   useEffect(() => {
-    if (!formDirty) {
+    if (!formDirtyRef.current) {
       const newData = createSsoFormData(appConfig.sso_settings);
       setFormData(newData);
       originalFormData.current = newData;
     }
-    // formDirty is intentionally excluded from dependencies to prevent unnecessary re-runs
-    // when form becomes dirty/clean without appConfig changing
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appConfig.sso_settings]);
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
@@ -207,14 +210,11 @@ const Sso = ({
   // Update end user form data when appConfig changes (e.g., after navigation and refetch)
   // Only update if form is not dirty to avoid overwriting unsaved changes
   useEffect(() => {
-    if (!formDirty) {
+    if (!formDirtyRef.current) {
       const newData = newFormDataIdp(appConfig?.mdm?.end_user_authentication);
       setEndUserFormData(newData);
       originalEndUserFormData.current = newData;
     }
-    // formDirty is intentionally excluded from dependencies to prevent unnecessary re-runs
-    // when form becomes dirty/clean without appConfig changing
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appConfig?.mdm?.end_user_authentication]);
 
   const handleTabChange = useCallback(
