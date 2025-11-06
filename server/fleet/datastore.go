@@ -2450,9 +2450,6 @@ type Datastore interface {
 	// RevokeOldConditionalAccessCerts revokes old certificates for hosts that have a newer certificate.
 	// Returns the number of certificates revoked.
 	RevokeOldConditionalAccessCerts(ctx context.Context, gracePeriod time.Duration) (int64, error)
-	// RevokeOldHostIdentityCerts revokes old host identity certificates for hosts that have a newer certificate.
-	// Returns the number of certificates revoked.
-	RevokeOldHostIdentityCerts(ctx context.Context, gracePeriod time.Duration) (int64, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities

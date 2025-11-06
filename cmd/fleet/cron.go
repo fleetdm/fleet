@@ -1060,17 +1060,6 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
-		schedule.WithJob("revoke_old_host_identity_certs", func(ctx context.Context) error {
-			const gracePeriod = 1 * time.Hour
-			count, err := ds.RevokeOldHostIdentityCerts(ctx, gracePeriod)
-			if err != nil {
-				return err
-			}
-			if count > 0 {
-				level.Info(logger).Log("msg", "revoked old host identity certificates", "count", count)
-			}
-			return nil
-		}),
 	)
 
 	return s, nil

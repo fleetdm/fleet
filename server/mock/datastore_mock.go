@@ -1579,8 +1579,6 @@ type GetConditionalAccessCertCreatedAtByHostIDFunc func(ctx context.Context, hos
 
 type RevokeOldConditionalAccessCertsFunc func(ctx context.Context, gracePeriod time.Duration) (int64, error)
 
-type RevokeOldHostIdentityCertsFunc func(ctx context.Context, gracePeriod time.Duration) (int64, error)
-
 type NewCertificateAuthorityFunc func(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error)
 
 type GetCertificateAuthorityByIDFunc func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error)
@@ -3935,9 +3933,6 @@ type DataStore struct {
 
 	RevokeOldConditionalAccessCertsFunc        RevokeOldConditionalAccessCertsFunc
 	RevokeOldConditionalAccessCertsFuncInvoked bool
-
-	RevokeOldHostIdentityCertsFunc        RevokeOldHostIdentityCertsFunc
-	RevokeOldHostIdentityCertsFuncInvoked bool
 
 	NewCertificateAuthorityFunc        NewCertificateAuthorityFunc
 	NewCertificateAuthorityFuncInvoked bool
@@ -9416,13 +9411,6 @@ func (s *DataStore) RevokeOldConditionalAccessCerts(ctx context.Context, gracePe
 	s.RevokeOldConditionalAccessCertsFuncInvoked = true
 	s.mu.Unlock()
 	return s.RevokeOldConditionalAccessCertsFunc(ctx, gracePeriod)
-}
-
-func (s *DataStore) RevokeOldHostIdentityCerts(ctx context.Context, gracePeriod time.Duration) (int64, error) {
-	s.mu.Lock()
-	s.RevokeOldHostIdentityCertsFuncInvoked = true
-	s.mu.Unlock()
-	return s.RevokeOldHostIdentityCertsFunc(ctx, gracePeriod)
 }
 
 func (s *DataStore) NewCertificateAuthority(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
