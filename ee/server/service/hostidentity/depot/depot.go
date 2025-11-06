@@ -123,11 +123,22 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 	}
 
 	return common_mysql.WithRetryTxx(context.Background(), d.db, func(tx sqlx.ExtContext) error {
-		// Insert the new certificate without revoking old ones immediately.
-		// Old certificates will be revoked by the periodic cleanup job after a grace period
-		// to prevent authentication failures during certificate rotation.
-		// Note: Multiple valid certificates can exist per host during the grace period.
-		_, err := tx.ExecContext(context.Background(), `
+		// Revoke existing certs for this host id.
+		// Note: Because the challenge is shared, it is possible for a bad actor to revoke a cert for an existing host
+		// if they have the challenge and the host identifier (CN).
+		result, err := tx.ExecContext(context.Background(), `
+			UPDATE host_identity_scep_certificates 
+			SET revoked = 1 
+			WHERE name = ?`, name)
+		if err != nil {
+			return err
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected > 0 {
+			d.logger.Log("msg", "revoked existing host identity certificate", "name", name)
+		}
+
+		_, err = tx.ExecContext(context.Background(), `
 			INSERT INTO host_identity_scep_certificates
 				(serial, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw)
 			VALUES

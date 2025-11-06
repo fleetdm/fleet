@@ -28,7 +28,6 @@ func TestHostIdentitySCEP(t *testing.T) {
 		{"GetHostIdentityCert", testGetHostIdentityCert},
 		{"UpdateHostIdentityCertHostIDBySerial", testUpdateHostIdentityCertHostIDBySerial},
 		{"HostIdentityCertificateIntegration", testHostIdentityCertificateIntegration},
-		{"CertificateLifecycle", testHostIdentityCertificateLifecycle},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -352,62 +351,4 @@ func testHostIdentityCertificateIntegration(t *testing.T, ds *Datastore) {
 		require.NotNil(t, cert.HostID)
 		assert.Equal(t, host.ID, *cert.HostID)
 	})
-}
-
-func testHostIdentityCertificateLifecycle(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	now := time.Now()
-
-	// Create test host
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: ptr.String("test-host-lifecycle"), NodeKey: ptr.String("test-node-key"),
-		UUID: "test-uuid", Hostname: "test-hostname", Platform: "darwin", DetailUpdatedAt: now,
-	})
-	require.NoError(t, err)
-
-	// Host gets first cert, then rotates to new cert
-	oldSerial := uint64(5001)
-	newSerial := uint64(5002)
-	revokedSerial := uint64(5003)
-	insertTestCertificate(t, ds, oldSerial, &host.ID, "old-cert", now.Add(-2*time.Hour), now.Add(24*time.Hour), false)
-	insertTestCertificate(t, ds, newSerial, &host.ID, "new-cert", now.Add(-30*time.Minute), now.Add(24*time.Hour), false)
-	insertTestCertificate(t, ds, revokedSerial, &host.ID, "revoked-cert", now.Add(-3*time.Hour), now.Add(24*time.Hour), true)
-
-	// Old and new certs both work, revoked does not
-	_, err = ds.GetHostIdentityCertBySerialNumber(ctx, oldSerial)
-	require.NoError(t, err, "old cert should work after new cert issued")
-	_, err = ds.GetHostIdentityCertBySerialNumber(ctx, newSerial)
-	require.NoError(t, err)
-	_, err = ds.GetHostIdentityCertBySerialNumber(ctx, revokedSerial)
-	assert.True(t, fleet.IsNotFound(err))
-
-	// Can retrieve by name
-	cert, err := ds.GetHostIdentityCertByName(ctx, "old-cert")
-	require.NoError(t, err)
-	assert.Equal(t, oldSerial, cert.SerialNumber)
-
-	// Cleanup with 1h grace period: no revocations (new cert too recent)
-	count, err := ds.RevokeOldHostIdentityCerts(ctx, 1*time.Hour)
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), count)
-
-	// Old cert still works
-	_, err = ds.GetHostIdentityCertBySerialNumber(ctx, oldSerial)
-	require.NoError(t, err)
-
-	// Cleanup with 20min grace period: old cert gets revoked
-	count, err = ds.RevokeOldHostIdentityCerts(ctx, 20*time.Minute)
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), count)
-
-	// Old cert now revoked, new cert still works
-	_, err = ds.GetHostIdentityCertBySerialNumber(ctx, oldSerial)
-	assert.True(t, fleet.IsNotFound(err))
-	_, err = ds.GetHostIdentityCertBySerialNumber(ctx, newSerial)
-	require.NoError(t, err)
-
-	// Second cleanup revokes nothing
-	count, err = ds.RevokeOldHostIdentityCerts(ctx, 20*time.Minute)
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), count)
 }
