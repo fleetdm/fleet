@@ -180,6 +180,15 @@ const EditIconModal = ({
     iconState.status === "fallback" &&
     !iconState.formData;
   const canSaveIcon = isCustomUpload || isRemovedCustom;
+  // Determine if any changes have been made to allow enabling Save button
+  const canSaveDisplayName =
+    (hasNameBeenModified && displayName === "") || // user cleared an override display name
+    (!hasNameBeenModified && displayName !== "") || // user set an override display name
+    (hasNameBeenModified &&
+      displayName !== "" &&
+      displayName !== previewInfo.name); // user changed override display name
+  // Ensures Save button is only enabled when icon or name has been changed
+  const canSaveForm = canSaveIcon || canSaveDisplayName;
 
   // Sets state after fetching current API custom icon
   const setCurrentApiCustomIcon = (
@@ -248,7 +257,6 @@ const EditIconModal = ({
   };
 
   const onInputChange = ({ value }: IInputFieldParseTarget) => {
-    console.log("displayName", displayName);
     setDisplayName((value as string) || "");
     // If you want live update in the formData:
     setIconState((prev) =>
@@ -260,8 +268,6 @@ const EditIconModal = ({
         : prev
     );
   };
-
-  console.log("displayName", displayName);
 
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -680,7 +686,7 @@ const EditIconModal = ({
               type="submit"
               onClick={onClickSave}
               isLoading={isUpdatingSoftwareInfo}
-              disabled={!canSaveIcon || isUpdatingSoftwareInfo}
+              disabled={!canSaveForm || isUpdatingSoftwareInfo}
             >
               Save
             </Button>

@@ -24,6 +24,7 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "software-details-summary";
 
@@ -117,7 +118,7 @@ const SoftwareDetailsSummary = ({
                 <TooltipWrapperArchLinuxRolling />
               </>
             ) : (
-              displayName
+              <TooltipTruncatedText value={displayName} />
             )}
             {onClickEditIcon && (
               <div className={`${baseClass}__edit-icon`}>
