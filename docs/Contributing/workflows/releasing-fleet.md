@@ -48,7 +48,11 @@ git checkout --branch prepare-fleet-v4.3.0
 ```sh
 git tag fleet-v<VERSION>
 git push origin fleet-v<VERSION>
+git tag v<VERSION>
+git push origin v<VERSION>
 ```
+
+> For example, `git tag fleet-v4.75.0` and `git tag v4.75.0`.
 
 Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
 is to push the new tag to the `github.com/fleetdm/fleet` repository.
