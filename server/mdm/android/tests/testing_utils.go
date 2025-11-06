@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -152,6 +153,9 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		return nil
 	}
 	ts.DS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ts.DS.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 }
