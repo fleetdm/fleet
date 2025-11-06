@@ -16,6 +16,7 @@ import {
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -24,7 +25,6 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "software-details-summary";
 
