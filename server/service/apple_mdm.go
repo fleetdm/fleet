@@ -4837,6 +4837,9 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
+	// FIXME: How does this impact variable profiles? This happens before pre-processing, doesn't
+	// this potentially race with the command uuid and variable substitution?
+	//
 	// First update all the profiles in the database before sending the
 	// commands, this prevents race conditions where we could get a
 	// response from the device before we set its status as 'pending'
