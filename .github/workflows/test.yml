@@ -1,4 +1,4 @@
-name: Fleet Agent Build and Test Latest
+name: Fleet Test
 
 permissions:
   contents: write
