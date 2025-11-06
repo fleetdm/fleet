@@ -1516,7 +1516,6 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.bundle_identifier",
 		"s.extension_id",
 		"s.extension_for",
-		// TODO ? - "s.upgrade_code",
 		"s.release",
 		"s.vendor",
 		"s.arch",
@@ -1687,7 +1686,6 @@ func (ds *Datastore) AllSoftwareIterator(
 	var err error
 	var args []interface{}
 
-	//  TODO(jacob): add s.upgrade_code?
 	stmt := `SELECT
 		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.extension_for, s.extension_id, s.title_id,
 		COALESCE(sc.cpe, '') AS generated_cpe
