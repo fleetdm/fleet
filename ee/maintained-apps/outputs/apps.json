@@ -142,11 +142,11 @@
       "description": ""
     },
     {
-      "name": "logioptionsplus",
+      "name": "Logi Options+",
       "slug": "logi-options+/darwin",
       "platform": "darwin",
       "unique_identifier": "com.logi.optionsplus",
-      "description": ""
+      "description": "Software for managing Logitech devices."
     },
     {
       "name": "Microsoft Edge",
