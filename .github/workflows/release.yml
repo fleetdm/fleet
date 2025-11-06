@@ -1,4 +1,4 @@
-name: Fleet Agent Build and Push Latest
+name: Fleet Release
 
 permissions:
   contents: write
@@ -15,8 +15,8 @@ on:
       - "**/*.md"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Tag to release (e.g., v1.2.3)"
+      version:
+        description: "Version to Release (e.g., v1.2.3)"
         required: true
         type: string
 
@@ -35,7 +35,8 @@ jobs:
     name: "Build Go Client (${{ matrix.os }})"
     runs-on: ${{ matrix.os }}
     if: |
-      github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch'
     defaults:
       run:
         shell: bash
@@ -109,3 +110,59 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
           compression-level: 9
+
+
+  release:
+    name: "Create Release"
+    needs: [build_client]
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      inputs.version != ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+        continue-on-error: true
+
+      - name: Prepare release artifacts
+        run: |
+          set -e
+          mkdir -p final-artifacts/clients
+
+          # macOS
+          if [ -d "release-artifacts/fleet-mac-universal" ]; then
+            tar -czf "final-artifacts/clients/fleet-macos-universal.tar.gz" \
+              -C "release-artifacts/fleet-mac-universal" fleet
+          fi
+          # Windows
+          if [ -d "release-artifacts/fleet-windows-amd64" ]; then
+            (cd "release-artifacts/fleet-windows-amd64" && \
+              zip "${GITHUB_WORKSPACE}/final-artifacts/clients/fleet-windows-amd64.zip" fleet.exe)
+          fi
+
+          ls -lh final-artifacts/clients/
+
+      - name: Generate release header
+        run: |
+          cat > RELEASE_HEADER.md <<EOF
+          ## Fleet Clients
+          - **macOS** (Universal): \`fleet-macos-universal.tar.gz\`
+          - **Windows** (amd64): \`fleet-windows-amd64.zip\`
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: 0.0.1  # ${{ inputs.version }}
+          name: "🦩 0.0.1"  # ${{ inputs.version }}"
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body_path: RELEASE_HEADER.md
+          files: |
+            final-artifacts/clients/*
