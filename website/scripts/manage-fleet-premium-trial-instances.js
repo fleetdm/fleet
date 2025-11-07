@@ -48,7 +48,7 @@ module.exports = {
       await sails.helpers.flow.simultaneouslyForEach(newRenderPovRecordsToCreate, async()=>{
         await sails.helpers.flow.build(async ()=>{
           let slugForThisInstance = await sails.helpers.ai.prompt.with({
-            prompt: 'You are a creative developer.  Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur").  If appropriate, use imagery from nature, such as swans, or from a glass city in the clouds.  Return only the slug as JSON string.',
+            prompt: 'You are a creative developer. Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur"). Return only the slug as JSON string.',
             baseModel:'gpt-5-nano-2025-08-07',
             expectJson: true,
           }).retry();
