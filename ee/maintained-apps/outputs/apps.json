@@ -198,6 +198,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Privileges",
+      "slug": "privileges/darwin",
+      "platform": "darwin",
+      "unique_identifier": "corp.sap.privileges",
+      "description": "Privileges is an admin rights switcher for macOS."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
