@@ -33,6 +33,13 @@ const (
 	remediateURL = "https://fleetdm.com/remediate"
 	// URL to redirect users when there's a certificate error during Okta conditional access authentication
 	certificateErrorURL = "https://fleetdm.com/okta-conditional-access-error"
+
+	// SAML constants
+	samlBindingHTTPPost = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+	samlKeyUseSigning   = "signing"
+
+	// Policy response values
+	policyResponseFail = "fail"
 )
 
 // notFoundError implements fleet.NotFoundError interface for conditional access IdP errors.
@@ -203,6 +210,11 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 
 // parseSerialNumber parses a certificate serial number from hex string to uint64.
 // The serial number is provided by the load balancer in the X-Client-Cert-Serial header.
+//
+// SECURITY NOTE: This function only supports certificate serial numbers up to uint64 max
+// (18,446,744,073,709,551,615). While X.509 allows serial numbers up to 160 bits, this
+// limitation is acceptable because Fleet controls the Certificate Authority and generates
+// all certificates via SCEP
 func parseSerialNumber(serialStr string) (uint64, error) {
 	// Remove any colons or spaces that might be in the serial number
 	serialStr = strings.ReplaceAll(serialStr, ":", "")
@@ -215,6 +227,16 @@ func parseSerialNumber(serialStr string) (uint64, error) {
 	}
 
 	return serial, nil
+}
+
+// extractNameID extracts the NameID (user identifier) from a SAML AuthnRequest.
+// Okta sends the NameID in the request to identify which user is authenticating.
+// Returns empty string if the NameID cannot be extracted.
+func extractNameID(req *saml.IdpAuthnRequest) string {
+	if req != nil && req.Request.Subject != nil && req.Request.Subject.NameID != nil {
+		return req.Request.Subject.NameID.Value
+	}
+	return ""
 }
 
 // deviceHealthSessionProvider implements saml.SessionProvider interface to handle
@@ -232,10 +254,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 	// Extract NameID (email/username) from the SAML AuthnRequest
 	// Okta sends this to identify which user is authenticating
-	nameID := ""
-	if req != nil && req.Request.Subject != nil && req.Request.Subject.NameID != nil {
-		nameID = req.Request.Subject.NameID.Value
-	}
+	nameID := extractNameID(req)
 
 	level.Debug(p.logger).Log("msg", "processing SAML session", "host_id", p.hostID)
 
@@ -293,7 +312,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			continue
 		}
 		// Check if policy is failing
-		if policy.Response == "fail" {
+		if policy.Response == policyResponseFail {
 			failingConditionalAccessCount++
 		}
 	}
@@ -369,7 +388,7 @@ func (p *oktaServiceProviderProvider) GetServiceProvider(r *http.Request, servic
 	descriptor := saml.SPSSODescriptor{
 		AssertionConsumerServices: []saml.IndexedEndpoint{
 			{
-				Binding:  "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+				Binding:  samlBindingHTTPPost,
 				Location: acsURL.String(),
 				Index:    0,
 			},
@@ -385,7 +404,7 @@ func (p *oktaServiceProviderProvider) GetServiceProvider(r *http.Request, servic
 
 		descriptor.SSODescriptor.RoleDescriptor.KeyDescriptors = []saml.KeyDescriptor{
 			{
-				Use: "signing",
+				Use: samlKeyUseSigning,
 				KeyInfo: saml.KeyInfo{
 					X509Data: saml.X509Data{
 						X509Certificates: []saml.X509Certificate{
