@@ -174,6 +174,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		InHouseAppVersion         *string `db:"in_house_app_version"`
 		InHouseAppPlatform        *string `db:"in_house_app_platform"`
 		InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
+		InHouseAppSelfService     *bool   `db:"in_house_app_self_service"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -240,7 +241,7 @@ func (ds *Datastore) ListSoftwareTitles(
 				Name:        *title.InHouseAppName,
 				Version:     version,
 				Platform:    platform,
-				SelfService: ptr.Bool(false),
+				SelfService: title.InHouseAppSelfService,
 			}
 
 			// this is set directly for software packages, but if this is an in-house
@@ -441,6 +442,7 @@ SELECT
 		,iha.version as in_house_app_version
 		,iha.platform as in_house_app_platform
 		,iha.storage_id as in_house_app_storage_id
+		,iha.self_service as in_house_app_self_service
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -496,7 +498,7 @@ WHERE
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
 		{{ end }}
 		{{if and $.SelfServiceOnly (hasTeamID $)}}
-		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 ) "}}
+		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 OR iha.self_service = 1 ) "}}
 		{{end}}
 		AND ({{$defFilter}})
 	{{end}}
@@ -521,6 +523,7 @@ GROUP BY
 		,in_house_app_version
 		,in_house_app_platform
 		,in_house_app_storage_id
+		,in_house_app_self_service
 	{{end}}
 `
 	var args []any

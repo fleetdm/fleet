@@ -3,8 +3,8 @@ import { CellProps, Column } from "react-table";
 
 import {
   IDeviceSoftware,
+  IDeviceSoftwareWithUiStatus,
   IHostSoftware,
-  IHostSoftwareWithUiStatus,
   IVPPHostSoftware,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -14,27 +14,27 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
-import InstallStatusCell from "../InstallStatusCell/InstallStatusCell";
-import { installStatusSortType } from "../helpers";
-import HostInstallerActionCell from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import InstallStatusCell from "../../../InstallStatusCell/InstallStatusCell";
+import { installStatusSortType } from "../../../helpers";
+import HostInstallerActionCell from "../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
-type ISelfServiceTableConfig = Column<IHostSoftwareWithUiStatus>;
-type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
-type ITableStringCellProps = IStringCellProps<IHostSoftwareWithUiStatus>;
+type ISelfServiceTableConfig = Column<IDeviceSoftwareWithUiStatus>;
+type ITableHeaderProps = IHeaderProps<IDeviceSoftwareWithUiStatus>;
+type ITableStringCellProps = IStringCellProps<IDeviceSoftwareWithUiStatus>;
 type IStatusCellProps = CellProps<
-  IHostSoftwareWithUiStatus,
-  IHostSoftwareWithUiStatus["ui_status"]
+  IDeviceSoftwareWithUiStatus,
+  IDeviceSoftwareWithUiStatus["ui_status"]
 >;
 type IActionCellProps = CellProps<
-  IHostSoftwareWithUiStatus,
-  IHostSoftwareWithUiStatus["status"]
+  IDeviceSoftwareWithUiStatus,
+  IDeviceSoftwareWithUiStatus["status"]
 >;
 
 const baseClass = "self-service-table";
 
 export const generateSoftwareTableData = (
-  software: IHostSoftwareWithUiStatus[]
-): IHostSoftwareWithUiStatus[] => {
+  software: IDeviceSoftwareWithUiStatus[]
+): IDeviceSoftwareWithUiStatus[] => {
   return software;
 };
 
@@ -48,8 +48,10 @@ interface ISelfServiceTableHeaders {
     uninstallDetails: ISWUninstallDetailsParentState
   ) => void;
   onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
-  onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;
-  onClickOpenInstructionsAction: (software: IHostSoftwareWithUiStatus) => void;
+  onClickUninstallAction: (software: IDeviceSoftwareWithUiStatus) => void;
+  onClickOpenInstructionsAction: (
+    software: IDeviceSoftwareWithUiStatus
+  ) => void;
 }
 
 // NOTE: cellProps come from react-table

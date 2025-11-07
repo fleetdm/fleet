@@ -1147,7 +1147,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 				}
 			}
 
-			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{})
+			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{SelfService: false})
 			return ctxerr.Wrap(ctx, err, "insert in house app install")
 		}
 		// it's OK if we didn't find an in-house app; this might be a VPP app, so continue on
@@ -1408,7 +1408,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 
-	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
 
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
@@ -1527,7 +1527,7 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
 		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
 	}
 
@@ -2445,16 +2445,9 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, return a bad
-		// request error
+		// if we couldn't find an installer or a VPP app, try an in-house app
 		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{
-				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer or VPP app for software title",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
-			}
+			return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
 		}
 
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
@@ -2488,6 +2481,49 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		SelfService: true,
 	})
 	return err
+}
+
+// branching out this call so it doesn't conflict with work in parallel in the
+// self-service install method, and it would be good to isolate the installers
+// and VPP apps logic too later on.
+func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer, VPP app or in-house app for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
+	}
+
+	if !iha.SelfService {
+		return &fleet.BadRequestError{
+			Message: "Software title is not available through self-service",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "software title not available through self-service",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
+	}
+
+	scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This software is not available for this host.",
+		}
+	}
+
+	err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{SelfService: true})
+	return ctxerr.Wrap(ctx, err, "insert in house app install")
 }
 
 // packageExtensionToPlatform returns the platform name based on the
