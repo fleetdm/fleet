@@ -273,8 +273,8 @@ func (svc *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSer
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
 	}
 
-	// Look up the certificate by serial number
-	cert, err := svc.ds.GetHostIdentityCertBySerialNumber(ctx, certSerial)
+	// Look up the MDM SCEP certificate by serial number to get the device UUID
+	certDeviceUUID, err := svc.ds.GetMDMSCEPCertBySerial(ctx, certSerial)
 	switch {
 	case err == nil:
 		// OK
@@ -284,8 +284,8 @@ func (svc *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSer
 		return nil, false, ctxerr.Wrap(ctx, err, "lookup certificate by serial")
 	}
 
-	// Verify certificate matches the host UUID (CN should match UUID)
-	if cert.CommonName != hostUUID {
+	// Verify certificate's device UUID matches the requested host UUID
+	if certDeviceUUID != hostUUID {
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: certificate does not match host"))
 	}
 
