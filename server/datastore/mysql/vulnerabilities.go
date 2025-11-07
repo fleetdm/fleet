@@ -626,10 +626,7 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 				global_stats tinyint(1) NOT NULL DEFAULT 0,
 				created_at timestamp DEFAULT CURRENT_TIMESTAMP,
 				updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-				PRIMARY KEY (cve, team_id, global_stats),
-				INDEX idx_team_id (team_id),
-				INDEX idx_global_stats (global_stats),
-				INDEX idx_updated_at (updated_at)
+				UNIQUE KEY cve_team_id_global_stats (cve, team_id, global_stats)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 		`)
 		if err != nil {
