@@ -1712,26 +1712,39 @@ func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostID uint, hostUU
 	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
-	// Insert a host identity certificate for the iOS host
+	// Generate a real certificate for the device with proper SHA256 hash
+	certPEM, certHash, _ := generateTestCertForDeviceAuth(t, certSerial, hostUUID)
+
+	// Insert certificate data using the new nanomdm tables
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, certSerial)
+		// Insert serial number
+		_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, certSerial)
 		if err != nil {
 			return err
 		}
+
+		// Insert certificate
 		_, err = db.ExecContext(ctx, `
-			INSERT INTO host_identity_scep_certificates
-			(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO scep_certificates
+			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+			VALUES (?, ?, ?, ?, ?, ?)
 		`,
 			certSerial,
-			hostID,
 			hostUUID,
 			time.Now().Add(-24*time.Hour),
 			time.Now().Add(365*24*time.Hour),
-			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			[]byte{0x04},
+			certPEM,
 			false,
 		)
+		if err != nil {
+			return err
+		}
+
+		// Insert certificate association for device authentication
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO nano_cert_auth_associations (id, sha256)
+			VALUES (?, ?)
+		`, hostUUID, certHash)
 		return err
 	})
 }
