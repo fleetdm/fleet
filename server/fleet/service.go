@@ -400,6 +400,7 @@ type Service interface {
 	// The source parameter determines the type: "custom" for manually set
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
+	DeleteHostIDP(ctx context.Context, id uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
