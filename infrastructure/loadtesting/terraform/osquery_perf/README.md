@@ -9,7 +9,7 @@ Although deployments through the github action should be prioritized, for manual
 - Docker
 - Go
 
-# Deploy with Github Actions (Coming Soon)
+# Deploy with Github Actions
 
 1. [Navigate to the github action](https://github.com/fleetdm/fleet/actions/workflows/loadtest-osquery-perf.yml)
 
@@ -60,7 +60,7 @@ Although deployments through the github action should be prioritized, for manual
     > Note: Terraform will prompt you for confirmation to trigger the deployment. If everything looks ok, submitting `yes` will trigger the deployment.
 
     ```sh
-    terraform apply -var=tag=v4.73.0 -var=git_branch=fleet-v4.73.0
+    terraform apply -var=git_tag_branch=fleet-v4.73.0
     ```
 
     or, you can add the additional supported terraform variables, to overwrite the default values. You can choose which ones are included/overwritten. If a variable is not defined, the default value configured in [./variables.tf](variables.tf) is used.
@@ -68,7 +68,7 @@ Although deployments through the github action should be prioritized, for manual
     Below is an example with all available variables.
 
     ```sh
-    terraform apply -var=tag=v4.73.0 -var=git_branch=fleet-v4.73.0 -var=loadtest_containers=20 -var=extra_flags=["--orbit_prob", "0.0"]
+    terraform apply -var=git_tag_branch=fleet-v4.73.0 -var=loadtest_containers=20 -var=extra_flags=["--orbit_prob", "0.0"]
     ```
 
 # Destroy osquery perf manually
@@ -135,7 +135,6 @@ terraform workspace delete <workspace_name>
 | [aws_ecr_authorization_token.token](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ecr_authorization_token) | data source |
 | [aws_ecr_repository.fleet](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ecr_repository) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
-| [docker_registry_image.dockerhub](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/data-sources/registry_image) | data source |
 | [git_repository.tf](https://registry.terraform.io/providers/metio/git/2025.10.10/docs/data-sources/repository) | data source |
 | [terraform_remote_state.infra](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 | [terraform_remote_state.shared](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
@@ -145,9 +144,8 @@ terraform workspace delete <workspace_name>
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_extra_flags"></a> [extra\_flags](#input\_extra\_flags) | Comma delimited list (string) for passing extra flags to osquery-perf containers | `list(string)` | <pre>[<br/>  "--orbit_prob",<br/>  "0.0"<br/>]</pre> | no |
-| <a name="input_git_branch"></a> [git\_branch](#input\_git\_branch) | The git branch to use to build loadtest containers.  Only needed if docker tag doesn't match the git branch | `string` | `null` | no |
+| <a name="input_git_tag_branch"></a> [git\_tag\_branch](#input\_git\_tag\_branch) | The tag or git branch to use to build loadtest containers. | `string` | `null` | no |
 | <a name="input_loadtest_containers"></a> [loadtest\_containers](#input\_loadtest\_containers) | Number of loadtest containers to deploy | `number` | `1` | no |
-| <a name="input_tag"></a> [tag](#input\_tag) | The docker image tag to deploy. The image must exist in fleetdm/fleet docker repository | `any` | n/a | yes |
 
 ## Outputs
 
