@@ -114,7 +114,7 @@ describe("SoftwareUpdateModal", () => {
 
     expect(screen.queryByTestId("error-outline-icon")).toBeInTheDocument();
     expect(screen.getByText(/New version of/i)).toBeInTheDocument();
-    expect(screen.getByText(/mock software.app/i)).toBeInTheDocument();
+    expect(screen.getByText(/Mock Software/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Update the current version on/i)
     ).toBeInTheDocument();
