@@ -97,13 +97,18 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 	serverURL := appConfig.ServerSettings.ServerURL
 	if serverURL == "" {
 		level.Error(s.logger).Log("msg", "server URL not configured")
-		http.Error(w, "Server URL not configured", http.StatusInternalServerError)
+		http.Error(w, "Server URL not configured", http.StatusNotFound)
 		return
 	}
 
 	// Build IdP
 	idp, err := s.buildIdentityProvider(ctx, serverURL)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			level.Error(s.logger).Log("msg", "IdP certificate or key not found", "err", err)
+			http.Error(w, "IdP not configured", http.StatusNotFound)
+			return
+		}
 		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

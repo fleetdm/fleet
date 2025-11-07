@@ -126,7 +126,8 @@ func TestRegisterIdP(t *testing.T) {
 		req := httptest.NewRequest("GET", idpMetadataPath, nil)
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
-		require.Equal(t, http.StatusInternalServerError, w.Code)
+		// Should return 404 when IdP certificates are not configured
+		require.Equal(t, http.StatusNotFound, w.Code)
 	})
 
 	t.Run("SSO endpoint registered", func(t *testing.T) {
@@ -175,7 +176,7 @@ func TestServeMetadata(t *testing.T) {
 		require.Contains(t, body, "https://okta.fleet.example.com/go/here/for/fleet"+idpSSOPath)
 	})
 
-	t.Run("returns error when certificate assets not found", func(t *testing.T) {
+	t.Run("returns 404 when certificate assets not found", func(t *testing.T) {
 		svc, ds := newTestService()
 		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
 		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false)
@@ -185,10 +186,13 @@ func TestServeMetadata(t *testing.T) {
 
 		svc.serveMetadata(w, req)
 
-		require.Equal(t, http.StatusInternalServerError, w.Code)
+		// Should return 404 when IdP is not configured (missing certificates)
+		// This is a configuration error, not an infrastructure error
+		require.Equal(t, http.StatusNotFound, w.Code)
+		require.Contains(t, w.Body.String(), "IdP not configured")
 	})
 
-	t.Run("returns error when server URL not configured", func(t *testing.T) {
+	t.Run("returns 404 when server URL not configured", func(t *testing.T) {
 		svc, ds := newTestService()
 		ds.AppConfigFunc = mockAppConfigFunc("")
 
@@ -197,7 +201,9 @@ func TestServeMetadata(t *testing.T) {
 
 		svc.serveMetadata(w, req)
 
-		require.Equal(t, http.StatusInternalServerError, w.Code)
+		// Should return 404 when server URL is not configured
+		// This is a configuration error, not an infrastructure error
+		require.Equal(t, http.StatusNotFound, w.Code)
 		require.Contains(t, w.Body.String(), "Server URL not configured")
 	})
 }
@@ -407,59 +413,6 @@ func TestServeSSO(t *testing.T) {
 				require.Equal(t, http.StatusInternalServerError, w.Code)
 			})
 		}
-	})
-}
-
-func TestBuildSSOServerURL(t *testing.T) {
-	t.Run("uses dev override when FLEET_DEV_OKTA_SSO_SERVER_URL is set", func(t *testing.T) {
-		t.Setenv("FLEET_DEV_OKTA_SSO_SERVER_URL", "https://dev.example.com")
-
-		result, err := buildSSOServerURL("https://fleet.example.com")
-		require.NoError(t, err)
-		require.Equal(t, "https://dev.example.com", result)
-	})
-
-	t.Run("prepends okta subdomain to hostname", func(t *testing.T) {
-		tests := []struct {
-			name     string
-			input    string
-			expected string
-		}{
-			{
-				name:     "simple hostname",
-				input:    "https://bozo.example.com",
-				expected: "https://okta.bozo.example.com",
-			},
-			{
-				name:     "hostname with port",
-				input:    "https://bozo.example.com:8080",
-				expected: "https://okta.bozo.example.com:8080",
-			},
-			{
-				name:     "hostname with path",
-				input:    "https://bozo.example.com/path",
-				expected: "https://okta.bozo.example.com/path",
-			},
-			{
-				name:     "hostname with port and path",
-				input:    "https://bozo.example.com:8080/path",
-				expected: "https://okta.bozo.example.com:8080/path",
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result, err := buildSSOServerURL(tt.input)
-				require.NoError(t, err)
-				require.Equal(t, tt.expected, result)
-			})
-		}
-	})
-
-	t.Run("returns error for invalid URL", func(t *testing.T) {
-		_, err := buildSSOServerURL("://invalid")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "parse server URL")
 	})
 }
 
