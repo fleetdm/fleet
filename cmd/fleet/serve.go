@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
@@ -1354,6 +1355,15 @@ the way that the Fleet server works.
 					}
 					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup host identity SCEP")
+					}
+
+					// Conditional Access SCEP
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &config)
+					if err != nil {
+						initFatal(err, "setup conditional access SCEP depot")
+					}
+					if err = condaccess.RegisterSCEP(rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access SCEP")
 					}
 				} else {
 					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")

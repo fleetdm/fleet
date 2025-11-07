@@ -599,9 +599,10 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			hostProfiles: []hostProfile{
 				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
 					{
-						Verb:   "Replace",
-						LocURI: "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value",
-						Data:   "non related data",
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
 					},
 				}), 0},
 			},
