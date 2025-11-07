@@ -33,42 +33,6 @@ export interface IUploadVppTokenReponse {
 
 export type IRenewVppTokenResponse = IUploadVppTokenReponse;
 
-const handleDisplayNameVppForm = (
-  formData: ISoftwareDisplayNameFormData,
-  teamId: number
-): IEditVppAppPostBody => {
-  return {
-    self_service: false, // or some default as needed
-    team_id: teamId,
-    // you might not need categories/labels with this form
-  };
-};
-
-const handleEditVppForm = (
-  formData: ISoftwareVppFormData,
-  teamId: number
-): IEditVppAppPostBody => {
-  const body: IEditVppAppPostBody = {
-    self_service: formData.selfService,
-    team_id: teamId,
-  };
-
-  if (formData.categories && formData.categories.length > 0) {
-    body.categories = formData.categories as SoftwareCategory[];
-  }
-
-  if (formData.targetType === "Custom") {
-    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
-    if (formData.customTarget === "labelsIncludeAny") {
-      body.labels_include_any = selectedLabels;
-    } else {
-      body.labels_exclude_any = selectedLabels;
-    }
-  }
-
-  return body;
-};
-
 export default {
   getAppleAPNInfo: () => {
     const { MDM_APPLE_PNS } = endpoints;

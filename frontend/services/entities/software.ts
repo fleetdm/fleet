@@ -178,6 +178,7 @@ export interface IEditAppStoreAppPostBody {
   labels_include_any?: string[];
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
+  display_name?: string;
 }
 
 const ORDER_KEY = "name";
@@ -245,6 +246,8 @@ const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
   }
 
   return sendRequest("POST", SOFTWARE_APP_STORE_APPS, body);
+};
+
 const handleDisplayNameForm = (
   data: ISoftwareDisplayNameFormData,
   formData: FormData
@@ -290,6 +293,33 @@ const handleEditPackageForm = (
     selectedLabels?.forEach((label) => {
       formData.append(labelKey, label);
     });
+  }
+};
+
+const handleDisplayNameAppStoreAppForm = (
+  formData: ISoftwareDisplayNameFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.display_name = formData.displayName || "";
+};
+
+const handleEditAppStoreAppForm = (
+  formData: ISoftwareVppFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.self_service = formData.selfService;
+
+  if (formData.categories && formData.categories.length > 0) {
+    body.categories = formData.categories as SoftwareCategory[];
+  }
+
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
   }
 };
 
@@ -518,27 +548,25 @@ export default {
   editAppStoreApp: (
     softwareId: number,
     teamId: number,
-    formData: ISoftwareVppFormData | ISoftwareAndroidFormData
+    formData:
+      | ISoftwareVppFormData
+      | ISoftwareAndroidFormData
+      | ISoftwareDisplayNameFormData
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
-    const body: IEditAppStoreAppPostBody = {
-      self_service: formData.selfService,
-      team_id: teamId,
-    };
+    const body: IEditAppStoreAppPostBody = { team_id: teamId };
 
-    // Add categories if present
-    if (formData.categories && formData.categories.length > 0) {
-      body.categories = formData.categories as SoftwareCategory[];
-    }
-
-    if (formData.targetType === "Custom") {
-      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
-      if (formData.customTarget === "labelsIncludeAny") {
-        body.labels_include_any = selectedLabels;
-      } else {
-        body.labels_exclude_any = selectedLabels;
-      }
+    if ("displayName" in formData) {
+      // Handles Edit display name form only
+      handleDisplayNameAppStoreAppForm(
+        formData as ISoftwareDisplayNameFormData,
+        body
+      );
+    } else {
+      // Handles primary Edit AppStoreApp form
+      // 4.77 Currently, only VPP apps can be edited, not Google Play apps
+      handleEditAppStoreAppForm(formData as IEditPackageFormData, body);
     }
 
     return sendRequest("PATCH", EDIT_SOFTWARE_APP_STORE_APP(softwareId), body);

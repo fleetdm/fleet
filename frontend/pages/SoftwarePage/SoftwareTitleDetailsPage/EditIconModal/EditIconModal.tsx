@@ -8,7 +8,6 @@ import { NotificationContext } from "context/notification";
 import { INotification } from "interfaces/notification";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
-import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -627,7 +626,7 @@ const EditIconModal = ({
                 softwareId,
                 teamId: teamIdForApi,
               })
-            : mdmAppleAPI.editVppApp(softwareId, teamIdForApi, {
+            : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
                 displayName,
               }));
           notifications.push({
