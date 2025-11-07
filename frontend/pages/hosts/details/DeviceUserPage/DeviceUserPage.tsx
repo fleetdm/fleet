@@ -701,7 +701,7 @@ const DeviceUserPage = ({
                 />
                 <UserCard
                   className={defaultCardClass}
-                  canWriteEndUser={false} // to hide button for now - TODO confirm how to handle this page, not yet specced
+                  canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
                   disableFullNameTooltip
                   disableGroupsTooltip

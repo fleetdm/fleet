@@ -680,8 +680,6 @@ export default {
   },
   deleteHostIdp(hostId: number) {
     const path = endpoints.HOST_DEVICE_MAPPING(hostId);
-    // product confirm - only one IdP per host, so DELETE removes it, or multiple and this method
-    // needs to specify which to delete?
     return sendRequest("DELETE", path);
   },
 };
