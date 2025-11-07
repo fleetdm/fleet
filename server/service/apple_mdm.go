@@ -4001,6 +4001,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	host.PrimaryMac = wifiMac
 	host.HardwareModel = productName
 	host.DetailUpdatedAt = time.Now()
+	// iOS/iPadOS devices do not support dynamic labels at this time so we should update their LabelUpdatedAt timestamp
+	// on refetch similar to other platforms to simplify exclusion logic with dynamic labels
 	host.LabelUpdatedAt = time.Now()
 	host.RefetchRequested = false
 
