@@ -1,8 +1,8 @@
-# Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)
+# Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, custom SCEP, Hydrant, or Smallstep)
 
 _Available in Fleet Premium_
 
-Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server, and [Hydrant](https://www.hidglobal.com/solutions/pki-service).
+Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server, [Hydrant](https://www.hidglobal.com/solutions/pki-service), [Smallstep](https://smallstep.com/).
 
 Fleet will automatically renew certificates before expiration. Learn more in the [Renewal section](#renewal).
 
@@ -547,7 +547,7 @@ Custom SCEP proxy:
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
   - The static challenge configured for the custom SCEP server remains in the SCEP profile.
 
-<meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)">
+<meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, custom SCEP, Hydrant, or Smallstep)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
