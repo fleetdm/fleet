@@ -212,6 +212,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "Sublime Text",
+      "slug": "sublime-text/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sublimetext.4",
+      "description": "Sublime Text is a text editor for code, markup, and prose."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
