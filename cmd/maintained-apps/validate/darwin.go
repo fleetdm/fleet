@@ -116,12 +116,22 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 		  bundle_version
 		FROM apps
 		WHERE 
-		bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
-		LOWER(COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app'))) LIKE LOWER('%` + appName + `%')
+		(
+			bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
+			LOWER(COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app'))) LIKE LOWER('%` + appName + `%')
 	`
 	if appPath != "" {
 		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
 	}
+	// Only search in standard application directories, exclude temporary directories and backup files
+	query += `
+		)
+		AND path LIKE '/Applications/%'
+		AND path NOT LIKE '%/private/var/folders/%'
+		AND path NOT LIKE '%.bkp%'
+		AND path NOT LIKE '%.bak%'
+		AND path NOT LIKE '%.backup%'
+	`
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.Output()
 	if err != nil {
@@ -141,6 +151,22 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 
 	if len(results) > 0 {
 		for _, result := range results {
+			// Filter out results from temporary directories and backup files
+			// (additional safety check beyond SQL query)
+			if strings.Contains(result.Path, "/private/var/folders/") {
+				level.Debug(logger).Log("msg", fmt.Sprintf("Ignoring app in temporary directory: %s", result.Path))
+				continue
+			}
+			if strings.Contains(result.Path, ".bkp") || strings.Contains(result.Path, ".bak") || strings.Contains(result.Path, ".backup") {
+				level.Debug(logger).Log("msg", fmt.Sprintf("Ignoring backup file: %s", result.Path))
+				continue
+			}
+			// Only consider apps in standard application directories
+			if !strings.HasPrefix(result.Path, "/Applications/") {
+				level.Debug(logger).Log("msg", fmt.Sprintf("Ignoring app outside standard directories: %s", result.Path))
+				continue
+			}
+
 			software := &fleet.Software{
 				Name:             result.Name,
 				Version:          result.Version,
