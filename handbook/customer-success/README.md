@@ -133,7 +133,7 @@ Customer promises are contractually obligated feature requests, with guaranteed 
 2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
 3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
 4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
-5. Once you have received email confirmation of the completed promise, you may then close out the related issue in GitHub.
+5. Once you have received email confirmation of the completed promise, note this via a comment in the GitHub issue. If all other customers have confirmed completion, then you may close out the issue as well.
 
 
 ### File a customer bug report
