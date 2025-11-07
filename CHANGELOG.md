@@ -1,62 +1,69 @@
 ## Fleet 4.76.0 (Oct 17, 2025)
 
-### Bug fixes
+### Security Engineers
+- Added support for software inventory on Android hosts.
+- Added support for npm packages in software inventory and vulnerability matching for macOS and Linux hosts.
+- Added support for JetBrains inventory on hosts.
+- Added vulnerbaility detection in JetBrains plugins.
+- Added support for VSCode fork (Cursor, Windsurf, VSCodium, VSCodium Insiders, and Trae) extensions in software inventory. 
+- Added Santa tables to fleetd.
 
-* Added link component shown in the Host column to the host details page.
-- added Jetbrains plugins to software inventory
-* Changed display logic for the organization logo component on the My Device page to prevent flickering.
-* Fleet UI: Surface Android software in Fleet's software inventory
-Optimized MySQL queries on /api/latest/fleet/vulnerabilities and /api/latest/fleet/software/versions to improve performance for Fleet UI use cases.
-* Fixed bug where uploading a software installer failed because it was "not found in the datastore".
-- add UI for installing software for ios and ipad during the setup experience
-* Fixed missing aboslute timestamp tooltips on script creation date in script list, query modification date in query list.
-* Fixed bug with the ChangeManagement component where the GitOps checkbox local UI state was being reset due to GET request after PATCH request.
-* Refactored PATH fleet/config end-point to use the primary DB node for both persisting changes and fetching modified App Config.
-- Updated the UI for adding new scripts to the scripts library
-Fixed MySQL deadlocks when multiple hosts are updating their certificates in host vitals at the same time.
-* Detect vulnerabilities in JetBrains IDE plugins
-* Fixed an issue where longer variable names ($FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART) with the same base ($FLEET_VAR_HOST_END_USER_IDP_USERNAME) was not processed in the right order.
-* Changed license warning to only show one time during gitops runs
-- Fixed UI bug where "Show disk encryption key" option was incorrectly displayed for hosts enrolled
-  with a third-party MDM solution.
-- Fixed WhatsApp and VS Code icons not displaying correctly
-* Added the ability to specify VPP apps for automatic installation during ADE iOS and iPadOS host enrollment
-Fixed bad software ingestion debug message and added filter for invalid software with missing names.
-- optimized os_versions API response time
-- Adds support for software inventory on Android hosts.
-- added santa tables to fleetd
-- add support for locking and unlocking ios and ipad devices from the UI
-- allow setting a org support url to use the "file" protocol in the url
-* Added flash warning when an un-authorized user tries to access teams settings.
-* Fails with a descriptive error on the manual MacOS profile download
-- Setup experience for macOS hosts may now be configured to halt if any software install fails.
-* Fixed a bug where a software installer could be installed in the same team and same platform (macOS) where an App Store app already existed for the same software title, and vice-versa (App Store app added when a sofware package already existed, this one was only possible just via `fleetctl gitops`).
-* Added missing "failed" VPP app install activities when installation is canceled due to MDM being turned off for a host.
-- Fixed listing hosts with `populate_software` not returning hash_sha256 for macos apps
-- Fixed bug where batch setting MDM profiles could cause a nil pointer dereference when processing
-  an invalid profile (e.g., cannot parse mobileconfig because it is bad xml).
-Changed the default name of Host Identity CA to 'Fleet Host Identity CA' to avoid conflict with Fleet's Apple MDM CA.
-* Added the ability for locking iOS and iPadOS devices through lost mode
-- Add `gigs_all_disk_space` vital collection, storage, service, and UI rendering for Linux hosts
-- Update the 2 host details page script modal group run script user flows to include a confirmation
-  step
-* Applied singular word form to GitOps log messages when a single entity is referenced in the message
+### IT Admins
+- Added ability to install software for iOS and iPadOS hosts during the setup experience.
+- Added ability to specify VPP apps for automatic installation during ADE iOS and iPadOS host enrollment.
+- Added the ability to lock iOS and iPadOS devices through lost mode.
+- Added support for locking and unlocking iOS and iPadOS devices from the UI.
+- Added configuration option to setup experience for macOS hosts to halt if any software install fails.
+- Added `gigs_all_disk_space` vital collection, storage, service, and UI rendering for Linux hosts.
+- Added new server config flag for specifying the cleanup age for completed distributed targets.
+
+### Other improvements and bug fixes
+- Added link component shown in the host column to the host details page.
+- Added flash warning when an unauthorized user tries to access teams settings.
+- Added descriptive error in cases of manual MacOS profile download failure. 
+- Updated the MacOS setup experience to use the new web UI.
+- Updated the UI for adding new scripts to the scripts library.
+- Changed display logic for the organization logo component on the My Device page to prevent flickering.
+- Improved performance of `/api/latest/fleet/os_versions` endpoint, especially for deployments with Linux hosts.
+- Optimized MySQL queries on `/api/latest/fleet/vulnerabilities` and `/api/latest/fleet/software/versions` to improve performance for Fleet UI use cases.
+- Optimized `/config` API endpoint to use the primary DB node for both persisting changes and fetching modified app config.
+- Improved live query response times by adding a new server config flag for specifying the cleanup age for completed distributed targets.
+- Improved query performance by using a lighter-weight query for checking if a team is enabled for conditional access.
+- Changed license warning to only show one time during GitOps runs.
+- Updated to allow setting an org support url to use the "file" protocol in the url.
+- Changed the default name of Host Identity CA to 'Fleet Host Identity CA' to avoid conflict with Fleet's Apple MDM CA.
+- Updated host details run script user flows to include a confirmation step.
+- Applied singular word form to GitOps log messages when a single entity is referenced in the message.
 - Updated the "Setting up your device" page to show status of setup script run.
-* Add support for VSCode fork (Cursor, Windsurf, VSCodium, VSCodium Insiders, and Trae) extensions
-in software inventory. Deprecate `browser` in favor of `extension_for` in API responses and
-JSON/YAML outputs.
-- Fleet UI bug fix: Surface post install script output in Software Install Details modal
-- Added new "Cancel setup if software install fails" setting for MacOS setup experience
-* Added migration to clear the `platform` field on all _builtin_ labels.
-- Updated the MacOS setup experience to use the new web UI
-* Fixed software title host count mismatch that was caused by including software installers in the count.
-* Fixed a scenario where a wiped Windows host re-enrolled as a distinct host row in Fleet and the previous host's page could not be loaded successfully.
-* Fixed an issue where a host transfer on `mdm_enrolled` activity would be reversed by orbit enroll
-* Fixed a bug in live queries that caused `livequery:{$CAMPAIGN_ID}` Redis keys to not be cleaned up or expire.
-* Added new server config flag for specifying the cleanup age for completed distributed targets.
-* Fixed inconsistency in GitOps for App store apps if no VPP token was found, so that both dry run and actual run fails.
-- Updated host certificate renewal flow for NDES, Smallstep, custom scep proxy CAs to support
-  $FLEET_VAR_SCEP_RENEWAL_ID in the OU field rather than CN.
+- Deprecate `browser` in favor of `extension_for` in API responses and JSON/YAML outputs.
+- Added migration to clear the `platform` field on all _builtin_ labels.
+- Added migration to relink missing SCIM user data to hosts.
+- Updated host certificate renewal flow for NDES, Smallstep, custom scep proxy CAs to support $FLEET_VAR_SCEP_RENEWAL_ID in the OU field rather than CN.
+- Updated device mapping API to allow an "idp" source to manually set IDP user mappings.
+- Updated styling to be more consistent in edit policies view for FireFox.
+- Replaced outdated Firefox icon with a new one that follows brand guidelines.
+- Allowed testing a new or edited policy query via live query while in GitOps Mode.
+- Fixed missing "failed" VPP app install activities when installation is canceled due to MDM being turned off for a host.
+- Fixed bug where uploading a software installer failed because it was "not found in the datastore".
+- Fixed missing aboslute timestamp tooltips on script creation date in script list, query modification date in query list.
+- Fixed bug with the ChangeManagement component where the GitOps checkbox local UI state was being reset due to GET request after PATCH request.
+- Fixed MySQL deadlocks when multiple hosts are updating their certificates in host vitals at the same time.
+- Fixed an issue where longer variable names ($FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART) with the same base ($FLEET_VAR_HOST_END_USER_IDP_USERNAME) was not processed in the right order.
+- Fixed UI bug where "Show disk encryption key" option was incorrectly displayed for hosts enrolled with a third-party MDM solution.
+- Fixed WhatsApp and VS Code icons not displaying correctly
+- Fixed bad software ingestion debug message and added filter for invalid software with missing names.
+- Fixed a bug where a software installer could be installed in the same team and same platform (macOS) where an App Store app already existed for the same software title, and vice-versa (App Store app added when a sofware package already existed, this one was only possible just via `fleetctl gitops`).
+- Fixed listing hosts with `populate_software` not returning hash_sha256 for macos apps
+- Fixed bug where batch setting MDM profiles could cause a nil pointer dereference when processing an invalid profile (e.g., cannot parse mobileconfig because it is bad xml).
+- Fixed bug hiding the UI elements post install script output in Software Install Details modal.
+- Fixed software title host count mismatch that was caused by including software installers in the count.
+- Fixed a scenario where a wiped Windows host re-enrolled as a distinct host row in Fleet and the previous host's page could not be loaded successfully.
+- Fixed an issue where a host transfer on `mdm_enrolled` activity would be reversed by orbit enroll
+- Fixed a bug in live queries that caused `livequery:{$CAMPAIGN_ID}` Redis keys to not be cleaned up or expire.
+- Fixed inconsistency in GitOps for App store apps if no VPP token was found, so that both dry run and actual run fails.
+- Fixed the software title counts by status to be consistent with the status reported in the host's software list and filter by status.
+- Fixed outdated tooltip on dark background logo URL field in Organization info settings.
+- Fixed `fleetctl generate-gitops` when MDM is not turned on.
 
 ## Fleet 4.75.0 (Oct 17, 2025)
 
