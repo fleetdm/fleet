@@ -6983,10 +6983,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	checkSoftware(software)
 
 	// Add "exclude any" labels to installer2
-	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name()})
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name(), Query: "select 1"})
 	require.NoError(t, err)
 
-	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3" + t.Name()})
+	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
 
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID2, fleet.LabelIdentsWithScope{

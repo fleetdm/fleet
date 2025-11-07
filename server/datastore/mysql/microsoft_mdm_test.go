@@ -2311,7 +2311,8 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	u := uuid.New().String()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
+		// Set this slightly in the past to test dynamic label exclusion
+		LabelUpdatedAt:  time.Now().Add(-1 * time.Second),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         &u,
@@ -2359,7 +2360,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// exclude-all labels
+	// exclude-any labels
 	l6, err := ds.NewLabel(ctx, &fleet.Label{
 		Name:        "exclude-any-label6",
 		Description: "desc",
@@ -2368,9 +2369,9 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	l7, err := ds.NewLabel(ctx, &fleet.Label{
-		Name:        "exclude-any-label7",
-		Description: "desc",
-		Query:       "select 1;",
+		Name:                "exclude-any-label7",
+		Description:         "desc",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
 	})
 	require.NoError(t, err)
 
@@ -2397,25 +2398,31 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	checksum = md5.Sum(includeAllProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
 	profileChecksums[includeAllProf.ProfileUUID] = checksum[:]
 
-	// Create a profile with "exclude-all" with l6 and l7
-	excludeAllProf, err := ds.NewMDMWindowsConfigProfile(
+	// Create a profile with "exclude-any" with l6 and l7
+	excludeAnyProf, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		*windowsConfigProfileForTest(t, "prof-exclude-any", "./Foo/Bar", l6, l7),
 		nil,
 	)
 	require.NoError(t, err)
-	checksum = md5.Sum(excludeAllProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
-	profileChecksums[excludeAllProf.ProfileUUID] = checksum[:]
+	checksum = md5.Sum(excludeAnyProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
+	profileChecksums[excludeAnyProf.ProfileUUID] = checksum[:]
+
+	// Create a profile with "exclude-any" with l7 only since it is a manual label
+	excludeAnyManualProf, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		*windowsConfigProfileForTest(t, "prof-exclude-any-manual", "./Foo/Bar", l7),
+		nil,
+	)
+	require.NoError(t, err)
+	checksum = md5.Sum(excludeAnyManualProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
+	profileChecksums[excludeAnyManualProf.ProfileUUID] = checksum[:]
 
 	// Connect the host and l1, l4, l5
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}, {l4.ID, host.ID}, {l5.ID, host.ID}})
 	require.NoError(t, err)
 
-	host.LabelUpdatedAt = time.Now()
-	err = ds.UpdateHost(ctx, host)
-	require.NoError(t, err)
-
-	// We should see all 3  profiles in the "to install" list
+	// We should see 3 profiles in the "to install" list
 	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
@@ -2428,8 +2435,34 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 			Checksum: profileChecksums[includeAnyProf.ProfileUUID],
 		},
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
+		},
+	}, profilesToInstall)
+
+	host.LabelUpdatedAt = time.Now().Add(1 * time.Second)
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// We should see all 4  profiles in the "to install" list
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{
+			ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAllProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
@@ -2453,8 +2486,12 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 			Checksum: profileChecksums[includeAnyProf.ProfileUUID],
 		},
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
@@ -2471,8 +2508,12 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 			Checksum: profileChecksums[includeAllProf.ProfileUUID],
 		},
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
@@ -2485,18 +2526,28 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
-			ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
-			Checksum: profileChecksums[excludeAllProf.ProfileUUID],
+			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyProf.ProfileUUID],
+		},
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
 
-	// Add a l6<->host relationship. The exclude-any profile should be gone now.
+	// Add a l6<->host relationship. The exclude-any profile with l6 and l7 should be gone now with only
+	// the exclude-any-manual profile remaining.
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, host.ID}})
 	require.NoError(t, err)
 
 	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
-	require.Empty(t, profilesToInstall)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{
+			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
+		},
+	}, profilesToInstall)
 }
 
 func expectWindowsProfiles(
