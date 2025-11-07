@@ -60,6 +60,7 @@ const User = ({
   if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
   }
+  const groupsTipContent = generateGroupsTipContent(endUsers);
 
   return (
     <Card
@@ -102,11 +103,11 @@ const User = ({
         />
         <DataSet
           title={
-            disableGroupsTooltip ? (
+            disableGroupsTooltip || !groupsTipContent ? (
               "Groups (IdP)"
             ) : (
-              <TooltipWrapper tipContent={generateGroupsTipContent(endUsers)}>
-                Groups (IdP)
+              <TooltipWrapper tipContent={groupsTipContent}>
+                <>Groups (IdP)</>
               </TooltipWrapper>
             )
           }
