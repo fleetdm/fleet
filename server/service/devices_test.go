@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -625,13 +624,9 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 			return &fleet.AppConfig{}, nil
 		}
 
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
 			require.Equal(t, certSerial, serialNumber)
-			return &types.HostIdentityCertificate{
-				SerialNumber: certSerial,
-				CommonName:   hostUUID,
-				HostID:       ptr.Uint(1),
-			}, nil
+			return hostUUID, nil
 		}
 
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -662,12 +657,9 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 			return &fleet.AppConfig{}, nil
 		}
 
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return &types.HostIdentityCertificate{
-				SerialNumber: certSerial,
-				CommonName:   hostUUID,
-				HostID:       ptr.Uint(2),
-			}, nil
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			require.Equal(t, certSerial, serialNumber)
+			return hostUUID, nil
 		}
 
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -715,8 +707,8 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
 
 		certSerial := uint64(99999)
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return nil, &mock.Error{Message: "certificate not found"}
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return "", &mock.Error{Message: "certificate not found"}
 		}
 
 		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, "test-uuid")
@@ -727,19 +719,15 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		require.ErrorAs(t, err, &authErr)
 	})
 
-	t.Run("error - certificate CN does not match UUID", func(t *testing.T) {
+	t.Run("error - device UUID mismatch", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
 
 		certSerial := uint64(12345)
 		hostUUID := "test-uuid"
 
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return &types.HostIdentityCertificate{
-				SerialNumber: certSerial,
-				CommonName:   "different-uuid",
-				HostID:       ptr.Uint(1),
-			}, nil
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return "different-uuid", nil
 		}
 
 		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
@@ -757,12 +745,8 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		certSerial := uint64(12345)
 		hostUUID := "nonexistent-uuid"
 
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return &types.HostIdentityCertificate{
-				SerialNumber: certSerial,
-				CommonName:   hostUUID,
-				HostID:       ptr.Uint(1),
-			}, nil
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
 		}
 
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -784,12 +768,8 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		certSerial := uint64(12345)
 		hostUUID := "test-uuid-macos"
 
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return &types.HostIdentityCertificate{
-				SerialNumber: certSerial,
-				CommonName:   hostUUID,
-				HostID:       ptr.Uint(1),
-			}, nil
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
 		}
 
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -815,12 +795,8 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		certSerial := uint64(12345)
 		hostUUID := "test-uuid-windows"
 
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return &types.HostIdentityCertificate{
-				SerialNumber: certSerial,
-				CommonName:   hostUUID,
-				HostID:       ptr.Uint(1),
-			}, nil
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
 		}
 
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -844,8 +820,8 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
 
 		certSerial := uint64(12345)
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return nil, errors.New("database connection error")
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return "", errors.New("database connection error")
 		}
 
 		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, "test-uuid")
@@ -862,12 +838,8 @@ func TestAuthenticateDeviceByCertificate(t *testing.T) {
 		certSerial := uint64(12345)
 		hostUUID := "test-uuid"
 
-		ds.GetHostIdentityCertBySerialNumberFunc = func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
-			return &types.HostIdentityCertificate{
-				SerialNumber: certSerial,
-				CommonName:   hostUUID,
-				HostID:       ptr.Uint(1),
-			}, nil
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
 		}
 
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {

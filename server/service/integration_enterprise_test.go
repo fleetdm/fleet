@@ -4,13 +4,19 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -21755,6 +21761,43 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	)
 }
 
+// generateTestCertForDeviceAuth generates a test certificate for device authentication.
+// Returns: certPEM, certHash (SHA256 of DER bytes), parsed certificate
+func generateTestCertForDeviceAuth(t *testing.T, certSerial uint64, deviceUUID string) (string, string, *x509.Certificate) {
+	// Generate a private key
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// Create certificate template
+	serialNumber := new(big.Int).SetUint64(certSerial)
+	certTemplate := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName: deviceUUID,
+		},
+		NotBefore: time.Now().Add(-24 * time.Hour),
+		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:  x509.KeyUsageDigitalSignature,
+	}
+
+	// Create self-signed certificate
+	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	// Parse the certificate to get cert.Raw for hashing
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(t, err)
+
+	// Calculate SHA256 hash of certificate DER bytes (same as nanomdm)
+	hashed := sha256.Sum256(cert.Raw)
+	certHash := hex.EncodeToString(hashed[:])
+
+	// Encode to PEM
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	return string(certPEM), certHash, cert
+}
+
 func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 	t := s.T()
 	ctx := context.Background()
@@ -21794,26 +21837,44 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 		return err
 	})
 
-	// Insert a host identity certificate for the iOS host
+	// Generate test certificate for the iOS host
 	certSerial := uint64(123456789)
+	certPEM, certHash, cert := generateTestCertForDeviceAuth(t, certSerial, iosHost.UUID)
+
+	// Insert certificate into nanomdm tables
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, certSerial)
+		// Insert serial (scep_serials uses auto-increment but we can insert explicit value)
+		_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, certSerial)
 		if err != nil {
 			return err
 		}
+
+		// Insert certificate into scep_certificates
 		_, err = db.ExecContext(ctx, `
-			INSERT INTO host_identity_scep_certificates
-			(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO scep_certificates
+			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+			VALUES (?, ?, ?, ?, ?, ?)
 		`,
 			certSerial,
-			iosHost.ID,
 			iosHost.UUID,
-			time.Now().Add(-24*time.Hour),
-			time.Now().Add(365*24*time.Hour),
-			"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			[]byte{0x04},
+			cert.NotBefore,
+			cert.NotAfter,
+			certPEM,
 			false,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Insert certificate association into nano_cert_auth_associations
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO nano_cert_auth_associations
+			(id, sha256, cert_not_valid_after)
+			VALUES (?, ?, ?)
+		`,
+			iosHost.UUID,
+			certHash,
+			cert.NotAfter,
 		)
 		return err
 	})
@@ -21887,24 +21948,38 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 		require.NoError(t, err)
 
 		ipadCertSerial := uint64(987654321)
+		ipadCertPEM, ipadCertHash, ipadCert := generateTestCertForDeviceAuth(t, ipadCertSerial, ipadHost.UUID)
+
 		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(ctx, `INSERT INTO host_identity_scep_serials (serial) VALUES (?)`, ipadCertSerial)
+			_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, ipadCertSerial)
 			if err != nil {
 				return err
 			}
+
 			_, err = db.ExecContext(ctx, `
-				INSERT INTO host_identity_scep_certificates
-				(serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw, revoked)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO scep_certificates
+				(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+				VALUES (?, ?, ?, ?, ?, ?)
 			`,
 				ipadCertSerial,
-				ipadHost.ID,
 				ipadHost.UUID,
-				time.Now().Add(-24*time.Hour),
-				time.Now().Add(365*24*time.Hour),
-				"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-				[]byte{0x04},
+				ipadCert.NotBefore,
+				ipadCert.NotAfter,
+				ipadCertPEM,
 				false,
+			)
+			if err != nil {
+				return err
+			}
+
+			_, err = db.ExecContext(ctx, `
+				INSERT INTO nano_cert_auth_associations
+				(id, sha256, cert_not_valid_after)
+				VALUES (?, ?, ?)
+			`,
+				ipadHost.UUID,
+				ipadCertHash,
+				ipadCert.NotAfter,
 			)
 			return err
 		})
