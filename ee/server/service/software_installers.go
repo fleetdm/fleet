@@ -344,12 +344,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
 		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
+		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil && software.DisplayName == payload.DisplayName {
 		return existingInstaller, nil // no payload, noop
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
 	dirty := make(map[string]bool)
+
+	if software.DisplayName != payload.DisplayName {
+		dirty["DisplayName"] = true
+	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
 		dirty["SelfService"] = true
