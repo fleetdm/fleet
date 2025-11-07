@@ -758,7 +758,6 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
-
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
@@ -1364,7 +1363,15 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	s.DoRaw("GET", "/api/latest/fleet/device/invalid_token/mdm/apple/manual_enrollment_profile", nil, http.StatusUnauthorized)
 
 	// valid token downloads the profile
-	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	var r1 getDeviceMDMManualEnrollProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r1)
+	require.NotEmpty(t, r1.EnrollURL)
+	require.Contains(t, r1.EnrollURL, s.server.URL+"/enroll?enroll_secret=")
+	u, err := url.Parse(r1.EnrollURL)
+	require.NoError(t, err)
+	q, err := url.ParseQuery(u.RawQuery)
+	require.NoError(t, err)
+	require.NotEmpty(t, q.Get("enroll_secret"))
 
 	// set end user auth enabled
 	appConfig, err := s.ds.AppConfig(t.Context())
@@ -1374,10 +1381,16 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	err = s.ds.SaveAppConfig(t.Context(), appConfig)
 	require.NoError(t, err)
 
-	// fails since team has end user auth enabled
-	res := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusBadRequest)
-	errText := extractServerErrorText(res.Body)
-	require.Contains(t, errText, "The team associated with the enroll_secret has end user authentication enabled so the OTA profile won't work.")
+	// works with end user auth enabled
+	var r2 getDeviceMDMManualEnrollProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r2)
+	require.NotEmpty(t, r2.EnrollURL)
+	require.Contains(t, r2.EnrollURL, s.server.URL+"/enroll?enroll_secret=")
+	u2, err := url.Parse(r2.EnrollURL)
+	require.NoError(t, err)
+	q2, err := url.ParseQuery(u2.RawQuery)
+	require.NoError(t, err)
+	require.NotEmpty(t, q2.Get("enroll_secret"))
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -13606,7 +13619,14 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	// manual enrollment from My Device
 	token := "token_test_manual_enroll"
 	createHostAndDeviceToken(t, s.ds, token)
-	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	var r getDeviceMDMManualEnrollProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r)
+	u, err := url.Parse(r.EnrollURL)
+	require.NoError(t, err)
+	q, err := url.ParseQuery(u.RawQuery)
+	require.NoError(t, err)
+	require.Equal(t, enrollSecretWithInvalidChars, q.Get("enroll_secret"))
+	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(q.Get("enroll_secret")))
 
 	// automatic enrollment by token
 	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
@@ -14321,7 +14341,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "invalid identifier")
 	// Non-Apple config profile (missing leading 'a')
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CwbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -14613,7 +14633,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "invalid identifier")
 	// Non-Apple config profile (missing leading 'a')
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CwbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile"+suffix, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -14647,7 +14667,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},
@@ -14664,7 +14684,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},
@@ -14921,7 +14941,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		{Name: "N1", Contents: profile},
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(rawRes.Body)
-	require.Contains(t, errMsg, "_badName is not supported")
+	require.Contains(t, errMsg, "_badName does not exist")
 
 	// ////////////////////////////////
 	// Test a good profile -- happy path
@@ -14985,7 +15005,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, ca.CertificateUserPrincipalNames, stringSlice)
 	digiCertServer.certReqMu.Unlock()
-	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
+	certProf, err := s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
 	require.NoError(t, err)
 	require.NotNil(t, certProf.NotValidAfter)
 	assert.Equal(t, digiCertServer.notAfter, *certProf.NotValidAfter)
@@ -15198,13 +15218,13 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	assert.Equal(t, host.HardwareSerial+" idp@example.com", certificate.Subject.CommonName)
 
-	prof, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
+	prof, err := s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
 	require.NoError(t, err)
 	require.NotNil(t, prof)
 	assert.NotNil(t, prof.NotValidAfter)
 	assert.Equal(t, fleet.CAConfigDigiCert, prof.Type)
 	assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
-	prof, err = s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "FleetVars")
+	prof, err = s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "FleetVars")
 	require.NoError(t, err)
 	require.NotNil(t, prof)
 	assert.NotNil(t, prof.NotValidAfter)
@@ -15642,7 +15662,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 			hostProf.Identifier: &hostProf,
 		}
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
-		prof, err := s.ds.GetHostMDMCertificateProfile(context.Background(), host.UUID, wantProfUUID, wantCAName)
+		prof, err := s.ds.GetAppleHostMDMCertificateProfile(context.Background(), host.UUID, wantProfUUID, wantCAName)
 		require.NoError(t, err)
 		require.NotNil(t, prof)
 		require.Equal(t, wantCAName, prof.CAName)
@@ -15673,7 +15693,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(resp.Body)
 	assert.Contains(t, errMsg, "FLEET_VAR_CUSTOM_SCEP_")
-	assert.Contains(t, errMsg, "_scepName is not supported")
+	assert.Contains(t, errMsg, "_scepName does not exist")
 
 	// /////////////////////////////////////////
 	// Add custom SCEP config

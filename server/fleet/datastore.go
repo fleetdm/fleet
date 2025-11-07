@@ -677,9 +677,10 @@ type Datastore interface {
 
 	// CreateIntermediateInstallFailureRecord creates a completed failure record for an
 	// installation attempt that will be retried, while keeping the original pending.
-	// Returns the execution ID of the failure record, the software install result details,
-	// and a boolean indicating whether a new record was created (true) or an existing one was updated (false).
-	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, *HostSoftwareInstallerResult, bool, error)
+	// It returns a deterministic execution ID for the failure record (unique per base
+	// install UUID and retry ordinal) to support idempotency. This method is for
+	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
+	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
 
 	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
 	// the given team.
@@ -1137,10 +1138,13 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
-	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (Vulnerabilities, error)
+	// ListVulnsByOsNameAndVersion fetches vulnerabilities for a single OS version. If maxVulnerabilities is provided,
+	// limits the number of vulnerabilities returned while still providing the total count.
+	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (OSVulnerabilitiesWithCount, error)
 	// ListVulnsByMultipleOSVersions is an optimized batch query that fetches vulnerabilities for multiple OS versions
-	// in a single efficient operation.
-	ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []OSVersion, includeCVSS bool, teamID *uint) (map[string]Vulnerabilities, error)
+	// in a single efficient operation. If maxVulnerabilities is provided, limits the number of vulnerabilities returned
+	// per OS version while still providing the total count.
+	ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []OSVersion, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (map[string]OSVulnerabilitiesWithCount, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
@@ -2249,9 +2253,12 @@ type Datastore interface {
 	// BulkUpsertMDMManagedCertificates updates metadata regarding certificates on the host.
 	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMManagedCertificate) error
 
-	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
+	// GetAppleHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
 	// nil is returned if the profile is not found.
-	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
+	GetAppleHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
+	// GetWindowsHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
+	// nil is returned if the profile is not found.
+	GetWindowsHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
@@ -2432,6 +2439,14 @@ type Datastore interface {
 	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
 	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Conditional access certificates
+
+	// GetConditionalAccessCertHostIDBySerialNumber retrieves the host_id for a valid certificate by serial number.
+	GetConditionalAccessCertHostIDBySerialNumber(ctx context.Context, serial uint64) (uint, error)
+	// GetConditionalAccessCertCreatedAtByHostID retrieves the created_at timestamp of the most recent certificate for a host.
+	GetConditionalAccessCertCreatedAtByHostID(ctx context.Context, hostID uint) (*time.Time, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities

@@ -35,6 +35,7 @@ export interface IGetSoftwareByIdResponse {
 export interface ISoftware {
   id: number;
   name: string; // e.g., "Figma.app"
+  display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
   application_id?: string | null; // e.g., "us.zoom.videomeetings" for Android apps
@@ -90,6 +91,7 @@ export interface ISoftwareAppStoreAppStatus {
 
 export interface ISoftwarePackage {
   name: string;
+  display_name?: string;
   title_id: number;
   url: string;
   version: string;
@@ -118,6 +120,7 @@ export const isSoftwarePackage = (
 
 export interface IAppStoreApp {
   name: string;
+  display_name?: string;
   app_store_id: string; // API returns this as a string
   latest_version: string;
   created_at: string;
@@ -142,6 +145,7 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  display_name?: string;
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
@@ -157,6 +161,7 @@ export interface ISoftwareTitle {
 export interface ISoftwareTitleDetails {
   id: number;
   name: string;
+  display_name?: string;
   icon_url: string | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
@@ -186,6 +191,7 @@ export interface ISoftwareVulnerability {
 export interface ISoftwareVersion {
   id: number;
   name: string; // e.g., "Figma.app"
+  display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
@@ -493,6 +499,7 @@ export interface ISoftwareInstallVersion {
 
 export interface IHostSoftwarePackage {
   name: string;
+  display_name?: string;
   self_service: boolean;
   icon_url: string | null;
   version: string;
@@ -504,6 +511,7 @@ export interface IHostSoftwarePackage {
 }
 
 export interface IHostAppStoreApp {
+  display_name?: string;
   app_store_id: string;
   platform: Platform;
   self_service: boolean;
@@ -517,6 +525,7 @@ export interface IHostAppStoreApp {
 export interface IHostSoftware {
   id: number;
   name: string;
+  display_name?: string;
   icon_url: string | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;

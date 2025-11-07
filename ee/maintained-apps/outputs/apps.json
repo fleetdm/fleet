@@ -139,7 +139,7 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": ""
+      "description": "A terminal emulator alternative to Apple's Terminal app."
     },
     {
       "name": "Microsoft Edge",

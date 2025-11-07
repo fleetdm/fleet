@@ -63,6 +63,7 @@ export const generateSoftwareTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           app_store_app,
           software_package,
@@ -86,6 +87,7 @@ export const generateSoftwareTableHeaders = ({
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}

@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -436,9 +437,10 @@ type Service interface {
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
-	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool) (*OSVersions, int, *PaginationMetadata, error)
-	// OSVersion returns an operating system and associated host counts
-	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*OSVersion, *time.Time, error)
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool, maxVulnerabilities *int) (*OSVersions, int, *PaginationMetadata, error)
+	// OSVersion returns an operating system and associated host counts. If maxVulnerabilities is provided,
+	// limits the number of vulnerabilities returned while still providing the total count.
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*OSVersion, *time.Time, error)
 
 	// ListHostSoftware lists the software installed or available for install on
 	// the specified host.
@@ -862,7 +864,7 @@ type Service interface {
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
-	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
+	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)

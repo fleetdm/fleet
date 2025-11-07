@@ -1460,14 +1460,18 @@ SELECT
 	ua.user_id,
 	COALESCE(ua.payload->'$.self_service', 0),
 	siua.policy_id,
-	COALESCE(ua.payload->>'$.installer_filename', '[deleted installer]'),
-	COALESCE(ua.payload->>'$.version', 'unknown'),
-	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
+	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
+	COALESCE(si.title_id, siua.software_title_id),
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]')
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
 		ON siua.upcoming_activity_id = ua.id
+	LEFT JOIN software_installers si
+		ON si.id = siua.software_installer_id
+	LEFT JOIN software_titles st
+		ON st.id = si.title_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1526,14 +1530,18 @@ SELECT
 	ua.user_id,
 	1,  -- uninstall
 	'', -- no installer_filename for uninstalls
-	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]'),
+	COALESCE(si.title_id, siua.software_title_id),
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
 	COALESCE(ua.payload->>'$.self_service', FALSE),
 	'unknown'
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
 		ON siua.upcoming_activity_id = ua.id
+	LEFT JOIN software_installers si
+		ON si.id = siua.software_installer_id
+	LEFT JOIN software_titles st
+		ON st.id = si.title_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)

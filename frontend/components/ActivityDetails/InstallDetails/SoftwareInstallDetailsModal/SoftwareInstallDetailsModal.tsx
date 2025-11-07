@@ -369,7 +369,9 @@ export const SoftwareInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
           installResult={installResultWithHostDisplayName}
-          softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
+          softwareName={
+            hostSoftware?.display_name || hostSoftware?.name || "Software"
+          } // will always be defined at this point
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />

@@ -205,6 +205,7 @@ export const DEFAULT_INSTALLED_VERSION = {
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
+  display_name: "Mock Software",
   icon_url: null,
   software_package: createMockHostSoftwarePackage(),
   app_store_app: null,

@@ -39,7 +39,8 @@ func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB interface{}, msgAn
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			if ps, ok := ps.(cmp.StructField); ok && (ps.Name() == "ID" || ps.Name() == "HostCount") {
+			// We don't need the TitleID in most cases, only used for software title display names functionality.
+			if ps, ok := ps.(cmp.StructField); ok && (ps.Name() == "ID" || ps.Name() == "HostCount" || ps.Name() == "TitleID") {
 				return true
 			}
 		}

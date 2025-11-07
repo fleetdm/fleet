@@ -995,6 +995,7 @@ module.exports.routes = {
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
+  'GET /learn-more-about/deleting-android-enterprise': '/guides/android-mdm-setup#deleting-android-enterprise-in-google-admin',
   'GET /learn-more-about/setup-experience/install-software': '/guides/macos-setup-experience#install-software',
   'GET /learn-more-about/setup-experience/run-script': '/guides/macos-setup-experience#run-script',
   'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication',

@@ -25,6 +25,7 @@ import {
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
@@ -244,6 +245,52 @@ const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
   }
 
   return sendRequest("POST", SOFTWARE_APP_STORE_APPS, body);
+const handleDisplayNameForm = (
+  data: ISoftwareDisplayNameFormData,
+  formData: FormData
+) => {
+  formData.append("display_name", data.displayName || "");
+};
+
+const handleEditPackageForm = (
+  data: IEditPackageFormData,
+  formData: FormData,
+  orignalPackage: ISoftwarePackage
+) => {
+  data.software && formData.append("software", data.software);
+  formData.append("self_service", data.selfService.toString());
+  formData.append("install_script", data.installScript);
+  formData.append("pre_install_query", data.preInstallQuery || "");
+  formData.append("post_install_script", data.postInstallScript || "");
+  formData.append("uninstall_script", data.uninstallScript || "");
+  if (data.categories) {
+    data.categories.forEach((category) => {
+      formData.append("categories", category);
+    });
+  }
+
+  // clear out labels if targetType is "All hosts"
+  if (data.targetType === "All hosts") {
+    if (orignalPackage.labels_include_any) {
+      formData.append("labels_include_any", "");
+    } else {
+      formData.append("labels_exclude_any", "");
+    }
+  }
+
+  // add custom labels if targetType is "Custom"
+  if (data.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+    let labelKey = "";
+    if (data.customTarget === "labelsIncludeAny") {
+      labelKey = "labels_include_any";
+    } else {
+      labelKey = "labels_exclude_any";
+    }
+    selectedLabels?.forEach((label) => {
+      formData.append(labelKey, label);
+    });
+  }
 };
 
 export default {
@@ -416,8 +463,8 @@ export default {
     onUploadProgress,
     signal,
   }: {
-    data: IEditPackageFormData;
-    orignalPackage: ISoftwarePackage;
+    data: IEditPackageFormData | ISoftwareDisplayNameFormData;
+    orignalPackage?: ISoftwarePackage;
     softwareId: number;
     teamId: number;
     timeout?: number;
@@ -425,42 +472,23 @@ export default {
     signal?: AbortSignal;
   }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
-
     const formData = new FormData();
     formData.append("team_id", teamId.toString());
-    data.software && formData.append("software", data.software);
-    formData.append("self_service", data.selfService.toString());
-    formData.append("install_script", data.installScript);
-    formData.append("pre_install_query", data.preInstallQuery || "");
-    formData.append("post_install_script", data.postInstallScript || "");
-    formData.append("uninstall_script", data.uninstallScript || "");
-    if (data.categories) {
-      data.categories.forEach((category) => {
-        formData.append("categories", category);
-      });
-    }
 
-    // clear out labels if targetType is "All hosts"
-    if (data.targetType === "All hosts") {
-      if (orignalPackage.labels_include_any) {
-        formData.append("labels_include_any", "");
-      } else {
-        formData.append("labels_exclude_any", "");
+    if ("displayName" in data) {
+      // Handles Edit display name form only
+      handleDisplayNameForm(data, formData);
+    } else {
+      // TODO: Confirm if orignalPackage is required
+      if (!orignalPackage) {
+        throw new Error("originalPackage is required for EditPackageFormData");
       }
-    }
-
-    // add custom labels if targetType is "Custom"
-    if (data.targetType === "Custom") {
-      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
-      let labelKey = "";
-      if (data.customTarget === "labelsIncludeAny") {
-        labelKey = "labels_include_any";
-      } else {
-        labelKey = "labels_exclude_any";
-      }
-      selectedLabels?.forEach((label) => {
-        formData.append(labelKey, label);
-      });
+      // Handles primary Edit Package form
+      handleEditPackageForm(
+        data as IEditPackageFormData,
+        formData,
+        orignalPackage
+      );
     }
 
     return sendRequestWithProgress({
