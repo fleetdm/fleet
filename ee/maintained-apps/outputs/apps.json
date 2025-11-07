@@ -156,6 +156,13 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
+      "name": "Microsoft 365 Apps",
+      "slug": "office/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft 365 Apps for enterprise - en-us",
+      "description": "Microsoft 365 Apps provides access to Word, Excel, PowerPoint, Outlook, and other Office applications with cloud-based collaboration features."
+    },
+    {
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
