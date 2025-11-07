@@ -2269,9 +2269,9 @@ type Datastore interface {
 	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
 	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
-	// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
-	// also deactivates prior nano commands for the profile UUID and host UUID.
-	ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error
+	// ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
+	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
+	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
