@@ -139,6 +139,23 @@ const Checkbox = (props: ICheckboxProps) => {
     return icon;
   };
 
+  const renderLabel = () => {
+    if (!children) return null;
+
+    return labelTooltipContent ? (
+      <span className={`${baseClass}__label-tooltip tooltip`}>
+        <TooltipWrapper
+          tipContent={labelTooltipContent}
+          clickable={false} // Not block form behind tooltip
+        >
+          {children}
+        </TooltipWrapper>
+      </span>
+    ) : (
+      <span className={`${baseClass}__label`}>{children}</span>
+    );
+  };
+
   return (
     <FormField {...formFieldProps}>
       <label htmlFor={name}>
@@ -165,18 +182,7 @@ const Checkbox = (props: ICheckboxProps) => {
           onBlur={onBlur}
         >
           {renderIcon()}
-          {labelTooltipContent ? (
-            <span className={`${baseClass}__label-tooltip tooltip`}>
-              <TooltipWrapper
-                tipContent={labelTooltipContent}
-                clickable={false} // Not block form behind tooltip
-              >
-                {children}
-              </TooltipWrapper>
-            </span>
-          ) : (
-            <span className={`${baseClass}__label`}>{children}</span>
-          )}
+          {renderLabel()}
         </div>
       </label>
     </FormField>

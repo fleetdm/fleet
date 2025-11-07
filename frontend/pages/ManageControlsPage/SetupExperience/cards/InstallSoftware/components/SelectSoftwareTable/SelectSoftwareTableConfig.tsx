@@ -63,10 +63,15 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source, icon_url } = cellProps.row.original;
+        const { name, display_name, source, icon_url } = cellProps.row.original;
 
         return (
-          <SoftwareNameCell name={name} source={source} iconUrl={icon_url} />
+          <SoftwareNameCell
+            name={name}
+            display_name={display_name}
+            source={source}
+            iconUrl={icon_url}
+          />
         );
       },
       sortType: "caseInsensitive",

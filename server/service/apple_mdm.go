@@ -526,7 +526,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
+	err := validateProfileCertificateAuthorityVariables(contents, lic, fleet.MDMPlatformApple, groupedCAs,
 		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
@@ -4837,6 +4837,9 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
+	// FIXME: How does this impact variable profiles? This happens before pre-processing, doesn't
+	// this potentially race with the command uuid and variable substitution?
+	//
 	// First update all the profiles in the database before sending the
 	// commands, this prevents race conditions where we could get a
 	// response from the device before we set its status as 'pending'

@@ -202,10 +202,6 @@ const EndUserAuthSection = ({
     );
   };
 
-  if (!config?.mdm.apple_bm_enabled_and_configured) {
-    return null;
-  }
-
   return <div className={baseClass}>{renderContent()}</div>;
 };
 
