@@ -143,7 +143,7 @@ jobs:
           if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
-            if [[ ${{ inputs.loadtest_containers_starting_index}} -gt 0 ]];
+            if [[ ${{ inputs.loadtest_containers_starting_index}} -gt "0" ]];
               ./enroll.sh ${{ inputs.git_tag_branch }} ${{ inputs.loadtest_containers_starting_index}} ${{ inputs.loadtest_containers }}
             else
               terraform apply -auto-approve
