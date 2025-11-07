@@ -570,21 +570,33 @@ type hostCount struct {
 	GlobalStats bool   `db:"global_stats"`
 }
 
+const vulnerabilityHostCountsSwapTableSchema = `
+	CREATE TABLE IF NOT EXISTS vulnerability_host_counts_swap (
+		cve varchar(255) NOT NULL,
+		team_id int unsigned NOT NULL DEFAULT 0,
+		host_count int unsigned NOT NULL DEFAULT 0,
+		global_stats tinyint(1) NOT NULL DEFAULT 0,
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+		UNIQUE KEY cve_team_id_global_stats (cve, team_id, global_stats)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`
+
 // atomicTableSwapVulnerabilityCounts implements atomic table swap pattern
 // 1. Populate swap table with new data
 // 2. Atomically rename tables to swap them
 // 3. Clean up old table
 func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, counts []hostCount) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.ensureSwapTableExists(ctx, tx)
+		// Create/recreate the swap table fresh
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS vulnerability_host_counts_swap")
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ensuring swap table exists")
+			return ctxerr.Wrap(ctx, err, "dropping existing swap table")
 		}
 
-		// Clear swap table (in case of previous failed run)
-		_, err = tx.ExecContext(ctx, "DELETE FROM vulnerability_host_counts_swap")
+		_, err = tx.ExecContext(ctx, vulnerabilityHostCountsSwapTableSchema)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "clearing swap table")
+			return ctxerr.Wrap(ctx, err, "creating swap table")
 		}
 
 		if len(counts) > 0 {
@@ -618,17 +630,7 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 		}
 
 		// Recreate empty swap table for next run
-		_, err = tx.ExecContext(ctx, `
-			CREATE TABLE vulnerability_host_counts_swap (
-				cve varchar(255) NOT NULL,
-				team_id int unsigned NOT NULL DEFAULT 0,
-				host_count int unsigned NOT NULL DEFAULT 0,
-				global_stats tinyint(1) NOT NULL DEFAULT 0,
-				created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-				updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-				UNIQUE KEY cve_team_id_global_stats (cve, team_id, global_stats)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-		`)
+		_, err = tx.ExecContext(ctx, vulnerabilityHostCountsSwapTableSchema)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "recreating swap table")
 		}
@@ -666,22 +668,6 @@ func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtC
 	}
 
 	return nil
-}
-
-// ensureSwapTableExists creates the swap table if it doesn't exist
-func (ds *Datastore) ensureSwapTableExists(ctx context.Context, tx sqlx.ExtContext) error {
-	_, err := tx.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS vulnerability_host_counts_swap (
-			cve varchar(255) NOT NULL,
-			team_id int unsigned NOT NULL DEFAULT 0,
-			host_count int unsigned NOT NULL DEFAULT 0,
-			global_stats tinyint(1) NOT NULL DEFAULT 0,
-			created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-			updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			UNIQUE KEY cve_team_id_global_stats (cve, team_id, global_stats)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-	`)
-	return err
 }
 
 func (ds *Datastore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
