@@ -13,7 +13,15 @@ on:
         default: "main"
         required: true
       loadtest_containers:
-        description: "Count of osquery-perf tasks to run"
+        description: "Count of osquery-perf tasks to run (should be a multiple of 8)"
+        type: string
+        required: true
+      loadtest_containers_starting_index:
+        description: "Starting Index for enroll.sh (should be a multiple of 8)"
+        type: string
+        required: true
+      loadtest_containers_ending_index:
+        description: "Ending Index for enroll.sh (should be a multiple of 8)"
         type: string
         required: true
       extra_flags:
@@ -140,6 +148,9 @@ jobs:
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
             terraform apply -auto-approve
+            if [[ ${{ inputs.loadtest_containers_starting_index}} -gt 0 ]];
+              ./enroll.sh ${{ inputs.git_tag_branch }} ${{ inputs.loadtest_containers_starting_index}} ${{ inputs.loadtest_containers_ending_index }}
+            fi
           else
             echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi

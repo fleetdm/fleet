@@ -10,8 +10,9 @@ resource "docker_registry_image" "loadtest" {
 }
 
 resource "docker_image" "loadtest" {
-  name         = "${data.aws_ecr_repository.fleet.repository_url}:loadtest-${local.loadtest_tag}"
+  name         = "${data.aws_ecr_repository.fleet.repository_url}:loadtest-${local.loadtest_tag}-${formatdate("YYYYMMDD-HHmmss", timestamp())}"
   keep_locally = true
+  force_remove = true
   build {
     context    = "../docker/"
     dockerfile = "loadtest.Dockerfile"
