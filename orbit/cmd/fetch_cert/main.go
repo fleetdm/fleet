@@ -93,11 +93,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(cert)
 	if err := os.WriteFile(*outPath, []byte(cert), os.FileMode(0644)); err != nil {
 		logger.Err(err).Msg("failed to write output certificate")
 		os.Exit(1)
 	}
+
+	fmt.Printf("Success! Certificate output to %q", *outPath)
 }
 
 type requestCertificateResponse struct {
