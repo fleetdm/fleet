@@ -13,6 +13,7 @@ Fleet 4.76.0 is now available. See the complete [changelog](https://github.com/f
 - Improved macOS, iOS, and iPadOS setup experience
 - Android software inventory
 - Lock (Lost Mode) for iOS and iPadOS
+- New Fleet-maintained apps
 
 ### Self-service scripts
 
@@ -39,6 +40,10 @@ Learn how to turn on Android MDM features in [this guide](https://fleetdm.com/gu
 ### Lock (Lost Mode) for iOS and iPadOS
 
 You can now remotely enable or disable [Lost Mode](https://support.apple.com/guide/security/managed-lost-mode-and-remote-wipe-secc46f3562c/web#:~:text=locked%20or%20erased.-,Managed%20Lost%20Mode,-If%20a%20supervised) on company-owned iPhones and iPads. In Fleet, head to the host's **Host details page** and select **Actions > Lock**. If a host goes missing, you can lock it down fast and protect sensitive data.
+
+### New Fleet-maintained apps
+
+Fleet added [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) for Cursor, 010 Editor, and Linear on macOS and Cursor on Windows. See all Fleet-maintained apps in the [software catelog](https://fleetdm.com/software-catalog).
 
 ## Changes
 
