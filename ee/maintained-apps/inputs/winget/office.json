@@ -8,6 +8,5 @@
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",
-  "default_categories": ["Productivity"],
-  "ignore_hash": true
+  "default_categories": ["Productivity"]
 }
