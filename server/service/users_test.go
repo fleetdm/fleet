@@ -488,6 +488,50 @@ func TestModifyUserEmail(t *testing.T) {
 	assert.True(t, ms.SaveUserFuncInvoked)
 }
 
+func TestModifyUserEmailNoMailServiceConfigured(t *testing.T) {
+	user := &fleet.User{
+		ID:    3,
+		Email: "foo@bar.com",
+	}
+	err := user.SetPassword(test.GoodPassword, 10, 10)
+	require.NoError(t, err)
+	ms := new(mock.Store)
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
+		return nil
+	}
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return user, nil
+	}
+	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, notFoundErr{}
+	}
+	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
+		return nil, notFoundErr{}
+	}
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		config := &fleet.AppConfig{}
+		return config, nil
+	}
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+		// verify this isn't changed yet
+		assert.Equal(t, "foo@bar.com", u.Email)
+		// verify is changed per bug 1123
+		assert.Equal(t, "minion", u.Position)
+		return nil
+	}
+	svc, ctx := newTestService(t, ms, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	payload := fleet.UserPayload{
+		Email:    ptr.String("zip@zap.com"),
+		Password: ptr.String(test.GoodPassword),
+		Position: ptr.String("minion"),
+	}
+	_, err = svc.ModifyUser(ctx, 3, payload)
+	require.ErrorContains(t, err, "mail")
+	assert.True(t, ms.PendingEmailChangeFuncInvoked)
+	assert.False(t, ms.SaveUserFuncInvoked)
+}
+
 func TestModifyUserEmailNoPassword(t *testing.T) {
 	user := &fleet.User{
 		ID:    3,

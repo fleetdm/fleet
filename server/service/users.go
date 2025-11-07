@@ -53,7 +53,10 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-var errMailerRequiredForMFA = badRequest("Email must be set up to enable Fleet MFA")
+var (
+	errMailerRequiredForMFA             = badRequest("Email must be set up to enable Fleet MFA")
+	errMailerRequiredForUserEmailUpdate = badRequest("Email must be set up to update user email address")
+)
 
 func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, *string, error) {
 	var teams []fleet.UserTeam
@@ -925,6 +928,10 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 	if config.SMTPSettings != nil {
 		smtpSettings = *config.SMTPSettings
 	}
+	if !svc.mailService.CanSendEmail(smtpSettings) {
+		// Block if we cannot send an email.
+		return errMailerRequiredForUserEmailUpdate
+	}
 
 	changeEmail := fleet.Email{
 		Subject:      "Confirm Fleet Email Change",
@@ -937,6 +944,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 			AssetURL: getAssetURL(),
 		},
 	}
+
 	return svc.mailService.SendEmail(ctx, changeEmail)
 }
 
