@@ -10463,6 +10463,8 @@ Modify App Store (VPP) app's options.
 | team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
+| auto_update_time | string | body | Time (UTC) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 
@@ -10524,6 +10526,98 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
+### List app auto updates
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+List historical and upcoming auto updates for an iOS or iPadOS App Store (VPP) app.
+
+`GET /api/v1/fleet/software/titles/:title_id/auto_updates`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| title_id | integer | path  | **Required.** The software title ID. Software title must have an App Store (VPP) app added. |
+| team_id  | integer | query | **Required.** The team ID. Lists auto updates from the specified team. |
+| page     | integer | query | Page number of the results to fetch.  |
+| per_page | integer | query | Results per page.  |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/auto_updates`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "auto_updates": [
+    {
+      "id": 123,
+      "version": "2.04",
+      "not_before": "2025-07-01T15:00:00Z",
+      "finished_at": "2025-07-06T15:00:00Z",
+      "started_at": "2025-07-06T14:00:00Z",
+      "status": "finished",
+      "canceled": false,
+      "targeted_host_count": 12599,
+      "installed_host_count": 12549,
+      "failed_host_count": 50
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
+```
+
+### List hosts targeted in app auto update
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+Returns a list of hosts targeted in an App Store (VPP) app auto update, along with their install status.
+
+`GET /api/v1/fleet/software/auto_updates/:auto_update_id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| auto_update_id | integer | path  | **Required.** The software title ID. Software title must have an App Store (VPP) app added. |
+| status   | string  | query | Filters to hosts with this install status. Either `"installed"`, `"failed_install"`, `"pending_install"`, or `"canceled_install"` |
+| page     | integer | query | Page number of the results to fetch.  |
+| per_page | integer | query | Results per page.  |
+
+#### Example
+
+`GET /api/v1/fleet/software/auto_updates/:auto_update_id`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "hosts": [
+    {
+      "id": 123,
+      "display_name": "Anna's MacBook Pro",
+      "install_status": "installed",
+      "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
+```
 
 ### List Fleet-maintained apps
 
@@ -10532,6 +10626,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 List available Fleet-maintained apps.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps`
+
 
 #### Parameters
 
