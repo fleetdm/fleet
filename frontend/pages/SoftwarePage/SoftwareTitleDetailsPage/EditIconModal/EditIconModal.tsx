@@ -2,13 +2,18 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { NotificationContext } from "context/notification";
+import { INotification } from "interfaces/notification";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import FileUploader from "components/FileUploader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
@@ -58,9 +63,15 @@ const makeFileDetails = (
   description: `Software icon • ${dimensions || "?"}x${dimensions || "?"} px`,
 });
 
-interface IIconFormData {
+interface IFormData {
   icon: File;
+  display_name?: string;
 }
+
+export interface ISoftwareDisplayNameFormData {
+  displayName?: string; // Edit Display name is in the edit icon modal
+}
+
 interface IFileDetails {
   name: string;
   description: string;
@@ -84,7 +95,7 @@ type IconStatus = "customUpload" | "apiCustom" | "fallback";
  */
 interface IconState {
   previewUrl: string | null;
-  formData: IIconFormData | null;
+  formData: IFormData | null;
   dimensions: number | null;
   fileDetails: IFileDetails | null;
   status: IconStatus;
@@ -117,6 +128,8 @@ interface IEditIconModalProps {
     currentIconUrl: string | null;
     /** Name used in preview UI but also for FMA default icon matching */
     name: string;
+    /** Default title name used to check if name has been modified */
+    titleName: string;
     countsUpdatedAt?: string;
   };
 }
@@ -132,7 +145,7 @@ const EditIconModal = ({
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
   const isSoftwarePackage = installerType === "package";
 
@@ -141,10 +154,15 @@ const EditIconModal = ({
     !!previewInfo.currentIconUrl &&
     previewInfo.currentIconUrl.startsWith("/api/");
 
-  // Encapsulates icon preview/upload/edit state
+  // Unmodified names default to empty Display name field
+  const hasNameBeenModified = previewInfo.titleName !== previewInfo.name;
+  const defaultName = hasNameBeenModified ? previewInfo.name : "";
+
+  // Encapsulates software name and icon preview/upload/edit state
+  const [displayName, setDisplayName] = useState(defaultName);
   const [iconState, setIconState] = useState<IconState>(defaultIconState);
   const [previewTabIndex, setPreviewTabIndex] = useState(0);
-  const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
+  const [isUpdatingSoftwareInfo, setIsUpdatingSoftwareInfo] = useState(false);
   /** Shows loading spinner only if a custom icon and its information is loading from API */
   const [isFirstLoadWithCustomIcon, setIsFirstLoadWithCustomIcon] = useState(
     shouldFetchCustomIcon
@@ -162,6 +180,15 @@ const EditIconModal = ({
     iconState.status === "fallback" &&
     !iconState.formData;
   const canSaveIcon = isCustomUpload || isRemovedCustom;
+  // Determine if any changes have been made to allow enabling Save button
+  const canSaveDisplayName =
+    (hasNameBeenModified && displayName === "") || // user cleared an override display name
+    (!hasNameBeenModified && displayName !== "") || // user set an override display name
+    (hasNameBeenModified &&
+      displayName !== "" &&
+      displayName !== previewInfo.name); // user changed override display name
+  // Ensures Save button is only enabled when icon or name has been changed
+  const canSaveForm = canSaveIcon || canSaveDisplayName;
 
   // Sets state after fetching current API custom icon
   const setCurrentApiCustomIcon = (
@@ -171,7 +198,7 @@ const EditIconModal = ({
   ) =>
     setIconState({
       previewUrl,
-      formData: { icon: file },
+      formData: { icon: file, display_name: displayName },
       dimensions: width,
       fileDetails: makeFileDetails(file, width),
       status: "apiCustom",
@@ -227,6 +254,19 @@ const EditIconModal = ({
   const onExitEditIconModal = () => {
     resetIconState(); // Ensure cached state is cleared
     onExit();
+  };
+
+  const onInputChange = ({ value }: IInputFieldParseTarget) => {
+    setDisplayName((value as string) || "");
+    // If you want live update in the formData:
+    setIconState((prev) =>
+      prev.formData
+        ? {
+            ...prev,
+            formData: { ...prev.formData, display_name: value as string },
+          }
+        : prev
+    );
   };
 
   const onFileSelect = (files: FileList | null) => {
@@ -359,7 +399,7 @@ const EditIconModal = ({
           className={`${baseClass}__preview-card__fleet`}
         >
           <SoftwareDetailsSummary
-            title={name}
+            displayName={displayName || name}
             name={name}
             type={type}
             source={source}
@@ -467,7 +507,7 @@ const EditIconModal = ({
             />
           )}
           <div className={`${baseClass}__self-service-preview-name`}>
-            <TooltipTruncatedText value={previewInfo.name} />
+            <TooltipTruncatedText value={displayName || previewInfo.name} />
           </div>
         </div>
       </Card>
@@ -479,7 +519,22 @@ const EditIconModal = ({
 
   const renderForm = () => (
     <>
+      <InputField
+        label="Display name"
+        onChange={onInputChange}
+        name="displayName"
+        value={displayName}
+        parseTarget
+        helpText={
+          <>
+            Optional. If left blank, Fleet will use{" "}
+            <strong>{previewInfo.name}</strong>.
+          </>
+        }
+        autofocus
+      />
       <FileUploader
+        label="Icon"
         canEdit
         onDeleteFile={onDeleteFile}
         graphicName="file-png"
@@ -511,29 +566,101 @@ const EditIconModal = ({
   );
 
   const onClickSave = async () => {
-    setIsUpdatingIcon(true);
+    setIsUpdatingSoftwareInfo(true);
     try {
-      if (!iconState.formData?.icon) {
-        await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-        renderFlash(
-          "success",
-          <>
-            Successfully removed icon from <b>{software?.name}</b>.
-          </>
-        );
-      } else {
-        await softwareAPI.editSoftwareIcon(
-          softwareId,
-          teamIdForApi,
-          iconState.formData
-        );
-        renderFlash(
-          "success",
-          <>
-            Successfully edited <b>{previewInfo.name}</b>.
-          </>
-        );
+      const notifications: INotification[] = [];
+
+      // Process icon change
+      try {
+        if (!iconState.formData?.icon) {
+          // No new upload, so either removing existing custom icon or no change
+          if (originalIsApiCustom) {
+            await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+            notifications.push({
+              id: "icon-removed",
+              alertType: "success",
+              isVisible: true,
+              message: (
+                <>
+                  Successfully removed icon from <b>{software?.name}</b>.
+                </>
+              ),
+              persistOnPageChange: false,
+            });
+          }
+        } else {
+          // New custom icon upload
+          await softwareAPI.editSoftwareIcon(
+            softwareId,
+            teamIdForApi,
+            iconState.formData
+          );
+          notifications.push({
+            id: "icon-edited",
+            alertType: "success",
+            isVisible: true,
+            message: (
+              <>
+                Successfully edited <b>{previewInfo.name}</b>.
+              </>
+            ),
+            persistOnPageChange: false,
+          });
+        }
+      } catch (e) {
+        const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+        notifications.push({
+          id: "icon-error",
+          alertType: "error",
+          isVisible: true,
+          message: errorMessage,
+          persistOnPageChange: false,
+        });
       }
+
+      // Process display name change
+      if (displayName !== previewInfo.name) {
+        try {
+          await (installerType === "package"
+            ? softwareAPI.editSoftwarePackage({
+                data: { displayName },
+                softwareId,
+                teamId: teamIdForApi,
+              })
+            : mdmAppleAPI.editVppApp(softwareId, teamIdForApi, {
+                displayName,
+              }));
+          notifications.push({
+            id: "name-edited",
+            alertType: "success",
+            isVisible: true,
+            message: (
+              <>
+                Successfully renamed <b>{previewInfo.name}</b> to{" "}
+                <b>{displayName}</b>.
+              </>
+            ),
+            persistOnPageChange: false,
+          });
+        } catch (e) {
+          const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+          notifications.push({
+            id: "name-error",
+            alertType: "error",
+            isVisible: true,
+            message: errorMessage,
+            persistOnPageChange: false,
+          });
+        }
+      }
+
+      // Show all gathered messages
+      if (notifications.length > 1) {
+        renderMultiFlash({ notifications });
+      } else if (notifications.length === 1) {
+        renderFlash(notifications[0].alertType, notifications[0].message);
+      }
+
       refetchSoftwareTitle();
       setIconUploadedAt(new Date().toISOString());
       onExitEditIconModal();
@@ -541,7 +668,7 @@ const EditIconModal = ({
       const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
       renderFlash("error", errorMessage);
     } finally {
-      setIsUpdatingIcon(false);
+      setIsUpdatingSoftwareInfo(false);
     }
   };
 
@@ -562,8 +689,8 @@ const EditIconModal = ({
             <Button
               type="submit"
               onClick={onClickSave}
-              isLoading={isUpdatingIcon}
-              disabled={!canSaveIcon || isUpdatingIcon}
+              isLoading={isUpdatingSoftwareInfo}
+              disabled={!canSaveForm || isUpdatingSoftwareInfo}
             >
               Save
             </Button>

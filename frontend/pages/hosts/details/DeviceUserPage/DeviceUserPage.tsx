@@ -330,6 +330,14 @@ const DeviceUserPage = ({
     host?.platform === "windows" ||
     host?.platform === "darwin";
 
+  const isFleetMdmManualUnenrolledMac =
+    !!globalConfig?.mdm.enabled_and_configured &&
+    !!host &&
+    !host.dep_assigned_to_fleet &&
+    host.platform === "darwin" &&
+    (host.mdm.enrollment_status === "Off" ||
+      host.mdm.enrollment_status === null);
+
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 
@@ -372,6 +380,23 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    data: mdmManualEnrollUrl,
+    // isLoading, // not used; see related comment in onClickTurnOnMdm below
+    error: mdmManualEnrollUrlError,
+  } = useQuery<{ enroll_url: string }, Error, string>(
+    ["mdm_mandual_enroll_url", deviceAuthToken],
+    () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
+    {
+      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data) => data.enroll_url,
+    }
+  );
+
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
@@ -386,18 +411,15 @@ const DeviceUserPage = ({
       setShowEnrollMdmModal(true);
       return;
     }
-    // otherwise, fetch the manual enrollment URL and open in new tab
-    try {
-      const resp = await deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken);
-      if (resp?.enroll_url) {
-        window.open(resp.enroll_url);
-      } else {
-        setEnrollUrlError("Enrollment URL is not available.");
-      }
-    } catch (e) {
-      setEnrollUrlError(`Failed to get enrollment URL. ${e}`);
-    }
-  }, [deviceAuthToken, host?.dep_assigned_to_fleet]);
+    // if we have an enroll URL, DeviceUserBanners will display a CustomLink in place of the Button;
+    // in some unexpected cases, may not have an enroll URL at this point (e.g., there was an error
+    // fetching the URL from the API or the user clicked the link extremely quickly after page load
+    // before the URL was fetched), we fallback to showing the Button and we'll display an error if
+    // the user tries to click when we don't have an enroll URL.
+    setEnrollUrlError(
+      `Failed to get enrollment URL. ${mdmManualEnrollUrlError}`
+    );
+  }, [host?.dep_assigned_to_fleet, mdmManualEnrollUrlError]);
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -575,6 +597,7 @@ const DeviceUserPage = ({
             diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
             diskIsEncrypted={host.disk_encryption_enabled}
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
+            mdmManualEnrolmentUrl={mdmManualEnrollUrl}
           />
           <HostHeader
             summaryData={summaryData}

@@ -43,6 +43,10 @@ const (
 	// authentication token. This authentication mode does not support granular
 	// authorization.
 	AuthnOrbitToken
+	// AuthnHTTPMessageSignature is when authentication is done via HTTP Message Signature,
+	// backed by the device's SCEP Identity certificate. This authentication method does not support
+	// granular authorization.
+	AuthnHTTPMessageSignature
 )
 
 // AuthorizationContext contains the context information used for the

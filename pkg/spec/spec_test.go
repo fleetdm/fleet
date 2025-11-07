@@ -189,6 +189,12 @@ func TestExpandEnv(t *testing.T) {
 			`\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
 			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil,
 		}, // nested variables
+		{
+			map[string]string{},
+			"$fleet_var_test", // Somehow, variables can be lowercased when coming in from time to time
+			"$fleet_var_test", // Should not be replaced
+			nil,
+		},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)

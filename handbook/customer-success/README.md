@@ -167,16 +167,6 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
 
-### Escalate a customer bug report
-
-1. When a CSE suspects that a customer is impacted by a bug, a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) is filed immediately.
-2. Remove `:incoming` and `:reproduce` labels, and include the `~investigate` [label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A~investigate) and the `:help-customers` label.
-3. All suspected bug reports with the `~investigate` label are reviewed on the `:help-customers` stand-up daily. The Manager of CSE/CSA will acknowledge the bug report with a comment in the issue. 
-4. If a bug appears on stand-up for a second business day, the label is removed. Any available logs, reproduction steps, and details are updated on the issue.
-    1. If we are able to reproduce the bug, the issue can be sent straight to the `:product` drafting board for review and triage by the Head of Product Design.
-    2. If we are unable to reproduce the bug, the `:incoming` and `:reproduce` labels should be added back in so the bug can be triaged by the QA team.
-
-
 ### Timebox an investigation
 
 During the window of time available to investigate an issue, use the resources at your disposal such as:
