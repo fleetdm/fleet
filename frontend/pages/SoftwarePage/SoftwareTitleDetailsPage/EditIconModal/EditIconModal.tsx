@@ -6,7 +6,6 @@ import {
   isIpadOrIphoneSoftwareSource,
   ISoftwarePackage,
 } from "interfaces/software";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { NotificationContext } from "context/notification";
