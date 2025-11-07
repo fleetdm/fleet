@@ -573,19 +573,23 @@ const EditIconModal = ({
       // Process icon change
       try {
         if (!iconState.formData?.icon) {
-          await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-          notifications.push({
-            id: "icon-removed",
-            alertType: "success",
-            isVisible: true,
-            message: (
-              <>
-                Successfully removed icon from <b>{software?.name}</b>.
-              </>
-            ),
-            persistOnPageChange: false,
-          });
+          // No new upload, so either removing existing custom icon or no change
+          if (originalIsApiCustom) {
+            await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+            notifications.push({
+              id: "icon-removed",
+              alertType: "success",
+              isVisible: true,
+              message: (
+                <>
+                  Successfully removed icon from <b>{software?.name}</b>.
+                </>
+              ),
+              persistOnPageChange: false,
+            });
+          }
         } else {
+          // New custom icon upload
           await softwareAPI.editSoftwareIcon(
             softwareId,
             teamIdForApi,
