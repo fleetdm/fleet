@@ -1342,6 +1342,13 @@ type Service interface {
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 
+	// /////////////////////////////////////////////////////////////////////////////
+	// Okta conditional access
+
+	// ConditionalAccessGetIdPSigningCert returns the Okta IdP signing certificate (public key only)
+	// for administrators to download and configure in Okta.
+	ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error)
+
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
 
