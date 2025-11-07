@@ -53,12 +53,12 @@
 - Fixed WhatsApp and VS Code icons not displaying correctly
 - Fixed bad software ingestion debug message and added filter for invalid software with missing names.
 - Fixed a bug where a software installer could be installed in the same team and same platform (macOS) where an App Store app already existed for the same software title, and vice-versa (App Store app added when a sofware package already existed, this one was only possible just via `fleetctl gitops`).
-- Fixed listing hosts with `populate_software` not returning hash_sha256 for macos apps
+- Fixed listing hosts with `populate_software` not returning hash_sha256 for macos apps.
 - Fixed bug where batch setting MDM profiles could cause a nil pointer dereference when processing an invalid profile (e.g., cannot parse mobileconfig because it is bad xml).
 - Fixed bug hiding the UI elements post install script output in Software Install Details modal.
 - Fixed software title host count mismatch that was caused by including software installers in the count.
 - Fixed a scenario where a wiped Windows host re-enrolled as a distinct host row in Fleet and the previous host's page could not be loaded successfully.
-- Fixed an issue where a host transfer on `mdm_enrolled` activity would be reversed by orbit enroll
+- Fixed an issue where a host transfer on `mdm_enrolled` activity would be reversed by orbit enroll.
 - Fixed a bug in live queries that caused `livequery:{$CAMPAIGN_ID}` Redis keys to not be cleaned up or expire.
 - Fixed inconsistency in GitOps for App store apps if no VPP token was found, so that both dry run and actual run fails.
 - Fixed the software title counts by status to be consistent with the status reported in the host's software list and filter by status.
