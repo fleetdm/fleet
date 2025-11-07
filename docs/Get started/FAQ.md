@@ -514,7 +514,6 @@ We've found this error when you try to build an MSI on Docker 4.17. The underlyi
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
 - [What Redis versions are supported?](#what-redis-versions-are-supported)
-- [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
 
 ### How do I get support for working with Fleet?
 
@@ -709,11 +708,7 @@ Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.3
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in [Fleet's config file](https://fleetdm.com/docs/deploying/configuration#license). You don't need to redeploy Fleet after the migration.
 
 ### What Redis versions are supported?
-Fleet is tested with Redis 6, as well as the latest release of Redis 5. Any version of Redis after version 5 will typically work well.
-
-### Will my older version of Fleet work with Redis 6?
-
-Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination, so you may run into some unforeseen hiccups.
+Fleet is tested with Redis 6. Any version of Redis after version 6 will typically work well.
 
 ## What happened to the "Schedule" page?
 Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query that every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.
