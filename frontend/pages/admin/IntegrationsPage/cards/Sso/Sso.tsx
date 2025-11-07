@@ -131,8 +131,8 @@ const Sso = ({
 
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
   const [formDirty, setFormDirty] = useState<boolean>(false);
-  const formDirtyRef = useRef(formDirty);
-  const isInitialRenderRef = useRef(true);
+  const formDirtyRef = useRef(false);
+  const isInitialSsoRender = useRef(true);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -143,8 +143,8 @@ const Sso = ({
   // Only update if form is not dirty to avoid overwriting unsaved changes
   useEffect(() => {
     // Skip the initial render since state is already initialized correctly
-    if (isInitialRenderRef.current) {
-      isInitialRenderRef.current = false;
+    if (isInitialSsoRender.current) {
+      isInitialSsoRender.current = false;
       return;
     }
     if (!formDirtyRef.current) {
@@ -212,14 +212,14 @@ const Sso = ({
     newFormDataIdp(appConfig?.mdm?.end_user_authentication)
   );
   const originalEndUserFormData = useRef(endUserFormData);
-  const isInitialRenderRefEndUser = useRef(true);
+  const isInitialEndUserRender = useRef(true);
 
   // Update end user form data when appConfig changes (e.g., after navigation and refetch)
   // Only update if form is not dirty to avoid overwriting unsaved changes
   useEffect(() => {
     // Skip the initial render since state is already initialized correctly
-    if (isInitialRenderRefEndUser.current) {
-      isInitialRenderRefEndUser.current = false;
+    if (isInitialEndUserRender.current) {
+      isInitialEndUserRender.current = false;
       return;
     }
     if (!formDirtyRef.current) {
