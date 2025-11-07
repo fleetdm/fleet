@@ -854,6 +854,10 @@ const (
 	MDMAssetHostIdentityCACert MDMAssetName = "host_identity_ca_cert"
 	// MDMAssetHostIdentityCAKey is the name of the root CA private key used for host identity
 	MDMAssetHostIdentityCAKey MDMAssetName = "host_identity_ca_key"
+	// MDMAssetConditionalAccessCACert is the name of the root CA certificate used for conditional access SCEP
+	MDMAssetConditionalAccessCACert MDMAssetName = "conditional_access_ca_cert"
+	// MDMAssetConditionalAccessCAKey is the name of the root CA private key used for conditional access SCEP
+	MDMAssetConditionalAccessCAKey MDMAssetName = "conditional_access_ca_key"
 )
 
 type MDMConfigAsset struct {

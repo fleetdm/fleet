@@ -8476,6 +8476,17 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		host.ID, inHouseID, uuid.NewString(), fleet.MacOSPlatform)
 	require.NoError(t, err)
 
+	// Insert into conditional_access_scep_certificates table
+	result, err = ds.writer(context.Background()).Exec(`INSERT INTO conditional_access_scep_serials () VALUES ()`)
+	require.NoError(t, err)
+	caCertSerial, err := result.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(`
+		INSERT INTO conditional_access_scep_certificates (serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, caCertSerial, host.ID, "test-ca-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", false)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
