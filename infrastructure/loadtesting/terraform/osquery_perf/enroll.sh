@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 # Script for enrolling osquery-perf hosts by `terraform apply`ing in increments of 8 `loadtest` containers.
 # NOTE(lucas): This is the currently known configuration that won't tip the loadtest environment,
 # but maybe in the future we can be more aggressive (and reduce enroll time).
