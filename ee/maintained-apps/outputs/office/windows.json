@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "16.0.19328.20178",
+      "version": "16.0.19029.20278",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft 365 Apps for enterprise - en-us' AND publisher = 'Microsoft Corporation';"
       },
-      "installer_url": "https://officecdn.microsoft.com/pr/wsus/setup.exe",
+      "installer_url": "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19029-20278.exe",
       "install_script_ref": "484d30d7",
       "uninstall_script_ref": "2f34d024",
-      "sha256": "ed26519c1db29f1cc16eb21a1d492b8b6d241c4d86fe2de127ef6854d21cf5ae",
+      "sha256": "no_check",
       "default_categories": [
         "Productivity"
       ]
