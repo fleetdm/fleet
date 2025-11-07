@@ -423,39 +423,6 @@ var hostDetailQueries = map[string]DetailQuery{
 			}
 			host.Uptime = time.Duration(uptimeSeconds) * time.Second
 
-			// If the uptime is 0, don't change the last restarted at time.
-			if uptimeSeconds == 0 {
-				return nil
-			}
-			// Calculate the last restart date.
-			newLastRestartedAt := time.Now().Add(-host.Uptime)
-
-			fmt.Println("new restarted at:", newLastRestartedAt)
-			fmt.Println("old restarted at:", host.LastRestartedAt)
-
-			// If we have a previous last restarted at time, and it's within
-			// 30 seconds of the calculated one, keep it (to avoid small
-			// variations on each osquery run).
-			if !host.LastRestartedAt.IsZero() {
-				diff := newLastRestartedAt.Sub(host.LastRestartedAt)
-				fmt.Println("last restarted at diff:", diff)
-				// The new date should always be later, so if it's not, ignore.
-				if diff < 0 {
-					return nil
-				}
-				// If the new date is within 30 seconds of the previous one, ignore.
-				// This accounts for small differences between when the uptime
-				// reading was taken and when we process it here.
-				if diff < 30*time.Second {
-					return nil
-				}
-			}
-
-			fmt.Println("using new last restarted at:", newLastRestartedAt)
-
-			// Update the last restarted at time.
-			host.LastRestartedAt = newLastRestartedAt
-
 			return nil
 		},
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
