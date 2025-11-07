@@ -9696,6 +9696,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		BundleIdentifier: "inhouse2",
 		UserID:           user.ID,
+		SelfService:      true,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -9783,7 +9784,16 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 5)
 	require.Equal(t, []string{"a", "b", "inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
 
+	// only 1 with self-service
+	opts.IncludeAvailableForInstall = true
+	opts.SelfServiceOnly = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, []string{"inhouse2"}, pluckSoftwareNames(sw))
+
 	// vulnerable only returns "b"
+	opts.SelfServiceOnly = false
 	opts.IncludeAvailableForInstall = false
 	opts.VulnerableOnly = true
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
@@ -9870,7 +9880,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[3].SoftwarePackage)
 	require.Equal(t, sw[3].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[3].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[3].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[3].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 	require.Nil(t, sw[4].Status)
@@ -9921,7 +9931,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[1].SoftwarePackage)
 	require.Equal(t, sw[1].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[1].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[1].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[1].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 

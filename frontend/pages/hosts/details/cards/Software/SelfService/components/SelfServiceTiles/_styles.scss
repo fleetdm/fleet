@@ -1,0 +1,98 @@
+.self-service-tiles-list {
+  display: flex;
+  gap: $pad-medium;
+  flex-direction: column;
+}
+
+.self-service-tile {
+  display: flex;
+  padding: $pad-medium;
+  gap: $pad-medium;
+  justify-content: space-between;
+  align-items: center;
+  align-self: stretch;
+
+  &__item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: $pad-medium;
+    overflow: hidden;
+    max-width: 100%;
+  }
+
+  &__item-icon {
+    display: flex;
+  }
+
+  &__item-name-version {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  &__item-name {
+    font-size: $x-small;
+    font-weight: $bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: nowrap;
+
+    .truncated-tooltip {
+      font-weight: initial;
+    }
+  }
+
+  &__item-version {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: nowrap;
+  }
+
+  &__item-error {
+    display: flex;
+    gap: $pad-small;
+    font-size: $x-small;
+  }
+}
+
+@media (max-width: (349px)) {
+  .self-service-tile {
+    gap: $pad-small;
+    padding: $pad-small;
+
+    &__item-error-text {
+      display: none;
+    }
+
+    &__item {
+      gap: $pad-small;
+    }
+
+    .tile-action-status {
+      gap: $pad-xsmall;
+    }
+  }
+}
+
+@media (max-width: (299px)) {
+  .self-service-tile {
+    &__item-name {
+      font-size: $xx-small;
+    }
+
+    &__item-version {
+      font-size: $xxx-small;
+    }
+
+    &__item-icon {
+      svg {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+}

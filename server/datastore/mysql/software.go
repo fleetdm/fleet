@@ -2507,43 +2507,45 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
-	ExitCode             *int       `db:"exit_code"`
-	LastOpenedAt         *time.Time `db:"last_opened_at"`
-	BundleIdentifier     *string    `db:"bundle_identifier"`
-	Version              *string    `db:"version"`
-	SoftwareID           *uint      `db:"software_id"`
-	SoftwareSource       *string    `db:"software_source"`
-	SoftwareExtensionFor *string    `db:"software_extension_for"`
-	InstallerID          *uint      `db:"installer_id"`
-	PackageSelfService   *bool      `db:"package_self_service"`
-	PackageName          *string    `db:"package_name"`
-	PackagePlatform      *string    `db:"package_platform"`
-	PackageVersion       *string    `db:"package_version"`
-	VPPAppSelfService    *bool      `db:"vpp_app_self_service"`
-	VPPAppAdamID         *string    `db:"vpp_app_adam_id"`
-	VPPAppVersion        *string    `db:"vpp_app_version"`
-	VPPAppPlatform       *string    `db:"vpp_app_platform"`
-	VPPAppIconURL        *string    `db:"vpp_app_icon_url"`
-	InHouseAppID         *uint      `db:"in_house_app_id"`
-	InHouseAppName       *string    `db:"in_house_app_name"`
-	InHouseAppPlatform   *string    `db:"in_house_app_platform"`
-	InHouseAppVersion    *string    `db:"in_house_app_version"`
+	ExitCode              *int       `db:"exit_code"`
+	LastOpenedAt          *time.Time `db:"last_opened_at"`
+	BundleIdentifier      *string    `db:"bundle_identifier"`
+	Version               *string    `db:"version"`
+	SoftwareID            *uint      `db:"software_id"`
+	SoftwareSource        *string    `db:"software_source"`
+	SoftwareExtensionFor  *string    `db:"software_extension_for"`
+	InstallerID           *uint      `db:"installer_id"`
+	PackageSelfService    *bool      `db:"package_self_service"`
+	PackageName           *string    `db:"package_name"`
+	PackagePlatform       *string    `db:"package_platform"`
+	PackageVersion        *string    `db:"package_version"`
+	VPPAppSelfService     *bool      `db:"vpp_app_self_service"`
+	VPPAppAdamID          *string    `db:"vpp_app_adam_id"`
+	VPPAppVersion         *string    `db:"vpp_app_version"`
+	VPPAppPlatform        *string    `db:"vpp_app_platform"`
+	VPPAppIconURL         *string    `db:"vpp_app_icon_url"`
+	InHouseAppID          *uint      `db:"in_house_app_id"`
+	InHouseAppName        *string    `db:"in_house_app_name"`
+	InHouseAppPlatform    *string    `db:"in_house_app_platform"`
+	InHouseAppVersion     *string    `db:"in_house_app_version"`
+	InHouseAppSelfService *bool      `db:"in_house_app_self_service"`
 
-	VulnerabilitiesList      *string `db:"vulnerabilities_list"`
-	SoftwareIDList           *string `db:"software_id_list"`
-	SoftwareSourceList       *string `db:"software_source_list"`
-	SoftwareExtensionForList *string `db:"software_extension_for_list"`
-	VersionList              *string `db:"version_list"`
-	BundleIdentifierList     *string `db:"bundle_identifier_list"`
-	VPPAppSelfServiceList    *string `db:"vpp_app_self_service_list"`
-	VPPAppAdamIDList         *string `db:"vpp_app_adam_id_list"`
-	VPPAppVersionList        *string `db:"vpp_app_version_list"`
-	VPPAppPlatformList       *string `db:"vpp_app_platform_list"`
-	VPPAppIconUrlList        *string `db:"vpp_app_icon_url_list"`
-	InHouseAppIDList         *string `db:"in_house_app_id_list"`
-	InHouseAppNameList       *string `db:"in_house_app_name_list"`
-	InHouseAppPlatformList   *string `db:"in_house_app_platform_list"`
-	InHouseAppVersionList    *string `db:"in_house_app_version_list"`
+	VulnerabilitiesList       *string `db:"vulnerabilities_list"`
+	SoftwareIDList            *string `db:"software_id_list"`
+	SoftwareSourceList        *string `db:"software_source_list"`
+	SoftwareExtensionForList  *string `db:"software_extension_for_list"`
+	VersionList               *string `db:"version_list"`
+	BundleIdentifierList      *string `db:"bundle_identifier_list"`
+	VPPAppSelfServiceList     *string `db:"vpp_app_self_service_list"`
+	VPPAppAdamIDList          *string `db:"vpp_app_adam_id_list"`
+	VPPAppVersionList         *string `db:"vpp_app_version_list"`
+	VPPAppPlatformList        *string `db:"vpp_app_platform_list"`
+	VPPAppIconUrlList         *string `db:"vpp_app_icon_url_list"`
+	InHouseAppIDList          *string `db:"in_house_app_id_list"`
+	InHouseAppNameList        *string `db:"in_house_app_name_list"`
+	InHouseAppPlatformList    *string `db:"in_house_app_platform_list"`
+	InHouseAppVersionList     *string `db:"in_house_app_version_list"`
+	InHouseAppSelfServiceList *string `db:"in_house_app_self_service_list"`
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
@@ -3290,6 +3292,15 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 }
 
 func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
+	var selfServiceFilter string
+	if selfServiceOnly {
+		if isMDMEnrolled {
+			selfServiceFilter = "(iha.self_service = 1) AND "
+		} else {
+			selfServiceFilter = "FALSE AND "
+		}
+	}
+
 	installsStmt := fmt.Sprintf(`
 (   -- upcoming_in_house_install
 	SELECT
@@ -3300,6 +3311,7 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 		iha.filename AS in_house_app_name,
 		iha.platform AS in_house_app_platform,
 		iha.version AS in_house_app_version,
+		iha.self_service AS in_house_app_self_service,
 		'pending_install' AS status
 	FROM
 		upcoming_activities ua
@@ -3315,6 +3327,8 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 	INNER JOIN
 		in_house_apps iha ON ihua.in_house_app_id = iha.id
 	WHERE
+		-- selfServiceFilter
+		%s
 		ua.host_id = :host_id AND
 		ua.activity_type = 'in_house_app_install' AND
 		iha.global_or_team_id = :global_or_team_id AND
@@ -3329,6 +3343,7 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 		iha.filename AS in_house_app_name,
 		iha.platform AS in_house_app_platform,
 		iha.version AS in_house_app_version,
+		iha.self_service AS in_house_app_self_service,
 		-- inHouseAppHostStatusNamedQuery(hvsi, ncr, status)
 		%s
 	FROM
@@ -3344,6 +3359,8 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 	INNER JOIN
 		in_house_apps iha ON hihsi.in_house_app_id = iha.id
 	WHERE
+		-- selfServiceFilter
+		%s
 		hihsi.host_id = :host_id AND
 		hihsi.removed = 0 AND
 		hihsi.canceled = 0 AND
@@ -3361,7 +3378,7 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 				ua.activity_type = 'in_house_app_install'
 		)
 )
-`, inHouseAppHostStatusNamedQuery("hihsi", "ncr", "status"))
+`, selfServiceFilter, inHouseAppHostStatusNamedQuery("hihsi", "ncr", "status"), selfServiceFilter)
 
 	installsStmt, args, err := sqlx.Named(installsStmt, map[string]any{
 		"host_id":                   hostID,
@@ -3456,6 +3473,7 @@ func hostInstalledInHouses(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			iha.filename AS in_house_app_name,
 			iha.version AS in_house_app_version,
 			iha.platform as in_house_app_platform,
+			iha.self_service AS in_house_app_self_service,
 			'installed' AS status
 		FROM
 			host_in_house_software_installs hihsi
@@ -3556,7 +3574,7 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 		Name:        *softwareTitleRecord.InHouseAppName,
 		Version:     version,
 		Platform:    platform,
-		SelfService: ptr.Bool(false), // unsupported for in-house apps currently
+		SelfService: softwareTitleRecord.InHouseAppSelfService,
 	}
 
 	// promote the last install info to the proper destination fields
@@ -3892,6 +3910,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				iha.filename as in_house_app_name,
 				iha.version as in_house_app_version,
 				iha.platform as in_house_app_platform,
+				iha.self_service as in_house_app_self_service,
 				NULL as last_install_installed_at,
 				NULL as last_install_install_uuid,
 				NULL as last_uninstall_uninstalled_at,
@@ -4124,7 +4143,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				)
 			`
 			if opts.SelfServiceOnly {
-				stmtAvailable += "\nAND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) )"
+				stmtAvailable += "\nAND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) OR ( iha.self_service = 1 AND :is_mdm_enrolled ) )"
 			}
 
 			if !opts.IsMDMEnrolled {
@@ -4291,7 +4310,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					iha.id AS in_house_app_id,
 					iha.filename AS in_house_app_name,
 					iha.version AS in_house_app_version,
-					iha.platform as in_house_app_platform
+					iha.platform as in_house_app_platform,
+					iha.self_service AS in_house_app_self_service
 				FROM
 					host_software
 				INNER JOIN
@@ -4341,6 +4361,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					inventoriedSoftware.InHouseAppVersion = s.InHouseAppVersion
 					inventoriedSoftware.InHouseAppPlatform = s.InHouseAppPlatform
 					inventoriedSoftware.InHouseAppName = s.InHouseAppName
+					inventoriedSoftware.InHouseAppSelfService = s.InHouseAppSelfService
 					if !opts.VulnerableOnly && !hasCVEMetaFilters {
 						// When we are filtering by vulnerable only
 						// we want to treat the installed in-house app as a regular software title
@@ -4488,15 +4509,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 			}
 		}
-		// NOTE: does not apply to in-house apps for now, as self-service is not supported yet
-		// for inHouseID, software := range byInHouseID {
-		// 	if software.InHouseAppSelfService != nil && *software.InHouseAppSelfService {
-		// 		if filteredByInHouseID[inHouseID] == nil {
-		// 			// remove the software title from byInHouseID
-		// 			delete(byInHouseID, inHouseID)
-		// 		}
-		// 	}
-		// }
+		for inHouseID, software := range byInHouseID {
+			if software.InHouseAppSelfService != nil && *software.InHouseAppSelfService {
+				if filteredByInHouseID[inHouseID] == nil {
+					// remove the software title from byInHouseID
+					delete(byInHouseID, inHouseID)
+				}
+			}
+		}
 	}
 
 	// since these host installed vpp apps/in-house apps are already added in bySoftwareTitleID,
@@ -4554,13 +4574,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name")
 		}
 
-		// NOTE: no self-service support for in-house apps yet
-		var softwareOnlySelfServiceClause string
-		var vppOnlySelfServiceClause string
+		var (
+			softwareOnlySelfServiceClause string
+			vppOnlySelfServiceClause      string
+			inHouseOnlySelfServiceClause  string
+		)
 		if opts.SelfServiceOnly {
 			softwareOnlySelfServiceClause = ` AND software_installers.self_service = 1 `
 			if opts.IsMDMEnrolled {
 				vppOnlySelfServiceClause = ` AND vpp_apps_teams.self_service = 1 `
+				inHouseOnlySelfServiceClause = ` AND in_house_apps.self_service = 1 `
 			}
 		}
 
@@ -4741,6 +4764,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			WHERE
 				in_house_apps.id IN (?)
 				AND true
+			` + inHouseOnlySelfServiceClause + `
 			-- GROUP BY for in-house apps
 			%s
 			`
@@ -4820,7 +4844,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS in_house_app_id_list,
 					NULL AS in_house_app_name_list,
 					NULL AS in_house_app_version_list,
-					NULL as in_house_app_platform_list
+					NULL as in_house_app_platform_list,
+					NULL as in_house_app_self_service_list
 			`, softwareVulnerableJoin, `
 				GROUP BY
 					software_titles.id,
@@ -4861,7 +4886,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS in_house_app_id_list,
 					NULL AS in_house_app_name_list,
 					NULL AS in_house_app_version_list,
-					NULL as in_house_app_platform_list
+					NULL as in_house_app_platform_list,
+					NULL as in_house_app_self_service_list
 			`, `
 				GROUP BY
 					software_titles.id,
@@ -4898,7 +4924,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					GROUP_CONCAT(in_house_apps.id) AS in_house_app_id_list,
 					GROUP_CONCAT(in_house_apps.filename) AS in_house_app_name_list,
 					GROUP_CONCAT(in_house_apps.version) AS in_house_app_version_list,
-					GROUP_CONCAT(in_house_apps.platform) as in_house_app_platform_list
+					GROUP_CONCAT(in_house_apps.platform) as in_house_app_platform_list,
+					GROUP_CONCAT(in_house_apps.self_service) as in_house_app_self_service_list
 			`, `
 				GROUP BY
 					software_titles.id,
@@ -5106,6 +5133,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				inHouseAppVersionList := strings.Split(*softwareTitleRecord.InHouseAppVersionList, ",")
 				inHouseAppPlatformList := strings.Split(*softwareTitleRecord.InHouseAppPlatformList, ",")
 				inHouseAppNameList := strings.Split(*softwareTitleRecord.InHouseAppNameList, ",")
+				inHouseAppSelfServiceList := strings.Split(*softwareTitleRecord.InHouseAppSelfServiceList, ",")
 
 				if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
 					softwareTitleRecord = deduplicatedList[storedIndex]
@@ -5134,6 +5162,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					inHouseAppName := inHouseAppNameList[index]
 					if inHouseAppName != "" {
 						softwareTitleRecord.InHouseAppName = &inHouseAppName
+					}
+					inHouseAppSelfService := inHouseAppSelfServiceList[index]
+					if inHouseAppSelfService != "" {
+						if inHouseAppSelfService == "1" {
+							softwareTitleRecord.InHouseAppSelfService = ptr.Bool(true)
+						} else {
+							softwareTitleRecord.InHouseAppSelfService = ptr.Bool(false)
+						}
 					}
 				}
 			}
@@ -5186,6 +5222,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				softwareTitleRecord.InHouseAppName = installedInHouseRecord.InHouseAppName
 				softwareTitleRecord.InHouseAppVersion = installedInHouseRecord.InHouseAppVersion
 				softwareTitleRecord.InHouseAppPlatform = installedInHouseRecord.InHouseAppPlatform
+				softwareTitleRecord.InHouseAppSelfService = installedInHouseRecord.InHouseAppSelfService
 			}
 			// promote the in-house app id and version to the proper destination fields
 			if softwareTitleRecord.InHouseAppID != nil {
