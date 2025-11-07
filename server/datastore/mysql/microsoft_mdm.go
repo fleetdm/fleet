@@ -1326,8 +1326,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 		-- only need consider this for dynamic labels - manual(type=1) can be
 		-- considered at any time
 		SUM(
-			CASE WHEN lbl.membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
-			WHEN lbl.membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
+			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
 			ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		mdm_windows_configuration_profiles mwcp

@@ -4033,8 +4033,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(
-									CASE WHEN lbl.membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
-									WHEN lbl.membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+									CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1
+									WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
 									ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								software_installer_labels sil
