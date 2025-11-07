@@ -67,26 +67,14 @@ Additionally, refer to the [Reference Architecture sizing recommendations](https
     Below is an example with all available variables.
 
     ```sh
-    terraform apply -var=tag=v4.72.0 -var=fleet_task_count=20 -var=fleet_task_memory=4096 -var=fleet_task_cpu=512 -var=database_instance_size=db.t4g.large -var=database_instance_count=3 -var=redis_instance_size=cache.t4g.small -var=redis_instance_count=3 -var=enable_otel=true
+    terraform apply -var=tag=v4.72.0 -var=fleet_task_count=20 -var=fleet_task_memory=4096 -var=fleet_task_cpu=512 -var=database_instance_size=db.t4g.large -var=database_instance_count=3 -var=redis_instance_size=cache.t4g.small -var=redis_instance_count=3
     ```
 
-## OpenTelemetry tracing with SigNoz
+6. If you'd like to deploy osquery\_perf tasks in batches, you can now run the original `enroll.sh` script, from the osquery\_perf directory. The script will deploy in batches of 8, every 60 seconds, so it's recommended to set your starting index and max number of osquery perf containers as a multiple of 8.
 
-By default, the loadtest environment uses Elastic APM. You can optionally use OpenTelemetry with SigNoz instead by setting `enable_otel=true`:
-
-```sh
-terraform apply -var=tag=v4.72.0 -var=enable_otel=true
-```
-
-This deploys both Fleet and SigNoz in a single command. See [../signoz/README.md](../signoz/README.md) for architecture details.
-
-### Accessing the SigNoz UI
-
-After deploying with `enable_otel=true`, get the SigNoz UI URL:
-
-```sh
-$(terraform output -raw signoz_configure_kubectl) && kubectl get svc signoz -n signoz -o jsonpath='http://{.status.loadBalancer.ingress[0].hostname}:8080'
-```
+   ```sh
+   ./enroll.sh <branch_or_tag_name> <starting index> <max number of osquery_perf containers>
+   ```
 
 # Destroy environment manually
 
@@ -125,15 +113,15 @@ terraform workspace delete <workspace_name>
 |------|---------|
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.68.0 |
 | <a name="requirement_docker"></a> [docker](#requirement\_docker) | ~> 2.16.0 |
-| <a name="requirement_git"></a> [git](#requirement\_git) | ~> 0.1.0 |
+| <a name="requirement_git"></a> [git](#requirement\_git) | 2025.10.10 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.14.1 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.19.0 |
 | <a name="provider_docker"></a> [docker](#provider\_docker) | 2.16.0 |
-| <a name="provider_git"></a> [git](#provider\_git) | 0.1.0 |
+| <a name="provider_git"></a> [git](#provider\_git) | 2025.10.10 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 | <a name="provider_tls"></a> [tls](#provider\_tls) | 4.1.0 |
@@ -143,6 +131,7 @@ terraform workspace delete <workspace_name>
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_acm"></a> [acm](#module\_acm) | terraform-aws-modules/acm/aws | 4.3.1 |
+| <a name="module_cloudfront-software-installers"></a> [cloudfront-software-installers](#module\_cloudfront-software-installers) | /Users/jorge/Desktop/repos/fleet-terraform/addons/cloudfront-software-installers | n/a |
 | <a name="module_loadtest"></a> [loadtest](#module\_loadtest) | github.com/fleetdm/fleet-terraform//byo-vpc | tf-mod-root-v1.18.3 |
 | <a name="module_logging_alb"></a> [logging\_alb](#module\_logging\_alb) | github.com/fleetdm/fleet-terraform//addons/logging-alb | tf-mod-addon-logging-alb-v1.6.1 |
 | <a name="module_logging_firehose"></a> [logging\_firehose](#module\_logging\_firehose) | github.com/fleetdm/fleet-terraform//addons/logging-destination-firehose | tf-mod-addon-logging-destination-firehose-v1.2.4 |
@@ -185,8 +174,9 @@ terraform workspace delete <workspace_name>
 | [aws_secretsmanager_secret.license](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret) | data source |
 | [aws_secretsmanager_secret_version.enroll_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret_version) | data source |
 | [docker_registry_image.dockerhub](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/data-sources/registry_image) | data source |
-| [git_repository.tf](https://registry.terraform.io/providers/metio/git/latest/docs/data-sources/repository) | data source |
+| [git_repository.tf](https://registry.terraform.io/providers/metio/git/2025.10.10/docs/data-sources/repository) | data source |
 | [terraform_remote_state.shared](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
+| [terraform_remote_state.signoz](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 
 ## Inputs
 
@@ -194,12 +184,13 @@ terraform workspace delete <workspace_name>
 |------|-------------|------|---------|:--------:|
 | <a name="input_database_instance_count"></a> [database\_instance\_count](#input\_database\_instance\_count) | The number of Aurora database instances | `number` | `2` | no |
 | <a name="input_database_instance_size"></a> [database\_instance\_size](#input\_database\_instance\_size) | The instance size for Aurora database instances | `string` | `"db.t4g.medium"` | no |
+| <a name="input_enable_otel"></a> [enable\_otel](#input\_enable\_otel) | Enable OpenTelemetry tracing with SigNoz instead of Elastic APM | `bool` | `false` | no |
 | <a name="input_fleet_task_count"></a> [fleet\_task\_count](#input\_fleet\_task\_count) | The total number (max) that ECS can scale Fleet containers up to | `number` | `5` | no |
 | <a name="input_fleet_task_cpu"></a> [fleet\_task\_cpu](#input\_fleet\_task\_cpu) | The CPU configuration for Fleet containers | `number` | `512` | no |
 | <a name="input_fleet_task_memory"></a> [fleet\_task\_memory](#input\_fleet\_task\_memory) | The memory configuration for Fleet containers | `number` | `4096` | no |
 | <a name="input_redis_instance_count"></a> [redis\_instance\_count](#input\_redis\_instance\_count) | The number of Elasticache nodes | `number` | `3` | no |
 | <a name="input_redis_instance_size"></a> [redis\_instance\_size](#input\_redis\_instance\_size) | The instance size for Elasticache nodes | `string` | `"cache.t4g.micro"` | no |
-| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.72.0"` | no |
+| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.75.1"` | no |
 
 ## Outputs
 
@@ -214,3 +205,7 @@ terraform workspace delete <workspace_name>
 | <a name="output_logging_config"></a> [logging\_config](#output\_logging\_config) | n/a |
 | <a name="output_security_groups"></a> [security\_groups](#output\_security\_groups) | n/a |
 | <a name="output_server_url"></a> [server\_url](#output\_server\_url) | n/a |
+| <a name="output_signoz_cluster_name"></a> [signoz\_cluster\_name](#output\_signoz\_cluster\_name) | SigNoz EKS cluster name |
+| <a name="output_signoz_configure_kubectl"></a> [signoz\_configure\_kubectl](#output\_signoz\_configure\_kubectl) | Command to configure kubectl for SigNoz |
+| <a name="output_signoz_otel_collector_endpoint"></a> [signoz\_otel\_collector\_endpoint](#output\_signoz\_otel\_collector\_endpoint) | Internal OTLP collector endpoint for Fleet |
+| <a name="output_vpc_subnets"></a> [vpc\_subnets](#output\_vpc\_subnets) | VPC private subnets from shared fleet-vpc |
