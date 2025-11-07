@@ -47,7 +47,7 @@ env:
   TF_ACTIONS_WORKING_DIR: infrastructure/loadtesting/terraform/osquery_perf
   TF_VAR_extra_flags: "${{ inputs.extra_flags || '[]' }}"
   TF_VAR_loadtest_containers: "${{ inputs.loadtest_containers }}"
-  TF_VAR_git_tag_branch: "${{ inputs.git_branch }}"
+  TF_VAR_git_tag_branch: "${{ inputs.git_tag_branch }}"
 
 permissions:
   id-token: write
