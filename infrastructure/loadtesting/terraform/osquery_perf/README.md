@@ -71,6 +71,12 @@ Although deployments through the github action should be prioritized, for manual
     terraform apply -var=git_tag_branch=fleet-v4.73.0 -var=loadtest_containers=20 -var=extra_flags=["--orbit_prob", "0.0"]
     ```
 
+6. If you'd like to deploy osquery\_perf tasks in batches, you can now run the original `enroll.sh` script, from the osquery\_perf directory. The script will deploy in batches of 8, every 60 seconds, so it's recommended to set your starting index and max number of osquery perf containers as a multiple of 8.
+
+   ```sh
+   ./enroll.sh <branch_or_tag_name> <starting index> <max number of osquery_perf containers>
+   ```
+
 # Destroy osquery perf manually
 
 1. Clone the repository (if not already cloned)
@@ -114,7 +120,7 @@ terraform workspace delete <workspace_name>
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.18.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.20.0 |
 | <a name="provider_docker"></a> [docker](#provider\_docker) | 3.6.2 |
 | <a name="provider_git"></a> [git](#provider\_git) | 2025.10.10 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
