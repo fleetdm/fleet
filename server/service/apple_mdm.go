@@ -4001,6 +4001,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	host.PrimaryMac = wifiMac
 	host.HardwareModel = productName
 	host.DetailUpdatedAt = time.Now()
+	host.LabelUpdatedAt = time.Now()
 	host.RefetchRequested = false
 
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
