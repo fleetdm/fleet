@@ -134,7 +134,10 @@ const InstallIconWithTooltip = ({
 };
 
 interface ISoftwareNameCellProps {
+  /** Used to key default software icon and name displayed if no display_name */
   name: string;
+  /** Overrides name for display */
+  display_name?: string;
   source?: string;
   /** pass in a `path` that this cell will link to */
   path?: string;
@@ -149,6 +152,7 @@ interface ISoftwareNameCellProps {
 
 const SoftwareNameCell = ({
   name,
+  display_name,
   source,
   path,
   router,
@@ -161,7 +165,9 @@ const SoftwareNameCell = ({
   const icon = <SoftwareIcon name={name} source={source} url={iconUrl} />;
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
-    return <LinkCell tooltipTruncate prefix={icon} value={name} />;
+    return (
+      <LinkCell tooltipTruncate prefix={icon} value={display_name || name} />
+    );
   }
 
   // Non-clickable cell if no router/path (e.g. My device page > SelfService)
@@ -170,7 +176,7 @@ const SoftwareNameCell = ({
       <div className={baseClass}>
         <TooltipTruncatedTextCell
           prefix={icon}
-          value={name}
+          value={display_name || name}
           className="software-name"
         />
       </div>
@@ -190,7 +196,7 @@ const SoftwareNameCell = ({
       tooltipTruncate
       customOnClick={onClickSoftware}
       prefix={icon}
-      value={name}
+      value={display_name || name}
       suffix={
         hasInstaller ? (
           <InstallIconWithTooltip

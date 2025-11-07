@@ -97,6 +97,13 @@ GROUP BY
 		if icon != nil {
 			title.IconUrl = ptr.String(icon.IconUrl())
 		}
+
+		displayName, err := ds.getSoftwareTitleDisplayName(ctx, *teamID, id)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title display name")
+		}
+
+		title.DisplayName = displayName
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
@@ -300,9 +307,20 @@ func (ds *Datastore) ListSoftwareTitles(
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, *opt.TeamID, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
 		for _, icon := range icons {
 			if i, ok := titleIndex[icon.SoftwareTitleID]; ok {
 				softwareList[i].IconUrl = ptr.String(icon.IconUrl())
+			}
+		}
+
+		for titleID, i := range titleIndex {
+			if displayName, ok := displayNames[titleID]; ok {
+				softwareList[i].DisplayName = displayName
 			}
 		}
 	}

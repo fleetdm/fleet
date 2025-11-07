@@ -12,8 +12,7 @@ import (
 func main() {
 	// Ensure there's a make target specified.
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: fdm <command> [--option=value ...] -- [make-options]")
-		os.Exit(1)
+		os.Args = append(os.Args, "help")
 	}
 
 	// Determine the path to the top-level directory (where the Makefile resides).

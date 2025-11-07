@@ -16,12 +16,22 @@ module.exports = {
     redirectToLiveFleetInstance: {
       description: 'The user was redirected to their Fleet Premium trial instance.',
       responseType: 'redirect',
+    },
+    redirectToCustomerDashboard: {
+      description: 'This user was redirected to their customer dashboard',
+      responseType: 'redirect'
     }
 
   },
 
 
   fn: async function () {
+
+    // If the user has a license key, we'll redirect them to the customer dashboard.
+    let userHasExistingSubscription = await Subscription.findOne({user: this.req.me.id});
+    if (userHasExistingSubscription) {
+      throw {redirectToCustomerDashboard: '/customers/dashboard'};
+    }
 
     let trialIsExpired = false;
     let trialLicenseKey;

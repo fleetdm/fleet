@@ -45,6 +45,7 @@ const SoftwareOS = ({
     order_key: orderKey,
     platform: platform === "all" ? undefined : platform,
     teamId,
+    max_vulnerabilities: 3,
   };
 
   const { data, isFetching, isLoading, isError } = useQuery<

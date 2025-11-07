@@ -139,6 +139,26 @@ func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.
 	}
 }
 
+func newOrbitNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
+	// Add the capabilities reported by Orbit to the request context
+	opts = append(opts, capabilitiesContextFunc())
+
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
+		EP: &endpointer{
+			svc: svc,
+		},
+		MakeDecoderFn: makeDecoder,
+		EncodeFn:      encodeResponse,
+		Opts:          opts,
+		AuthFunc:      auth.UnauthenticatedRequest,
+		FleetService:  svc,
+		Router:        r,
+		Versions:      versions,
+	}
+}
+
 func badRequest(msg string) error {
 	return &fleet.BadRequestError{Message: msg}
 }

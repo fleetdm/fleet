@@ -16,6 +16,7 @@ export interface IOperatingSystemVersion {
   hosts_count: number;
   generated_cpes?: string[];
   vulnerabilities: ISoftwareVulnerability[];
+  vulnerabilities_count?: number;
   kernels: IOperatingSystemKernels[] | [];
 }
 

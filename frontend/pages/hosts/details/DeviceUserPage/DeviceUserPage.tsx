@@ -68,7 +68,6 @@ import {
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import BitLockerPinModal from "./BitLockerPinModal";
 import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
@@ -143,6 +142,7 @@ const DeviceUserPage = ({
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
+  const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -267,6 +267,11 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       onSuccess: ({ host: responseHost }) => {
+        // If we're just showing the setup screen,
+        // we don't need to refetch or alert on offline hosts.
+        if (location.query.setup_only) {
+          return;
+        }
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
@@ -335,6 +340,14 @@ const DeviceUserPage = ({
     host?.platform === "windows" ||
     host?.platform === "darwin";
 
+  const isFleetMdmManualUnenrolledMac =
+    !!globalConfig?.mdm.enabled_and_configured &&
+    !!host &&
+    !host.dep_assigned_to_fleet &&
+    host.platform === "darwin" &&
+    (host.mdm.enrollment_status === "Off" ||
+      host.mdm.enrollment_status === null);
+
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 
@@ -377,6 +390,23 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    data: mdmManualEnrollUrl,
+    // isLoading, // not used; see related comment in onClickTurnOnMdm below
+    error: mdmManualEnrollUrlError,
+  } = useQuery<{ enroll_url: string }, Error, string>(
+    ["mdm_mandual_enroll_url", deviceAuthToken],
+    () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
+    {
+      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data) => data.enroll_url,
+    }
+  );
+
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
@@ -384,6 +414,22 @@ const DeviceUserPage = ({
   const toggleEnrollMdmModal = useCallback(() => {
     setShowEnrollMdmModal(!showEnrollMdmModal);
   }, [showEnrollMdmModal, setShowEnrollMdmModal]);
+
+  const onClickTurnOnMdm = useCallback(async () => {
+    if (host?.dep_assigned_to_fleet) {
+      // display the modal with auto-enroll instructions
+      setShowEnrollMdmModal(true);
+      return;
+    }
+    // if we have an enroll URL, DeviceUserBanners will display a CustomLink in place of the Button;
+    // in some unexpected cases, may not have an enroll URL at this point (e.g., there was an error
+    // fetching the URL from the API or the user clicked the link extremely quickly after page load
+    // before the URL was fetched), we fallback to showing the Button and we'll display an error if
+    // the user tries to click when we don't have an enroll URL.
+    setEnrollUrlError(
+      `Failed to get enrollment URL. ${mdmManualEnrollUrlError}`
+    );
+  }, [host?.dep_assigned_to_fleet, mdmManualEnrollUrlError]);
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -536,6 +582,7 @@ const DeviceUserPage = ({
             false
           }
           toggleInfoModal={toggleInfoModal}
+          platform={host.platform}
         />
       );
     }
@@ -579,12 +626,13 @@ const DeviceUserPage = ({
             diskEncryptionActionRequired={
               host.mdm.macos_settings?.action_required ?? null
             }
-            onTurnOnMdm={toggleEnrollMdmModal}
             onClickCreatePIN={() => setShowBitLockerPINModal(true)}
+            onClickTurnOnMdm={onClickTurnOnMdm}
             onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
             diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
             diskIsEncrypted={host.disk_encryption_enabled}
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
+            mdmManualEnrolmentUrl={mdmManualEnrollUrl}
           />
           <HostHeader
             summaryData={summaryData}
@@ -713,16 +761,9 @@ const DeviceUserPage = ({
               )}
             </Tabs>
           </TabNav>
-          {showEnrollMdmModal &&
-            (host.dep_assigned_to_fleet ? (
-              <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
-            ) : (
-              <ManualEnrollMdmModal
-                host={host}
-                onCancel={toggleEnrollMdmModal}
-                token={deviceAuthToken}
-              />
-            ))}
+          {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
+            <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
+          ) : null}
           {showBitLockerPINModal && (
             <BitLockerPinModal
               onCancel={() => setShowBitLockerPINModal(false)}
@@ -823,7 +864,7 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDeviceUserError ? (
+      {isDeviceUserError || enrollUrlError ? (
         <DeviceUserError
           isMobileView={isMobileView}
           isAuthenticationError={!!isAuthenticationError}
