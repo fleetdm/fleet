@@ -157,7 +157,6 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 
 func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	mask := policyFieldMask()
-	fmt.Printf("mask: %v\n", mask)
 	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(mask)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ret, err := call.Do()
@@ -294,10 +293,8 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 	call := p.mgmt.Enterprises.Applications.Get(path).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 
-	fmt.Printf("call.Header(): %v\n", call.Header())
 	app, err := call.Do()
 	if err != nil {
-		fmt.Printf("err: %v\n", err)
 		var gapiErr *googleapi.Error
 		if errors.As(err, &gapiErr) {
 			if gapiErr.Code == http.StatusNotFound {
