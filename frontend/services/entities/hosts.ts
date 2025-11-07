@@ -679,7 +679,7 @@ export default {
     return sendRequest("PUT", path, { source: "idp", email: idpUsername });
   },
   deleteHostIdp(hostId: number) {
-    const path = endpoints.HOST_DEVICE_MAPPING(hostId);
+    const path = endpoints.HOST_DEVICE_MAPPING_IDP(hostId);
     return sendRequest("DELETE", path);
   },
 };
