@@ -149,6 +149,13 @@
       "description": "A terminal emulator alternative to Apple's Terminal app."
     },
     {
+      "name": "Linear",
+      "slug": "linear-linear/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linear",
+      "description": "An app to manage software development and track bugs."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
