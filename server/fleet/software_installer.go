@@ -128,6 +128,8 @@ type SoftwareInstaller struct {
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
 	// "Browsers", etc.
 	Categories []string `json:"categories"`
+
+	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -378,6 +380,8 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
+	// Source is the osquery source for this software (e.g., "sh_packages", "ps1_packages").
+	Source *string `json:"source" db:"source"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
@@ -559,6 +563,8 @@ type UpdateSoftwareInstallerPayload struct {
 	ValidatedLabels *LabelIdentsWithScope
 	Categories      []string
 	CategoryIDs     []uint
+	// DisplayName is an end-user friendly name.
+	DisplayName string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -584,6 +590,12 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "pkg_packages", nil
 	case "tar.gz":
 		return "tgz_packages", nil
+	case "ipa":
+		return "ipa", nil
+	case "sh":
+		return "sh_packages", nil
+	case "ps1":
+		return "ps1_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -592,15 +604,24 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm", "tar.gz":
+	case "deb", "rpm", "tar.gz", "sh":
 		return "linux", nil
-	case "exe", "msi":
+	case "exe", "msi", "ps1":
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
+	case "ipa": // TODO(JVE): what about iPads? Can we get the platforms from the Info.plist file?
+		return "ios", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
+}
+
+// IsScriptPackage returns true if the extension represents a script package
+// (.sh or .ps1 files where the file contents become the install script).
+func IsScriptPackage(ext string) bool {
+	ext = strings.TrimPrefix(ext, ".")
+	return ext == "sh" || ext == "ps1"
 }
 
 // HostSoftwareWithInstaller represents the list of software installed on a
@@ -611,8 +632,10 @@ type HostSoftwareWithInstaller struct {
 	Name              string                          `json:"name" db:"name"`
 	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
+	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
+	DisplayName       string                          `json:"display_name" db:"display_name"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.

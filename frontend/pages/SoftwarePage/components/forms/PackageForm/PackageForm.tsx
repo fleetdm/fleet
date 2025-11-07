@@ -57,6 +57,19 @@ export interface IPackageFormValidation {
   customTarget?: { isValid: boolean };
 }
 
+const renderFileTypeMessage = () => {
+  return (
+    <>
+      macOS (.pkg), iOS/iPadOS (.ipa),
+      <br />
+      Windows (.msi, .exe.,{" "}
+      <TooltipWrapper tipContent="Payload-free package">.ps1</TooltipWrapper>),
+      or Linux (.deb, .rpm,{" "}
+      <TooltipWrapper tipContent="Payload-free package">.sh</TooltipWrapper>)
+    </>
+  );
+};
+
 interface IPackageFormProps {
   labels: ILabelSummary[];
   showSchemaButton?: boolean;
@@ -77,7 +90,8 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz";
+const ACCEPTED_EXTENSIONS =
+  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.ipa";
 
 const PackageForm = ({
   labels,
@@ -260,22 +274,33 @@ const PackageForm = ({
   const ext = getExtensionFromFileName(formData?.software?.name || "");
   const isExePackage = ext === "exe";
   const isTarballPackage = ext === "tar.gz";
+  const isScriptPackage = ext === "sh" || ext === "ps1";
+  const isIpaPackage = ext === "ipa";
   // We currently don't support replacing a tarball package
   const canEditFile = isEditingSoftware && !isTarballPackage;
 
-  // If a user preselects automatic install and then uploads a .exe
-  // which automatic install is not supported, the form will default
-  // back to manual install
+  // If a user preselects automatic install and then uploads a:
+  // exe, tarball, script, or ipa which automatic install is not supported,
+  // the form will default back to manual install
   useEffect(() => {
-    if ((isExePackage || isTarballPackage) && formData.automaticInstall) {
+    if (
+      (isExePackage || isTarballPackage || isScriptPackage || isIpaPackage) &&
+      formData.automaticInstall
+    ) {
       onToggleAutomaticInstallCheckbox(false);
     }
   }, [
     formData.automaticInstall,
     isExePackage,
     isTarballPackage,
+    isScriptPackage,
+    isIpaPackage,
     onToggleAutomaticInstallCheckbox,
   ]);
+
+  // Show advanced options when a package is selected that's not a script or ipa
+  const showAdvancedOptions =
+    formData.software && !isScriptPackage && !isIpaPackage;
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
   const showOptionsTargetsSelectors = !gitOpsModeEnabled;
@@ -287,13 +312,15 @@ const PackageForm = ({
           canEdit={canEditFile}
           graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
-          message=".pkg, .msi, .exe, .deb, .rpm, or .tar.gz"
+          message={renderFileTypeMessage()}
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
           buttonType="brand-inverse-icon"
           className={`${baseClass}__file-uploader`}
           fileDetails={
-            formData.software ? getFileDetails(formData.software) : undefined
+            formData.software
+              ? getFileDetails(formData.software, true)
+              : undefined
           }
           gitopsCompatible={false}
           gitOpsModeEnabled={gitOpsModeEnabled}
@@ -322,6 +349,8 @@ const PackageForm = ({
                   isEditingSoftware={isEditingSoftware}
                   isExePackage={isExePackage}
                   isTarballPackage={isTarballPackage}
+                  isScriptPackage={isScriptPackage}
+                  isIpaPackage={isIpaPackage}
                   onClickPreviewEndUserExperience={
                     onClickPreviewEndUserExperience
                   }
@@ -353,22 +382,24 @@ const PackageForm = ({
             </div>
           )}
         </div>
-        <PackageAdvancedOptions
-          showSchemaButton={showSchemaButton}
-          selectedPackage={formData.software}
-          errors={{
-            preInstallQuery: formValidation.preInstallQuery?.message,
-          }}
-          preInstallQuery={formData.preInstallQuery}
-          installScript={formData.installScript}
-          postInstallScript={formData.postInstallScript}
-          uninstallScript={formData.uninstallScript}
-          onClickShowSchema={onClickShowSchema}
-          onChangePreInstallQuery={onChangePreInstallQuery}
-          onChangeInstallScript={onChangeInstallScript}
-          onChangePostInstallScript={onChangePostInstallScript}
-          onChangeUninstallScript={onChangeUninstallScript}
-        />
+        {showAdvancedOptions && (
+          <PackageAdvancedOptions
+            showSchemaButton={showSchemaButton}
+            selectedPackage={formData.software}
+            errors={{
+              preInstallQuery: formValidation.preInstallQuery?.message,
+            }}
+            preInstallQuery={formData.preInstallQuery}
+            installScript={formData.installScript}
+            postInstallScript={formData.postInstallScript}
+            uninstallScript={formData.uninstallScript}
+            onClickShowSchema={onClickShowSchema}
+            onChangePreInstallQuery={onChangePreInstallQuery}
+            onChangeInstallScript={onChangeInstallScript}
+            onChangePostInstallScript={onChangePostInstallScript}
+            onChangeUninstallScript={onChangeUninstallScript}
+          />
+        )}
         <div className={`${baseClass}__action-buttons`}>
           {submitTooltipContent ? (
             <TooltipWrapper

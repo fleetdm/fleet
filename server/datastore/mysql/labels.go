@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,14 +145,28 @@ DELETE FROM label_membership WHERE label_id = ?
 				continue
 			}
 
+			intRegex := regexp.MustCompile(`^[0-9]+$`)
 			// Split hostnames into batches to avoid parameter limit in MySQL.
 			for _, hostIdentifiers := range batchHostnames(s.Hosts) {
+				var stringIdents []string
+				// Start with 0 so id IN (?) always has at least one element.
+				// id = 0 never matches any real host.
+				intIdents := []uint64{0}
+
+				for _, s := range hostIdentifiers {
+					stringIdents = append(stringIdents, s)
+					// Use strconv to check if it's a valid integer
+					if intRegex.MatchString(s) {
+						n, _ := strconv.ParseUint(s, 10, 64)
+						intIdents = append(intIdents, n)
+					}
+				}
+
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))
-`
-				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, stringIdents, intIdents)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
@@ -311,7 +327,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, err
 	for _, spec := range specs {
 		if spec.LabelType != fleet.LabelTypeBuiltIn &&
 			spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-			if err := ds.getLabelHostnames(ctx, spec); err != nil {
+			if err := ds.getLabelHostIDs(ctx, spec); err != nil {
 				return nil, err
 			}
 		}
@@ -340,7 +356,7 @@ WHERE name = ?
 	spec := specs[0]
 	if spec.LabelType != fleet.LabelTypeBuiltIn &&
 		spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		err := ds.getLabelHostnames(ctx, spec)
+		err := ds.getLabelHostIDs(ctx, spec)
 		if err != nil {
 			return nil, err
 		}
@@ -349,9 +365,9 @@ WHERE name = ?
 	return spec, nil
 }
 
-func (ds *Datastore) getLabelHostnames(ctx context.Context, label *fleet.LabelSpec) error {
+func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec) error {
 	sql := `
-		SELECT hostname
+		SELECT id
 		FROM hosts
 		WHERE id IN
 		(
@@ -800,31 +816,41 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// 	// TODO: Do we currently support filtering by software version ID and label?
 	// }
 	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
-		// check for software installer metadata
-		_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+		installerID, vppID, inHouseID, err := ds.installerAvailableForInstallForTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
 		switch {
-		case fleet.IsNotFound(err):
-			vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
-			if err != nil {
-				return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
-			}
-			vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
-			if err != nil {
-				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
-			}
-			softwareStatusJoin = vppAppJoin
-			joinParams = append(joinParams, vppAppParams...)
-
 		case err != nil:
-			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+			// it does not return an error for not found, only for actual db error
+			return "", nil, ctxerr.Wrap(ctx, err, "get available installer by team and title id")
 
-		default:
+		case installerID > 0:
+			// found a software installer package
 			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
 			if err != nil {
 				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
 			}
 			softwareStatusJoin = installerJoin
 			joinParams = append(joinParams, installerParams...)
+
+		case vppID != nil:
+			// found a VPP app
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+			}
+			softwareStatusJoin = vppAppJoin
+			joinParams = append(joinParams, vppAppParams...)
+
+		case inHouseID > 0:
+			inHouseJoin, inHouseParams, err := ds.inHouseAppJoin(inHouseID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "in-house app join")
+			}
+			softwareStatusJoin = inHouseJoin
+			joinParams = append(joinParams, inHouseParams...)
+
+		default:
+			// no installer found, return as was done before (which was a not-found error, here, unlike in applyHostsFilter)
+			return "", nil, ctxerr.Wrap(ctx, notFound("installerAvailableForInstall"), "get available software installer by team and title id")
 		}
 	}
 	if softwareStatusJoin != "" {

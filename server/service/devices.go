@@ -10,16 +10,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
+	"path"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 )
@@ -171,6 +168,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
+	requireAllSoftware := ac.MDM.MacOSSetup.RequireAllSoftware
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
@@ -179,6 +177,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 		if tm != nil {
 			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
+			requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
 		}
 	}
 
@@ -196,6 +195,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			// regardless of the platform of the device. See
 			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
 			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
+			RequireAllSoftware:   requireAllSoftware,
 		},
 		Features: fleet.DeviceFeatures{
 			EnableSoftwareInventory: softwareInventoryEnabled,
@@ -658,26 +658,10 @@ func (r *getDeviceMDMManualEnrollProfileRequest) deviceAuthToken() string {
 }
 
 type getDeviceMDMManualEnrollProfileResponse struct {
-	// Profile field is used in HijackRender for the response.
-	Profile []byte
+	// EnrollURL field is used in HijackRender for the response.
+	EnrollURL string `json:"enroll_url,omitempty"`
 
 	Err error `json:"error,omitempty"`
-}
-
-func (r getDeviceMDMManualEnrollProfileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	// make the browser download the content to a file
-	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
-	// explicitly set the content length before the write, so the caller can
-	// detect short writes (if it fails to send the full content properly)
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
-	// this content type will make macos open the profile with the proper application
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
-	// prevent detection of content, obey the provided content-type
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	if n, err := w.Write(r.Profile); err != nil {
-		logging.WithExtras(ctx, "err", err, "written", n)
-	}
 }
 
 func (r getDeviceMDMManualEnrollProfileResponse) Error() error { return r.Err }
@@ -690,14 +674,14 @@ func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interf
 		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
 	}
 
-	profile, err := svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
+	enrollURL, err := svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
 	if err != nil {
 		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
 	}
-	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+	return getDeviceMDMManualEnrollProfileResponse{EnrollURL: enrollURL.String()}, nil
 }
 
-func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
+func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	// must be device-authenticated, no additional authorization is required
 	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
@@ -726,20 +710,22 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	if len(tmSecrets) == 0 {
 		return nil, &fleet.BadRequestError{Message: "unable to find an enroll secret to generate enrollment profile"}
 	}
-
-	enrollSecret := tmSecrets[0].Secret
-	// IB: We skip IDP association here, since it's not part of the spec
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, "")
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file for manual enrollment")
+	var enrollSecret fleet.EnrollSecret
+	for _, s := range tmSecrets {
+		if s.CreatedAt.After(enrollSecret.CreatedAt) {
+			enrollSecret = *s
+		}
 	}
-
-	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
+	url, err := url.Parse(cfg.MDMUrl())
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+		return nil, ctxerr.Wrap(ctx, err, "parsing MDM URL from config")
 	}
+	url.Path = path.Join(url.Path, "enroll")
+	q := url.Query()
+	q.Set("enroll_secret", enrollSecret.Secret)
+	url.RawQuery = q.Encode()
 
-	return signed, nil
+	return url, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

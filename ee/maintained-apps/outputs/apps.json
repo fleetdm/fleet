@@ -72,6 +72,20 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Cursor",
+      "slug": "cursor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.todesktop.230313mzl4w4u92",
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+    },
+    {
+      "name": "Cursor",
+      "slug": "cursor/windows",
+      "platform": "windows",
+      "unique_identifier": "Cursor",
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
@@ -125,7 +139,7 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": ""
+      "description": "A terminal emulator alternative to Apple's Terminal app."
     },
     {
       "name": "Microsoft Edge",
@@ -244,7 +258,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager/</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
       "name": "Zoom",

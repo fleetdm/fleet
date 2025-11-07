@@ -60,6 +60,12 @@
     &--message {
       text-align: center;
       line-height: 20px;
+      color: $ui-fleet-black-50;
+    }
+
+    &--title {
+        color: $ui-fleet-black-75;
+        font-weight: $bold;
     }
   }
 

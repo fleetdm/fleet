@@ -14,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5))
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/93) for this department, including pending tasks and the status of new requests.
 
@@ -40,7 +40,7 @@ As soon as we've addressed the next quarter's objectives, the Head of Product De
 
 ### Triage new bugs
 
-Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#in-product-drafting).
+Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#inbox).
 
 
 ### Drafting
@@ -59,7 +59,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 4. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
    - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
    - Add a link to the issue in the PR description.
-   - Attach the `~api-or-yaml-design` label.
+   - Attach the `~api-or-yaml-design` label. (This helps the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) prioritize API/YAML PR review.)
    - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
    - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
@@ -85,6 +85,10 @@ Additionally:
   - Go through the Fleet UI and look for bad/inconsistent text
   - Go through the reference docs and look for issues (inconsistent naming/formatting, broken links, etc.)
   - File stories and draft changes for making form fields in the Fleet UI consistent (fixing conventions, moving out the tooltips, etc.)
+ 
+- Sometimes user stories don't require changes to the Fleet product. When this happens, it's up to the Product Designer to prepare a story for the Customer Success team. After the story is approved at design review, the Product Designer adds the `:help-customers` label, assigns the issue to the [Manager of Customer Support and Solutions Architecture](https://fleetdm.com/handbook/customer-success), and @ mentions the Manager of Customer Support with context:
+  - How the story addresses the original request.
+  - If the original request is a customer promise, specify what the due date is and who it's for.
 
 >**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
 >
@@ -109,8 +113,7 @@ Before assigning an EM, double-check that the "Product" section of the user stor
 
 If the story is tied to a customer feature request, the Head of Product Design (HPD) is responsible for adding the feature request issue to the [🏹 #g-customer-success board](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board). This way the Customer Success Manager (CSM) can review the wireframes and provide feedback on whether the proposed changes solve the customer's problem. If the changes don't, it's up to the HPD to decide whether to bring the user story back for more drafting or file a follow up user story (iteration).
 
-Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, it's up to the original Product Designer to update the "Product Designer" mentioned in the user story or bug and ramp up the new Product Designer so they are prepared to answers questions.
-
+Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, the Product Designer from the product group that implements the story/bug is the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) for that story/bug. This means, the product group members always reach out to their product group's Product Designer with any questions. It's up to this Product Designer to answer questions or reach out to other team members if necessary.
 
 ### Revise a draft currently in development
 
@@ -171,11 +174,10 @@ Ensure the interview process follows these steps in order. This process must fol
 
 1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30 minute introduction call.
 2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
-3. **IHOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Interim Head of People (IHOP) to set up the IHOP interview.
-2. **Deliver design challenge**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and ask them to complete and send their project back within 5 business days.
-5. **Schedule design challenge interview**: Send the candidate a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
-6. **Schedule EM interview**: Send the candidate a calendly link for 30m talk with the Engineering Manager (EM) of the [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) the candidate will be working with.
-7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
+3. **HOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Head of People (HOP) to set up the HOP interview.
+4. **Deliver design challenge and schedule interview**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and send a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
+5. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
+6. **Schedule CTO interview**: Send the candidate a Calendly link for 30m talk with our CTO @lukeheath.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 

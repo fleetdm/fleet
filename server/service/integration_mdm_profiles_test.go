@@ -4472,6 +4472,19 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
 
+	// invalid profile (bad mobileconfig)
+	resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{
+			Name: "Bad mobileconfig", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>`),
+		},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: plist: error parsing XML property list: XML syntax error")
+
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
 	// Nothing changed, so no activity items
@@ -7534,13 +7547,13 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
 					Name: "TestMixed",
 					Contents: syncml.ForTestWithData([]syncml.TestCommand{
 						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
-						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Email", Data: "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Email", Data: "$FLEET_VAR_BOGUS"},
 					}),
 				},
 			},
 			teamID:          &tm.ID,
 			wantStatus:      http.StatusUnprocessableEntity,
-			wantErrContains: "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in Windows profiles",
+			wantErrContains: "Fleet variable $FLEET_VAR_BOGUS is not supported in Windows profiles",
 		},
 		{
 			name: "HOST_UUID variable accepted globally",

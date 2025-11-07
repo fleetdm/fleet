@@ -65,13 +65,6 @@
     <script>
       window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
     </script>
-    <%/* Segment */%>
-    <script>
-      !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="T79nqv6Ow6Bjov5LZPxXqsuhM0YOHARv";;analytics.SNIPPET_VERSION="5.2.0";
-      analytics.load("T79nqv6Ow6Bjov5LZPxXqsuhM0YOHARv");
-      analytics.page();
-      }}();
-    </script>
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";
@@ -90,6 +83,8 @@
     <noscript>
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
     </noscript>
+    <% /* Clay */ %>
+    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
     <% /* Snitcher */ %>
     <script>
         !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
@@ -368,17 +363,17 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/e/fleet-party-during-jnuc-tickets-1497929500459" target="_blank" no-icon>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
                         <div purpose="dropdown-cta-link">
                           <div purpose="dropdown-cta-image">
                           </div>
                           <div class="d-flex flex-column justify-content-center align-items-center">
                           <div purpose="dropdown-cta-text">
                             <p purpose="dropdown-cta-heading">
-                              Fleet @ Meow Wolf
+                              GitOps for device management
                             </p>
                             <p purpose="dropdown-cta-body">
-                              Kick off JNUC with Fleet at Meow Wolf Denver's Convergence Station.
+                              In-person workshop for beginners.
                             </p>
                             <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
                               <span purpose="button-text">Join us</span>
@@ -392,6 +387,7 @@
                         </div>
                       </a>
                     </div>
+
                     <% if(_.has(me, 'id')) {%>
                       <hr>
                       <a purpose="mobile-dropdown-toggle" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
@@ -410,15 +406,25 @@
                   <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
 
                     <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-
-                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/register" no-underline>
-                      Try it yourself
-                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </a>
-                  </div>
+                    <%if(_.has(me, 'id')) {%>
+                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                        Try it yourself
+                        <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </a>
+                    </div>
+                    <% } else {%>
+                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
+                        Try it yourself
+                        <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </a>
+                    </div>
+                    <% }%>
                   <% }%>
                 </div>
               </div>
@@ -556,17 +562,17 @@
                   <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
                   <div purpose="header-dropdown" class="dropdown-menu more-dropdown flex-row">
                     <div purpose="dropdown-cta-column">
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/e/fleet-party-during-jnuc-tickets-1497929500459" target="_blank" no-icon>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
                         <div purpose="dropdown-cta-link">
                           <div purpose="dropdown-cta-image">
                           </div>
                           <div class="d-flex flex-column justify-content-center align-items-center">
                           <div purpose="dropdown-cta-text">
                             <p purpose="dropdown-cta-heading">
-                              Fleet @ Meow Wolf
+                              GitOps for device management
                             </p>
                             <p purpose="dropdown-cta-body">
-                              Kick off JNUC with Fleet at Meow Wolf Denver's Convergence Station.
+                              In-person workshop for beginners.
                             </p>
                             <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
                               <span purpose="button-text">Join us</span>
@@ -659,8 +665,21 @@
 
                   </div>
                 </div>
-                <%if(!hideGetStartedButton){%>
-                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/register" no-underline>
+
+                <% if(_.has(me, 'id')) {%>
+                  <%if(!hideGetStartedButton){%>
+                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                      Try it yourself
+                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </a>
+                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
+                  <% }%>
+                  <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
+                <% } else if(!hideGetStartedButton) {%>
+                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
                     Try it yourself
                     <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
                       <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
@@ -668,9 +687,6 @@
                     </svg>
                   </a>
                   <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                <% }%>
-                <% if(_.has(me, 'id')) {%>
-                <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
                 <% }%>
               </div>
             </div>
@@ -823,10 +839,6 @@
           </div>
       <% } %>
       <% } %>
-    <%if(!hideStartCTA){%>
-      <%- partial('../partials/continue.partial.ejs') %>
-    <%}%>
-    </div>
     <% /*
       Client-side JavaScript
       ========================
@@ -875,6 +887,7 @@
     <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
+    <script src="/js/components/signup-modal.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
@@ -895,7 +908,6 @@
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
-    <script src="/js/pages/dashboard/welcome.page.js"></script>
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
@@ -905,6 +917,7 @@
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
+    <script src="/js/pages/fleet-premium-trial.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>

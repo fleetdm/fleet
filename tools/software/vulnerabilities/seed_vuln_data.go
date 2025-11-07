@@ -1,76 +1,37 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"encoding/csv"
-	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
+
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-type Host struct {
-	ID               int        `db:"id"`
-	OsqueryHostID    string     `db:"osquery_host_id"`
-	CreatedAt        time.Time  `db:"created_at"`
-	UpdatedAt        *time.Time `db:"updated_at"`
-	DetailUpdatedAt  time.Time  `db:"detail_updated_at"`
-	NodeKey          string     `db:"node_key"`
-	Hostname         string     `db:"hostname"`
-	Uuid             string     `db:"uuid"`
-	Platform         string     `db:"platform"`
-	OsqueryVersion   string     `db:"osquery_version"`
-	OsVersion        string     `db:"os_version"`
-	Build            string     `db:"build"`
-	PlatformLike     string     `db:"platform_like"`
-	CodeName         string     `db:"code_name"`
-	Uptime           int64      `db:"uptime"`
-	Memory           int64      `db:"memory"`
-	CpuType          string     `db:"cpu_type"`
-	CpuSubtype       string     `db:"cpu_subtype"`
-	CpuBrand         string     `db:"cpu_brand"`
-	CpuPhysicalCores int        `db:"cpu_physical_cores"`
-	CpuLogicalCores  int        `db:"cpu_logical_cores"`
-	HardwareVendor   string     `db:"hardware_vendor"`
-	HardwareModel    string     `db:"hardware_model"`
-	HardwareVersion  string     `db:"hardware_version"`
-	HardwareSerial   string     `db:"hardware_serial"`
-	ComputerName     string     `db:"computer_name"`
-	PrimaryIP        string     `db:"primary_ip"`
-	PrimaryMac       string     `db:"primary_mac"`
-	LabelUpdatedAt   time.Time  `db:"label_updated_at"`
-	LastEnrolledAt   time.Time  `db:"last_enrolled_at"`
-	RefetchRequested int        `db:"refetch_requested"`
-	PublicIP         string     `db:"public_ip"`
-}
+var (
+	// MySQL config
+	mysqlAddr = "localhost:3306"
+	mysqlUser = "fleet"
+	mysqlPass = "insecure"
+	mysqlDB   = "fleet"
 
-type HostDisplayName struct {
-	HostID int64  `db:"host_id"`
-	Name   string `db:"display_name"`
-}
+	// CSV paths
+	macCSVPath    = "./tools/software/vulnerabilities/software-macos.csv"
+	winCSVPath    = "./tools/software/vulnerabilities/software-win.csv"
+	ubuntuCSVPath = "./tools/software/vulnerabilities/software-ubuntu.csv"
+)
 
-type Software struct {
-	ID               int64  `db:"id"`
-	Name             string `db:"name"`
-	Version          string `db:"version"`
-	Source           string `db:"source"`
-	BundleIdentifier string `db:"bundle_identifier"`
-	Release          string `db:"release"`
-	VendorOld        string `db:"vendor_old"`
-	Arch             string `db:"arch"`
-	Vendor           string `db:"vendor"`
-}
-
-type HostSoftware struct {
-	HostID     int64 `db:"host_id"`
-	SoftwareID int64 `db:"software_id"`
-}
-
-func readCSVFile(filePath string) ([]Software, error) {
+func readCSVFile(filePath string) ([]fleet.Software, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -83,9 +44,9 @@ func readCSVFile(filePath string) ([]Software, error) {
 		return nil, err
 	}
 
-	var software []Software
-	for _, line := range lines[1:] { // Skip header line
-		software = append(software, Software{
+	var software []fleet.Software
+	for _, line := range lines[1:] { // Skip header
+		software = append(software, fleet.Software{
 			Name:             line[0],
 			Version:          line[1],
 			Source:           line[2],
@@ -99,253 +60,193 @@ func readCSVFile(filePath string) ([]Software, error) {
 	return software, nil
 }
 
-func insertOrUpdateSoftware(db *sqlx.DB, hostID int, software Software) error {
-	// Check if the software already exists
-	var existingID int64
-	query := `SELECT id FROM software WHERE name = ? AND version = ? AND source = ?`
-	err := db.Get(&existingID, query, software.Name, software.Version, software.Source)
-	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("select software: %w", err)
+func createOrGetHost(ctx context.Context, ds *mysql.Datastore, identifier string, base fleet.Host) (*fleet.Host, error) {
+	h, err := ds.HostByIdentifier(ctx, identifier)
+	if err == nil && h != nil {
+		return h, nil
 	}
-	software.ID = existingID
-
-	if existingID > 0 {
-		// Update existing record, set ID for the update
-		software.ID = existingID
-		updateQuery := `UPDATE software SET bundle_identifier = :bundle_identifier, ` + "`release` = :release, vendor_old = :vendor_old, arch = :arch, vendor = :vendor WHERE id = :id"
-		_, err := db.NamedExec(updateQuery, software)
-		if err != nil {
-			return fmt.Errorf("update software: %w", err)
-		}
-	} else {
-		// Insert new record
-		insertQuery := `INSERT INTO software (name, version, source, bundle_identifier, ` + "`release`," + ` vendor_old, arch, vendor) VALUES (:name, :version, :source, :bundle_identifier, :release, :vendor_old, :arch, :vendor)`
-		res, err := db.NamedExec(insertQuery, software)
-		if err != nil {
-			return fmt.Errorf("insert software: %w", err)
-		}
-		software.ID, err = res.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("get last insert id: %w", err)
-		}
-	}
-
-	err = insertOrUpdateHostSoftware(db, HostSoftware{
-		HostID:     int64(hostID),
-		SoftwareID: software.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("insert host software: %w", err)
-	}
-
-	return nil
-}
-
-func insertOrUpdateHost(db *sqlx.DB, host Host) (int, error) {
-	// Check if the host already exists
-	var existingID int
-	query := `SELECT id FROM hosts WHERE osquery_host_id = ?`
-	err := db.Get(&existingID, query, host.OsqueryHostID)
-	if err != nil && err != sql.ErrNoRows {
-		return existingID, fmt.Errorf("select host: %w", err)
-	}
-
-	if existingID > 0 {
-		// Update existing record
-		updateQuery := `UPDATE hosts SET updated_at = :updated_at, detail_updated_at = :detail_updated_at, node_key = :node_key, hostname = :hostname, uuid = :uuid, platform = :platform, osquery_version = :osquery_version, os_version = :os_version, build = :build, platform_like = :platform_like, code_name = :code_name, uptime = :uptime, memory = :memory, cpu_type = :cpu_type, cpu_subtype = :cpu_subtype, cpu_brand = :cpu_brand, cpu_physical_cores = :cpu_physical_cores, cpu_logical_cores = :cpu_logical_cores, hardware_vendor = :hardware_vendor, hardware_model = :hardware_model, hardware_version = :hardware_version, hardware_serial = :hardware_serial, computer_name = :computer_name, primary_ip = :primary_ip, primary_mac = :primary_mac, label_updated_at = :label_updated_at, last_enrolled_at = :last_enrolled_at, refetch_requested = :refetch_requested, public_ip = :public_ip WHERE id = :id`
-		_, err := db.NamedExec(updateQuery, host)
-		if err != nil {
-			return 0, fmt.Errorf("update host: %w", err)
-		}
-		err = insertOrUpdateHostDisplayName(db, HostDisplayName{
-			HostID: int64(existingID),
-			Name:   host.Hostname,
-		})
-		if err != nil {
-			return 0, fmt.Errorf("insert host display name: %w", err)
-		}
-		return existingID, nil
-
-	}
-
-	// Insert new record
-	insertQuery := `INSERT INTO hosts (osquery_host_id, created_at, detail_updated_at, node_key, hostname, uuid, platform, osquery_version, os_version, build, platform_like, code_name, uptime, memory, cpu_type, cpu_subtype, cpu_brand, cpu_physical_cores, cpu_logical_cores, hardware_vendor, hardware_model, hardware_version, hardware_serial, computer_name, primary_ip, primary_mac, label_updated_at, last_enrolled_at, refetch_requested, public_ip) VALUES (:osquery_host_id, :created_at, :detail_updated_at, :node_key, :hostname, :uuid, :platform, :osquery_version, :os_version, :build, :platform_like, :code_name, :uptime, :memory, :cpu_type, :cpu_subtype, :cpu_brand, :cpu_physical_cores, :cpu_logical_cores, :hardware_vendor, :hardware_model, :hardware_version, :hardware_serial, :computer_name, :primary_ip, :primary_mac, :label_updated_at, :last_enrolled_at, :refetch_requested, :public_ip)`
-	res, err := db.NamedExec(insertQuery, host)
-	if err != nil {
-		return 0, fmt.Errorf("insert host: %w", err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("get last insert id: %w", err)
-	}
-
-	err = insertOrUpdateHostDisplayName(db, HostDisplayName{
-		HostID: id,
-		Name:   host.Hostname,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("insert host display name: %w", err)
-	}
-
-	return int(id), nil
-}
-
-func insertOrUpdateHostDisplayName(db *sqlx.DB, hdn HostDisplayName) error {
-	// Check if the host already exists
-	var foundDN HostDisplayName
-	query := `SELECT host_id, display_name FROM host_display_names WHERE host_id = ?`
-	err := db.Get(&foundDN, query, hdn.HostID)
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("select host display name: %w", err)
-	}
-
-	if err == sql.ErrNoRows {
-		// Insert new record
-		insertQuery := `INSERT INTO host_display_names (host_id, display_name) VALUES (:host_id, :display_name)`
-		_, err := db.NamedExec(insertQuery, hdn)
-		if err != nil {
-			return fmt.Errorf("insert host display name: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func insertOrUpdateHostSoftware(db *sqlx.DB, hs HostSoftware) error {
-	// Check if the host already exists
-	var foundhs HostSoftware
-	query := `SELECT host_id, software_id FROM host_software WHERE host_id = ? AND software_id = ?`
-	err := db.Get(&foundhs, query, hs.HostID, hs.SoftwareID)
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("select host software: %w", err)
-	}
-
-	if err == sql.ErrNoRows {
-		// Insert new record
-		insertQuery := `INSERT INTO host_software (host_id, software_id) VALUES (:host_id, :software_id)`
-		_, err := db.NamedExec(insertQuery, hs)
-		if err != nil {
-			return fmt.Errorf("insert host software: %w", err)
-		}
-	}
-
-	return nil
+	base.UUID = identifier
+	base.Hostname = identifier
+	base.NodeKey = ptr.String(identifier)
+	return ds.NewHost(ctx, &base)
 }
 
 func main() {
-	// Database connection string
-	dsn := "fleet:insecure@tcp(localhost:3306)/fleet"
+	// Flags
+	var (
+		ubuntuCount  = flag.Int("ubuntu", 0, "Number of Ubuntu hosts to create (default 0)")
+		macosCount   = flag.Int("macos", 0, "Number of macOS hosts to create (default 0)")
+		windowsCount = flag.Int("windows", 0, "Number of Windows hosts to create (default 0)")
+		linuxKernels = flag.Int("linux-kernels", 0, "Number of Linux kernels to add per Ubuntu host (default 0)")
+	)
+	flag.Parse()
 
-	// Connect to database
-	db, err := sqlx.Connect("mysql", dsn)
+	ctx := context.Background()
+
+	// Datastore
+	ds, err := mysql.New(config.MysqlConfig{
+		Protocol: "tcp",
+		Address:  mysqlAddr,
+		Username: mysqlUser,
+		Password: mysqlPass,
+		Database: mysqlDB,
+	}, clock.C)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer ds.Close()
 
-	// Host data to insert
-	host := Host{
-		OsqueryHostID:    "sample_host_id",
-		CreatedAt:        time.Now(),
-		DetailUpdatedAt:  time.Now(),
-		NodeKey:          "sample_node_key",
-		Hostname:         "sample_hostname",
-		Uuid:             "sample_uuid",
-		Platform:         "sample_platform",
-		OsqueryVersion:   "sample_version",
-		OsVersion:        "sample_os_version",
-		Build:            "sample_build",
-		PlatformLike:     "sample_platform_like",
-		CodeName:         "sample_code_name",
-		Uptime:           1000,
-		Memory:           8000,
-		CpuType:          "sample_cpu_type",
-		CpuSubtype:       "sample_cpu_subtype",
-		CpuBrand:         "sample_cpu_brand",
-		CpuPhysicalCores: 4,
-		CpuLogicalCores:  8,
-		HardwareVendor:   "sample_vendor",
-		HardwareModel:    "sample_model",
-		HardwareVersion:  "sample_hardware_version",
-		HardwareSerial:   "sample_serial",
-		ComputerName:     "sample_computer_name",
-		PrimaryIP:        "192.168.1.1",
-		PrimaryMac:       "00:11:22:33:44:55",
-		LabelUpdatedAt:   time.Now(),
-		LastEnrolledAt:   time.Now(),
-		RefetchRequested: 0,
-		PublicIP:         "203.0.113.1",
-	}
+	now := time.Now()
 
-	// macos Host
-	host.Platform = "darwin"
-	host.OsVersion = "Mac OS X 10.14.6"
-	host.Hostname = "macos-seed-host"
-	host.ComputerName = "macos-seed-host"
-	host.OsqueryHostID = "macos-seed-host"
-	host.NodeKey = "macos-seed-host"
-	macosID, err := insertOrUpdateHost(db, host)
-	if err != nil {
-		log.Fatal(err) //nolint:gocritic // ignore exitAfterDefer
-	}
-
-	// windows Host
-	host.Platform = "windows"
-	host.OsVersion = "Windows 11 Enterprise"
-	host.ComputerName = "windows-seed-host"
-	host.Hostname = "windows-seed-host"
-	host.OsqueryHostID = "windows-seed-host"
-	host.NodeKey = "windows-seed-host"
-	winID, err := insertOrUpdateHost(db, host)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// ubuntu Host
-	host.Platform = "debian"
-	host.OsVersion = "Ubuntu 22.04.1 LTS"
-	host.Hostname = "ubuntu-seed-host"
-	host.ComputerName = "ubuntu-seed-host"
-	host.OsqueryHostID = "ubuntu-seed-host"
-	host.NodeKey = "ubuntu-seed-host"
-	ubuntuID, err := insertOrUpdateHost(db, host)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Insert macOS software
-	macSoftware, err := readCSVFile("./tools/seed_data/software-macos.csv")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, s := range macSoftware {
-		err := insertOrUpdateSoftware(db, macosID, s)
-		if err != nil {
-			log.Fatal(err)
+	// macOS hosts
+	var macHosts []*fleet.Host
+	if *macosCount > 0 {
+		fmt.Printf("Creating %d macOS host(s)…\n", *macosCount)
+		for i := 1; i <= *macosCount; i++ {
+			name := "macos-seed-host"
+			if *macosCount > 1 {
+				name = fmt.Sprintf("macos-seed-host-%d", i)
+			}
+			host, err := createOrGetHost(ctx, ds, name, fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				PrimaryIP:       "192.168.1.100",
+				PrimaryMac:      "00:11:22:33:44:55",
+				Platform:        "darwin",
+				OSVersion:       "Mac OS X 10.14.6",
+			})
+			if err != nil {
+				fmt.Printf("create macos host failed (%s): %v\n", name, err)
+				continue
+			}
+			macHosts = append(macHosts, host)
 		}
 	}
 
-	// Insert win software
-	winSoftware, err := readCSVFile("./tools/seed_data/software-win.csv")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, s := range winSoftware {
-		err := insertOrUpdateSoftware(db, winID, s)
-		if err != nil {
-			log.Fatal(err)
+	// Windows hosts
+	var winHosts []*fleet.Host
+	if *windowsCount > 0 {
+		fmt.Printf("Creating %d Windows host(s)…\n", *windowsCount)
+		for i := 1; i <= *windowsCount; i++ {
+			name := "windows-seed-host"
+			if *windowsCount > 1 {
+				name = fmt.Sprintf("windows-seed-host-%d", i)
+			}
+			host, err := createOrGetHost(ctx, ds, name, fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				PrimaryIP:       "192.168.1.101",
+				PrimaryMac:      "00:11:22:33:44:56",
+				Platform:        "windows",
+				OSVersion:       "Windows 11 Enterprise",
+			})
+			if err != nil {
+				fmt.Printf("create windows host failed (%s): %v\n", name, err)
+				continue
+			}
+			winHosts = append(winHosts, host)
 		}
 	}
 
-	// Insert ubuntu software
-	ubuntuSoftware, err := readCSVFile("./tools/seed_data/software-ubuntu.csv")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, s := range ubuntuSoftware {
-		err := insertOrUpdateSoftware(db, ubuntuID, s)
-		if err != nil {
-			log.Fatal(err)
+	// Ubuntu hosts
+	var ubuntuIDs []uint
+	if *ubuntuCount > 0 {
+		fmt.Printf("Creating %d Ubuntu host(s)…\n", *ubuntuCount)
+		for i := 1; i <= *ubuntuCount; i++ {
+			name := fmt.Sprintf("ubuntu-seed-host-%d", i)
+			host, err := createOrGetHost(ctx, ds, name, fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				PrimaryIP:       fmt.Sprintf("192.168.1.%d", i+1),
+				PrimaryMac:      fmt.Sprintf("00:11:22:33:44:%02d", i+1),
+				Platform:        "ubuntu",
+				OSVersion:       "Ubuntu 20.04.6 LTS",
+			})
+			if err != nil {
+				fmt.Printf("create ubuntu host failed (%s): %v\n", name, err)
+				continue
+			}
+			if err := ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
+				Name:           "Ubuntu",
+				Version:        fmt.Sprintf("20.04.%d", i),
+				Platform:       "ubuntu",
+				Arch:           "x86_64",
+				KernelVersion:  "5.4.0-148-generic",
+				DisplayVersion: "20.04",
+			}); err != nil {
+				fmt.Printf("update ubuntu host OS failed (%s): %v\n", name, err)
+				continue
+			}
+			ubuntuIDs = append(ubuntuIDs, host.ID)
 		}
 	}
+
+	// macOS software
+	if len(macHosts) > 0 {
+		macSoftware, err := readCSVFile(macCSVPath)
+		if err != nil {
+			fmt.Printf("read macOS software csv failed: %v\n", err)
+		} else {
+			for _, h := range macHosts {
+				if _, err := ds.UpdateHostSoftware(ctx, h.ID, macSoftware); err != nil {
+					fmt.Printf("update macOS host software failed (%s): %v\n", h.Hostname, err)
+				}
+			}
+		}
+	}
+
+	// Windows software
+	if len(winHosts) > 0 {
+		winSoftware, err := readCSVFile(winCSVPath)
+		if err != nil {
+			fmt.Printf("read Windows software csv failed: %v\n", err)
+		} else {
+			for _, h := range winHosts {
+				if _, err := ds.UpdateHostSoftware(ctx, h.ID, winSoftware); err != nil {
+					fmt.Printf("update Windows host software failed (%s): %v\n", h.Hostname, err)
+				}
+			}
+		}
+	}
+
+	// Ubuntu software
+	if len(ubuntuIDs) > 0 {
+		ubuntuSoftware, err := readCSVFile(ubuntuCSVPath)
+		if err != nil {
+			fmt.Printf("read Ubuntu software csv failed: %v\n", err)
+		} else {
+			for _, ubuntuID := range ubuntuIDs {
+				if _, err := ds.UpdateHostSoftware(ctx, ubuntuID, ubuntuSoftware); err != nil {
+					fmt.Printf("update Ubuntu host software failed (%d): %v\n", ubuntuID, err)
+				}
+			}
+		}
+	}
+
+	// Linux kernels for Ubuntu
+	if *linuxKernels > 0 && len(ubuntuIDs) > 0 {
+		fmt.Printf("Adding %d Linux kernel package(s) per Ubuntu host…\n", *linuxKernels)
+		for _, ubuntuID := range ubuntuIDs {
+			var pkgs []fleet.Software
+			for k := 1; k <= *linuxKernels; k++ {
+				pkgs = append(pkgs, fleet.Software{
+					Name:     fmt.Sprintf("linux-image-6.8.0-%d-generic", k),
+					Version:  fmt.Sprintf("6.8.0-%d", k),
+					Source:   "Package (deb)",
+					IsKernel: true,
+				})
+			}
+			if _, err := ds.UpdateHostSoftware(ctx, ubuntuID, pkgs); err != nil {
+				fmt.Printf("insert kernel software for Ubuntu host %d failed: %v\n", ubuntuID, err)
+			}
+		}
+	}
+
+	fmt.Println("Done.")
 }

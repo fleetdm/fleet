@@ -22,7 +22,9 @@
       html {
         box-sizing: border-box;
         font-family: "Inter", sans-serif;
-        color: #192147;
+        color: #515774;
+        line-height: 1.5;
+        font-size: 1.25rem;
       }
 
       *,
@@ -41,7 +43,7 @@
       .enroll-link {
         display: inline-block;
         color: #fff;
-        background-color: #6a67fe;
+        background-color: #009a7d;
         padding: 8px 16px;
         border-radius: 4px;
         text-decoration: none;
@@ -52,8 +54,8 @@
       }
 
       header {
-        background-color: #192147;
         padding: 13px 20px;
+        border-bottom: 1px solid #e2e4ea;
       }
 
       h1 {
@@ -149,8 +151,8 @@
     <template id="unsupported-template">
       <h1>Enroll your device in Fleet</h1>
       <p class="page-description">
-        To enroll your iPhone, iPad, or Android device, please open this page on
-        your mobile device.
+        To enroll your macOS, iPhone, iPad, or Android device, please open this
+        page on your device.
       </p>
     </template>
 
@@ -223,6 +225,58 @@
       </p>
     </template>
 
+    <!-- ios, ipados content -->
+    <template id="macos-template">
+      <h1>Turn on MDM</h1>
+      <p class="page-description">
+        On your Mac, follow the instructions below to download and install the
+        Fleet profile.
+      </p>
+      <ol>
+        <li>
+          <p>
+            <span>1.</span>
+            <span> <b>Download</b> the Fleet profile and open it. </span>
+          </p>
+          <a class="download-link" href="{{.EnrollURL}}">Download</a>
+        </li>
+        <li>
+          <p>
+            <span>2.</span>
+            <span>
+              From the Apple menu in the top left corner of your screen, select
+              <b>System Settings</b>.
+            </span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>3.</span>
+            <span
+              >In the sidebar menu, select <b>Profile Downloaded</b>, find and
+              double-click the
+              <b>[Organization name] enrollment</b> profile.</span
+            >
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>4.</span>
+            <span>Select <b>Install</b> then enter your password.</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>5.</span>
+            <span
+              >Head back to your <b>My device</b> page and select
+              <b>Refetch</b> to tell your organization that MDM is on.</span
+            >
+          </p>
+        </li>
+      </ol>
+    </template>
+
     <!-- Error content -->
     <template id="error-template">
       <h1 class="error-header">
@@ -269,29 +323,35 @@
             navigator.maxTouchPoints !== undefined &&
             navigator.maxTouchPoints > 1);
         const isAndroid = /Android/i.test(userAgent);
+        const isMac =
+          (/Macintosh/i.test(userAgent) && !isIPad) ||
+          /Mac OS X/i.test(userAgent);
 
-        if (isAndroid) {
-          return "android";
-        } else if (isIPhone) {
-          return "ios";
-        } else if (isIPad) {
-          return "ipad";
+        switch (true) {
+          case isAndroid:
+            return "android";
+          case isIPhone:
+            return "ios";
+          case isIPad:
+            return "ipad";
+          case isMac:
+            return "macos";
+          default:
+            return "unsupported";
         }
-
-        return "unsupported";
       };
 
       const getTemplateIdFromPlatform = (platform) => {
-        let templateId = "";
-        if (platform === "android") {
-          templateId = "android-template";
-        } else if (platform === "ios" || platform === "ipad") {
-          templateId = "ios-ipad-template";
-        } else {
-          templateId = "unsupported-template";
+        switch (true) {
+          case platform === "android":
+            return "android-template";
+          case platform === "ios" || platform === "ipad":
+            return "ios-ipad-template";
+          case platform === "macos":
+            return "macos-template";
+          default:
+            return "unsupported-template";
         }
-
-        return templateId;
       };
 
       // renders the content based on the template id
@@ -421,6 +481,18 @@
             );
             return;
           }
+        }
+
+        // handle rendering for macos
+        if (platform === "macos") {
+          if (!MAC_MDM_ENABLED) {
+            renderError(
+              "Apple MDM is turned off.",
+              "To enroll your Mac device please contact your IT admin."
+            );
+            return;
+          }
+          renderContent(templateId);
         }
 
         // handle rendering for ios and ipad

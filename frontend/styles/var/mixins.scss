@@ -255,7 +255,7 @@ $max-width: 2560px;
 @mixin flex-column-16px-gap {
   display: flex;
   flex-direction: column;
-  gap: $gap-data-sets;
+  gap: $pad-medium;
 }
 
 @mixin vertical-form-layout {
@@ -268,6 +268,11 @@ $max-width: 2560px;
 
 // Separate in case there's any card level styling we need
 @mixin vertical-card-layout {
+  @include flex-column-24px-gap;
+}
+
+// Separate in case there's any modal level styling we need
+@mixin vertical-modal-layout {
   @include flex-column-24px-gap;
 }
 

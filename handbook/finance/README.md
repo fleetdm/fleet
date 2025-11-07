@@ -12,7 +12,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH))
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
@@ -478,7 +478,7 @@ When an agreement is routed to the [CFO](https://fleetdm.com/handbook/finance#te
 3. Click on a test, then click on "Tasks".  
 4. Click on "Create task." Then, "Create GitHub issue."
 5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-finance" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Interim Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of Digital Workplace & GTM Systems. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of Digital Workplace & GTM Systems. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 ### Check GitHub terms

@@ -149,6 +149,7 @@ export const SoftwareActionButtons = ({
 
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
+  isScriptPackage?: boolean;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -175,6 +176,7 @@ interface ISoftwareInstallerCardProps {
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
   softwareTitleName,
+  isScriptPackage = false,
   name,
   version,
   addedTimestamp,
@@ -264,51 +266,22 @@ const SoftwareInstallerCard = ({
     }
   }, [renderFlash, softwareId, name, teamId]);
 
-  let versionInfo = <span>{version}</span>;
-
-  if (installerType === "vpp") {
-    versionInfo = (
-      <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
-        <span>{version}</span>
-      </TooltipWrapper>
-    );
-  }
-
-  if (installerType === "package" && !version) {
-    versionInfo = (
-      <TooltipWrapper
-        tipContent={
-          <span>
-            Fleet couldn&apos;t read the version from {name}.{" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-              variant="tooltip-link"
-            />
-          </span>
-        }
-      >
-        <span>Version (unknown)</span>
-      </TooltipWrapper>
-    );
-  }
-
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
-    <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
+    <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
         <div className={`${baseClass}__row-1`}>
           <div className={`${baseClass}__row-1--responsive-wrap`}>
             <InstallerDetailsWidget
               softwareName={softwareInstaller?.name || name}
               installerType={installerType}
-              versionInfo={versionInfo}
+              version={version}
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isScriptPackage={isScriptPackage}
             />
             <div className={`${baseClass}__tags-wrapper`}>
               {Array.isArray(automaticInstallPolicies) &&
@@ -352,16 +325,17 @@ const SoftwareInstallerCard = ({
             )}
           </div>
         </div>
-        <div className={`${baseClass}__row-2`}>
-          {gitOpsModeEnabled && isCustomPackage && (
+        {gitOpsModeEnabled && isCustomPackage && (
+          <div className={`${baseClass}__row-2`}>
             <div className={`${baseClass}__yaml-button-wrapper`}>
               <Button onClick={onToggleViewYaml}>View YAML</Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
+          isScriptPackage={isScriptPackage}
           softwareId={softwareId}
           teamId={teamId}
           status={status}
@@ -408,6 +382,7 @@ const SoftwareInstallerCard = ({
           iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
+          isScriptPackage={isScriptPackage}
         />
       )}
     </Card>

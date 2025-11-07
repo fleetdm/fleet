@@ -8,7 +8,10 @@ import {
   isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -16,6 +19,7 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import TooltipWrapper from "components/TooltipWrapper";
 import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
@@ -220,6 +224,35 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         deleted a user <b>{activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  deletedHost: (activity: IActivity) => {
+    const { host_display_name, triggered_by, host_expiry_window } =
+      activity.details || {};
+
+    if (triggered_by === "expiration") {
+      return (
+        <>
+          automatically deleted host <b>{host_display_name}</b> after{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                The host expiry window configured in <br />
+                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+              </>
+            }
+          >
+            {host_expiry_window} day{host_expiry_window !== 1 ? "s" : ""}
+          </TooltipWrapper>{" "}
+          of inactivity.
+        </>
+      );
+    }
+
+    return (
+      <>
+        deleted host <b>{host_display_name}</b>.
       </>
     );
   },
@@ -1136,16 +1169,18 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
+      source,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
-
+    const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
+        <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.
       </>
@@ -1168,7 +1203,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {getInstallUninstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
         <b>{hostName}</b>.
       </>
@@ -1285,6 +1320,10 @@ const TAGGED_TEMPLATES = {
   ),
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
+  ),
+  addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
+  deletedConditionalAccessOkta: () => (
+    <> deleted Okta conditional access configuration.</>
   ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
     const teamName = activity.details?.team_name;
@@ -1537,12 +1576,26 @@ const TAGGED_TEMPLATES = {
   },
   editedSetupExperienceSoftware: (activity: IActivity) => {
     const { platform, team_name, team_id } = activity.details || {};
+
+    let platformText = "";
+    switch (platform) {
+      case "darwin":
+        platformText = "macOS";
+        break;
+      case "ios":
+        platformText = "iOS";
+        break;
+      case "ipados":
+        platformText = "iPadOS";
+        break;
+      default:
+        platformText = capitalize(platform);
+    }
+
     return (
       <>
         {" "}
-        edited setup experience software for{" "}
-        {platform === "darwin" ? "macOS" : capitalize(platform)} hosts that
-        enroll to{" "}
+        edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
           "no team"
         ) : (
@@ -1593,6 +1646,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.UserDeleted: {
       return TAGGED_TEMPLATES.userDeleted(activity);
+    }
+    case ActivityType.HostDeleted: {
+      return TAGGED_TEMPLATES.deletedHost(activity);
     }
     case ActivityType.UserChangedGlobalRole: {
       return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);
@@ -1657,12 +1713,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
     case ActivityType.AddedHydrant:
+    case ActivityType.AddedCustomEST:
     case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
     case ActivityType.DeletedHydrant:
+    case ActivityType.DeletedCustomEST:
     case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
@@ -1671,6 +1729,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
     case ActivityType.EditedHydrant:
+    case ActivityType.EditedCustomEST:
     case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
@@ -1849,6 +1908,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.AddedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.addedConditionalAccessOkta();
+    }
+    case ActivityType.DeletedConditionalAccessOkta: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
     }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);

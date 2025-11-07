@@ -161,7 +161,11 @@ To replace the Fleet logo with your organization's logo:
 
 ### Install software
 
-To configure software to be installed during setup experience:
+You can install software during first time macOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience#basic-article).
+
+Software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet reties, IT admins can error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
+
+Add setup experience software:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
 
@@ -182,7 +186,7 @@ To configure a script to run during setup experience:
 
 When an end user unboxes their new Mac, or starts up a freshly wiped Mac, they're presented with the macOS Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
 
-In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. 
+In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile. Fleet uses [these options](https://github.com/fleetdm/fleet/blob/cf6343cbd4d02ce92df13339aca78cba2f5b43ff/server/mdm/apple/apple_mdm.go#L96-L126) by default. See all options in the [Apple docs](https://developer.apple.com/documentation/devicemanagement/profile).
 
 To customize the macOS Setup Assistant, we will do the following steps:
 

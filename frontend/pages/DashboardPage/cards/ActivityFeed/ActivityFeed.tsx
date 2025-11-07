@@ -11,7 +11,8 @@ import activitiesAPI, {
 
 import {
   resolveUninstallStatus,
-  SoftwareInstallStatus,
+  SoftwareInstallUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
 
@@ -24,6 +25,8 @@ import Pagination from "components/Pagination";
 
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -57,6 +60,14 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    scriptPackageDetails,
+    setScriptPackageDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
     packageUninstallDetails,
@@ -135,7 +146,13 @@ const ActivityFeed = ({
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
-        setPackageInstallDetails({ ...details });
+        if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
+          setScriptPackageDetails({ ...details });
+        } else {
+          details?.command_uuid
+            ? setIpaPackageInstallDetails({ ...details })
+            : setPackageInstallDetails({ ...details });
+        }
         break;
       case ActivityType.UninstalledSoftware:
         setPackageUninstallDetails({
@@ -256,6 +273,24 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
+      {scriptPackageDetails && (
+        <SoftwareScriptDetailsModal
+          details={scriptPackageDetails}
+          onCancel={() => setScriptPackageDetails(null)}
+        />
+      )}
+      {ipaPackageInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          details={{
+            appName: ipaPackageInstallDetails.software_title || "",
+            fleetInstallStatus: (ipaPackageInstallDetails.status ||
+              "pending_install") as SoftwareInstallUninstallStatus,
+            hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
+            commandUuid: ipaPackageInstallDetails.command_uuid || "",
+          }}
+          onCancel={() => setIpaPackageInstallDetails(null)}
+        />
+      )}
       {packageUninstallDetails && (
         <SoftwareUninstallDetailsModal
           {...packageUninstallDetails}
@@ -268,7 +303,7 @@ const ActivityFeed = ({
           details={{
             appName: vppInstallDetails.software_title || "",
             fleetInstallStatus: (vppInstallDetails.status ||
-              "pending_install") as SoftwareInstallStatus,
+              "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",
             commandUuid: vppInstallDetails.command_uuid || "",
           }}

@@ -1,0 +1,2 @@
+- Updated MDM enrollment flow for BYOD macOS hosts to enable end user authentication prior to
+  downloading the MDM profile via the "My device" page.

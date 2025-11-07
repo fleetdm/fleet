@@ -34,7 +34,8 @@ import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
   resolveUninstallStatus,
-  SoftwareInstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
+  SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
@@ -42,6 +43,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -59,14 +61,12 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
 import BackButton from "components/BackButton";
-import Card from "components/Card";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
@@ -79,6 +79,11 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import {
+  SoftwareIpaInstallDetailsModal,
+  ISoftwareIpaInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -138,6 +143,10 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const doubleHeightCardClass = `${baseClass}__card--double-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
+const BYOD_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
+const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
+  "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -219,6 +228,14 @@ const HostDetailsPage = ({
     packageInstallDetails,
     setPackageInstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    scriptPackageDetails,
+    setScriptPackageDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
+  ] = useState<ISoftwareIpaInstallDetails | null>(null);
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
@@ -678,14 +695,33 @@ const HostDetailsPage = ({
           setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setPackageInstallDetails({
-            ...details,
-            // FIXME: It seems like the backend is not using the correct display name when it returns
-            // upcoming install activities. As a workaround, we'll prefer the display name from
-            // the host object if it's available.
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          if (details?.command_uuid) {
+            setIpaPackageInstallDetails({
+              fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
+              hostDisplayName:
+                host?.display_name || details?.host_display_name || "",
+              appName: details?.name || "",
+              commandUuid: details?.command_uuid,
+            });
+          } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
+            setScriptPackageDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          } else {
+            setPackageInstallDetails({
+              ...details,
+              // FIXME: It seems like the backend is not using the correct display name when it returns
+              // upcoming install activities. As a workaround, we'll prefer the display name from
+              // the host object if it's available.
+              host_display_name:
+                host?.display_name || details?.host_display_name || "",
+            });
+          }
           break;
         case "uninstalled_software":
           setPackageUninstallDetails({
@@ -700,7 +736,7 @@ const HostDetailsPage = ({
           setActivityVPPInstallDetails({
             appName: details?.software_title || "",
             fleetInstallStatus: (details?.status ||
-              "pending_install") as SoftwareInstallStatus,
+              "pending_install") as SoftwareInstallUninstallStatus,
             commandUuid: details?.command_uuid || "",
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
@@ -743,6 +779,10 @@ const HostDetailsPage = ({
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
     setPackageInstallDetails(null);
+  }, []);
+
+  const onCancelIpaSoftwareInstallDetailsModal = useCallback(() => {
+    setIpaPackageInstallDetails(null);
   }, []);
 
   const onCancelVppInstallDetailsModal = useCallback(() => {
@@ -967,7 +1007,7 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+  const showSoftwareLibraryTab = isPremiumTier;
 
   const showUsersCard =
     isAppleDevice(host.platform) ||
@@ -984,7 +1024,7 @@ const HostDetailsPage = ({
   const renderSoftwareCard = () => {
     return (
       <div className={`${baseClass}__software-card`}>
-        {isSoftwareLibrarySupported ? (
+        {showSoftwareLibraryTab ? (
           <>
             <TabList>
               <Tab>
@@ -1021,10 +1061,11 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for personally enrolled mdm hosts where we are not
+              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
-               when we add that feature. */}
-              {isPersonalEnrollmentInMdm(host.mdm.enrollment_status) ? (
+               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
+              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
+              isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
@@ -1033,7 +1074,11 @@ const HostDetailsPage = ({
                       <CustomLink
                         newTab
                         text="Learn more"
-                        url="https://fleetdm.com/learn-more-about/byod-hosts-vpp-install"
+                        url={
+                          isAndroidHost
+                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
+                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
+                        }
                       />
                     </>
                   }
@@ -1351,14 +1396,12 @@ const HostDetailsPage = ({
               onProfileResent={refetchHostDetails}
             />
           )}
-          {showUnenrollMdmModal && !!host && (
+          {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (
             <UnenrollMdmModal
               hostId={host.id}
               hostPlatform={host.platform}
               hostName={host.display_name}
-              isBYODEnrollment={isPersonalEnrollmentInMdm(
-                host.mdm.enrollment_status
-              )}
+              enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
             />
           )}
@@ -1388,6 +1431,24 @@ const HostDetailsPage = ({
             <SoftwareInstallDetailsModal
               details={packageInstallDetails}
               onCancel={onCancelSoftwareInstallDetailsModal}
+            />
+          )}
+          {scriptPackageDetails && (
+            <SoftwareScriptDetailsModal
+              details={scriptPackageDetails}
+              onCancel={() => setScriptPackageDetails(null)}
+            />
+          )}
+          {ipaPackageInstallDetails && (
+            <SoftwareIpaInstallDetailsModal
+              details={{
+                appName: ipaPackageInstallDetails.appName || "",
+                fleetInstallStatus: (ipaPackageInstallDetails.fleetInstallStatus ||
+                  "pending_install") as SoftwareInstallUninstallStatus,
+                hostDisplayName: ipaPackageInstallDetails.hostDisplayName || "",
+                commandUuid: ipaPackageInstallDetails.commandUuid || "",
+              }}
+              onCancel={onCancelIpaSoftwareInstallDetailsModal}
             />
           )}
           {packageUninstallDetails && (

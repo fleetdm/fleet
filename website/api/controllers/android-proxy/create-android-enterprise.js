@@ -34,6 +34,7 @@ module.exports = {
   exits: {
     success: { description: 'An android enterprise was successfully created' },
     enterpriseAlreadyExists: { description: 'An android enterprise already exists for this Fleet instance.', statusCode: 409 },
+    missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     invalidEnterpriseToken: {
       description: 'The provided enterprise token is invalid or expired.',
       responseType: 'badRequest'
@@ -46,7 +47,7 @@ module.exports = {
     // Parse the Fleet server url from the origin header.
     let fleetServerUrl = this.req.get('Origin');
     if(!fleetServerUrl){
-      return this.res.badRequest();
+      throw 'missingOriginHeader';
     }
     // Check the database for a record of this enterprise.
     let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
@@ -90,14 +91,24 @@ module.exports = {
         }
       });
 
+      // Debugging case: Log the actual token scopes in use.
+      const accessTokenObj = await authClient.getAccessToken();
+      const rawToken = accessTokenObj.token || accessTokenObj; // depending on version
+      // eslint-disable-next-line no-undef
+      const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${rawToken}`);
+      const tokenInfo = await tokenInfoRes.json();
+      sails.log.debug('Token scopes actually in use:', tokenInfo.scope);
+
+
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
       // Retrieve the IAM policy for the created pubsub topic.
+      // !IMPORTANT: This should not be wrapped in a sails.helpers.flow.build, as we've seen issues with it not working properly.
       let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
         resource: fullPubSubTopicName,
       });
       let newPubSubTopicIamPolicy = getIamPolicyResponse.data;
 
-      // Grand Android device policy the right to publish
+      // Grant Android device policy the right to publish
       // See: https://developers.google.com/android/management/notifications
       // Default the policy bindings to an empty array if it is not set.
       newPubSubTopicIamPolicy.bindings = newPubSubTopicIamPolicy.bindings || [];
@@ -109,12 +120,14 @@ module.exports = {
 
       // Update the pubsub topic's IAM policy
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/setIamPolicy
-      await pubsub.projects.topics.setIamPolicy({
-        resource: fullPubSubTopicName,
-        requestBody: {
-          policy: newPubSubTopicIamPolicy
-        }
-      });
+      await sails.helpers.flow.build(async () => {
+        await pubsub.projects.topics.setIamPolicy({
+          resource: fullPubSubTopicName,
+          requestBody: {
+            policy: newPubSubTopicIamPolicy
+          }
+        });
+      }).retry(undefined, [1000, 1500, 2000]);
 
       // Create a new subscription for the created pubsub topic.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create
@@ -148,11 +161,16 @@ module.exports = {
           errorString.includes('ExpiredTokenException')) {
         return {'invalidEnterpriseToken': 'The provided enterprise token is invalid or expired.'};
       }
+
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 400):', require('util').inspect(err));
+
       // For other 400 errors, still return as invalid token (client error)
       return {'invalidEnterpriseToken': 'Invalid request to Android Management API.'};
-    }).intercept({status: 401}, ()=>{
+    }).intercept({ status: 401 }, (err) => {
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 401):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Authorization failed with Android Management API.'};
-    }).intercept({status: 403}, ()=>{
+    }).intercept({status: 403}, (err)=>{
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 403):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Access forbidden to Android Management API.'};
     }).intercept((err)=>{
       // For all other errors (5XX, network errors, etc.), maintain existing behavior

@@ -1338,6 +1338,57 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
   });
 
+  it("renders a 'deleted_host' type activity for manual deletion", () => {
+    const activity = createMockActivity({
+      type: ActivityType.HostDeleted,
+      details: {
+        host_display_name: "My Host",
+        triggered_by: "manual",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("My Host", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.queryByText("automatically", { exact: false })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_host' type activity for automatic deletion due to expiration", () => {
+    const activity = createMockActivity({
+      type: ActivityType.HostDeleted,
+      details: {
+        host_display_name: "Expired Host",
+        triggered_by: "expiration",
+        host_expiry_window: 30,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("automatically deleted host", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Expired Host", { exact: false })
+    ).toBeInTheDocument();
+
+    // Check for "30 days" and "of inactivity" separately since they're in different DOM elements
+    expect(screen.getByText("30 days", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("of inactivity", { exact: false })
+    ).toBeInTheDocument();
+
+    // Verify tooltip wrapper is present with correct data attributes
+    const tooltipElement = screen
+      .getByText("30 days", { exact: false })
+      .closest("[data-tip]");
+    expect(tooltipElement).toBeInTheDocument();
+    expect(tooltipElement).toHaveAttribute("data-tip", "true");
+  });
+
   it("renders the correct actor for a installed_software activity without self_service", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,
@@ -1396,6 +1447,60 @@ describe("Activity Feed", () => {
 
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("An end user")).toBeInTheDocument();
+  });
+
+  it("renders script package ran status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "sh_packages",
+        status: "installed",
+        software_package: "myscript.sh",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/ran/i)).toBeInTheDocument(); // For status: "installed"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+  });
+
+  it("renders script package pending run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "sh_packages",
+        status: "pending_install",
+        software_package: "myscript.sh",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/told Fleet to run/i)).toBeInTheDocument(); // For status: "pending_install"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+  });
+
+  it("renders script package failed run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "ps1_packages", // Other script package source
+        status: "failed_install",
+        software_package: "myscript.ps1",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to run/i)).toBeInTheDocument(); // For status: "failed_install"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
   });
 
   it("renders addedNdesScepProxy activity correctly", () => {

@@ -24,10 +24,11 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -269,6 +270,16 @@ the way that the Fleet server works.
 				if dev {
 					os.Exit(1)
 				}
+			case fleet.NeedsFleetv4732Fix:
+				printFleetv4732FixNeededMessage()
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
+			case fleet.UnknownFleetv4732State:
+				printFleetv4732UnknownStateMessage(migrationStatus.StatusCode)
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
 			case fleet.SomeMigrationsCompleted:
 				tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
 				printMissingMigrationsWarning(tables, data)
@@ -459,6 +470,11 @@ the way that the Fleet server works.
 				} else {
 					geoIP = maxmind
 				}
+			}
+
+			if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
+				config.MDM.EnableCustomOSUpdatesAndFileVault = false
+				level.Warn(logger).Log("msg", "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
 			}
 
 			mdmStorage, err := mds.NewMDMAppleMDMStorage()
@@ -764,6 +780,7 @@ the way that the Fleet server works.
 				scepConfigMgr,
 				digiCertService,
 				conditionalAccessMicrosoftProxy,
+				redis_key_value.New(redisPool),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -775,6 +792,7 @@ the way that the Fleet server works.
 				svc,
 				config.License.Key,
 				config.Server.PrivateKey,
+				ds,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -785,7 +803,7 @@ the way that the Fleet server works.
 			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
-				hydrantService := hydrant.NewService(hydrant.WithLogger(logger))
+				hydrantService := est.NewService(est.WithLogger(logger))
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
@@ -951,7 +969,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore,
+						ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore,
 					)
 				},
 			); err != nil {
@@ -967,7 +985,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
+				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}
@@ -1005,7 +1023,8 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore)
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}
@@ -1071,6 +1090,12 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
+			}); err != nil {
+				initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
 					instanceID,
@@ -1085,7 +1110,7 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
@@ -1268,7 +1293,7 @@ the way that the Fleet server works.
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
-				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
 
@@ -1330,6 +1355,15 @@ the way that the Fleet server works.
 					}
 					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup host identity SCEP")
+					}
+
+					// Conditional Access SCEP
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &config)
+					if err != nil {
+						initFatal(err, "setup conditional access SCEP depot")
+					}
+					if err = condaccess.RegisterSCEP(rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access SCEP")
 					}
 				} else {
 					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
@@ -1590,6 +1624,22 @@ func printMissingMigrationsWarning(tables []int64, data []int64) {
 		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 		"################################################################################\n",
 		tablesAndDataToString(tables, data), os.Args[0])
+}
+
+func printFleetv4732FixNeededMessage() {
+	fmt.Printf("################################################################################\n"+
+		"# WARNING:\n"+
+		"#   Your Fleet database has misnumbered migrations introduced in some released\n"+
+		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n"+
+		"#   migrations. Please back up your data before continuing.\n"+
+		"#\n"+
+		"#   Run `%s prepare db` to perform migrations.\n"+
+		"#\n"+
+		"#   To run the server without performing migrations:\n"+
+		"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
+		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+		"################################################################################\n", os.Args[0])
 }
 
 func initLicense(config configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {

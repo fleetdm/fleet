@@ -17,16 +17,18 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -75,7 +77,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		c                               clock.Clock                   = clock.C
 		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
-		hydrantService                                                = hydrant.NewService(hydrant.WithLogger(logger))
+		estCAService                                                  = est.NewService(est.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 		mdmStorage             fleet.MDMAppleStore
@@ -215,6 +217,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		keyValueStore,
 	)
 	if err != nil {
 		panic(err)
@@ -247,7 +250,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			keyValueStore,
 			scepConfigService,
 			digiCertService,
-			hydrantService,
+			estCAService,
 		)
 		if err != nil {
 			panic(err)
@@ -348,6 +351,11 @@ type HostIdentity struct {
 	RequireHTTPMessageSignature bool
 }
 
+// ConditionalAccess combines conditional access-related test options
+type ConditionalAccess struct {
+	SCEPStorage scep_depot.Depot
+}
+
 type TestServerOpts struct {
 	Logger                          kitlog.Logger
 	License                         *fleet.LicenseInfo
@@ -384,6 +392,7 @@ type TestServerOpts struct {
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity
+	ConditionalAccess               *ConditionalAccess
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -421,12 +430,25 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	rootMux := http.NewServeMux()
 
+	memLimitStore, _ := memstore.New(0)
+	var limitStore throttled.GCRAStore = memLimitStore
+	var redisPool fleet.RedisPool
+	if len(opts) > 0 && opts[0].Pool != nil {
+		redisPool = opts[0].Pool
+		limitStore = &redis.ThrottledStore{
+			Pool:      opts[0].Pool,
+			KeyPrefix: "ratelimit::",
+		}
+	} else {
+		redisPool = redistest.SetupRedis(t, t.Name(), false, false, false) // We are good to initalize a redis pool here as it is only called by integration tests
+	}
+
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -465,17 +487,6 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		}
 	}
 
-	memLimitStore, _ := memstore.New(0)
-	var limitStore throttled.GCRAStore = memLimitStore
-	var redisPool fleet.RedisPool
-	if len(opts) > 0 && opts[0].Pool != nil {
-		redisPool = opts[0].Pool
-		limitStore = &redis.ThrottledStore{
-			Pool:      opts[0].Pool,
-			KeyPrefix: "ratelimit::",
-		}
-	}
-
 	if len(opts) > 0 && opts[0].WithDEPWebview {
 		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// do nothing and return 200
@@ -497,6 +508,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
+	}
+
+	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
+		require.NoError(t, condaccess.RegisterSCEP(rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
 	}
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)

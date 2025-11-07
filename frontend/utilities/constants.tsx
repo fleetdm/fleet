@@ -5,6 +5,7 @@ import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ICampaign } from "interfaces/campaign";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { IHost } from "interfaces/host";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -85,6 +86,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.20.0 +", value: "5.20.0" },
   { label: "5.19.0 +", value: "5.19.0" },
   { label: "5.18.1 +", value: "5.18.1" },
   { label: "5.18.0 +", value: "5.18.0" },
@@ -344,24 +346,20 @@ export const MDM_STATUS_TOOLTIP: Record<
 > = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically using Apple Automated Device Enrollment
-      (DEP), Windows Autopilot, or Windows Azure AD Join. Administrators can
-      block end users from turning MDM off.
+      MDM was turned on automatically. IT admins can block end users from
+      turning MDM off.
     </span>
   ),
   "On (manual)": (
-    <span>
-      MDM was turned on manually, by installing fleetd on macOS and Windows, or
-      by installing enrollment profile on macOS. End user can turn MDM off.
-    </span>
+    <span>MDM was turned on manually. End users can turn MDM off.</span>
   ),
   "On (personal)": (
     <span>
-      End user turned on MDM on personal (BYOD) host, by signing in with Managed
-      Apple Account on iPhone/iPad, or by enrolling Android via enrollment link
-      or by signing in with Google account. End user can turn MDM off.
+      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad,
+      or by creating a work profile on Android. End users can turn MDM off.
     </span>
   ),
+  "On (company-owned)": null,
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
@@ -404,7 +402,7 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
-export const HOST_SUMMARY_DATA = [
+export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
   "issues",
@@ -415,10 +413,11 @@ export const HOST_SUMMARY_DATA = [
   "osquery_version",
   "orbit_version",
   "fleet_desktop_version",
-  "enroll_secret_name",
   "detail_updated_at",
   "percent_disk_space_available",
   "gigs_disk_space_available",
+  "gigs_total_disk_space",
+  "gigs_all_disk_space",
   "team_name",
   "disk_encryption_enabled",
   "display_name", // Not rendered on my device page

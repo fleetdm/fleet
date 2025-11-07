@@ -27,14 +27,10 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 <!-- Insert the link to the feature request that this story contributes to and add the feature request as this story's parent issue. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
 
-## Context
-- Product Designer: _________________________ <!-- Who is the Product Designer to contact if folks have questions about the UI, CLI, or API changes? -->
-- Engineer: _________________________ <!-- Who is the Engineer to contact if folks have technical questions? -->
+## Resources
   
 <!--
-What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
-1. 
-2. 
+Provide links to any research or helpful resources (ex. Apple documentation). Put "None" if there are no resources.
 -->
 
 ## Changes
@@ -47,7 +43,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Put "No changes" if there are no changes necessary. -->
 - [ ] GitOps mode UI changes: TODO <!-- Specify UI changes for read-only GitOps mode. Put "No changes" if there are no changes necessary. -->
 - [ ] GitOps generation changes: TODO <!-- Specify changes to results from the fleetctl generate-gitops command. Put "No changes" if there are no changes necessary. -->
-- [ ] Activity changes: TODO <!-- Specify changes to the Audit log page in the contributor docs. Put "No changes" if there are no changes necessary. -->
+- [ ] Activity changes: TODO <!-- Specify the changes to the Audit log page in the contributor docs and the display name that will appear on the dashboard ("type" filter). Add Put "No changes" if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
 - [ ] My device and fleetdm.com/better changes: TODO <!-- If there are changes to the personal information Fleet can see on end user workstations, make sure wireframes include changes to the My device page. Also, specify changes as a PR to the fleetdm.com/better (aka Transparency page). Put "No changes" if there are no changes necessary. -->
@@ -72,6 +68,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 
 ### Risk assessment
 
+- Requires testing in a hosted environment: TODO <!-- User story has features that require testing in a hosted environment. Otherwise, remove this item. -->
 - Requires load testing: TODO <!-- User story has performance implications that require load testing. Otherwise, remove this item. -->
 - Risk level: Low / High TODO <!-- Choose one. Consider: Does this change come with performance risks?  Any risk of accidental log spew? Any particular regressions to watch out for?  Any potential compatibility issues, even if it's not technically a breaking change? -->
 - Risk description: TODO <!-- If the risk level is high, explain why. If low, remove. -->

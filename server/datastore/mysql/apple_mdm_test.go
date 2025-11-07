@@ -92,7 +92,6 @@ func TestMDMApple(t *testing.T) {
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
-		{"CleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
@@ -103,6 +102,9 @@ func TestMDMApple(t *testing.T) {
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
+		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
+		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
+		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
 	}
 
 	for _, c := range cases {
@@ -1134,7 +1136,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = ds.MDMTurnOff(ctx, testUUID)
+	_, _, err = ds.MDMTurnOff(ctx, testUUID)
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
@@ -4888,7 +4890,8 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.False(t, checkinInfo.MigrationInProgress)
 
 		// simulate MDM unenroll
-		require.NoError(t, ds.MDMTurnOff(ctx, depUUID))
+		_, _, err = ds.MDMTurnOff(ctx, depUUID)
+		require.NoError(t, err)
 
 		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
@@ -5062,7 +5065,8 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.False(t, checkinInfo.MigrationInProgress)
 
 		// simulate MDM unenroll
-		require.NoError(t, ds.MDMTurnOff(ctx, depUUID))
+		_, _, err = ds.MDMTurnOff(ctx, depUUID)
+		require.NoError(t, err)
 
 		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
@@ -5477,8 +5481,8 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
-	// execute CleanMacOSMDMLock to simulate successful unlock
-	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
+	// execute CleanAppleMDMLock to simulate successful unlock
+	err = ds.CleanAppleMDMLock(ctx, host.UUID)
 	require.NoError(t, err)
 
 	// it is back to unlocked state
@@ -5486,6 +5490,162 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, true, false, false, false, false, false)
 	require.Empty(t, status.UnlockPIN)
+
+	// record a request to wipe the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EraseDevice"
+	err = appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is now pending wipe
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, true)
+
+	// record a command result failure to simulate failed wipe (back to unlocked)
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Error",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, cmd.Command.RequestType, false)
+	require.NoError(t, err)
+
+	// it is back to unlocked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
+
+	// record a new request to wipe the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EraseDevice"
+	err = appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is back to pending wipe
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, true)
+
+	// record a command result success to simulate wipe
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, cmd.Command.RequestType, true)
+	require.NoError(t, err)
+
+	// it is wiped
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, false, true, false, false, false)
+}
+
+func testLockUnlockWipeIphone(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "ios",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	status, err := ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+
+	// default state
+	checkLockWipeState(t, status, true, false, false, false, false, false)
+
+	appleStore, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	// record a request to enable lost mode on the host
+	cmd := &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EnableLostMode"
+	err = appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "")
+	require.NoError(t, err)
+
+	// it is now pending lock
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, true, false)
+
+	// record a command result to simulate locked state
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "EnableLostMode", true)
+	require.NoError(t, err)
+
+	// it is now locked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	// record a request to disable lost mode on the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "DisableLostMode"
+	err = appleStore.EnqueueDeviceUnlockCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is now pending unlock
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, true, false, false)
+
+	// record a command result to simulate unlocked state
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "DisableLostMode", true)
+	require.NoError(t, err)
+
+	// it is now unlocked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
 
 	// record a request to wipe the host
 	cmd = &mdm.Command{
@@ -6704,6 +6864,15 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
 	require.Len(t, devices[0].CommandsAlreadySent, 1)
 	assert.Equal(t, fleet.RefetchAppsCommandUUIDPrefix, devices[0].CommandsAlreadySent[0])
+
+	// set iOS device to not be enabled in fleet MDM. No devices should be returned.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iOS0.UUID)
+		return err
+	})
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Empty(t, devices)
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -7980,7 +8149,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Host and profile are not linked
-			profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			assert.Nil(t, profile)
 
@@ -8001,7 +8170,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Host and profile do not have certificate metadata
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			assert.Nil(t, profile)
 
@@ -8018,7 +8187,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Check that the managed certificate was inserted correctly
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			require.NotNil(t, profile)
 			assert.Equal(t, host.UUID, profile.HostUUID)
@@ -8033,7 +8202,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			// Renew should not do anything yet
 			err = ds.RenewMDMManagedCertificates(ctx)
 			require.NoError(t, err)
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			require.NotNil(t, profile.Status)
 			assert.Equal(t, fleet.MDMDeliveryPending, *profile.Status)
@@ -8041,7 +8210,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			// Cleanup should do nothing
 			err = ds.CleanUpMDMManagedCertificates(ctx)
 			require.NoError(t, err)
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			require.NotNil(t, profile)
 
@@ -8075,7 +8244,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				})
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8093,7 +8262,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should not change the MDM delivery status
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8101,7 +8270,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
@@ -8134,7 +8303,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				})
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8152,7 +8321,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should not change the MDM delivery status
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8160,7 +8329,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
@@ -8194,7 +8363,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				})
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8212,14 +8381,14 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.Nil(t, profile.Status)
 
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
@@ -8256,7 +8425,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8274,61 +8443,19 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.Nil(t, profile.Status)
 
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
 		})
 	}
-}
-
-func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("host0-osquery-id"),
-		NodeKey:         ptr.String("host0-node-key"),
-		UUID:            "host0-test-mdm-profiles",
-		Hostname:        "hostname0",
-	})
-	require.NoError(t, err)
-
-	badProfileUUID := uuid.NewString()
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid) VALUES (?, ?)
-		`, host.UUID, badProfileUUID)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	var uid string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
-			badProfileUUID)
-	})
-	require.Equal(t, badProfileUUID, uid)
-
-	// Cleanup should delete the above orphaned record
-	err = ds.CleanUpMDMManagedCertificates(ctx)
-	require.NoError(t, err)
-	err = ExecAdhocSQLWithError(ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
-			badProfileUUID)
-	})
-	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
@@ -8347,7 +8474,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Host and profile are not linked
-	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	assert.Nil(t, profile)
 
@@ -8368,7 +8495,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Host and profile do not have certificate metadata
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	assert.Nil(t, profile)
 
@@ -8390,7 +8517,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Check that the managed certificate was inserted correctly
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, host.UUID, profile.HostUUID)
@@ -8406,7 +8533,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	// Renew should not do anything yet so the MDM delivery status should stay "verified"
 	err = ds.RenewMDMManagedCertificates(ctx)
 	require.NoError(t, err)
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile.Status)
 	assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8439,7 +8566,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		})
 
 		// Verify the policy is not currently marked for resend and that the upsert executed correctly
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile.Status)
 		assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8457,14 +8584,14 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 		err = ds.RenewMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.Nil(t, profile.Status)
 
 		// Cleanup should do nothing
 		err = ds.CleanUpMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile)
 	})
@@ -8501,7 +8628,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Verify the policy is not currently marked for resend and that the upsert executed correctly
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile.Status)
 		assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8519,14 +8646,14 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 		err = ds.RenewMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.Nil(t, profile.Status)
 
 		// Cleanup should do nothing
 		err = ds.CleanUpMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile)
 	})
@@ -9323,4 +9450,72 @@ func testUpdateNanoMDMUserEnrollmentUsername(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, nanoenroll_username, user1)
 	require.Equal(t, userUUID1, fetchedUserUUID1)
+}
+
+func testGetLatestAppleMDMCommandOfType(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Fails if host does not have a record
+	_, err := ds.GetLatestAppleMDMCommandOfType(ctx, "non-existing-uuid", "DeviceLock")
+	require.Error(t, err)
+	require.True(t, errors.Is(err, sql.ErrNoRows))
+
+	// Nano enroll a single device
+	realHostUUID := uuid.NewString()
+	host := &fleet.Host{
+		UUID:           realHostUUID,
+		HardwareSerial: "serial",
+		Platform:       "darwin",
+		TeamID:         nil,
+	}
+	nanoEnroll(t, ds, host, false)
+
+	// Insert one record
+	deviceLockCommandUUID := uuid.NewString()
+	requestType := "DeviceLock"
+	insertIntoNanoViewQueue(t, ds, host.UUID, deviceLockCommandUUID, requestType)
+
+	// Fails if host does exist but not request type
+	_, err = ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, "EnableLostMode")
+	require.Error(t, err)
+	require.True(t, errors.Is(err, sql.ErrNoRows))
+
+	// Succeeds if host and request type exist
+	cmd, err := ds.GetLatestAppleMDMCommandOfType(ctx, host.UUID, requestType)
+	require.NoError(t, err)
+	require.Equal(t, deviceLockCommandUUID, cmd.CommandUUID)
+	require.Equal(t, requestType, cmd.RequestType)
+}
+
+// insertIntoNanoViewQueue is a helper function that populates the entries that nano_view_queue is made up of.
+func insertIntoNanoViewQueue(t *testing.T, ds *Datastore, hostUUID, commandUUID, requestType string) {
+	ctx := t.Context()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Insert into nano_commands
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES (?, ?, '<?xml', 'None')`, commandUUID, requestType)
+		require.NoError(t, err)
+
+		// Insert into nano_enrollment_queue
+		_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority) VALUES (?, ?, 1, 0)`, hostUUID, commandUUID)
+		require.NoError(t, err)
+
+		// Insert into nano_command_results
+		_, err = q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result, not_now_tally) VALUES (?, ?, 'Acknowledged', '<?xml', 0)`, hostUUID, commandUUID)
+		return err
+	})
+}
+
+func testSetLockCommandForLostModeCheckin(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostID := uint(1)
+	commandUUID := uuid.NewString()
+
+	// Insert successfully
+	err := ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
+	require.NoError(t, err)
+
+	// Fails if trying to insert on existing row
+	err = ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
+	require.Error(t, err)
 }

@@ -156,6 +156,19 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
+	var stickyEnrollment *string
+	if svc.keyValueStore != nil {
+		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
+		// this prevents enrollment-based team changes for a time window to avoid race conditions
+		// with MDM profile delivery.
+		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hardwareUUID)
+		if err != nil {
+			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
+			// enrollment proceeds without sticky behavior rather than blocking.
+			level.Error(svc.logger).Log("msg", "failed to get sticky enrollment", "err", err, "host_uuid", hardwareUUID)
+		}
+	}
+
 	host, err := svc.ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOsqueryHostID(hostIdentifier),
@@ -165,6 +178,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
+		fleet.WithEnrollOsqueryIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
@@ -1387,6 +1401,9 @@ func preProcessSoftwareResults(
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
 	preProcessSoftwareExtraResults(fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
+	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
+	preProcessSoftwareExtraResults(jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
 		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
@@ -2422,7 +2439,7 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 	}
 
 	// Host belongs to a team, thus we load the team configuration.
-	team, err := svc.ds.Team(ctx, *hostTeamID)
+	team, err := svc.ds.TeamWithoutExtras(ctx, *hostTeamID)
 	if err != nil {
 		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
 	}

@@ -23,16 +23,19 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		teamFilter                            string // used to filter software titles host counts by team
 		softwareInstallerGlobalOrTeamIDFilter string
 		vppAppsTeamsGlobalOrTeamIDFilter      string
+		inHouseAppsTeamsGlobalOrTeamIDFilter  string
 	)
 
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
+		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
 		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
 		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
+		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 	}
 
 	// Select software title but filter out if the software has zero host counts
@@ -42,28 +45,32 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
-	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
+	st.application_id,
+	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
 	COUNT(vat.adam_id) AS vpp_apps_count,
+	COUNT(iha.id) AS in_house_apps_count,
 	vap.icon_url AS icon_url
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
+LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
 WHERE st.id = ? AND
-	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
+	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
+	hosts_count,
 	vap.icon_url
-	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
+	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter,
 	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
@@ -90,6 +97,13 @@ GROUP BY
 		if icon != nil {
 			title.IconUrl = ptr.String(icon.IconUrl())
 		}
+
+		displayName, err := ds.getSoftwareTitleDisplayName(ctx, *teamID, id)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title display name")
+		}
+
+		title.DisplayName = displayName
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
@@ -135,6 +149,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building software titles select statement")
 	}
+
 	// build the count statement before adding the pagination constraints to `getTitlesStmt`
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
@@ -154,6 +169,10 @@ func (ds *Datastore) ListSoftwareTitles(
 		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
 		FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
+		InHouseAppName            *string `db:"in_house_app_name"`
+		InHouseAppVersion         *string `db:"in_house_app_version"`
+		InHouseAppPlatform        *string `db:"in_house_app_platform"`
+		InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -201,6 +220,31 @@ func (ds *Datastore) ListSoftwareTitles(
 				InstallDuringSetup:   title.PackageInstallDuringSetup,
 				FleetMaintainedAppID: title.FleetMaintainedAppID,
 			}
+		}
+
+		// promote in-house app properties to their proper destination fields
+		if title.InHouseAppName != nil {
+			var version string
+			if title.InHouseAppVersion != nil {
+				version = *title.InHouseAppVersion
+			}
+			var platform string
+			if title.InHouseAppPlatform != nil {
+				platform = *title.InHouseAppPlatform
+			}
+
+			// as per the spec, in-house apps are returned as software packages
+			// https://github.com/fleetdm/fleet/pull/33950/files
+			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+				Name:        *title.InHouseAppName,
+				Version:     version,
+				Platform:    platform,
+				SelfService: ptr.Bool(false),
+			}
+
+			// this is set directly for software packages, but if this is an in-house
+			// app we need to set it here
+			title.HashSHA256 = title.InHouseAppStorageID
 		}
 
 		// promote the VPP app id and version to the proper destination fields
@@ -262,9 +306,20 @@ func (ds *Datastore) ListSoftwareTitles(
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, *opt.TeamID, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
 		for _, icon := range icons {
 			if i, ok := titleIndex[icon.SoftwareTitleID]; ok {
 				softwareList[i].IconUrl = ptr.String(icon.IconUrl())
+			}
+		}
+
+		for titleID, i := range titleIndex {
+			if displayName, ok := displayNames[titleID]; ok {
+				softwareList[i].DisplayName = displayName
 			}
 		}
 	}
@@ -316,7 +371,6 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	titles := make([]fleet.SoftwareTitleListResult, 0, len(softwareList))
 	for _, st := range softwareList {
-		st := st
 		titles = append(titles, st.SoftwareTitleListResult)
 	}
 
@@ -348,8 +402,8 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	if k != "source" {
 		secondaryOrderBy += ", source ASC"
 	}
-	if k != "browser" {
-		secondaryOrderBy += ", browser ASC"
+	if k != "extension_for" {
+		secondaryOrderBy += ", extension_for ASC"
 	}
 
 	return strings.Replace(stmt, targetSubstr, targetSubstr+secondaryOrderBy, 1)
@@ -361,8 +415,9 @@ SELECT
 	st.id
 	,st.name
 	,st.source
-	,st.browser
+	,st.extension_for
 	,st.bundle_identifier
+	,st.application_id
 	,MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count
 	,MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at
 	{{if hasTeamID .}}
@@ -380,16 +435,20 @@ SELECT
 		,vap.latest_version as vpp_app_version
 		,vap.platform as vpp_app_platform
 		,vap.icon_url as vpp_app_icon_url
+		,iha.filename as in_house_app_name
+		,iha.version as in_house_app_version
+		,iha.platform as in_house_app_platform
+		,iha.storage_id as in_house_app_storage_id
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		{{$installerJoin := printf "%s JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %d" (yesNo .PackagesOnly "INNER" "LEFT") (teamID .)}}
-		{{$installerJoin}}
+		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
+		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
-		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND 
+		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
 	{{end}}
-	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND 
+	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
 {{with $softwareJoin := " "}}
 	{{if or $.ListOptions.MatchQuery $.VulnerableOnly}}
@@ -414,19 +473,22 @@ FROM software_titles st
 	{{end}}
 	{{$softwareJoin}}
 {{end}}
-WHERE 
+WHERE
 	{{with $additionalWhere := "TRUE"}}
+		{{if and (hasTeamID $) $.PackagesOnly}}
+			{{$additionalWhere = "(si.id IS NOT NULL OR iha.id IS NOT NULL)"}}
+		{{end}}
 		{{if $.ListOptions.MatchQuery}}
 			{{$additionalWhere = "(st.name LIKE ? OR scve.cve LIKE ?)"}}
 		{{end}}
 		{{if and (hasTeamID $) $.Platform}}
-		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s))" (placeholders $.Platform)}}
+		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
 		  {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
 		{{end}}
 		{{$additionalWhere}}
 	{{end}}
-	-- If teamID is set, defaults to "a software installer or VPP app exists", and see next condition.
-	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)" "FALSE"}}
+	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
+	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL OR iha.id IS NOT NULL)" "FALSE"}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
@@ -436,7 +498,7 @@ WHERE
 		{{end}}
 		AND ({{$defFilter}})
 	{{end}}
-GROUP BY 
+GROUP BY
 	st.id
 	{{if hasTeamID .}}
 		,package_self_service
@@ -453,6 +515,10 @@ GROUP BY
 		,vpp_app_platform
 		,vpp_app_icon_url
 		,vpp_install_during_setup
+		,in_house_app_name
+		,in_house_app_version
+		,in_house_app_platform
+		,in_house_app_storage_id
 	{{end}}
 `
 	var args []any
@@ -480,6 +546,10 @@ GROUP BY
 			args = append(args, platform)
 		}
 		// for VPP apps; could micro-optimize later by dropping non-Apple platforms
+		for _, platform := range platforms {
+			args = append(args, platform)
+		}
+		// for in-house apps; could micro-optimize later by dropping non-Apple platforms
 		for _, platform := range platforms {
 			args = append(args, platform)
 		}

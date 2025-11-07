@@ -1,14 +1,12 @@
 import React, { useRef } from "react";
-import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import { isAndroid } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { COLORS } from "styles/var/colors";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -33,7 +31,6 @@ const RefetchButton = ({
   onRefetchHost,
 }: IRefetchButtonProps) => {
   const classNames = classnames({
-    tooltip: isDisabled,
     "refetch-spinner": isFetching,
     "refetch-btn": !isFetching,
   });
@@ -42,41 +39,27 @@ const RefetchButton = ({
     ? "Fetching fresh vitals...this may take a moment"
     : "Refetch";
 
-  // add additonal props when we need to display a tooltip for the button
-  const conditionalProps: { "data-tip"?: boolean; "data-for"?: string } = {};
-
-  if (tooltip) {
-    conditionalProps["data-tip"] = true;
-    conditionalProps["data-for"] = "refetch-tooltip";
-  }
-
-  const renderTooltip = () => {
-    return (
-      <ReactTooltip
-        place="top"
-        effect="solid"
-        id="refetch-tooltip"
-        backgroundColor={COLORS["tooltip-bg"]}
-      >
-        <span className={`${baseClass}__tooltip-text`}>{tooltip}</span>
-      </ReactTooltip>
-    );
-  };
-
   return (
     <>
-      <div className={`${baseClass}__refetch`} {...conditionalProps}>
-        <Button
-          className={classNames}
-          disabled={isDisabled || isFetching}
-          onClick={onRefetchHost}
-          variant="inverse"
-        >
-          <Icon name="refresh" color="ui-fleet-black-75" size="small" />
-          {buttonText}
-        </Button>
-        {tooltip && renderTooltip()}
-      </div>
+      <TooltipWrapper
+        underline={false}
+        disableTooltip={!tooltip}
+        tipContent={tooltip}
+        position="top"
+        showArrow
+      >
+        <div className={`${baseClass}__refetch`}>
+          <Button
+            className={classNames}
+            disabled={isDisabled || isFetching}
+            onClick={onRefetchHost}
+            variant="inverse"
+          >
+            <Icon name="refresh" color="ui-fleet-black-75" size="small" />
+            {buttonText}
+          </Button>
+        </div>
+      </TooltipWrapper>
     </>
   );
 };
@@ -99,16 +82,14 @@ const HostHeader = ({
   renderActionsDropdown,
   deviceUser,
   hostMdmDeviceStatus,
-}: IHostSummaryProps): JSX.Element => {
+}: IHostSummaryProps) => {
   const { platform } = summaryData;
 
-  const isAndroidHost = isAndroid(platform);
-  const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
   const hostDisplayName = useRef<HTMLHeadingElement>(null);
   const isTruncated = useCheckTruncatedElement(hostDisplayName);
 
   const renderRefetch = () => {
-    if (isAndroidHost) {
+    if (isAndroid(platform)) {
       return null;
     }
 
@@ -116,8 +97,8 @@ const HostHeader = ({
     let isDisabled = false;
     let tooltip;
 
-    // we don't have a concept of "online" for iPads and iPhones, so always enable refetch
-    if (!isIosOrIpadosHost) {
+    // we don't have a concept of "online" for iPads and iPhones
+    if (!isIPadOrIPhone(platform)) {
       // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
       // this prop. When this is the case or when it is `unlocked`, we only take
       // into account the host being online or offline for correctly render the
@@ -131,9 +112,21 @@ const HostHeader = ({
         tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
       } else {
         isDisabled = true;
-        tooltip = !isOnline
-          ? REFETCH_TOOLTIP_MESSAGES.offline
-          : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+        tooltip = REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+      }
+    } else {
+      // ios and ipad devices refresh buttons disable state is determined only by the
+      // host mdm device status.
+      // eslint-disable-next-line
+      if (
+        hostMdmDeviceStatus === undefined ||
+        hostMdmDeviceStatus === "unlocked"
+      ) {
+        isDisabled = false;
+        tooltip = null;
+      } else {
+        isDisabled = true;
+        tooltip = REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
       }
     }
 
@@ -167,19 +160,14 @@ const HostHeader = ({
 
     return (
       <>
-        <span className={classNames} data-tip data-for="tag-tooltip">
-          {tag.title}
-        </span>
-        <ReactTooltip
-          place="top"
-          effect="solid"
-          id="tag-tooltip"
-          backgroundColor={COLORS["tooltip-bg"]}
+        <TooltipWrapper
+          tipContent={tag.generateTooltip(platform)}
+          position="top"
+          underline={false}
+          showArrow
         >
-          <span className={`${baseClass}__tooltip-text`}>
-            {tag.generateTooltip(platform)}
-          </span>
-        </ReactTooltip>
+          <span className={classNames}>{tag.title}</span>
+        </TooltipWrapper>
       </>
     );
   };

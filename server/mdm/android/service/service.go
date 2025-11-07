@@ -41,6 +41,7 @@ type Service struct {
 	logger           kitlog.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
+	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
 	fleetSvc         fleet.Service
 	serverPrivateKey string
@@ -58,9 +59,10 @@ func NewService(
 	fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
+	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, fleetDS)
 }
 
 func NewServiceWithClient(
@@ -69,6 +71,7 @@ func NewServiceWithClient(
 	client androidmgmt.Client,
 	fleetSvc fleet.Service,
 	serverPrivateKey string,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -83,6 +86,7 @@ func NewServiceWithClient(
 		fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
+		fleetDS:           fleetDS,
 	}, nil
 }
 
@@ -326,12 +330,8 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			SystemPropertiesEnabled:      true,
 			SoftwareInfoEnabled:          true, // Android OS version, etc.
 			CommonCriteriaModeEnabled:    true,
-			// Application inventory will likely be a Premium feature.
 			// applicationReports take a lot of space in device status reports. They are not free -- our current cost is $40 per TiB (2025-02-20).
-			// We should disable them for free accounts. To enable them for a server transitioning from Free to Premium, we will need to patch the existing policies.
-			// For server transitioning from Premium to Free, we will need to patch the existing policies to disable software inventory, which could also be done
-			// by the fleetdm.com androidAPIClient or manually. The androidAPIClient could also enforce this report setting.
-			ApplicationReportsEnabled:    false,
+			ApplicationReportsEnabled:    true,
 			ApplicationReportingSettings: nil,
 		},
 	})
@@ -845,8 +845,48 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		HostSerial:       h.HardwareSerial,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
+		Platform:         "android",
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
+	}
+	return nil
+}
+
+func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Then Android MDM isn't setup yet, so no-op
+			level.Info(svc.logger).Log("msg", "skipping android default policy migration, Android MDM is not turned on")
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	policyName := fmt.Sprintf("%s/policies/%d", enterprise.Name(), defaultAndroidPolicyID)
+	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
+		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
+			DeviceSettingsEnabled:        true,
+			MemoryInfoEnabled:            true,
+			NetworkInfoEnabled:           true,
+			DisplayInfoEnabled:           true,
+			PowerManagementEventsEnabled: true,
+			HardwareStatusEnabled:        true,
+			SystemPropertiesEnabled:      true,
+			SoftwareInfoEnabled:          true, // Android OS version, etc.
+			CommonCriteriaModeEnabled:    true,
+			ApplicationReportsEnabled:    true,
+			ApplicationReportingSettings: nil,
+		},
+	})
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
+		return ctxerr.Wrapf(ctx, err, "enabling app reports on %d default policy", defaultAndroidPolicyID)
 	}
 	return nil
 }
