@@ -167,7 +167,9 @@ func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string
 
 func policyFieldMask() string {
 	getJSONFieldName := func(t string) string {
-		return strings.TrimSuffix(t, ",omitempty")
+		t = strings.TrimSuffix(t, ",omitempty")
+		return strings.TrimSuffix(t, ",omitempty,string")
+
 	}
 	var p androidmanagement.Policy
 	t := reflect.TypeOf(p)
@@ -178,7 +180,7 @@ func policyFieldMask() string {
 		// ignore applications because we manage that directly
 		if n := getJSONFieldName(jsonTag); ok &&
 			n != "applications" &&
-			n != "-" {
+			n != "-" && n != "string" && n != "omitempty" {
 			mask = append(mask, n)
 		}
 	}
@@ -355,13 +357,15 @@ func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseNa
 	return app, nil
 }
 
-func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	var changes []*androidmanagement.ApplicationPolicyChange
+	for _, p := range appPolicies {
+		changes = append(changes, &androidmanagement.ApplicationPolicyChange{
+			Application: p,
+		})
+	}
 	req := androidmanagement.ModifyPolicyApplicationsRequest{
-		Changes: []*androidmanagement.ApplicationPolicyChange{
-			{
-				Application: appPolicy,
-			},
-		},
+		Changes: changes,
 	}
 	ret, err := g.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
 	switch {

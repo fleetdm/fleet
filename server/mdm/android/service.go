@@ -22,7 +22,7 @@ type Service interface {
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
-	AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string, hostUUIDs map[string]struct{}) error
+	AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error
 	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
 }
 

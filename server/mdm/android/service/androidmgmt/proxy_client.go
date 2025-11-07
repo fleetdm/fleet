@@ -156,7 +156,9 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 }
 
 func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
+	mask := policyFieldMask()
+	fmt.Printf("mask: %v\n", mask)
+	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(mask)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ret, err := call.Do()
 	switch {
@@ -308,21 +310,25 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 
 }
 
-func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
 
-	call := p.mgmt.Enterprises.List().Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
-	req := androidmanagement.ModifyPolicyApplicationsRequest{
-		Changes: []*androidmanagement.ApplicationPolicyChange{
-			{
-				Application: appPolicy,
-			},
-		},
+	var changes []*androidmanagement.ApplicationPolicyChange
+	for _, p := range appPolicies {
+		changes = append(changes, &androidmanagement.ApplicationPolicyChange{
+			Application: p,
+		})
 	}
-	ret, err := p.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: changes,
+	}
+
+	call := p.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		p.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)

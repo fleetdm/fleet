@@ -483,6 +483,16 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		}
 	}
 
+	// enterprise, err := svc.ds.GetEnterprise(ctx)
+	// if err != nil {
+	// 	return ctxerr.Wrap(ctx, err, "get android enterprise")
+	// }
+
+	// err = worker.QueueMakeAndroidAppsAvailableForHostJob(ctx, svc.fleetDS, svc.logger, device.HardwareInfo.EnterpriseSpecificId, newHost.Host.ID, enterprise.Name())
+	// if err != nil {
+	// 	return ctxerr.Wrap(ctx, err, "enqueuing make android apps available for host job")
+	// }
+
 	return nil
 }
 

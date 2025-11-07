@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Modify android policies',
+  friendlyName: 'Modify android enterprise policy applications',
 
 
-  description: 'Modifies a policy of an Android enterprise',
+  description: 'Modifies applications in an Android enterprise policy',
 
 
   inputs: {
@@ -20,7 +20,7 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The policy of an Android enterprise was successfully updated.' },
+    success: { description: 'The policy applications of an Android enterprise was successfully updated.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
@@ -60,9 +60,9 @@ module.exports = {
       throw 'notFound';
     }
 
-    // Update the policy for this Android enterprise.
+    // Update the policy applications for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
-    let modifyPoliciesResponse = await sails.helpers.flow.build(async () => {
+    let modifyApplicationPolicyResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
       let androidmanagement = google.androidmanagement('v1');
       let googleAuth = new google.auth.GoogleAuth({
@@ -75,20 +75,19 @@ module.exports = {
       // Acquire the google auth client, and bind it to all future calls
       let authClient = await googleAuth.getClient();
       google.options({ auth: authClient });
-      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
-      let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
+
+      let patchPoliciesResponse = await androidmanagement.enterprises.policies.modifyPolicyApplications({
         name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
         requestBody: this.req.body,
-        updateMask: this.req.param('updateMask') // Pass the update mask to avoid overwriting applications
       });
       return patchPoliciesResponse.data;
     }).intercept((err) => {
-      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      return new Error(`When attempting to update applications for a policy of Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 
 
     // Return the modified policy back to the Fleet server.
-    return modifyPoliciesResponse;
+    return modifyApplicationPolicyResponse;
 
   }
 

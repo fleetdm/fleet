@@ -871,23 +871,27 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }
 
-func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName, applicationID string, hostUUIDs map[string]struct{}) error {
+func (svc *Service) AddAppToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string) error {
 
-	for uuid := range hostUUIDs {
-		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
-
-		appPolicy := &androidmanagement.ApplicationPolicy{
-			PackageName: applicationID,
+	var appPolicies []*androidmanagement.ApplicationPolicy
+	for _, a := range applicationIDs {
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
+			PackageName: a,
 			InstallType: "AVAILABLE",
-		}
+		})
+	}
 
-		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
+	var errs []error
+	for uuid, policyID := range hostUUIDs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
+
+		_, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicies)
 		if err != nil {
-			return err
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify policy applications for host %s", uuid))
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {

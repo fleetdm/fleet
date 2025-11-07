@@ -18,7 +18,8 @@ const AppleSoftwareJobName = "apple_software"
 type AppleSoftwareTask string
 
 const VerifyVPPTask AppleSoftwareTask = "verify_vpp_installs"
-const MakeAndroidAppsAvailableTask AppleSoftwareTask = "make_android_apps_available"
+const MakeAndroidAppAvailableTask AppleSoftwareTask = "make_android_apps_available"
+const MakeAndroidAppsAvailableForHostTask AppleSoftwareTask = "make_android_app_available_for_host"
 
 type AppleSoftware struct {
 	Datastore     fleet.Datastore
@@ -38,6 +39,7 @@ type appleSoftwareArgs struct {
 	ApplicationID           string            `json:"application_id"`
 	AppTeamID               uint              `json:"app_team_id"`
 	EnterpriseName          string            `json:"enterprise_name"`
+	HostID                  uint              `json:"host_id"`
 }
 
 func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -51,8 +53,21 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 		err := v.verifyVPPInstalls(ctx, args.HostUUID, args.VerificationCommandUUID)
 		return ctxerr.Wrap(ctx, err, "running migrate VPP token task")
 
-	case MakeAndroidAppsAvailableTask:
-		return ctxerr.Wrap(ctx, v.makeAndroidAppsAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName))
+	case MakeAndroidAppAvailableTask:
+		return ctxerr.Wrapf(
+			ctx,
+			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName),
+			"running %s task",
+			MakeAndroidAppAvailableTask,
+		)
+
+	case MakeAndroidAppsAvailableForHostTask:
+		return ctxerr.Wrapf(
+			ctx,
+			v.makeAndroidAppsAvailableForHost(ctx, args.HostUUID, args.HostID, args.EnterpriseName),
+			"running %s task",
+			MakeAndroidAppsAvailableForHostTask,
+		)
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
@@ -96,14 +111,14 @@ func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, log
 	return nil
 }
 
-func (v *AppleSoftware) makeAndroidAppsAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string) error {
+func (v *AppleSoftware) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string) error {
 	hosts, err := v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 	}
 
 	// Update Android MDM policy to include the app in self service
-	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, applicationID, hosts)
+	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hosts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
@@ -113,7 +128,7 @@ func (v *AppleSoftware) makeAndroidAppsAvailable(ctx context.Context, applicatio
 
 func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string) error {
 	args := &appleSoftwareArgs{
-		Task:           MakeAndroidAppsAvailableTask,
+		Task:           MakeAndroidAppAvailableTask,
 		ApplicationID:  applicationID,
 		AppTeamID:      appTeamID,
 		EnterpriseName: enterpriseName,
@@ -124,6 +139,41 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", appleMDMJobName, "task", MakeAndroidAppsAvailableTask)
+	level.Debug(logger).Log("job_id", job.ID, "job_name", appleMDMJobName, "task", MakeAndroidAppAvailableTask)
+	return nil
+}
+
+func (v *AppleSoftware) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName string) error {
+	appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
+	}
+
+	if len(appIDs) == 0 {
+		return nil
+	}
+
+	err = v.AndroidModule.AddAppToAndroidPolicy(ctx, enterpriseName, appIDs, map[string]string{hostUUID: hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+	}
+
+	return nil
+}
+
+func QueueMakeAndroidAppsAvailableForHostJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID string, hostID uint, enterpriseName string) error {
+	args := &appleSoftwareArgs{
+		Task:           MakeAndroidAppsAvailableForHostTask,
+		HostUUID:       hostUUID,
+		HostID:         hostID,
+		EnterpriseName: enterpriseName,
+	}
+
+	job, err := QueueJob(ctx, ds, AppleSoftwareJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	level.Debug(logger).Log("job_id", job.ID, "job_name", appleMDMJobName, "task", MakeAndroidAppsAvailableForHostTask)
 	return nil
 }

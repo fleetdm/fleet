@@ -35,7 +35,7 @@ type SetAuthenticationSecretFunc func(secret string) error
 
 type EnterprisesApplicationsFunc func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error)
 
-type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
+type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
 
 type Client struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
@@ -154,9 +154,9 @@ func (p *Client) EnterprisesApplications(ctx context.Context, enterpriseName str
 	return p.EnterprisesApplicationsFunc(ctx, enterpriseName, packageName)
 }
 
-func (p *Client) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+func (p *Client) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 	p.mu.Lock()
 	p.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterprisesPoliciesModifyPolicyApplicationsFunc(ctx, policyName, appPolicy)
+	return p.EnterprisesPoliciesModifyPolicyApplicationsFunc(ctx, policyName, appPolicies)
 }
