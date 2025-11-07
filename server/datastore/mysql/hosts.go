@@ -2696,6 +2696,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
+	  h.last_restarted_at,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -5188,9 +5189,16 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			public_ip = ?,
 			refetch_requested = ?,
 			orbit_node_key = ?,
-			refetch_critical_queries_until = ?
+			refetch_critical_queries_until = ?,
+			last_restarted_at = COALESCE(?, last_restarted_at)
 		WHERE id = ?
 	`
+
+	lastRestartedAt := &host.LastRestartedAt
+	if host.LastRestartedAt.IsZero() {
+		lastRestartedAt = nil
+	}
+
 	return ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(
@@ -5229,6 +5237,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.RefetchRequested,
 				host.OrbitNodeKey,
 				host.RefetchCriticalQueriesUntil,
+				lastRestartedAt,
 				host.ID,
 			)
 			if err != nil {
