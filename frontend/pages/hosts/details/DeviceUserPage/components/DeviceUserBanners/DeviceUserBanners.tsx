@@ -12,6 +12,7 @@ const baseClass = "device-user-banners";
 interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
+  mdmManualEnrolmentUrl?: string;
   onClickCreatePIN: () => void;
   onClickTurnOnMdm: () => void;
   onTriggerEscrowLinuxKey: () => void;
@@ -25,6 +26,7 @@ const DeviceUserBanners = ({
   connectedToFleetMdm,
   macDiskEncryptionStatus,
   diskEncryptionActionRequired,
+  mdmManualEnrolmentUrl,
   onClickCreatePIN,
   onClickTurnOnMdm,
   diskEncryptionOSSetting,
@@ -45,7 +47,14 @@ const DeviceUserBanners = ({
     macDiskEncryptionStatus === "action_required" &&
     diskEncryptionActionRequired === "rotate_key";
 
-  const turnOnMdmButton = (
+  const turnOnMdmButton = mdmManualEnrolmentUrl ? (
+    <CustomLink
+      url={mdmManualEnrolmentUrl}
+      text="Turn on MDM"
+      newTab
+      variant="banner-link"
+    />
+  ) : (
     <Button variant="text-link-dark" onClick={onClickTurnOnMdm}>
       Turn on MDM
     </Button>
