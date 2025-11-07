@@ -93,7 +93,7 @@ func (ds *Datastore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber ui
 	// The hash is calculated from cert.Raw (DER-encoded bytes), not the PEM string
 	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
-		return "", fmt.Errorf("failed to decode PEM certificate")
+		return "", errors.New("failed to decode PEM certificate")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
