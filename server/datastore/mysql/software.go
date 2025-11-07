@@ -1893,6 +1893,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.source",
 			"s.extension_for",
 			"s.bundle_identifier",
+			"s.upgrade_code",
 			"s.release",
 			"s.vendor",
 			"s.arch",
