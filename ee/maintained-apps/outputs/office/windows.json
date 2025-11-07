@@ -8,7 +8,7 @@
       "installer_url": "https://officecdn.microsoft.com/pr/wsus/setup.exe",
       "install_script_ref": "484d30d7",
       "uninstall_script_ref": "2f34d024",
-      "sha256": "ed26519c1db29f1cc16eb21a1d492b8b6d241c4d86fe2de127ef6854d21cf5ae",
+      "sha256": "no_check",
       "default_categories": [
         "Productivity"
       ]
