@@ -212,6 +212,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "Spotify",
+      "slug": "spotify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.spotify.client",
+      "description": "Spotify is a music streaming app."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
