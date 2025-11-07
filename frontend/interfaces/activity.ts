@@ -65,9 +65,10 @@ export enum ActivityType {
   AddedSmallstep = "added_smallstep",
   DeletedSmallstep = "deleted_smallstep",
   EditedSmallstep = "edited_smallstep",
-  AddedCustomEST = "added_custom_est",
-  DeletedCustomEST = "deleted_custom_est",
-  EditedCustomEST = "edited_custom_est",
+  // TODO - fix these names
+  AddedCustomEST = "added_custom_est_proxy",
+  DeletedCustomEST = "deleted_custom_est_proxy",
+  EditedCustomEST = "edited_custom_est_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
