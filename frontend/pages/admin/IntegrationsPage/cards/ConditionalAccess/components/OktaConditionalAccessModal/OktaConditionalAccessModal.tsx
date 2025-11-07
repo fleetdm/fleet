@@ -15,7 +15,7 @@ import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import FileUploader from "../../../../../../../components/FileUploader";
+import FileUploader from "components/FileUploader";
 
 const baseClass = "okta-conditional-access-modal";
 
@@ -129,7 +129,18 @@ const OktaConditionalAccessModal = ({
   const onInputBlur = () => {
     setFormErrors(validate(formData));
   };
-  const onSelectFile = useCallback((files: FileList | null) => {}, []);
+
+  const onSelectFile = useCallback(
+    (files: FileList | null) => {
+      const file = files?.[0];
+      if (file) {
+        // TODO: Handle file upload - for now just storing the filename
+        setFormData({ ...formData, [OKTA_CERTIFICATE]: file.name });
+        setFormErrors({ ...formErrors, [OKTA_CERTIFICATE]: null });
+      }
+    },
+    [formData, formErrors]
+  );
 
   return (
     <Modal
@@ -150,33 +161,30 @@ const OktaConditionalAccessModal = ({
           </p>
 
           {/* IdP Signature Certificate Section */}
-          <div className={`${baseClass}__section`}>
+          <div className={`${baseClass}__certificate-section`}>
             <TooltipWrapper
               tipContent="Upload this certificate in Okta when creating the Fleet IdP."
               underline
             >
-              <div className={`${baseClass}__tooltip-label`}>
-                Identity provider (IdP) signature certificate
-              </div>
+              Identity provider (IdP) signature certificate
             </TooltipWrapper>
             <br />
-            <Button variant="inverse" className={`${baseClass}__download-btn`}>
+            <Button variant="inverse">
               <>
-                Download certificate <Icon name="download" />
+                Download certificate
+                <Icon name="download" />
               </>
             </Button>
           </div>
 
           {/* User Scope Profile */}
-          <div className={`${baseClass}__section`}>
-            <InputField
-              enableCopy
-              label="User scope profile"
-              readOnly
-              value={"TODO read-only profile goes here"}
-              type={"textarea"}
-            />
-          </div>
+          <InputField
+            enableCopy
+            label="User scope profile"
+            readOnly
+            value="TODO read-only profile goes here"
+            type="textarea"
+          />
 
           {/* Help text */}
           <p className={`${baseClass}__field-instructions`}>
@@ -214,21 +222,18 @@ const OktaConditionalAccessModal = ({
           />
 
           <FileUploader
-            graphicName={"file-pem"}
+            graphicName="file-pem"
+            title="Okta certificate"
             message={
               <>
-                <h3 className={`${baseClass}__upload-title`}>
-                  Okta certificate
-                </h3>
-                <p className={`${baseClass}__upload-description`}>
-                  Upload the certificate provided by Okta during the{" "}
-                  <strong>Set Up Authenticator</strong> workflow
-                </p>
+                Upload the certificate provided by Okta during the{" "}
+                <strong>Set Up Authenticator</strong> workflow
               </>
             }
             onFileUpload={onSelectFile}
-            buttonType={"brand-inverse-icon"}
-            buttonMessage={"Upload"}
+            buttonType="brand-inverse-icon"
+            buttonMessage="Upload"
+            accept=".pem,.crt,.cer,.cert"
           />
 
           <div className="modal-cta-wrap">

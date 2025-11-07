@@ -11,6 +11,7 @@ import configAPI from "services/entities/config";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import Icon from "components/Icon";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import Button from "components/buttons/Button";
@@ -22,7 +23,7 @@ import DataError from "components/DataError";
 import Modal from "components/Modal";
 import { IConfig } from "interfaces/config";
 
-import IntegrationCard from "./components/IntegrationCard";
+import SectionCard from "../MdmSettings/components/SectionCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
 
@@ -325,29 +326,56 @@ const ConditionalAccess = () => {
 
     return (
       <div className={`${baseClass}__cards`}>
-        <IntegrationCard
-          provider="okta"
-          title="Okta"
-          description="Connect Okta to enable conditional access."
-          isConfigured={oktaConfigured}
-          onConnect={handleOktaConnect}
-          onEdit={handleOktaConnect}
-          onDelete={handleOktaDelete}
-        />
-        <IntegrationCard
-          provider="microsoft-entra"
-          title="Microsoft Entra"
-          description={
-            showAwaitingOAuthBanner
-              ? "To complete your integration, follow the instructions in the other tab, then refresh this page to verify."
-              : "Connect Entra to enable conditional access."
+        <SectionCard
+          header={oktaConfigured ? undefined : "Okta"}
+          iconName={oktaConfigured ? "success" : undefined}
+          cta={
+            oktaConfigured ? (
+              <Button variant="text-icon" onClick={handleOktaDelete}>
+                Delete
+                <Icon name="trash" color="ui-fleet-black-75" />
+              </Button>
+            ) : (
+              <Button onClick={handleOktaConnect}>Connect</Button>
+            )
           }
-          isConfigured={entraPhase === Phase.Configured}
-          isPending={showAwaitingOAuthBanner}
-          isLoading={isUpdating}
-          onConnect={handleEntraConnect}
-          onDelete={handleEntraDelete}
-        />
+        >
+          {oktaConfigured
+            ? "Okta conditional access configured"
+            : "Connect Okta to enable conditional access."}
+        </SectionCard>
+        <SectionCard
+          header={
+            entraPhase === Phase.Configured || showAwaitingOAuthBanner
+              ? undefined
+              : "Microsoft Entra"
+          }
+          iconName={
+            entraPhase === Phase.Configured
+              ? "success"
+              : showAwaitingOAuthBanner
+              ? "pending-outline"
+              : undefined
+          }
+          cta={
+            entraPhase === Phase.Configured ? (
+              <Button variant="text-icon" onClick={handleEntraDelete}>
+                Delete
+                <Icon name="trash" color="ui-fleet-black-75" />
+              </Button>
+            ) : showAwaitingOAuthBanner ? undefined : (
+              <Button onClick={handleEntraConnect} isLoading={isUpdating}>
+                Connect
+              </Button>
+            )
+          }
+        >
+          {entraPhase === Phase.Configured
+            ? "Microsoft Entra conditional access configured"
+            : showAwaitingOAuthBanner
+            ? "To complete your integration, follow the instructions in the other tab, then refresh this page to verify."
+            : "Connect Entra to enable conditional access."}
+        </SectionCard>
       </div>
     );
   };

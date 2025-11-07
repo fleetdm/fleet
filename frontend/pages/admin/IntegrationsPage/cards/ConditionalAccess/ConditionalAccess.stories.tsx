@@ -10,9 +10,10 @@ import {
 import createMockConfig from "__mocks__/configMock";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
 
 import ConditionalAccess from "./ConditionalAccess";
-import IntegrationCard from "./components/IntegrationCard";
+import SectionCard from "../MdmSettings/components/SectionCard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -103,7 +104,7 @@ export const AwaitingOAuthCompletion: Story = {
       },
     };
 
-    // Simulate the pending state by rendering IntegrationCard with isPending=true
+    // Simulate the pending state by rendering SectionCard with pending icon
     return (
       <CustomQueryClientProvider client={queryClient}>
         <AppContext.Provider value={appContextValue as any}>
@@ -117,34 +118,24 @@ export const AwaitingOAuthCompletion: Story = {
                 sign-on. Once connected, enable or disable on the Policies page.
               </p>
               <div className="conditional-access__cards">
-                <IntegrationCard
-                  provider="okta"
-                  title="Okta"
-                  description="Connect Okta to enable conditional access."
-                  isConfigured={false}
-                  onConnect={() => {
-                    // Mock function for stories
-                  }}
-                  onEdit={() => {
-                    // Mock function for stories
-                  }}
-                  onDelete={() => {
-                    // Mock function for stories
-                  }}
-                />
-                <IntegrationCard
-                  provider="microsoft-entra"
-                  title="Microsoft Entra"
-                  description="To complete your integration, follow the instructions in the other tab, then refresh this page to verify."
-                  isConfigured={false}
-                  isPending
-                  onConnect={() => {
-                    // Mock function for stories
-                  }}
-                  onDelete={() => {
-                    // Mock function for stories
-                  }}
-                />
+                <SectionCard
+                  header="Okta"
+                  cta={
+                    <Button
+                      onClick={() => {
+                        // Mock function for stories
+                      }}
+                    >
+                      Connect
+                    </Button>
+                  }
+                >
+                  Connect Okta to enable conditional access.
+                </SectionCard>
+                <SectionCard iconName="pending-outline" cta={undefined}>
+                  To complete your integration, follow the instructions in the
+                  other tab, then refresh this page to verify.
+                </SectionCard>
               </div>
             </div>
           </NotificationContext.Provider>
