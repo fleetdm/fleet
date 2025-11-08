@@ -65,6 +65,13 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Claude",
+      "slug": "claude/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anthropic.claudefordesktop",
+      "description": "Anthropic's official Claude AI desktop app."
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
