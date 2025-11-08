@@ -438,8 +438,6 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 
 ### macos_setup
 
-> As of Fleet 4.59.0, there is a known bug in which, if GitOps runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
-
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
 > **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -450,6 +448,8 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stcuk in Setup Assistant until this command is sent.
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
+
+> As of Fleet 4.59.0, there is a known bug in which, if GitOps runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
 
 #### Example
 
