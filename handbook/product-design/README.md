@@ -40,7 +40,7 @@ As soon as we've addressed the next quarter's objectives, the Head of Product De
 
 ### Triage new bugs
 
-Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#in-product-drafting).
+Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#inbox).
 
 
 ### Drafting

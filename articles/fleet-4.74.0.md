@@ -30,11 +30,13 @@ You can now install required software as part of your Linux setup process and sh
 
 Fleet now includes default launch instructions for software in the **My device > Self-service** tab. End users get simple tips on how to open installed apps (e.g., “Finder > Applications” on macOS), reducing confusion and helping them get started faster. 
 
-### AWS IAM autnetication for MySQL and Redis
+### AWS IAM authentication for MySQL and Redis
 
-Companies that self-host Fleet can now use IAM (Identity and Access Management) authentication for MySQL and Redis. This lets use short-lived credentials to algin with AWS best practices. Learn how to configure in the [Fleet server configuration reference](https://fleetdm.com/docs/configuration/fleet-server-configuration#mysql).
+Companies that self-host Fleet can now use IAM (Identity and Access Management) authentication for MySQL and Redis. This lets you use short-lived credentials to align with AWS best practices. Learn how to configure in the [Fleet server configuration reference](https://fleetdm.com/docs/configuration/fleet-server-configuration#mysql).
 
 ## Changes
+
+This release includes breaking changes in the software YAML. For migration instructions and more information, please see [this public document](https://docs.google.com/document/d/1tcRkImYaufjSUoVYKEFukLgFUaCD64pjH7EGIMCy1cA/edit?usp=sharing).
 
 ### Security engineers
 - Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a Hydrant.

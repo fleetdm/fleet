@@ -151,16 +151,18 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 > Fleet-maintained app updates and vulnerability fixes are applied, whether or not you upgrade.
 
-### Fleet's agent
+### Fleet's agent and fleetctl CLI
 
-The following version of Fleet's agent (`fleetd`) support the latest changes to Fleet:
+The following version of Fleet's agent (fleetd) and fleetctl support the latest changes to Fleet:
 
 <UPDATE VERSIONS AND LINKS BELOW>
 1. [orbit-v1.x.x](https://github.com/fleetdm/fleet/releases/tag/orbit-v1.x.x)
-2. `fleet-desktop-v1.x.x` (included with Orbit)
-3. [fleetd-chrome-v1.x.x](https://github.com/fleetdm/fleet/releases/tag/fleetd-chrome-v1.x.x)
+2. fleet-desktop-v1.x.x (included with Orbit)
+3. osquery-x.x.x
+4. [fleetd-chrome-v1.x.x](https://github.com/fleetdm/fleet/releases/tag/fleetd-chrome-v1.x.x)
+5. fleetctl vx.x.x
 
-> While newer versions of `fleetd` still function with older versions of the Fleet server (and vice versa), Fleet does not actively test these scenarios and some newer features won't be available.
+> While newer versions of fleetd and fleetctl still function with older versions of the Fleet server (and vice versa), Fleet does not actively test these scenarios and some newer features won't be available.
 
 ### Upgrading
 

@@ -2,10 +2,13 @@ import React, { useState, useContext, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
+import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
+import classNames from "classnames";
 
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
@@ -29,6 +32,8 @@ import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
+import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
+
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -37,6 +42,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import FlashMessage from "components/FlashMessage";
 import DataError from "components/DataError";
+import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -62,7 +68,6 @@ import {
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import BitLockerPinModal from "./BitLockerPinModal";
 import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
@@ -128,6 +133,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
+  const isMobileView = useIsMobileWidth();
 
   const { renderFlash, notification, hideFlash } = useContext(
     NotificationContext
@@ -136,6 +142,7 @@ const DeviceUserPage = ({
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
+  const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -246,7 +253,7 @@ const DeviceUserPage = ({
     isLoading: isLoadingHost,
     error: isDeviceUserError,
     refetch: refetchHostDetails,
-  } = useQuery<IDeviceUserResponse, Error>(
+  } = useQuery<IDeviceUserResponse, AxiosError>(
     ["host", deviceAuthToken],
     () =>
       deviceUserAPI.loadHostDetails({
@@ -260,6 +267,11 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       onSuccess: ({ host: responseHost }) => {
+        // If we're just showing the setup screen,
+        // we don't need to refetch or alert on offline hosts.
+        if (location.query.setup_only) {
+          return;
+        }
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
@@ -310,6 +322,9 @@ const DeviceUserPage = ({
     }
   );
 
+  const isAuthenticationError =
+    isDeviceUserError && isDeviceUserError.status === 401;
+
   const {
     host,
     license,
@@ -325,6 +340,14 @@ const DeviceUserPage = ({
     host?.platform === "windows" ||
     host?.platform === "darwin";
 
+  const isFleetMdmManualUnenrolledMac =
+    !!globalConfig?.mdm.enabled_and_configured &&
+    !!host &&
+    !host.dep_assigned_to_fleet &&
+    host.platform === "darwin" &&
+    (host.mdm.enrollment_status === "Off" ||
+      host.mdm.enrollment_status === null);
+
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 
@@ -338,7 +361,7 @@ const DeviceUserPage = ({
     isError: isErrorSetupSteps,
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
-    Error,
+    AxiosError,
     ISetupStep[] | null | undefined
   >(
     ["software-setup-statuses", deviceAuthToken],
@@ -367,6 +390,23 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    data: mdmManualEnrollUrl,
+    // isLoading, // not used; see related comment in onClickTurnOnMdm below
+    error: mdmManualEnrollUrlError,
+  } = useQuery<{ enroll_url: string }, Error, string>(
+    ["mdm_mandual_enroll_url", deviceAuthToken],
+    () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
+    {
+      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data) => data.enroll_url,
+    }
+  );
+
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
@@ -374,6 +414,22 @@ const DeviceUserPage = ({
   const toggleEnrollMdmModal = useCallback(() => {
     setShowEnrollMdmModal(!showEnrollMdmModal);
   }, [showEnrollMdmModal, setShowEnrollMdmModal]);
+
+  const onClickTurnOnMdm = useCallback(async () => {
+    if (host?.dep_assigned_to_fleet) {
+      // display the modal with auto-enroll instructions
+      setShowEnrollMdmModal(true);
+      return;
+    }
+    // if we have an enroll URL, DeviceUserBanners will display a CustomLink in place of the Button;
+    // in some unexpected cases, may not have an enroll URL at this point (e.g., there was an error
+    // fetching the URL from the API or the user clicked the link extremely quickly after page load
+    // before the URL was fetched), we fallback to showing the Button and we'll display an error if
+    // the user tries to click when we don't have an enroll URL.
+    setEnrollUrlError(
+      `Failed to get enrollment URL. ${mdmManualEnrollUrlError}`
+    );
+  }, [host?.dep_assigned_to_fleet, mdmManualEnrollUrlError]);
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -508,7 +564,7 @@ const DeviceUserPage = ({
       isLoadingDeviceCertificates ||
       isLoadingSetupSteps
     ) {
-      return <Spinner />;
+      return <Spinner {...(isMobileView && { variant: "mobile" })} />;
     }
     if (isErrorSetupSteps) {
       return <DataError description="Could not get software setup status." />;
@@ -526,9 +582,35 @@ const DeviceUserPage = ({
             false
           }
           toggleInfoModal={toggleInfoModal}
+          platform={host.platform}
         />
       );
     }
+
+    if (isMobileView) {
+      // Render the simplified mobile version
+      // Currently only available for self-service page
+      return (
+        <div className={`${baseClass} main-content`}>
+          <div className="device-user-mobile">
+            <SelfService
+              contactUrl={orgContactURL}
+              deviceToken={deviceAuthToken}
+              isSoftwareEnabled
+              pathname={location.pathname}
+              queryParams={parseSelfServiceQueryParams(location.query)}
+              router={router}
+              refetchHostDetails={refetchHostDetails}
+              isHostDetailsPolling={showRefetchSpinner}
+              hostSoftwareUpdatedAt={host.software_updated_at}
+              hostDisplayName={host?.hostname || ""}
+              isMobileView={isMobileView}
+            />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <>
         <div className={`${baseClass} main-content`}>
@@ -544,12 +626,13 @@ const DeviceUserPage = ({
             diskEncryptionActionRequired={
               host.mdm.macos_settings?.action_required ?? null
             }
-            onTurnOnMdm={toggleEnrollMdmModal}
             onClickCreatePIN={() => setShowBitLockerPINModal(true)}
+            onClickTurnOnMdm={onClickTurnOnMdm}
             onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
             diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
             diskIsEncrypted={host.disk_encryption_enabled}
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
+            mdmManualEnrolmentUrl={mdmManualEnrollUrl}
           />
           <HostHeader
             summaryData={summaryData}
@@ -678,16 +761,9 @@ const DeviceUserPage = ({
               )}
             </Tabs>
           </TabNav>
-          {showEnrollMdmModal &&
-            (host.dep_assigned_to_fleet ? (
-              <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
-            ) : (
-              <ManualEnrollMdmModal
-                host={host}
-                onCancel={toggleEnrollMdmModal}
-                token={deviceAuthToken}
-              />
-            ))}
+          {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
+            <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
+          ) : null}
           {showBitLockerPINModal && (
             <BitLockerPinModal
               onCancel={() => setShowBitLockerPINModal(false)}
@@ -743,16 +819,26 @@ const DeviceUserPage = ({
     );
   };
 
+  const coreWrapperClassnames = classNames("core-wrapper", {
+    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+  });
+
+  const siteNavContainerClassnames = classNames("site-nav-container", {
+    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+  });
+
   return (
     <div className="app-wrap">
-      <UnsupportedScreenSize />
+      {shouldShowUnsupportedScreen(location.pathname) && (
+        <UnsupportedScreenSize />
+      )}
       <FlashMessage
         fullWidth
         notification={notification}
         onRemoveFlash={hideFlash}
         pathname={location.pathname}
       />
-      <nav className="site-nav-container">
+      <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
@@ -767,12 +853,24 @@ const DeviceUserPage = ({
               </div>
             </li>
           </ul>
+          {isMobileView && (
+            <div className="site-nav-better-link">
+              <CustomLink
+                url="https://www.fleetdm.com/better"
+                text="About Fleet"
+                newTab
+              />
+            </div>
+          )}
         </div>
       </nav>
-      {isDeviceUserError ? (
-        <DeviceUserError />
+      {isDeviceUserError || enrollUrlError ? (
+        <DeviceUserError
+          isMobileView={isMobileView}
+          isAuthenticationError={!!isAuthenticationError}
+        />
       ) : (
-        <div className="core-wrapper">{renderDeviceUserPage()}</div>
+        <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
       {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
     </div>

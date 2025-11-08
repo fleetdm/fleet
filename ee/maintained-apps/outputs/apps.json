@@ -2,6 +2,13 @@
   "version": 2,
   "apps": [
     {
+      "name": "010 Editor",
+      "slug": "010-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SweetScape.010Editor",
+      "description": "A toolkit for working with text and binary data."
+    },
+    {
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
@@ -63,6 +70,13 @@
       "platform": "darwin",
       "unique_identifier": "com.openai.chat",
       "description": "OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
+    },
+    {
+      "name": "Claude",
+      "slug": "claude/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anthropic.claudefordesktop",
+      "description": "Anthropic's official Claude AI desktop app."
     },
     {
       "name": "Cloudflare WARP",
@@ -146,7 +160,14 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": ""
+      "description": "A terminal emulator alternative to Apple's Terminal app."
+    },
+    {
+      "name": "Linear",
+      "slug": "linear-linear/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linear",
+      "description": "An app to manage software development and track bugs."
     },
     {
       "name": "Microsoft Edge",

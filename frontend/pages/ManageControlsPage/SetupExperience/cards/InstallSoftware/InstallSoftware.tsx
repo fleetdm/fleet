@@ -11,7 +11,10 @@ import mdmAPI, {
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareTitle } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import {
@@ -25,8 +28,8 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import CustomLink from "components/CustomLink";
 
-import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
 import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
@@ -188,7 +191,6 @@ const InstallSoftware = ({
                 : globalConfig?.mdm?.macos_setup?.require_all_software_macos
             }
           />
-          <InstallSoftwarePreview platform={platform} />
         </SetupExperienceContentContainer>
       );
     }
@@ -198,7 +200,16 @@ const InstallSoftware = ({
 
   return (
     <section className={baseClass}>
-      <SectionHeader title="Install software" />
+      <SectionHeader
+        title="Install software"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/install-software`}
+            text="Preview end user experience"
+          />
+        }
+      />
       <TabNav secondary>
         <Tabs
           selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}

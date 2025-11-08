@@ -1,7 +1,7 @@
 /**
  * <signup-modal>
  * -----------------------------------------------------------------------------
- * A button with a built-in animated arrow
+ * A modal with a combined signup/login form
  *
  * @type {Component}
  *
@@ -25,7 +25,10 @@ parasails.registerComponent('signupModal', {
   data: function (){
     return {
       formToDisplay: 'signup',
+      // Shared by forms
       syncing: false,
+      cloudError: undefined,
+      // Signup form
       signupFormData: {},
       signupFormErrors: {},
       signupFormRules: {
@@ -34,15 +37,16 @@ parasails.registerComponent('signupModal', {
         emailAddress: {required: true, isEmail: true},
         password: {required: true},
       },
-      cloudError: undefined,
+      // Login form
       loginFormData: {},
       loginFormErrors: {},
       loginFormRules: {
         emailAddress: {required: true, isEmail: true},
         password: {required: true},
       },
-      _bsModalIsAnimatingOut: false,
 
+      // For <modal>
+      _bsModalIsAnimatingOut: false,
       originalScrollPosition: undefined,//« more on this below
     };
   },
@@ -65,12 +69,12 @@ parasails.registerComponent('signupModal', {
           <p class="mb-0">We just need a few details in order to get started.</p>
           <div purpose="form-switch" class="d-flex flex-column">
             <label purpose="form-option" class="form-control" :class="[formToDisplay === 'login' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formToDisplay" value="login">
+              <input type="radio" v-model.trim="formToDisplay" value="login" @selected="switchForm('login')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               I have an account
             </label>
             <label purpose="form-option" class="form-control" :class="[formToDisplay === 'signup' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formToDisplay" value="signup">
+              <input type="radio" v-model.trim="formToDisplay" value="signup" @selected="switchForm('signup')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               I don't have an account
             </label>
@@ -105,12 +109,10 @@ parasails.registerComponent('signupModal', {
               </div>
             </div>
             <cloud-error v-if="cloudError==='emailAlreadyInUse'">
-              <p>This email is already linked to a Fleet account.<br> Please <a @click="formToDisplay = 'login'">sign in</a> with your email and password.</p>
+              This email is already linked to a Fleet account.<br> Please <a @click="formToDisplay = 'login'">sign in</a> with your email and password.
             </cloud-error>
             <cloud-error v-if="cloudError === 'invalidEmailDomain'">
-              <p>
                 Please enter your work or school email address.
-              </p>
             </cloud-error>
             <blockquote purpose="tip" v-if="cloudError === 'invalidEmailDomain'">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
@@ -140,6 +142,7 @@ parasails.registerComponent('signupModal', {
             <div class="pb-3">
               <ajax-button tabindex="3" :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
             </div>
+            <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
           </ajax-form>
           </div>
         </div><!-- /.modal-content -->
@@ -193,6 +196,18 @@ parasails.registerComponent('signupModal', {
       this.$emit('opened');
       // $(this.$el).off('shown.bs.modal');
     });//ƒ
+  },
+  watch: {
+
+    formToDisplay: function() {
+      // Reset forms and form errors when the form is switched.
+      this.signupFormData = {};
+      this.signupFormErrors = {};
+      this.loginFormData = {};
+      this.loginFormErrors = {};
+      this.cloudError = undefined;
+    }
+
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗

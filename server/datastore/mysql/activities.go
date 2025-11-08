@@ -486,7 +486,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
 				'command_uuid', ua.execution_id,
-				'self_service', false,
+				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
@@ -1460,14 +1460,18 @@ SELECT
 	ua.user_id,
 	COALESCE(ua.payload->'$.self_service', 0),
 	siua.policy_id,
-	COALESCE(ua.payload->>'$.installer_filename', '[deleted installer]'),
-	COALESCE(ua.payload->>'$.version', 'unknown'),
-	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
+	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
+	COALESCE(si.title_id, siua.software_title_id),
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]')
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
 		ON siua.upcoming_activity_id = ua.id
+	LEFT JOIN software_installers si
+		ON si.id = siua.software_installer_id
+	LEFT JOIN software_titles st
+		ON st.id = si.title_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1526,14 +1530,18 @@ SELECT
 	ua.user_id,
 	1,  -- uninstall
 	'', -- no installer_filename for uninstalls
-	siua.software_title_id,
-	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]'),
+	COALESCE(si.title_id, siua.software_title_id),
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
 	COALESCE(ua.payload->>'$.self_service', FALSE),
 	'unknown'
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
 		ON siua.upcoming_activity_id = ua.id
+	LEFT JOIN software_installers si
+		ON si.id = siua.software_installer_id
+	LEFT JOIN software_titles st
+		ON st.id = si.title_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1730,13 +1738,14 @@ func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, 
 	const insStmt = `
 INSERT INTO
 	host_in_house_software_installs
-(host_id, in_house_app_id, command_uuid, user_id, platform)
+(host_id, in_house_app_id, command_uuid, user_id, platform, self_service)
 SELECT
 	ua.host_id,
 	ihua.in_house_app_id,
 	ua.execution_id,
 	ua.user_id,
-	iha.platform
+	iha.platform,
+	COALESCE(ua.payload->'$.self_service', 0)
 FROM
 	upcoming_activities ua
 	INNER JOIN in_house_app_upcoming_activities ihua
