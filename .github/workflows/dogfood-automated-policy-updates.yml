@@ -5,12 +5,26 @@ on:
     - cron: '0 */6 * * *'  # Run every 6 hours
   workflow_dispatch:     # Allow manual trigger
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
 jobs:
   update-policies:
+    permissions:
+      contents: write         # Required to push new branch
+      pull-requests: write    # Required to open PRs
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Harden Runner
@@ -20,26 +34,121 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
 
       - name: Set up Git
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git config --local user.email "action@github.com"
 
       - name: Run macOS version update script
+        id: update-macos
         run: |
           chmod +x ./.github/scripts/dogfood-policy-updater-latest-macos.sh
           ./.github/scripts/dogfood-policy-updater-latest-macos.sh
+          if [ $? -eq 0 ]; then
+            # Check if there are any changes
+            if git diff --quiet; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "No changes detected for macOS policy"
+            else
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "Changes detected for macOS policy"
+              git diff
+            fi
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
         env:
           DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
           DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
           DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
 
       - name: Run 1Password macOS version update script
+        id: update-1password
         run: |
           chmod +x ./.github/scripts/dogfood-policy-updater-latest-1password-macos.sh
           ./.github/scripts/dogfood-policy-updater-latest-1password-macos.sh
+          if [ $? -eq 0 ]; then
+            # Check if there are any changes
+            if git diff --quiet; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "No changes detected for 1Password policy"
+            else
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "Changes detected for 1Password policy"
+              git diff
+            fi
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
         env:
           DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
           DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
           DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
+
+      - name: Search for Existing PRs
+        if: steps.update-macos.outputs.changed == 'true' || steps.update-1password.outputs.changed == 'true'
+        id: search_pr
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const matchingPRs = pullRequests.filter(pr => 
+              (pr.title.includes('Update latest macOS versions') || 
+               pr.title.includes('Update latest macOS version') ||
+               pr.title.includes('Update 1Password macOS version')) &&
+              pr.user.login === 'github-actions[bot]'
+            );
+            return matchingPRs.map(pr => pr.number);
+
+      - name: Create Pull Request
+        if: steps.update-macos.outputs.changed == 'true' || steps.update-1password.outputs.changed == 'true'
+        id: create-pr
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e #v7.0.8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            Update macOS policy versions
+
+            Automatically updated macOS version policies for dogfood.
+          title: Update macOS policy versions
+          body: |
+            This PR automatically updates macOS version policies for dogfood.
+
+            The changes were generated automatically by the [dogfood-automated-policy-updates workflow](https://github.com/${{ github.repository }}/actions/workflows/dogfood-automated-policy-updates.yml).
+          branch: update-macos-policy-versions-$(date +%s)
+          delete-branch: true
+          assignees: allenhouchins
+
+      - name: Close Existing PRs
+        if: (steps.update-macos.outputs.changed == 'true' || steps.update-1password.outputs.changed == 'true') && steps.search_pr.outputs.result != '[]'
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
+            const newPrNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
+            for (const prNumber of prNumbers) {
+              if (prNumber.toString() !== newPrNumber) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: `Closing in favor of #${newPrNumber}.`,
+                });
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  state: 'closed',
+                });
+              }
+            }
