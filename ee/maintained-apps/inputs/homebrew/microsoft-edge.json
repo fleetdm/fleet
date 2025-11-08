@@ -4,6 +4,8 @@
   "unique_identifier": "com.microsoft.edgemac",
   "token": "microsoft-edge",
   "installer_format": "dmg",
-  "default_categories": ["Browsers"],
-  "install_script_path": "scripts/microsoft-edge-install.sh"
+  "default_categories": [
+    "Browsers"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/microsoft-edge-install.sh"
 }

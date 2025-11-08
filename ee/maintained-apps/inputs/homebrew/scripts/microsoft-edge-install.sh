@@ -62,3 +62,4 @@ if [ -d "$APPDIR/Microsoft Edge.app" ] && [ -d "$TMPDIR/Microsoft Edge.app.bkp" 
 	echo "Installation verified, backup file removed"
 fi
 
+
