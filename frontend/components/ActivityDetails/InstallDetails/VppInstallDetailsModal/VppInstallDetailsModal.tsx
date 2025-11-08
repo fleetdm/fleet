@@ -323,6 +323,11 @@ export const VppInstallDetailsModal = ({
   };
 
   const renderInstallDetailsSection = () => {
+    // Hide section if there's no details to display
+    if (!vppCommandResult?.result && !vppCommandResult?.payload) {
+      return null;
+    }
+
     return (
       <>
         <RevealButton

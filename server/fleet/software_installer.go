@@ -563,6 +563,8 @@ type UpdateSoftwareInstallerPayload struct {
 	ValidatedLabels *LabelIdentsWithScope
 	Categories      []string
 	CategoryIDs     []uint
+	// DisplayName is an end-user friendly name.
+	DisplayName string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -633,6 +635,9 @@ type HostSoftwareWithInstaller struct {
 	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
+	DisplayName       string                          `json:"display_name" db:"display_name"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.

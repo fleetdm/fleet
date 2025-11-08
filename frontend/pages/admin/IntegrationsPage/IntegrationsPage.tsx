@@ -33,7 +33,11 @@ const IntegrationsPage = ({
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
-  const { section } = params;
+  let { section } = params;
+  const { subsection } = params;
+  if (!section && !!subsection) {
+    section = "sso";
+  }
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   // // // settings that live under the integrations page
@@ -66,8 +70,10 @@ const IntegrationsPage = ({
         await configAPI.update(diff);
         renderFlash("success", "Successfully updated settings.");
         refetchConfig();
+        return true;
       } catch (err: unknown) {
         renderFlash("error", "Could not update settings");
+        return false;
       } finally {
         setIsUpdatingSettings(false);
       }
@@ -104,6 +110,7 @@ const IntegrationsPage = ({
               handleSubmit={onUpdateSettings}
               isPremiumTier={isPremiumTier}
               isUpdatingSettings={isUpdatingSettings}
+              subsection={subsection}
             />
           ) : (
             <Spinner />

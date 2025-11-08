@@ -190,4 +190,9 @@ export default {
     const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
     return sendRequest("POST", path);
   },
+
+  getMdmManualEnrollUrl: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+  },
 };

@@ -270,15 +270,23 @@ export const SoftwareInstallDetailsModal = ({
       },
     ];
 
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!swInstallResult?.post_install_script_output ||
+        !!swInstallResult?.output) &&
+      swInstallResult?.status !== "pending_install";
+
     return (
       <>
-        <RevealButton
-          isShowing={showInstallDetails}
-          showText="Details"
-          hideText="Details"
-          caretPosition="after"
-          onClick={toggleInstallDetails}
-        />
+        {showDetailsButton && (
+          <RevealButton
+            isShowing={showInstallDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleInstallDetails}
+          />
+        )}
         {showInstallDetails &&
           outputs.map(
             ({ label, value }) =>
@@ -358,16 +366,15 @@ export const SoftwareInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
           installResult={installResultWithHostDisplayName}
-          softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
+          softwareName={
+            hostSoftware?.display_name || hostSoftware?.name || "Software"
+          } // will always be defined at this point
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
 
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-
-        {swInstallResult?.status !== "pending_install" &&
-          isInstalledByFleet &&
-          renderInstallDetailsSection()}
+        {isInstalledByFleet && renderInstallDetailsSection()}
       </div>
     );
   };

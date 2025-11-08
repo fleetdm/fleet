@@ -6,4 +6,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
+
+  &.form {
+    height: auto;
+
+    .mdm-apple-sso-page__sso-btn {
+      width: 240px;
+    }
+
+  }
+
+
+  &__transparency-link {
+    text-align: center;
+
+    .custom-link {
+      font-size: $xxx-small;
+    }
+
+  }
 }

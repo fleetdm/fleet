@@ -51,6 +51,7 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	}
 	var softwareInstaller *fleet.SoftwareInstaller
 	var vppApp *fleet.VPPAppStoreApp
+	var inHouseApp *fleet.SoftwareInstaller
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -67,9 +68,15 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 		if err != nil && !fleet.IsNotFound(err) {
 			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "getting VPP app")
 		}
+		if vppApp == nil {
+			inHouseApp, err = svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &payload.TeamID, payload.TitleID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "getting in-house app")
+			}
+		}
 	}
-	if softwareInstaller == nil && vppApp == nil {
-		return fleet.SoftwareTitleIcon{}, &fleet.BadRequestError{Message: fmt.Sprintf("Software title has no software installer or VPP app: %d", payload.TitleID)}
+	if softwareInstaller == nil && vppApp == nil && inHouseApp == nil {
+		return fleet.SoftwareTitleIcon{}, &fleet.BadRequestError{Message: fmt.Sprintf("Software title has no software installer, VPP app, or in-house app: %d", payload.TitleID)}
 	}
 
 	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
@@ -228,5 +235,23 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 		return nil
 	}
 
-	return ctxerr.New(ctx, "no software installer or VPP app found for software title icon")
+	if activityDetailsForSoftwareTitleIcon.InHouseAppID != nil {
+		if err := svc.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
+			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
+			TeamName:         activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
+			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
+			SoftwareIconURL:  &iconUrl,
+			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
+		}
+
+		return nil
+	}
+
+	return ctxerr.New(ctx, "no software installer, VPP app, or in-house app found for software title icon")
 }

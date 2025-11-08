@@ -3,7 +3,7 @@
 
 
 
-  <div purpose="page-container" class="container d-flex px-0">
+  <div purpose="page-container" class="container-fluid d-flex px-0">
     <div purpose="modal" v-if="trialType === 'local trial'">
       <div purpose="modal-content">
       <div purpose="logo-row">
@@ -46,7 +46,7 @@
       <div purpose="content" v-else>
         <div>
           <h3>How was it?</h3>
-          <p>Your 30-day trial expired. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
+          <p class="mb-0">Your 30-day trial expired. Get a Premium license to keep everything unlocked, or continue with the free edition.</p>
         </div>
         <div purpose="modal-button-links">
           <a purpose="modal-button" href="/new-license" no-underline>
@@ -72,7 +72,7 @@
       <div purpose="content">
         <div>
           <h3>How was it?</h3>
-          <p>
+          <p class="mb-0">
             Your 30-day trial has finished.<br>
             If you liked Fleet, here’s how you can keep using it:
           </p>

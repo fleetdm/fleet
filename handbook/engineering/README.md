@@ -16,7 +16,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
+- To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
   - Any Fleet team member can [view the kanban boards](https://fleetdm.com/handbook/company/product-groups#current-product-groups) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -172,14 +172,6 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 
 > In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
 
-2. **macadmins-extension**: Latest release
-- Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
-- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod#L60).
-- If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
-- Add the `~release blocker` label.
-
->**Note:** Some new versions of the macadmins-extension include updates that require code changes in Fleet. Make sure to note in the bug that the update should be checked for any changes, like new tables, that require code changes in Fleet.
-
 Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
 
 3. **osquery**: Latest release
@@ -291,11 +283,11 @@ In these cases there are two differences in our pull request process:
 
 ### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the EM knows a user story will be pushed, it is the product group EM's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
 
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
-3. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
+3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
 
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.

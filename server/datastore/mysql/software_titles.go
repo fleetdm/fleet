@@ -48,6 +48,7 @@ SELECT
 	st.extension_for,
 	st.bundle_identifier,
 	st.application_id,
+	st.upgrade_code,
 	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
@@ -97,6 +98,13 @@ GROUP BY
 		if icon != nil {
 			title.IconUrl = ptr.String(icon.IconUrl())
 		}
+
+		displayName, err := ds.getSoftwareTitleDisplayName(ctx, *teamID, id)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title display name")
+		}
+
+		title.DisplayName = displayName
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
@@ -166,6 +174,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		InHouseAppVersion         *string `db:"in_house_app_version"`
 		InHouseAppPlatform        *string `db:"in_house_app_platform"`
 		InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
+		InHouseAppSelfService     *bool   `db:"in_house_app_self_service"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -232,7 +241,7 @@ func (ds *Datastore) ListSoftwareTitles(
 				Name:        *title.InHouseAppName,
 				Version:     version,
 				Platform:    platform,
-				SelfService: ptr.Bool(false),
+				SelfService: title.InHouseAppSelfService,
 			}
 
 			// this is set directly for software packages, but if this is an in-house
@@ -299,9 +308,20 @@ func (ds *Datastore) ListSoftwareTitles(
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, *opt.TeamID, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
 		for _, icon := range icons {
 			if i, ok := titleIndex[icon.SoftwareTitleID]; ok {
 				softwareList[i].IconUrl = ptr.String(icon.IconUrl())
+			}
+		}
+
+		for titleID, i := range titleIndex {
+			if displayName, ok := displayNames[titleID]; ok {
+				softwareList[i].DisplayName = displayName
 			}
 		}
 	}
@@ -400,6 +420,7 @@ SELECT
 	,st.extension_for
 	,st.bundle_identifier
 	,st.application_id
+	,st.upgrade_code
 	,MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count
 	,MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at
 	{{if hasTeamID .}}
@@ -421,6 +442,7 @@ SELECT
 		,iha.version as in_house_app_version
 		,iha.platform as in_house_app_platform
 		,iha.storage_id as in_house_app_storage_id
+		,iha.self_service as in_house_app_self_service
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -476,7 +498,7 @@ WHERE
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
 		{{ end }}
 		{{if and $.SelfServiceOnly (hasTeamID $)}}
-		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 ) "}}
+		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 OR iha.self_service = 1 ) "}}
 		{{end}}
 		AND ({{$defFilter}})
 	{{end}}
@@ -501,6 +523,7 @@ GROUP BY
 		,in_house_app_version
 		,in_house_app_platform
 		,in_house_app_storage_id
+		,in_house_app_self_service
 	{{end}}
 `
 	var args []any

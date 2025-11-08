@@ -19,12 +19,14 @@ interface ISettingUpYourDevice {
   setupSteps: ISetupStep[];
   toggleInfoModal: () => void;
   requireAllSoftware: boolean;
+  platform: string;
 }
 
 const SettingUpYourDevice = ({
   setupSteps,
   toggleInfoModal,
   requireAllSoftware,
+  platform,
 }: ISettingUpYourDevice) => {
   const [showError, setShowError] = useState(false);
   let title;
@@ -43,7 +45,7 @@ const SettingUpYourDevice = ({
         <p>
           <Icon name="error-outline" color="status-error" size="small" />{" "}
           <TooltipWrapper
-            tipContent={<>CONTROL (⌃) + Command (⌘) + ⏻ or Touch ID</>}
+            tipContent={<>Hold down power button/Touch ID for 5 seconds</>}
           >
             Restart your device
           </TooltipWrapper>{" "}
@@ -75,7 +77,9 @@ const SettingUpYourDevice = ({
       <Card borderRadiusSize="xxlarge" paddingSize="xlarge">
         <div className={`${baseClass}__header`}>
           <h2>{title}</h2>
-          {!failedSoftware && <InfoButton onClick={toggleInfoModal} />}
+          {!failedSoftware && platform !== "darwin" && (
+            <InfoButton onClick={toggleInfoModal} />
+          )}
         </div>
         {message}
         {!failedSoftware && <SetupStatusTable statuses={setupSteps} />}

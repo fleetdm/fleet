@@ -1035,7 +1035,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Fleet configuration
 
-- [Get Fleet certificate](#get-certificate)
+- [Get Fleet certificate](#get-fleet-certificate)
 - [Get configuration](#get-configuration)
 - [Update configuration](#update-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
@@ -5820,7 +5820,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 ### Batch-update custom OS settings (configuration profiles)
 
-Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are not assigned to "No team" (Fleet Premium).
+Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are assigned to "No team" (Fleet Premium).
 
 For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list. 
 
@@ -9363,7 +9363,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
-- [Create package](#create-package)
+- [Add package](#add-package)
 - [Update package](#update-package)
 - [Update software icon](#update-software-icon)
 - [Download software icon](#download-software-icon)
