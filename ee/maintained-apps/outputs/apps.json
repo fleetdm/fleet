@@ -230,7 +230,7 @@
       "slug": "santa/darwin",
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
-      "description": ""
+      "description": "Santa is a binary authorization system for macOS."
     },
     {
       "name": "Slack",
