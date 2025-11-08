@@ -1713,14 +1713,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
     case ActivityType.AddedHydrant:
-    case ActivityType.AddedCustomEST:
+    case ActivityType.AddedCustomESTProxy:
     case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
     case ActivityType.DeletedHydrant:
-    case ActivityType.DeletedCustomEST:
+    case ActivityType.DeletedCustomESTProxy:
     case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
@@ -1729,7 +1729,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
     case ActivityType.EditedHydrant:
-    case ActivityType.EditedCustomEST:
+    case ActivityType.EditedCustomESTProxy:
     case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name

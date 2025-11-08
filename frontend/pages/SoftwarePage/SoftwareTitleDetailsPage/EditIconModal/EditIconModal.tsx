@@ -1,7 +1,11 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import {
+  IAppStoreApp,
+  isIpadOrIphoneSoftwareSource,
+  ISoftwarePackage,
+} from "interfaces/software";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { NotificationContext } from "context/notification";
@@ -31,6 +35,7 @@ import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfS
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
 import PreviewSelfServiceIcon from "../../../../../assets/images/preview-self-service-icon.png";
+import PreviewSelfServiceMobileIcon from "../../../../../assets/images/preview-self-service-mobile-icon.png";
 
 const baseClass = "edit-icon-modal";
 
@@ -124,6 +129,7 @@ interface IEditIconModalProps {
   previewInfo: {
     type?: string;
     versions?: number;
+    selfServiceVersion?: string;
     source?: string;
     currentIconUrl: string | null;
     /** Name used in preview UI but also for FMA default icon matching */
@@ -148,6 +154,9 @@ const EditIconModal = ({
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
   const isSoftwarePackage = installerType === "package";
+  const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
+    previewInfo?.source || ""
+  );
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
@@ -500,7 +509,7 @@ const EditIconModal = ({
             // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
             // is set as VPP icon is not returned by the API if a custom icon is returned
             <SoftwareIcon
-              name={displayName || previewInfo.name}
+              name={previewInfo.name}
               source={previewInfo.source}
               url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
               uploadedAt={iconUploadedAt}
@@ -517,6 +526,60 @@ const EditIconModal = ({
     </Card>
   );
 
+  // TODO: Confirm design with designer as this was a missed spec and not on Figma
+  const renderPreviewSelfServiceMobileCard = () => (
+    <Card
+      borderRadiusSize="medium"
+      color="white"
+      className={`${baseClass}__preview-card`}
+      paddingSize="xlarge"
+    >
+      <div className={`${baseClass}__preview-img-container--mobile`}>
+        <img
+          className={`${baseClass}__preview-img--mobile`}
+          src={PreviewSelfServiceMobileIcon}
+          alt="Preview icon on Fleet Desktop > Self-service"
+        />
+      </div>
+      <div className={`${baseClass}__self-service-preview--mobile`}>
+        {iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
+          <img
+            src={iconState.previewUrl}
+            alt="Uploaded self-service icon"
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: "4px",
+              overflow: "hidden",
+            }}
+          />
+        ) : (
+          // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
+          // is set as VPP icon is not returned by the API if a custom icon is returned
+          <SoftwareIcon
+            name={previewInfo.name}
+            source={previewInfo.source}
+            url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
+            uploadedAt={iconUploadedAt}
+          />
+        )}
+        <div
+          className={`${baseClass}__self-service-preview-name-version--mobile`}
+        >
+          <div className={`${baseClass}__self-service-preview-name--mobile`}>
+            <TooltipTruncatedText value={previewInfo.name} />
+          </div>
+          <div className={`${baseClass}__self-service-preview-version--mobile`}>
+            {"latest_version" in software
+              ? software.latest_version
+              : software.version || "Version (unknown)"}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+
+  console.log("EDIT ICON MODAL software", software);
   const renderForm = () => (
     <>
       <InputField
@@ -559,7 +622,11 @@ const EditIconModal = ({
             </Tab>
           </TabList>
           <TabPanel>{renderPreviewFleetCard()}</TabPanel>
-          <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
+          <TabPanel>
+            {isIosOrIpadosApp
+              ? renderPreviewSelfServiceMobileCard()
+              : renderPreviewSelfServiceCard()}
+          </TabPanel>
         </Tabs>
       </TabNav>
     </>
@@ -573,19 +640,23 @@ const EditIconModal = ({
       // Process icon change
       try {
         if (!iconState.formData?.icon) {
-          await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-          notifications.push({
-            id: "icon-removed",
-            alertType: "success",
-            isVisible: true,
-            message: (
-              <>
-                Successfully removed icon from <b>{software?.name}</b>.
-              </>
-            ),
-            persistOnPageChange: false,
-          });
+          // No new upload, so either removing existing custom icon or no change
+          if (originalIsApiCustom) {
+            await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+            notifications.push({
+              id: "icon-removed",
+              alertType: "success",
+              isVisible: true,
+              message: (
+                <>
+                  Successfully removed icon from <b>{software?.name}</b>.
+                </>
+              ),
+              persistOnPageChange: false,
+            });
+          }
         } else {
+          // New custom icon upload
           await softwareAPI.editSoftwareIcon(
             softwareId,
             teamIdForApi,

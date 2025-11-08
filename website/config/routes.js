@@ -563,6 +563,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /okta-conditional-access-error': {
+    action: 'view-okta-conditional-access-error',
+    locals: {
+      hideStartCTA: true,
+      showConfigurationProfileLayout: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
