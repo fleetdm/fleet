@@ -1,3 +1,37 @@
+## Fleet 4.77.0 (Nov 07, 2025)
+
+### Bug fixes
+
+- Fleet UI: Added ability to change software display names
+- Hide software host count and version table when no hosts have the software installed.
+* Added better error messages when using build-in labels on GitOps and on the LabelSpecs endpoint.
+- Setup experience software now installs in alphanumeric order.
+* Prevent multiple false positive vulnerability matches for the VSCode golang extension
+- Add activity log entries for host deletion and expiration.
+- Updated MDM enrollment flow for BYOD macOS hosts to enable end user authentication prior to
+  downloading the MDM profile via the "My device" page.
+* Detect vulnerabilities in JetBrains IDE plugins
+Updated Go to 1.25.3.
+* Add ability to deploy certificates from Custom SCEP certificate authorities on Windows.
+- Adjusted UI section headers and layout of Settings > Integrations in Fleet Free.
+* Support Custom EST certificate authorities
+* Added status counts to batch script detail page tabs.
+* Moved End user authentication SSO settings under Integrations > SSO in global settings.
+* Fix a layout issue on the script batch details page
+* Simplified setup experience configuration UI.
+* Added self-service install support for custom IPA apps on iOS and iPadOS.
+* Added experimental FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT configuration to allow deploying custom OS settings including Filevault payloads and macOS and Windows update settings
+Added integration for Okta conditional access, where Fleet acts as a factor and blocks end users from logging into third-party apps, via Okta, if they are failing specific policies.
+* Fixed installer for Cisco Secure Client not showing as installed in inventory/library due to using the wrong bundle identifier. This application should show up correctly now in the software inventory.
+- Prevent false positive CVE matches for [`Logi Bolt.app`](https://support.logi.com/hc/en-us/articles/4418089333655-Logi-Bolt-App)
+- fix errors when trying to run the apple_mdm_iphone_ipad_refetcher cron job
+- Fleet UI: Fixed table styling for selecting table rows
+* Update host expiry logic to not delete macOS hosts that checkin via MDM protocol but not via orbit
+- Ingest `upgrade_code`s from Windows software, and serve to all relevant software endpoints
+- removed the premium check for host OS settings in host summary
+* Reduced android device reconciler frequency to 1 hour
+- add InstallAnywhere as a self-extracting archive for PE metadata extraction
+
 ## Fleet 4.76.0 (Nov 7, 2025)
 
 ### Security Engineers
