@@ -355,7 +355,7 @@ Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up 
 ### Report quarterly numbers in Chronograph
 
 Follow these steps to perform quarterly reporting for Fleet's investors:
-1. Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
+1. Login to Chronograph and upload the latest financial statements for CRV (all in one book saved in [Google Drive](https://github.com/fleetdm/fleet/edit/main/handbook/finance/README.md).
 2. Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
     - Headcount at end of the previous quarter.
     - Starting ARR for the previous quarter.
@@ -366,7 +366,7 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
     - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
     - Total amount of Fleet customers at the end of the previous quarter.
     - Gross margin % 
-      - How to calculate: (total revenue for the quarter - cost of goods sold for the quarter)/total revenue for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
+      - Gross margin % is listed in the **Income statement** section of the financial statements.
     - Net dollar retention rate
       - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
     - Cash burn
@@ -376,14 +376,14 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
 ### Deliver annual report for venture line
 
 Within 60 days of the end of the year, follow these steps:
-1. Provide Silicon Valley Bank (SVB) with our balance sheet and profit and loss statement (P&L, sometimes called a cashflow statement) for the past twelve months.  
+1. Provide Silicon Valley Bank (SVB) with our consolidated financial statements (income statement, balance sheet, and cash flow statement) for the past twelve months.  
 2. Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
 3. Deliver this as early as possible in case they have questions.
 
 
 ### Process a new vendor invoice
 
-Fleet pays its vendors in less than 15 business days in most cases. All invoices and tax documents should be submitted to the Finance department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+Fleet pays its vendors according to the agreed upon vendor payment terms. Our payment terms are net-30 in most instances. All signed order, invoices and tax documents should be submitted to the Finance department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 - After making sure the invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
 - If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor. **Accounting cannot process a payment without these tax forms for compliance reasons.**
   - **US-based vendors** are required to complete a [W-9 form](https://www.irs.gov/pub/irs-pdf/fw9.pdf).
