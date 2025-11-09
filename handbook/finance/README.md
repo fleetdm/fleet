@@ -24,9 +24,10 @@ The Finance department is directly responsible for accounts receivable including
 
 ### Prepare for OCV meeting
 
-Mike meets with OCV on the last Wednesday of every month. Use the following steps to help him prepare for that meeting:
-1. In the "📈 Longer-term plan" section of the doc, update the "Gross new ARR (QTD)", "New logo pipeline $ generated (QTD)", "ARR, cumulative" numbers using the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet.
-2. In the "😬 CEO's top-of-mind goals" section, use the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet to update the numbers in the goal column for the current month to be correct.
+Mike meets with OCV on the last Wednesday of every month. Use the following steps to update the [OCV GOH document (confidential)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) to help him prepare for that meeting:
+1. Update the actual attainment in the **What actually happened?  Why?** column against goals set for the current month.
+2. Review and update the **Goal** column for the following month.
+3. Insert comment and tag Mike once the update is done for review.
 
 
 ### Reconcile monthly recurring expenses
