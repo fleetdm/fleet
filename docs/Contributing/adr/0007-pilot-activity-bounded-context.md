@@ -18,6 +18,12 @@ Fleet's Go codebase has grown to over 680,000 lines of code across over 2,300 Go
 
 **Kubernetes** (Go, 500K+ LOC): The kube-controller-manager bundles [30+ independent controllers](https://github.com/kubernetes/kubernetes/tree/master/pkg/controller) (deployment, replicaset, job, namespace, etc.) into a [single binary "to reduce complexity"](https://kubernetes.io/docs/concepts/architecture/) while maintaining logical separation. Controllers communicate only through the API server, not directly.
 
+### Pain points
+
+The pain points of Fleet's current layered architecture are largely the same as for GitLab's monolith and touched upon in [ADR-0001](0001-pilot-service-layer-packages.md).
+
+Here's a recent example. In Sprint 49, two product groups added features that touched the exact same lines of code. The security and compliance team added `upgrade_code` field and the software team added custom titles to the software tables. This cross-team conflict was not caught or flagged by the tech leads. After merging the custom titles feature, the `upgrade_code` PR broke. It took ~1.5 engineer days to identify and fix the issue, impacting sprint velocity and reducing the number of bug fixes delivered. With bounded contexts and clear ownership of the DB tables, this issue should not have happened because, among other reasons, the required sequencing of changes would have been obvious to the team owning the bounded context.
+
 ### Fleet's activities
 
 The activity system is a cross-cutting concern that records all significant user and system actions across the Fleet platform, and manages the queue of activities to be executed (unified queue). Currently, this functionality is scattered across the service layer with no clear boundaries.
@@ -45,7 +51,7 @@ The activity system is a cross-cutting concern that records all significant user
 - ❌ **No direct datastore calls**: Contexts must not call each other's datastore methods directly; always use the public service interface
 - ⚠️ **Async communication pattern**: To be defined in a future ADR (for event or message-driven communication between contexts)
 
-## Glossary
+### Glossary
 
 To avoid confusion, we define key terms used throughout this document:
 
