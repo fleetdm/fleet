@@ -17,7 +17,7 @@ Fleet 4.76.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Self-service scripts
 
-You can now create custom Linux and Windows packages that include just a script (aka payload-free packages). In Fleet, head to **Software** page and select **Add software > Custom package**. This is perfect for self-service utilities or bundling multiple scripts as part of your out-of-the-box setup experience.
+You can now create custom Linux and Windows packages that include just a script (aka payload-free packages). In Fleet, head to **Software** page and select **Add software > Custom package**. This is perfect for self-service utilities or bundling multiple scripts as part of your out-of-the-box setup experience. Self-service scripts for macOS hosts are coming soon.
 
 ### Vulnerabilities for JetBrains, Cursor, and Windsurf extensions
 
