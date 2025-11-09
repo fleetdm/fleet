@@ -247,6 +247,13 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
+      "name": "Tunnelblick",
+      "slug": "tunnelblick/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.tunnelblick.tunnelblick",
+      "description": "Tunnelblick is a free and open-source OpenVPN client."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
