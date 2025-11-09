@@ -210,11 +210,13 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 
 ```
 Hello,
-This is a reminder that you have a coming due balance due for your Fleet Device Management premium subscription.
-We have included the invoice here for your convenience.
-For payment instructions, please refer to your invoice and reach out to [Fleet's billing contact] with any questions.
 
-Thanks,
+We are writing to follow-up on [invoice number].
+The invoice is now overdue. Could you advise when payment could be expected? 
+
+Thank you for your assistance. 
+
+Regards,
 [name]
 ```
 
