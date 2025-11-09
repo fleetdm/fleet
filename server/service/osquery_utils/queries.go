@@ -2028,9 +2028,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 }
 
 var (
-	dcvVersionFormat      = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	basicAppSanitizers = []struct {
+	basicAppSanitizers       = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, log.Logger)
