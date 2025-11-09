@@ -154,12 +154,12 @@ To create a new invoice for a Fleet customer, follow these steps:
    - Enter the invoice number (and PO number if required) into the top right section of the invoice.
    - Update the date of the invoice to reflect the current date.
    - Make sure the payment terms match the signed subscription agreement.
-   - Validate if the customer address from the signed subscription agreement matches the default Bill to address shown on the invoice. 
-   - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
+   - Validate if the customer address from the PO matches the default Bill to address shown on the invoice. If no PO was issued, use the address in the subscription order form.
+   - Validate if the email from the PO matches with the email in the email field on the invoice. If no PO was issued, use the email in the subscription order form.
    - Make sure the start and end dates of the contract and amount match the subscription agreement.
    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
    - Ensure the wiring instructions for payment via SVB are listed in in the invoice.
-   - For deals that are not on an annual payment schedule, or multi-year deals with annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice, and update the ["Future invoices to be sent" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/11kQNw6oTkPe_FCuRItZ26zBCGFOyxpF86XCJ335slxU/edit?gid=0#gid=0).
+   - For deals that are not on an annual payment schedule, or multi-year deals with annual payment schedule, note the invoicing schedule, invoice amount, PO number (if required), and invoice method (email, portal, etc) in the notes section of the invoice.
 6. Download the completed invoice as a PDF.
    - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
    - Save a copy of the PDF into the invoice folder.
@@ -178,9 +178,6 @@ Thanks,
 ```
 
 6. Update the opportunity and the opportunity billing cycle in Salesforce to include the "Invoice date" as the day the invoice was sent.
-8. Notify the AE/CSM that the invoice has been sent.
-
-> Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
 
 
 ### Provide payment information to a customer
