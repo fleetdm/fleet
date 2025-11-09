@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
   }
 
   backend "s3" {
@@ -226,6 +230,10 @@ resource "helm_release" "signoz" {
   wait             = true
   wait_for_jobs    = false
 
+  # Disable waiting during uninstall to fail fast if there are issues
+  # The finalizer cleanup runs before this, so resources should delete quickly
+  disable_webhooks = true
+
   # OTEL Collector configuration overrides for production stability
   values = [
     file("${path.module}/otel-collector-values.yaml")
@@ -329,4 +337,31 @@ resource "helm_release" "signoz" {
     module.eks,
     kubernetes_storage_class_v1.gp3
   ]
+}
+
+# Pre-destroy: Remove ClickHouse finalizers so Helm can destroy cleanly
+# The ClickHouse operator adds finalizers, but it gets destroyed with the Helm chart,
+# so it can't process them. We remove them BEFORE Helm starts destroying so the
+# helm_release can complete its normal destroy operation while the cluster is still up.
+resource "null_resource" "remove_clickhouse_finalizers" {
+  triggers = {
+    cluster_name = module.eks.cluster_name
+    aws_region   = var.aws_region
+    namespace    = "signoz"
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "Removing ClickHouse finalizers before Helm destroy..."
+      aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region ${self.triggers.aws_region} > /dev/null 2>&1 || exit 0
+      kubectl get clickhouseinstallation -n ${self.triggers.namespace} -o json 2>/dev/null | \
+        jq -r '.items[].metadata.name' 2>/dev/null | \
+        xargs -I {} kubectl patch clickhouseinstallation {} -n ${self.triggers.namespace} \
+          --type json -p='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+      echo "Finalizer cleanup complete"
+    EOT
+  }
+
+  # NO depends_on - this needs to run EARLY in destroy, before cluster teardown starts
 }
