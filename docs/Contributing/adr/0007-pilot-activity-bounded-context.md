@@ -6,7 +6,7 @@ Proposed
 
 ## Date
 
-2025-11-08
+2025-11-09
 
 ## Context
 
@@ -22,7 +22,7 @@ Fleet's Go codebase has grown to over 680,000 lines of code across over 2,300 Go
 
 The activity system is a cross-cutting concern that records all significant user and system actions across the Fleet platform, and manages the queue of activities to be executed (unified queue). Currently, this functionality is scattered across the service layer with no clear boundaries.
 
-**Important: This pilot extracts ONLY the audit portion** (past activities/audit log), not the complete activity system. This is intentionally a small, focused extraction designed to gather learnings about the modularization approach and identify architectural issues before tackling larger contexts. This limited scope comes with a recognized trade-off: audit activities alone may be too small to justify a separate bounded context and could introduce more overhead than benefit to business and engineering velocity. We accept this risk in exchange for validating the extraction process itself and establishing patterns for future, larger bounded context extractions.
+**Important: This pilot extracts ONLY the audit portion** (past activities/audit log, webhooks, streaming, cleanup), not the complete activity system. This is intentionally a small, focused extraction designed to gather learnings about the modularization approach and identify architectural issues before tackling larger contexts. This limited scope comes with a recognized trade-off: audit activities alone may be too small to justify a separate bounded context and could introduce more overhead than benefit to business and engineering velocity. We accept this risk in exchange for validating the extraction process itself and establishing patterns for future, larger bounded context extractions.
 
 **Bounded context naming:** We chose `activity` following **Domain-Driven Design principles** and the **ubiquitous language** used in the business domain. In Fleet's domain language, both past activities (audit log) and upcoming activities (unified queue) are referred to as "activities", just at different points in their lifecycle. This naming allows the bounded context to naturally own both concerns, with this pilot focusing on past activities first, and future expansion to include the unified queue.
 
@@ -74,6 +74,7 @@ We will extract an **Activity** bounded context as a pilot for Fleet's modular m
 **Database tables:**
 - `activity_past` (renamed from `activities`) - Past activities (audit log)
 - `activity_host_past` (renamed from `host_activities`) - Join table linking past activities to hosts
+- other related tables, if any
 
 **Core responsibilities:**
 - Recording all audit events from across the system (`NewActivity`)
@@ -96,20 +97,19 @@ We will extract an **Activity** bounded context as a pilot for Fleet's modular m
 - Storage and retrieval of all past activities
 
 **Activity type definitions (pragmatic approach for this pilot):**
-- **Current state**: All 200+ activity type definitions remain in `server/fleet/activities.go` as a shared package
+- **Current state**: All ~100 activity type definitions remain in `server/fleet/activities.go` as a shared package
 - **Future direction**: As we extract new bounded contexts (Software, Policies, etc.), those contexts should define their own activity types following GitLab's pattern (e.g., `server/software/activities.go` owns `ActivityTypeInstalledSoftware`)
 
 ### Folder structure
 
 Following GitLab's bounded context pattern, each context owns its full stack including data access:
 
-```
+```text
 server/
 └── activity/
-    ├── activity.go             # ActivityDetails interface, Activity/UpcomingActivity structs
-    ├── datastore.go            # Datastore interface
-    ├── service.go              # Service interface
-    ├── service/
+    ├── activity.go             # Types
+    ├── datastore.go            # Activity datastore interface (only consumed by this context)
+    ├── service/                # Activity service interface defined by consumers in `fleet` package
     │   ├── service.go          # Business logic implementation
     │   ├── handler.go          # HTTP handlers
     │   └── service_test.go     # Unit tests
@@ -122,7 +122,7 @@ server/
 **Structure rationale:**
 
 1. **Separation of concerns:**
-   - **Root `activity/`**: Shared types, interfaces (service, datastore), contracts that other contexts depend on
+   - **Root `activity/`**: Shared types, contracts that other contexts depend on
    - **`activity/service/`**: Implementation details (business logic, handlers, unit tests); internal to the context
    - **`activity/mysql/`**: Database implementation; internal to the context
    - **`activity/tests/`**: Integration tests requiring full stack (server + database)
@@ -197,11 +197,11 @@ graph TD
     Policies -->|"activity.NewActivity(ctx, user, details)"| Activity
     Others -->|"activity.NewActivity(ctx, user, details)"| Activity
 
-    style Activity fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style Vulnerabilities fill:#f0f0f0,stroke:#666,stroke-width:1px
-    style Software fill:#f0f0f0,stroke:#666,stroke-width:1px
-    style Policies fill:#f0f0f0,stroke:#666,stroke-width:1px
-    style Others fill:#f0f0f0,stroke:#666,stroke-width:1px
+    style Activity fill:#e1f5ff,stroke:#0066cc,stroke-width:2px,color:#222
+    style Vulnerabilities fill:#f0f0f0,stroke:#666,stroke-width:1px,color:#222
+    style Software fill:#f0f0f0,stroke:#666,stroke-width:1px,color:#222
+    style Policies fill:#f0f0f0,stroke:#666,stroke-width:1px,color:#222
+    style Others fill:#f0f0f0,stroke:#666,stroke-width:1px,color:#222
 ```
 
 **Key principle:** Other contexts publish activity events, Activity context consumes and stores them. This is a form of event sourcing for audit trails.
