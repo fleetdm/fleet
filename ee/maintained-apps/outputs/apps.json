@@ -65,6 +65,13 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Cisco Jabber",
+      "slug": "cisco-jabber/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cisco.jabber",
+      "description": "Cisco Jabber is a collaboration and communication app."
+    },
+    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",

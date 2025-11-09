@@ -1,0 +1,8 @@
+{
+  "name": "Cisco Jabber",
+  "unique_identifier": "com.cisco.jabber",
+  "token": "cisco-jabber",
+  "installer_format": "dmg",
+  "slug": "cisco-jabber/darwin",
+  "default_categories": ["Communication"]
+}
