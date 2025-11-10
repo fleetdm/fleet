@@ -1602,7 +1602,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 		newChallengeValue := uuid.New().String()
 		challengeValue.Store(newChallengeValue)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(newChallengeValue))
+		_, err = w.Write([]byte(newChallengeValue))
 		require.NoError(t, err)
 	}))
 	t.Cleanup(func() {
@@ -1893,7 +1893,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	require.NotNil(t, cmd)
 	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
 	require.NotEqual(t, prevCommandUUID, cmd.CommandUUID)
-	prevCommandUUID = cmd.CommandUUID                                        // save for later comparison
+	// prevCommandUUID = cmd.CommandUUID                                        // save for later comparison
 	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd)) // challenge value should be updated
 
 	// verify that host profile DB state reflects new InstallProfile command
