@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251104090013, Down_20251104090013)
+	MigrationClient.AddMigration(Up_20251110092953, Down_20251110092953)
 }
 
-func Up_20251104090013(tx *sql.Tx) error {
+func Up_20251110092953(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE in_house_apps
 	ADD COLUMN url varchar(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
@@ -20,6 +20,6 @@ ALTER TABLE in_house_apps
 	return nil
 }
 
-func Down_20251104090013(tx *sql.Tx) error {
+func Down_20251110092953(tx *sql.Tx) error {
 	return nil
 }

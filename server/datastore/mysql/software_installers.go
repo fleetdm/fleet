@@ -266,7 +266,8 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			// If the existing installer has the same title and source, allow the insert to proceed
 			// so that the existing UNIQUE (global_or_team_id, title_id) constraint yields a
 			// Conflict error with the expected message.
-			if !(found.Title == payload.Title && found.Source == payload.Source) {
+			// Since this is not an in-house app, only one installer per team can exist.
+			if !(found[0].Title == payload.Title && found[0].Source == payload.Source) {
 				return 0, 0, fleet.NewInvalidArgumentError(
 					"software",
 					"Couldn't add software. An installer with identical contents already exists on this team.",
