@@ -12,21 +12,24 @@ import (
 )
 
 var Aliases = map[string]int{
-	"mdm":             58,
-	"g-mdm":           58,
-	"draft":           67,
-	"drafting":        67,
-	"g-software":      70,
-	"soft":            70,
-	"g-orchestration": 71,
-	"orch":            71,
+	"mdm":                   58,
+	"g-mdm":                 58,
+	"draft":                 67,
+	"drafting":              67,
+	"g-software":            70,
+	"soft":                  70,
+	"g-orchestration":       71,
+	"orch":                  71,
+	"sec":                   97,
+	"g-security-compliance": 97,
 }
 
 // ProjectLabels maps project IDs to their corresponding label filters for the drafting project
 var ProjectLabels = map[int]string{
-	58: "#g-mdm",           // mdm project
-	70: "#g-software",      // g-software project
-	71: "#g-orchestration", // g-orchestration project
+	58: "#g-mdm",                 // mdm project
+	70: "#g-software",            // g-software project
+	71: "#g-orchestration",       // g-orchestration project
+	97: "#g-security-compliance", // g-security-compliance project
 }
 
 // ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID.
