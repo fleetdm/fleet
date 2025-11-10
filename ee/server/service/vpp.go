@@ -75,7 +75,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		// import vpp apps as self-service for ios or ipados
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
 			AppStoreID:         payload.AppStoreID,
-			SelfService:        false,
+			SelfService:        payload.SelfService,
 			InstallDuringSetup: payload.InstallDuringSetup,
 			Platform:           fleet.IOSPlatform,
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
@@ -83,7 +83,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			Categories:         payload.Categories,
 		}, {
 			AppStoreID:         payload.AppStoreID,
-			SelfService:        false,
+			SelfService:        payload.SelfService,
 			InstallDuringSetup: payload.InstallDuringSetup,
 			Platform:           fleet.IPadOSPlatform,
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
@@ -629,10 +629,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
-	}
-
-	if selfService && meta.Platform != fleet.MacOSPlatform {
-		return nil, fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
 	}
 
 	appToWrite := &fleet.VPPApp{

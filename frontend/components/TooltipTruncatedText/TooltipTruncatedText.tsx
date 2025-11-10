@@ -11,6 +11,7 @@ interface ITooltipTruncatedTextCellProps {
   tooltip?: React.ReactNode;
   className?: string;
   tooltipPosition?: "top" | "bottom" | "left" | "right";
+  isMobileView?: boolean; // new prop
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -20,6 +21,7 @@ const TooltipTruncatedText = ({
   tooltip,
   className,
   tooltipPosition = "top",
+  isMobileView = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
@@ -27,6 +29,7 @@ const TooltipTruncatedText = ({
   const ref = useRef<HTMLInputElement>(null);
   const isTruncated = useCheckTruncatedElement(ref);
 
+  // TODO: RachelPerkins unreleased bug refactor to include mobile tapping/click
   return (
     <TooltipWrapper
       className={classNames}

@@ -91,22 +91,19 @@ module.exports = {
         }
       });
 
-      // Debugging case: Log the actual token scopes in use.
-      const accessTokenObj = await authClient.getAccessToken();
-      const rawToken = accessTokenObj.token || accessTokenObj; // depending on version
-      // eslint-disable-next-line no-undef
-      const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${rawToken}`);
-      const tokenInfo = await tokenInfoRes.json();
-      sails.log.debug('Token scopes actually in use:', tokenInfo.scope);
+      // Debugging attempt - Give it a second before calling the getIamPolicy (plus excessive back-off retry delays.)
+      await sails.helpers.flow.pause(1000);
 
 
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
       // Retrieve the IAM policy for the created pubsub topic.
-      // !IMPORTANT: This should not be wrapped in a sails.helpers.flow.build, as we've seen issues with it not working properly.
-      let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
-        resource: fullPubSubTopicName,
-      });
-      let newPubSubTopicIamPolicy = getIamPolicyResponse.data;
+      const newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
+        const policy =  await pubsub.projects.topics.getIamPolicy({
+          resource: fullPubSubTopicName,
+        });
+
+        return policy.data;
+      }).retry(undefined, [1000, 2000, 4000]);
 
       // Grant Android device policy the right to publish
       // See: https://developers.google.com/android/management/notifications

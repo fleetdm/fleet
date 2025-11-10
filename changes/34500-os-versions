@@ -1,1 +1,0 @@
-Improved performance of `/api/latest/fleet/os_versions` endpoint, especially for deployments with Linux hosts.

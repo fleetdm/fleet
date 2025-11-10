@@ -1577,9 +1577,13 @@ type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*type
 
 type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
 
+type GetMDMSCEPCertBySerialFunc func(ctx context.Context, serialNumber uint64) (string, error)
+
 type GetConditionalAccessCertHostIDBySerialNumberFunc func(ctx context.Context, serial uint64) (uint, error)
 
 type GetConditionalAccessCertCreatedAtByHostIDFunc func(ctx context.Context, hostID uint) (*time.Time, error)
+
+type RevokeOldConditionalAccessCertsFunc func(ctx context.Context, gracePeriod time.Duration) (int64, error)
 
 type NewCertificateAuthorityFunc func(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error)
 
@@ -3933,11 +3937,17 @@ type DataStore struct {
 	UpdateHostIdentityCertHostIDBySerialFunc        UpdateHostIdentityCertHostIDBySerialFunc
 	UpdateHostIdentityCertHostIDBySerialFuncInvoked bool
 
+	GetMDMSCEPCertBySerialFunc        GetMDMSCEPCertBySerialFunc
+	GetMDMSCEPCertBySerialFuncInvoked bool
+
 	GetConditionalAccessCertHostIDBySerialNumberFunc        GetConditionalAccessCertHostIDBySerialNumberFunc
 	GetConditionalAccessCertHostIDBySerialNumberFuncInvoked bool
 
 	GetConditionalAccessCertCreatedAtByHostIDFunc        GetConditionalAccessCertCreatedAtByHostIDFunc
 	GetConditionalAccessCertCreatedAtByHostIDFuncInvoked bool
+
+	RevokeOldConditionalAccessCertsFunc        RevokeOldConditionalAccessCertsFunc
+	RevokeOldConditionalAccessCertsFuncInvoked bool
 
 	NewCertificateAuthorityFunc        NewCertificateAuthorityFunc
 	NewCertificateAuthorityFuncInvoked bool
@@ -8921,7 +8931,7 @@ func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID
 	return s.ListHostMDMManagedCertificatesFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	s.mu.Lock()
 	s.ResendHostCustomSCEPProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -9411,6 +9421,13 @@ func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 	return s.UpdateHostIdentityCertHostIDBySerialFunc(ctx, serialNumber, hostID)
 }
 
+func (s *DataStore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (string, error) {
+	s.mu.Lock()
+	s.GetMDMSCEPCertBySerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMSCEPCertBySerialFunc(ctx, serialNumber)
+}
+
 func (s *DataStore) GetConditionalAccessCertHostIDBySerialNumber(ctx context.Context, serial uint64) (uint, error) {
 	s.mu.Lock()
 	s.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked = true
@@ -9423,6 +9440,13 @@ func (s *DataStore) GetConditionalAccessCertCreatedAtByHostID(ctx context.Contex
 	s.GetConditionalAccessCertCreatedAtByHostIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetConditionalAccessCertCreatedAtByHostIDFunc(ctx, hostID)
+}
+
+func (s *DataStore) RevokeOldConditionalAccessCerts(ctx context.Context, gracePeriod time.Duration) (int64, error) {
+	s.mu.Lock()
+	s.RevokeOldConditionalAccessCertsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RevokeOldConditionalAccessCertsFunc(ctx, gracePeriod)
 }
 
 func (s *DataStore) NewCertificateAuthority(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {

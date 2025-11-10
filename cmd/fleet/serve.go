@@ -1350,7 +1350,7 @@ the way that the Fleet server works.
 				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
-				// Host identify SCEP feature only works if a private key has been set up
+				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
 					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
 					if err != nil {
@@ -1365,11 +1365,17 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}
-					if err = condaccess.RegisterSCEP(rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+					if err = condaccess.RegisterSCEP(ctx, rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup conditional access SCEP")
 					}
+
+					// Conditional Access IdP (Okta)
+					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access IdP")
+					}
 				} else {
-					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
+					level.Warn(logger).Log("msg",
+						"Host identity and conditional access SCEP is not available because no server private key has been set up.")
 				}
 			}
 
