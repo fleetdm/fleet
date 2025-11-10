@@ -12,6 +12,7 @@ import configAPI from "services/entities/config";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import Button from "components/buttons/Button";
@@ -324,6 +325,42 @@ const ConditionalAccess = () => {
       return <DataError />;
     }
 
+    // Compute Entra card props to avoid nested ternaries
+    const entraIsConfigured = entraPhase === Phase.Configured;
+
+    let entraIconName: IconNames | undefined;
+    if (entraIsConfigured) {
+      entraIconName = "success";
+    } else if (showAwaitingOAuthBanner) {
+      entraIconName = "pending-outline";
+    }
+
+    let entraCta: JSX.Element | undefined;
+    if (entraIsConfigured) {
+      entraCta = (
+        <Button variant="text-icon" onClick={handleEntraDelete}>
+          Delete
+          <Icon name="trash" color="ui-fleet-black-75" />
+        </Button>
+      );
+    } else if (!showAwaitingOAuthBanner) {
+      entraCta = (
+        <Button onClick={handleEntraConnect} isLoading={isUpdating}>
+          Connect
+        </Button>
+      );
+    }
+
+    let entraContent: string;
+    if (entraIsConfigured) {
+      entraContent = "Microsoft Entra conditional access configured";
+    } else if (showAwaitingOAuthBanner) {
+      entraContent =
+        "To complete your integration, follow the instructions in the other tab, then refresh this page to verify.";
+    } else {
+      entraContent = "Connect Entra to enable conditional access.";
+    }
+
     return (
       <div className={`${baseClass}__cards`}>
         <SectionCard
@@ -346,35 +383,14 @@ const ConditionalAccess = () => {
         </SectionCard>
         <SectionCard
           header={
-            entraPhase === Phase.Configured || showAwaitingOAuthBanner
+            entraIsConfigured || showAwaitingOAuthBanner
               ? undefined
               : "Microsoft Entra"
           }
-          iconName={
-            entraPhase === Phase.Configured
-              ? "success"
-              : showAwaitingOAuthBanner
-              ? "pending-outline"
-              : undefined
-          }
-          cta={
-            entraPhase === Phase.Configured ? (
-              <Button variant="text-icon" onClick={handleEntraDelete}>
-                Delete
-                <Icon name="trash" color="ui-fleet-black-75" />
-              </Button>
-            ) : showAwaitingOAuthBanner ? undefined : (
-              <Button onClick={handleEntraConnect} isLoading={isUpdating}>
-                Connect
-              </Button>
-            )
-          }
+          iconName={entraIconName}
+          cta={entraCta}
         >
-          {entraPhase === Phase.Configured
-            ? "Microsoft Entra conditional access configured"
-            : showAwaitingOAuthBanner
-            ? "To complete your integration, follow the instructions in the other tab, then refresh this page to verify."
-            : "Connect Entra to enable conditional access."}
+          {entraContent}
         </SectionCard>
       </div>
     );

@@ -75,6 +75,7 @@ const OktaConditionalAccessModal = ({
     [OKTA_CERTIFICATE]: "",
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
+  const [certFile, setCertFile] = useState<File | null>(null);
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -130,16 +131,62 @@ const OktaConditionalAccessModal = ({
     setFormErrors(validate(formData));
   };
 
+  const onDeleteFile = () => {
+    setCertFile(null);
+    setFormData({ ...formData, [OKTA_CERTIFICATE]: "" });
+    setFormErrors({
+      ...formErrors,
+      [OKTA_CERTIFICATE]: "Certificate must be present",
+    });
+  };
+
   const onSelectFile = useCallback(
     (files: FileList | null) => {
       const file = files?.[0];
-      if (file) {
-        // TODO: Handle file upload - for now just storing the filename
-        setFormData({ ...formData, [OKTA_CERTIFICATE]: file.name });
-        setFormErrors({ ...formErrors, [OKTA_CERTIFICATE]: null });
+      if (!file) return;
+
+      // Validate file extension
+      if (!file.name.match(/\.(pem|crt|cer|cert)$/i)) {
+        renderFlash(
+          "error",
+          "Invalid file type. Please upload a .pem, .crt, .cer, or .cert file."
+        );
+        return;
       }
+
+      const reader = new FileReader();
+      reader.readAsText(file);
+
+      reader.addEventListener("load", () => {
+        const content = reader.result as string;
+
+        // Validate PEM format
+        if (
+          !content.includes("-----BEGIN CERTIFICATE-----") ||
+          !content.includes("-----END CERTIFICATE-----")
+        ) {
+          renderFlash(
+            "error",
+            "Invalid certificate format. The file must be a valid PEM-encoded certificate."
+          );
+          return;
+        }
+
+        // Create new form data with the certificate
+        const newFormData = { ...formData, [OKTA_CERTIFICATE]: content };
+
+        // Store the certificate content and file details
+        setCertFile(file);
+        setFormData(newFormData);
+        // Re-validate the entire form to clear errors if all fields are now complete
+        setFormErrors(validate(newFormData));
+      });
+
+      reader.addEventListener("error", () => {
+        renderFlash("error", "Failed to read the certificate file.");
+      });
     },
-    [formData, formErrors]
+    [formData, renderFlash]
   );
 
   return (
@@ -170,10 +217,8 @@ const OktaConditionalAccessModal = ({
             </TooltipWrapper>
             <br />
             <Button variant="inverse">
-              <>
-                Download certificate
-                <Icon name="download" />
-              </>
+              Download certificate
+              <Icon name="download" />
             </Button>
           </div>
 
@@ -234,6 +279,8 @@ const OktaConditionalAccessModal = ({
             buttonType="brand-inverse-icon"
             buttonMessage="Upload"
             accept=".pem,.crt,.cer,.cert"
+            fileDetails={certFile ? { name: certFile.name } : undefined}
+            onDeleteFile={onDeleteFile}
           />
 
           <div className="modal-cta-wrap">

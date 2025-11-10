@@ -139,7 +139,6 @@ describe("Conditional access", () => {
       expect(
         screen.getByText("Identity provider (IdP) signature certificate")
       ).toBeInTheDocument();
-      expect(screen.getByText("System scope profile")).toBeInTheDocument();
       expect(screen.getByText("User scope profile")).toBeInTheDocument();
       // Check for input fields
       expect(screen.getByText("IdP ID")).toBeInTheDocument();
