@@ -593,6 +593,16 @@ In brief, this means that as a Fleet team member, you may:
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
 
+## Mileage reimbursement
+
+When you travel for work and choose to drive your own vehicle, you are eligible for reimbursement based on the mileage driven. You can request for reimbursement via Brex.
+- Brex will automatically calculate the reimbursement amount based on the start and end destination of your journey.
+- Please include a reason for the trip.
+- Fleeties cannot claim both mileage and gas or Electric Vehicle charging fees.
+- If you are renting a vehicle on the company Brex card, you are not eligible to claim for mileage reimbursement.
+- See more details on this Brex page, under the [“**Submit mileage reimbursement requests”** section](https://www.brex.com/support/mileage-reimbursements)
+
+
 ### Coworking
 
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
