@@ -42,8 +42,9 @@ const CategoriesSelector = ({
                 value={selectedCategories.includes(cat.value)}
                 onChange={onSelectCategory}
                 parseTarget
-              />
-              <div className={`${baseClass}__label-name`}>{cat.label}</div>
+              >
+                <div className={`${baseClass}__label-name`}>{cat.label}</div>
+              </Checkbox>
             </div>
           );
         })}
