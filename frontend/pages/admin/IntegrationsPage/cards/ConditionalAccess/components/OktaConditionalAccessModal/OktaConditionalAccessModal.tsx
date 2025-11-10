@@ -5,6 +5,7 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import { IConfig } from "interfaces/config";
+import endpoints from "utilities/endpoints";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -216,10 +217,14 @@ const OktaConditionalAccessModal = ({
               Identity provider (IdP) signature certificate
             </TooltipWrapper>
             <br />
-            <Button variant="inverse">
-              Download certificate
+            <a
+              href={endpoints.CONDITIONAL_ACCESS_IDP_SIGNING_CERT}
+              download="fleet-idp-signing-certificate.pem"
+              className="button button--inverse"
+            >
+              Download certificate&nbsp;&nbsp;
               <Icon name="download" />
-            </Button>
+            </a>
           </div>
 
           {/* User Scope Profile */}
