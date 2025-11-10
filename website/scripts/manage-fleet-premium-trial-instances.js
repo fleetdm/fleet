@@ -641,7 +641,7 @@ module.exports = {
         },
         ensureAck: true,
       }).tolerate((err)=>{
-        sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium trial (email: ${user.emailAddress}) an error occured. Full error: ${util.inspect(err)}`)
+        sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium trial (email: ${user.emailAddress}) an error occured. Full error: ${util.inspect(err)}`);
         return;
       });
 
