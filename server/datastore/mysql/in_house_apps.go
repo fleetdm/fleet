@@ -47,7 +47,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			err = alreadyExists("insertInHouseApp", payload.Filename)
+			err = alreadyExists("In-house app", payload.Filename)
 		}
 
 		argsIos := []any{
@@ -129,7 +129,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		if IsDuplicate(err) {
-			err = alreadyExists("insertInHouseAppDB", payload.Filename)
+			err = alreadyExists("In-house app", payload.Filename)
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
