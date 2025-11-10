@@ -57,9 +57,19 @@ fi
 sudo cp -R "$TMPDIR/Microsoft Edge.app" "$APPDIR"
 
 # Clean up backup file if installation was successful
-if [ -d "$APPDIR/Microsoft Edge.app" ] && [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
-	sudo rm -rf "$TMPDIR/Microsoft Edge.app.bkp"
-	echo "Installation verified, backup file removed"
+# Always attempt cleanup, even if copy might have failed
+if [ -d "$APPDIR/Microsoft Edge.app" ]; then
+	if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
+		sudo rm -rf "$TMPDIR/Microsoft Edge.app.bkp"
+		echo "Installation verified, backup file removed"
+	fi
+else
+	# If installation failed, restore the backup
+	if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
+		echo "Installation failed, restoring backup"
+		sudo mv "$TMPDIR/Microsoft Edge.app.bkp" "$APPDIR/Microsoft Edge.app"
+	fi
+	exit 1
 fi
 
 
