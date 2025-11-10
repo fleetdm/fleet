@@ -59,15 +59,10 @@ cleanup_backup_files() {
   fi
 
   # Search for backup files in all common temp locations
+  # Use -exec to avoid pipe subshell issues
   for search_base in /tmp /var/folders /private/var/folders; do
     if [ -d "$search_base" ]; then
-      # Find all directories named "Microsoft Edge.app.bkp" recursively
-      find "$search_base" -type d -name "Microsoft Edge.app.bkp" 2>/dev/null | while read -r backup_path; do
-        if [ -d "$backup_path" ]; then
-          echo "Removing existing backup file: $backup_path"
-          sudo rm -rf "$backup_path" 2>/dev/null || true
-        fi
-      done
+      find "$search_base" -type d -name "Microsoft Edge.app.bkp" -exec sudo rm -rf {} + 2>/dev/null || true
     fi
   done
 }
@@ -78,26 +73,21 @@ quit_application 'com.microsoft.edgemac'
 # Clean up any existing backup files before creating a new one
 cleanup_backup_files
 
+# Remove existing app if present (like Homebrew does)
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
-	sudo mv "$APPDIR/Microsoft Edge.app" "$TMPDIR/Microsoft Edge.app.bkp"
+	sudo rm -rf "$APPDIR/Microsoft Edge.app"
 fi
+
+# Install the new app
 sudo cp -R "$TMPDIR/Microsoft Edge.app" "$APPDIR"
 
-# Clean up backup file if installation was successful
+# Verify installation and do final cleanup
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
-	# Installation successful - remove the backup file
-	if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
-		sudo rm -rf "$TMPDIR/Microsoft Edge.app.bkp"
-		echo "Installation verified, backup file removed"
-	fi
-	# Also do a comprehensive cleanup in case backup ended up elsewhere
+	# Installation successful - ensure no backup files remain
 	cleanup_backup_files
+	echo "Installation verified"
 else
-	# If installation failed, restore the backup
-	if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
-		echo "Installation failed, restoring backup"
-		sudo mv "$TMPDIR/Microsoft Edge.app.bkp" "$APPDIR/Microsoft Edge.app"
-	fi
+	echo "Installation failed"
 	exit 1
 fi
 
