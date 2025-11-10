@@ -15740,8 +15740,19 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// /////////////////////////////////////
 	// Test SCEP traffic being sent by host
+
+	// Invalid profile identifier
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,p1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	scepResErr := extractServerErrorText(scepRes.Body)
+	require.Contains(t, scepResErr, "invalid profile UUID (only Apple and Windows")
+
+	// Verify Windows profiles is allowed (with dummy values that will fail lookup)
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"invalid_identifier,w1234-uuid", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	scepResErr = extractServerErrorText(scepRes.Body)
+	require.Contains(t, scepResErr, "unknown identifier in URL path") // Both invalid host and profile, but it allows it to lookup
+
 	// GetCACaps
-	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
 	body, err := io.ReadAll(scepRes.Body)
 	require.NoError(t, err)
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))
