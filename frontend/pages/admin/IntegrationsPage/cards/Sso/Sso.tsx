@@ -335,6 +335,8 @@ const Sso = ({
   };
 
   const onSubmitEndUserSso = async () => {
+    // Notify parent component that it needs to re-fetch app config.
+    // No formUpdates needed because changes are made inside the card.
     await handleSubmit({});
   };
 
