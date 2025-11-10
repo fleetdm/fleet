@@ -53,10 +53,18 @@ const AddCertAuthorityModal = ({
 }: IAddCertAuthorityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const dropdownOptions = useMemo(() => {
+    return generateDropdownOptions(
+      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
+    );
+  }, [certAuthorities]);
+
   const [
     certAuthorityType,
     setCertAuthorityType,
-  ] = useState<ICertificateAuthorityType>("digicert");
+  ] = useState<ICertificateAuthorityType>(
+    dropdownOptions[0].value as ICertificateAuthorityType
+  );
   const [isAdding, setIsAdding] = useState(false);
   const [digicertFormData, setDigicertFormData] = useState<IDigicertFormData>({
     name: "",
@@ -192,12 +200,6 @@ const AddCertAuthorityModal = ({
     }
     setIsAdding(false);
   };
-
-  const dropdownOptions = useMemo(() => {
-    return generateDropdownOptions(
-      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
-    );
-  }, [certAuthorities]);
 
   const renderForm = () => {
     const submitBtnText = "Add CA";

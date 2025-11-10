@@ -2439,6 +2439,9 @@ type Datastore interface {
 	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
 	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
+	// GetMDMSCEPCertBySerial looks up an MDM SCEP certificate by serial number and returns the device UUID.
+	// This is used for iOS/iPadOS certificate-based authentication.
+	GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (deviceUUID string, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Conditional access certificates
@@ -2447,6 +2450,9 @@ type Datastore interface {
 	GetConditionalAccessCertHostIDBySerialNumber(ctx context.Context, serial uint64) (uint, error)
 	// GetConditionalAccessCertCreatedAtByHostID retrieves the created_at timestamp of the most recent certificate for a host.
 	GetConditionalAccessCertCreatedAtByHostID(ctx context.Context, hostID uint) (*time.Time, error)
+	// RevokeOldConditionalAccessCerts revokes old certificates for hosts that have a newer certificate.
+	// Returns the number of certificates revoked.
+	RevokeOldConditionalAccessCerts(ctx context.Context, gracePeriod time.Duration) (int64, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
