@@ -2,7 +2,7 @@
   "name": "Cisco Jabber",
   "unique_identifier": "com.cisco.jabber",
   "token": "cisco-jabber",
-  "installer_format": "dmg",
+  "installer_format": "pkg",
   "slug": "cisco-jabber/darwin",
   "default_categories": ["Communication"]
 }
