@@ -119,7 +119,9 @@ const TooltipWrapper = ({
         className={elementClassNames}
         data-tip
         data-tooltip-id={tipId}
-        style={!isMobileView ? { cursor: "pointer" } : undefined} // With mobile width, show pointer cursor on hover since tooltip won't show on hover
+        style={
+          isMobileView && !disableTooltip ? { cursor: "pointer" } : undefined
+        } // With mobile width, show pointer cursor on hover since tooltip won't show on hover
       >
         {children}
       </div>
