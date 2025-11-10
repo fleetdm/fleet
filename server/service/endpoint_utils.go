@@ -139,6 +139,26 @@ func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.
 	}
 }
 
+func newOrbitNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
+	// Add the capabilities reported by Orbit to the request context
+	opts = append(opts, capabilitiesContextFunc())
+
+	return &eu.CommonEndpointer[eu.HandlerFunc]{
+		EP: &endpointer{
+			svc: svc,
+		},
+		MakeDecoderFn: makeDecoder,
+		EncodeFn:      encodeResponse,
+		Opts:          opts,
+		AuthFunc:      auth.UnauthenticatedRequest,
+		FleetService:  svc,
+		Router:        r,
+		Versions:      versions,
+	}
+}
+
 func badRequest(msg string) error {
 	return &fleet.BadRequestError{Message: msg}
 }
@@ -156,6 +176,8 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 		return authenticatedDevice(svc, logger, next)
 	}
 
+	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
+	opts = append(opts, kithttp.ServerBefore(extractCertSerialFromHeader))
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
 	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerDeviceCapabilities()))
 	// Add the capabilities reported by the device to the request context

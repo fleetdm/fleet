@@ -28,6 +28,7 @@ export type ISupportedGraphicNames = Extract<
 >;
 
 interface IFileUploaderProps {
+  label?: React.ReactNode;
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: React.ReactNode;
   title?: string;
@@ -79,6 +80,7 @@ interface IFileUploaderProps {
  * A component that encapsulates the UI for uploading a file and a file selected.
  */
 export const FileUploader = ({
+  label,
   graphicName: graphicNames,
   message,
   title,
@@ -132,6 +134,11 @@ export const FileUploader = ({
     }
   };
 
+  const renderLabel = () => {
+    return label ? (
+      <div className={`${baseClass}__label form-field__label`}>{label}</div>
+    ) : null;
+  };
   const renderGraphics = () => {
     const graphicNamesArr =
       typeof graphicNames === "string" ? [graphicNames] : graphicNames;
@@ -249,22 +256,25 @@ export const FileUploader = ({
   };
 
   return (
-    <Card color="grey" className={classes}>
-      {fileDetails ? (
-        <FileDetails
-          graphicNames={graphicNames}
-          fileDetails={fileDetails}
-          canEdit={canEdit}
-          onDeleteFile={onDeleteFile}
-          onFileSelect={onFileSelect}
-          accept={accept}
-          gitopsCompatible={gitopsCompatible}
-          gitOpsModeEnabled={gitOpsModeEnabled}
-        />
-      ) : (
-        renderFileUploader()
-      )}
-    </Card>
+    <div className={`${baseClass}__wrapper form-field`}>
+      {renderLabel()}
+      <Card color="grey" className={classes}>
+        {fileDetails ? (
+          <FileDetails
+            graphicNames={graphicNames}
+            fileDetails={fileDetails}
+            canEdit={canEdit}
+            onDeleteFile={onDeleteFile}
+            onFileSelect={onFileSelect}
+            accept={accept}
+            gitopsCompatible={gitopsCompatible}
+            gitOpsModeEnabled={gitOpsModeEnabled}
+          />
+        ) : (
+          renderFileUploader()
+        )}
+      </Card>
+    </div>
   );
 };
 

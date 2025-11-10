@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
@@ -1346,7 +1347,7 @@ the way that the Fleet server works.
 				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
-				// Host identify SCEP feature only works if a private key has been set up
+				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
 					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
 					if err != nil {
@@ -1355,8 +1356,23 @@ the way that the Fleet server works.
 					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup host identity SCEP")
 					}
+
+					// Conditional Access SCEP
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &config)
+					if err != nil {
+						initFatal(err, "setup conditional access SCEP depot")
+					}
+					if err = condaccess.RegisterSCEP(ctx, rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access SCEP")
+					}
+
+					// Conditional Access IdP (Okta)
+					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+						initFatal(err, "setup conditional access IdP")
+					}
 				} else {
-					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
+					level.Warn(logger).Log("msg",
+						"Host identity and conditional access SCEP is not available because no server private key has been set up.")
 				}
 			}
 

@@ -5529,6 +5529,51 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/crontab.yml"
   },
   {
+    "name": "crowdstrike_falcon",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "description": "Information about Crowdstrike Falcon, collected via the falconctl utility.",
+    "platforms": [
+      "darwin",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "Output most table information, swapping customer ID for its length to avoid leaking sensitive information.\n\n```\nSELECT agent_id, LENGTH(cid), falcon_version, reduced_functionality_mode, sensor_loaded FROM crowdstrike_falcon;\n```",
+    "columns": [
+      {
+        "name": "agent_id",
+        "description": "The agent ID for the current install of Falcon",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "cid",
+        "description": "The CrowdStrike customer ID",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "falcon_version",
+        "description": "The version of Falcon Sensor installed",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reduced_functionality_mode",
+        "description": "Whether Falcon Sensor is in reduced functionality mode (true/false)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sensor_loaded",
+        "description": "Whether Falcon Sensor is loaded (true/false)",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/crowdstrike_falcon",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/crowdstrike_falcon.yml"
+  },
+  {
     "name": "cryptoinfo",
     "description": "Get info about a certificate on the host.",
     "evented": false,
