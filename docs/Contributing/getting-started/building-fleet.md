@@ -157,7 +157,7 @@ docker compose up
 
 > Note: you can customize the DB Docker image via the environment variables FLEET_MYSQL_IMAGE and FLEET_MYSQL_PLATFORM. For example:
 > - To run in macOS M1+, set FLEET_MYSQL_PLATFORM=linux/arm64/v8
-> - To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:11.4
+> - To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not officially supported).
 
 ### Stopping the local development environment
 
