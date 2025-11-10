@@ -181,11 +181,6 @@ const Sso = ({
     }
   };
 
-  console.log(
-    "appConfig?.mdm?.end_user_authentication",
-    appConfig?.mdm?.end_user_authentication
-  );
-
   const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
     newFormDataIdp(appConfig?.mdm?.end_user_authentication)
   );
