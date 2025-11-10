@@ -18,8 +18,17 @@ module.exports = {
     if(!sails.config.custom.renderApiToken){
       throw new Error(`Missing config value! Please set sails.config.custom.renderApiToken and try running this script again.`);
     }
+
     if(!sails.config.custom.renderInstancePoolSize){
       throw new Error(`Missing config value! Please set sails.config.custom.renderApiToken and try running this script again.`);
+    }
+
+    if(!sails.config.custom.renderInstanceSesSecretId){
+      throw new Error(`Missing config value! Please set sails.config.custom.renderInstanceSesSecretId and try running this script again.`);
+    }
+
+    if(!sails.config.custom.renderInstanceSesSecretKey){
+      throw new Error(`Missing config value! Please set sails.config.custom.renderInstanceSesSecretKey and try running this script again.`);
     }
 
 
@@ -343,8 +352,6 @@ module.exports = {
         //   ║║║║║╚═╗  ╠═╣║║║ ║║  ╚═╗║╣ ╚═╗
         //  ═╩╝╝╚╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝╚═╝╚═╝
         // Now provision a new *.try.fleetdm.com DNS record for this instance.
-        let urlForThisInstance = `${povRecord.slug}.try.fleetdm.com`;
-
         await sails.helpers.http.post.with({
           url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
           data: {
@@ -353,6 +360,10 @@ module.exports = {
               action: 'apply',
               workspace: povRecord.slug,
             }
+          },
+          headers: {
+            'User-Agent': 'fleetdm.com',
+            'Authorization': `token ${sails.config.custom.githubAccessToken}`
           }
         }).tolerate((err)=>{
           errorReportById[instanceIdAsString] = new Error(`Could not send request to create a *.try.fleetdm.com DNS record for a new Render trial instance. Error from GitHub API: ${util.inspect(err)}`);
@@ -362,6 +373,10 @@ module.exports = {
           return;
         }
 
+        let urlForThisInstance = `https://${povRecord.slug}.try.fleetdm.com`;
+        await RenderProofOfValue.updateOne({id: povRecord.id}).set({
+          instanceUrl: urlForThisInstance,
+        })
 
         //
         //  ╦ ╦╔═╗╦╔╦╗  ╔═╗╔═╗╦═╗  ╔╦╗╦ ╦╔═╗╔═╗ ╦    ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦
@@ -405,8 +420,7 @@ module.exports = {
           { key: 'FLEET_MYSQL_USERNAME', value: 'fleet' },
           { key: 'FLEET_MYSQL_PASSWORD', value: generatedMySQLPassword },
           { key: 'PORT', value: '8080' },
-          { key: 'FLEET_SERVER_ADDRESS', value: urlForThisInstance },
-          { key: 'FLEET_SES_ACCESS_KEY_ID', value: sails.config.custom.renderInstanceSesSecretId},
+          { key: 'FLEET_SES_ACCESS_KEY_ID', value: sails.config.custom.renderInstanceSesSecretId },
           { key: 'FLEET_SES_SECRET_ACCESS_KEY', value: sails.config.custom.renderInstanceSesSecretKey },
           { key: 'FLEET_EMAIL_BACKEND', value: 'ses'},
           { key: 'FLEET_SES_REGION', value: 'us-east-2'},
@@ -465,6 +479,23 @@ module.exports = {
         });
 
         //
+        //  ╔═╗╔╦╗╔╦╗  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔╦╗╔═╗╦╔╗╔
+        //  ╠═╣ ║║ ║║  ║  ║ ║╚═╗ ║ ║ ║║║║   ║║║ ║║║║╠═╣║║║║
+        //  ╩ ╩═╩╝═╩╝  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩  ═╩╝╚═╝╩ ╩╩ ╩╩╝╚╝
+        await sails.helpers.http.post.with({
+          url: `https://api.render.com/v1/services/${renderFleetServiceId}/custom-domains`,
+          data: {
+            name: urlForThisInstance,
+          },
+          headers: {
+            authorization: `Bearer ${sails.config.custom.renderApiToken}`
+          },
+        }).tolerate((err)=>{
+          errorReportById[instanceIdAsString] = new Error(`Could not move services to the project created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
+        });
+
+
+        //
         //  ╔╦╗╔═╗╦  ╦╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗╔═╗  ╔╦╗╔═╗  ╔═╗╦═╗╔═╗ ╦╔═╗╔═╗╔╦╗
         //  ║║║║ ║╚╗╔╝║╣   ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣ ╚═╗   ║ ║ ║  ╠═╝╠╦╝║ ║ ║║╣ ║   ║
         //  ╩ ╩╚═╝ ╚╝ ╚═╝  ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝╚═╝   ╩ ╚═╝  ╩  ╩╚═╚═╝╚╝╚═╝╚═╝ ╩
@@ -485,8 +516,8 @@ module.exports = {
           errorReportById[instanceIdAsString] = new Error(`Could not move services to the project created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
+        // Set the status of this POV instance to ready for assignment.
         await RenderProofOfValue.updateOne({id: povRecord.id}).set({
-          instanceUrl: createFleetResponse.service.serviceDetails.url,
           status: 'ready for assignment'
         });
 
@@ -535,6 +566,28 @@ module.exports = {
         sails.log.warn(`p1: When deleting a MySQL service (id: ${expiringInstance.renderMySqlServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
         return;
       });
+
+      // If this instance has a try.fleetdm.com url, send a request to delete the DNS record for it.
+      if(_.includes(expiringInstance.instanceUrl, 'try.fleetdm.com')){
+        await sails.helpers.http.post.with({
+          url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
+          data: {
+            event_type: 'try-fleet-webhook',
+            client_payload: {
+              action: 'destroy',
+              workspace: expiringInstance.slug,
+              confirm: 'DELETE'
+            },
+          },
+          headers: {
+            'User-Agent': 'fleetdm.com',
+            'Authorization': `token ${sails.config.custom.githubAccessToken}`
+          }
+        }).tolerate((err)=>{
+          sails.log.warn(`p1: When sending a request to Github to trigger a workflow to destroy a *.try.fleetdm.com DNS record for a Render POV that expired, The GitHub API returned an error. Error from GitHub API: ${util.inspect(err)}`);
+          return;
+        });
+      }
 
 
       // Delete the Redis service that was created for this record.
@@ -630,21 +683,30 @@ module.exports = {
             sails.log.warn(`p1: When deleting a MySQL service (id: ${povRecord.renderMySqlServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
             return;
           });
-          //
+        }
+
+        if(povRecord.instanceUrl) {
+          // If this incomplete POV record has an instanceUrl value, then we sent a request to create a *.try.fleetdm.com DNS record, and we will need to send another request to delete it.
           await sails.helpers.http.post.with({
             url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
             data: {
               event_type: 'try-fleet-webhook',
               client_payload: {
-                action: 'apply',
+                action: 'destroy',
                 workspace: povRecord.slug,
+                confirm: 'DELETE'
               }
+            },
+            headers: {
+              'User-Agent': 'fleetdm.com',
+              'Authorization': `token ${sails.config.custom.githubAccessToken}`
             }
           }).tolerate((err)=>{
-            errorReportById[instanceIdAsString] = new Error(`Could not send request to destroy a *.try.fleetdm.com DNS record for a Render trial instance that encountered an error during setup. Error from GitHub API: ${util.inspect(err)}`);
+            sails.log.warn(`p1: Could not send request to destroy a *.try.fleetdm.com DNS record for a Render trial instance that encountered an error during setup. Error from GitHub API: ${util.inspect(err)}`);
             return;
           });
         }
+
         if(povRecord.renderRedisServiceId) {
           // Delete the Redis service that was created for this record.
           await sails.helpers.http.sendHttpRequest.with({
