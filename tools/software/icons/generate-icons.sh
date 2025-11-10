@@ -78,13 +78,49 @@ ICON_DIR="$TMP_DIR/icons.iconset"
 mkdir -p "$ICON_DIR"
 iconutil -c iconset "$ICNS_PATH" -o "$ICON_DIR"
 
-# Find the 128x128 PNG
-ICON_128=$(find "$ICON_DIR" -name "*128x128.png" | head -n 1)
+# Debug: list all PNG files in iconset
+echo "Available icon files in iconset:"
+find "$ICON_DIR" -name "*.png" | sort || true
+
+# Find the 128x128 PNG (prefer exact 128x128, not @2x)
+ICON_128=$(find "$ICON_DIR" -name "*128x128.png" ! -name "*@2x*" | head -n 1)
 if [[ -z "$ICON_128" ]]; then
-  echo "Error: 128x128 icon not found."
+  # Fallback: try 128x128@2x (which is 256x256)
+  ICON_128=$(find "$ICON_DIR" -name "*128x128@2x.png" | head -n 1)
+fi
+if [[ -z "$ICON_128" ]]; then
+  # Fallback: try any icon with 128 in the name
+  ICON_128=$(find "$ICON_DIR" -name "*128*.png" | head -n 1)
+fi
+if [[ -z "$ICON_128" ]]; then
+  # Last resort: find the largest PNG (prefer larger sizes)
+  ICON_128=$(find "$ICON_DIR" -name "*.png" | sort -V | tail -n 1)
+fi
+
+if [[ -z "$ICON_128" ]]; then
+  echo "Error: No icon PNG files found in extracted iconset."
+  echo "ICON_DIR: $ICON_DIR"
   exit 1
 fi
+
 echo "Using icon for SVG and PNG: $ICON_128"
+
+# Check dimensions and resize to 128x128 if larger
+ICON_WIDTH=$(sips -g pixelWidth "$ICON_128" | grep pixelWidth | awk '{print $2}')
+ICON_HEIGHT=$(sips -g pixelHeight "$ICON_128" | grep pixelHeight | awk '{print $2}')
+echo "Icon dimensions: ${ICON_WIDTH}x${ICON_HEIGHT}"
+
+if [[ $ICON_WIDTH -gt 128 || $ICON_HEIGHT -gt 128 ]]; then
+  echo "Resizing icon from ${ICON_WIDTH}x${ICON_HEIGHT} to 128x128..."
+  RESIZED_ICON="$TMP_DIR/icon_128x128.png"
+  sips -z 128 128 "$ICON_128" --out "$RESIZED_ICON" > /dev/null 2>&1
+  if [[ -f "$RESIZED_ICON" ]]; then
+    ICON_128="$RESIZED_ICON"
+    echo "Resized icon saved to: $ICON_128"
+  else
+    echo "Warning: Failed to resize icon, using original"
+  fi
+fi
 
 # Generate SVG from 128 PNG
 WIDTH=32
