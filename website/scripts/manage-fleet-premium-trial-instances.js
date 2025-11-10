@@ -355,8 +355,8 @@ module.exports = {
         await sails.helpers.http.post.with({
           url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
           data: {
-            event_type: 'try-fleet-webhook',
-            client_payload: {
+            event_type: 'try-fleet-webhook',//eslint-disable-line camelcase
+            client_payload: {//eslint-disable-line camelcase
               action: 'apply',
               workspace: povRecord.slug,
             }
@@ -376,7 +376,7 @@ module.exports = {
         let urlForThisInstance = `https://${povRecord.slug}.try.fleetdm.com`;
         await RenderProofOfValue.updateOne({id: povRecord.id}).set({
           instanceUrl: urlForThisInstance,
-        })
+        });
 
         //
         //  ╦ ╦╔═╗╦╔╦╗  ╔═╗╔═╗╦═╗  ╔╦╗╦ ╦╔═╗╔═╗ ╦    ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦
@@ -572,8 +572,8 @@ module.exports = {
         await sails.helpers.http.post.with({
           url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
           data: {
-            event_type: 'try-fleet-webhook',
-            client_payload: {
+            event_type: 'try-fleet-webhook',//eslint-disable-line camelcase
+            client_payload: {//eslint-disable-line camelcase
               action: 'destroy',
               workspace: expiringInstance.slug,
               confirm: 'DELETE'
@@ -690,8 +690,8 @@ module.exports = {
           await sails.helpers.http.post.with({
             url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
             data: {
-              event_type: 'try-fleet-webhook',
-              client_payload: {
+              event_type: 'try-fleet-webhook',//eslint-disable-line camelcase
+              client_payload: {//eslint-disable-line camelcase
                 action: 'destroy',
                 workspace: povRecord.slug,
                 confirm: 'DELETE'
