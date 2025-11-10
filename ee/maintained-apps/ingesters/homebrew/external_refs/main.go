@@ -13,6 +13,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"whatsapp/darwin":               {WhatsAppVersionShortener},
 	"google-chrome/darwin":          {ChromePKGInstaller},
 	"omnissa-horizon-client/darwin": {OmnissaHorizonVersionShortener},
+	"github/darwin":                 {GitHubDesktopVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
