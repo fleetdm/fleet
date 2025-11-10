@@ -8035,7 +8035,7 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
 
 	// Attempt simple SCEP call with GetCACaps operation to verify SCEP server is reachable
 	identifier := host.UUID + "," + profileUUID + "," + "INTEGRATION"
-	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+"/pkiclient.exe", nil, http.StatusOK, nil, "operation", "GetCACaps")
 	body, err := io.ReadAll(scepRes.Body)
 	require.NoError(t, err)
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))
