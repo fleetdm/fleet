@@ -91,6 +91,7 @@ export const AUTH_TARGETS_BY_INDEX = ["fleet-users", "end-users"];
 const Sso = ({
   appConfig,
   handleSubmit,
+  refetchConfig,
   isPremiumTier,
   isUpdatingSettings,
   router,
@@ -180,6 +181,11 @@ const Sso = ({
       originalFormData.current = { ...formData };
     }
   };
+
+  console.log(
+    "appConfig?.mdm?.end_user_authentication",
+    appConfig?.mdm?.end_user_authentication
+  );
 
   const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
     newFormDataIdp(appConfig?.mdm?.end_user_authentication)
@@ -334,12 +340,17 @@ const Sso = ({
     );
   };
 
+  const onSubmitEndUserSso = async () => {
+    refetchConfig && (await refetchConfig());
+  };
+
   const renderEndUserSsoTab = () => (
     <EndUserAuthSection
       setDirty={setFormDirty}
       formData={endUserFormData}
       setFormData={setEndUserFormData}
       originalFormData={originalEndUserFormData}
+      onSubmit={onSubmitEndUserSso}
     />
   );
 

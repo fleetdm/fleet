@@ -16,6 +16,7 @@ export interface IAppConfigFormProps {
   handleSubmit: (formUpdates: DeepPartial<IConfig>) => Promise<boolean>;
   router: InjectedRouter;
   subsection?: string;
+  refetchConfig?: () => Promise<IConfig>;
 }
 
 export const authMethodOptions = [

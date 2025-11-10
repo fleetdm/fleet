@@ -108,6 +108,7 @@ const IntegrationsPage = ({
               // below props used only by settings-related cards e.g. SSO
               appConfig={appConfig}
               handleSubmit={onUpdateSettings}
+              refetchConfig={refetchConfig}
               isPremiumTier={isPremiumTier}
               isUpdatingSettings={isUpdatingSettings}
               subsection={subsection}
