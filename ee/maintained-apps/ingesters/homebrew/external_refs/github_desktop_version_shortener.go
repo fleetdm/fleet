@@ -23,4 +23,3 @@ func GitHubDesktopVersionShortener(app *maintained_apps.FMAManifestApp) (*mainta
 
 	return app, nil
 }
-
