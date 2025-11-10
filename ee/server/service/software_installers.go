@@ -1644,7 +1644,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1.",
+				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -1656,7 +1656,6 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
-	fmt.Println(">>>>>> extracted metadata is :", meta)
 
 	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" {
 		return "", &fleet.BadRequestError{
@@ -1687,7 +1686,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 
 	// Software edits validate non-empty scripts later, so set failOnBlankScript to false
-	if payload.InstallScript == "" && failOnBlankScript {
+	if payload.InstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
 		return "", &fleet.BadRequestError{
 			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", strings.ToLower(payload.Extension)),
 		}
@@ -1700,20 +1699,10 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 			payload.UninstallScript = file.UninstallMsiWithUpgradeCodeScript
 		}
 	}
-	if payload.UninstallScript == "" && failOnBlankScript {
+	if payload.UninstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
 		return "", &fleet.BadRequestError{
 			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
 		}
-	}
-
-	if payload.BundleIdentifier != "" {
-		payload.Source = "apps"
-	} else {
-		source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
-		}
-		payload.Source = source
 	}
 
 	platform, err := fleet.SoftwareInstallerPlatformFromExtension(meta.Extension)
@@ -1721,6 +1710,23 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.Wrap(ctx, err, "determining platform from extension")
 	}
 	payload.Platform = platform
+
+	switch {
+	case payload.Extension == "ipa":
+		if payload.Platform == "ipados" {
+			payload.Source = "ipados_apps"
+		} else {
+			payload.Source = "ios_apps"
+		}
+	case payload.BundleIdentifier != "":
+		payload.Source = "apps"
+	default:
+		source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
+		}
+		payload.Source = source
+	}
 
 	return meta.Extension, nil
 }
@@ -2201,7 +2207,6 @@ func (svc *Service) softwareBatchUpload(
 				// validate before metadata extraction.
 				ext := strings.ToLower(filepath.Ext(filename))
 				ext = strings.TrimPrefix(ext, ".")
-				fmt.Println(">>>>> extension from filename is ", ext)
 				if fleet.IsScriptPackage(ext) {
 					installer.PostInstallScript = ""
 					installer.UninstallScript = ""
@@ -2282,8 +2287,6 @@ func (svc *Service) softwareBatchUpload(
 					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
 			}
-
-			fmt.Println(">>>>> batch set extension at this point? ", installer.Filename, installer.Extension)
 
 			// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
 			// unsupported fields. For script packages, the file contents become the
@@ -2381,12 +2384,13 @@ func (svc *Service) softwareBatchUpload(
 		}
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
+			inHouseInstallers = append(inHouseInstallers, payloadWithExtras.ExtraInstallers...)
 		} else {
 			softwareInstallers = append(softwareInstallers, payload)
+			softwareInstallers = append(softwareInstallers, payloadWithExtras.ExtraInstallers...)
 		}
 	}
 
-	fmt.Println(">>>>> batch set found ", len(softwareInstallers), " software installers and ", len(inHouseInstallers), " in-house installers")
 	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers); err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
 		return
