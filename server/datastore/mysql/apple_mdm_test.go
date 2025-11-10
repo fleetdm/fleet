@@ -8901,7 +8901,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// Explicitly set the labelUpdatedAt very slightly in the past for testing dynamic label logic
-	oneSecondAgo := time.Now().Add(-1 * time.Second).UTC().Round(time.Microsecond)
+	fiveSecondsAgo := time.Now().Add(-5 * time.Second).UTC().Round(time.Microsecond)
 
 	matchProfiles := func(want, got []*fleet.MDMAppleProfilePayload) {
 		// match only the fields we care about
@@ -8935,7 +8935,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		UUID:           "test-uuid-1",
 		TeamID:         nil,
 		Platform:       "darwin",
-		LabelUpdatedAt: oneSecondAgo,
+		LabelUpdatedAt: fiveSecondsAgo,
 	})
 	require.NoError(t, err)
 	// add a user enrollment for this device, nothing else should be modified
@@ -8949,7 +8949,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		UUID:           "test-windows-host",
 		TeamID:         nil,
 		Platform:       "windows",
-		LabelUpdatedAt: oneSecondAgo,
+		LabelUpdatedAt: fiveSecondsAgo,
 	})
 	require.NoError(t, err)
 
@@ -8962,7 +8962,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		UUID:           "test-non-mdm-host",
 		TeamID:         nil,
 		Platform:       "darwin",
-		LabelUpdatedAt: oneSecondAgo,
+		LabelUpdatedAt: fiveSecondsAgo,
 	})
 	require.NoError(t, err)
 
@@ -8981,7 +8981,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		UUID:           "test-uuid-1-label",
 		TeamID:         nil,
 		Platform:       "darwin",
-		LabelUpdatedAt: oneSecondAgo,
+		LabelUpdatedAt: fiveSecondsAgo,
 	})
 	require.NoError(t, err)
 	// add a user enrollment for this device, nothing else should be modified
@@ -9045,11 +9045,11 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	}, profilesToInstall)
 
 	// Update hosts' labels updated at timestamp so that the exclude any profile with a dynamic label shows up
-	hostLabel.LabelUpdatedAt = time.Now()
+	hostLabel.LabelUpdatedAt = time.Now().Add(1 * time.Second)
 	err = ds.UpdateHost(ctx, hostLabel)
 	require.NoError(t, err)
 
-	host1.LabelUpdatedAt = time.Now()
+	host1.LabelUpdatedAt = time.Now().Add(1 * time.Second)
 	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
 

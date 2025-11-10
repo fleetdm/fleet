@@ -2312,7 +2312,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		// Set this slightly in the past to test dynamic label exclusion
-		LabelUpdatedAt:  time.Now().Add(-1 * time.Second),
+		LabelUpdatedAt:  time.Now().Add(-5 * time.Second),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         &u,
