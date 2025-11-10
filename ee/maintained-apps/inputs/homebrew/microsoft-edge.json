@@ -7,6 +7,5 @@
   "default_categories": [
     "Browsers"
   ],
-  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/microsoft-edge-install.sh",
-  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/microsoft-edge-uninstall.sh"
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/microsoft-edge-install.sh"
 }
