@@ -1,0 +1,8 @@
+{
+  "name": "Pritunl",
+  "unique_identifier": "com.electron.pritunl",
+  "token": "pritunl",
+  "installer_format": "zip",
+  "slug": "pritunl/darwin",
+  "default_categories": ["Productivity"]
+}

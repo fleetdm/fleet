@@ -219,6 +219,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Pritunl",
+      "slug": "pritunl/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.pritunl",
+      "description": "Pritunl is an OpenVPN client."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
