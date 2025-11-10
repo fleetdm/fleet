@@ -1214,7 +1214,7 @@ func testBatchSetInHouseInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
 		}
 
 		// validate that the inserted software is as expected
-		for _, payload := range c.payload {
+		for i, payload := range c.payload {
 			meta, ok := installersByFilename[payload.Installer.Filename]
 			require.True(t, ok, "installer %s was not created", payload.Installer.Filename)
 			require.Equal(t, meta.SoftwareTitle, payload.Installer.Title)
@@ -1247,7 +1247,7 @@ func testBatchSetInHouseInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
 						FROM upcoming_activities ua
 						INNER JOIN in_house_app_upcoming_activities ihua
 							ON ua.id = ihua.upcoming_activity_id AND ua.activity_type = 'in_house_app_install'
-						WHERE ua.host_id = ? AND ihua.in_house_app_id = ?`, host.ID, installerIDs[0])
+						WHERE ua.host_id = ? AND ihua.in_house_app_id = ?`, host.ID, installerIDs[i])
 					if err == sql.ErrNoRows {
 						err = nil
 					}
