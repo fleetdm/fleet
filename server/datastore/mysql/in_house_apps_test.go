@@ -30,6 +30,7 @@ func TestInHouseApps(t *testing.T) {
 		{"MultipleTeams", testInHouseAppsMultipleTeams},
 		{"BatchSetInHouseInstallers", testBatchSetInHouseInstallers},
 		{"BatchSetInHouseInstallersScopedViaLabels", testBatchSetInHouseInstallersScopedViaLabels},
+		{"EditDeleteInHouseInstallersActivateNextActivity", testEditDeleteInHouseInstallersActivateNextActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1261,4 +1262,149 @@ func testBatchSetInHouseInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
 			}
 		}
 	}
+}
+
+func testEditDeleteInHouseInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a label
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "A"})
+	require.NoError(t, err)
+
+	// create a few installers
+	err = ds.BatchSetInHouseAppsInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID:        "ipa0",
+			Filename:         "ipa0.ipa",
+			Title:            "ipa0",
+			Source:           "ios_apps",
+			Version:          "1.0.0",
+			UserID:           user.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa0",
+			SelfService:      false,
+		},
+		{
+			StorageID:        "ipa1",
+			Filename:         "ipa1.ipa",
+			Title:            "ipa1",
+			Source:           "ios_apps",
+			Version:          "1.0.0",
+			UserID:           user.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa1",
+			SelfService:      false,
+		},
+	})
+	require.NoError(t, err)
+
+	installers, err := ds.GetSoftwareInstallers(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, installers, 2)
+	sort.Slice(installers, func(i, j int) bool {
+		return installers[i].URL < installers[j].URL
+	})
+	ipa0, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, *installers[0].TitleID)
+	require.NoError(t, err)
+	ipa1, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, *installers[1].TitleID)
+	require.NoError(t, err)
+
+	// create a few hosts
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now(), test.WithPlatform("ios"))
+	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host1, false)
+	nanoEnroll(t, ds, host2, false)
+	nanoEnroll(t, ds, host3, false)
+
+	// enqueue software installs on each host
+	host1Ipa0 := createInHouseAppInstallRequest(t, ds, host1.ID, ipa0.InstallerID, *installers[0].TitleID, user)
+	host1Ipa1 := createInHouseAppInstallRequest(t, ds, host1.ID, ipa1.InstallerID, *installers[1].TitleID, user)
+	// add a script exec as last activity for host1
+	host1Script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: host1.ID, ScriptContents: "echo", UserID: &user.ID, SyncRequest: true,
+	})
+	require.NoError(t, err)
+	host2Ipa0 := createInHouseAppInstallRequest(t, ds, host2.ID, ipa0.InstallerID, *installers[0].TitleID, user)
+	host2Ipa1 := createInHouseAppInstallRequest(t, ds, host2.ID, ipa1.InstallerID, *installers[1].TitleID, user)
+	// add a script exec as first activity for host3
+	host3Script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: host3.ID, ScriptContents: "echo", UserID: &user.ID, SyncRequest: true,
+	})
+	require.NoError(t, err)
+	host3Ipa1 := createInHouseAppInstallRequest(t, ds, host3.ID, ipa1.InstallerID, *installers[1].TitleID, user)
+
+	checkUpcomingActivities(t, ds, host1, host1Ipa0, host1Ipa1, host1Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host2, host2Ipa0, host2Ipa1)
+	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ipa1)
+
+	// update installer ipa0 metadata (label condition)
+	err = ds.BatchSetInHouseAppsInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID: "ipa0",
+			Filename:  "ipa0.ipa",
+			Title:     "ipa0",
+			Source:    "ios_apps",
+			Version:   "1.0.0",
+			UserID:    user.ID,
+			Platform:  "ios",
+			URL:       "https://example.com/0",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName:     map[string]fleet.LabelIdent{label.Name: {LabelID: label.ID, LabelName: label.Name}},
+			},
+			BundleIdentifier: "com.ipa0",
+			SelfService:      false,
+		},
+		{
+			StorageID:        "ipa1",
+			Filename:         "ipa1.ipa",
+			Title:            "ipa1",
+			Source:           "ios_apps",
+			Version:          "1.0.0",
+			UserID:           user.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa1",
+			SelfService:      false,
+		},
+	})
+	require.NoError(t, err)
+
+	// installer ipa0 activities were deleted, next activity was activated
+	checkUpcomingActivities(t, ds, host1, host1Ipa1, host1Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host2, host2Ipa1)
+	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ipa1)
+
+	// delete ipa1
+	err = ds.BatchSetInHouseAppsInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID: "ipa0",
+			Filename:  "ipa0.ipa",
+			Title:     "ipa0",
+			Source:    "ios_apps",
+			Version:   "1.0.0",
+			UserID:    user.ID,
+			Platform:  "ios",
+			URL:       "https://example.com/0",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName:     map[string]fleet.LabelIdent{label.Name: {LabelID: label.ID, LabelName: label.Name}},
+			},
+			BundleIdentifier: "com.ipa0",
+			SelfService:      false,
+		},
+	})
+	require.NoError(t, err)
+
+	// installer ipa1 activities were deleted, next activity was activated for host1 and host2
+	checkUpcomingActivities(t, ds, host1, host1Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host2)
+	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID)
 }
