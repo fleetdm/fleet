@@ -619,7 +619,7 @@ const EditIconModal = ({
       }
 
       // Process display name change
-      if (displayName !== previewInfo.name) {
+      if (canSaveDisplayName) {
         try {
           await (installerType === "package"
             ? softwareAPI.editSoftwarePackage({
@@ -634,12 +634,18 @@ const EditIconModal = ({
             id: "name-edited",
             alertType: "success",
             isVisible: true,
-            message: (
-              <>
-                Successfully renamed <b>{previewInfo.name}</b> to{" "}
-                <b>{displayName}</b>.
-              </>
-            ),
+            message:
+              displayName === "" ? (
+                <>
+                  Successfully removed custom name for <b>{previewInfo.name}</b>
+                  .
+                </>
+              ) : (
+                <>
+                  Successfully renamed <b>{previewInfo.name}</b> to{" "}
+                  <b>{displayName}</b>.
+                </>
+              ),
             persistOnPageChange: false,
           });
         } catch (e) {
