@@ -491,9 +491,12 @@ module.exports = {
             authorization: `Bearer ${sails.config.custom.renderApiToken}`
           },
         }).tolerate((err)=>{
-          errorReportById[instanceIdAsString] = new Error(`Could not move services to the project created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
+          errorReportById[instanceIdAsString] = new Error(`Could not add a custom domain to the Fleet service created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
+        if(errorReportById[instanceIdAsString]){
+          return;
+        }
 
         //
         //  ╔╦╗╔═╗╦  ╦╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗╔═╗  ╔╦╗╔═╗  ╔═╗╦═╗╔═╗ ╦╔═╗╔═╗╔╦╗
@@ -515,6 +518,10 @@ module.exports = {
         }).tolerate((err)=>{
           errorReportById[instanceIdAsString] = new Error(`Could not move services to the project created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
+
+        if(errorReportById[instanceIdAsString]){
+          return;
+        }
 
         // Set the status of this POV instance to ready for assignment.
         await RenderProofOfValue.updateOne({id: povRecord.id}).set({
