@@ -1,17 +1,21 @@
 import React from "react";
 
+import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
+import { MacDiskEncryptionActionRequired } from "interfaces/host";
+
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import Button from "components/buttons/Button";
-import { MacDiskEncryptionActionRequired } from "interfaces/host";
+
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
-import CustomLink from "components/CustomLink";
-import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
 
 const baseClass = "device-user-banners";
 
 interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
+  deviceAssignedToFleetABM?: boolean;
   onClickCreatePIN: () => void;
   onClickTurnOnMdm: () => void;
   onTriggerEscrowLinuxKey: () => void;
@@ -30,6 +34,7 @@ const DeviceUserBanners = ({
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
+  deviceAssignedToFleetABM = false,
   onTriggerEscrowLinuxKey,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
@@ -45,16 +50,22 @@ const DeviceUserBanners = ({
     macDiskEncryptionStatus === "action_required" &&
     diskEncryptionActionRequired === "rotate_key";
 
-  const turnOnMdmButton = (
+  const turnOnMdmCTA = (
     <Button variant="text-link-dark" onClick={onClickTurnOnMdm}>
-      Turn on MDM
+      <span>Turn on MDM</span>
+      {!deviceAssignedToFleetABM && (
+        <Icon
+          name="external-link"
+          className={`${baseClass}__external-link-icon`}
+        />
+      )}
     </Button>
   );
 
   const renderBanner = () => {
     if (showTurnOnAppleMdmBanner) {
       return (
-        <InfoBanner color="yellow" cta={turnOnMdmButton}>
+        <InfoBanner color="yellow" cta={turnOnMdmCTA}>
           Mobile device management (MDM) is off. MDM allows your organization to
           change settings and install software. This lets your organization keep
           your device up to date so you don&apos;t have to.

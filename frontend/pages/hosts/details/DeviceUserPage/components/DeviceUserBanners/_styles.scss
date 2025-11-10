@@ -3,4 +3,12 @@
     color: $core-fleet-black;
     font-weight: $bold;
   }
+  
+  // this is currently only used in the device user banner component
+  // so we do these one off styles here. If we start using this
+  // link style with icon elsewhere we should move it into the Button component
+  &__external-link-icon {
+    margin-left: $pad-xsmall;
+    margin-top: $pad-xxsmall; 
+  }
 }

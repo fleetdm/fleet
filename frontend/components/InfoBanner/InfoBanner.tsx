@@ -17,7 +17,7 @@ export interface IInfoBannerProps {
   borderRadius?: "medium" | "xlarge";
   pageLevel?: boolean;
   /** Add this element to the end of the banner message. Mutually exclusive with `link`. */
-  cta?: JSX.Element;
+  cta?: React.ReactNode;
   /** closable and link are mutually exclusive */
   closable?: boolean;
   icon?: IconNames; // TODO: This is unused but several banners have icons within children that can be refactored to use this for consistent styling
