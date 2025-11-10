@@ -550,7 +550,7 @@ module.exports = {
     //
     // Check for any instances that should be torn down during this run.
     let nowAt = Date.now();
-    let expiringInstances = await RenderProofOfValue.find({status: 'in-use', renderTrialEndsAt: {'<': nowAt}}).populate('user');
+    let expiringInstances = await RenderProofOfValue.find({status: 'in use', renderTrialEndsAt: {'<': nowAt}}).populate('user');
     for(let expiringInstance of expiringInstances) {
       // Delete the services and the project for this expired POV.
 
@@ -640,6 +640,9 @@ module.exports = {
           firstName: user.firstName,
         },
         ensureAck: true,
+      }).tolerate((err)=>{
+        sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium trial (email: ${user.emailAddress}) an error occured. Full error: ${util.inspect(err)}`)
+        return;
       });
 
       await RenderProofOfValue.updateOne({id: expiringInstance.id}).set({status: 'expired'});
