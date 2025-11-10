@@ -109,7 +109,7 @@ const SoftwareOptionsSelector = ({
   const isPlatformIosOrIpados =
     isIPadOrIPhone(platform || "") || isIpaPackage || false;
   const isPlatformAndroid = isAndroid(platform || "");
-  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
+  const isSelfServiceDisabled = disableOptions;
   const isAutomaticInstallDisabled =
     disableOptions ||
     isPlatformIosOrIpados ||
