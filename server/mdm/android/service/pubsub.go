@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-json-experiment/json"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/cases"
@@ -454,8 +455,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			DeviceID: deviceID,
 		},
 	}
+	policy := ptr.String(fmt.Sprint(defaultAndroidPolicyID))
 	if device.AppliedPolicyName != "" {
-		policy, err := svc.getPolicyID(ctx, device)
+		policy, err = svc.getPolicyID(ctx, device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting Android policy ID")
 		}
@@ -470,7 +472,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	_, err = svc.ds.NewAndroidHost(ctx, host)
+	fleetHost, err := svc.ds.NewAndroidHost(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -483,15 +485,15 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		}
 	}
 
-	// enterprise, err := svc.ds.GetEnterprise(ctx)
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "get android enterprise")
-	// }
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android enterprise")
+	}
 
-	// err = worker.QueueMakeAndroidAppsAvailableForHostJob(ctx, svc.fleetDS, svc.logger, device.HardwareInfo.EnterpriseSpecificId, newHost.Host.ID, enterprise.Name())
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "enqueuing make android apps available for host job")
-	// }
+	err = worker.QueueMakeAndroidAppsAvailableForHostJob(ctx, svc.fleetDS, svc.logger, device.HardwareInfo.EnterpriseSpecificId, fleetHost.Host.ID, enterprise.Name(), *policy)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing make android apps available for host job")
+	}
 
 	return nil
 }

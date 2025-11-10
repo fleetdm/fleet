@@ -932,3 +932,72 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error) {
+	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesDevicesPatch(ctx, deviceName, device)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			deviceRequest.StatusCode = gerr.Code
+		}
+		deviceRequest.ErrorDetails.V = apiErr.Error()
+		deviceRequest.ErrorDetails.Valid = true
+
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		deviceRequest.StatusCode = http.StatusOK
+		deviceRequest.AppliedPolicyVersion.V = applied.AppliedPolicyVersion
+		deviceRequest.AppliedPolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android device request")
+	}
+	return skip, nil
+}
+
+func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (skip bool, err error) {
+	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+	}
+
+	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			policyRequest.StatusCode = gerr.Code
+		}
+		policyRequest.ErrorDetails.V = apiErr.Error()
+		policyRequest.ErrorDetails.Valid = true
+
+		// Note that from my tests, the "not modified" error is not reliable, the
+		// AMAPI happily returned 200 even if the policy was the same (as
+		// confirmed by the same version number being returned), so we do check
+		// for this error, but do not build critical logic on top of it.
+		//
+		// Tests do show that the version number is properly incremented when the
+		// policy changes, though.
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		policyRequest.StatusCode = http.StatusOK
+		policyRequest.PolicyVersion.V = applied.Version
+		policyRequest.PolicyVersion.Valid = true
+	}
+
+	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+	}
+	return skip, nil
+}

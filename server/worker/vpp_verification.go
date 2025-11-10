@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -11,6 +12,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 const AppleSoftwareJobName = "apple_software"
@@ -40,6 +42,7 @@ type appleSoftwareArgs struct {
 	AppTeamID               uint              `json:"app_team_id"`
 	EnterpriseName          string            `json:"enterprise_name"`
 	HostID                  uint              `json:"host_id"`
+	PolicyID                string            `json:"policy_id"`
 }
 
 func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -64,7 +67,7 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 	case MakeAndroidAppsAvailableForHostTask:
 		return ctxerr.Wrapf(
 			ctx,
-			v.makeAndroidAppsAvailableForHost(ctx, args.HostUUID, args.HostID, args.EnterpriseName),
+			v.makeAndroidAppsAvailableForHost(ctx, args.HostUUID, args.HostID, args.EnterpriseName, args.PolicyID),
 			"running %s task",
 			MakeAndroidAppsAvailableForHostTask,
 		)
@@ -143,7 +146,54 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 	return nil
 }
 
-func (v *AppleSoftware) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName string) error {
+func (v *AppleSoftware) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
+
+	if policyID == "1" {
+		var policy androidmanagement.Policy
+
+		policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+			DeviceSettingsEnabled:        true,
+			MemoryInfoEnabled:            true,
+			NetworkInfoEnabled:           true,
+			DisplayInfoEnabled:           true,
+			PowerManagementEventsEnabled: true,
+			HardwareStatusEnabled:        true,
+			SystemPropertiesEnabled:      true,
+			SoftwareInfoEnabled:          true,
+			CommonCriteriaModeEnabled:    true,
+			ApplicationReportsEnabled:    true,
+			ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+		}
+
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
+		_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
+		if err != nil {
+			return err
+		}
+		device := &androidmanagement.Device{
+			PolicyName: policyName,
+			// State must be specified when updating a device, otherwise it fails with
+			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+			//
+			// > Note that when calling enterprises.devices.patch, ACTIVE and
+			// > DISABLED are the only allowable values.
+
+			// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
+			// we probably don't want to re-enable it by accident. Those are the only
+			// 2 valid states when patching a device.
+			State: "ACTIVE",
+		}
+		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+		}
+		deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
+		_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)
+		if err != nil {
+			return err
+		}
+	}
+
 	appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
@@ -161,12 +211,13 @@ func (v *AppleSoftware) makeAndroidAppsAvailableForHost(ctx context.Context, hos
 	return nil
 }
 
-func QueueMakeAndroidAppsAvailableForHostJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID string, hostID uint, enterpriseName string) error {
+func QueueMakeAndroidAppsAvailableForHostJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, hostUUID string, hostID uint, enterpriseName, policyID string) error {
 	args := &appleSoftwareArgs{
 		Task:           MakeAndroidAppsAvailableForHostTask,
 		HostUUID:       hostUUID,
 		HostID:         hostID,
 		EnterpriseName: enterpriseName,
+		PolicyID:       policyID,
 	}
 
 	job, err := QueueJob(ctx, ds, AppleSoftwareJobName, args)
