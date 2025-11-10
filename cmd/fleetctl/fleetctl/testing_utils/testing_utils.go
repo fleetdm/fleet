@@ -181,10 +181,14 @@ func ServeMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.
 }
 
 func StartSoftwareInstallerServer(t *testing.T) {
-	// start the web server that will serve the installer
+	// load the ruby installer to use as base bytes to repeat for the "too large" case
 	b, err := os.ReadFile(getPathRelative("../../../../server/service/testdata/software-installers/ruby.deb"))
 	require.NoError(t, err)
 
+	// get the base dir of all installers
+	baseDir := getPathRelative("../../../../server/service/testdata/software-installers/")
+
+	// start the web server that will serve the installer
 	srv := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -203,9 +207,12 @@ func StartSoftwareInstallerServer(t *testing.T) {
 						n, _ := w.Write(b)
 						sz += n
 					}
-				default:
+				case strings.Contains(r.URL.Path, "other.deb"):
+					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				default:
+					http.ServeFile(w, r, filepath.Join(baseDir, filepath.Base(r.URL.Path)))
 				}
 			},
 		),

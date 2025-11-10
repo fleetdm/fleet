@@ -1656,6 +1656,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
+	fmt.Println(">>>>>> extracted metadata is :", meta)
 
 	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" {
 		return "", &fleet.BadRequestError{
@@ -2200,6 +2201,7 @@ func (svc *Service) softwareBatchUpload(
 				// validate before metadata extraction.
 				ext := strings.ToLower(filepath.Ext(filename))
 				ext = strings.TrimPrefix(ext, ".")
+				fmt.Println(">>>>> extension from filename is ", ext)
 				if fleet.IsScriptPackage(ext) {
 					installer.PostInstallScript = ""
 					installer.UninstallScript = ""
@@ -2280,6 +2282,8 @@ func (svc *Service) softwareBatchUpload(
 					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
 			}
+
+			fmt.Println(">>>>> batch set extension at this point? ", installer.Filename, installer.Extension)
 
 			// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
 			// unsupported fields. For script packages, the file contents become the
@@ -2382,6 +2386,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}
 
+	fmt.Println(">>>>> batch set found ", len(softwareInstallers), " software installers and ", len(inHouseInstallers), " in-house installers")
 	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers); err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
 		return
