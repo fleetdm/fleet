@@ -49,20 +49,49 @@ hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT"
 
+# Clean up any backup files that might exist from previous failed installations
+# This ensures we start with a clean slate
+cleanup_backup_files() {
+  # Clean up backup in the installer's temp directory
+  if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
+    echo "Removing existing backup file: $TMPDIR/Microsoft Edge.app.bkp"
+    sudo rm -rf "$TMPDIR/Microsoft Edge.app.bkp" 2>/dev/null || true
+  fi
+
+  # Search for backup files in all common temp locations
+  for search_base in /tmp /var/folders /private/var/folders; do
+    if [ -d "$search_base" ]; then
+      # Find all directories named "Microsoft Edge.app.bkp" recursively
+      find "$search_base" -type d -name "Microsoft Edge.app.bkp" 2>/dev/null | while read -r backup_path; do
+        if [ -d "$backup_path" ]; then
+          echo "Removing existing backup file: $backup_path"
+          sudo rm -rf "$backup_path" 2>/dev/null || true
+        fi
+      done
+    fi
+  done
+}
+
 # copy to the applications folder
 quit_application 'com.microsoft.edgemac'
+
+# Clean up any existing backup files before creating a new one
+cleanup_backup_files
+
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
 	sudo mv "$APPDIR/Microsoft Edge.app" "$TMPDIR/Microsoft Edge.app.bkp"
 fi
 sudo cp -R "$TMPDIR/Microsoft Edge.app" "$APPDIR"
 
 # Clean up backup file if installation was successful
-# Always attempt cleanup, even if copy might have failed
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
+	# Installation successful - remove the backup file
 	if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
 		sudo rm -rf "$TMPDIR/Microsoft Edge.app.bkp"
 		echo "Installation verified, backup file removed"
 	fi
+	# Also do a comprehensive cleanup in case backup ended up elsewhere
+	cleanup_backup_files
 else
 	# If installation failed, restore the backup
 	if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then

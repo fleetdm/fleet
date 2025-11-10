@@ -74,26 +74,18 @@ trash() {
   fi
 }
 
-# Clean up any backup files that might exist from previous installations
-# Search in common temp directories for backup files
+# Clean up any backup files that might exist (shouldn't happen if install script worked correctly)
+# This is a safety net in case any backups somehow remain
 cleanup_backup_files() {
-  # Clean up backup in the installer's temp directory
-  if [ -d "$TMPDIR/Microsoft Edge.app.bkp" ]; then
-    echo "Removing backup file: $TMPDIR/Microsoft Edge.app.bkp"
-    sudo rm -rf "$TMPDIR/Microsoft Edge.app.bkp" 2>/dev/null || true
-  fi
-
-  # Clean up backup in /tmp
-  if [ -d "/tmp/Microsoft Edge.app.bkp" ]; then
-    echo "Removing backup file: /tmp/Microsoft Edge.app.bkp"
-    sudo rm -rf "/tmp/Microsoft Edge.app.bkp" 2>/dev/null || true
-  fi
-
-  # Search for backup files in validation temp directories
-  find /var/folders -maxdepth 4 -type d -name "Microsoft Edge.app.bkp" 2>/dev/null | while read -r backup_path; do
-    if [ -d "$backup_path" ]; then
-      echo "Removing backup file: $backup_path"
-      sudo rm -rf "$backup_path" 2>/dev/null || true
+  # Search for backup files in all common temp locations
+  for search_base in /tmp /var/folders /private/var/folders; do
+    if [ -d "$search_base" ]; then
+      find "$search_base" -type d -name "Microsoft Edge.app.bkp" 2>/dev/null | while read -r backup_path; do
+        if [ -d "$backup_path" ]; then
+          echo "Removing leftover backup file: $backup_path"
+          sudo rm -rf "$backup_path" 2>/dev/null || true
+        fi
+      done
     fi
   done
 }
