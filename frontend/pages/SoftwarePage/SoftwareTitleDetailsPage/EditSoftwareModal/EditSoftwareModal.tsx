@@ -53,6 +53,7 @@ interface IEditSoftwareModalProps {
   router: InjectedRouter;
   gitOpsModeEnabled?: boolean;
   openViewYamlModal: () => void;
+  isIosOrIpadosApp?: boolean;
 }
 
 const EditSoftwareModal = ({
@@ -65,6 +66,7 @@ const EditSoftwareModal = ({
   router,
   gitOpsModeEnabled = false,
   openViewYamlModal,
+  isIosOrIpadosApp = false,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -353,6 +355,7 @@ const EditSoftwareModal = ({
       {showPreviewEndUserExperienceModal && (
         <CategoriesEndUserExperienceModal
           onCancel={togglePreviewEndUserExperienceModal}
+          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
       {!!pendingPackageUpdates.software && isUpdatingSoftware && (

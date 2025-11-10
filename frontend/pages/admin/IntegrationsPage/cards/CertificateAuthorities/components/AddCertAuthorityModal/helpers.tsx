@@ -16,8 +16,16 @@ import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 
-// FIXME: do we care about the order of these? Should we alphabetize them or something?
+// keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
+  {
+    label: "Custom EST (Enrollment Over Secure Transport)",
+    value: "custom_est_proxy",
+  },
+  {
+    label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
+    value: "custom_scep_proxy",
+  },
   { label: "DigiCert", value: "digicert" },
   {
     label: "Hydrant EST (Enrollment Over Secure Transport)",
@@ -27,15 +35,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     label: "Microsoft NDES (Network Device Enrollment Service)",
     value: "ndes_scep_proxy",
   },
-  {
-    label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
-    value: "custom_scep_proxy",
-  },
   { label: "Smallstep", value: "smallstep" },
-  {
-    label: "Custom EST (Enrollment Over Secure Transport)",
-    value: "custom_est_proxy",
-  },
 ];
 
 /**

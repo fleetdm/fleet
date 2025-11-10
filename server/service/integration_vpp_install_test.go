@@ -71,7 +71,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		return titleID
 	}
 
-	// Add macOS and iOS apps to team 1
+	// Add vpp apps to team 1
 	macOSApp := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
@@ -97,6 +97,19 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
+
+	iPadOSApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "3",
+				Platform: fleet.IPadOSPlatform,
+			},
+		},
+		Name:             "App 3",
+		BundleIdentifier: "c-3",
+		IconURL:          "https://example.com/images/3",
+		LatestVersion:    "2.0.0",
+	}
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: macOSApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
 
@@ -111,6 +124,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
 			iOSApp.Name, getSoftwareTitleIDFromApp(iOSApp), iOSApp.AdamID, team.ID, iOSApp.Platform), 0)
+
+	// Add iPadOS app to team
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iPadOSApp.AdamID, SelfService: false, Platform: iPadOSApp.Platform}, http.StatusOK, &addAppResp)
+
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
+			iPadOSApp.Name, getSoftwareTitleIDFromApp(iPadOSApp), iPadOSApp.AdamID, team.ID, iPadOSApp.Platform), 0)
 
 	// Create hosts for testing
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
@@ -148,11 +169,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
-	expectedApps := []*fleet.VPPApp{macOSApp, errApp, iOSApp}
+	expectedApps := []*fleet.VPPApp{macOSApp, errApp, iOSApp, iPadOSApp}
 	expectedAppsByBundleID := map[string]*fleet.VPPApp{
-		macOSApp.BundleIdentifier: macOSApp,
-		errApp.BundleIdentifier:   errApp,
-		iOSApp.BundleIdentifier:   iOSApp,
+		macOSApp.BundleIdentifier:  macOSApp,
+		errApp.BundleIdentifier:    errApp,
+		iOSApp.BundleIdentifier:    iOSApp,
+		iPadOSApp.BundleIdentifier: iPadOSApp,
 	}
 	addedApp := expectedApps[0]
 
@@ -779,6 +801,15 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	}
 	require.NotZero(t, iosTitleID)
 
+	var ipadosTitleID uint
+	for _, sw := range listSw.SoftwareTitles {
+		if sw.Name == iPadOSApp.Name && sw.Source == "ipados_apps" {
+			ipadosTitleID = sw.ID
+			break
+		}
+	}
+	require.NotZero(t, ipadosTitleID)
+
 	// Trigger install to the iOS device
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, iosTitleID), &installSoftwareRequest{},
@@ -881,6 +912,102 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+
+	// ========================================================
+	// Test iOS VPP app self service installation
+	// ========================================================
+
+	type SSVPPTestData struct {
+		host       *fleet.Host
+		app        *fleet.VPPApp
+		device     *mdmtest.TestAppleMDMClient
+		platform   string
+		titleID    uint
+		certSerial uint64
+	}
+	// Edit iOS app to enable self service
+	require.NotZero(t, iosTitleID)
+	require.NotZero(t, ipadosTitleID)
+
+	ssVppData := []SSVPPTestData{
+		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111)},
+		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)}}
+
+	for i, data := range ssVppData {
+		// Enroll device, add serial number to fake Apple server, and transfer to team
+		data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer",
+			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+		// Refresh host to get UUID
+		data.host, err = s.ds.Host(context.Background(), data.host.ID)
+		require.NoError(t, err)
+
+		// Use certificate authentication
+		headers := map[string]string{
+			"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
+		}
+		s.addHostIdentityCertificate(data.host.ID, data.host.UUID, data.certSerial)
+
+		// self-install with no authentication
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusUnauthorized)
+
+		// self-install a non-existing title
+		res := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest, headers)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Software title is not available for install.")
+
+		// self-install an existing title not available for self-install
+		res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusBadRequest, headers)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Software title is not available through self-service")
+
+		// Enable self-service for vpp app
+		updateAppResp := updateAppStoreAppResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", data.titleID),
+			&updateAppStoreAppRequest{TitleID: data.titleID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &updateAppResp)
+
+		// Install self-service app correctly
+		s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted, headers)
+
+		// Verify pending status
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
+		require.Equal(t, 1, countResp.Count)
+
+		// Simulate successful installation on device
+		opts := vppInstallOpts{
+			appInstallTimeout:  false,
+			appInstallVerified: true,
+			failOnInstall:      false,
+			bundleID:           data.app.BundleIdentifier,
+		}
+		installCmdUUID = processVPPInstallOnClient(data.device, opts)
+
+		// Verify successful installation
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
+		assert.Len(t, listResp.Hosts, 2-i)
+		assert.Equal(t, data.host.ID, listResp.Hosts[len(listResp.Hosts)-1].ID)
+
+		// Verify activity log entry
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null}`,
+				data.host.ID,
+				data.host.DisplayName(),
+				data.app.Name,
+				data.app.AdamID,
+				installCmdUUID,
+				fleet.SoftwareInstalled,
+			),
+			0,
+		)
+	}
 }
 
 // for https://github.com/fleetdm/fleet/issues/31083
@@ -1316,7 +1443,10 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	})
 	require.NotEmpty(t, installCmdUUID)
 
-	// TODO(JVE): check upcoming activity feed for installation
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 1)
+	require.Equal(t, fleet.ActivityTypeInstalledSoftware{}.ActivityName(), listResp.Activities[0].Type)
 
 	// Process the InstallApplication command
 	s.runWorker()
@@ -1426,4 +1556,195 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.SoftwarePackage.Name)
 	require.Equal(t, "ios", st.SoftwareTitle.SoftwarePackage.Platform)
 	require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
+}
+
+func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Enroll iPhone
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+
+	// Upload in-house app for iOS, not available in self-service for now
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	// get its title ID
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &resp, "team_id", "0")
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
+	titleID := resp.SoftwareTitles[0].ID
+
+	activityData := fmt.Sprintf(`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "team_name": null,
+		"team_id": null, "self_service": false, "software_title_id": %d}`, titleID)
+	s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+
+	// Add certificate authentication for iPhone
+	iosHost, err := s.ds.Host(ctx, iosHost.ID)
+	require.NoError(t, err)
+	certSerial := uint64(123456789)
+	headers := map[string]string{
+		"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
+	}
+	s.addHostIdentityCertificate(iosHost.ID, iosHost.UUID, certSerial)
+
+	// self-install with no authentication
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, 999), nil, http.StatusUnauthorized)
+
+	// self-install a non-existing title
+	res := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, 999), nil, http.StatusBadRequest, headers)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available for install.")
+
+	// self-install an existing title not available for self-install
+	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available through self-service")
+
+	// update the in-house app to make it self-service
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{SelfService: ptr.Bool(true), TitleID: titleID, TeamID: nil},
+		http.StatusOK, "")
+	activityData = fmt.Sprintf(`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_display_name": "", "software_icon_url": null, "team_name": null,
+		"team_id": null, "self_service": true, "software_title_id": %d}`, titleID)
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+	// self-install request is accepted
+	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+
+	var installCmdUUID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
+	})
+	require.NotEmpty(t, installCmdUUID)
+
+	// last activity is still "edited software" as the installed activity is created only when
+	// the install is verified
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), "", 0)
+
+	// Process the InstallApplication command
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		if cmd.Command.RequestType == "InstallApplication" {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
+
+			// Points at the expected manifest URL
+			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, titleID, 0)
+			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	// Install verification command should be sent, acknowledge it
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					{Name: "test", BundleIdentifier: "com.ipa-test.ipa-test", Version: "1.0", Installed: true},
+				},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	// installed activity is now created
+	activityData = fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_uuid": %q, "install_uuid": "", 
+	"software_title": "ipa_test", "software_package": "", "self_service": true, "status": "installed",
+	"policy_id": null, "policy_name": null}`, iosHost.ID, iosHost.DisplayName(), installCmdUUID)
+	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), activityData, 0)
+
+	// host has no more upcoming activities
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 0)
+
+	// host has the past activity for the installed app
+	var listPastResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", iosHost.ID), nil, http.StatusOK, &listPastResp)
+	require.Len(t, listPastResp.Activities, 1)
+
+	// update the app to have a label condition
+	clr := createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}}}, http.StatusOK, &clr)
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: titleID, TeamID: nil, LabelsIncludeAny: []string{"L1"},
+	}, http.StatusOK, "")
+
+	// self-install request is rejected
+	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "This software is not available for this host.")
+
+	// add the label to the host, so it can be installed
+	var addLabelsToHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", iosHost.ID), addLabelsToHostRequest{
+		Labels: []string{"L1"}}, http.StatusOK, &addLabelsToHostResp)
+
+	// self-install request is now accepted
+	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+}
+
+func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostID uint, hostUUID string, certSerial uint64) {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Generate a real certificate for the device with proper SHA256 hash
+	certPEM, certHash, _ := generateTestCertForDeviceAuth(t, certSerial, hostUUID)
+
+	// Insert certificate data using the new nanomdm tables
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		// Insert serial number
+		_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, certSerial)
+		if err != nil {
+			return err
+		}
+
+		// Insert certificate
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO scep_certificates
+			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`,
+			certSerial,
+			hostUUID,
+			time.Now().Add(-24*time.Hour),
+			time.Now().Add(365*24*time.Hour),
+			certPEM,
+			false,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Insert certificate association for device authentication
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO nano_cert_auth_associations (id, sha256)
+			VALUES (?, ?)
+		`, hostUUID, certHash)
+		return err
+	})
 }

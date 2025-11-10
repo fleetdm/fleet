@@ -6,6 +6,10 @@
     margin: 96px auto; // 96px to top of div
     max-width: 500px; // standard empty state width
     gap: $pad-large;
+
+    &--mobile {
+      margin: auto;
+    }
   }
 
   &__inner {

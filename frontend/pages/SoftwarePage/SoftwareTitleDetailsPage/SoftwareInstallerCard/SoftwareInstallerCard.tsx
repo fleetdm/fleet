@@ -13,10 +13,7 @@ import {
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
-import {
-  SELF_SERVICE_TOOLTIP,
-  SELF_SERVICE_ANDROID_PLAY_STORE_TOOLTIP,
-} from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -159,6 +156,7 @@ export const SoftwareActionButtons = ({
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
   isScriptPackage?: boolean;
+  isIosOrIpadosApp?: boolean;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -186,6 +184,7 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   softwareTitleName,
   isScriptPackage = false,
+  isIosOrIpadosApp = false,
   name,
   version,
   addedTimestamp,
@@ -314,11 +313,10 @@ const SoftwareInstallerCard = ({
                 <TooltipWrapper
                   showArrow
                   position="top"
-                  tipContent={
+                  tipContent={getSelfServiceTooltip(
+                    isIosOrIpadosApp,
                     isAndroidPlayStoreApp
-                      ? SELF_SERVICE_ANDROID_PLAY_STORE_TOOLTIP
-                      : SELF_SERVICE_TOOLTIP
-                  }
+                  )}
                   underline={false}
                 >
                   <Tag icon="user" text="Self-service" />
@@ -378,6 +376,7 @@ const SoftwareInstallerCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
       {showDeleteModal && (

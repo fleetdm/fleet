@@ -6,7 +6,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
@@ -106,7 +106,8 @@ const SoftwareOptionsSelector = ({
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
-  const isPlatformIosOrIpados = isIPadOrIPhone(platform || "") || isIpaPackage;
+  const isPlatformIosOrIpados =
+    isIPadOrIPhone(platform || "") || isIpaPackage || false;
   const isPlatformAndroid = isAndroid(platform || "");
   const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
@@ -152,29 +153,44 @@ const SoftwareOptionsSelector = ({
   // Ability to set categories when adding software is in a future ticket #28061
   const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
 
-  return (
-    <div className={`form-field ${classNames}`}>
-      <div className="form-field__label">Options</div>
-      {isPlatformIosOrIpados && (
-        <p>
-          Currently, self-service and automatic installation are not available
-          for iOS and iPadOS. Today, you can manually install on the{" "}
-          <strong>Host details</strong> page for each host.
-        </p>
-      )}
-      {isPlatformAndroid && (
+  const renderOptionsDescription = () => {
+    if (isPlatformAndroid) {
+      return (
         <p>
           Currently, Android apps can only be added as self-service and end user
           can install them from <strong>Play Store</strong> in their work
           profile{" "}
         </p>
-      )}
+      );
+    }
+    // Render unavailable description for iOS or iPadOS add software form only
+    if (isPlatformIosOrIpados && !isEditingSoftware) {
+      return (
+        <p>
+          Currently, automatic installation are not available for iOS and
+          iPadOS. Manually install on the <b>Host details</b> page for each
+          host.
+        </p>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className={`form-field ${classNames}`}>
+      <div className="form-field__label">Options</div>
+      {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
         <Checkbox
           value={formData.selfService}
           onChange={(newVal: boolean) => onToggleSelfService(newVal)}
           className={`${baseClass}__self-service-checkbox`}
-          labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+          labelTooltipContent={
+            !isSelfServiceDisabled &&
+            getSelfServiceTooltip(isPlatformIosOrIpados, isPlatformAndroid)
+          }
+          labelTooltipClickable
           disabled={isSelfServiceDisabled}
         >
           Self-service
