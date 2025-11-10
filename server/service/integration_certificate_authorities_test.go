@@ -2,20 +2,31 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1552,4 +1563,410 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 	} else {
 		assert.Empty(t, gotCAs.NDESSCEP)
 	}
+}
+
+func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Test setup
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// setup: create enroll secret, host, enroll to MDM
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+	defaultProfiles := [][]byte{
+		setupExpectedFleetdProfile(t, s.server.URL, t.Name(), nil),
+		setupExpectedCAProfile(t, s.ds),
+	}
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes := checkNextPayloads(t, mdmDevice, false)
+	s.signedProfilesMatch(
+		defaultProfiles,
+		installs,
+	)
+	require.Empty(t, removes)
+
+	// setup: start smallstep scep server
+	scepServer := scep_server.StartTestSCEPServer(t)
+
+	// setup: start mock challenge server that returns new challenge value on each request
+	challengeCounter := atomic.Int64{}
+	challengeValue := atomic.Value{}
+	challengeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		challengeCounter.Add(1)
+		newChallengeValue := uuid.New().String()
+		challengeValue.Store(newChallengeValue)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(newChallengeValue))
+		require.NoError(t, err)
+	}))
+	t.Cleanup(func() {
+		challengeServer.Close()
+	})
+
+	// setup: create smallstep CA in Fleet that uses the mock servers
+	caName := "STEP_WIFI"
+	_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+			Smallstep: []fleet.SmallstepSCEPProxyCA{
+				{
+					Name:         caName,
+					URL:          scepServer.URL + "/scep",
+					ChallengeURL: challengeServer.URL,
+					Username:     "testuser",
+					Password:     "testpassword",
+				},
+			},
+		},
+		DryRun: false,
+	}, http.StatusOK)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), challengeCounter.Load()) // challenge endpoint called once during CA creation
+
+	// setup: create a configuration profile that uses the smallstep CA for SCEP
+	var profUUID string
+	p := generateTestProfileSmallstepSCEP("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_STEP_WIFI", "$FLEET_VAR_SCEP_RENEWAL_ID", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_STEP_WIFI")
+	body, headers := generateNewProfileMultipartRequest(t, "foobar.mobileconfig", []byte(p), s.token, nil)
+	_ = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profUUID, "SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE name = ?", "Smallstep Fleet WIFI")
+	})
+
+	// scepProfileURL is the expected SCEP profile URL after variable substitution (see preprocessProfileContents for details)
+	scepProfileURL := fmt.Sprintf("%s%s%s", s.server.URL, apple_mdm.SCEPProxyPath,
+		url.PathEscape(fmt.Sprintf("%s,%s,%s", host.UUID, profUUID, caName)))
+
+	// expectPayloadWithChallenge executes the certificate profile template with current challenge value and other Fleet variables
+	expectPayloadWithChallenge := func() string {
+		challengeVal, ok := challengeValue.Load().(string)
+		require.True(t, ok, "challenge value not set")
+		return generateTestProfileSmallstepSCEP(
+			challengeVal,
+			"fleet-"+profUUID,
+			scepProfileURL,
+		)
+	}
+
+	// parseCommandPayload extracts and returns the profile payload from an InstallProfile command
+	parseCommandPayload := func(cmd *mdm.Command) string {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+		require.NoError(t, err)
+		return string(p7.Content)
+	}
+
+	// hostProfile represents the relevant fields from host_mdm_apple_profiles table for verification
+	type hostProfile struct {
+		ProfileUUID       string  `db:"profile_uuid"`
+		ProfileIdentifier string  `db:"profile_identifier"`
+		ProfileName       string  `db:"profile_name"`
+		Status            *string `db:"status"`
+		OperationType     *string `db:"operation_type"`
+		Retries           int     `db:"retries"`
+		CommandUUID       string  `db:"command_uuid"`
+	}
+
+	// listHostProfilesDB lists the host profiles for a given host from the database
+	listHostProfilesDB := func(hostUUID string) []hostProfile {
+		var got []hostProfile
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			// for the purpose of this test, we ignore the Fleet-internal profiles
+			// (we only care about the custom profiles)
+			return sqlx.SelectContext(t.Context(), q, &got, `
+				SELECT profile_uuid, profile_identifier, profile_name, status, operation_type, retries, command_uuid
+				FROM host_mdm_apple_profiles
+				WHERE host_uuid = ? AND profile_identifier NOT IN (?, ?)`,
+				hostUUID, mobileconfig.FleetdConfigPayloadIdentifier, mobileconfig.FleetCARootConfigPayloadIdentifier)
+		})
+		return got
+	}
+
+	// expectHostProf represents the expected host profile entry in the database; we'll update fields as we progress through the test
+	expectHostProf := hostProfile{
+		ProfileUUID:       profUUID,               // should never change
+		ProfileIdentifier: "Smallstep Fleet WIFI", // should never change
+		ProfileName:       "Smallstep Fleet WIFI", // should never change
+		OperationType:     ptr.String("install"),  // should never change
+		Status:            nil,                    // status is a key part of the test progression
+		Retries:           0,                      // retries is a key part of the test progression
+		CommandUUID:       "",                     // command UUID is a key part of the test progression
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Test scenarios
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	s.awaitTriggerProfileSchedule(t)
+	require.Equal(t, int64(2), challengeCounter.Load()) // challenge endpoint called during host profile reconciliation
+
+	// MDM checkin should expect InstallProfile command with SCEP profile
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	prevCommandUUID := cmd.CommandUUID // save for later comparison
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	// verify that the install profile command contains the expected payload, including the expected challenge
+	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd))
+
+	// update expectations for host profile DB state
+	expectHostProf.CommandUUID = cmd.CommandUUID
+	expectHostProf.Status = ptr.String("pending")
+	expectHostProf.Retries = 0 // initial install attempt
+
+	// check DB state
+	gotHostProfs := listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// simulate random failure during SCEP protocol
+	cmd, err = mdmDevice.Err(prevCommandUUID, []mdm.ErrorChain{})
+	require.NoError(t, err) // error report accepted by server
+	require.Nil(t, cmd)     // no new command should be issued yet
+
+	// update expectations for host profile DB state after failure
+	expectHostProf.CommandUUID = prevCommandUUID // unchanged
+	expectHostProf.Status = nil                  // status should be cleared to allow retry
+	expectHostProf.Retries = 1                   // retries should be incremented
+
+	// check DB state after failure
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// MDM checkin should not expect a new command yet
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// trigger another profile sync, which should resend SCEP profile
+	require.Equal(t, int64(2), challengeCounter.Load()) // challenge endpoint not called until reconcilation runs
+	s.awaitTriggerProfileSchedule(t)
+	require.Equal(t, int64(3), challengeCounter.Load()) // challenge endpoint called with host profile reconciliation
+
+	// MDM checkin should expect InstallProfile command with SCEP profile with new challenge
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.NotEqual(t, prevCommandUUID, cmd.CommandUUID) // new command UUID
+	prevCommandUUID = cmd.CommandUUID                     // save for later comparison
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd)) // challenge value should be updated
+
+	// update expectations for host profile DB state
+	expectHostProf.CommandUUID = cmd.CommandUUID  // should be updated to new command UUID
+	expectHostProf.Status = ptr.String("pending") // should now be pending again
+	expectHostProf.Retries = 1                    // unchanged
+
+	// check DB state
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// simulate another failure during SCEP protocol, this time it won't be retried because normal retry limit is 1
+	cmd, err = mdmDevice.Err(prevCommandUUID, []mdm.ErrorChain{})
+	require.NoError(t, err) // error report accepted by server
+	require.Nil(t, cmd)     // no new command
+
+	// update expectations for host profile DB state after failure
+	expectHostProf.CommandUUID = prevCommandUUID // unchanged
+	expectHostProf.Status = ptr.String("failed") // should now be failed
+	expectHostProf.Retries = 1                   // unchanged
+
+	// check DB state after failure
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// MDM checkin should not expect new command
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// trigger another profile sync, which should not resend SCEP profile
+	s.awaitTriggerProfileSchedule(t)
+	require.Equal(t, int64(3), challengeCounter.Load()) // challenge endpoint not called again because no retry should be attempted
+
+	// MDM checkin should not expect new command
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// check DB state to confirm no changes
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// manually resend the profile installation, which ignores retry limit
+	// FIXME: manual resend doesn't change retries, but maybe it should reset to 0
+	_ = s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, profUUID), nil, http.StatusAccepted)
+	require.Equal(t, int64(3), challengeCounter.Load()) // challenge endpoint not called until reconcilation runs
+
+	// MDM checkin should not expect new command until reconciliation runs
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd) // no new command should be issued yet
+
+	// update expectations for host profile DB state after manual resend
+	expectHostProf.Status = nil                  // status should be cleared to allow retry
+	expectHostProf.Retries = 1                   // unchanged for manual resend
+	expectHostProf.CommandUUID = prevCommandUUID // unchanged until reconcilation runs
+
+	// check DB state after manual resend request
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// trigger another profile sync, which should resend SCEP profile
+	require.Equal(t, int64(3), challengeCounter.Load()) // challenge endpoint not called until reconcilation runs
+	s.awaitTriggerProfileSchedule(t)
+	require.Equal(t, int64(4), challengeCounter.Load()) // challenge endpoint called again during host profile reconciliation
+
+	// MDM checkin should expect InstallProfile command with SCEP profile with new challenge
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.NotEqual(t, prevCommandUUID, cmd.CommandUUID) // new command UUID
+	prevCommandUUID = cmd.CommandUUID                     // save for later comparison
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd)) // challenge value should be updated
+
+	// update expectations for host profile DB state
+	expectHostProf.CommandUUID = cmd.CommandUUID  // should be updated to new command UUID
+	expectHostProf.Status = ptr.String("pending") // should now be pending again
+	expectHostProf.Retries = 1                    // unchanged for manual resend
+
+	// check DB state
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// simulate challenge expiration by backdating challenge_retrieved_at
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, _ = q.ExecContext(context.Background(), "UPDATE host_mdm_managed_certificates SET challenge_retrieved_at = DATE_SUB(challenge_retrieved_at, INTERVAL 270 SECOND) WHERE host_uuid = ?", host.UUID)
+		return nil
+	})
+
+	// simulate MDM client sending SCEP request after challenge has expired
+	resp, err := http.Get(scepProfileURL + "?operation=PKIOperation&message=" + base64.URLEncoding.EncodeToString([]byte("dummy")))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Contains(t, extractServerErrorText(resp.Body), "challenge password has expired") // Fleet intercepts the SCEP request and returns an error
+
+	// expired challenge should cause retries to be reset and command UUID cleared in DB
+	expectHostProf.Status = nil     // status should be cleared to allow retry
+	expectHostProf.Retries = 0      // retries should be reset to 0
+	expectHostProf.CommandUUID = "" // command UUID should be cleared
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// MDM client reports error for the last InstallProfile command, which doesn't impact retries
+	// because the command UUID was cleared when challenge expired
+	cmd, err = mdmDevice.Err(prevCommandUUID, []mdm.ErrorChain{})
+	require.NoError(t, err) // server accepted the error report
+	require.Nil(t, cmd)     // no new command should be issued yet
+
+	// reported error should not impact host profile DB state because command UUID was cleared when challenge expired
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// MDM checkin should not expect new command until reconciliation runs
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// trigger another profile sync, which should resend the SCEP profile installation
+	require.Equal(t, int64(4), challengeCounter.Load()) // challenge endpoint not called until reconcilation runs
+	s.awaitTriggerProfileSchedule(t)
+	require.Equal(t, int64(5), challengeCounter.Load()) // challenge endpoint called with host profile reconciliation
+
+	// MDM checkin should expect InstallProfile command with SCEP profile with new challenge
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	require.NotEqual(t, prevCommandUUID, cmd.CommandUUID)
+	prevCommandUUID = cmd.CommandUUID                                        // save for later comparison
+	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd)) // challenge value should be updated
+
+	// verify that host profile DB state reflects new InstallProfile command
+	expectHostProf.Status = ptr.String("pending") // should now be pending again
+	expectHostProf.Retries = 0                    // unchanged
+	expectHostProf.CommandUUID = cmd.CommandUUID  // should be updated to new command UUID
+	gotHostProfs = listHostProfilesDB(host.UUID)
+	require.Len(t, gotHostProfs, 1)
+	require.Equal(t, expectHostProf, gotHostProfs[0])
+
+	// NOTE: Ideas for future test improvements
+	// - add checks of host_mdm_managed_certificates table to verify expected state transitions
+	// - add test for cron renewal where profile is stuck in failed state due to retries exceeded
+}
+
+func generateTestProfileSmallstepSCEP(challenge, ou, url string) string {
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+       <dict>
+          <key>PayloadContent</key>
+          <dict>
+             <key>Challenge</key>
+             <string>%s</string>
+             <key>Key Type</key>
+             <string>RSA</string>
+             <key>Key Usage</key>
+             <integer>5</integer>
+             <key>Keysize</key>
+             <integer>2048</integer>
+             <key>Subject</key>
+                    <array>
+                        <array>
+                          <array>
+                            <string>CN</string>
+                            <string>SerialNumber WIFI</string>
+                          </array>
+                        </array>
+                        <array>
+                          <array>
+                            <string>OU</string>
+                            <string>%s</string>
+                          </array>
+                        </array>
+                    </array>
+             <key>URL</key>
+             <string>%s</string>
+          </dict>
+          <key>PayloadDisplayName</key>
+          <string>WIFI SCEP</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.security.scep.9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AE</string>
+          <key>PayloadType</key>
+          <string>com.apple.security.scep</string>
+          <key>PayloadUUID</key>
+          <string>9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AE</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+       </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Smallstep Fleet WIFI</string>
+    <key>PayloadIdentifier</key>
+    <string>Smallstep Fleet WIFI</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>4CD1BD65-1D2C-4E9E-9E18-9BCD400CDEDE</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>`, challenge, ou, url)
 }
