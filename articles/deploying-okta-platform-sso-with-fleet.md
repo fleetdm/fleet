@@ -99,7 +99,7 @@ WHERE NOT EXISTS (
 
 Save this as `okta-device-access-scep.mobileconfig`.
 
-**[View example SCEP profile →](https://github.com/fleetdm/fleet/blob/main/assets/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
+**[View example SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
 
 ## Install Okta Verify via Fleet
 
@@ -125,7 +125,7 @@ For macOS 15 Sequoia and later, add a second entry:
 
 Save as `okta-associated-domains.mobileconfig`.
 
-**[View example Associated Domains profile →](https://github.com/fleetdm/fleet/blob/main/assets/configuration-profiles/okta-associated-domains-example.mobileconfig)**
+**[View example Associated Domains profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-associated-domains-example.mobileconfig)**
 
 ### 2. Extensible Single Sign-On Profile
 
@@ -172,7 +172,7 @@ Example configuration for macOS 14:
 
 Save as `okta-sso-extension.mobileconfig`.
 
-**[View example SSO Extension profile →](https://github.com/fleetdm/fleet/blob/main/assets/configuration-profiles/okta-sso-extension-example.mobileconfig)**
+**[View example SSO Extension profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-sso-extension-example.mobileconfig)**
 
 ### 3. Okta Verify App Configuration Profiles
 
@@ -200,7 +200,7 @@ Same as above, plus:
 
 Save as `okta-app-config.mobileconfig`.
 
-**[View example App Configuration profile →](https://github.com/fleetdm/fleet/blob/main/assets/configuration-profiles/okta-app-config-example.mobileconfig)**
+**[View example App Configuration profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-app-config-example.mobileconfig)**
 
 **Note:** These example profiles demonstrate the essential configuration options. For a complete reference of all available settings and options, see [Okta's official configuration profile documentation](https://help.okta.com/oie/en-us/content/topics/oda/macos-pw-sync/configure-macos-password-sync-policies.htm).
 
@@ -279,3 +279,4 @@ For SCEP certificate configuration details, see [Okta's Device Access SCEP docum
 <meta name="publishedOn" value="2025-10-30">
 <meta name="articleTitle" value="Deploying Platform SSO with Okta Device Access">
 <meta name="description" value="Learn how to use Fleet to deploy the Okta Platform SSO Extension">
+
