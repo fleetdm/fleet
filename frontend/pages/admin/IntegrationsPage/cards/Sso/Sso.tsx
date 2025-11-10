@@ -91,7 +91,6 @@ export const AUTH_TARGETS_BY_INDEX = ["fleet-users", "end-users"];
 const Sso = ({
   appConfig,
   handleSubmit,
-  refetchConfig,
   isPremiumTier,
   isUpdatingSettings,
   router,
@@ -341,7 +340,7 @@ const Sso = ({
   };
 
   const onSubmitEndUserSso = async () => {
-    refetchConfig && (await refetchConfig());
+    await handleSubmit({});
   };
 
   const renderEndUserSsoTab = () => (
