@@ -40,7 +40,9 @@ const EndUserAuthSection = ({
   formData,
   setFormData,
   originalFormData,
-  onSubmit: handleSubmit,
+  // Notify parent component of changes, since we're calling our own API
+  // rather than using the common config update handler.
+  onSubmit: announceChanges,
 }: IEndUserAuthSectionProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
@@ -100,7 +102,9 @@ const EndUserAuthSection = ({
         renderFlash("success", "Successfully updated end user authentication!");
         originalFormData.current = { ...formData };
         setDirty(false);
-        handleSubmit();
+        // Notify parent component of changes, since we're calling our own API
+        // rather than using the common config update handler.
+        announceChanges();
       } catch (err) {
         const ae = (typeof err === "object" ? err : {}) as AxiosResponse;
         if (ae.status === 422) {
