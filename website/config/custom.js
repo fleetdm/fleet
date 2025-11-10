@@ -464,9 +464,9 @@ module.exports.custom = {
 
 
   // Android proxy
-  androidEnterpriseProjectId: 'jve-android-test',
-  androidEnterpriseServiceAccountEmailAddress: 'jve-android-test-svc-acc@jve-android-test.iam.gserviceaccount.com',
-  androidEnterpriseServiceAccountPrivateKey: '-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDbv2624CCrGkUy\n/f58Xm0xu9HaLQJTiJret4CMy1JhtHoDo+SW2AEtkM3zKnFGAG83bjUfMA66FbNl\nJ9BO+3B/Zyf3q1c+FXLaNP0HygdgAdHXuYpv/4PPTlXNuHPri0cXmwF8N/CL2W+x\nSjcRyxiZcyY7YKdBg5x2wZ9/JgKC2aO5DjxlrntDcu6mdfGl4UknUE1OCAIS5Bhz\nKr2ZNyaYePfp7ok7yCxAydYlSs/+6NzP+Uq0wOcAylQJALZnUEu7LUUODfPb+e8o\nC+K9z/0HdlTL/QFZRQelWY/kuF15ve/QSHvU+fClpWqo/U8uKqk77mcyNh1UHSqk\nlsMhnqMDAgMBAAECggEAHxkDt4CXTu98TH+SVJJeXJPqWjhVZHHoDM2mNQaPBYGv\nZLV8Y3Z1EDg2VQu0FQZ5trvza5L2+pGYnh+YxJyjqnv0NYH7ai9J3iRyjHgkPAt1\n4VQCCeB8jElXLjJEwVgn+ui2OJiIA5qFSm8oxO1bcVfQ2MVQVh6kdU/oXOuJnm+g\nGlJyVaOVR7Plt1IV+IbXu7IZiavTjHIhXYDhnMp3t9taWczyiqyQSEbr1E5ZGTgR\nqvleHu70NBdVEVBsKje3zKRGKEMmtSBDGvzY60Tv2icOb3FbVhLDNglSwFWIgCpb\n90zQ78sSi2pObxAnnOIfD9NhAQflTAbt83lGDCtPZQKBgQD5n7b1SfMx3Ozl3Fen\nftjlAcvFEh6B9gLb/UsSoBkzyiuGMtjQ7qfR0SG5mDcHmXsUXKsoE6lCBmGLsYxO\nzy+1JBifpui0JZHBJvj8cEoORxLzP0AfkY+LssT03lFWo/Vuru/7duAnNRUUnT4t\nreC1/EZ4/UvmIPBC+dpVfBRjjQKBgQDhXFvM3jUukBoYw/DZCLds+nLRlJNHGyLM\nJ9yu/5Li8HHmxf7ssAYCAH7bR06Qqi6lL9t8QqJijSTAbe/wxm8P1pseGBjXpKjK\neetOap7JDsgybqSZCRU3QBZpmShN7w6nF9s/jcGdbYEI32oYp0jqpuQmcw0RkOE/\nNg3FwW+0zwKBgQDn/hOfq/alZNmWV03vkOgrDZw/rzNDPUwzABkBWmGRzFbfBeqT\nYvn8+gwJ3PlnyrCkn+tB9+PaROvrVDs+EzgXdVCdMBYdNr1bccj9c66fzlZCU4pY\nzINIJgD+Qo/9oau8DkFix3xTc/X/jpP3CB5LhAZK873SRtKErIjJ4eNhEQKBgDC3\nPWT49/gb0HhgCvVvq+8T6LQjcP7i/8+wIkV2G/OQ1J51WJkjp/jQ0JtoO7SMBU9S\nHBktclrpdfNfEIo06xc6ZgfIX75l6tLyLgqig7akymQUhOJME1kBMpcbM5o9Piai\nwpNnel4kqMsZOJ8hsmJ/NzyUjFOqxPZcIfgIy7QDAoGBAJk6t3kcllzxhZVbvXgG\nRVOdlrlQ4107+dviV4FOlPJqR2NjIZMlyEPqwSuHhPtfLjf7NCU7OZ4hmdwA9391\nVApd04jf+UqgtzA3Ppg7/ydvsvL8gemeZZk5SfYnUiKIUKYkQI3IW/pmW+jRGgqq\ntt0PuyJdv2TaVLUK8XXkh5V/\n-----END PRIVATE KEY-----\n',
+  // androidEnterpriseProjectId: '…',
+  // androidEnterpriseServiceAccountEmailAddress: '…',
+  // androidEnterpriseServiceAccountPrivateKey: '…',
 
 
 };
