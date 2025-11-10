@@ -44,12 +44,33 @@ if [[ -z "$SLUG" || -z "$APP_PATH" ]]; then
   exit 1
 fi
 
-# Find the first .icns file in the app bundle
-ICNS_PATH=$(find "$APP_PATH/Contents/Resources" -maxdepth 1 -name "*.icns" | head -n 1 || true)
-if [[ ! -f "$ICNS_PATH" ]]; then
-  echo "Error: .icns file not found in $APP_PATH"
+# Read Info.plist to get the icon file name
+INFO_PLIST="$APP_PATH/Contents/Info.plist"
+if [[ ! -f "$INFO_PLIST" ]]; then
+  echo "Error: Info.plist not found at $INFO_PLIST"
   exit 1
 fi
+
+# Extract CFBundleIconFile from Info.plist
+ICON_FILE=$(defaults read "$INFO_PLIST" CFBundleIconFile 2>/dev/null || plutil -extract CFBundleIconFile raw "$INFO_PLIST" 2>/dev/null || echo "")
+if [[ -z "$ICON_FILE" ]]; then
+  echo "Error: CFBundleIconFile not found in Info.plist"
+  exit 1
+fi
+
+# Handle case where extension might or might not be included
+if [[ "$ICON_FILE" != *.icns ]]; then
+  ICON_FILE="${ICON_FILE}.icns"
+fi
+
+# Find the exact icon file in Resources folder
+ICNS_PATH="$APP_PATH/Contents/Resources/$ICON_FILE"
+if [[ ! -f "$ICNS_PATH" ]]; then
+  echo "Error: Icon file '$ICON_FILE' not found in $APP_PATH/Contents/Resources"
+  exit 1
+fi
+
+echo "Using icon file: $ICON_FILE"
 
 # Extract iconset
 TMP_DIR=$(mktemp -d)
