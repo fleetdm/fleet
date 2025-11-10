@@ -3,7 +3,6 @@
   "slug": "slack/windows",
   "package_identifier": "SlackTechnologies.Slack",
   "unique_identifier": "Slack",
-  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/slack_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/slack_uninstall.ps1",
   "installer_arch": "x64",
   "installer_type": "msi",
