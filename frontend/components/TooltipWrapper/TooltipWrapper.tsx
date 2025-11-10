@@ -112,7 +112,6 @@ const TooltipWrapper = ({
     [delayShowVal, delayHideVal] = [delayShowHide, delayShowHide];
   }
 
-  console.log("isMobileView in TooltipWrapper:", isMobileView);
   return (
     <span className={wrapperClassNames}>
       <div
