@@ -26,6 +26,7 @@ func TestInHouseApps(t *testing.T) {
 	}{
 		{"TestInHouseAppsCrud", testInHouseAppsCrud},
 		{"MultipleTeams", testInHouseAppsMultipleTeams},
+		{"Categories", testInHouseAppsCategories},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -304,6 +305,62 @@ func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 2, count)
 
+}
+
+func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
+
+	nanoEnroll(t, ds, host1, false)
+
+	payload1 := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team1.ID,
+		UserID:           user1.ID,
+		Title:            "foo",
+		BundleIdentifier: "com.foo",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		CategoryIDs:      []uint{1, 2},
+	}
+
+	// Add installers for both teams
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload1)
+	require.NoError(t, err)
+
+	// TODO(JK): Add categories!!
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_app_software_categories WHERE in_house_app_id = ?`, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM software_titles`)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_apps`)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	// Test with empty categories
+	payload2 := payload1
+	payload2.CategoryIDs = nil
+
+	secondInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
+	require.NoError(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_app_software_categories WHERE in_house_app_id = ?`, secondInstallerID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
 }
 
 func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, appID uint, titleID uint, user *fleet.User) string {

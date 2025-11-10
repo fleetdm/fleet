@@ -139,9 +139,18 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
 
-	if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
+	if payload.ValidatedLabels != nil {
+		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
+		}
 	}
+
+	if payload.CategoryIDs != nil {
+		if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, installerID, payload.CategoryIDs, softwareTypeInHouseApp); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "upsert software installer categories")
+		}
+	}
+
 	return installerID, nil
 }
 
@@ -258,6 +267,12 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		if payload.ValidatedLabels != nil {
 			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInHouseApp); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert in house app labels")
+			}
+		}
+
+		if payload.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, payload.InstallerID, payload.CategoryIDs, softwareTypeInHouseApp); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert software installer categories")
 			}
 		}
 
