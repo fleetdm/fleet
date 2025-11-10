@@ -41,6 +41,7 @@ func (e *RateLimitError) StatusCode() int { return http.StatusTooManyRequests }
 
 // RegisterSCEP registers the HTTP handler for conditional access SCEP service.
 func RegisterSCEP(
+	ctx context.Context,
 	mux *http.ServeMux,
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
@@ -50,7 +51,7 @@ func RegisterSCEP(
 	if fleetConfig == nil {
 		return errors.New("fleet config is nil")
 	}
-	err := initAssets(ds)
+	err := initAssets(ctx, ds)
 	if err != nil {
 		return fmt.Errorf("initializing conditional access assets: %w", err)
 	}

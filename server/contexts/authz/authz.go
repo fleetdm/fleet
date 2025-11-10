@@ -43,6 +43,11 @@ const (
 	// authentication token. This authentication mode does not support granular
 	// authorization.
 	AuthnOrbitToken
+	// AuthnDeviceCertificate is when authentication is done via client certificate
+	// for iOS/iPadOS devices accessing the My Device page. The certificate serial
+	// is validated against the host's identity certificate. This authentication mode
+	// does not support granular authorization.
+	AuthnDeviceCertificate
 	// AuthnHTTPMessageSignature is when authentication is done via HTTP Message Signature,
 	// backed by the device's SCEP Identity certificate. This authentication method does not support
 	// granular authorization.
