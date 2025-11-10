@@ -1132,6 +1132,22 @@ CREATE TABLE `in_house_app_labels` (
   CONSTRAINT `in_house_app_labels_ibfk_1` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
   CONSTRAINT `in_house_app_labels_ibfk_2` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*TODO(JK): double check this*/
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `in_house_app_software_categories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_category_id` int unsigned NOT NULL,
+  `in_house_app_id` int unsigned NOT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_in_house_app_id_software_category_id` (`in_house_app_id`,`software_category_id`),
+  KEY `software_category_id` (`software_category_id`),
+  CONSTRAINT `in_house_app_software_categories_ibfk_1` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `in_house_app_software_categories_ibfk_2` FOREIGN KEY (`software_category_id`) REFERENCES `software_categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/* */
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
