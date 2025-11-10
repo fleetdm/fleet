@@ -288,6 +288,27 @@ module.exports = {
           renderMySqlServiceId,
         });
 
+        // Now provision a new *.try.fleetdm.com DNS record for this instance.
+        let urlForThisInstance = `${povRecord.slug}.try.fleetdm.com`;
+
+        await sails.helpers.http.post.with({
+          url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
+          data: {
+            event_type: 'try-fleet-webhook',
+            client_payload: {
+              action: 'apply',
+              workspace: povRecord.slug,
+            }
+          }
+        }).tolerate((err)=>{
+          errorReportById[instanceIdAsString] = new Error(`Could not send request to create a *.try.fleetdm.com DNS record for a new Render trial instance. Error from GitHub API: ${util.inspect(err)}`);
+        });
+
+        if(errorReportById[instanceIdAsString]){
+          return;
+        }
+
+
 
         // Note: we can create the Fleet service now, but if it is live before the mysql service is, then it won't be able to deploy.
         await sails.helpers.flow.until(async()=>{
@@ -307,12 +328,11 @@ module.exports = {
           }
         }, 600000);
 
-
         let ninetyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 90);
 
         let licenseKey = await sails.helpers.createLicenseKey.with({
           numberOfHosts: 10,
-          organization: povRecord.slug,
+          organization: 'Render-trial-'+povRecord.slug,
           expiresAt: ninetyDaysFromNowAt,
         });
 
@@ -328,7 +348,12 @@ module.exports = {
           { key: 'FLEET_MYSQL_USERNAME', value: 'fleet' },
           { key: 'FLEET_MYSQL_PASSWORD', value: generatedMySQLPassword },
           { key: 'PORT', value: '8080' },
-          // TODO/FUTURE: SES config.
+          { key: 'FLEET_SERVER_ADDRESS', value: urlForThisInstance },
+          { key: 'FLEET_SES_ACCESS_KEY_ID', value: sails.config.custom.renderInstanceSesSecretId},
+          { key: 'FLEET_SES_SECRET_ACCESS_KEY', value: sails.config.custom.renderInstanceSesSecretKey },
+          { key: 'FLEET_EMAIL_BACKEND', value: 'ses'},
+          { key: 'FLEET_SES_REGION', value: 'us-east-2'},
+          { key: 'FLEET_SES_SOURCE_ARN', value: `arn:aws:ses:us-east-2:564445215450:identity/${povRecord.slug}.try.fleetdm.com`},
         ];
 
 
@@ -495,7 +520,7 @@ module.exports = {
         // If no error occured wehn setting up this POV, do nothing.
       } else {
         // If an error was logged while provisioning a Render POV, log the error as a warning.
-        sails.log.warn(`p1: When provisioning a new Render POV, an error occured. This script will clean up any services it created for this POV. Full error: ${errorReportById[instanceIdAsString]}`);
+        sails.log.warn(`When provisioning a new Render POV, an error occured. This script will clean up any services it created for this POV. Full error: ${errorReportById[instanceIdAsString]}`);
 
         // Clean up the services associated with this record and delete it.
         let povRecord = await RenderProofOfValue.findOne({id: instanceIdAsString});
@@ -510,6 +535,20 @@ module.exports = {
             },
           }).tolerate((err)=>{
             sails.log.warn(`p1: When deleting a MySQL service (id: ${povRecord.renderMySqlServiceId}) for a Render POV that encountered an error during setup, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
+            return;
+          });
+          //
+          await sails.helpers.http.post.with({
+            url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
+            data: {
+              event_type: 'try-fleet-webhook',
+              client_payload: {
+                action: 'apply',
+                workspace: povRecord.slug,
+              }
+            }
+          }).tolerate((err)=>{
+            errorReportById[instanceIdAsString] = new Error(`Could not send request to destroy a *.try.fleetdm.com DNS record for a Render trial instance that encountered an error during setup. Error from GitHub API: ${util.inspect(err)}`);
             return;
           });
         }
