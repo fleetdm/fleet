@@ -3298,3 +3298,54 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		require.NotNil(t, result)
 	})
 }
+
+func TestDeleteHostDeviceIDPMapping(t *testing.T) {
+	t.Run("success by admin on premium", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		err := svc.DeleteHostIDP(userCtx, 1)
+		require.True(t, ds.DeleteHostIDPFuncInvoked)
+		require.True(t, ds.NewActivityFuncInvoked)
+		require.NoError(t, err)
+	})
+	t.Run("failure by admin on free", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		err := svc.DeleteHostIDP(userCtx, 1)
+		// err is license err
+		assert.Equal(t, fleet.ErrMissingLicense, err)
+
+		require.False(t, ds.DeleteHostIDPFuncInvoked)
+		require.False(t, ds.NewActivityFuncInvoked)
+	})
+}
