@@ -7994,7 +7994,7 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
 
 	verifyCommands(1, syncml.CmdStatusOK)
 
-	// Verify profile status is Verifying due to successful response
+	// Verify profile status is Verified due to successful response
 	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	foundProfile = false
@@ -8002,7 +8002,7 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			require.NotNil(t, p.Status)
-			assert.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+			assert.Equal(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
@@ -8012,7 +8012,7 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfile() {
 		"WindowsSCEPProfile": {{"200", "L1", "Bogus"}}, // Report back with SCEP LocURI, but data that does not relate SCEP to support the case that we don't verify the success.
 	})
 
-	// Verify profile status is Verified
+	// Verify profile status is still Verified, and OSQuery does not change it's status.
 	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	foundProfile = false

@@ -158,6 +158,30 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 				CommandUUID: "foo",
 			},
 		},
+		{
+			name: "scep profile gets verified",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "foo",
+				RawCommand: []byte(`
+				<Atomic>
+					<CmdID>foo</CmdID>
+					<Replace><CmdID>bar</CmdID><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP</LocURI></Target></Replace>
+					<Add><CmdID>baz</CmdID><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP</LocURI></Target></Add>
+				</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"foo": {CmdID: CmdID{Value: "foo"}, Data: ptr.String("200")},
+				"bar": {CmdID: CmdID{Value: "bar"}, Data: ptr.String("200")},
+				"baz": {CmdID: CmdID{Value: "baz"}, Data: ptr.String("200")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:    "host-uuid",
+				Status:      &MDMDeliveryVerified,
+				Detail:      "",
+				CommandUUID: "foo",
+			},
+		},
 	}
 
 	for _, tt := range tests {

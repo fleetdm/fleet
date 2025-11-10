@@ -1590,6 +1590,14 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 			}
 		}
 	}
+
+	if commandStatus == MDMDeliveryVerifying {
+		// Check a single LocURI for SCEP path, and move straight to verified.
+		if strings.Contains(string(cmdWithSecret.RawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") {
+			commandStatus = MDMDeliveryVerified
+		}
+	}
+
 	detail := strings.Join(details, ", ")
 	return &MDMWindowsProfilePayload{
 		HostUUID:      hostUUID,
