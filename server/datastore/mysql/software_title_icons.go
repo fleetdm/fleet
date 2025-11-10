@@ -115,12 +115,10 @@ func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleI
 
 func (ds *Datastore) DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_title_icons WHERE team_id = ?
-		   AND software_title_id NOT IN (
-			   SELECT title_id FROM vpp_apps va
-				   JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform
-				   WHERE global_or_team_id = ?
-				   ) AND software_title_id NOT IN (SELECT title_id FROM software_installers WHERE global_or_team_id = ?)
-				     AND software_title_id NOT IN (SELECT title_id FROM in_house_apps WHERE global_or_team_id = ?)`,
+		AND software_title_id NOT IN (SELECT title_id FROM vpp_apps va JOIN vpp_apps_teams vat 
+			ON vat.adam_id = va.adam_id AND vat.platform = va.platform WHERE global_or_team_id = ?)
+		AND software_title_id NOT IN (SELECT title_id FROM software_installers WHERE global_or_team_id = ?)
+		AND software_title_id NOT IN (SELECT title_id FROM in_house_apps WHERE global_or_team_id = ?)`,
 		teamID, teamID, teamID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up icons not associated with software installers")

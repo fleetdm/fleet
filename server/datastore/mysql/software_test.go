@@ -3707,6 +3707,8 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
 		{Name: "foo", Version: "0.0.2", Source: "test"},
 		{Name: "foo", Version: "0.0.2", Source: "test", ApplicationID: ptr.String("foo.bar.baz")},
+		{Name: "foo", Version: "0.0.2", Source: "programs", UpgradeCode: ptr.String("{55ac7218-24cb-4b99-9449-f28d9c59cc7e}")},
+		{Name: "foo", Version: "0.0.2", Source: "programs", UpgradeCode: ptr.String("")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
@@ -3722,7 +3724,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		var got fleet.Software
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &got,
-				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id FROM software WHERE checksum = UNHEX(?)`, cs)
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id, application_id, upgrade_code FROM software WHERE checksum = UNHEX(?)`, cs)
 		})
 		require.Equal(t, software[i], got)
 	}
@@ -5781,7 +5783,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 
 	// Create an intermediate failure record
-	failedExecID, installResult, isNewRecord, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5790,13 +5792,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, failedExecID)
-	require.NotNil(t, installResult)
-	require.True(t, isNewRecord, "First call should create a new record")
-	require.Equal(t, "test-app", installResult.SoftwareTitle)
-	require.Equal(t, "installer.pkg", installResult.SoftwarePackage)
-	require.Equal(t, user.ID, *installResult.UserID)
-	require.Nil(t, installResult.PolicyID)
-	require.False(t, installResult.SelfService)
 
 	// Verify original record is still pending using GetSoftwareInstallResults
 	originalResult, err := ds.GetSoftwareInstallResults(ctx, "original-uuid")
@@ -5812,6 +5807,13 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, *failedResult.InstallScriptExitCode)
 	require.NotNil(t, failedResult.Output)
 	require.Equal(t, "network timeout", *failedResult.Output)
+	// Verify metadata preserved and correct
+	require.Equal(t, "test-app", failedResult.SoftwareTitle)
+	require.Equal(t, "installer.pkg", failedResult.SoftwarePackage)
+	require.NotNil(t, failedResult.UserID)
+	require.Equal(t, user.ID, *failedResult.UserID)
+	require.Nil(t, failedResult.PolicyID)
+	require.False(t, failedResult.SelfService)
 
 	// Verify the created_at timestamp was preserved from the original record
 	var failedRecordCreatedAt time.Time
@@ -5828,7 +5830,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, count)
 
 	// Test idempotency: calling again with same retries_remaining should return same UUID and not create new record
-	failedExecID2, installResult2, isNewRecord2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5837,8 +5839,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, failedExecID, failedExecID2, "Should generate same UUID for same retries_remaining")
-	require.NotNil(t, installResult2)
-	require.False(t, isNewRecord2, "Second call should update existing record")
 
 	// Verify still only 2 records (idempotent)
 	err = ds.writer(ctx).GetContext(ctx, &count, `
@@ -5852,7 +5852,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, "network timeout updated", *updatedResult.Output)
 
 	// Test with different retries_remaining creates new record
-	failedExecID3, _, isNewRecord3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -5861,7 +5861,6 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, failedExecID, failedExecID3, "Should generate different UUID for different retries_remaining")
-	require.True(t, isNewRecord3, "Different retries_remaining should create new record")
 
 	// Verify now have 3 records
 	err = ds.writer(ctx).GetContext(ctx, &count, `
@@ -9160,9 +9159,9 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 
-	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "")
+	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
-	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{*existingSw})
@@ -9699,6 +9698,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		BundleIdentifier: "inhouse2",
 		UserID:           user.ID,
+		SelfService:      true,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -9786,7 +9786,16 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 5)
 	require.Equal(t, []string{"a", "b", "inhouse1", "inhouse2", "inhouse3"}, pluckSoftwareNames(sw))
 
+	// only 1 with self-service
+	opts.IncludeAvailableForInstall = true
+	opts.SelfServiceOnly = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, []string{"inhouse2"}, pluckSoftwareNames(sw))
+
 	// vulnerable only returns "b"
+	opts.SelfServiceOnly = false
 	opts.IncludeAvailableForInstall = false
 	opts.VulnerableOnly = true
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
@@ -9873,7 +9882,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[3].SoftwarePackage)
 	require.Equal(t, sw[3].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[3].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[3].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[3].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[3].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 	require.Nil(t, sw[4].Status)
@@ -9924,7 +9933,7 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, sw[1].SoftwarePackage)
 	require.Equal(t, sw[1].SoftwarePackage.Name, "inhouse2.ipa")
 	require.Equal(t, sw[1].SoftwarePackage.Platform, "ios")
-	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(false))
+	require.Equal(t, sw[1].SoftwarePackage.SelfService, ptr.Bool(true))
 	require.NotNil(t, sw[1].SoftwarePackage.LastInstall)
 	require.Equal(t, sw[1].SoftwarePackage.LastInstall.CommandUUID, inhouse2InstallCmd)
 

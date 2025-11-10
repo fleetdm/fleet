@@ -10,7 +10,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -127,6 +130,8 @@ func TestRequestCertificate(t *testing.T) {
 		Password: ptr.String("test-password"),
 	}
 
+	useDefaultAuthContext := true
+
 	baseSetupForTests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
 
@@ -155,7 +160,13 @@ func TestRequestCertificate(t *testing.T) {
 				est.WithLogger(logger),
 			),
 		}
-		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		authCtx := &authz_ctx.AuthorizationContext{}
+		ctx := authz_ctx.NewContext(context.Background(), authCtx)
+		if useDefaultAuthContext {
+			authCtx.SetAuthnMethod(authz_ctx.AuthnUserToken)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		}
 
 		oauthIntrospectResponse = defaultOauthIntrospectResponse
 		oauthIntrospectStatus = http.StatusOK
@@ -185,6 +196,26 @@ func TestRequestCertificate(t *testing.T) {
 
 	t.Run("Request a certificate - Happy path, no IDP", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+	})
+
+	t.Run("Request a certificate - Happy path, no IDP, http sig auth", func(t *testing.T) {
+		useDefaultAuthContext = false
+		defer func() { useDefaultAuthContext = true }()
+
+		svc, ctx := baseSetupForTests()
+
+		authCtx, ok := authz_ctx.FromContext(ctx)
+		require.True(t, ok)
+		authCtx.SetAuthnMethod(authz_ctx.AuthnHTTPMessageSignature)
+		ctx = httpsig.NewContext(ctx, types.HostIdentityCertificate{HostID: ptr.Uint(1), NotValidAfter: time.Now().Add(24 * time.Hour)})
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,

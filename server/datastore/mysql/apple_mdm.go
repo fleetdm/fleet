@@ -800,7 +800,7 @@ WHERE
 	return profiles, nil
 }
 
-func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
+func (ds *Datastore) GetAppleHostMDMCertificateProfile(ctx context.Context, hostUUID string,
 	profileUUID string, caName string,
 ) (*fleet.HostMDMCertificateProfile, error) {
 	stmt := `
@@ -901,17 +901,17 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	return err
 }
 
-// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
-// also deactivates prior nano commands for the profile UUID and host UUID.
+// ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
+// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 //
-// FIXME: We really should have a more generic function to handle this, but our existing methods
-// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
-// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
-// the existing flow and the implementation below is that we need to blank the command uuid in order
-// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
-// it just sends the old bytes again. It feels like we have some leaky abstrations somewhere that we need
-// to clean up.
-func (ds *Datastore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+// FIXME: We really should have a more generic function to handle this. Something seems off with our
+// existing methods for "resending" profiles. Scenarios have been observed where the old command
+// bytes are sent again without reevaluating the profile variables, which is particularly problematic
+// for certificate profiles where we need to regenerate the dynamic challenges. The main difference between
+// the existing flow and the implementation below is that it zeroes out prior retries and blanks the
+// command uuid to force the reconcile cron to reevaluate the command template to generate
+// the challenge. It feels like we have some leaky abstractions somewhere that we need to clean up.
+func (ds *Datastore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	deactivateNanoStmt := `
 UPDATE
 	nano_enrollment_queue
@@ -926,6 +926,7 @@ WHERE
 	hmap.profile_uuid = ? AND
 	hmap.host_uuid = ?`
 
+	// TODO: figure out variables_updated_at timing skew with jordan
 	updateStmt := `
 UPDATE
 	host_mdm_apple_profiles
@@ -3757,7 +3758,7 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
         (uuid, username, fullname, email)
       VALUES
         (COALESCE(NULLIF(TRIM(?), ''), UUID()), ?, ?, ?)
-      ON DUPLICATE KEY UPDATE	  	
+      ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
         fullname   = VALUES(fullname)`
 
@@ -4990,7 +4991,7 @@ SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
 WHERE h.uuid = ? AND (
-	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin') 
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin')
 	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
 )`
 
@@ -6269,10 +6270,12 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	hostsStmt := `
 SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
 INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
+INNER JOIN nano_enrollments ne ON ne.id = h.uuid
 LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
 AND TRIM(h.uuid) != ''
 AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+AND ne.enabled = 1
 GROUP BY h.id`
 	args := []any{fleet.ListAppleRefetchCommandPrefixes(), interval.Seconds()}
 	hostsStmt, args, err = sqlx.In(hostsStmt, args...)

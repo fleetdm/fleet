@@ -2,6 +2,13 @@
   "version": 2,
   "apps": [
     {
+      "name": "010 Editor",
+      "slug": "010-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SweetScape.010Editor",
+      "description": "A toolkit for working with text and binary data."
+    },
+    {
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
@@ -56,6 +63,13 @@
       "platform": "windows",
       "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Claude",
+      "slug": "claude/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anthropic.claudefordesktop",
+      "description": "Anthropic's official Claude AI desktop app."
     },
     {
       "name": "Cloudflare WARP",
@@ -139,7 +153,14 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": ""
+      "description": "A terminal emulator alternative to Apple's Terminal app."
+    },
+    {
+      "name": "Linear",
+      "slug": "linear-linear/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linear",
+      "description": "An app to manage software development and track bugs."
     },
     {
       "name": "Microsoft Edge",
@@ -202,7 +223,7 @@
       "slug": "santa/darwin",
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
-      "description": ""
+      "description": "Santa is a binary authorization system for macOS."
     },
     {
       "name": "Slack",

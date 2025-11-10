@@ -98,7 +98,7 @@ $shadow-transition-width: 10px;
       }
 
       th {
-        padding: 0 $pad-large;
+        padding: 0 $table-cell-padding;
         white-space: nowrap;
         border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
@@ -109,8 +109,9 @@ $shadow-transition-width: 10px;
           border-left: none;
         }
 
-        &.selection__header {
-          width: 22px;
+        &.selection__header,
+        &.active-selection__checkbox {
+          width: 16px;
           padding: 0 $pad-medium;
         }
 
@@ -150,8 +151,6 @@ $shadow-transition-width: 10px;
 
         // Sort arrows change color on hover
         .sortable-header {
-          padding: $pad-xsmall 0;
-
           .column-header {
             .header-cell {
               min-height: 36px;
@@ -204,7 +203,7 @@ $shadow-transition-width: 10px;
       }
 
       &__container {
-        padding: 0 20px;
+        padding: 0 $table-cell-padding;
       }
 
       &__inner {
@@ -272,7 +271,7 @@ $shadow-transition-width: 10px;
 
       td {
         height: 40px;
-        padding: 0 $pad-large;
+        padding: 0 $table-cell-padding;
         max-width: 500px;
         word-wrap: break-word;
 

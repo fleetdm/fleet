@@ -6864,6 +6864,15 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
 	require.Len(t, devices[0].CommandsAlreadySent, 1)
 	assert.Equal(t, fleet.RefetchAppsCommandUUIDPrefix, devices[0].CommandsAlreadySent[0])
+
+	// set iOS device to not be enabled in fleet MDM. No devices should be returned.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iOS0.UUID)
+		return err
+	})
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Empty(t, devices)
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -8140,7 +8149,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Host and profile are not linked
-			profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			assert.Nil(t, profile)
 
@@ -8161,7 +8170,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Host and profile do not have certificate metadata
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			assert.Nil(t, profile)
 
@@ -8178,7 +8187,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Check that the managed certificate was inserted correctly
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			require.NotNil(t, profile)
 			assert.Equal(t, host.UUID, profile.HostUUID)
@@ -8193,7 +8202,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			// Renew should not do anything yet
 			err = ds.RenewMDMManagedCertificates(ctx)
 			require.NoError(t, err)
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			require.NotNil(t, profile.Status)
 			assert.Equal(t, fleet.MDMDeliveryPending, *profile.Status)
@@ -8201,7 +8210,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			// Cleanup should do nothing
 			err = ds.CleanUpMDMManagedCertificates(ctx)
 			require.NoError(t, err)
-			profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+			profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			require.NotNil(t, profile)
 
@@ -8235,7 +8244,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				})
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8253,7 +8262,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should not change the MDM delivery status
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8261,7 +8270,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
@@ -8294,7 +8303,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				})
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8312,7 +8321,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should not change the MDM delivery status
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8320,7 +8329,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
@@ -8354,7 +8363,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				})
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8372,14 +8381,14 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.Nil(t, profile.Status)
 
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
@@ -8416,7 +8425,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 
 				// Verify the policy is not currently marked for resend and that the upsert executed correctly
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile.Status)
 				assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8434,14 +8443,14 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 				err = ds.RenewMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.Nil(t, profile.Status)
 
 				// Cleanup should do nothing
 				err = ds.CleanUpMDMManagedCertificates(ctx)
 				require.NoError(t, err)
-				profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
@@ -8465,7 +8474,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Host and profile are not linked
-	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	assert.Nil(t, profile)
 
@@ -8486,7 +8495,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Host and profile do not have certificate metadata
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	assert.Nil(t, profile)
 
@@ -8508,7 +8517,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Check that the managed certificate was inserted correctly
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, host.UUID, profile.HostUUID)
@@ -8524,7 +8533,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	// Renew should not do anything yet so the MDM delivery status should stay "verified"
 	err = ds.RenewMDMManagedCertificates(ctx)
 	require.NoError(t, err)
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile.Status)
 	assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8557,7 +8566,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		})
 
 		// Verify the policy is not currently marked for resend and that the upsert executed correctly
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile.Status)
 		assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8575,14 +8584,14 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 		err = ds.RenewMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.Nil(t, profile.Status)
 
 		// Cleanup should do nothing
 		err = ds.CleanUpMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile)
 	})
@@ -8619,7 +8628,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Verify the policy is not currently marked for resend and that the upsert executed correctly
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile.Status)
 		assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
@@ -8637,14 +8646,14 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
 		err = ds.RenewMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.Nil(t, profile.Status)
 
 		// Cleanup should do nothing
 		err = ds.CleanUpMDMManagedCertificates(ctx)
 		require.NoError(t, err)
-		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 		require.NoError(t, err)
 		require.NotNil(t, profile)
 	})
