@@ -325,6 +325,7 @@ func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
 		UserID:           user1.ID,
 		Title:            "foo",
 		BundleIdentifier: "com.foo",
+		Filename:         "foo2.ipa",
 		StorageID:        "testingtesting123",
 		Platform:         "ios",
 		Extension:        "ipa",
@@ -337,7 +338,18 @@ func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
 	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload1)
 	require.NoError(t, err)
 
-	// TODO(JK): Add categories!!
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO software_categories VALUES (2,'Browsers'),(3,'Communication'),(4,'Developer tools'),(1,'Productivity')`)
+		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO in_house_app_software_categories (in_house_app_id, software_category_id) VALUES (2, 1),(2, 2)`)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		DumpTable(t, tx, "in_house_apps")
+		DumpTable(t, tx, "software_categories")
+		DumpTable(t, tx, "in_house_app_software_categories")
+		return nil
+	})
+	require.NoError(t, err)
 	var count int
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_app_software_categories WHERE in_house_app_id = ?`, installerID)
 	require.NoError(t, err)
