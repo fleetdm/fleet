@@ -1,1 +1,0 @@
-Optimized MySQL queries on /api/latest/fleet/vulnerabilities and /api/latest/fleet/software/versions to improve performance for Fleet UI use cases.

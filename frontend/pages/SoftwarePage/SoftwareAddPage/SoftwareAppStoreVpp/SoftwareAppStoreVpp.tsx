@@ -95,6 +95,7 @@ const SoftwareAppStoreVpp = ({
     showPreviewEndUserExperience,
     setShowPreviewEndUserExperience,
   ] = useState(false);
+  const [isIosOrIpadosApp, setIsIosOrIpadosApp] = useState(false);
 
   const {
     data: vppInfo,
@@ -152,8 +153,9 @@ const SoftwareAppStoreVpp = ({
     router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
   };
 
-  const onClickPreviewEndUserExperience = () => {
+  const onClickPreviewEndUserExperience = (iosOrIpadosApp?: boolean) => {
     setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
+    setIsIosOrIpadosApp(iosOrIpadosApp || false);
   };
 
   const onAddSoftware = async (formData: ISoftwareVppFormData) => {
@@ -236,6 +238,7 @@ const SoftwareAppStoreVpp = ({
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
+            isIosOrIpadosApp={isIosOrIpadosApp}
           />
         )}
       </div>
