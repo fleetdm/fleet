@@ -647,7 +647,7 @@ When you edit a certificate configuration profile for Apple hosts, via GitOps, a
 
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
-* On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _ ()` 
+* On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters. 
 * The SCEP Server used for **Windows**, should accept `/pkiclient.exe` at the end, as Windows will always append this to the SCEP URL. If using a Certificate Authority and Fleet Variables, Fleet handles this and strips it away from the request sent to the backing SCEP server.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via OSQuery reports. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
 * On **Windows** hosts, Fleet will not remove certificates from profiles, when removing the profile from the host, or transferring teams.
@@ -691,4 +691,4 @@ Steps to get CAThumbrint from your SCEP server:
     1. **Terminal (MacOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this
-4. Use the copied value for ./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint option.
+4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.
