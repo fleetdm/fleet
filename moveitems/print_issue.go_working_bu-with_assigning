@@ -1,0 +1,303 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"strconv"
+
+	"github.com/shurcooL/githubv4"
+	"golang.org/x/oauth2"
+)
+
+const (
+	owner           = "fleetdm"
+	repo            = "fleet"
+	project67Number = 67
+	project71Number = 71
+)
+
+type AddProjectV2ItemByIdInput struct {
+	ProjectID githubv4.ID `json:"projectId"`
+	ContentID githubv4.ID `json:"contentId"`
+}
+
+func main() {
+	if len(os.Args) != 3 {
+		log.Fatalf("Usage: go run main.go <issue_number> <username>")
+	}
+	issueNumber, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		log.Fatalf("Invalid issue number: %v", err)
+	}
+
+	username := os.Args[2]
+
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		log.Fatal("Please set the GITHUB_TOKEN environment variable")
+	}
+
+	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+	httpClient := oauth2.NewClient(context.Background(), src)
+	client := githubv4.NewClient(httpClient)
+
+	// Fetch project 71 ID dynamically
+	project71ID, err := fetchProjectID(client, owner, project71Number)
+	if err != nil {
+		log.Fatalf("Failed to fetch project 71 ID: %v", err)
+	}
+
+	// Fetch issue info
+	issueID, issueTitle, issueURL, err := fetchIssue(client, owner, repo, issueNumber)
+	if err != nil {
+		log.Fatalf("Failed to fetch issue: %v", err)
+	}
+
+	fmt.Printf("Issue Title: %s\nIssue URL: %s\n", issueTitle, issueURL)
+
+	fmt.Print("Adding this issue from Project 67 to Project 71... ")
+
+	// Add issue to project 71
+	err = addIssueToProject(client, project71ID, issueID)
+	if err != nil {
+		log.Fatalf("Failed to add issue to Project 71: %v", err)
+	}
+	fmt.Println("✅ Issue added to Project 71")
+
+	_ = printIssueDetails(client, issueID)
+
+	err = assignUserToIssue(client, issueID, username)
+	if err != nil {
+		log.Fatalf("Failed to assign user: %v", err)
+	}
+	fmt.Println("✅ User assigned")
+
+	return
+}
+
+func fetchProjectID(client *githubv4.Client, orgLogin string, projectNumber int) (githubv4.ID, error) {
+	var query struct {
+		Organization struct {
+			ProjectV2 struct {
+				ID githubv4.ID
+			} `graphql:"projectV2(number: $number)"`
+		} `graphql:"organization(login: $login)"`
+	}
+
+	variables := map[string]interface{}{
+		"login":  githubv4.String(orgLogin),
+		"number": githubv4.Int(projectNumber),
+	}
+
+	err := client.Query(context.Background(), &query, variables)
+	if err != nil {
+		return "", err
+	}
+	return query.Organization.ProjectV2.ID, nil
+}
+
+func fetchIssue(client *githubv4.Client, owner, repo string, issueNumber int) (githubv4.ID, string, string, error) {
+	var query struct {
+		Repository struct {
+			Issue struct {
+				ID    githubv4.ID
+				Title string
+				URL   string
+			} `graphql:"issue(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+
+	variables := map[string]interface{}{
+		"owner":  githubv4.String(owner),
+		"name":   githubv4.String(repo),
+		"number": githubv4.Int(issueNumber),
+	}
+
+	err := client.Query(context.Background(), &query, variables)
+	if err != nil {
+		return "", "", "", err
+	}
+	return query.Repository.Issue.ID, query.Repository.Issue.Title, query.Repository.Issue.URL, nil
+}
+
+func addIssueToProject(client *githubv4.Client, projectID, contentID githubv4.ID) error {
+	var mutation struct {
+		AddProjectV2ItemById struct {
+			Item struct {
+				ID githubv4.ID
+			}
+		} `graphql:"addProjectV2ItemById(input: $input)"`
+	}
+
+	input := AddProjectV2ItemByIdInput{
+		ProjectID: projectID,
+		ContentID: contentID,
+	}
+
+	return client.Mutate(context.Background(), &mutation, input, nil)
+}
+
+func printIssueDetails(client *githubv4.Client, issueID githubv4.ID) error {
+	var query struct {
+		Node struct {
+			Issue struct {
+				Number int
+				Title  string
+				URL    string
+			} `graphql:"... on Issue"`
+		} `graphql:"node(id: $id)"`
+	}
+
+	variables := map[string]interface{}{
+		"id": issueID,
+	}
+
+	err := client.Query(context.Background(), &query, variables)
+	if err != nil {
+		return fmt.Errorf("failed to fetch issue details: %v", err)
+	}
+
+	fmt.Printf("🧾 Issue #%d\n🔗 %s\n📝 %s\n", query.Node.Issue.Number, query.Node.Issue.URL, query.Node.Issue.Title)
+	return nil
+}
+
+func confirmAssignee(client *githubv4.Client, issueID, expectedUserID githubv4.ID) error {
+	var query struct {
+		Node struct {
+			Issue struct {
+				Assignees struct {
+					Nodes []struct {
+						ID    githubv4.ID
+						Login string
+					}
+				} `graphql:"assignees(first: 10)"`
+			} `graphql:"... on Issue"`
+		} `graphql:"node(id: $id)"`
+	}
+
+	err := client.Query(context.Background(), &query, map[string]interface{}{
+		"id": issueID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch assignees: %v", err)
+	}
+
+	fmt.Println("🔍 Assignees after mutation:")
+	for _, a := range query.Node.Issue.Assignees.Nodes {
+		fmt.Printf(" - %s (%s)\n", a.Login, a.ID)
+		if a.ID == expectedUserID {
+			fmt.Println("✅ Assignment confirmed.")
+			return nil
+		}
+	}
+
+	return fmt.Errorf("❌ Assignment not confirmed — user is not listed as assignee")
+}
+
+func fetchUserID(client *githubv4.Client, login string) (githubv4.ID, error) {
+	var query struct {
+		User struct {
+			ID githubv4.ID // This is the new global Relay ID (starts with "U_")
+		} `graphql:"user(login: $login)"`
+	}
+
+	variables := map[string]interface{}{
+		"login": githubv4.String(login),
+	}
+
+	err := client.Query(context.Background(), &query, variables)
+	if err != nil {
+		return "", err
+	}
+
+	// Print the user ID for debugging:
+	fmt.Printf("Fetched user ID for %s: %s\n", login, query.User.ID)
+
+	return query.User.ID, nil
+}
+
+func assignUserToIssue(client *githubv4.Client, issueID githubv4.ID, assigneeLogin string) error {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return fmt.Errorf("GITHUB_TOKEN is not set")
+	}
+
+	fmt.Println("🔍 Fetching user global ID via GraphQL REST API...")
+
+	// Build GraphQL query to get next_global_id
+	queryPayload := fmt.Sprintf(`{
+      "query": "query($login: String!) { user(login: $login) { id login databaseId } }",
+      "variables": {
+        "login": "%s"
+      }
+    }`, assigneeLogin)
+
+	// Run curl to get the user ID
+	cmd := exec.Command("curl",
+		"-s",
+		"-X", "POST",
+		"-H", "Authorization: bearer "+token,
+		"-H", "Content-Type: application/json",
+		"https://api.github.com/graphql",
+		"-d", queryPayload)
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to run curl for user ID: %v", err)
+	}
+
+	// Parse the output JSON to get the user ID
+	var result struct {
+		Data struct {
+			User struct {
+				ID         string `json:"id"`
+				Login      string `json:"login"`
+				DatabaseID int    `json:"databaseId"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(output, &result); err != nil {
+		return fmt.Errorf("failed to parse user ID JSON: %v", err)
+	}
+
+	userID := result.Data.User.ID
+	if userID == "" {
+		return fmt.Errorf("user ID not found for login %s", assigneeLogin)
+	}
+
+	fmt.Printf("✅ Fetched user global ID: %s\n", userID)
+
+	// Build GraphQL mutation payload to assign
+	mutationPayload := fmt.Sprintf(`{
+      "query": "mutation($issueId: ID!, $assigneeIds: [ID!]!) { addAssigneesToAssignable(input: {assignableId: $issueId, assigneeIds: $assigneeIds}) { assignable { assignees(first: 10) { nodes { login id } } } } }",
+      "variables": {
+        "issueId": "%s",
+        "assigneeIds": ["%s"]
+      }
+    }`, issueID, userID)
+
+	fmt.Println("🔧 Assigning user via GraphQL REST API...")
+
+	// Run curl to perform assignment
+	assignCmd := exec.Command("curl",
+		"-s",
+		"-X", "POST",
+		"-H", "Authorization: bearer "+token,
+		"-H", "Content-Type: application/json",
+		"https://api.github.com/graphql",
+		"-d", mutationPayload)
+
+	assignOutput, err := assignCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to run curl for assignment: %v", err)
+	}
+
+	fmt.Println("✅ Assignment response:")
+	fmt.Println(string(assignOutput))
+
+	fmt.Println("✅ User assigned successfully via REST GraphQL API.")
+	return nil
+}
