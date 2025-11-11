@@ -189,7 +189,8 @@ SELECT
   iha.created_at AS uploaded_at,
   st.bundle_identifier AS bundle_identifier,
   COALESCE(st.name, '') AS software_title,
-	iha.self_service
+	iha.self_service,
+	iha.url
 FROM
   in_house_apps iha
   JOIN software_titles st ON st.id = iha.title_id
