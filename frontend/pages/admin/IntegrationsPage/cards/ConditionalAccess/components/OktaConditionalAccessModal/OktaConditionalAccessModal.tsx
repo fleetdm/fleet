@@ -1,9 +1,10 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { size } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
+import conditionalAccessAPI from "services/entities/conditional_access";
 import { IConfig } from "interfaces/config";
 import endpoints from "utilities/endpoints";
 
@@ -77,6 +78,20 @@ const OktaConditionalAccessModal = ({
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [certFile, setCertFile] = useState<File | null>(null);
+  const [appleProfile, setAppleProfile] = useState<string>("");
+
+  // Fetch Apple profile on mount
+  useEffect(() => {
+    const fetchAppleProfile = async () => {
+      try {
+        const profileText = await conditionalAccessAPI.getIdpAppleProfile();
+        setAppleProfile(profileText);
+      } catch (e) {
+        renderFlash("error", "Failed to load Apple profile.");
+      }
+    };
+    fetchAppleProfile();
+  }, [renderFlash]);
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -233,7 +248,7 @@ const OktaConditionalAccessModal = ({
             enableCopy
             label="User scope profile"
             readOnly
-            value="TODO read-only profile goes here"
+            value={appleProfile}
             type="textarea"
           />
 
