@@ -87,6 +87,20 @@ func RegisterIdP(
 	return nil
 }
 
+// handleInternalServerError logs the error, records it in context, and returns HTTP 500.
+// This function should be used whenever returning StatusInternalServerError to ensure
+// consistent error handling across the IdP service.
+// Additional key-value pairs can be passed for logging context (e.g., "host_id", hostID).
+func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger kitlog.Logger, msg string, err error, keyvals ...any) {
+	// Build the log keyvals starting with msg and err
+	logKeyvals := []any{"msg", msg, "err", err}
+	logKeyvals = append(logKeyvals, keyvals...)
+
+	level.Error(logger).Log(logKeyvals...)
+	ctxerr.Handle(ctx, err)
+	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+}
+
 // serveMetadata handles GET /api/fleet/conditional_access/idp/metadata
 // Returns SAML IdP metadata for Okta to consume.
 func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
@@ -95,8 +109,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 	// Load AppConfig to get Okta settings
 	appConfig, err := s.ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "failed to load app config", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to load app config", err)
 		return
 	}
 
@@ -116,8 +129,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "IdP not configured", http.StatusNotFound)
 			return
 		}
-		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to build identity provider", err)
 		return
 	}
 
@@ -160,8 +172,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
-		level.Error(s.logger).Log("msg", "failed to lookup host by certificate serial", "serial", serial, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to lookup host by certificate serial", err, "serial", serial)
 		return
 	}
 
@@ -170,16 +181,14 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	// Load AppConfig for IdP configuration
 	appConfig, err := s.ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "failed to load app config", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to load app config", err)
 		return
 	}
 
 	// Get Fleet server URL from config
 	serverURL := appConfig.ServerSettings.ServerURL
 	if serverURL == "" {
-		level.Error(s.logger).Log("msg", "server URL not configured")
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "server URL not configured", errors.New("server URL not configured"))
 		return
 	}
 
@@ -191,8 +200,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
-		level.Error(s.logger).Log("msg", "failed to build identity provider", "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, s.logger, "failed to build identity provider", err)
 		return
 	}
 
@@ -266,8 +274,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return nil
 		}
-		level.Error(p.logger).Log("msg", "failed to load host", "host_id", p.hostID, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, p.logger, "failed to load host", err, "host_id", p.hostID)
 		return nil
 	}
 
@@ -278,8 +285,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	}
 	conditionalAccessPolicyIDs, err := p.ds.GetPoliciesForConditionalAccess(ctx, teamID)
 	if err != nil {
-		level.Error(p.logger).Log("msg", "failed to get conditional access policies", "host_id", p.hostID, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, p.logger, "failed to get conditional access policies", err, "host_id", p.hostID)
 		return nil
 	}
 
@@ -299,8 +305,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	// Get all policies for the host
 	policies, err := p.ds.ListPoliciesForHost(ctx, host)
 	if err != nil {
-		level.Error(p.logger).Log("msg", "failed to list policies for host", "host_id", p.hostID, "err", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		handleInternalServerError(ctx, w, p.logger, "failed to list policies for host", err, "host_id", p.hostID)
 		return nil
 	}
 
