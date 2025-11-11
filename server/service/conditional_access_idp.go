@@ -8,8 +8,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -332,9 +334,16 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to load app config")
 	}
+	if strings.TrimSpace(appConfig.ServerSettings.ServerURL) == "" {
+		return nil, &fleet.BadRequestError{Message: "server URL is not configured"}
+	}
 
-	// Construct SCEP URL
-	scepURL := fmt.Sprintf("%s/api/fleet/conditional_access/scep", appConfig.ServerSettings.ServerURL)
+	// Construct SCEP URL using net/url package
+	parsedServerURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to parse server URL")
+	}
+	scepURL := parsedServerURL.JoinPath("/api/fleet/conditional_access/scep").String()
 
 	// Get global enroll secrets
 	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)

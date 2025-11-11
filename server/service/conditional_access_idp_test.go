@@ -321,6 +321,64 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		require.Nil(t, profileData)
 	})
 
+	t.Run("server URL not configured", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetConditionalAccessCACert: {
+					Name:  fleet.MDMAssetConditionalAccessCACert,
+					Value: certPEM,
+				},
+			}, nil
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "",
+				},
+			}, nil
+		}
+
+		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "server URL is not configured")
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Nil(t, profileData)
+	})
+
+	t.Run("invalid server URL", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetConditionalAccessCACert: {
+					Name:  fleet.MDMAssetConditionalAccessCACert,
+					Value: certPEM,
+				},
+			}, nil
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "://invalid-url",
+				},
+			}, nil
+		}
+
+		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to parse server URL")
+		require.Nil(t, profileData)
+	})
+
 	t.Run("deterministic UUIDs based on server URL", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil)
