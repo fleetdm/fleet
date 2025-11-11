@@ -1317,10 +1317,10 @@ module.exports = {
 
           // Determine the line in the JSON that the object for this app starts on.
           // this will allow us to link users directly to the app's position in the JSON file when users want to make a change.
-          let lineWithTheAppsNameKey = _.find(linesInAppsJsonFile, (line)=>{
-            return line.includes(`"name": "${app.name}"`);
+          let lineWithTheAppsSlugKey = _.find(linesInAppsJsonFile, (line)=>{
+            return line.includes(`"slug": "${app.slug}"`);
           });
-          let lineNumberForEdittingThisApp = linesInAppsJsonFile.indexOf(lineWithTheAppsNameKey);
+          let lineNumberForEdittingThisApp = linesInAppsJsonFile.indexOf(lineWithTheAppsSlugKey);
 
           let appInformation = {
             name: app.name,
