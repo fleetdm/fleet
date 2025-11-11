@@ -7,7 +7,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Interim Head of Marketing          | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 
