@@ -54,7 +54,7 @@ const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
     iconName="error-outline"
-    message={`Error: ${message}`}
+    message={<>Error: {message}</>}
   />
 );
 
