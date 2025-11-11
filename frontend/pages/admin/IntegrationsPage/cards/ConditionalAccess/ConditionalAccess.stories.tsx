@@ -82,69 +82,6 @@ export const NotConfigured: Story = {
   ],
 };
 
-// This story demonstrates the intermediate "pending" state on the Entra card
-// after form submission while awaiting OAuth completion in another tab
-export const AwaitingOAuthCompletion: Story = {
-  name: "Awaiting OAuth completion (pending state)",
-  render: () => {
-    const appContextValue = {
-      isPremiumTier: true,
-      config: createMockConfig({
-        conditional_access: {
-          microsoft_entra_tenant_id: "",
-          microsoft_entra_connection_configured: false,
-          okta_idp_id: "",
-          okta_assertion_consumer_service_url: "",
-          okta_audience_uri: "",
-          okta_certificate: "",
-        },
-      }),
-      setConfig: () => {
-        // Mock function for stories
-      },
-    };
-
-    // Simulate the pending state by rendering SectionCard with pending icon
-    return (
-      <CustomQueryClientProvider client={queryClient}>
-        <AppContext.Provider value={appContextValue as any}>
-          <NotificationContext.Provider value={mockNotificationContext as any}>
-            <div className="conditional-access">
-              <div className="section-header">
-                <h2 className="section-header__title">Conditional access</h2>
-              </div>
-              <p className="conditional-access__page-description">
-                Block hosts failing policies from logging in with single
-                sign-on. Once connected, enable or disable on the Policies page.
-              </p>
-              <div className="conditional-access__cards">
-                <SectionCard
-                  header="Okta"
-                  cta={
-                    <Button
-                      onClick={() => {
-                        // Mock function for stories
-                      }}
-                    >
-                      Connect
-                    </Button>
-                  }
-                >
-                  Connect Okta to enable conditional access.
-                </SectionCard>
-                <SectionCard iconName="pending-outline" cta={undefined}>
-                  To complete your integration, follow the instructions in the
-                  other tab, then refresh this page to verify.
-                </SectionCard>
-              </div>
-            </div>
-          </NotificationContext.Provider>
-        </AppContext.Provider>
-      </CustomQueryClientProvider>
-    );
-  },
-};
-
 export const EntraConfigured: Story = {
   name: "Microsoft Entra configured",
   decorators: [
