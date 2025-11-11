@@ -9,7 +9,7 @@ This guide will cover how to deploy CrowdStrike Falcon on macOS, Linux and Windo
 ### Install notes
 
 - The best practice is to install CrowdStrike when hosts first enroll to Fleet. Learn how:
-  - [macOS Setup](https://fleetdm.com/guides/setup-experience#install-software)
+  - [macOS](https://fleetdm.com/guides/setup-experience#install-software)
   - [Linux](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
   - [Windows](https://fleetdm.com/guides/windows-linux-setup-experience#choose-software)
  
