@@ -20,8 +20,8 @@ const WindowsEnrollmentCard = ({
         </Button>
       }
     >
-      To use automatic enrollment for Windows hosts and Windows Autopilot you
-      need to connect Fleet to Azure AD first.
+      To enable end users to enroll to Fleet via Microsoft Entra (e.g.
+      Autopilot), you need to connect Fleet to Entra first.
     </SectionCard>
   );
 };
