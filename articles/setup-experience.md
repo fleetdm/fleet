@@ -257,5 +257,5 @@ If you deploy a custom fleetd, also add the software and scripts you want to ins
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-07-03">
-<meta name="articleTitle" value="macOS setup experience">
-<meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">
+<meta name="articleTitle" value="Setup experience">
+<meta name="description" value="Customize the out-of-the-box macOS, Windows, Linux, iOS, iPadOS, and Android setup">

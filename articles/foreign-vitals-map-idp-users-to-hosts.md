@@ -12,7 +12,7 @@ Fleet gathers IdP host vitals when an end user authenticates during these enroll
 - Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
 - Manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts.
 
-Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
 ## Okta
 
