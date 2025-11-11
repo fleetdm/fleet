@@ -249,6 +249,11 @@ Fleet-managed DNS records are maintained in Cloudflare using Terraform.
 See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
 
 
+### Process self-service license dispsenser refunds
+
+Refunds for Fleet Premium licenses purchased on the self-service license dispenser on fleetdm.com are processed in [Stripe](https://dashboard.stripe.com/). To refund a subscription, log in to Stripe using the shared credentials from 1Password, search for the user's email address, and select the subscription associated with their Stripe customer account. On the page for the user's subscription, select the "Actions" dropdown in the top right and choose "Cancel subscription". In the cancellation options, select the options to cancel the subscription immediately, refund the last payment, and send the user a refund receipt. Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
+
+ 
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
