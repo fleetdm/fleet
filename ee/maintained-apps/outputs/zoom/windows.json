@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "6.6.19875",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND publisher = 'Zoom';"
+      },
+      "installer_url": "https://zoom.us/client/6.6.6.19875/ZoomInstallerFull.msi?archType=x64",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "94e215e0",
+      "sha256": "7279fef6b5d312665621d5a9e1fef0b95c1001ee661cf0baefaf11659c054801",
+      "default_categories": [
+        "Communications"
+      ]
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "94e215e0": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\nforeach ($product_code in $inst.RelatedProducts(\"{C819B794-A45C-4F27-9860-0C86492A52CC}\")) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -Wait -PassThru\n\n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Zoom",
+  "slug": "zoom/windows",
+  "package_identifier": "Zoom.Zoom",
+  "unique_identifier": "Zoom Workplace (X64)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communications"]
+}
