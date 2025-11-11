@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -77,9 +78,16 @@ func RegisterIdP(
 		logger: kitlog.With(logger, "component", "conditional-access-idp"),
 	}
 
-	// Register handlers with OpenTelemetry middleware
-	metadataHandler := otel.WrapHandler(http.HandlerFunc(svc.serveMetadata), idpMetadataPath, *fleetConfig)
-	ssoHandler := otel.WrapHandler(http.HandlerFunc(svc.serveSSO), idpSSOPath, *fleetConfig)
+	// Create logging middleware
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
+
+	// Register handlers with logging and OpenTelemetry middleware
+	// Order: OTEL wraps logging to capture full request lifecycle
+	metadataHandler := loggingMiddleware(http.HandlerFunc(svc.serveMetadata))
+	metadataHandler = otel.WrapHandler(metadataHandler, idpMetadataPath, *fleetConfig)
+
+	ssoHandler := loggingMiddleware(http.HandlerFunc(svc.serveSSO))
+	ssoHandler = otel.WrapHandler(ssoHandler, idpSSOPath, *fleetConfig)
 
 	mux.Handle(idpMetadataPath, metadataHandler)
 	mux.Handle(idpSSOPath, ssoHandler)
