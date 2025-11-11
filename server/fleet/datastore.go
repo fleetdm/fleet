@@ -556,7 +556,7 @@ type Datastore interface {
 	// TeamWithExtras retrieves the Team by ID, including extra fields.
 	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
-	TeamLite(ctx context.Context, tid uint) (*Team, error)
+	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name.

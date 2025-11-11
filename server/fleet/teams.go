@@ -94,6 +94,20 @@ type Team struct {
 	Secrets []*EnrollSecret `json:"secrets,omitempty"`
 }
 
+// TeamLite is a subset of Team that only includes columns in the Team table
+type TeamLite struct {
+	// ID is the database ID.
+	ID       uint    `json:"id" db:"id"`
+	Filename *string `json:"gitops_filename,omitempty" db:"filename"`
+	// CreatedAt is the timestamp of the label creation.
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// Name is the human friendly name of the team.
+	Name string `json:"name" db:"name"`
+	// Description is an optional description for the team.
+	Description string     `json:"description" db:"description"`
+	Config      TeamConfig `json:"-" db:"config"` // see json.MarshalJSON/UnmarshalJSON implementations
+}
+
 func (t Team) MarshalJSON() ([]byte, error) {
 	// The reason for not embedding TeamConfig above, is that it also implements sql.Scanner/Valuer.
 	// We do not want it be promoted to the parent struct, because it causes issues when using sqlx for scanning.

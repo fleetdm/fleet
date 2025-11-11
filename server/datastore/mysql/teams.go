@@ -59,8 +59,20 @@ func (ds *Datastore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team,
 	return teamDB(ctx, ds.reader(ctx), tid, true)
 }
 
-func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader(ctx), tid, false)
+func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+	team, err := teamDB(ctx, ds.reader(ctx), tid, false)
+	if team == nil {
+		return nil, err
+	}
+
+	return &fleet.TeamLite{ // re-marshaling this way to avoid more code duplication
+		ID:          team.ID,
+		Filename:    team.Filename,
+		CreatedAt:   team.CreatedAt,
+		Name:        team.Name,
+		Description: team.Description,
+		Config:      team.Config,
+	}, err
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {

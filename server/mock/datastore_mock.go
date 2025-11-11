@@ -417,9 +417,9 @@ type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
-type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
+type TeamWithExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
-type TeamWithoutExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
+type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.TeamLite, error)
 
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
@@ -1435,7 +1435,7 @@ type RenewMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error)
 
-type ResendHostCustomSCEPProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
+type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
@@ -1575,7 +1575,7 @@ type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*type
 
 type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
 
-type GetMDMSCEPCertBySerialFunc func(ctx context.Context, serialNumber uint64) (string, error)
+type GetMDMSCEPCertBySerialFunc func(ctx context.Context, serialNumber uint64) (deviceUUID string, err error)
 
 type GetConditionalAccessCertHostIDBySerialNumberFunc func(ctx context.Context, serial uint64) (uint, error)
 
@@ -2195,11 +2195,11 @@ type DataStore struct {
 	SaveTeamFunc        SaveTeamFunc
 	SaveTeamFuncInvoked bool
 
-	TeamFunc        TeamFunc
-	TeamFuncInvoked bool
+	TeamWithExtrasFunc        TeamWithExtrasFunc
+	TeamWithExtrasFuncInvoked bool
 
-	TeamWithoutExtrasFunc        TeamWithoutExtrasFunc
-	TeamWithoutExtrasFuncInvoked bool
+	TeamLiteFunc        TeamLiteFunc
+	TeamLiteFuncInvoked bool
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
@@ -3722,8 +3722,8 @@ type DataStore struct {
 	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
 	ListHostMDMManagedCertificatesFuncInvoked bool
 
-	ResendHostCustomSCEPProfileFunc        ResendHostCustomSCEPProfileFunc
-	ResendHostCustomSCEPProfileFuncInvoked bool
+	ResendHostCertificateProfileFunc        ResendHostCertificateProfileFunc
+	ResendHostCertificateProfileFuncInvoked bool
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
@@ -5358,16 +5358,16 @@ func (s *DataStore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 
 func (s *DataStore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.mu.Lock()
-	s.TeamFuncInvoked = true
+	s.TeamWithExtrasFuncInvoked = true
 	s.mu.Unlock()
-	return s.TeamFunc(ctx, tid)
+	return s.TeamWithExtrasFunc(ctx, tid)
 }
 
-func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 	s.mu.Lock()
-	s.TeamWithoutExtrasFuncInvoked = true
+	s.TeamLiteFuncInvoked = true
 	s.mu.Unlock()
-	return s.TeamWithoutExtrasFunc(ctx, tid)
+	return s.TeamLiteFunc(ctx, tid)
 }
 
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
@@ -8921,9 +8921,9 @@ func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID
 
 func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	s.mu.Lock()
-	s.ResendHostCustomSCEPProfileFuncInvoked = true
+	s.ResendHostCertificateProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResendHostCustomSCEPProfileFunc(ctx, hostUUID, profUUID)
+	return s.ResendHostCertificateProfileFunc(ctx, hostUUID, profUUID)
 }
 
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
@@ -9409,7 +9409,7 @@ func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 	return s.UpdateHostIdentityCertHostIDBySerialFunc(ctx, serialNumber, hostID)
 }
 
-func (s *DataStore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (string, error) {
+func (s *DataStore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (deviceUUID string, err error) {
 	s.mu.Lock()
 	s.GetMDMSCEPCertBySerialFuncInvoked = true
 	s.mu.Unlock()
