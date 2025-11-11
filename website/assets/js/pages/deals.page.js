@@ -4,9 +4,7 @@ parasails.registerPage('deals', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     // Form data
-    formData: {
-      submittersOrganization: 'CDW',
-    },
+    formData: {},
 
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
@@ -54,9 +52,7 @@ parasails.registerPage('deals', {
       this.showSuccessMessage = false;
       this.cloudError = '';
       this.formErrors = {};
-      this.formData = {
-        submittersOrganization: 'CDW',
-      };
+      this.formData = {};
       await this.forceRender();
     },
 
