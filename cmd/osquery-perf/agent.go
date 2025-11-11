@@ -123,10 +123,11 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 	}
 
 	type softwareJSON struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-		Release string `json:"release,omitempty"`
-		Arch    string `json:"arch,omitempty"`
+		Name        string `json:"name"`
+		Version     string `json:"version"`
+		UpgradeCode string `json:"upgrade_code"`
+		Release     string `json:"release,omitempty"`
+		Arch        string `json:"arch,omitempty"`
 	}
 	var softwareList []softwareJSON
 	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
@@ -137,9 +138,10 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 	softwareRows := make([]map[string]string, 0, len(softwareList))
 	for _, s := range softwareList {
 		softwareRows = append(softwareRows, map[string]string{
-			"name":    s.Name,
-			"version": s.Version,
-			"source":  source,
+			"name":         s.Name,
+			"version":      s.Version,
+			"source":       source,
+			"upgrade_code": s.UpgradeCode,
 		})
 	}
 	return softwareRows
@@ -2664,9 +2666,10 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 				baseVersion := s["version"]
 				alternateVersion := baseVersion + ".1"
 				m := map[string]string{
-					"name":    s["name"],
-					"source":  s["source"],
-					"version": a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
+					"name":         s["name"],
+					"source":       s["source"],
+					"version":      a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
+					"upgrade_code": s["upgrade_code"],
 				}
 				results = append(results, m)
 			}

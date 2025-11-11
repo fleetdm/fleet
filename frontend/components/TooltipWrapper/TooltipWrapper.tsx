@@ -48,6 +48,7 @@ and mouseout from the element. If a boolean, sets delay to the default below. If
    * Do this if you run into issues with `overflow: hidden` on the tooltip parent container
    * */
   fixedPositionStrategy?: boolean;
+  isMobileView?: boolean;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -73,6 +74,7 @@ const TooltipWrapper = ({
   disableTooltip = false,
   showArrow = false,
   fixedPositionStrategy = false,
+  isMobileView = false,
 }: ITooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     "show-arrow": showArrow,
@@ -112,7 +114,14 @@ const TooltipWrapper = ({
 
   return (
     <span className={wrapperClassNames}>
-      <div className={elementClassNames} data-tip data-tooltip-id={tipId}>
+      <div
+        className={elementClassNames}
+        data-tip
+        data-tooltip-id={tipId}
+        style={
+          isMobileView && !disableTooltip ? { cursor: "pointer" } : undefined
+        } // With mobile width, show pointer cursor on hover since tooltip won't show on hover
+      >
         {children}
       </div>
       {!disableTooltip && (
@@ -128,6 +137,11 @@ const TooltipWrapper = ({
           clickable={clickable}
           offset={tipOffset}
           positionStrategy={fixedPositionStrategy ? "fixed" : "absolute"}
+          globalCloseEvents={
+            isMobileView ? { clickOutsideAnchor: true } : undefined
+          }
+          openEvents={isMobileView ? { click: true } : { mouseenter: true }}
+          closeEvents={isMobileView ? { click: true } : { mouseleave: true }}
         >
           {tipContent}
         </ReactTooltip5>

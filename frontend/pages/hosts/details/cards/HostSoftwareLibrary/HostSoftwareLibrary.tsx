@@ -45,7 +45,7 @@ import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/Ho
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 import { getUiStatus } from "../Software/helpers";
-import SoftwareUpdateModal from "../Software/SoftwareUpdateModal";
+import SoftwareUpdateModal from "../Software/SelfService/components/SoftwareUpdateModal";
 
 const baseClass = "host-software-library-card";
 
@@ -613,7 +613,9 @@ const HostSoftwareLibrary = ({
           details={{
             hostDisplayName,
             fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
-            appName: selectedHostSWIpaInstallDetails.name,
+            appName:
+              selectedHostSWIpaInstallDetails.display_name ||
+              selectedHostSWIpaInstallDetails.name,
             commandUuid:
               selectedHostSWIpaInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
@@ -646,7 +648,9 @@ const HostSoftwareLibrary = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName: selectedVPPInstallDetails.name,
+            appName:
+              selectedVPPInstallDetails.display_name ||
+              selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,
           }}
           hostSoftware={selectedVPPInstallDetails}

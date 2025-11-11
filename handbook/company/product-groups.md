@@ -7,6 +7,8 @@ When creating software, handoffs between teams or contributors are one of the mo
 > - Write down philosophies and show how the pieces of the development process fit together on this "🛩️ Product groups" page.
 > - Use the dedicated [departmental](https://fleetdm.com/handbook/company#org-chart) handbook pages for [🚀 Engineering](https://fleetdm.com/handbook/engineering) and [🦢 Product Design](https://fleetdm.com/handbook/product) to keep track of specific, rote responsibilities and recurring rituals designed to be read and used only by people within those departments.
 
+For a high-level view of where each category and stage stands today, see the [🧭 Product maturity assessment](https://fleetdm.com/handbook/company/product-maturity-assessment).
+
 
 ## Product roadmap
 
@@ -55,7 +57,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
-| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_
+| Quality Assurance                 | _TODO_
 | Software Engineer                 | Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen))
 
 **Areas of expertise**:
@@ -585,49 +587,43 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
-Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
+Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the bug review DRI (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance.  QA has **1 business day** to move the bug to the next step (reproduced) or request more information.
+At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). 
 
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
+Then, it's the product group Product Designer's responsibility to decide if it's a bug, attempt reproduction and documenting reproduction steps if they're missing, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 
-Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
+When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
-For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. QA should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "New requests" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
 
-If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, QA verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [reproduced state](#reproduced).
+For bugs that may require fixes from a partner (e.g. Apple, Microsoft, etc.), a Fleet issue is always filed. The Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, the Product Designer verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [needs reproduction](#needs-reproduction) or [reproduced state](#reproduced).
+
+
+#### Needs reproduction
+
+The bug has been confirmed it's a bug but not reproduced.
+
+Take the following action: Add the `:reproduce` label so that the bug is added to the :help-qa board.
+
+At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Produce Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
+
 
 #### Reproduced
 
-QA has reproduced the issue successfully. It should now be transferred to product design if it is a released bug, or engineering if it is unreleased.
+The bug has been confirmed and reproduced.
 
-If the bug is missing reproduction steps, it's removed from the drafting board and sent back to the "inbox" state.
+Take the following actions:
 
-Remove the “:reproduce” label, add the following labels:
+1. Remove the `:reproduce` label and add the `~released bug` label if the bug is in a published version of Fleet or `~unreleased bug` if it is not yet published.
+2. If this is a `~released bug`, add the `:product` label to place the bug on the product drafting board and move the bug to the "Ready to estimate" column.
+3. If this is an `~unreleased bug`, add the `:release` label and add the bug to the prooduct group's release board so it is fixed before the next release.
 
-1. The relevant product group (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). Make your best guess, and product design will change if necessary.
-3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
-2. The `:incoming` label indicates that it is a new bug to be triaged.
-3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
+> **Fast for Fleeties:** Fleeties do not have to wait for additional reproduction. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 
-> **Fast for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
-
-
-#### In product drafting
-
-After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated. During drafting, product design will take one of the following actions:
-
-+ Prepare for engineering review and estimation
-  - Specify a fix or a timebox
-  - Update the issue title, if it no longer matches our understanding of the issue
-  - Move it to the "Ready to estimate" column of the drafting board
-+ Convert to a feature request
-  - Remove all bug labels
-  - Leave the issue in the "New requests" column
-+ Assign to a non-engineering team
-+ Close, if determined to be expected behavior
-
-If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing), the `~critical bug` label is added, and product design follows the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug).
+If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing), the `~critical bug` label is added, and the product group's Product Designer follows the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug).
 
 
 #### In engineering

@@ -203,7 +203,7 @@ const routes = (
                   component={AdminIntegrationsPage}
                 />
                 <Route
-                  path="integrations/:section/:subsection"
+                  path="integrations/sso/:subsection"
                   component={AdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>

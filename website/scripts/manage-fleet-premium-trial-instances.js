@@ -18,8 +18,17 @@ module.exports = {
     if(!sails.config.custom.renderApiToken){
       throw new Error(`Missing config value! Please set sails.config.custom.renderApiToken and try running this script again.`);
     }
+
     if(!sails.config.custom.renderInstancePoolSize){
       throw new Error(`Missing config value! Please set sails.config.custom.renderApiToken and try running this script again.`);
+    }
+
+    if(!sails.config.custom.renderInstanceSesSecretId){
+      throw new Error(`Missing config value! Please set sails.config.custom.renderInstanceSesSecretId and try running this script again.`);
+    }
+
+    if(!sails.config.custom.renderInstanceSesSecretKey){
+      throw new Error(`Missing config value! Please set sails.config.custom.renderInstanceSesSecretKey and try running this script again.`);
     }
 
 
@@ -34,9 +43,28 @@ module.exports = {
     let numberOfPovRecordsWithNoRenderServices = await RenderProofOfValue.count({status: 'record created', user: undefined});
     let numberOfRenderPovToCreate = RENDER_POV_POOL_SIZE - numberOfPovRecordsReadyForAssignment - numberOfPovRecordsWithNoRenderServices;
 
-    //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╗ ╔═╗╔═╗╔═╗  ╦═╗╔═╗╔═╗╔═╗╦═╗╔╦╗╔═╗
-    //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣    ║║╠═╣ ║ ╠═╣╠╩╗╠═╣╚═╗║╣   ╠╦╝║╣ ║  ║ ║╠╦╝ ║║╚═╗
-    //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ═╩╝╩ ╩ ╩ ╩ ╩╚═╝╩ ╩╚═╝╚═╝  ╩╚═╚═╝╚═╝╚═╝╩╚══╩╝╚═╝
+    //
+    //   ██████╗██████╗ ███████╗ █████╗ ████████╗███████╗
+    //  ██╔════╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██╔════╝
+    //  ██║     ██████╔╝█████╗  ███████║   ██║   █████╗
+    //  ██║     ██╔══██╗██╔══╝  ██╔══██║   ██║   ██╔══╝
+    //  ╚██████╗██║  ██║███████╗██║  ██║   ██║   ███████╗
+    //   ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
+    //
+    //  ██████╗  █████╗ ████████╗ █████╗ ██████╗  █████╗ ███████╗███████╗
+    //  ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝
+    //  ██║  ██║███████║   ██║   ███████║██████╔╝███████║███████╗█████╗
+    //  ██║  ██║██╔══██║   ██║   ██╔══██║██╔══██╗██╔══██║╚════██║██╔══╝
+    //  ██████╔╝██║  ██║   ██║   ██║  ██║██████╔╝██║  ██║███████║███████╗
+    //  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
+    //
+    //  ██████╗ ███████╗ ██████╗ ██████╗ ██████╗ ██████╗ ███████╗
+    //  ██╔══██╗██╔════╝██╔════╝██╔═══██╗██╔══██╗██╔══██╗██╔════╝
+    //  ██████╔╝█████╗  ██║     ██║   ██║██████╔╝██║  ██║███████╗
+    //  ██╔══██╗██╔══╝  ██║     ██║   ██║██╔══██╗██║  ██║╚════██║
+    //  ██║  ██║███████╗╚██████╗╚██████╔╝██║  ██║██████╔╝███████║
+    //  ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝
+    //
     sails.log(`${numberOfPovRecordsReadyForAssignment} ready for assignment`);
     if(numberOfPovRecordsReadyForAssignment < RENDER_POV_POOL_SIZE) {
       sails.log(`Provisioning ${numberOfRenderPovToCreate} Render instance(s)`);
@@ -48,7 +76,7 @@ module.exports = {
       await sails.helpers.flow.simultaneouslyForEach(newRenderPovRecordsToCreate, async()=>{
         await sails.helpers.flow.build(async ()=>{
           let slugForThisInstance = await sails.helpers.ai.prompt.with({
-            prompt: 'You are a creative developer.  Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur").  If appropriate, use imagery from nature, such as swans, or from a glass city in the clouds.  Return only the slug as JSON string.',
+            prompt: 'You are a creative developer. Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur"). Return only the slug as JSON string.',
             baseModel:'gpt-5-nano-2025-08-07',
             expectJson: true,
           }).retry();
@@ -67,14 +95,36 @@ module.exports = {
 
 
       //
-      //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗╔═╗
-      //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣ ╚═╗
-      //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝╚═╝
+      //   ██████╗██████╗ ███████╗ █████╗ ████████╗███████╗
+      //  ██╔════╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██╔════╝
+      //  ██║     ██████╔╝█████╗  ███████║   ██║   █████╗
+      //  ██║     ██╔══██╗██╔══╝  ██╔══██║   ██║   ██╔══╝
+      //  ╚██████╗██║  ██║███████╗██║  ██║   ██║   ███████╗
+      //   ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
+      //
+      //  ██████╗ ███████╗███╗   ██╗██████╗ ███████╗██████╗
+      //  ██╔══██╗██╔════╝████╗  ██║██╔══██╗██╔════╝██╔══██╗
+      //  ██████╔╝█████╗  ██╔██╗ ██║██║  ██║█████╗  ██████╔╝
+      //  ██╔══██╗██╔══╝  ██║╚██╗██║██║  ██║██╔══╝  ██╔══██╗
+      //  ██║  ██║███████╗██║ ╚████║██████╔╝███████╗██║  ██║
+      //  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚═╝  ╚═╝
+      //
+      //  ███████╗███████╗██████╗ ██╗   ██╗██╗ ██████╗███████╗███████╗
+      //  ██╔════╝██╔════╝██╔══██╗██║   ██║██║██╔════╝██╔════╝██╔════╝
+      //  ███████╗█████╗  ██████╔╝██║   ██║██║██║     █████╗  ███████╗
+      //  ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██║██║     ██╔══╝  ╚════██║
+      //  ███████║███████╗██║  ██║ ╚████╔╝ ██║╚██████╗███████╗███████║
+      //  ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═╝ ╚═════╝╚══════╝╚══════╝
+      //
       // Simultaneously create Render services for new database records.
 
       await sails.helpers.flow.simultaneouslyForEach(renderInstancesToCreate, async(povRecord)=>{
 
         let instanceIdAsString = String(povRecord.id);
+        //
+        //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗ ╦╔═╗╔═╗╔╦╗
+        //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ╠═╝╠╦╝║ ║ ║║╣ ║   ║
+        //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╩  ╩╚═╚═╝╚╝╚═╝╚═╝ ╩
         // Create a new project in render for this Fleet instance.
         let createProjectResponse = await sails.helpers.http.post.with({
           url: 'https://api.render.com/v1/projects',
@@ -127,6 +177,10 @@ module.exports = {
         // Get the ID of the production environment created on the new project, we'll need this later to move the created services to the project.
         let environmentId = createProjectResponse.environmentIds[0];
 
+        //
+        //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗
+        //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ╠╦╝║╣  ║║║╚═╗  ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣
+        //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╩╚═╚═╝═╩╝╩╚═╝  ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝
         // Create the Redis service for this instance:
         let createRedisResponse = await sails.helpers.http.post.with({
           url: 'https://api.render.com/v1/redis',
@@ -189,9 +243,14 @@ module.exports = {
           renderRedisServiceId,
         });
 
+        //
+        //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔╦╗╦ ╦╔═╗╔═╗ ╦    ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗
+        //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ║║║╚╦╝╚═╗║═╬╗║    ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣
+        //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╩ ╩ ╩ ╚═╝╚═╝╚╩═╝  ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝
+        // Create the MySQL service for this instance:
         let generatedMySQLPassword = await sails.helpers.strings.uuid();
         let generatedMySQLRootPassword = await sails.helpers.strings.uuid();
-        // Create the MySQL service for this instance:
+
         let createMySQLResponse = await sails.helpers.http.post.with({
           // url: 'https://api.render.com/v1/servicess',// Intentionally causing an error to test error handling in this script.
           url: 'https://api.render.com/v1/services',
@@ -288,7 +347,41 @@ module.exports = {
           renderMySqlServiceId,
         });
 
+        //
+        //  ╔╦╗╔╗╔╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╔═╗╔═╗
+        //   ║║║║║╚═╗  ╠═╣║║║ ║║  ╚═╗║╣ ╚═╗
+        //  ═╩╝╝╚╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝╚═╝╚═╝
+        // Now provision a new *.try.fleetdm.com DNS record for this instance.
+        await sails.helpers.http.post.with({
+          url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
+          data: {
+            event_type: 'try-fleet-webhook',//eslint-disable-line camelcase
+            client_payload: {//eslint-disable-line camelcase
+              action: 'apply',
+              workspace: povRecord.slug,
+            }
+          },
+          headers: {
+            'User-Agent': 'fleetdm.com',
+            'Authorization': `token ${sails.config.custom.githubAccessToken}`
+          }
+        }).tolerate((err)=>{
+          errorReportById[instanceIdAsString] = new Error(`Could not send request to create a *.try.fleetdm.com DNS record for a new Render trial instance. Error from GitHub API: ${util.inspect(err)}`);
+        });
 
+        if(errorReportById[instanceIdAsString]){
+          return;
+        }
+
+        let urlForThisInstance = `https://${povRecord.slug}.try.fleetdm.com`;
+        await RenderProofOfValue.updateOne({id: povRecord.id}).set({
+          instanceUrl: urlForThisInstance,
+        });
+
+        //
+        //  ╦ ╦╔═╗╦╔╦╗  ╔═╗╔═╗╦═╗  ╔╦╗╦ ╦╔═╗╔═╗ ╦    ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦
+        //  ║║║╠═╣║ ║   ╠╣ ║ ║╠╦╝  ║║║╚╦╝╚═╗║═╬╗║     ║║║╣ ╠═╝║  ║ ║╚╦╝
+        //  ╚╩╝╩ ╩╩ ╩   ╚  ╚═╝╩╚═  ╩ ╩ ╩ ╚═╝╚═╝╚╩═╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩
         // Note: we can create the Fleet service now, but if it is live before the mysql service is, then it won't be able to deploy.
         await sails.helpers.flow.until(async()=>{
 
@@ -307,12 +400,11 @@ module.exports = {
           }
         }, 600000);
 
-
         let ninetyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 90);
 
         let licenseKey = await sails.helpers.createLicenseKey.with({
           numberOfHosts: 10,
-          organization: povRecord.slug,
+          organization: 'Render-trial-'+povRecord.slug,
           expiresAt: ninetyDaysFromNowAt,
         });
 
@@ -328,10 +420,17 @@ module.exports = {
           { key: 'FLEET_MYSQL_USERNAME', value: 'fleet' },
           { key: 'FLEET_MYSQL_PASSWORD', value: generatedMySQLPassword },
           { key: 'PORT', value: '8080' },
-          // TODO/FUTURE: SES config.
+          { key: 'FLEET_SES_ACCESS_KEY_ID', value: sails.config.custom.renderInstanceSesSecretId },
+          { key: 'FLEET_SES_SECRET_ACCESS_KEY', value: sails.config.custom.renderInstanceSesSecretKey },
+          { key: 'FLEET_EMAIL_BACKEND', value: 'ses'},
+          { key: 'FLEET_SES_REGION', value: 'us-east-2'},
+          { key: 'FLEET_SES_SOURCE_ARN', value: `arn:aws:ses:us-east-2:564445215450:identity/${povRecord.slug}.try.fleetdm.com`},
         ];
 
-
+        //
+        //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔═╗╦  ╔═╗╔═╗╔╦╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗
+        //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ╠╣ ║  ║╣ ║╣  ║   ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣
+        //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╚  ╩═╝╚═╝╚═╝ ╩   ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝
         // Create the Fleet service for this instance:
         let createFleetResponse = await sails.helpers.http.post.with({
           url: 'https://api.render.com/v1/services',
@@ -379,6 +478,30 @@ module.exports = {
           renderFleetServiceId,
         });
 
+        //
+        //  ╔═╗╔╦╗╔╦╗  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔╦╗╔═╗╦╔╗╔
+        //  ╠═╣ ║║ ║║  ║  ║ ║╚═╗ ║ ║ ║║║║   ║║║ ║║║║╠═╣║║║║
+        //  ╩ ╩═╩╝═╩╝  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩  ═╩╝╚═╝╩ ╩╩ ╩╩╝╚╝
+        await sails.helpers.http.post.with({
+          url: `https://api.render.com/v1/services/${renderFleetServiceId}/custom-domains`,
+          data: {
+            name: urlForThisInstance,
+          },
+          headers: {
+            authorization: `Bearer ${sails.config.custom.renderApiToken}`
+          },
+        }).tolerate((err)=>{
+          errorReportById[instanceIdAsString] = new Error(`Could not add a custom domain to the Fleet service created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
+        });
+
+        if(errorReportById[instanceIdAsString]){
+          return;
+        }
+
+        //
+        //  ╔╦╗╔═╗╦  ╦╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗╔═╗  ╔╦╗╔═╗  ╔═╗╦═╗╔═╗ ╦╔═╗╔═╗╔╦╗
+        //  ║║║║ ║╚╗╔╝║╣   ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣ ╚═╗   ║ ║ ║  ╠═╝╠╦╝║ ║ ║║╣ ║   ║
+        //  ╩ ╩╚═╝ ╚╝ ╚═╝  ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝╚═╝   ╩ ╚═╝  ╩  ╩╚═╚═╝╚╝╚═╝╚═╝ ╩
         // Move the creaed services to the project we created for this pov.
         await sails.helpers.http.post.with({
           url: `https://api.render.com/v1/environments/${environmentId}/resources`,
@@ -396,8 +519,12 @@ module.exports = {
           errorReportById[instanceIdAsString] = new Error(`Could not move services to the project created for a new Render POV. Error from Render API: ${util.inspect(err)}`);
         });
 
+        if(errorReportById[instanceIdAsString]){
+          return;
+        }
+
+        // Set the status of this POV instance to ready for assignment.
         await RenderProofOfValue.updateOne({id: povRecord.id}).set({
-          instanceUrl: createFleetResponse.service.serviceDetails.url,
           status: 'ready for assignment'
         });
 
@@ -407,12 +534,30 @@ module.exports = {
 
 
     //
-    //  ╔═╗╦  ╔═╗╔═╗╔╗╔╦ ╦╔═╗  ╔═╗═╗ ╦╔═╗╦╦═╗╔═╗╔╦╗  ╦╔╗╔╔═╗╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗
-    //  ║  ║  ║╣ ╠═╣║║║║ ║╠═╝  ║╣ ╔╩╦╝╠═╝║╠╦╝║╣  ║║  ║║║║╚═╗ ║ ╠═╣║║║║  ║╣ ╚═╗
-    //  ╚═╝╩═╝╚═╝╩ ╩╝╚╝╚═╝╩    ╚═╝╩ ╚═╩  ╩╩╚═╚═╝═╩╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╝╚╝╚═╝╚═╝╚═╝
+    //   ██████╗██╗     ███████╗ █████╗ ███╗   ██╗██╗   ██╗██████╗
+    //  ██╔════╝██║     ██╔════╝██╔══██╗████╗  ██║██║   ██║██╔══██╗
+    //  ██║     ██║     █████╗  ███████║██╔██╗ ██║██║   ██║██████╔╝
+    //  ██║     ██║     ██╔══╝  ██╔══██║██║╚██╗██║██║   ██║██╔═══╝
+    //  ╚██████╗███████╗███████╗██║  ██║██║ ╚████║╚██████╔╝██║
+    //   ╚═════╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝
+    //
+    //  ███████╗██╗  ██╗██████╗ ██╗██████╗ ███████╗██████╗
+    //  ██╔════╝╚██╗██╔╝██╔══██╗██║██╔══██╗██╔════╝██╔══██╗
+    //  █████╗   ╚███╔╝ ██████╔╝██║██████╔╝█████╗  ██║  ██║
+    //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║██╔══██╗██╔══╝  ██║  ██║
+    //  ███████╗██╔╝ ██╗██║     ██║██║  ██║███████╗██████╔╝
+    //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝╚═════╝
+    //
+    //  ██╗███╗   ██╗███████╗████████╗ █████╗ ███╗   ██╗ ██████╗███████╗███████╗
+    //  ██║████╗  ██║██╔════╝╚══██╔══╝██╔══██╗████╗  ██║██╔════╝██╔════╝██╔════╝
+    //  ██║██╔██╗ ██║███████╗   ██║   ███████║██╔██╗ ██║██║     █████╗  ███████╗
+    //  ██║██║╚██╗██║╚════██║   ██║   ██╔══██║██║╚██╗██║██║     ██╔══╝  ╚════██║
+    //  ██║██║ ╚████║███████║   ██║   ██║  ██║██║ ╚████║╚██████╗███████╗███████║
+    //  ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝╚══════╝
+    //
     // Check for any instances that should be torn down during this run.
     let nowAt = Date.now();
-    let expiringInstances = await RenderProofOfValue.find({status: 'in-use', renderTrialEndsAt: {'<': nowAt}}).populate('user');
+    let expiringInstances = await RenderProofOfValue.find({status: 'in use', renderTrialEndsAt: {'<': nowAt}}).populate('user');
     for(let expiringInstance of expiringInstances) {
       // Delete the services and the project for this expired POV.
 
@@ -428,6 +573,28 @@ module.exports = {
         sails.log.warn(`p1: When deleting a MySQL service (id: ${expiringInstance.renderMySqlServiceId}) for a Render POV that expired, the Render API returned an error. This service will need to be manually deleted in the Render dashboard. Error from Render API: ${util.inspect(err)}`);
         return;
       });
+
+      // If this instance has a try.fleetdm.com url, send a request to delete the DNS record for it.
+      if(_.includes(expiringInstance.instanceUrl, 'try.fleetdm.com')){
+        await sails.helpers.http.post.with({
+          url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
+          data: {
+            event_type: 'try-fleet-webhook',//eslint-disable-line camelcase
+            client_payload: {//eslint-disable-line camelcase
+              action: 'destroy',
+              workspace: expiringInstance.slug,
+              confirm: 'DELETE'
+            },
+          },
+          headers: {
+            'User-Agent': 'fleetdm.com',
+            'Authorization': `token ${sails.config.custom.githubAccessToken}`
+          }
+        }).tolerate((err)=>{
+          sails.log.warn(`p1: When sending a request to Github to trigger a workflow to destroy a *.try.fleetdm.com DNS record for a Render POV that expired, The GitHub API returned an error. Error from GitHub API: ${util.inspect(err)}`);
+          return;
+        });
+      }
 
 
       // Delete the Redis service that was created for this record.
@@ -480,6 +647,9 @@ module.exports = {
           firstName: user.firstName,
         },
         ensureAck: true,
+      }).tolerate((err)=>{
+        sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium trial (email: ${user.emailAddress}) an error occured. Full error: ${util.inspect(err)}`);
+        return;
       });
 
       await RenderProofOfValue.updateOne({id: expiringInstance.id}).set({status: 'expired'});
@@ -487,15 +657,26 @@ module.exports = {
 
 
     //
-    //  ╦  ╔═╗╔═╗  ╔═╗╦═╗╦═╗╔═╗╦═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╔═╗╔═╗╔╗╔  ╦ ╦╔═╗
-    //  ║  ║ ║║ ╦  ║╣ ╠╦╝╠╦╝║ ║╠╦╝╚═╗  ╠═╣║║║ ║║  ║  ║  ║╣ ╠═╣║║║  ║ ║╠═╝
-    //  ╩═╝╚═╝╚═╝  ╚═╝╩╚═╩╚═╚═╝╩╚═╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝╩═╝╚═╝╩ ╩╝╚╝  ╚═╝╩
+    //  ██╗      ██████╗  ██████╗     ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗
+    //  ██║     ██╔═══██╗██╔════╝     ██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝
+    //  ██║     ██║   ██║██║  ███╗    █████╗  ██████╔╝██████╔╝██║   ██║██████╔╝███████╗
+    //  ██║     ██║   ██║██║   ██║    ██╔══╝  ██╔══██╗██╔══██╗██║   ██║██╔══██╗╚════██║
+    //  ███████╗╚██████╔╝╚██████╔╝    ███████╗██║  ██║██║  ██║╚██████╔╝██║  ██║███████║
+    //  ╚══════╝ ╚═════╝  ╚═════╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
+    //
+    //   █████╗ ███╗   ██╗██████╗      ██████╗██╗     ███████╗ █████╗ ███╗   ██╗    ██╗   ██╗██████╗
+    //  ██╔══██╗████╗  ██║██╔══██╗    ██╔════╝██║     ██╔════╝██╔══██╗████╗  ██║    ██║   ██║██╔══██╗
+    //  ███████║██╔██╗ ██║██║  ██║    ██║     ██║     █████╗  ███████║██╔██╗ ██║    ██║   ██║██████╔╝
+    //  ██╔══██║██║╚██╗██║██║  ██║    ██║     ██║     ██╔══╝  ██╔══██║██║╚██╗██║    ██║   ██║██╔═══╝
+    //  ██║  ██║██║ ╚████║██████╔╝    ╚██████╗███████╗███████╗██║  ██║██║ ╚████║    ╚██████╔╝██║
+    //  ╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝      ╚═════╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝     ╚═════╝ ╚═╝
+    //
     for (let instanceIdAsString of Object.keys(errorReportById)) {
       if (false === errorReportById[instanceIdAsString]) {
         // If no error occured wehn setting up this POV, do nothing.
       } else {
         // If an error was logged while provisioning a Render POV, log the error as a warning.
-        sails.log.warn(`p1: When provisioning a new Render POV, an error occured. This script will clean up any services it created for this POV. Full error: ${errorReportById[instanceIdAsString]}`);
+        sails.log.warn(`When provisioning a new Render POV, an error occured. This script will clean up any services it created for this POV. Full error: ${errorReportById[instanceIdAsString]}`);
 
         // Clean up the services associated with this record and delete it.
         let povRecord = await RenderProofOfValue.findOne({id: instanceIdAsString});
@@ -513,6 +694,29 @@ module.exports = {
             return;
           });
         }
+
+        if(povRecord.instanceUrl) {
+          // If this incomplete POV record has an instanceUrl value, then we sent a request to create a *.try.fleetdm.com DNS record, and we will need to send another request to delete it.
+          await sails.helpers.http.post.with({
+            url: 'https://api.github.com/repos/fleetdm/confidential/dispatches',
+            data: {
+              event_type: 'try-fleet-webhook',//eslint-disable-line camelcase
+              client_payload: {//eslint-disable-line camelcase
+                action: 'destroy',
+                workspace: povRecord.slug,
+                confirm: 'DELETE'
+              }
+            },
+            headers: {
+              'User-Agent': 'fleetdm.com',
+              'Authorization': `token ${sails.config.custom.githubAccessToken}`
+            }
+          }).tolerate((err)=>{
+            sails.log.warn(`p1: Could not send request to destroy a *.try.fleetdm.com DNS record for a Render trial instance that encountered an error during setup. Error from GitHub API: ${util.inspect(err)}`);
+            return;
+          });
+        }
+
         if(povRecord.renderRedisServiceId) {
           // Delete the Redis service that was created for this record.
           await sails.helpers.http.sendHttpRequest.with({

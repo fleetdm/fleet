@@ -206,6 +206,8 @@ type AgentOptionsForHostFunc func(ctx context.Context, hostTeamID *uint, hostPla
 
 type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *fleet.Host, debug bool, err error)
 
+type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
+
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
@@ -826,6 +828,8 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
+type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
+
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
 type GetCertificateAuthorityFunc func(ctx context.Context, id uint) (*fleet.CertificateAuthority, error)
@@ -1124,6 +1128,9 @@ type Service struct {
 
 	AuthenticateDeviceFunc        AuthenticateDeviceFunc
 	AuthenticateDeviceFuncInvoked bool
+
+	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
+	AuthenticateDeviceByCertificateFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
@@ -2055,6 +2062,9 @@ type Service struct {
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
 
+	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
+	ConditionalAccessGetIdPSigningCertFuncInvoked bool
+
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
 
@@ -2738,6 +2748,13 @@ func (s *Service) AuthenticateDevice(ctx context.Context, authToken string) (hos
 	s.AuthenticateDeviceFuncInvoked = true
 	s.mu.Unlock()
 	return s.AuthenticateDeviceFunc(ctx, authToken)
+}
+
+func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error) {
+	s.mu.Lock()
+	s.AuthenticateDeviceByCertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
 }
 
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
@@ -4908,6 +4925,13 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPSigningCertFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPSigningCertFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

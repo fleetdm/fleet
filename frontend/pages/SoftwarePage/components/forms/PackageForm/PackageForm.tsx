@@ -76,7 +76,7 @@ interface IPackageFormProps {
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
   onClickShowSchema?: () => void;
-  onClickPreviewEndUserExperience: () => void;
+  onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
@@ -351,8 +351,8 @@ const PackageForm = ({
                   isTarballPackage={isTarballPackage}
                   isScriptPackage={isScriptPackage}
                   isIpaPackage={isIpaPackage}
-                  onClickPreviewEndUserExperience={
-                    onClickPreviewEndUserExperience
+                  onClickPreviewEndUserExperience={() =>
+                    onClickPreviewEndUserExperience(isIpaPackage)
                   }
                 />
               </Card>

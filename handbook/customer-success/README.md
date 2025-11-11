@@ -126,6 +126,16 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 
+### Close out a completed customer promise
+
+Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. Document the completion of a customer promise through the following steps:
+1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask the assigned CSM for confirmation from the customer.
+2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
+3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
+4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
+5. Once you have received email confirmation of the completed promise, you may then close out the related issue in GitHub.
+
+
 ### File a customer bug report
 
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure to do the following:
@@ -155,16 +165,6 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
     - Redis CPU and Memory usage while the issue has been happening
     - The output of fleetctl debug archive
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
-
-
-### Escalate a customer bug report
-
-1. When a CSE suspects that a customer is impacted by a bug, a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) is filed immediately.
-2. Remove `:incoming` and `:reproduce` labels, and include the `~investigate` [label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A~investigate) and the `:help-customers` label.
-3. All suspected bug reports with the `~investigate` label are reviewed on the `:help-customers` stand-up daily. The Manager of CSE/CSA will acknowledge the bug report with a comment in the issue. 
-4. If a bug appears on stand-up for a second business day, the label is removed. Any available logs, reproduction steps, and details are updated on the issue.
-    1. If we are able to reproduce the bug, the issue can be sent straight to the `:product` drafting board for review and triage by the Head of Product Design.
-    2. If we are unable to reproduce the bug, the `:incoming` and `:reproduce` labels should be added back in so the bug can be triaged by the QA team.
 
 
 ### Timebox an investigation

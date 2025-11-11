@@ -1,3 +1,0 @@
-* Add support for VSCode fork (Cursor, Windsurf, VSCodium, VSCodium Insiders, and Trae) extensions
-in software inventory. Deprecate `browser` in favor of `extension_for` in API responses and
-JSON/YAML outputs.

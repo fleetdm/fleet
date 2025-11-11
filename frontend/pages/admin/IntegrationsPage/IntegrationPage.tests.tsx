@@ -33,9 +33,7 @@ describe("Integrations Page", () => {
 
       expect(
         await screen.findAllByText("Mobile device management (MDM)")
-      ).toHaveLength(1); // card header
-
-      expect(await screen.findAllByText("MDM")).toHaveLength(2); // side nav label, card header
+      ).toHaveLength(1);
     });
   });
   describe("Conditional access", () => {
@@ -73,7 +71,7 @@ describe("Integrations Page", () => {
 
       render(<IntegrationsPage router={mockRouter} params={{}} />);
 
-      expect(await screen.findAllByText("Conditional access")).toHaveLength(2); // side nav label and card header
+      expect(await screen.findAllByText("Conditional access")).toHaveLength(1); // side nav label and card header
     });
   });
 
@@ -93,10 +91,11 @@ describe("Integrations Page", () => {
       );
 
       expect(await screen.findAllByText("Single sign-on (SSO)")).toHaveLength(
-        3
+        2
       );
     });
   });
+
   describe("Host status webhook", () => {
     it("renders the Host status webhook sidenav and card", async () => {
       mockServer.use(createGetConfigHandler());
@@ -112,7 +111,7 @@ describe("Integrations Page", () => {
         />
       );
 
-      expect(await screen.findAllByText("Host status webhook")).toHaveLength(3);
+      expect(await screen.findAllByText("Host status webhook")).toHaveLength(2);
     });
   });
 });

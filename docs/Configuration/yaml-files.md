@@ -427,7 +427,8 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS | Host's hardware serial number. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`           | macOS, iOS, iPadOS | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
+| `$FLEET_VAR_SCEP_RENEWAL_ID`       | macOS, iOS, iPadOS | Fleet-managed ID that's required to automatically renew Smallstep, Microsoft NDES, and custom SCEP certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. |
+| `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`           | macOS, iOS, iPadOS | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). | 
 | `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`               | macOS, iOS, iPadOS | Fleet-managed base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 | `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`               | Windows | ID used for SCEP configuration profile on Windows. It must be included in the `<LocURI>` field.|
 
@@ -446,10 +447,13 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host.
+- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
+- `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stcuk in Setup Assistant until this command is sent.
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
+
+> As of Fleet 4.59.0, there is a known bug in which, if GitOps runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
 
 #### Example
 
@@ -481,7 +485,7 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages, store apps (Apple App Store and Google Play Store), and Fleet-maintained apps that you want to install on your hosts.
 
-- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, .deb, or .tar.gz).
+- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa, .sh, or .ps1).
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
@@ -546,6 +550,7 @@ software:
 
 > You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
 
+- `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -665,7 +670,7 @@ org_settings:
 - `org_name` is the name of your organization (default: `""`)
 - `org_logo_url` is a public URL of the logo for your organization (default: Fleet logo).
 - `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
-- `contact_url` is a URL that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
+- `contact_url` is a URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
 
 Can only be configured for all teams (`org_settings`).
 
@@ -760,6 +765,7 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 
 #### Example
 
@@ -936,6 +942,14 @@ Can only be configured for all teams (`org_settings`).
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
 Can only be configured for all teams (`org_settings`).
+
+#### smallstep
+
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the **SCEP URL** from Smallstep.
+- `challenge_url` is the **Webhook URL** from Smallstep.
+- `username` is the **Challenge Basic Authentication Username** from Smallstep.
+- `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
 ### webhook_settings
 
