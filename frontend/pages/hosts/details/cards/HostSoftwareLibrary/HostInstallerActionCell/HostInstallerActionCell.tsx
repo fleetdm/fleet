@@ -83,9 +83,9 @@ export const getActionButtonState = ({
   const isIpaOrAppStore = ["ipados", "ios"].includes(platform) || !!appStoreApp;
 
   // Pending states take priority
-  const isPendingInstall = status === "pending_install";
-  const isPendingUninstall = status === "pending_uninstall";
-  const isPending = isPendingInstall || isPendingUninstall;
+  const isPending = ["pending_install", "pending_uninstall"].includes(
+    status || ""
+  );
 
   if (isPending) {
     return {
