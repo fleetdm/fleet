@@ -85,7 +85,6 @@ module.exports = {
       'pintomi1989',
       'nonpunctual',
       'dantecatalfamo',
-      'PezHub',
       'SFriendLee',
       'ddribeiro',
       'allenhouchins',
