@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filecontents"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_listening_servers"
@@ -141,6 +142,7 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		table.NewPlugin("puppet_state", puppet.PuppetStateColumns(), puppet.PuppetStateGenerate),
 		table.NewPlugin("google_chrome_profiles", chromeuserprofiles.GoogleChromeProfilesColumns(), chromeuserprofiles.GoogleChromeProfilesGenerate),
 		table.NewPlugin("file_lines", fileline.FileLineColumns(), fileline.FileLineGenerate),
+		table.NewPlugin("file_contents", filecontents.Columns(), filecontents.Generate),
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
