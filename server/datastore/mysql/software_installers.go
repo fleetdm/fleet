@@ -198,8 +198,8 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	}
 
 	// Insert in house app instead of software installer
+	// And add both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
 	if payload.Extension == "ipa" {
-		// Insert both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
 			Filename:        payload.Filename,
@@ -420,14 +420,10 @@ INSERT INTO software_installers (
 }
 
 func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, categoryIDs []uint, swType softwareType) error {
-	fmt.Println("installerID: ", installerID)
-	fmt.Println("categoryIDs: ", categoryIDs)
 	// remove existing categories
 	delArgs := []interface{}{installerID}
 	delStmt := fmt.Sprintf(`DELETE FROM %[1]s_software_categories WHERE %[1]s_id = ?`, swType)
 	if len(categoryIDs) > 0 {
-		fmt.Println("deltStmt_____________")
-		fmt.Println(delStmt)
 		inStmt, args, err := sqlx.In(` AND software_category_id NOT IN (?)`, categoryIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build delete existing software categories query")
@@ -451,9 +447,6 @@ func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtCo
 		}
 		placeholders = strings.TrimSuffix(placeholders, ",")
 
-		fmt.Println("insStmt_____________")
-		fmt.Println(fmt.Sprintf(stmt, swType, placeholders))
-		fmt.Println(insertArgs)
 		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, swType, placeholders), insertArgs...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert software software categories")

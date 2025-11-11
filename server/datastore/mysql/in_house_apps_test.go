@@ -311,7 +311,6 @@ func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
-
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
@@ -323,33 +322,26 @@ func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
 	payload1 := fleet.UploadSoftwareInstallerPayload{
 		TeamID:           &team1.ID,
 		UserID:           user1.ID,
-		Title:            "foo",
 		BundleIdentifier: "com.foo",
-		Filename:         "foo2.ipa",
-		StorageID:        "testingtesting123",
-		Platform:         "ios",
+		Filename:         "foo.ipa",
+		StorageID:        "id1234",
 		Extension:        "ipa",
-		Version:          "1.2.3",
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 		CategoryIDs:      []uint{1, 2},
 	}
+
+	// Software categories are missing from test schema
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO software_categories 
+			VALUES (1,'Productivity'), (2,'Browsers'),(3,'Communication'),(4,'Developer tools')`)
+		return err
+	})
 
 	// Add installers for both teams
 	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload1)
 	require.NoError(t, err)
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO software_categories VALUES (2,'Browsers'),(3,'Communication'),(4,'Developer tools'),(1,'Productivity')`)
-		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO in_house_app_software_categories (in_house_app_id, software_category_id) VALUES (2, 1),(2, 2)`)
-		return err
-	})
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "in_house_apps")
-		DumpTable(t, tx, "software_categories")
-		DumpTable(t, tx, "in_house_app_software_categories")
-		return nil
-	})
-	require.NoError(t, err)
 	var count int
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_app_software_categories WHERE in_house_app_id = ?`, installerID)
 	require.NoError(t, err)
@@ -364,12 +356,22 @@ func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, count)
 
 	// Test with empty categories
-	payload2 := payload1
-	payload2.CategoryIDs = nil
+
+	payload2 := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team1.ID,
+		UserID:           user1.ID,
+		BundleIdentifier: "com.bar",
+		Filename:         "bar.ipa",
+		StorageID:        "id5678",
+		Extension:        "ipa",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		CategoryIDs:      nil, // empty slice should work the same
+	}
 
 	secondInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
 	require.NoError(t, err)
 
+	// Check that this has no categories
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_app_software_categories WHERE in_house_app_id = ?`, secondInstallerID)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
