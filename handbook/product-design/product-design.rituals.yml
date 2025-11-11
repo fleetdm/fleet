@@ -110,7 +110,7 @@
   task: "🦢⏮️ Product design sprint retro"
   startedOn: "2025-10-17" 
   frequency: "Triweekly" 
-  description: "Retro: What went well? What could go better? What to remember for next time?" 
+  description: "Retro: What went well? What could go better? What to remember for next time? Pick one improvement to implement next sprint." 
   moreInfoUrl:  
   dri: "noahtalerman"
 -
