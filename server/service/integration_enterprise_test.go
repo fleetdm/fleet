@@ -22308,7 +22308,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// patch the in house app to change labels, categories
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":            {"1"},
+			"team_id":            {fmt.Sprintf("%d", createTeamResp.Team.ID)},
 			"labels_exclude_any": {"iha_label"},
 			"categories":         {"Productivity", "Browsers"},
 		})
