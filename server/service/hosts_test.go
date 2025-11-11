@@ -3164,6 +3164,12 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
@@ -3195,6 +3201,12 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
