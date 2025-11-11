@@ -598,6 +598,12 @@
                         </dict>
                         <dict>
                             <key>name</key>
+                            <string>Customer codenames</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/labels?q=customer-</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
                             <string>Upgrade to Fleet Premium.mp4 - Google Drive</string>
                             <key>url</key>
                             <string>https://drive.google.com/file/d/1Up4XqtrPpYewwmCYVz4qBycd6alIsz7O/view</string>
@@ -656,6 +662,12 @@
                             <string>🦄 Kanban board (#g-unicorns)</string>
                             <key>url</key>
                             <string>https://github.com/orgs/fleetdm/projects/81</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Prospect codenames</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/labels?q=prospect-</string>
                         </dict>
                         <dict>
                             <key>name</key>
