@@ -11052,6 +11052,34 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file.yml"
   },
   {
+    "name": "file_contents",
+    "notes": "See also `file_lines` for reading a file line by line.",
+    "description": "Allows reading an arbitrary file. The entire contents of the file are returned as a single row.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "Output the content of `/etc/hosts`. \n\n```\nSELECT * FROM file_contents WHERE path='/etc/hosts';\n```",
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "contents",
+        "description": "Contents of the file",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/file_contents",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_contents.yml"
+  },
+  {
     "name": "file_events",
     "description": "Track time/action changes to files specified in configuration data.",
     "url": "https://fleetdm.com/tables/file_events",
@@ -11231,8 +11259,8 @@
   },
   {
     "name": "file_lines",
-    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
-    "description": "Allows reading an arbitrary file.",
+    "notes": "See also `file_contents` for reading the entire contents of a file as a single row. This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "description": "Allows reading an arbitrary file. Each line of the file is returned as a separate row.",
     "platforms": [
       "darwin",
       "windows",
