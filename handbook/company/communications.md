@@ -1090,12 +1090,12 @@ Headings and titles should:
 
 ##### Static headings
 
-Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+Use static headings (a `noun` or `noun phrase`) e.g., _“Log destinations,”_ for concept or reference topics. Be as short and specific as possible.
 
 
 ##### Task-based headings
 
-Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination,”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
 
 
 ##### Avoid _-ing_ verb forms in headings

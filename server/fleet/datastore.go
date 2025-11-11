@@ -2100,6 +2100,8 @@ type Datastore interface {
 
 	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
 	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
+	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
@@ -2158,7 +2160,7 @@ type Datastore interface {
 
 	// GetTeamsWithInstallerByHash gets a map of teamIDs (0 for No team) to software installers
 	// metadata by the installer's hash.
-	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*ExistingSoftwareInstaller, error)
+	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*ExistingSoftwareInstaller, error)
 
 	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
 	// have the setup experience IdP (End user authentication) enabled. It uses
