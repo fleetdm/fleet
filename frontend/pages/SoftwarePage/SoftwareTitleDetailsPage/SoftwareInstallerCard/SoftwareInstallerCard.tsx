@@ -10,9 +10,10 @@ import {
   IAppStoreApp,
   isSoftwarePackage,
 } from "interfaces/software";
+import { Platform } from "interfaces/platform";
 import softwareAPI from "services/entities/software";
 
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -150,6 +151,7 @@ export const SoftwareActionButtons = ({
 interface ISoftwareInstallerCardProps {
   softwareTitleName: string;
   isScriptPackage?: boolean;
+  isIosOrIpadosApp?: boolean;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -177,6 +179,7 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   softwareTitleName,
   isScriptPackage = false,
+  isIosOrIpadosApp = false,
   name,
   version,
   addedTimestamp,
@@ -266,36 +269,6 @@ const SoftwareInstallerCard = ({
     }
   }, [renderFlash, softwareId, name, teamId]);
 
-  let versionInfo = <span>{version}</span>;
-
-  if (installerType === "vpp") {
-    versionInfo = (
-      <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
-        <span>{version}</span>
-      </TooltipWrapper>
-    );
-  }
-
-  if (installerType === "package" && !version) {
-    versionInfo = (
-      <TooltipWrapper
-        tipContent={
-          <span>
-            Fleet couldn&apos;t read the version from {name}.{" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-              variant="tooltip-link"
-            />
-          </span>
-        }
-      >
-        <span>Version (unknown)</span>
-      </TooltipWrapper>
-    );
-  }
-
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
@@ -307,10 +280,11 @@ const SoftwareInstallerCard = ({
             <InstallerDetailsWidget
               softwareName={softwareInstaller?.name || name}
               installerType={installerType}
-              versionInfo={versionInfo}
+              version={version}
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isScriptPackage={isScriptPackage}
             />
             <div className={`${baseClass}__tags-wrapper`}>
               {Array.isArray(automaticInstallPolicies) &&
@@ -332,7 +306,7 @@ const SoftwareInstallerCard = ({
                 <TooltipWrapper
                   showArrow
                   position="top"
-                  tipContent={SELF_SERVICE_TOOLTIP}
+                  tipContent={getSelfServiceTooltip(isIosOrIpadosApp)}
                   underline={false}
                 >
                   <Tag icon="user" text="Self-service" />
@@ -391,6 +365,7 @@ const SoftwareInstallerCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
       {showDeleteModal && (
@@ -411,6 +386,7 @@ const SoftwareInstallerCard = ({
           iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
+          isScriptPackage={isScriptPackage}
         />
       )}
     </Card>

@@ -48,6 +48,7 @@ locals {
     loadtesting              = "917007347864"
     root                     = "831217569274"
     fleet-cloud              = "611884880216"
+    fleet-try                = "564445215450"
   }
 }
 

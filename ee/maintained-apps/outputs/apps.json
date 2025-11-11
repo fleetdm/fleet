@@ -2,6 +2,13 @@
   "version": 2,
   "apps": [
     {
+      "name": "010 Editor",
+      "slug": "010-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SweetScape.010Editor",
+      "description": "A toolkit for working with text and binary data."
+    },
+    {
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
@@ -58,6 +65,13 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Claude",
+      "slug": "claude/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anthropic.claudefordesktop",
+      "description": "Anthropic's official Claude AI desktop app."
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
@@ -70,6 +84,20 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Cursor",
+      "slug": "cursor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.todesktop.230313mzl4w4u92",
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+    },
+    {
+      "name": "Cursor",
+      "slug": "cursor/windows",
+      "platform": "windows",
+      "unique_identifier": "Cursor",
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
     },
     {
       "name": "Amazon DCV",
@@ -125,7 +153,14 @@
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
-      "description": ""
+      "description": "A terminal emulator alternative to Apple's Terminal app."
+    },
+    {
+      "name": "Linear",
+      "slug": "linear-linear/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linear",
+      "description": "An app to manage software development and track bugs."
     },
     {
       "name": "Microsoft Edge",
@@ -188,7 +223,7 @@
       "slug": "santa/darwin",
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
-      "description": ""
+      "description": "Santa is a binary authorization system for macOS."
     },
     {
       "name": "Slack",
@@ -244,7 +279,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager/</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
       "name": "Zoom",

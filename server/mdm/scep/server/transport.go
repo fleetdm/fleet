@@ -59,6 +59,20 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.
 		encodeSCEPResponse,
 		opts...,
 	))
+	// For Windows SCEP client which appends pkiclient.exe to the URL and seemingly cannot be configured
+	// to not do that
+	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("GET").Handler(kithttp.NewServer(
+		e.GetEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
+	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("POST").Handler(kithttp.NewServer(
+		e.PostEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
 
 	return r
 }

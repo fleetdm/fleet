@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,pezhub,jmwatts,andreykizimenko'
+assignees: 'xpkoala,jmwatts,andreykizimenko'
 
 ---
 
@@ -236,8 +236,7 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
 
 1. Configure OS updates (macOS & Windows).
-2. Verify on-device that Nudge prompt appears (macOS 13).
-3. Verify enforce minimumOS occurs during enrollment (macOS 14+).
+2. Verify enforce minimumOS occurs during enrollment (macOS 14+).
 </td><td>pass/fail</td></tr>
 
 <tr><td>Lock & Wipe</td><td>Verify hosts can be locked & wiped</td><td>

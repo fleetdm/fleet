@@ -2,7 +2,7 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 data "git_repository" "tf" {
-  path = "${path.module}/../../../../"
+  directory = "${path.module}/../../../../"
 }
 
 data "aws_acm_certificate" "certificate" {
@@ -60,6 +60,7 @@ module "loadtest" {
     subnets                       = data.terraform_remote_state.shared.outputs.vpc.private_subnets
     elasticache_subnet_group_name = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
     allowed_cidrs                 = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
+    # fleet-vpc has subnets in all 3 availability zones
     availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
     parameter = [
       { name = "client-output-buffer-limit-pubsub-hard-limit", value = 0 },

@@ -71,3 +71,8 @@ func Int64(x int64) *int64 {
 func Duration(x time.Duration) *time.Duration {
 	return &x
 }
+
+// T is the generic version to get the pointer of any type.
+func T[T any](x T) *T {
+	return &x
+}

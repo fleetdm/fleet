@@ -2,7 +2,7 @@
   task: "🦢📊 Product design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. For all stories that are not estimated, update their target engineering sprint on the roadmap board and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. Prepare the '🎁 Feature fest' board." 
+  description: "1. For all stories that are not estimated, update their target engineering sprint on the roadmap board and add their respective customer requests to the feature fest board. 2. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 3. Prepare the '🎁 Feature fest' board." 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -32,6 +32,13 @@
   frequency: "Daily" 
   description: "Contributors present wireframes (UI changes) that are 'Ready for review'. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Decide if changes are ready for user story review." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
+  dri: "noahtalerman"
+-
+  task: "🦢🪲🔨💥 Bug bash"
+  startedOn: "2025-10-22" 
+  frequency: "Semiweekly" 
+  description: "Contributors bring bug fixes to review. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Focused time to triage new bugs: https://fleetdm.com/handbook/product-design#triage-new-bugs" 
+  moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#bug-bash" 
   dri: "noahtalerman"
 -
   task: "🦢📨 Unpacking the 'why'"
@@ -103,7 +110,7 @@
   task: "🦢⏮️ Product design sprint retro"
   startedOn: "2025-10-17" 
   frequency: "Triweekly" 
-  description: "Retro: What went well? What could go better? What to remember for next time?" 
+  description: "Retro: What went well? What could go better? What to remember for next time? Pick one improvement to implement next sprint." 
   moreInfoUrl:  
   dri: "noahtalerman"
 -
@@ -113,6 +120,9 @@
   description: "After sprint kickoff: 1. Check for API design PRs on estimated stories that were not brought into the sprint, then @-mention the product designer to request documentation changes be reverted. 2. Check for unmerged API design PRs on the release docs branch (filter: is:pr is:open base:docs-vX.X.X). For stories that made it into the sprint, merge the PR. For stories that did not make it in, close the PR and @-mention the author."
   moreInfoUrl: ""
   dri: "rachaelshaw"
+  autoIssue:
+    labels: [ ":product" ]
+    repo: "fleet"
 -
   task: "Create release documentation PR"
   startedOn: "2025-10-31"
@@ -120,6 +130,9 @@
   description: "1. Close any draft PRs (to auto-generated docs) for released features. 2. Prepare documentation PR to `main`. 3. @-mention release DRI"
   moreInfoUrl: ""
   dri: "rachaelshaw"
+  autoIssue:
+    labels: [ ":product" ]
+    repo: "fleet"
 -
   task: "Update release documentation branches"
   startedOn: "2025-10-31"
@@ -127,3 +140,6 @@
   description: "After a release documentation PR is merged to `main`, merge the latest from `main` into each upcoming release docs branch."
   moreInfoUrl: ""
   dri: "rachaelshaw"
+  autoIssue:
+    labels: [ ":product" ]
+    repo: "fleet"

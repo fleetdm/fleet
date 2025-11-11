@@ -81,7 +81,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
 	payload.UninstallScript = file.Dos2UnixNewlines(payload.UninstallScript)
 
-	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, true); err != nil {
+	failOnBlankScript := !strings.HasSuffix(payload.Filename, ".ipa")
+
+	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
@@ -163,6 +165,15 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if payload.TeamID != nil {
 		tmID = *payload.TeamID
 	}
+
+	if payload.Extension == "ipa" {
+		addedInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &tmID, titleID)
+		if err != nil {
+			return nil, err
+		}
+		return addedInstaller, nil
+	}
+
 	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
@@ -314,6 +325,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
+	// Handle in house apps separately
+	if software.InHouseAppCount == 1 {
+		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
+	}
+
 	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
 	if software.SoftwareInstallersCount != 1 {
 		return nil, &fleet.BadRequestError{
@@ -328,12 +344,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
 		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
-		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
+		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil && software.DisplayName == payload.DisplayName {
 		return existingInstaller, nil // no payload, noop
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
 	dirty := make(map[string]bool)
+
+	if software.DisplayName != payload.DisplayName {
+		dirty["DisplayName"] = true
+	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
 		dirty["SelfService"] = true
@@ -370,13 +390,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		actTeamID = payload.TeamID
 	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          actTeamID,
-		SelfService:     existingInstaller.SelfService,
-		SoftwarePackage: &existingInstaller.Name,
-		SoftwareTitleID: payload.TitleID,
-		SoftwareIconURL: existingInstaller.IconUrl,
+		SoftwareTitle:       existingInstaller.SoftwareTitle,
+		TeamName:            teamName,
+		TeamID:              actTeamID,
+		SelfService:         existingInstaller.SelfService,
+		SoftwarePackage:     &existingInstaller.Name,
+		SoftwareTitleID:     payload.TitleID,
+		SoftwareIconURL:     existingInstaller.IconUrl,
+		SoftwareDisplayName: payload.DisplayName,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
@@ -735,19 +756,28 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 	}
 
 	// first, look for a software installer
-	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// no software installer, look for a VPP app
-			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting software app metadata")
-			}
-			return svc.deleteVPPApp(ctx, teamID, meta)
-		}
-		return ctxerr.Wrap(ctx, err, "getting software installer metadata")
+	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
+	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+
+	switch {
+	case errInstaller != nil && !fleet.IsNotFound(errInstaller):
+		return ctxerr.Wrap(ctx, errInstaller, "getting software installer metadata")
+	case errVPP != nil && !fleet.IsNotFound(errVPP):
+		return ctxerr.Wrap(ctx, errVPP, "getting vpp app metadata")
+	case errInHouse != nil && !fleet.IsNotFound(errInHouse):
+		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
-	return svc.deleteSoftwareInstaller(ctx, meta)
+
+	switch {
+	case metaInstaller != nil:
+		return svc.deleteSoftwareInstaller(ctx, metaInstaller)
+	case metaVPP != nil:
+		return svc.deleteVPPApp(ctx, teamID, metaVPP)
+	case metaInHouse != nil:
+		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
+	}
+	return ctxerr.Wrap(ctx, &notFoundError{}, "getting software installer")
 }
 
 func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.VPPAppStoreApp) error {
@@ -800,8 +830,14 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting software installer")
+	if meta.Extension == "ipa" {
+		if err := svc.ds.DeleteInHouseApp(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting in house app")
+		}
+	} else {
+		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting software installer")
+		}
 	}
 
 	var teamName *string
@@ -1093,6 +1129,30 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return err
 	}
 
+	if mobileAppleDevice {
+		iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
+		}
+
+		if iha != nil {
+			scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
+			}
+
+			if !scoped {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+				}
+			}
+
+			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{SelfService: false})
+			return ctxerr.Wrap(ctx, err, "insert in house app install")
+		}
+		// it's OK if we didn't find an in-house app; this might be a VPP app, so continue on
+	}
+
 	if !mobileAppleDevice {
 		installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 		if err != nil {
@@ -1348,7 +1408,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 
-	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
 
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
@@ -1467,7 +1527,7 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
 		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
 	}
 
@@ -2111,6 +2171,16 @@ func (svc *Service) softwareBatchUpload(
 				installer.InstallerFile = tfr
 				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
+
+				// For script packages (.sh and .ps1), clear unsupported fields early.
+				// Determine extension from filename to validate before metadata extraction.
+				ext := strings.ToLower(filepath.Ext(filename))
+				ext = strings.TrimPrefix(ext, ".")
+				if fleet.IsScriptPackage(ext) {
+					installer.PostInstallScript = ""
+					installer.UninstallScript = ""
+					installer.PreInstallQuery = ""
+				}
 			}
 
 			if p.Slug != nil && *p.Slug != "" {
@@ -2183,8 +2253,15 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// custom scripts only for exe installers
-			if installer.Extension != "exe" {
+			// For script packages (.sh and .ps1), clear unsupported fields
+			// The file contents become the install script, so post_install_script,
+			// uninstall_script, and pre_install_query are not supported.
+			if fleet.IsScriptPackage(installer.Extension) {
+				installer.PostInstallScript = ""
+				installer.UninstallScript = ""
+				installer.PreInstallQuery = ""
+			} else if installer.Extension != "exe" {
+				// custom scripts only for exe installers and non-script packages
 				if installer.InstallScript == "" {
 					installer.InstallScript = file.GetInstallScript(installer.Extension)
 				}
@@ -2368,16 +2445,9 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, return a bad
-		// request error
+		// if we couldn't find an installer or a VPP app, try an in-house app
 		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{
-				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer or VPP app for software title",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
-			}
+			return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
 		}
 
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
@@ -2411,6 +2481,49 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		SelfService: true,
 	})
 	return err
+}
+
+// branching out this call so it doesn't conflict with work in parallel in the
+// self-service install method, and it would be good to isolate the installers
+// and VPP apps logic too later on.
+func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer, VPP app or in-house app for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
+	}
+
+	if !iha.SelfService {
+		return &fleet.BadRequestError{
+			Message: "Software title is not available through self-service",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "software title not available through self-service",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
+	}
+
+	scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This software is not available for this host.",
+		}
+	}
+
+	err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{SelfService: true})
+	return ctxerr.Wrap(ctx, err, "insert in house app install")
 }
 
 // packageExtensionToPlatform returns the platform name based on the

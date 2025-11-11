@@ -3,7 +3,7 @@
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageRepository: fleetdm/fleet
-imageTag: v4.75.0 # Version of Fleet to deploy
+imageTag: v4.76.0 # Version of Fleet to deploy
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -105,6 +105,7 @@ fleet:
       prefix: ""
       accessKeyID: ""
       secretKey: s3-bucket
+      region: ""
       endpointURL: ""
       forceS3PathStyle: false
       stsAssumeRoleARN: ""
@@ -114,6 +115,7 @@ fleet:
       prefix: ""
       accessKeyID: ""
       secretKey: software-installers
+      region: ""
       endpointURL: ""
       forceS3PathStyle: false
       stsAssumeRoleARN: ""

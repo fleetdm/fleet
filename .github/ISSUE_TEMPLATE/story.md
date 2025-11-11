@@ -27,13 +27,10 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 <!-- Insert the link to the feature request that this story contributes to and add the feature request as this story's parent issue. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
 
-## Context
-- Product Designer: _________________________ <!-- Who is the Product Designer to contact if folks have questions about the UI, CLI, or API changes? -->
+## Resources
   
 <!--
-What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
-1. 
-2. 
+Provide links to any research or helpful resources (ex. Apple documentation). Put "None" if there are no resources.
 -->
 
 ## Changes
@@ -71,6 +68,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 
 ### Risk assessment
 
+- Requires testing in a hosted environment: TODO <!-- User story has features that require testing in a hosted environment. Otherwise, remove this item. -->
 - Requires load testing: TODO <!-- User story has performance implications that require load testing. Otherwise, remove this item. -->
 - Risk level: Low / High TODO <!-- Choose one. Consider: Does this change come with performance risks?  Any risk of accidental log spew? Any particular regressions to watch out for?  Any potential compatibility issues, even if it's not technically a breaking change? -->
 - Risk description: TODO <!-- If the risk level is high, explain why. If low, remove. -->

@@ -58,8 +58,8 @@ AND (
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- tar.gz can be installed on any Linux distribution
-			si.extension = 'tar.gz'
+			-- tar.gz and sh can be installed on any Linux distribution
+			(si.extension = 'tar.gz' OR si.extension = 'sh')
 			OR
 			(
 				-- deb packages can only be installed on Debian-based hosts.
@@ -453,6 +453,10 @@ SELECT
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
 	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+	COALESCE(
+		(SELECT source FROM software_titles WHERE id = si.title_id),
+		(SELECT source FROM software_titles WHERE id = va.title_id)
+	) AS source,
     CASE
         WHEN hsi.execution_status = 'failed_install' THEN
             CASE

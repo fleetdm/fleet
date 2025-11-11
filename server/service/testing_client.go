@@ -143,6 +143,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM in_house_apps;")
 		return err
 	})
 
@@ -811,6 +816,7 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("categories", c))
 		}
 	}
+	require.NoError(t, w.WriteField("display_name", payload.DisplayName))
 
 	w.Close()
 

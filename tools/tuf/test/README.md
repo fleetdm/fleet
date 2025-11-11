@@ -195,6 +195,9 @@ If you decide that you want to run your local fleet server with the `--server_tl
 
 + MSI_FLEET_URL=http://host.docker.internal:8080 \
 - MSI_FLEET_URL=https://host.docker.internal:8080 \
+
++ PKG_TAR_ZST_FLEET_URL=http://host.docker.internal:8080 \
+- PKG_TAR_ZST_FLEET_URL=https://host.docker.internal:8080 \
 ```
 
 These flags change the way `tools/tuf/test/gen_pkgs.sh` builds the binaries to properly support a local server not running ssl.

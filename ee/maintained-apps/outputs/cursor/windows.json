@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "2.0.69",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere';"
+      },
+      "installer_url": "https://downloads.cursor.com/production/63fcac100bd5d5749f2a98aa47d65f6eca61db39/win32/x64/system-setup/CursorSetup-x64-2.0.69.exe",
+      "install_script_ref": "03589b5e",
+      "uninstall_script_ref": "6c8096c5",
+      "sha256": "89b269b2d5f88d626415281d578bc0ebdf37b0f872da9c0f62ed7ed01681ea16",
+      "default_categories": [
+        "Developer Tools"
+      ]
+    }
+  ],
+  "refs": {
+    "03589b5e": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add arguments to install silently (Cursor uses an Inno Setup-based installer)\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /MERGETASKS=!runcode\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "6c8096c5": "# Attempts to locate Cursor's uninstaller from registry and execute it silently\n\n$displayName = \"Cursor\"\n$publisher = \"Anysphere\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher)\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Kill any running Cursor processes before uninstalling\nStop-Process -Name \"Cursor\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/VERYSILENT /NORESTART\"\n\n# Parse the uninstall command to separate executable from existing arguments\n$splitArgs = $uninstallCommand.Split('\"')\nif ($splitArgs.Length -gt 1) {\n    if ($splitArgs.Length -eq 3) {\n        $existingArgs = $splitArgs[2].Trim()\n        if ($existingArgs -ne '') {\n            $uninstallArgs = \"$existingArgs $uninstallArgs\"\n        }\n    } elseif ($splitArgs.Length -gt 3) {\n        Write-Host \"Error: Uninstall command contains multiple quoted strings\"\n        Exit 1\n    }\n    $uninstallCommand = $splitArgs[1]\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    \n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    \n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

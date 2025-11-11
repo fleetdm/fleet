@@ -271,6 +271,11 @@ $max-width: 2560px;
   @include flex-column-24px-gap;
 }
 
+// Separate in case there's any modal level styling we need
+@mixin vertical-modal-layout {
+  @include flex-column-24px-gap;
+}
+
 // Separate in case there's any tab level styling we need
 @mixin vertical-page-tab-panel-layout {
   @include flex-column-24px-gap;
