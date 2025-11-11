@@ -2994,15 +2994,18 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 
 ### mdm.sso_rate_limit_per_minute
 
-The number of attempts allowed from the same ip to login via sso per minute used by mdm enrollment.
-- Default value: "10"
+The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
+[Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
+
+The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users set up their Macs simultaneously).
+
+- Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
 - Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
 - Config file format:
-  ```
+  ```yaml
   mdm:
-    sso_rate_limit_per_minute: 10
+    sso_rate_limit_per_minute: 200
   ```
-> Note: This api is hit twice during enrollment so it should be roughly double the number of users you expect to enroll at the same time.
 
 ## Partnerships
 
