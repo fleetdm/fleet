@@ -1175,6 +1175,7 @@ const (
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 	WellKnownMDMFleet     = "Fleet"
+	WellKnownMDMMosyle    = "Mosyle"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
@@ -1186,6 +1187,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
 	"fleetdm":   WellKnownMDMFleet,
+	"mosyle":    WellKnownMDMMosyle,
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
