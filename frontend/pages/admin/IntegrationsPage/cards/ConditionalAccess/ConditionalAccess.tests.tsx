@@ -36,11 +36,23 @@ const updateConfigHandler = http.patch(baseUrl("/config"), () => {
 describe("Conditional access", () => {
   describe("Not configured", () => {
     it("Renders both integration cards when nothing is configured", () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: "",
+          okta_assertion_consumer_service_url: "",
+          okta_audience_uri: "",
+          okta_certificate: "",
+        },
+      });
+
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
           app: {
             isPremiumTier: true,
+            config: mockConfig,
           },
         },
       });
@@ -60,11 +72,23 @@ describe("Conditional access", () => {
     });
 
     it("Opens the Entra modal when clicking Connect on Entra card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: "",
+          okta_assertion_consumer_service_url: "",
+          okta_audience_uri: "",
+          okta_certificate: "",
+        },
+      });
+
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
           app: {
             isPremiumTier: true,
+            config: mockConfig,
           },
         },
       });
@@ -83,12 +107,24 @@ describe("Conditional access", () => {
     });
 
     it("Triggers Microsoft auth flow when submitting Entra modal", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: "",
+          okta_assertion_consumer_service_url: "",
+          okta_audience_uri: "",
+          okta_certificate: "",
+        },
+      });
+
       mockServer.use(triggerConditionalAccessHandler);
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
           app: {
             isPremiumTier: true,
+            config: mockConfig,
           },
         },
       });
