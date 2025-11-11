@@ -251,7 +251,13 @@ See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastru
 
 ### Process a self-service license dispenser refund
 
-Refunds for Fleet Premium licenses purchased on the self-service license dispenser on fleetdm.com are processed in [Stripe](https://dashboard.stripe.com/). To refund a subscription, log in to Stripe using the shared credentials from 1Password, search for the user's email address, and select the subscription associated with their Stripe customer account. On the page for the user's subscription, select the "Actions" dropdown in the top right and choose "Cancel subscription". In the cancellation options, select the options to cancel the subscription immediately, refund the last payment, and send the user a refund receipt. Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
+Refunds for Fleet Premium licenses purchased on the self-service license dispenser on fleetdm.com are processed in [Stripe](https://dashboard.stripe.com/). To refund a subscription: 
+1. Log in to Stripe using the shared credentials from 1Password. 
+2. Search for the user's email address, and select the subscription associated with their Stripe customer account. 
+3. On the page for the user's subscription, select the "Actions" dropdown in the top right and choose "Cancel subscription". 
+4. In the cancellation options, select the options to *cancel the subscription immediately*, *refund the last payment*, and *send the user a refund receipt*. 
+
+Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
 
  
 ## Rituals
