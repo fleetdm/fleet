@@ -385,24 +385,25 @@ module.exports.custom = {
 
   // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
-  'example.com',
-  'gmail.com',
-  'hotmail.ca',
-  'hotmail.co.uk',
-  'hotmail.com',
-  'icloud.com',
-  'live.com',
-  'mac.com',
-  'me.com',
-  'msn.com',
-  'outlook.com',
-  'proton.com',
-  'proton.me',
-  'protonmail.com'
-  'qq.com',
-  'yahoo.com',
-  'yandex.ru',
-  'ymail.com'
+    'example.com',
+    'gmail.com',
+    'hotmail.ca',
+    'hotmail.co.uk',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+    'mac.com',
+    'me.com',
+    'msn.com',
+    'outlook.com',
+    'proton.com',
+    'proton.me',
+    'protonmail.com',
+    'qq.com',
+    'yahoo.com',
+    'yahoo.co.uk',
+    'yandex.ru',
+    'ymail.com'
   ],
 
   // For contact form submissions.
