@@ -22258,3 +22258,80 @@ func (s *integrationEnterpriseTestSuite) TestDeviceCertificateAuthentication() {
 		res.Body.Close()
 	})
 }
+
+func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	t.Run("upload update delete in-house app", func(t *testing.T) {
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+			Name: t.Name(),
+		}, http.StatusOK, &createTeamResp)
+		require.NotZero(t, createTeamResp.Team.ID)
+
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  "iha_label",
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:      &createTeamResp.Team.ID,
+			Filename:    "ipa_test.ipa",
+			Version:     "1.0.0",
+			StorageID:   uuid.New().String(),
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID uint
+		var installerID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename)
+			sqlx.GetContext(ctx, q, &installerID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename)
+			return nil
+		})
+
+		// check activity
+		activityData := fmt.Sprintf(
+			`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`,
+			createTeamResp.Team.Name,
+			createTeamResp.Team.ID,
+			titleID+1, // iOS title is created first and returned, so the latest title is the iPadOS one
+		)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+
+		// patch the in house app to change labels, categories
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":            {"1"},
+			"labels_exclude_any": {"iha_label"},
+			"categories":         {"Productivity", "Browsers"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		expectedPayload := *payload
+		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
+		expectedPayload.Categories = []string{"Productivity", "Browsers"}
+
+		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.Categories, meta.Categories)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
+			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`,
+				labelResp.Label.ID, labelResp.Label.Name, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+
+		// download the installer, not found anymore
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+	})
+}
