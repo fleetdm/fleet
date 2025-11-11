@@ -356,6 +356,10 @@ controls:
   android_settings:
     custom_settings:
       - path: ../lib/android-profile.json
+    certificates:
+      - name: wifi-certificate
+        certificate_authority_name: EST_WIFI
+        subject_name: /CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
@@ -388,14 +392,24 @@ controls:
 - `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
 - `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
-### macos_settings, windows_settings and android_settings
+### macos_settings and windows_settings
 
 - `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
-- `android_settings.custom_settings` is a list of paths to Android configuration profiles (.json).
-
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+### android_settings
+
+- `android_settings.custom_settings` is a list of paths to Android configuration profiles (.json).
+
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+#### android_settings.certificates
+
+- `name` is the name of the certificate. Name can be used as a certificate alias to reference in configuration profiles (custom settings).
+- `certificate_authority_name` is the name of the [certificate authority (CA)](#certificate-authorities) to issue the certificate from. Currently, only a custom SCEP CA is supported.
+- `subject_name` is the certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".
 
 #### Variables
 
