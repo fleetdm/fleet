@@ -18558,12 +18558,12 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 
 	shScriptPath := filepath.Join(tmpDir, "test-script.sh")
 	shScriptContent := []byte("#!/bin/bash\necho 'Installing...'\n")
-	err := os.WriteFile(shScriptPath, shScriptContent, 0644)
+	err := os.WriteFile(shScriptPath, shScriptContent, 0o644)
 	require.NoError(t, err)
 
 	ps1ScriptPath := filepath.Join(tmpDir, "test-script.ps1")
 	ps1ScriptContent := []byte("Write-Host 'Installing...'\n")
-	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0644)
+	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0o644)
 	require.NoError(t, err)
 
 	t.Run("sh script package ignores unsupported fields", func(t *testing.T) {
@@ -21774,6 +21774,27 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 		}
 	}
 	assert.False(t, foundNonScimInOtherEmails, "Non-SCIM IDP should NOT appear in other_emails")
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		nil, http.StatusOK, &getResp)
+	fmt.Printf("\n\ndevice_mapping resp before delet: %+v\n\n", getResp)
+
+	var delResp deleteHostIDPResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent, &delResp)
+
+	// verify nothing from device_mapping endpoint
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.DeviceMapping, 0)
+
+	// verify nothing from host by identifier endpoint
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+
+	require.Empty(t, hostResp.Host.EndUsers)
+
+	// verify nothing from host by id endpoint
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp2)
+	require.Empty(t, hostResp2.Host.EndUsers)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
