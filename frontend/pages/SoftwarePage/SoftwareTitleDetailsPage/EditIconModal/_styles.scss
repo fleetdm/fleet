@@ -1,7 +1,10 @@
 .edit-icon-modal {
   h2 {
     font-size: $medium;
-    font-weight: $regular;
+  }
+
+  .modal__content {
+    @include vertical-modal-layout;
   }
 
   &__preview-card {
@@ -37,6 +40,12 @@
     }
   }
 
+  &__preview-img-container--mobile {
+    img {
+      width: 100%; // TODO
+    }
+  }
+
   &__preview-results-count {
     display: flex;
     align-items: center;
@@ -56,8 +65,23 @@
 
   &__self-service-preview {
     position: relative;
-    top: -76px;
+    top: -79px;
     left: 188px;
+    display: flex;
+    gap: $pad-xsmall;
+    font-size: 12px;
+    align-items: center;
+    max-width: 210px;
+
+    .software-icon__xsmall {
+      border-radius: $border-radius-small;
+    }
+  }
+
+  &__self-service-preview--mobile {
+    position: relative;
+    top: -88px;
+    left: 156px;
     display: flex;
     gap: $pad-small;
     font-size: 12px;
@@ -67,6 +91,29 @@
     .software-icon__xsmall {
       border-radius: $border-radius-small;
     }
+  }
+
+  // Required for tooltip truncating long software names
+  &__self-service-preview-name {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__self-service-preview-name-version--mobile {
+    display: flex;
+    flex-direction: column;
+    font-size: $xxx-small;
+  }
+
+  // Required for tooltip truncating long software names
+  &__self-service-preview-name--mobile {
+    max-width: 115px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
   }
 
   &__mask-overlay {

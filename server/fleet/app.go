@@ -85,12 +85,32 @@ type SSOSettings struct {
 }
 
 // ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
+// This struct is used in API responses, combining Microsoft Entra (from database) and Okta (from AppConfig).
 type ConditionalAccessSettings struct {
 	// MicrosoftEntraTenantID is the Entra's tenant ID.
 	MicrosoftEntraTenantID string `json:"microsoft_entra_tenant_id"`
 	// MicrosoftEntraConnectionConfigured is true when the tenant has been configured
 	// for "Conditional access" on Entra and Fleet.
 	MicrosoftEntraConnectionConfigured bool `json:"microsoft_entra_connection_configured"`
+
+	// Okta conditional access settings - using optjson for partial updates
+	// All four fields must be set together or all must be empty.
+	OktaIDPID                       optjson.String `json:"okta_idp_id"`
+	OktaAssertionConsumerServiceURL optjson.String `json:"okta_assertion_consumer_service_url"`
+	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
+	OktaCertificate                 optjson.String `json:"okta_certificate"`
+}
+
+// OktaConfigured returns true if all Okta conditional access fields are configured.
+// All four fields must be set together for Okta conditional access to be considered configured.
+func (c *ConditionalAccessSettings) OktaConfigured() bool {
+	if c == nil {
+		return false
+	}
+	return c.OktaIDPID.Valid && c.OktaIDPID.Value != "" &&
+		c.OktaAssertionConsumerServiceURL.Valid && c.OktaAssertionConsumerServiceURL.Value != "" &&
+		c.OktaAudienceURI.Valid && c.OktaAudienceURI.Value != "" &&
+		c.OktaCertificate.Valid && c.OktaCertificate.Value != ""
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -226,7 +246,8 @@ type MDM struct {
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
-	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
+	AndroidSettings             AndroidSettings `json:"android_settings"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -251,12 +272,6 @@ func (c *AppConfig) MDMUrl() string {
 		return c.ServerSettings.ServerURL
 	}
 	return c.MDM.AppleServerURL
-}
-
-// AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
-// (macOS or Windows) has MDM enabled and configured.
-func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
-	return m.EnabledAndConfigured || m.WindowsEnabledAndConfigured
 }
 
 // versionStringRegex is used to validate that a version string is in the x.y.z
@@ -473,6 +488,7 @@ type MacOSSetup struct {
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
+	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
@@ -599,6 +615,10 @@ type AppConfig struct {
 	Scripts optjson.Slice[string] `json:"scripts"`
 
 	YaraRules []YaraRule `json:"yara_rules,omitempty"`
+
+	// ConditionalAccess holds the Okta conditional access settings that are stored in AppConfig.
+	// Note: In API responses, this is combined with Microsoft Entra settings from the database.
+	ConditionalAccess *ConditionalAccessSettings `json:"conditional_access,omitempty"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
@@ -751,6 +771,14 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
+	if c.MDM.AndroidSettings.CustomSettings.Set {
+		androidSettings := make([]MDMProfileSpec, len(c.MDM.AndroidSettings.CustomSettings.Value))
+		for i, mps := range c.MDM.AndroidSettings.CustomSettings.Value {
+			androidSettings[i] = *mps.Copy()
+		}
+		clone.MDM.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
+	}
+
 	if c.MDM.AppleBusinessManager.Set {
 		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
 		copy(abm, c.MDM.AppleBusinessManager.Value)
@@ -783,6 +811,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		rules := make([]YaraRule, len(c.YaraRules))
 		copy(rules, c.YaraRules)
 		clone.YaraRules = rules
+	}
+
+	// ConditionalAccess: deep copy the pointer to avoid shared state
+	if c.ConditionalAccess != nil {
+		conditionalAccess := *c.ConditionalAccess
+		clone.ConditionalAccess = &conditionalAccess
 	}
 
 	return &clone
@@ -1501,6 +1535,7 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+	RequireAllSoftware   bool `json:"require_all_software_macos"`
 }
 
 // DeviceFeatures is a subset of AppConfig.Features with information used by
@@ -1531,6 +1566,19 @@ func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 
 // Compile-time interface check
 var _ WithMDMProfileSpecs = WindowsSettings{}
+
+type AndroidSettings struct {
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for profiles is in MySQL.)
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+}
+
+func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = AndroidSettings{}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`

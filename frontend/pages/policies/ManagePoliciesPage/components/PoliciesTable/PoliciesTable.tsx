@@ -107,7 +107,7 @@ const PoliciesTable = ({
         data={generateDataSet(
           policiesList,
           currentAutomatedPolicies,
-          config?.update_interval.osquery_policy
+          config?.update_interval?.osquery_policy
         )}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_COLUMN}
@@ -121,7 +121,7 @@ const PoliciesTable = ({
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
+          variant: "inverse",
           onClick: onDeletePoliciesClick,
         }}
         emptyComponent={() =>

@@ -375,7 +375,7 @@ create_qa_issue() {
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
             gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "pezhub"  --label "#g-mdm" --label ":release" \
+                --assignee "georgekarrv"  --label "#g-mdm" --label ":release" \
                 --assignee "jmwatts" --label "#g-software" \
                 --assignee "xpkoala" --label "#g-orchestration"
             rm -f temp_qa_issue_file
@@ -500,6 +500,10 @@ tag() {
         # Officially tag and push
         git tag $next_tag
         git push origin $next_tag
+
+        # The v4.XX.YY tag is used for publishing Fleet's Go module (https://go.dev/doc/modules/publishing).
+        git tag $next_ver
+        git push origin $next_ver
 
         # This lets us wait for github actions to trigger
         # we are specifically waiting for goreleaser to start

@@ -13,6 +13,7 @@ import {
   IHostSoftware,
   ISoftware,
   SoftwareAggregateStatus,
+  SoftwareSource,
 } from "interfaces/software";
 import {
   DiskEncryptionStatus,
@@ -35,8 +36,12 @@ export interface ISortOption {
 
 export interface ILoadHostsResponse {
   hosts: IHost[];
-  software: ISoftware | undefined;
-  software_title: { name: string; version?: string } | null | undefined; // TODO: confirm type
+  software?: ISoftware;
+  software_title?: {
+    name: string;
+    version?: string;
+    source?: SoftwareSource;
+  } | null;
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
@@ -216,6 +221,7 @@ export interface IGetHostCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export type ILoadHostDetailsExtension = "macadmins";
@@ -618,7 +624,7 @@ export default {
     return sendRequest("POST", HOST_WIPE(id));
   },
 
-  resendProfile: (hostId: number, profileUUID: string) => {
+  resendProfile: (hostId: number, profileUUID: string): Promise<void> => {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));

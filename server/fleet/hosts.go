@@ -339,7 +339,10 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
-	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	// GigsTotalDiskSpace and GigsAllDiskSpace as defined by `server > service > osquery_utils >
+	// queries.go > hostDetailQueries.disk_space_unix`
+	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -816,7 +819,9 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
+	return h.Platform == "ubuntu" ||
+		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -983,18 +988,42 @@ func PlatformSupportsOsquery(platform string) bool {
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
+// IMPORTANT: When updating this, also make sure to update HOST_LINUX_PLATFORMS in frontend code.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
+	"linux",
+	"ubuntu",
+	"debian",
+	"rhel",
+	"centos",
+	"sles",
+	"kali",
+	"gentoo",
+	"amzn",
+	"pop",
+	"arch",
+	"linuxmint",
+	"void",
+	"nixos",
+	"endeavouros",
+	"manjaro",
+	"manjaro-arm",
+	"opensuse-leap",
+	"opensuse-tumbleweed",
+	"tuxedo",
+	"neon",
+	"archarm",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
 var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"arch":        {},
+	"archarm":     {},
 	"gentoo":      {},
 	"void":        {},
 	"nixos":       {},
 	"endeavouros": {},
 	"manjaro":     {},
+	"manjaro-arm": {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
@@ -1022,6 +1051,10 @@ var HostRpmPackageOSs = map[string]struct{}{
 
 func IsLinux(hostPlatform string) bool {
 	return slices.Contains(HostLinuxOSs, hostPlatform)
+}
+
+func IsApplePlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
 func IsUnixLike(hostPlatform string) bool {
@@ -1076,6 +1109,7 @@ func ExpandPlatform(platform string) []string {
 const (
 	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
 	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
+	DeviceMappingIDP                  = "idp"              // set by user via PUT /hosts/{id}/device_mapping with source=idp
 	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
 	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
 
@@ -1342,11 +1376,16 @@ type OSVersion struct {
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
 	// For Linux-based operating systems, these are vulnerabilities associated with the Linux kernel.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
+	// VulnerabilitiesCount is the total count of vulnerabilities for this OS version.
+	// This is useful when vulnerabilities are limited but the total count is needed.
+	VulnerabilitiesCount int `json:"vulnerabilities_count"`
 	// Kernels is a list of Linux kernels found on this operating system.
 	// This list is only populated for Linux-based operating systems.
 	// Vulnerabilities are pulled based on the software entries for the kernels.
 	// Kernels are associated based on enrolled hosts with the selected OS version.
-	Kernels []*Kernel `json:"kernels"`
+	// NOTE: The aggregate os_versions endpoint should not return this field.
+	// Uses a pointer to distinguish between nil (omit field) and empty slice (show as []).
+	Kernels *[]*Kernel `json:"kernels,omitempty"`
 }
 
 type HostDetailOptions struct {
@@ -1522,4 +1561,67 @@ func NewAddHostsToTeamParams(teamID *uint, hostIDs []uint) *AddHostsToTeamParams
 func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTeamParams {
 	params.BatchSize = batchSize
 	return params
+}
+
+func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
+	if err != nil && !IsNotFound(err) {
+		return nil, fmt.Errorf("get scim user by host id: %w", err)
+	}
+
+	var endUsers []HostEndUser
+	if scimUser != nil {
+		endUser := HostEndUser{
+			IdpUserName:      scimUser.UserName,
+			IdpFullName:      scimUser.DisplayName(),
+			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
+		}
+
+		if scimUser.ExternalID != nil {
+			endUser.IdpID = *scimUser.ExternalID
+		}
+		for _, group := range scimUser.Groups {
+			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		if scimUser.Department != nil {
+			endUser.Department = *scimUser.Department
+		}
+		endUsers = append(endUsers, endUser)
+	}
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get host device mapping: %w", err)
+	}
+
+	if len(deviceMapping) > 0 {
+		endUser := HostEndUser{}
+		for _, email := range deviceMapping {
+			switch {
+			case (email.Source == DeviceMappingMDMIdpAccounts || email.Source == DeviceMappingIDP) && len(endUsers) == 0:
+				// If SCIM data is missing, we still populate IdpUserName if present.
+				// For DeviceMappingIDP source, this is the user-provided IDP username.
+				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
+				endUser.IdpUserName = email.Email
+			case email.Source != DeviceMappingMDMIdpAccounts && email.Source != DeviceMappingIDP:
+				// Only add to OtherEmails if it's not an IDP source
+				endUser.OtherEmails = append(endUser.OtherEmails, *email)
+			}
+		}
+		if len(endUsers) > 0 {
+			endUsers[0].OtherEmails = endUser.OtherEmails
+		} else {
+			endUsers = append(endUsers, endUser)
+		}
+	}
+
+	return endUsers, nil
+}
+
+// DeletedHostDetails contains details about a host that has been deleted.
+type DeletedHostDetails struct {
+	ID               uint
+	DisplayName      string
+	Serial           string
+	HostExpiryWindow int
 }

@@ -18,7 +18,9 @@ import {
   ISoftwareVersionResponse,
 } from "services/entities/software";
 import { IOSVersionsResponse } from "../services/entities/operating_systems";
+import { IGetSetupExperienceSoftwareResponse } from "../services/entities/mdm";
 import { IOperatingSystemVersion } from "../interfaces/operating_system";
+import { createMockListEntitiesResponseCommon } from "./commonMock";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   hosts_count: 1,
@@ -71,10 +73,11 @@ export const createMockSoftwareVulnerability = (
 const DEFAULT_SOFTWARE_VERSION_MOCK: ISoftwareVersion = {
   id: 1,
   name: "test.app",
+  display_name: "Test App",
   version: "1.2.3",
   bundle_identifier: "com.test.Desktop",
   source: "apps",
-  browser: "chrome",
+  extension_for: "chrome",
   release: "1",
   vendor: "test_vendor",
   arch: "x86_64",
@@ -227,6 +230,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   hash_sha256: "abcd1234",
   labels_include_any: null,
   labels_exclude_any: null,
+  install_during_setup: undefined,
 };
 
 export const createMockSoftwarePackage = (
@@ -242,7 +246,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   versions_count: 1,
   source: "apps",
   hosts_count: 1,
-  browser: "chrome",
+  extension_for: "",
   versions: [createMockSoftwareTitleVersion()],
   software_package: createMockSoftwarePackage(),
   app_store_app: null,
@@ -334,4 +338,16 @@ export const createMockSoftwareInstallResult = (
     ...DEFAULT_SOFTWARE_INSTALL_RESULT,
     ...overrides,
   };
+};
+
+const DEFAULT_SETUP_EXPERIENCE_SOFTWARE_MOCK: IGetSetupExperienceSoftwareResponse = {
+  ...createMockListEntitiesResponseCommon(),
+  counts_updated_at: null,
+  software_titles: [createMockSoftwareTitle()],
+};
+
+export const createMockSetupExperienceSoftware = (
+  overrides?: Partial<IGetSetupExperienceSoftwareResponse>
+): IGetSetupExperienceSoftwareResponse => {
+  return { ...DEFAULT_SETUP_EXPERIENCE_SOFTWARE_MOCK, ...overrides };
 };

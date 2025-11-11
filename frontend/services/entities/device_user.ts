@@ -1,6 +1,7 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import { IDeviceSoftware, ISetupSoftwareStatus } from "interfaces/software";
+import { IDeviceSoftware } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -10,8 +11,6 @@ import {
 } from "utilities/url";
 
 import { IMdmCommandResult } from "interfaces/mdm";
-
-import { createMockSetupSoftwareStatusesResponse } from "__mocks__/deviceUserMock";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -43,6 +42,7 @@ export interface IGetDeviceCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export interface IGetDeviceCertsRequestParams extends IListOptions {
@@ -52,11 +52,14 @@ export interface IGetDeviceCertsRequestParams extends IListOptions {
 export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
-export interface IGetSetupSoftwareStatusesResponse {
-  setup_experience_results: { software: ISetupSoftwareStatus[] };
+export interface IGetSetupExperienceStatusesResponse {
+  setup_experience_results: {
+    software: ISetupStep[];
+    scripts: ISetupStep[];
+  };
 }
 
-export interface IGetSetupSoftwareStatusesParams {
+export interface IGetSetupExperienceStatusesParams {
   token: string;
 }
 
@@ -174,11 +177,22 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getSetupSoftwareStatuses: ({
+  getSetupExperienceStatuses: ({
     token,
-  }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
-    const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
-    const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
+  }: IGetSetupExperienceStatusesParams): Promise<IGetSetupExperienceStatusesResponse> => {
+    const { DEVICE_SETUP_EXPERIENCE_STATUSES } = endpoints;
+    const path = DEVICE_SETUP_EXPERIENCE_STATUSES(token);
     return sendRequest("POST", path);
+  },
+
+  resendProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_RESEND_PROFILE } = endpoints;
+    const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
+    return sendRequest("POST", path);
+  },
+
+  getMdmManualEnrollUrl: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
   },
 };

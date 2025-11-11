@@ -6,7 +6,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
@@ -49,7 +49,7 @@ const CategoriesSelector = ({
         })}
       </div>
       <Button
-        variant="text-link"
+        variant="inverse"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >
@@ -76,6 +76,10 @@ interface ISoftwareOptionsSelector {
   isExePackage?: boolean;
   /** Tarball packages do not have ability to select automatic install */
   isTarballPackage?: boolean;
+  /** Script only packages do not have ability to select automatic install */
+  isScriptPackage?: boolean;
+  /** IPA packages do not have ability to select automatic install or self-service */
+  isIpaPackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
   disableOptions?: boolean;
@@ -92,19 +96,29 @@ const SoftwareOptionsSelector = ({
   isCustomPackage,
   isExePackage,
   isTarballPackage,
+  isScriptPackage,
+  isIpaPackage,
   isEditingSoftware,
   disableOptions = false,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
-  const isPlatformIosOrIpados = platform === "ios" || platform === "ipados";
-  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
+  const isPlatformIosOrIpados =
+    platform === "ios" || platform === "ipados" || isIpaPackage;
+  const isSelfServiceDisabled = disableOptions;
   const isAutomaticInstallDisabled =
-    disableOptions || isPlatformIosOrIpados || isExePackage || isTarballPackage;
+    disableOptions ||
+    isPlatformIosOrIpados ||
+    isExePackage ||
+    isTarballPackage ||
+    isScriptPackage;
 
-  /** Tooltip only shows when enabled or for exe/tar.gz packages */
+  /** Tooltip only shows when enabled or for exe/tar.gz/sh/ps1 packages */
   const showAutomaticInstallTooltip =
-    !isAutomaticInstallDisabled || isExePackage || isTarballPackage;
+    !isAutomaticInstallDisabled ||
+    isExePackage ||
+    isTarballPackage ||
+    isScriptPackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
     if (isExePackage || isTarballPackage) {
       return (
@@ -118,28 +132,49 @@ const SoftwareOptionsSelector = ({
         </>
       );
     }
+
+    if (isScriptPackage) {
+      return (
+        <>
+          Fleet can&apos;t create a policy to detect existing installations of
+          payload-free packages. To automatically install these packages, add a
+          custom policy and enable the install software automation on the{" "}
+          <b>Policies</b> page.
+        </>
+      );
+    }
     return <>Automatically install only on hosts missing this software.</>;
   };
 
   // Ability to set categories when adding software is in a future ticket #28061
   const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
 
+  const renderOptionsDescription = () => {
+    // Render unavailable description for iOS or iPadOS add software form only
+    return isPlatformIosOrIpados && !isEditingSoftware ? (
+      <p>
+        Currently, automatic installation are not available for iOS and iPadOS.
+        Manually install on the <b>Host details</b> page for each host.
+      </p>
+    ) : null;
+  };
+
   return (
     <div className={`form-field ${classNames}`}>
       <div className="form-field__label">Options</div>
-      {isPlatformIosOrIpados && (
-        <p>
-          Currently, self-service and automatic installation are not available
-          for iOS and iPadOS. Manually install on the <b>Host details</b> page
-          for each host.
-        </p>
-      )}
+      {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
         <Checkbox
           value={formData.selfService}
           onChange={(newVal: boolean) => onToggleSelfService(newVal)}
           className={`${baseClass}__self-service-checkbox`}
-          labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+          labelTooltipContent={
+            !isSelfServiceDisabled &&
+            getSelfServiceTooltip(
+              isIpaPackage || isPlatformIosOrIpados || false
+            )
+          }
+          labelTooltipClickable
           disabled={isSelfServiceDisabled}
         >
           Self-service

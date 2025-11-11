@@ -11,14 +11,15 @@ import paths from "router/paths";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
+import PageDescription from "components/PageDescription";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -137,7 +138,12 @@ const Calendars = (): JSX.Element => {
     [formData]
   );
 
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
+  if (!isPremiumTier)
+    return (
+      <SettingsSection title="Calendars">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
@@ -179,12 +185,6 @@ const Calendars = (): JSX.Element => {
   const renderForm = () => {
     return (
       <>
-        <SectionHeader title="Calendars" />
-        <p className={`${baseClass}__page-description`}>
-          To create calendar events for end users with failing policies,
-          you&apos;ll need to configure a dedicated Google Workspace service
-          account.
-        </p>
         <div className={`${baseClass}__section-instructions`}>
           <p>
             1. Go to the <b>Service Accounts</b> page in Google Cloud Platform.{" "}
@@ -303,19 +303,21 @@ const Calendars = (): JSX.Element => {
                       error={formErrors.domain}
                       disabled={gomEnabled}
                     />
-                    <GitOpsModeTooltipWrapper
-                      tipOffset={8}
-                      renderChildren={(dC) => (
-                        <Button
-                          type="submit"
-                          disabled={Object.keys(formErrors).length > 0 || dC}
-                          className="save-loading"
-                          isLoading={isUpdatingSettings}
-                        >
-                          Save
-                        </Button>
-                      )}
-                    />
+                    <div className="button-wrap">
+                      <GitOpsModeTooltipWrapper
+                        tipOffset={8}
+                        renderChildren={(dC) => (
+                          <Button
+                            type="submit"
+                            disabled={Object.keys(formErrors).length > 0 || dC}
+                            className="save-loading"
+                            isLoading={isUpdatingSettings}
+                          >
+                            Save
+                          </Button>
+                        )}
+                      />
+                    </div>
                   </form>
                 </Card>
               </li>
@@ -409,7 +411,21 @@ const Calendars = (): JSX.Element => {
     return <DataError />;
   }
 
-  return <div className={baseClass}>{renderForm()}</div>;
+  return (
+    <SettingsSection title="Calendars">
+      <PageDescription
+        content={
+          <>
+            To create calendar events for end users with failing policies,
+            you&apos;ll need to configure a dedicated Google Workspace service
+            account.
+          </>
+        }
+        variant="right-panel"
+      />
+      {renderForm()}
+    </SettingsSection>
+  );
 };
 
 export default Calendars;

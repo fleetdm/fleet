@@ -1,3 +1,8 @@
+/** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
+ * we use SoftwareScriptDetailsModal
+ * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
+ * we use SoftwareIpaInstallDetailsModal with the command_uuid */
+
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -18,7 +23,7 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -53,7 +58,7 @@ export const renderContactOption = (url?: string) => (
 interface IInstallStatusMessage {
   softwareName: string;
   installResult?: ISoftwareInstallResult;
-  isDUP: boolean;
+  isMyDevicePage: boolean;
   contactUrl?: string;
 }
 
@@ -62,18 +67,21 @@ interface IInstallStatusMessage {
 export const StatusMessage = ({
   softwareName,
   installResult,
-  isDUP,
+  isMyDevicePage,
   contactUrl,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
     return (
-      <div className={`${baseClass}__status-message`}>
-        <Icon name="success" />
-        <span>
-          <b>{softwareName}</b> is installed.
-        </span>
-      </div>
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
+          </span>
+        }
+      />
     );
   }
 
@@ -107,22 +115,25 @@ export const StatusMessage = ({
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
       </>
     );
-    let middle = null;
-    if (isDUP) {
-      if (status === "failed_install") {
-        middle = <>. You can retry{renderContactOption(contactUrl)}</>;
-      }
-    } else {
-      // host details page
-      middle = (
-        <>
-          {" "}
-          ({software_package}) on {formattedHost}
-          {status === "pending_install" ? " when it comes online" : ""}
-          {displayTimeStamp}
-        </>
-      );
-    }
+
+    const middle = isMyDevicePage ? (
+      <>
+        {" "}
+        {displayTimeStamp}
+        {status === "failed_install" && (
+          <>. You can retry{renderContactOption(contactUrl)}</>
+        )}
+      </>
+    ) : (
+      <>
+        {" "}
+        ({software_package}) on {formattedHost}
+        {status === "pending_install"
+          ? " when it comes online"
+          : displayTimeStamp}
+      </>
+    );
+
     return (
       <span>
         {prefix}
@@ -133,15 +144,14 @@ export const StatusMessage = ({
   };
 
   return (
-    <div className={`${baseClass}__status-message`}>
-      <Icon
-        name={
-          INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-          "pending-outline"
-        }
-      />
-      {renderStatusCopy()}
-    </div>
+    <IconStatusMessage
+      className={`${baseClass}__status-message`}
+      iconName={
+        INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
+        "pending-outline"
+      }
+      message={renderStatusCopy()}
+    />
   );
 };
 
@@ -162,7 +172,7 @@ export const ModalButtons = ({
 }: IModalButtonsProps) => {
   if (deviceAuthToken && status === "failed_install") {
     const onClickRetry = () => {
-      // on DUP, where this is relevant, both will be defined
+      // on My Device Page, where this is relevant, both will be defined
       if (onRetry && hostSoftwareId) {
         onRetry(hostSoftwareId);
       }
@@ -196,10 +206,10 @@ interface ISoftwareInstallDetailsProps {
   necessary in the details prop */
   details: IPackageInstallDetails;
   hostSoftware?: IHostSoftware; // for inventory versions, and software name when not Fleet installed (not present on activity feeds)
-  deviceAuthToken?: string; // DUP only
+  deviceAuthToken?: string; // My Device Page only
   onCancel: () => void;
-  onRetry?: (id: number) => void; // DUP only
-  contactUrl?: string; // DUP only
+  onRetry?: (id: number) => void; // My Device Page only
+  contactUrl?: string; // My Device Page only
 }
 
 export const SoftwareInstallDetailsModal = ({
@@ -248,22 +258,48 @@ export const SoftwareInstallDetailsModal = ({
     return "If you uninstalled it outside of Fleet it will still show as installed.";
   };
 
-  const renderInstallDetailsSection = () => (
-    <>
-      <RevealButton
-        isShowing={showInstallDetails}
-        showText="Details"
-        hideText="Details"
-        caretPosition="after"
-        onClick={toggleInstallDetails}
-      />
-      {showInstallDetails && swInstallResult?.output && (
-        <Textarea label="Install script output:" variant="code">
-          {swInstallResult.output}
-        </Textarea>
-      )}
-    </>
-  );
+  const renderInstallDetailsSection = () => {
+    const outputs = [
+      {
+        label: "Install script output:",
+        value: swInstallResult?.output,
+      },
+      {
+        label: "Post-install script output:",
+        value: swInstallResult?.post_install_script_output,
+      },
+    ];
+
+    // Only show details button if there's details to display
+    const showDetailsButton =
+      (!!swInstallResult?.post_install_script_output ||
+        !!swInstallResult?.output) &&
+      swInstallResult?.status !== "pending_install";
+
+    return (
+      <>
+        {showDetailsButton && (
+          <RevealButton
+            isShowing={showInstallDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleInstallDetails}
+          />
+        )}
+        {showInstallDetails &&
+          outputs.map(
+            ({ label, value }) =>
+              value && (
+                <Textarea key={label} label={label} variant="code">
+                  {value}
+                </Textarea>
+              )
+          )}
+      </>
+    );
+  };
+
   const excludeVersions = ["pending_install", "failed_install"].includes(
     swInstallResult?.status || ""
   );
@@ -330,16 +366,15 @@ export const SoftwareInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
           installResult={installResultWithHostDisplayName}
-          softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
-          isDUP={!!deviceAuthToken}
+          softwareName={
+            hostSoftware?.display_name || hostSoftware?.name || "Software"
+          } // will always be defined at this point
+          isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
 
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-
-        {swInstallResult?.status !== "pending_install" &&
-          isInstalledByFleet &&
-          renderInstallDetailsSection()}
+        {isInstalledByFleet && renderInstallDetailsSection()}
       </div>
     );
   };

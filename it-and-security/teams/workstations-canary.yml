@@ -124,15 +124,16 @@ controls:
         labels_include_any:
           - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
+      - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
-          - "Nudge test devices"
+          - "Microsoft AutoUpdate installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2025-08-31"
-    minimum_version: "15.6"
+    deadline:
+    minimum_version:
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -140,6 +141,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -162,10 +164,11 @@ controls:
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
-    - path: ../lib/macos/scripts/install-santa-extension.sh
+    - path: ../lib/macos/scripts/uninstall-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
 policies:
+  # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/update-slack.yml
@@ -175,16 +178,18 @@ policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/install-santa-extension.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
+  - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
@@ -193,24 +198,95 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+      self_service: true
+      categories:
+        - Browsers
     - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
+      self_service: true
+      categories:
+        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
+      self_service: true
     - path: ../lib/macos/software/santa.yml # Santa for macOS
+      self_service: true
+      labels_include_any:
+        - Santa test devices
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
+      self_service: true
+      labels_include_any:
+        - "Keynote installed"
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
+      self_service: true
+      labels_include_any:
+        - "Conditional access test group"
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
+      self_service: false
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
+      self_service: false
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "Debian-based Linux hosts"
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "RPM-based Linux hosts"
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "Debian-based Linux hosts"
     - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "RPM-based Linux hosts"
     - path: ../lib/windows/software/slack.yml # Slack for Windows
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
     - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "ARM-based Windows hosts"
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
+      self_service: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
     - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
+      self_service: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
+      self_service: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "ARM-based Windows hosts"
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
+      self_service: true
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
       self_service: true

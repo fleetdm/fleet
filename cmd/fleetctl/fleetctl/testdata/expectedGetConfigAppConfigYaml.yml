@@ -10,6 +10,13 @@ spec:
   activity_expiry_settings:
     activity_expiry_enabled: false
     activity_expiry_window: 0
+  conditional_access:
+    microsoft_entra_tenant_id: ""
+    microsoft_entra_connection_configured: false
+    okta_idp_id: null
+    okta_assertion_consumer_service_url: null
+    okta_audience_uri: null
+    okta_certificate: null
   features:
     enable_host_users: true
     enable_software_inventory: false
@@ -54,9 +61,12 @@ spec:
       enable_release_device_manually: false
       macos_setup_assistant:
       manual_agent_install:
+      require_all_software_macos: false
       script:
       software:
     windows_settings:
+      custom_settings: null
+    android_settings:
       custom_settings: null
     end_user_authentication:
       idp_name: ""

@@ -41,11 +41,13 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         version: "1.0.0",
         addedTimestamp: "2021-01-01T00:00:00Z",
         softwareTitleName: "Test Software",
+        source: "apps",
         status: {
           installed: 10,
           pending: 8,
           failed: 3,
         },
+        isScriptPackage: false,
         isSelfService: true,
       });
     });
@@ -53,12 +55,14 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,
         name: "Test Software",
+        display_name: "Test App",
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: null,
         app_store_app: {
           app_store_id: "1",
           name: "Test App",
+          display_name: "Test App",
           created_at: "2020-01-01T00:00:00.000Z",
           latest_version: "1.0.1",
           platform: "darwin",
@@ -82,11 +86,13 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         version: "1.0.1",
         addedTimestamp: "2020-01-01T00:00:00.000Z",
         softwareTitleName: "Test Software",
+        source: "apps",
         status: {
           installed: 10,
           pending: 5,
           failed: 3,
         },
+        isScriptPackage: false,
         isSelfService: false,
       });
     });

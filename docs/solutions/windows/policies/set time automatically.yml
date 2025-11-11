@@ -1,0 +1,7 @@
+- name: Windows - Ensure 'set time automatically' enabled
+  platform: windows
+  description: This policy checks if Windows machines are enabled to automatically set time.
+  resolution: From Settings, enable, "Set Time Automatically". Failures will result in script execution to remediate.
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters\Type' AND data = 'NTP';
+  run_script:
+    path: "../lib/enable_ntp.ps1"

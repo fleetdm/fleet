@@ -59,9 +59,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	caDisplayType := "Unknown"
 
 	if p.DigiCert != nil {
-		p.DigiCert.Name = fleet.Preprocess(p.DigiCert.Name)
-		p.DigiCert.URL = fleet.Preprocess(p.DigiCert.URL)
-		p.DigiCert.ProfileID = fleet.Preprocess(p.DigiCert.ProfileID)
+		p.DigiCert.Preprocess()
 		if err := svc.validateDigicert(ctx, p.DigiCert, errPrefix); err != nil {
 			return nil, err
 		}
@@ -78,8 +76,8 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	if p.Hydrant != nil {
-		p.Hydrant.Name = fleet.Preprocess(p.Hydrant.Name)
-		p.Hydrant.URL = fleet.Preprocess(p.Hydrant.URL)
+		p.Hydrant.Preprocess()
+
 		if err := svc.validateHydrant(ctx, p.Hydrant, errPrefix); err != nil {
 			return nil, err
 		}
@@ -93,10 +91,25 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		activity = fleet.ActivityAddedHydrant{}
 	}
 
+	if p.CustomESTProxy != nil {
+		p.CustomESTProxy.Preprocess()
+
+		if err := svc.validateEST(ctx, p.CustomESTProxy, errPrefix); err != nil {
+			return nil, err
+		}
+
+		caToCreate.Type = string(fleet.CATypeCustomESTProxy)
+		caToCreate.Name = &p.CustomESTProxy.Name
+		caToCreate.URL = &p.CustomESTProxy.URL
+		caToCreate.Username = &p.CustomESTProxy.Username
+		caToCreate.Password = &p.CustomESTProxy.Password
+		caDisplayType = "custom EST"
+		activity = fleet.ActivityAddedCustomESTProxy{Name: p.CustomESTProxy.Name}
+	}
+
 	if p.NDESSCEPProxy != nil {
-		p.NDESSCEPProxy.URL = fleet.Preprocess(p.NDESSCEPProxy.URL)
-		p.NDESSCEPProxy.AdminURL = fleet.Preprocess(p.NDESSCEPProxy.AdminURL)
-		p.NDESSCEPProxy.Username = fleet.Preprocess(p.NDESSCEPProxy.Username)
+		p.NDESSCEPProxy.Preprocess()
+
 		if err := svc.validateNDESSCEPProxy(ctx, p.NDESSCEPProxy, errPrefix); err != nil {
 			return nil, err
 		}
@@ -112,8 +125,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	if p.CustomSCEPProxy != nil {
-		p.CustomSCEPProxy.Name = fleet.Preprocess(p.CustomSCEPProxy.Name)
-		p.CustomSCEPProxy.URL = fleet.Preprocess(p.CustomSCEPProxy.URL)
+		p.CustomSCEPProxy.Preprocess()
 
 		if err := svc.validateCustomSCEPProxy(ctx, p.CustomSCEPProxy, errPrefix); err != nil {
 			return nil, err
@@ -125,6 +137,23 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.Challenge = &p.CustomSCEPProxy.Challenge
 		caDisplayType = "custom SCEP"
 		activity = fleet.ActivityAddedCustomSCEPProxy{Name: p.CustomSCEPProxy.Name}
+	}
+
+	if p.Smallstep != nil {
+		p.Smallstep.Preprocess()
+
+		if err := svc.validateSmallstepSCEPProxy(ctx, p.Smallstep, errPrefix); err != nil {
+			return nil, err
+		}
+
+		caToCreate.Type = string(fleet.CATypeSmallstep)
+		caToCreate.Name = &p.Smallstep.Name
+		caToCreate.URL = &p.Smallstep.URL
+		caToCreate.ChallengeURL = &p.Smallstep.ChallengeURL
+		caToCreate.Username = &p.Smallstep.Username
+		caToCreate.Password = &p.Smallstep.Password
+		caDisplayType = "Smallstep"
+		activity = fleet.ActivityAddedSmallstep{Name: p.Smallstep.Name}
 	}
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
@@ -157,6 +186,12 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 		casToCreate++
 	}
 	if p.CustomSCEPProxy != nil {
+		casToCreate++
+	}
+	if p.Smallstep != nil {
+		casToCreate++
+	}
+	if p.CustomESTProxy != nil {
 		casToCreate++
 	}
 	if casToCreate == 0 {
@@ -224,7 +259,7 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 		return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sCA Common Name (CN) cannot be empty", errPrefix))
 	}
 	fleetVars := variables.Find(cn)
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
@@ -246,7 +281,7 @@ func validateDigicertSeatID(seatID string, errPrefix string) error {
 		return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sCA Seat ID cannot be empty", errPrefix))
 	}
 	fleetVars := variables.Find(seatID)
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
@@ -270,7 +305,7 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 			fmt.Sprintf("%sDigiCert certificate_user_principal_name cannot be empty if specified", errPrefix))
 	}
 	fleetVars := variables.Find(userPrincipalNames[0])
-	for fleetVar := range fleetVars {
+	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
@@ -295,8 +330,33 @@ func (svc *Service) validateHydrant(ctx context.Context, hydrantCA *fleet.Hydran
 	if hydrantCA.ClientSecret == "" || hydrantCA.ClientSecret == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("client_secret", fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix))
 	}
-	if err := svc.hydrantService.ValidateHydrantURL(ctx, *hydrantCA); err != nil {
+	if err := svc.estService.ValidateESTURL(ctx, fleet.ESTProxyCA{
+		ID:       hydrantCA.ID,
+		Name:     hydrantCA.Name,
+		URL:      hydrantCA.URL,
+		Username: hydrantCA.ClientID,
+		Password: hydrantCA.ClientSecret,
+	}); err != nil {
 		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix))
+	}
+	return nil
+}
+
+func (svc *Service) validateEST(ctx context.Context, estProxyCA *fleet.ESTProxyCA, errPrefix string) error {
+	if err := validateCAName(estProxyCA.Name, errPrefix); err != nil {
+		return err
+	}
+	if err := validateURL(estProxyCA.URL, "EST", errPrefix); err != nil {
+		return err
+	}
+	if estProxyCA.Username == "" {
+		return fleet.NewInvalidArgumentError("username", fmt.Sprintf("%sInvalid EST Username. Please correct and try again.", errPrefix))
+	}
+	if estProxyCA.Password == "" || estProxyCA.Password == fleet.MaskedPassword {
+		return fleet.NewInvalidArgumentError("password", fmt.Sprintf("%sInvalid EST Password. Please correct and try again.", errPrefix))
+	}
+	if err := svc.estService.ValidateESTURL(ctx, *estProxyCA); err != nil {
+		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid EST URL. Please correct and try again.", errPrefix))
 	}
 	return nil
 }
@@ -349,6 +409,30 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	return nil
 }
 
+func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCEP *fleet.SmallstepSCEPProxyCA, errPrefix string) error {
+	if err := validateCAName(smallstepSCEP.Name, errPrefix); err != nil {
+		return err
+	}
+	if err := validateURL(smallstepSCEP.URL, "Smallstep SCEP", errPrefix); err != nil {
+		return err
+	}
+	if smallstepSCEP.Username == "" {
+		return fleet.NewInvalidArgumentError("username", fmt.Sprintf("%sSmallstep username cannot be empty", errPrefix))
+	}
+	if smallstepSCEP.Password == "" || smallstepSCEP.Password == fleet.MaskedPassword {
+		return fleet.NewInvalidArgumentError("password", fmt.Sprintf("%sSmallstep password cannot be empty", errPrefix))
+	}
+	if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+	}
+	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP admin URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
+	}
+	return nil
+}
+
 type oauthIntrospectionResponse struct {
 	Username *string `json:"username"`
 	// Only active is required in the body by the spec
@@ -379,6 +463,14 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 		activity = fleet.ActivityDeletedNDESSCEPProxy{}
 	case string(fleet.CATypeHydrant):
 		activity = fleet.ActivityDeletedHydrant{
+			Name: ca.Name,
+		}
+	case string(fleet.CATypeSmallstep):
+		activity = fleet.ActivityDeletedSmallstep{
+			Name: ca.Name,
+		}
+	case string(fleet.CATypeCustomESTProxy):
+		activity = fleet.ActivityDeletedCustomESTProxy{
 			Name: ca.Name,
 		}
 	}
@@ -439,26 +531,15 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 
-	// collect existing CA names for duplicate name checking
-	existingNames := make(map[string]string)
-	for _, ca := range existing.DigiCert {
-		existingNames[ca.Name] = "digicert"
-	}
-	for _, ca := range existing.CustomScepProxy {
-		existingNames[ca.Name] = "custom_scep_proxy"
-	}
-	for _, ca := range existing.Hydrant {
-		existingNames[ca.Name] = "hydrant"
-	}
-
-	// collect all CA names for duplicate name checking across both incoming and existing
-	allNames := make(map[string]struct{})
-	// check for duplicate names across all CA types
-	checkAllNames := func(name, caType string) error {
-		if _, ok := allNames[name]; ok {
-			return fmtDuplicateCANameError(name, caType)
+	// track processed CA names for duplicate name checking
+	allNames := make(map[string][]string)
+	checkAllNames := func(name, caType, displayCAType string) error {
+		for i := 0; i < len(allNames[name]); i++ {
+			if allNames[name][i] == caType {
+				return fmtDuplicateCANameError(name, caType, displayCAType)
+			}
 		}
-		allNames[name] = struct{}{}
+		allNames[name] = append(allNames[name], caType)
 		return nil
 	}
 
@@ -467,16 +548,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.digicert: CA name cannot be empty.")
 		}
-		ca.Name = fleet.Preprocess(ca.Name)
-		ca.URL = fleet.Preprocess(ca.URL)
-		ca.ProfileID = fleet.Preprocess(ca.ProfileID)
-		// check against existing names, excluding self if updating
-		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "digicert" {
-				return nil, fmtDuplicateCANameError(ca.Name, "digicert")
-			}
-		}
-		if err := checkAllNames(ca.Name, "digicert"); err != nil {
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "digicert", "DigiCert"); err != nil {
 			return nil, err
 		}
 	}
@@ -485,14 +559,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_scep_proxy: CA name cannot be empty.")
 		}
-		ca.Name = fleet.Preprocess(ca.Name)
-		// check against existing names, excluding self if updating
-		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "custom_scep_proxy" {
-				return nil, fmtDuplicateCANameError(ca.Name, "custom_scep_proxy")
-			}
-		}
-		if err := checkAllNames(ca.Name, "custom_scep_proxy"); err != nil {
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "custom_scep_proxy", "Custom SCEP Proxy"); err != nil {
 			return nil, err
 		}
 	}
@@ -501,23 +570,36 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.hydrant: CA name cannot be empty.")
 		}
-		ca.Name = fleet.Preprocess(ca.Name)
-		ca.URL = fleet.Preprocess(ca.URL)
-		// check against existing names, excluding self if updating
-		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "hydrant" {
-				return nil, fmtDuplicateCANameError(ca.Name, "hydrant")
-			}
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "hydrant", "Hydrant"); err != nil {
+			return nil, err
 		}
-		if err := checkAllNames(ca.Name, "hydrant"); err != nil {
+	}
+	for _, ca := range incoming.EST {
+		if strings.TrimSpace(ca.Name) == "" {
+			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_est_proxy: CA name cannot be empty.")
+		}
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "custom_est_proxy", "Custom EST Proxy"); err != nil {
+			return nil, err
+		}
+	}
+	// preprocess smallstep
+	for _, ca := range incoming.Smallstep {
+		if ca.Name == "" {
+			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.smallstep: CA name cannot be empty.")
+		}
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "smallstep", "Smallstep"); err != nil {
 			return nil, err
 		}
 	}
 	// preprocess ndes
 	if incoming.NDESSCEP != nil {
-		incoming.NDESSCEP.URL = fleet.Preprocess(incoming.NDESSCEP.URL)
-		incoming.NDESSCEP.AdminURL = fleet.Preprocess(incoming.NDESSCEP.AdminURL)
-		incoming.NDESSCEP.Username = fleet.Preprocess(incoming.NDESSCEP.Username)
+		incoming.NDESSCEP.Preprocess()
 	}
 
 	if err := svc.processNDESSCEP(ctx, batchOps, incoming.NDESSCEP, existing.NDESSCEP); err != nil {
@@ -530,6 +612,12 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 	if err := svc.processHydrantCAs(ctx, batchOps, incoming.Hydrant, existing.Hydrant); err != nil {
+		return nil, err
+	}
+	if err := svc.processESTCAs(ctx, batchOps, incoming.EST, existing.EST); err != nil {
+		return nil, err
+	}
+	if err := svc.processSmallstepCAs(ctx, batchOps, incoming.Smallstep, existing.Smallstep); err != nil {
 		return nil, err
 	}
 
@@ -773,6 +861,115 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 	return nil
 }
 
+func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.ESTProxyCA, existingCAs []fleet.ESTProxyCA) error {
+	incomingByName := make(map[string]*fleet.ESTProxyCA)
+	for _, incoming := range incomingCAs {
+		// Note: caller is responsible for ensuring incoming list has no duplicates
+		incomingByName[incoming.Name] = &incoming
+	}
+
+	existingByName := make(map[string]*fleet.ESTProxyCA)
+	for _, existing := range existingCAs {
+		// if existing CA isn't in the incoming list, we should delete it
+		if _, ok := incomingByName[existing.Name]; !ok {
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeCustomESTProxy),
+				Name:     &existing.Name,
+				URL:      &existing.URL,
+				Username: &existing.Username,
+				Password: &existing.Password,
+			})
+		}
+		// Note: datastore is responsible for ensuring no existing list has no duplicates
+		existingByName[existing.Name] = &existing
+	}
+
+	for name, incoming := range incomingByName {
+		if err := svc.validateEST(ctx, incoming, "certificate_authorities.custom_est_proxy: "); err != nil {
+			return err
+		}
+
+		// create the payload to be added or updated
+		if _, ok := existingByName[name]; ok {
+			// update existing
+			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeCustomESTProxy),
+				Name:     &incoming.Name,
+				URL:      &incoming.URL,
+				Username: &incoming.Username,
+				Password: &incoming.Password,
+			})
+		} else {
+			// add new
+			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeCustomESTProxy),
+				Name:     &incoming.Name,
+				URL:      &incoming.URL,
+				Username: &incoming.Username,
+				Password: &incoming.Password,
+			})
+		}
+	}
+
+	return nil
+}
+
+func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.SmallstepSCEPProxyCA, existingCAs []fleet.SmallstepSCEPProxyCA) error {
+	incomingByName := make(map[string]*fleet.SmallstepSCEPProxyCA)
+	for _, incoming := range incomingCAs {
+		// Note: caller is responsible for ensuring incoming list has no duplicates
+		incomingByName[incoming.Name] = &incoming
+	}
+
+	existingByName := make(map[string]*fleet.SmallstepSCEPProxyCA)
+	for _, existing := range existingCAs {
+		// if existing CA isn't in the incoming list, we should delete it
+		if _, ok := incomingByName[existing.Name]; !ok {
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
+				Type:         string(fleet.CATypeSmallstep),
+				Name:         &existing.Name,
+				URL:          &existing.URL,
+				ChallengeURL: &existing.ChallengeURL,
+				Username:     &existing.Username,
+				Password:     &existing.Password,
+			})
+		}
+		// Note: datastore is responsible for ensuring no existing list has no duplicates
+		existingByName[existing.Name] = &existing
+	}
+
+	for name, incoming := range incomingByName {
+		if err := svc.validateSmallstepSCEPProxy(ctx, incoming, "certificate_authorities.smallstep: "); err != nil {
+			return err
+		}
+
+		// create the payload to be added or updated
+		if _, ok := existingByName[name]; ok {
+			// update existing
+			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
+				Type:         string(fleet.CATypeSmallstep),
+				Name:         &incoming.Name,
+				URL:          &incoming.URL,
+				ChallengeURL: &incoming.ChallengeURL,
+				Username:     &incoming.Username,
+				Password:     &incoming.Password,
+			})
+		} else {
+			// add new
+			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
+				Type:         string(fleet.CATypeSmallstep),
+				Name:         &incoming.Name,
+				URL:          &incoming.URL,
+				ChallengeURL: &incoming.ChallengeURL,
+				Username:     &incoming.Username,
+				Password:     &incoming.Password,
+			})
+		}
+	}
+
+	return nil
+}
+
 // recordActivitiesBatchApplyCAs records activities for batch operations on certificate authorities
 // (i.e. added, edited, deleted).
 func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *fleet.CertificateAuthoritiesBatchOperations) error {
@@ -798,6 +995,14 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added hydrant")
 			}
+		case string(fleet.CATypeCustomESTProxy):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomESTProxy{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for added custom est proxy")
+			}
+		case string(fleet.CATypeSmallstep):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedSmallstep{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for added smallstep SCEP proxy")
+			}
 		}
 	}
 	for _, ca := range ops.Update {
@@ -818,6 +1023,14 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited hydrant")
 			}
+		case string(fleet.CATypeCustomESTProxy):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomESTProxy{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activityu for edited custom EST proxy")
+			}
+		case string(fleet.CATypeSmallstep):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSmallstep{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for edited smallstep SCEP proxy")
+			}
 		}
 	}
 	for _, ca := range ops.Delete {
@@ -837,6 +1050,14 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 		case string(fleet.CATypeHydrant):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted hydrant")
+			}
+		case string(fleet.CATypeCustomESTProxy):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomESTProxy{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for deleted custom EST proxy")
+			}
+		case string(fleet.CATypeSmallstep):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedSmallstep{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for deleted smallstep SCEP proxy")
 			}
 		}
 	}
@@ -867,7 +1088,8 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	var activity fleet.ActivityDetails
 	var caActivityName string
 
-	if p.DigiCertCAUpdatePayload != nil {
+	switch {
+	case p.DigiCertCAUpdatePayload != nil:
 		if p.DigiCertCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sDigiCert CA update payload is empty", errPrefix)}
 		}
@@ -894,8 +1116,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedDigiCert{Name: caActivityName}
-	}
-	if p.HydrantCAUpdatePayload != nil {
+	case p.HydrantCAUpdatePayload != nil:
 		if p.HydrantCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sHydrant CA update payload is empty", errPrefix)}
 		}
@@ -918,8 +1139,30 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedHydrant{Name: caActivityName}
-	}
-	if p.NDESSCEPProxyCAUpdatePayload != nil {
+	case p.CustomESTCAUpdatePayload != nil:
+		if p.CustomESTCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCustom EST CA update payload is empty", errPrefix)}
+		}
+
+		if err := p.CustomESTCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
+			return err
+		}
+		p.CustomESTCAUpdatePayload.Preprocess()
+		if err := svc.validateCustomESTUpdate(ctx, p.CustomESTCAUpdatePayload, oldCA, errPrefix); err != nil {
+			return err
+		}
+		caToUpdate.Type = string(fleet.CATypeCustomESTProxy)
+		caToUpdate.Name = p.CustomESTCAUpdatePayload.Name
+		caToUpdate.URL = p.CustomESTCAUpdatePayload.URL
+		caToUpdate.Username = p.CustomESTCAUpdatePayload.Username
+		caToUpdate.Password = p.CustomESTCAUpdatePayload.Password
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedCustomESTProxy{Name: caActivityName}
+	case p.NDESSCEPProxyCAUpdatePayload != nil:
 		if p.NDESSCEPProxyCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sNDES SCEP Proxy CA update payload is empty", errPrefix)}
 		}
@@ -942,8 +1185,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedNDESSCEPProxy{}
-	}
-	if p.CustomSCEPProxyCAUpdatePayload != nil {
+	case p.CustomSCEPProxyCAUpdatePayload != nil:
 		if p.CustomSCEPProxyCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCustom SCEP Proxy CA update payload is empty", errPrefix)}
 		}
@@ -966,6 +1208,31 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		}
 		activity = fleet.ActivityEditedCustomSCEPProxy{Name: caActivityName}
 
+	case p.SmallstepSCEPProxyCAUpdatePayload != nil:
+		if p.SmallstepSCEPProxyCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sSmallstep SCEP Proxy CA update payload is empty", errPrefix)}
+		}
+
+		if err := p.SmallstepSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
+			return err
+		}
+		p.SmallstepSCEPProxyCAUpdatePayload.Preprocess()
+		if err := svc.validateSmallstepSCEPProxyUpdate(ctx, p.SmallstepSCEPProxyCAUpdatePayload, oldCA, errPrefix); err != nil {
+			return err
+		}
+
+		caToUpdate.Type = string(fleet.CATypeSmallstep)
+		caToUpdate.Name = p.SmallstepSCEPProxyCAUpdatePayload.Name
+		caToUpdate.URL = p.SmallstepSCEPProxyCAUpdatePayload.URL
+		caToUpdate.ChallengeURL = p.SmallstepSCEPProxyCAUpdatePayload.ChallengeURL
+		caToUpdate.Username = p.SmallstepSCEPProxyCAUpdatePayload.Username
+		caToUpdate.Password = p.SmallstepSCEPProxyCAUpdatePayload.Password
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedSmallstep{Name: caActivityName}
 	}
 
 	if oldCA.Type != caToUpdate.Type {
@@ -1075,10 +1342,10 @@ func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.Hy
 			return err
 		}
 
-		hydrantCAToVerify := fleet.HydrantCA{ // The hydrant service for verification only requires the URL.
+		hydrantCAToVerify := fleet.ESTProxyCA{ // The hydrant service for verification only requires the URL.
 			URL: *hydrant.URL,
 		}
-		if err := svc.hydrantService.ValidateHydrantURL(ctx, hydrantCAToVerify); err != nil {
+		if err := svc.estService.ValidateESTURL(ctx, hydrantCAToVerify); err != nil {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix)}
 		}
 	}
@@ -1090,6 +1357,38 @@ func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.Hy
 	if hydrant.ClientSecret != nil && *hydrant.ClientSecret == "" {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix),
+		}
+	}
+
+	return nil
+}
+
+func (svc *Service) validateCustomESTUpdate(ctx context.Context, estUpdate *fleet.CustomESTCAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string) error {
+	if estUpdate.Name != nil {
+		if err := validateCAName(*estUpdate.Name, errPrefix); err != nil {
+			return err
+		}
+	}
+	if estUpdate.URL != nil {
+		if err := validateURL(*estUpdate.URL, "EST", errPrefix); err != nil {
+			return err
+		}
+
+		hydrantCAToVerify := fleet.ESTProxyCA{ // The EST service for verification only requires the URL.
+			URL: *estUpdate.URL,
+		}
+		if err := svc.estService.ValidateESTURL(ctx, hydrantCAToVerify); err != nil {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid EST URL. Please correct and try again.", errPrefix)}
+		}
+	}
+	if estUpdate.Username != nil && *estUpdate.Username == "" {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid EST Username. Please correct and try again.", errPrefix),
+		}
+	}
+	if estUpdate.Password != nil && *estUpdate.Password == "" {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid EST Password. Please correct and try again.", errPrefix),
 		}
 	}
 
@@ -1175,7 +1474,72 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 	return nil
 }
 
-func fmtDuplicateCANameError(name, caType string) error {
+func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smallstep *fleet.SmallstepSCEPProxyCAUpdatePayload, oldCa *fleet.CertificateAuthority, errPrefix string) error {
+	if smallstep.Name != nil {
+		if err := validateCAName(*smallstep.Name, errPrefix); err != nil {
+			return err
+		}
+	}
+	if smallstep.URL != nil {
+		if err := validateURL(*smallstep.URL, "SCEP", errPrefix); err != nil {
+			return err
+		}
+		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+		}
+	}
+	// Call challenge URL to validate all fields are valid
+	if smallstep.ChallengeURL != nil || smallstep.Username != nil || smallstep.Password != nil {
+
+		smallstepSCEPProxy := fleet.SmallstepSCEPProxyCA{
+			ChallengeURL: *oldCa.ChallengeURL,
+			Username:     *oldCa.Username,
+			Password:     *oldCa.Password,
+		} // The object we are building to validate fields are valid.
+
+		if smallstep.URL != nil {
+			smallstepSCEPProxy.URL = *smallstep.URL
+		} else {
+			smallstepSCEPProxy.URL = *oldCa.URL
+		}
+
+		// Additional validation if url was updated
+		if smallstep.ChallengeURL != nil {
+			if err := validateURL(*smallstep.ChallengeURL, "Challenge", errPrefix); err != nil {
+				return err
+			}
+			smallstepSCEPProxy.ChallengeURL = *smallstep.ChallengeURL
+		}
+
+		if smallstep.Username != nil {
+			if *smallstep.Username == "" {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("%sSmallstep SCEP Proxy username cannot be empty", errPrefix),
+				}
+			}
+			smallstepSCEPProxy.Username = *smallstep.Username
+		}
+
+		if smallstep.Password != nil {
+			if *smallstep.Password == "" {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("%sSmallstep SCEP Proxy password cannot be empty", errPrefix),
+				}
+			}
+			smallstepSCEPProxy.Password = *smallstep.Password
+		}
+
+		if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, smallstepSCEPProxy); err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to validate Smallstep challenge URL", "err", err)
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
+		}
+	}
+
+	return nil
+}
+
+func fmtDuplicateCANameError(name, caType, displayCAType string) error {
 	return fleet.NewInvalidArgumentError("name", fmt.Sprintf("certificate_authorities.%s.name: Couldn’t edit certificate authority. "+
-		"\"%s\" name is already used by another certificate authority. Please choose a different name and try again.", caType, name))
+		"\"%s\" name is already used by another %s certificate authority. Please choose a different name and try again.", caType, name, displayCAType))
 }

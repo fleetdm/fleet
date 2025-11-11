@@ -743,6 +743,7 @@ func TestGetSoftwareTitles(t *testing.T) {
 			{
 				Name:          "foo",
 				Source:        "chrome_extensions",
+				ExtensionFor:  "chrome",
 				HostsCount:    2,
 				VersionsCount: 3,
 				Versions: []fleet.SoftwareVersion{
@@ -795,6 +796,9 @@ spec:
   name: foo
   software_package: null
   source: chrome_extensions
+  extension_for: chrome
+  display_name: ""
+  browser: chrome
   versions:
   - id: 0
     version: 0.0.1
@@ -817,6 +821,9 @@ spec:
   name: bar
   software_package: null
   source: deb_packages
+  extension_for: ""
+  display_name: ""
+  browser: ""
   versions:
   - id: 0
     version: 0.0.3
@@ -833,6 +840,9 @@ spec:
       "id": 0,
       "name": "foo",
       "source": "chrome_extensions",
+      "extension_for": "chrome",
+      "display_name": "",
+      "browser": "chrome",
       "hosts_count": 2,
       "icon_url": null,
       "versions_count": 3,
@@ -867,6 +877,9 @@ spec:
       "id": 0,
       "name": "bar",
       "source": "deb_packages",
+      "display_name": "",
+      "extension_for": "",
+      "browser": "",
       "hosts_count": 0,
       "icon_url": null,
       "versions_count": 1,
@@ -897,14 +910,14 @@ func TestGetSoftwareVersions(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
-		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
+		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe", ExtensionFor: "chrome",
 		Vulnerabilities: fleet.Vulnerabilities{
 			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
-	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", ExtensionFor: "edge"}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", ExtensionFor: "chrome"}
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 
 	var gotTeamID *uint
@@ -939,7 +952,9 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: ""
+  browser: chrome
+  extension_for: chrome
+  display_name: ""
   version: 0.0.1
   vulnerabilities:
   - cve: cve-321-432-543
@@ -955,12 +970,16 @@ spec:
   version: 0.0.2
   extension_id: xyz
   browser: edge
+  extension_for: edge
+  display_name: ""
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
   id: 0
   name: foo
   source: chrome_extensions
-  browser: ""
+  browser: chrome
+  extension_for: chrome
+  display_name: ""
   version: 0.0.3
   vulnerabilities: null
 - bundle_identifier: bundle
@@ -969,6 +988,8 @@ spec:
   name: bar
   source: deb_packages
   browser: ""
+  extension_for: ""
+  display_name: ""
   version: 0.0.3
   vulnerabilities: null
 `
@@ -983,7 +1004,9 @@ spec:
       "name": "foo",
       "version": "0.0.1",
       "source": "chrome_extensions",
-	  "browser": "",
+	  "browser": "chrome",
+	  "extension_for": "chrome",
+	  "display_name": "",
       "generated_cpe": "somecpe",
       "vulnerabilities": [
         {
@@ -1005,6 +1028,8 @@ spec:
       "source": "chrome_extensions",
       "extension_id": "xyz",
       "browser": "edge",
+	  "extension_for": "edge",
+	  "display_name": "",
       "generated_cpe": "",
       "vulnerabilities": null
     },
@@ -1013,7 +1038,9 @@ spec:
       "name": "foo",
       "version": "0.0.3",
       "source": "chrome_extensions",
-	  "browser": "",
+	  "browser": "chrome",
+	  "extension_for": "chrome",
+	  "display_name": "",
       "generated_cpe": "someothercpewithoutvulns",
       "vulnerabilities": null
     },
@@ -1023,7 +1050,9 @@ spec:
       "version": "0.0.3",
       "bundle_identifier": "bundle",
       "source": "deb_packages",
+      "display_name": "",
       "browser": "",
+	  "extension_for": "",
       "generated_cpe": "",
       "vulnerabilities": null
     }
@@ -2418,7 +2447,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -2665,7 +2694,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 	})
 
 	t.Run("command results empty", func(t *testing.T) {
-
 		platform = "darwin"
 		buf, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
 		require.NoError(t, err)

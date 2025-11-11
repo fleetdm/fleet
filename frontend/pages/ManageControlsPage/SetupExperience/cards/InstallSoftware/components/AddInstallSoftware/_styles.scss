@@ -3,12 +3,16 @@
   flex-direction: column;
   gap: $pad-large;
 
+  &__description-container {
+    line-height: $pad-medium;
+  }
   &__description {
     margin: 0;
   }
 
   &__added-text {
     font-size: $x-small;
+    line-height: 20px;
   }
 
   &__added-text {
@@ -17,5 +21,15 @@
 
   &__manual-install-tooltip {
     text-align: center;
+  }
+
+  &__macos_options_form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    button.reveal-button {
+      align-self: flex-start;
+    }
   }
 }

@@ -6,13 +6,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
-| Head of Finance | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
+| CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH))
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
@@ -20,6 +20,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, and financial operations including bank accounts and cash flow management.
+
+
+### Prepare for OCV meeting
+
+Mike meets with OCV on the last Wednesday of every month. Use the following steps to help him prepare for that meeting:
+1. In the "📈 Longer-term plan" section of the doc, update the "Gross new ARR (QTD)", "New logo pipeline $ generated (QTD)", "ARR, cumulative" numbers using the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet.
+2. In the "😬 CEO's top-of-mind goals" section, use the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet to update the numbers in the goal column for the current month to be correct.
 
 
 ### Reconcile monthly recurring expenses
@@ -35,7 +42,7 @@ Fleet must register as an employer in any state where we hire new teammates. To 
 1. After a new teammate completes their Gusto profile, the Finance department will be prompted to approve it for payroll. Sign in to your Gusto admin account and begin the approval process.
 2. Select "yes" when prompted to file a new hire report and complete the approval process.
 3. Once the profile is approved, navigate to Tax setup and select the state you’d like to register Fleet in.
-4. Select “Have us register for you” and then “Start registration.”
+4. Log into CorpNet's payroll tax registration [page](https://www.corpnet.com/register-payroll-taxes/), and follow the instructions to register a new state. 
 5. Verify, add, and amend any company information to ensure accuracy.
 6. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
 7. Update the [list of states that Fleet is currently registered with as an employer](https://fleetdm.com/handbook/finance#review-state-employment-tax-filings-for-the-previous-quarter).
@@ -54,7 +61,7 @@ In Gusto, you can click **How to review your notice** to help you understand wha
 
 > **Note:** Many agencies do not send notices to Gusto directly, so it’s important that you read and take action before any listed deadlines or effective dates of requested changes, in case you have to do something.  If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
 
-Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review.  You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. -->
+Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review.  You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time.
 
 
 ### Review state employment tax filings for the previous quarter
@@ -75,8 +82,10 @@ States checked:
 - [ ] Hawaii
 - [ ] Illinois
 - [ ] Kansas
+- [ ] Maine
 - [ ] Maryland
 - [ ] Massachusetts
+- [ ] New Jersey
 - [ ] New York
 - [ ] Ohio
 - [ ] Oregon
@@ -101,10 +110,6 @@ States checked:
 ### Update Finance department KPIs
 
 Use the following steps to update the [💸Finance department KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BS:BS) by 5pm US central time every Friday.
-
-**Runway**: 
-- Add sum of Brex cash account + SVB accounts. All Finance teammates should have personalized logins for each bank to view amounts.
-- Send the CEO a Slack DM with the balance of each of Fleet's two bank accounts.
 
 **Days to invoice customer**: 
 - Check the [invoice sent and payment received report](https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders) in Salesforce.
@@ -267,7 +272,7 @@ Thanks,
 
 ### Obtain a copy of Fleet's W-9
 
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1bqGEl5w3En5wsgYotFD8RSYYjP6P1FDK/view?usp=sharing).
 
 
 ### Run US commission payroll
@@ -436,14 +441,18 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 
 ### Review an order form
 
+Within 1 business day, at a minimum, [Deal Desk](https://fleetdm.com/handbook/finance#team) will review order forms to be sent. 
+
 Using the this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
-1. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
-2. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
-3. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
-4. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
-5. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
-6. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
-7. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday with concerns.
+1. Navigate to the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) to review any order forms pending approval.
+2. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
+3. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
+4. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
+5. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
+6. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
+7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
+8. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to [Deal Desk](https://fleetdm.com/handbook/finance#team) with concerns.
+9. `@`-mention the requestor in the thread to request changes or provide approval.
 
 
 ### Review a non-standard subscription agreement
@@ -452,15 +461,14 @@ We want to use our standard terms whenever possible with our customers, but it i
 When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
 
 
-### Obtain a signature from the CEO
+### Obtain a signature from the CFO
 
-When an agreement is routed to the CEO for signature, the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) is responsible for obtaining a signature from the CEO using the following steps:
-1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
-2. [Deal Desk](https://fleetdm.com/handbook/finance#team) will at-mention the Head of Digital Workplace & GTM Systems in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
+When an agreement is routed to the [CFO](https://fleetdm.com/handbook/finance#team) for signature, use the following steps to get the agreement signed:
+1. [Deal Desk](https://fleetdm.com/handbook/finance#team) will at-mention the CFO in a legal review issue, letting them know the contract is good to go.
 
-> If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
+> If the agreement closes a deal, inform the CFO (via Slack) that a subscription agreement is ready for his review/signature. The SLA for CFO review and signature is 48hrs.
 
-3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/finance#team).
+2. The CFO will comment in the issue once they've signed the agreement and assign the issue to [Deal Desk](https://fleetdm.com/handbook/finance#team) to confirm a signed copy of the agreement is correctly stored in Google Drive. Then the issue can be closed.  
 
 
 ### Monitor compliance tests
@@ -470,7 +478,7 @@ When an agreement is routed to the CEO for signature, the [Head of Digital Workp
 3. Click on a test, then click on "Tasks".  
 4. Click on "Create task." Then, "Create GitHub issue."
 5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-finance" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Interim Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of Digital Workplace & GTM Systems. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of Digital Workplace & GTM Systems. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 ### Check GitHub terms

@@ -3,6 +3,7 @@ import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ISchedulableQueryStats } from "./schedulable_query";
+import { SoftwareSource } from "./software";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -31,6 +32,7 @@ export enum ActivityType {
   UserFailedLogin = "user_failed_login",
   UserCreated = "created_user",
   UserDeleted = "deleted_user",
+  HostDeleted = "deleted_host",
   UserChangedGlobalRole = "changed_user_global_role",
   UserDeletedGlobalRole = "deleted_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
@@ -60,9 +62,18 @@ export enum ActivityType {
   AddedHydrant = "added_hydrant",
   DeletedHydrant = "deleted_hydrant",
   EditedHydrant = "edited_hydrant",
+  AddedSmallstep = "added_smallstep",
+  DeletedSmallstep = "deleted_smallstep",
+  EditedSmallstep = "edited_smallstep",
+  AddedCustomESTProxy = "added_custom_est_proxy",
+  DeletedCustomESTProxy = "deleted_custom_est_proxy",
+  EditedCustomESTProxy = "edited_custom_est_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
+  CreatedAndroidProfile = "created_android_profile",
+  DeletedAndroidProfile = "deleted_android_profile",
+  EditedAndroidProfile = "edited_android_profile",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -123,6 +134,8 @@ export enum ActivityType {
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
+  AddedConditionalAccessOkta = "added_conditional_access_okta",
+  DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -152,7 +165,9 @@ export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.LockedHost
+  | ActivityType.UnlockedHost;
 
 export interface IActivity {
   created_at: string;
@@ -196,6 +211,7 @@ export interface IActivityDetails {
   grace_period_days?: number;
   host_display_name?: string;
   host_display_names?: string[];
+  host_expiry_window?: number;
   host_id?: number;
   host_ids?: number[];
   host_count?: number;
@@ -207,12 +223,12 @@ export interface IActivityDetails {
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
   location?: string; // name of location associated with VPP token
-  mdm_platform?: "microsoft" | "apple";
+  mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
   name?: string;
   pack_id?: number;
   pack_name?: string;
-  platform?: Platform; // software platform
+  platform?: Platform; // OS platform
   policy_id?: number;
   policy_name?: string;
   profile_identifier?: string;
@@ -229,6 +245,7 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;
   status?: string;
@@ -236,6 +253,7 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
+  triggered_by?: string;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;

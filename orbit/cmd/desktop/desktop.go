@@ -646,7 +646,7 @@ func setupStderr() {
 		return
 	}
 
-	stderrFile, err := os.OpenFile(filepath.Join(dir, "Fleet", "fleet-desktop.err"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
+	stderrFile, err := os.OpenFile(filepath.Join(dir, "Fleet", "fleet-desktop.err"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) // nolint:gosec // G302
 	if err != nil {
 		log.Error().Err(err).Msg("create file to redirect stderr")
 		return

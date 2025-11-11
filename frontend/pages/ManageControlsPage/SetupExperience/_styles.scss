@@ -1,7 +1,9 @@
 .setup-experience {
-  > p {
-    font-size: $x-small;
-    margin: $pad-xxlarge 0;
+  @include vertical-page-tab-panel-layout;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
+
+  &__description {
+    margin: 0;
   }
 
   &__premium-feature-message {
@@ -13,5 +15,9 @@
     max-width: none;
     padding: 64px 170px;
     margin: 0;
+  }
+
+  .side-nav__nav-list {
+    top: 0;
   }
 }

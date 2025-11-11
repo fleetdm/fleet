@@ -329,6 +329,8 @@ var knownBadNames = map[string]struct{}{
 
 var idTranslations = map[string]string{
 	"com.sentinelone.sentinel-agent": "com.sentinelone.SentinelAgent",
+	// This is present in Privileges.pkg/PackageInfo, however, current logic doesn't parse PackageInfo files if Distribution file is present
+	"corp.sap.privileges.pkg": "corp.sap.privileges",
 }
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
@@ -593,6 +595,8 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 		}
 	}
 
+	name = strings.TrimSuffix(name, ".app")
+
 	// if we didn't find package IDs, use the identifier as the package ID
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)
@@ -616,7 +620,7 @@ func isValidAppFilePath(input string) (string, bool) {
 	}
 
 	if strings.HasSuffix(file, ".app") {
-		if dir == "Applications/" {
+		if strings.HasPrefix(dir, "Applications/") && strings.HasSuffix(dir, "/") {
 			return file, true
 		}
 	}

@@ -13,6 +13,13 @@ spec:
   activity_expiry_settings:
     activity_expiry_enabled: false
     activity_expiry_window: 0
+  conditional_access:
+    microsoft_entra_tenant_id: ""
+    microsoft_entra_connection_configured: false
+    okta_idp_id: null
+    okta_assertion_consumer_service_url: null
+    okta_audience_uri: null
+    okta_certificate: null
   integrations:
     conditional_access_enabled: null
     google_calendar: null
@@ -38,11 +45,14 @@ spec:
       custom_settings: null
     windows_settings:
       custom_settings: null
+    android_settings:
+      custom_settings: null
     macos_setup:
       bootstrap_package: null
       enable_end_user_authentication: false
       macos_setup_assistant: null
       manual_agent_install: null
+      require_all_software_macos: false
       enable_release_device_manually: false
       script: null
       software: null

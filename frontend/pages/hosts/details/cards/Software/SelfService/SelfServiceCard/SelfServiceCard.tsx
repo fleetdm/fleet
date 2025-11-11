@@ -7,21 +7,17 @@ import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 
 import Card from "components/Card";
-import CardHeader from "components/CardHeader";
 import Spinner from "components/Spinner";
 import EmptyTable from "components/EmptyTable";
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
-import SearchField from "components/forms/fields/SearchField";
-import DropdownWrapper, {
-  CustomOptionType,
-} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import CustomLink from "components/CustomLink";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import CategoriesMenu from "./CategoriesMenu/CategoriesMenu";
-import { filterSoftwareByCategory, CATEGORIES_NAV_ITEMS } from "./../helpers";
+import SelfServiceTable from "../components/SelfServiceTable";
+import SelfServiceHeader from "../components/SelfServiceHeader";
+import SelfServiceFilters from "../components/SelfServiceFilters";
+import SelfServiceTiles from "../components/SelfServiceTiles";
+import { filterSoftwareByCategory } from "../helpers";
 
 const baseClass = "software-self-service";
 
@@ -39,7 +35,7 @@ export interface ISelfServiceCardProps {
   queryParams: SelfServiceQueryParams;
   enhancedSoftware: IDeviceSoftwareWithUiStatus[];
   selfServiceData?: IGetDeviceSoftwareResponse;
-  tableConfig: any;
+  tableConfig?: any;
   isLoading: boolean;
   isError: boolean;
   isFetching: boolean;
@@ -47,6 +43,8 @@ export interface ISelfServiceCardProps {
   isEmptySearch: boolean;
   router: InjectedRouter;
   pathname: string;
+  isMobileView?: boolean;
+  onClickInstallAction?: any;
 }
 
 const SelfServiceCard = ({
@@ -62,10 +60,11 @@ const SelfServiceCard = ({
   isEmptySearch,
   router,
   pathname,
+  isMobileView,
+  onClickInstallAction,
 }: ISelfServiceCardProps) => {
   const initialSortHeader = queryParams.order_key || "name";
   const initialSortDirection = queryParams.order_direction || "asc";
-  const initialSortPage = queryParams.page || 0;
 
   const onClientSidePaginationChange = useCallback(
     (page: number) => {
@@ -131,35 +130,15 @@ const SelfServiceCard = ({
     );
   };
 
-  const renderHeaderFilters = () => (
-    <div className={`${baseClass}__header-filters`}>
-      <SearchField
-        placeholder="Search by name"
-        onChange={onSearchQueryChange}
-        defaultValue={queryParams.query}
+  if (isLoading)
+    return <Spinner {...(isMobileView && { variant: "mobile" })} />;
+  if (isError)
+    return (
+      <EmptyTable
+        header="Error loading software."
+        {...(isMobileView && { variant: "mobile" })}
       />
-      <DropdownWrapper
-        options={CATEGORIES_NAV_ITEMS.map((category) => ({
-          ...category,
-          value: String(category.id),
-        }))}
-        value={String(queryParams.category_id || 0)}
-        onChange={onCategoriesDropdownChange}
-        name="categories-dropdown"
-        className={`${baseClass}__categories-dropdown`}
-      />
-    </div>
-  );
-
-  const renderCategoriesMenu = () => (
-    <CategoriesMenu
-      queryParams={queryParams}
-      categories={CATEGORIES_NAV_ITEMS}
-    />
-  );
-
-  if (isLoading) return <Spinner />;
-  if (isError) return <EmptyTable header="Error loading software." />;
+    );
 
   // Empty state
   if ((isEmpty || !selfServiceData) && !isFetching) {
@@ -168,79 +147,74 @@ const SelfServiceCard = ({
         graphicName="empty-software"
         header="No self-service software available yet"
         info="Your organization didn’t add any self-service software."
+        {...(isMobileView && { variant: "mobile" })}
       />
     );
   }
 
+  const filteredSoftwareByCategory: IDeviceSoftwareWithUiStatus[] = filterSoftwareByCategory(
+    enhancedSoftware || [],
+    queryParams.category_id
+  );
+
+  // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
+  const filteredSoftware = isMobileView
+    ? filteredSoftwareByCategory.filter((software) => {
+        const query = queryParams.query?.toLowerCase().trim() ?? "";
+        if (!query) return true;
+        return software.name.toLowerCase().includes(query);
+      })
+    : filteredSoftwareByCategory;
+
+  if (isMobileView) {
+    return (
+      <>
+        <SelfServiceHeader contactUrl={contactUrl} variant="mobile-header" />
+        <div className={`${baseClass}__mobile-installers`}>
+          <SelfServiceFilters
+            query={queryParams.query}
+            category_id={queryParams.category_id}
+            onSearchQueryChange={onSearchQueryChange}
+            onCategoriesDropdownChange={onCategoriesDropdownChange}
+          />
+          <SelfServiceTiles
+            contactUrl={contactUrl}
+            enhancedSoftware={filteredSoftware}
+            isFetching={isFetching}
+            isEmptySearch={
+              enhancedSoftware.length > 0 && filteredSoftware.length === 0
+            }
+            onClickInstallAction={onClickInstallAction}
+          />
+        </div>
+      </>
+    );
+  }
   return (
     <Card
       className={`${baseClass}__self-service-card`}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
-      <CardHeader
-        header="Self-service"
-        subheader={
-          <>
-            Install organization-approved apps provided by your IT department.{" "}
-            {contactUrl && (
-              <span>
-                If you need help,{" "}
-                <CustomLink url={contactUrl} text="reach out to IT" newTab />
-              </span>
-            )}
-          </>
-        }
+      <SelfServiceHeader contactUrl={contactUrl} />
+      <SelfServiceFilters
+        query={queryParams.query}
+        category_id={queryParams.category_id}
+        onSearchQueryChange={onSearchQueryChange}
+        onCategoriesDropdownChange={onCategoriesDropdownChange}
       />
-      {renderHeaderFilters()}
-      <div className={`${baseClass}__table`}>
-        {renderCategoriesMenu()}
-        <TableContainer
-          columnConfigs={tableConfig}
-          data={filterSoftwareByCategory(
-            enhancedSoftware || [],
-            queryParams.category_id
-          )}
-          isLoading={isFetching}
-          defaultSortHeader={initialSortHeader}
-          defaultSortDirection={initialSortDirection}
-          onQueryChange={onSortChange}
-          pageIndex={initialSortPage}
-          disableNextPage={selfServiceData?.meta.has_next_results === false}
-          pageSize={20}
-          searchQuery={queryParams.query}
-          searchQueryColumn="name"
-          isClientSideFilter
-          isClientSidePagination
-          disableAutoResetPage
-          onClientSidePaginationChange={onClientSidePaginationChange}
-          emptyComponent={() =>
-            isEmptySearch ? (
-              <EmptyTable
-                graphicName="empty-search-question"
-                header="No items match your search"
-                info={
-                  <>
-                    Not finding what you&apos;re looking for?{" "}
-                    <CustomLink
-                      url={contactUrl}
-                      text="Reach out to IT"
-                      newTab
-                    />
-                  </>
-                }
-              />
-            ) : (
-              <EmptySoftwareTable />
-            )
-          }
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableTableHeader
-          disableCount
-        />
-      </div>
+      <SelfServiceTable
+        baseClass={baseClass}
+        contactUrl={contactUrl}
+        queryParams={queryParams}
+        enhancedSoftware={filteredSoftware}
+        selfServiceData={selfServiceData}
+        tableConfig={tableConfig}
+        isFetching={isFetching}
+        isEmptySearch={isEmptySearch}
+        onSortChange={onSortChange}
+        onClientSidePaginationChange={onClientSidePaginationChange}
+      />
     </Card>
   );
 };

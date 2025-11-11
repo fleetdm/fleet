@@ -1,11 +1,11 @@
 # Configuration for contributors
 
+Don't use these Fleet server configuration options. For Fleet server configuraiton, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
+
+These options in this document are only used when contributing to Fleet. They frequently change to reflect current functionality.
+
 - [Fleet server configuration](#fleet-server-configuration)
 - [YAML files](#yaml-files)
-
-This document includes Fleet server configuration settings that are helpful when developing or contributing to Fleet.
-
-Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/guides/cli/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
 ## Fleet server configuration
 

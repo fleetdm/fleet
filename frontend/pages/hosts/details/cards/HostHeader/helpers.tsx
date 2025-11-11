@@ -1,11 +1,11 @@
 import React from "react";
-import { isAppleDevice } from "interfaces/platform";
+import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
   title: string;
   tagType: "warning" | "error";
-  generateTooltip: (platform: string) => string;
+  generateTooltip: (platform: string) => React.ReactNode;
 }
 
 type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
@@ -23,10 +23,34 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locked: {
     title: "LOCKED",
     tagType: "warning",
-    generateTooltip: (platform) =>
-      isAppleDevice(platform)
-        ? "Host is locked. The end user can’t use the host until the six-digit PIN has been entered."
-        : "Host is locked. The end user can’t use the host until the host has been unlocked.",
+    generateTooltip: (platform) => {
+      if (isIPadOrIPhone(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      } else if (isMacOS(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            the six-digit PIN has been entered. To view pin select
+            <br />
+            <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      }
+      return (
+        <>
+          Host is locked. The end user can&apos;t use the host until
+          <br />
+          unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+        </>
+      );
+    },
   },
   unlocking: {
     title: "UNLOCK PENDING",
@@ -37,14 +61,19 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locking: {
     title: "LOCK PENDING",
     tagType: "warning",
-    generateTooltip: () =>
-      "Host will lock when it comes online.  If the host is online, it will lock the next time it checks in to Fleet.",
+    generateTooltip: () => (
+      <>
+        Host will lock when it comes online. If the host is
+        <br />
+        online, it will lock the next time it checks in to Fleet.
+      </>
+    ),
   },
   wiped: {
     title: "WIPED",
     tagType: "error",
     generateTooltip: (platform) =>
-      isAppleDevice(platform)
+      isMacOS(platform)
         ? "Host is wiped. To prevent the host from automatically reenrolling to Fleet, first release the host from Apple Business Manager and then delete the host in Fleet."
         : "Host is wiped.",
   },

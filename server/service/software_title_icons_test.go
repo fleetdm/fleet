@@ -141,7 +141,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 		testFunc func(*testing.T)
 	}{
 		{
-			name: "upload icon title with no software installer or vpp app",
+			name: "upload icon title with no software installer, vpp app, or in-house app",
 			before: func() {
 				capturedActivities = make([]fleet.ActivityDetails, 0)
 				ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, includeUnpublished bool) (*fleet.SoftwareInstaller, error) {
@@ -150,6 +150,10 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 				ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
 					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "VPPAppMetadata"}, "get VPP app metadata")
 				}
+				ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "InHouseAppMetadata"}, "get in-house app metadata")
+				}
+
 				file, err := os.Open("testdata/icons/valid-icon.png")
 				require.NoError(t, err)
 				defer file.Close()
@@ -165,7 +169,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 				}
 				_, err := svc.UploadSoftwareTitleIcon(ctx, payload)
 				require.Error(t, err)
-				require.Contains(t, err.Error(), "Software title has no software installer or VPP app")
+				require.Contains(t, err.Error(), "Software title has no software installer, VPP app, or in-house app")
 			},
 		},
 		{
@@ -256,6 +260,57 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 						TeamName:            ptr.String("team1"),
 						TeamID:              1,
 						SoftwareTitleID:     1,
+					}, nil
+				}
+			},
+			testFunc: func(t *testing.T) {
+				payload := &fleet.UploadSoftwareTitleIconPayload{
+					TitleID:  1,
+					TeamID:   1,
+					IconFile: iconFile,
+					Filename: "icon.png",
+				}
+				_, err := svc.UploadSoftwareTitleIcon(ctx, payload)
+				require.NoError(t, err)
+				require.Len(t, capturedActivities, 1)
+			},
+		},
+
+		{
+			name: "upload icon for in-house app",
+			before: func() {
+				capturedActivities = make([]fleet.ActivityDetails, 0)
+				ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+					return &fleet.SoftwareInstaller{
+						TitleID: ptr.Uint(1),
+						TeamID:  ptr.Uint(1),
+					}, nil
+				}
+				ds.GetSoftwareTitleIconFunc = func(ctx context.Context, teamID, titleID uint) (*fleet.SoftwareTitleIcon, error) {
+					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "SoftwareTitleIcon"}, "get software title icon")
+				}
+				ds.GetTeamIdsForIconStorageIdFunc = func(ctx context.Context, storageID string) ([]uint, error) {
+					return []uint{1}, nil
+				}
+				ds.CreateOrUpdateSoftwareTitleIconFunc = func(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
+					sha, err := file.SHA256FromTempFileReader(iconFile)
+					require.NoError(t, err)
+
+					return &fleet.SoftwareTitleIcon{
+						TeamID:          1,
+						SoftwareTitleID: 1,
+						StorageID:       sha,
+						Filename:        "icon.png",
+					}, nil
+				}
+				ds.ActivityDetailsForSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
+					return fleet.DetailsForSoftwareIconActivity{
+						InHouseAppID:    ptr.Uint(1),
+						SoftwareTitle:   "foo",
+						Filename:        ptr.String("icon.png"),
+						TeamName:        ptr.String("team1"),
+						TeamID:          1,
+						SoftwareTitleID: 1,
 					}, nil
 				}
 			},
@@ -421,4 +476,144 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 			tc.testFunc(t)
 		})
 	}
+}
+
+func TestIconChanges(t *testing.T) {
+	// Test adding new icon for software.
+	t.Run("Add new icon for software", func(t *testing.T) {
+		// Create a new empty IconChanges struct.
+		c := &fleet.IconChanges{
+			TeamID:         1,
+			UploadedHashes: []string{"local-new-to-me-sw-icon-hash", "sw-noop-icon-hash"},
+		}
+
+		// Create SoftwarePackageResponse and VPPAppResponse with local icon data only.
+		sp := []fleet.SoftwarePackageResponse{
+			{
+				TitleID:       ptr.Uint(1),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-sw-icon-hash",
+				LocalIconPath: "new-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(2),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-to-me-sw-icon-hash",
+				LocalIconPath: "new-to-me-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(3),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-updated-filename-sw-icon-hash",
+				IconFilename:  "path/to/local/outdated-filename-sw-icon.png",
+				LocalIconHash: "local-updated-filename-sw-icon-hash",
+				LocalIconPath: "updated-filename-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(4),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-outdated-sw-icon-hash",
+				IconFilename:  "path/to/local/updated-hash-sw-icon.png",
+				LocalIconHash: "local-updated-hash-sw-icon-hash",
+				LocalIconPath: "updated-hash-sw-icon.png",
+			},
+			{
+				TitleID:      ptr.Uint(5),
+				TeamID:       ptr.Uint(1),
+				IconHash:     "sw-icon-to-delete-hash",
+				IconFilename: "sw-icon-to-delete.png",
+			},
+			{
+				TitleID:       ptr.Uint(6),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "sw-noop-icon-hash",
+				LocalIconPath: "path/to/local/sw-noop-icon.png",
+				IconHash:      "sw-noop-icon-hash",
+				IconFilename:  "sw-noop-icon.png",
+			},
+		}
+
+		vpp := []fleet.VPPAppResponse{
+			{
+				TitleID:       ptr.Uint(7),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-sw-icon-hash",
+				LocalIconPath: "new-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(8),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "local-new-to-me-sw-icon-hash",
+				LocalIconPath: "new-to-me-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(9),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-updated-filename-sw-icon-hash",
+				IconFilename:  "path/to/local/outdated-filename-sw-icon.png",
+				LocalIconHash: "local-updated-filename-sw-icon-hash",
+				LocalIconPath: "updated-filename-sw-icon.png",
+			},
+			{
+				TitleID:       ptr.Uint(10),
+				TeamID:        ptr.Uint(1),
+				IconHash:      "local-outdated-sw-icon-hash",
+				IconFilename:  "path/to/local/updated-hash-sw-icon.png",
+				LocalIconHash: "local-updated-hash-sw-icon-hash",
+				LocalIconPath: "updated-hash-sw-icon.png",
+			},
+			{
+				TitleID:      ptr.Uint(11),
+				TeamID:       ptr.Uint(1),
+				IconHash:     "sw-icon-to-delete-hash",
+				IconFilename: "sw-icon-to-delete.png",
+			},
+			{
+				TitleID:       ptr.Uint(12),
+				TeamID:        ptr.Uint(1),
+				LocalIconHash: "sw-noop-icon-hash",
+				LocalIconPath: "path/to/local/sw-noop-icon.png",
+				IconHash:      "sw-noop-icon-hash",
+				IconFilename:  "sw-noop-icon.png",
+			},
+		}
+		// Call the method to process the responses.
+		updatedC := c.WithSoftware(sp, vpp)
+
+		// Every hash that was already present on a software item, or would be after uploading,
+		// should be represented in the UploadedHashes slice.
+		require.Equal(t, 7, len(updatedC.UploadedHashes))
+		require.Contains(t, updatedC.UploadedHashes, "local-new-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-new-to-me-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-updated-filename-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-outdated-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "local-updated-hash-sw-icon-hash")
+		require.Contains(t, updatedC.UploadedHashes, "sw-icon-to-delete-hash")
+		require.Contains(t, updatedC.UploadedHashes, "sw-noop-icon-hash")
+
+		// IconsToUpload should contain info about any net-new software title icons.
+		// Note that the icon for title #2 (local-new-to-me-sw-icon-hash) is new to the title,
+		// but is already present in our list of uploaded hashes, so it should not be included here.
+		require.Equal(t, 2, len(updatedC.IconsToUpload))
+		require.Contains(t, updatedC.IconsToUpload, fleet.IconFileUpdate{TitleID: 1, Path: "new-sw-icon.png"})
+		require.Contains(t, updatedC.IconsToUpload, fleet.IconFileUpdate{TitleID: 4, Path: "updated-hash-sw-icon.png"})
+
+		// IconsToUpdate should contain info about any software title icons that need updates to their filename,
+		// or titles where we're adding an icon for them, but the icon already exists in our uploaded hashes.
+		// Note that for the VPP apps, we will already have marked "new-sw-icon" and "updated-hash-sw-icon" for upload,
+		// so they will show up in IconsToUpdate rather than IconsToUpload.
+		require.Equal(t, 6, len(updatedC.IconsToUpdate))
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 2, Path: "new-to-me-sw-icon.png", Hash: "local-new-to-me-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 3, Path: "updated-filename-sw-icon.png", Hash: "local-updated-filename-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 7, Path: "new-sw-icon.png", Hash: "local-new-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 8, Path: "new-to-me-sw-icon.png", Hash: "local-new-to-me-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 9, Path: "updated-filename-sw-icon.png", Hash: "local-updated-filename-sw-icon-hash"})
+		require.Contains(t, updatedC.IconsToUpdate, fleet.IconMetaUpdate{TitleID: 10, Path: "updated-hash-sw-icon.png", Hash: "local-updated-hash-sw-icon-hash"})
+
+		// IconsToDelete should contain info about any software title icons that exist on the server,
+		// but were not included in the uploaded hashes, meaning they should be deleted.
+		require.Equal(t, 2, len(updatedC.TitleIDsToRemoveIconsFrom))
+		require.Contains(t, updatedC.TitleIDsToRemoveIconsFrom, uint(5))
+		require.Contains(t, updatedC.TitleIDsToRemoveIconsFrom, uint(11))
+	})
 }

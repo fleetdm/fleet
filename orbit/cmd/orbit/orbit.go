@@ -55,6 +55,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
+	"github.com/fleetdm/fleet/v4/pkg/open"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -243,7 +244,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:    "disable-setup-experience",
-			Usage:   "Disables checking for setup experience on Linux hosts",
+			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
 		},
 	}
@@ -1119,6 +1120,16 @@ func main() {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
 
+		// Set the function that will be called to open the SSO window if an enroll
+		// request returns an "end user authentication required" error.
+		orbitClient.SetOpenSSOWindowFunc(func() error {
+			err = open.Browser(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
+			if err != nil {
+				return fmt.Errorf("opening browser: %w", err)
+			}
+			return nil
+		})
+
 		// If the server can't be reached, we want to fail quickly on any blocking network calls
 		// so that desktop can be launched as soon as possible.
 		serverIsReachable := orbitClient.Ping() == nil
@@ -1136,6 +1147,56 @@ func main() {
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
+		var trw *token.ReadWriter
+		var deviceClient *service.DeviceClient
+		// Note that the deviceClient used by orbit must not define a retry on
+		// invalid token, because its goal is to detect invalid tokens when
+		// making requests with this client.
+		deviceClient, err = service.NewDeviceClient(
+			fleetURL,
+			c.Bool("insecure"),
+			c.String("fleet-certificate"),
+			fleetClientCertificate,
+			c.String("fleet-desktop-alternative-browser-host"),
+		)
+		if err != nil {
+			return fmt.Errorf("initializing client: %w", err)
+		}
+
+		// Create a new token read/writer that will store the token on disk.
+		// This token will be used to identify this desktop to the Fleet server.
+		trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName), deviceClient.CheckToken)
+		if err := trw.LoadOrGenerate(); err != nil {
+			return fmt.Errorf("initializing token read writer: %w", err)
+		}
+
+		// we enable remote updates only if the server supports them by setting
+		// this function.
+		trw.SetRemoteUpdateFunc(
+			func(token string) error {
+				return orbitClient.SetOrUpdateDeviceToken(token)
+			},
+		)
+
+		// Check if the token is not expired and still good.
+		// If not, rotate the token iff the server is reachable.
+		if serverIsReachable {
+			expired, _ := trw.HasExpired()
+			if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+				if err := trw.Rotate(); err != nil {
+					return fmt.Errorf("rotating token: %w", err)
+				}
+			}
+		}
+
+		if c.Bool("fleet-desktop") {
+			// Ensure that the token rotation checker is started,
+			// so that we have a valid token to launch the
+			// My Device page.
+			stopRotation := trw.StartRotation()
+			defer stopRotation()
+		}
+
 		switch runtime.GOOS {
 		case "darwin":
 			orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
@@ -1144,7 +1205,9 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
-			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, c.String("root-dir"))
+			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw)
+			// Use the legacy UI if the server indicates so via capabilities.
+			setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)
 			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
 
@@ -1231,111 +1294,6 @@ func main() {
 			execute:   orbitClient.ExecuteConfigReceivers,
 			interrupt: orbitClient.InterruptConfigReceivers,
 		})
-
-		var trw *token.ReadWriter
-		var deviceClient *service.DeviceClient
-		if c.Bool("fleet-desktop") {
-			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName))
-			if err := trw.LoadOrGenerate(); err != nil {
-				return fmt.Errorf("initializing token read writer: %w", err)
-			}
-
-			log.Info().Msg("token rotation is enabled")
-
-			// we enable remote updates only if the server supports them by setting
-			// this function.
-			trw.SetRemoteUpdateFunc(
-				func(token string) error {
-					return orbitClient.SetOrUpdateDeviceToken(token)
-				},
-			)
-
-			// Note that the deviceClient used by orbit must not define a retry on
-			// invalid token, because its goal is to detect invalid tokens when
-			// making requests with this client.
-			deviceClient, err = service.NewDeviceClient(
-				fleetURL,
-				c.Bool("insecure"),
-				c.String("fleet-certificate"),
-				fleetClientCertificate,
-				c.String("fleet-desktop-alternative-browser-host"),
-			)
-			if err != nil {
-				return fmt.Errorf("initializing client: %w", err)
-			}
-
-			// Check if the token is not expired and still good.
-			// If not, rotate the token iff the server is reachable.
-			if serverIsReachable {
-				expired, _ := trw.HasExpired()
-				if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
-					if err := trw.Rotate(); err != nil {
-						return fmt.Errorf("rotating token: %w", err)
-					}
-				}
-			}
-
-			go func() {
-				// This timer is used to check if the token should be rotated if at
-				// least one hour has passed since the last modification of the token
-				// file.
-				//
-				// This is better than using a ticker that ticks every hour because the
-				// we can't ensure the tick actually runs every hour (eg: the computer is
-				// asleep).
-				localCheckDuration := 30 * time.Second
-				localCheckTicker := time.NewTicker(localCheckDuration)
-				defer localCheckTicker.Stop()
-
-				// This timer is used to periodically check if the token is valid. The
-				// server might deem a toked as invalid for reasons out of our control,
-				// for example if the database is restored to a back-up or if somebody
-				// manually invalidates the token in the db.
-				remoteCheckDuration := 5 * time.Minute
-				remoteCheckTicker := time.NewTicker(remoteCheckDuration)
-				defer remoteCheckTicker.Stop()
-
-				for {
-					select {
-					case <-localCheckTicker.C:
-						localCheckTicker.Reset(localCheckDuration)
-
-						log.Debug().Msgf("initiating local token check, cached mtime: %s", trw.GetMtime())
-						hasChanged, err := trw.HasChanged()
-						if err != nil {
-							log.Error().Err(err).Msg("error checking if token has changed")
-						}
-
-						exp, remain := trw.HasExpired()
-
-						// rotate if the token file has been modified, if the token is
-						// expired or if it is very close to expire.
-						if hasChanged || exp || remain <= time.Second {
-							log.Info().Msg("token TTL expired, rotating token")
-
-							if err := trw.Rotate(); err != nil {
-								log.Error().Err(err).Msg("error rotating token")
-							}
-						} else if remain > 0 && remain < localCheckDuration {
-							// check again when the token will expire, which will happen
-							// before the next rotation check
-							localCheckTicker.Reset(remain)
-							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
-						}
-
-					case <-remoteCheckTicker.C:
-						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
-						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
-							log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
-
-							if err := trw.Rotate(); err != nil {
-								log.Error().Err(err).Msg("error rotating token")
-							}
-						}
-					}
-				}
-			}()
-		}
 
 		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
 		// `"", nil`. Therefore there's no platform-specific stuff required here
@@ -1550,17 +1508,20 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
-		isLinux := runtime.GOOS == "linux"
-		serverHasWebSetup := orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience)
+		setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
-		runSetupExperience := isLinux && serverHasWebSetup && setupExperienceNotDisabled
+		runSetupExperience := setupExperienceOS && setupExperienceNotDisabled
 		log.Debug().
-			Bool("isLinux", isLinux).
-			Bool("serverHasSetup", serverHasWebSetup).
+			Bool("setupExperienceOS", setupExperienceOS).
 			Bool("notDisabled", setupExperienceNotDisabled).
 			Msg("checking setup experience preflight values")
 
 		openMyDevicePage := func() error {
+			if !c.Bool("fleet-desktop") {
+				log.Debug().Msg("fleet desktop disabled, not launching my device page")
+				return nil
+			}
+
 			log.Debug().Msg("launching browser for my device page")
 			token, err := trw.Read()
 			if err != nil {
@@ -1593,6 +1554,14 @@ func main() {
 				if _, err := execuser.Run(browserBin, opts...); err != nil {
 					return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 				}
+			case "windows":
+				cmdLine := fmt.Sprintf("/c start %s", browserURL)
+				opts := []execuser.Option{
+					execuser.WithArg(cmdLine, ""),
+				}
+				if _, err := execuser.Run("cmd.exe", opts...); err != nil {
+					return fmt.Errorf("opening windows browser: %w", err)
+				}
 			default:
 				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
 				return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
@@ -1603,8 +1572,7 @@ func main() {
 
 		if runSetupExperience {
 			log.Debug().Msg("web setup experience enabled")
-			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceFilename)
-			if err := processSetupExperience(orbitClient, setupExpPath, openMyDevicePage); err != nil {
+			if err := processSetupExperience(orbitClient, c.String("root-dir"), openMyDevicePage); err != nil {
 				log.Error().Err(err).Msg("initiating setup experience")
 			}
 		} else {
@@ -1628,75 +1596,75 @@ func main() {
 	}
 }
 
-func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath string, openMyDevicePage func() error) error {
+func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
-	exp, err := readSetupExperienceStatusFile(setupExperienceStatusPath)
+	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
 		return fmt.Errorf("read setup experience file: %w", err)
 	}
 
-	// Setup experience has been completed
-	if exp != nil && exp.TimeInitiated != nil {
+	switch {
+	case exp == nil:
+		// If communicating with an old Fleet server, write setup experience file and not run setup experience.
+		if !orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience) {
+			log.Debug().Msg("server does not support setup experience, writing setup experience file, and continuing")
+			initTime := time.Now()
+			if err := setupexperience.WriteSetupExperienceStatusFile(rootDir, &setupexperience.SetupExperienceInfo{
+				TimeInitiated: initTime,
+				Enabled:       false,
+			}); err != nil {
+				return fmt.Errorf("writing setup experience file: %w", err)
+			}
+			return nil
+		}
+
+		// Setup experience wasn't checked yet, we start it.
+		log.Info().Msg("initiating setup experience")
+		initSetupExperienceResponse, err := orbitClient.InitiateSetupExperience()
+		switch {
+		case err == nil:
+			// OK, continue
+		case errors.Is(err, service.ErrMissingLicense):
+			// Setup experience is a premium feature.
+			log.Debug().Msg("setup experience is a premium feature, writing setup experience file, and continuing")
+			initSetupExperienceResponse = fleet.SetupExperienceInitResult{
+				Enabled: false,
+			}
+		default:
+			return fmt.Errorf("initializing server-side setup experience: %w", err)
+		}
+		if initSetupExperienceResponse.Enabled {
+			// Setup experience enabled for us and is now kicked off, open a browser
+			if err := openMyDevicePage(); err != nil {
+				log.Error().Err(err).Msg("opening setup experience my device page using")
+			}
+		}
+		// Even if it wasn't enabled, mark it as complete so we don't start it again later
+		initTime := time.Now()
+		log.Info().
+			Time("time", initTime).
+			Bool("enabled", initSetupExperienceResponse.Enabled).
+			Msg("writing setup experience file")
+		if err := setupexperience.WriteSetupExperienceStatusFile(rootDir, &setupexperience.SetupExperienceInfo{
+			TimeInitiated: initTime,
+			Enabled:       initSetupExperienceResponse.Enabled,
+		}); err != nil {
+			return fmt.Errorf("writing setup experience file: %w", err)
+		}
+
+		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+		orbitClient.RegisterConfigReceiver(setupExperiencer)
+	case !exp.Enabled:
+		// Setup experience was checked, but was disabled at the time, nothing else to do.
+		log.Debug().Msg("setup experience already checked and disabled at the time")
+	case exp.TimeFinished == nil:
+		// Setup experience started but not finished.
+		log.Debug().Msg("setup experience started but not finished")
+		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+		orbitClient.RegisterConfigReceiver(setupExperiencer)
+	case exp.TimeFinished != nil:
+		// Setup experience is complete, nothing else to do.
 		log.Debug().Msg("setup experience already completed")
-		return nil
-	}
-
-	log.Debug().Msg("initiating setup experience")
-	resp, err := oc.InitiateSetupExperience()
-	if err != nil {
-		return fmt.Errorf("initializing server-side setup experience: %w", err)
-	}
-
-	// Setup experience enabled for us and is now kicked off, open a browser
-	if resp.Enabled {
-		if err := openMyDevicePage(); err != nil {
-			log.Err(err).Msg("opening setup experience my device page using")
-		}
-	} else {
-		log.Debug().Msg("setup experience not enabled on team")
-	}
-
-	// Even if it wasn't enabled, mark it as complete so we don't start it again later
-	log.Debug().Msg("writing setup experience file")
-	initTime := time.Now()
-	if err := writeSetupExperienceStatusFile(setupExperienceStatusPath, &SetupExperienceInfo{
-		TimeInitiated: &initTime,
-	}); err != nil {
-		return fmt.Errorf("writing setup experience file: %w", err)
-	}
-
-	return nil
-}
-
-type SetupExperienceInfo struct {
-	TimeInitiated *time.Time `json:"time_initiated,omitempty"`
-}
-
-// Returns the time setup experience was completed, or nil if it hasn't
-func readSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperienceInfo, error) {
-	f, err := os.Open(experienceCompletedPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read setup experience file: %w", err)
-	}
-	var exp *SetupExperienceInfo
-	if err := json.NewDecoder(f).Decode(exp); err != nil {
-		return nil, fmt.Errorf("decoding setup experience file: %w", err)
-	}
-
-	return exp, nil
-}
-
-func writeSetupExperienceStatusFile(experienceCompletedPath string, exp *SetupExperienceInfo) error {
-	f, err := os.Create(experienceCompletedPath)
-	if err != nil {
-		return fmt.Errorf("create setup experience completed file: %w", err)
-	}
-
-	if err := json.NewEncoder(f).Encode(exp); err != nil {
-		return fmt.Errorf("write setup experience completed file: %w", err)
 	}
 
 	return nil
@@ -2248,7 +2216,6 @@ func (f *capabilitiesChecker) Execute() error {
 			}
 		case <-f.interruptCh:
 			return nil
-
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /** software/os/:id */
 
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, RouteComponentProps } from "react-router";
@@ -53,14 +53,10 @@ export const SummaryCard = ({
   countsUpdatedAt,
   teamIdForApi,
 }: ISummaryCardProps) => (
-  <Card
-    borderRadiusSize="xxlarge"
-    includeShadow
-    className={`${baseClass}__summary-section`}
-  >
+  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
     <SoftwareDetailsSummary
-      title={osVersion.name}
-      hosts={osVersion.hosts_count}
+      displayName={osVersion.name}
+      hostCount={osVersion.hosts_count}
       countsUpdatedAt={countsUpdatedAt}
       queryParams={{
         os_name: osVersion.name_only,
@@ -93,7 +89,6 @@ export const VulnerabilitiesCard = ({
   return (
     <Card
       borderRadiusSize="xxlarge"
-      includeShadow
       className={`${baseClass}__vulnerabilities-section`}
     >
       <CardHeader header="Vulnerabilities" />
@@ -129,11 +124,7 @@ export const KernelsCard = ({
   router,
   teamIdForApi,
 }: IKernelsCardProps) => (
-  <Card
-    borderRadiusSize="xxlarge"
-    includeShadow
-    className={`${baseClass}__summary-section`}
-  >
+  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
     <CardHeader header="Kernels" />
     <OSKernelsTable
       osName={osVersion.name_only}
@@ -178,6 +169,11 @@ const SoftwareOSDetailsPage = ({
     includeNoTeam: true,
   });
 
+  // Track whether we need to fetch all vulnerabilities
+  const [maxVulnerabilities, setMaxVulnerabilities] = useState<
+    number | undefined
+  >(0);
+
   const {
     data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
@@ -193,6 +189,7 @@ const SoftwareOSDetailsPage = ({
         scope: "osVersionDetails",
         os_version_id: osVersionIdFromURL,
         teamId: teamIdForApi,
+        max_vulnerabilities: maxVulnerabilities,
       },
     ],
     ({ queryKey }) => osVersionsAPI.getOSVersion(queryKey[0]),
@@ -207,6 +204,19 @@ const SoftwareOSDetailsPage = ({
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
+        }
+      },
+      onSuccess: (data) => {
+        const {
+          os_version: { platform, vulnerabilities_count },
+        } = data;
+        if (
+          !isLinuxLike(platform) &&
+          vulnerabilities_count &&
+          vulnerabilities_count > 0 &&
+          maxVulnerabilities === 0
+        ) {
+          setMaxVulnerabilities(undefined);
         }
       },
     }

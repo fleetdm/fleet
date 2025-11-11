@@ -20,18 +20,24 @@ var (
 	ErrMissingLicense          = &licenseError{}
 	ErrMDMNotConfigured        = &MDMNotConfiguredError{}
 	ErrWindowsMDMNotConfigured = &WindowsMDMNotConfiguredError{}
+	ErrAndroidMDMNotConfigured = &AndroidMDMNotConfiguredError{}
 	ErrNotConfigured           = &NotConfiguredError{}
 
 	MDMNotConfiguredMessage                      = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
 	WindowsMDMNotConfiguredMessage               = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
+	AndroidMDMNotConfiguredMessage               = "Android MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
 	AppleMDMNotConfiguredMessage                 = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
+	CantLockManualIOSIpadOSHostsMessage          = "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
+	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
+	CantResendWindowsProfilesMessage             = "Can't resend Windows configuration profiles."
+	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has a package or app available for install on the %s team."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -382,6 +388,20 @@ func (e *WindowsMDMNotConfiguredError) Error() string {
 	return WindowsMDMNotConfiguredMessage
 }
 
+// AndroidMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
+// without having Android MDM correctly configured.
+type AndroidMDMNotConfiguredError struct{}
+
+// Status implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *AndroidMDMNotConfiguredError) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+func (e *AndroidMDMNotConfiguredError) Error() string {
+	return AndroidMDMNotConfiguredMessage
+}
+
 // NotConfiguredError is a generic "not configured" error that can be used
 // when expected configuration is missing.
 type NotConfiguredError struct{}
@@ -613,11 +633,27 @@ func (fe FleetdError) ToMap() map[string]any {
 // with a failed request's response.
 type OrbitError struct {
 	Message string
+	code    int
 }
 
 // Error implements the error interface for the OrbitError.
 func (e OrbitError) Error() string {
 	return e.Message
+}
+
+// StatusCode implements the ErrWithStatusCode interface for the OrbitError.
+func (e OrbitError) StatusCode() int {
+	if e.code == 0 {
+		return http.StatusInternalServerError
+	}
+	return e.code
+}
+
+func NewOrbitIDPAuthRequiredError() *OrbitError {
+	return &OrbitError{
+		Message: "END_USER_AUTH_REQUIRED",
+		code:    http.StatusUnauthorized,
+	}
 }
 
 // Message that may surfaced by the server or the fleetctl client.
@@ -658,7 +694,7 @@ const (
 
 	// NDES/SCEP validation
 	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
-	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."
+	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\", \"$FLEET_VAR_NDES_SCEP\" and \"$FLEET_VAR_SMALLSTEP_\" must only be in the SCEP payload."
 )
 
 // Error message variables
@@ -680,6 +716,11 @@ func (e ConflictError) Error() string {
 // StatusCode implements the kithttp.StatusCoder interface.
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
+}
+
+// IsConflict implements the conflict interface for middleware compatibility
+func (e ConflictError) IsConflict() bool {
+	return true
 }
 
 // Errorer interface is implemented by response structs to encode business logic errors

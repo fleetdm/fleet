@@ -25,6 +25,8 @@ export interface ICheckboxProps {
   parseTarget?: boolean;
   /** to display over the checkbox label */
   labelTooltipContent?: React.ReactNode;
+  /** to allow hovering over the tooltip e.g. links within it, default: false to not block form */
+  labelTooltipClickable?: boolean;
   /** to display over the checkbox icon */
   iconTooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
@@ -48,6 +50,7 @@ const Checkbox = (props: ICheckboxProps) => {
     indeterminate = false,
     parseTarget,
     labelTooltipContent,
+    labelTooltipClickable = false,
     iconTooltipContent,
     isLeftLabel,
     helpText,
@@ -139,6 +142,23 @@ const Checkbox = (props: ICheckboxProps) => {
     return icon;
   };
 
+  const renderLabel = () => {
+    if (!children) return null;
+
+    return labelTooltipContent ? (
+      <span className={`${baseClass}__label-tooltip tooltip`}>
+        <TooltipWrapper
+          tipContent={labelTooltipContent}
+          clickable={false} // Not block form behind tooltip
+        >
+          {children}
+        </TooltipWrapper>
+      </span>
+    ) : (
+      <span className={`${baseClass}__label`}>{children}</span>
+    );
+  };
+
   return (
     <FormField {...formFieldProps}>
       <label htmlFor={name}>
@@ -165,18 +185,7 @@ const Checkbox = (props: ICheckboxProps) => {
           onBlur={onBlur}
         >
           {renderIcon()}
-          {labelTooltipContent ? (
-            <span className={`${baseClass}__label-tooltip tooltip`}>
-              <TooltipWrapper
-                tipContent={labelTooltipContent}
-                clickable={false} // Not block form behind tooltip
-              >
-                {children}
-              </TooltipWrapper>
-            </span>
-          ) : (
-            <span className={`${baseClass}__label`}>{children}</span>
-          )}
+          {renderLabel()}
         </div>
       </label>
     </FormField>

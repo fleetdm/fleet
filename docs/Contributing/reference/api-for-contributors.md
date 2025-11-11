@@ -3261,14 +3261,16 @@ Lists the software installed on the current device.
 
 ```json
 {
-  "count": 2,
+  "count": 3,
   "software": [
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
+      "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
       "software_package": {
-        "name": "GoogleChrome.pkg"
-        "version": "125.12.2"
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.2",
         "self_service": true,
         "categories": ["Browsers"],
      	"last_install": {
@@ -3299,6 +3301,8 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
+      "display_name": "Firefox",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
       "software_package": null,
       "app_store_app": null,
       "source": "apps",
@@ -3307,19 +3311,35 @@ Lists the software installed on the current device.
         {
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Firefox.app"]
+          "vulnerabilities": [],
+          "installed_paths": ["/Applications/Slack.app"]
         }
       ],
       "software_package": null,
       "app_store_app": {
-        "app_store_id": "12345",
-        "categories": ["Browsers"],
-        "version": "125.6",
+        "app_store_id": "618783545",
+        "categories": ["Communication"],
+        "version": "25.08.10",
         "self_service": false,
-        "icon_url": "https://example.com/logo-light.jpg",
         "last_install": null
       },
+    },
+    {
+      "id": 144,
+      "name": "Prettier",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "vscode_extensions",
+      "extesnion_for": "cursor",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "1.2.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Users/admin/.cursor/extensions/prettier"]
+        }
+      ],
     }
   ],
   "meta": {
@@ -3327,6 +3347,39 @@ Lists the software installed on the current device.
     "has_previous_results": false
   }
 }
+```
+
+### Download device software icon
+
+_Available in Fleet Premium._
+
+Retrieve the icon added via Fleet or icon from App Store (VPP).
+
+`GET /api/v1/fleet/device/:token/software/titles/121/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                               |
+| ----            | ------- | ---- | ----------------------------------------- |
+| id              | integer | path | ID of the software title to get icon for. |
+
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/titles/121/icon`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: image/png
+Content-Disposition: inline; filename="zoom-icon-512x512.png"
+Content-Length: 124567
+
+<BINARY_IMAGE_DATA>
 ```
 
 ### Get device's software install results
@@ -3602,32 +3655,6 @@ Lists the certificates installed on the current device.
 }
 ```
 
-#### Get device's API features
-
-This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
-
-`GET /api/v1/fleet/device/{token}/api_features`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`GET /api/v1/fleet/device/abcdef012456789/api_features`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "features": {}
-}
-```
-
 #### Get device's transparency URL
 
 Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
@@ -3723,6 +3750,47 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 ##### Default response
 
 `Status: 204`
+
+---
+
+### Get the setup experience status for the device
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/device/{token}/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/setup_experience/status`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "setup_experience_results": {
+    "software": [
+      {
+        "name": "1password-latest.tar.gz",
+        "status": "running",
+        "software_title_id": 3007
+      },
+      {
+        "name": "slack.deb",
+        "status": "pending",
+        "software_title_id": 3008
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -3873,7 +3941,42 @@ Notifies the server about an agent error, resulting in two outcomes:
         "org_logo_url": ""
     }
 }
+```
 
+### Start the setup experience
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"TuvSsWf0RwBEecUlNBTLmBcjGFAdzqt/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns `enabled` set to `true` if items (e.g. software) for the setup experience were queued for the host.
+
+```json
+{
+  "result": {
+    "enabled": true
+  }
+}
 ```
 
 ### Set or update device token
@@ -4124,6 +4227,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | install_script_output         | string | body | The output from the install script.                     |
 | post_install_script_exit_code | number | body | The exit code from the post-install script.             |
 | post_install_script_output    | string | body | The output from the post-install script.                |
+| retries_remaining             | number | body | The number of retries remaining for this installation. When > 0, the server treats this as an intermediate failure. |
 
 ##### Example
 
@@ -4140,7 +4244,8 @@ Notifies the server about an agent error, resulting in two outcomes:
   "install_script_exit_code ": 0,
   "install_script_output ": "software installed",
   "post_install_script_exit_code ": 1,
-  "post_install_script_output ": "error: post-install script failed"
+  "post_install_script_output ": "error: post-install script failed",
+  "retries_remaining": 0
 }
 ```
 
@@ -4224,6 +4329,7 @@ Body: <blob>
   "uninstall_script": "sudo run-uninstaller",
   "post_install_script": "echo done",
   "self_service": true,
+  "max_retries": 2,
   "installer_url": {
     "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
     "filename": "my-installer.pkg"
@@ -4550,7 +4656,9 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "team_id": 1,
       "title_id": 2751,
       "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "firefox-custom-icon.png"
     }
   ]
 }
@@ -4589,6 +4697,7 @@ _Available in Fleet Premium._
 #### Example
 
 `POST /api/latest/fleet/software/app_store_apps/batch`
+
 ```json
 {
   "team_name": "Foobar",
@@ -4622,19 +4731,25 @@ _Available in Fleet Premium._
       "team_id": 1,
       "title_id": 123,
       "app_store_id": "597799333",
-      "platform": "darwin"
+      "platform": "darwin",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     },
     {
       "team_id": 1,
       "title_id": 124,
       "app_store_id": "597799333",
-      "platform": "ios"
+      "platform": "ios",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     },
     {
       "team_id": 1,
       "title_id": 125,
       "app_store_id": "597799333",
-      "platform": "ipados"
+      "platform": "ipados",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     }
   ]
 }

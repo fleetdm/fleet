@@ -59,7 +59,7 @@ const getOptionBackgroundColor = (
     GroupBase<INumberDropdownOption>
   >
 ) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
 interface ITeamsDropdownProps {
@@ -114,8 +114,8 @@ const TeamsDropdown = ({
     const { isFocused, selectProps } = props;
     const color =
       isFocused || selectProps.menuIsOpen
-        ? "core-fleet-blue"
-        : "core-fleet-black";
+        ? "core-fleet-black"
+        : "ui-fleet-black-75";
 
     return (
       <components.DropdownIndicator {...props} className={baseClass}>
@@ -160,17 +160,17 @@ const TeamsDropdown = ({
       "&:hover": {
         boxShadow: "none",
         ".team-dropdown__single-value": {
-          color: COLORS["core-fleet-blue"],
+          color: COLORS["core-fleet-black"],
         },
         ".team-dropdown__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
+          stroke: COLORS["ui-fleet-black-75-over"],
         },
       },
       // When tabbing
       // Relies on --is-focused for styling as &:focus-visible cannot be applied
       "&.team-dropdown__control--is-focused": {
         ".team-dropdown__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
+          stroke: COLORS["ui-fleet-black-75-over"],
         },
       },
       ...(state.isDisabled && {
@@ -184,10 +184,10 @@ const TeamsDropdown = ({
       // When clicking
       "&:active": {
         ".team-dropdown__single-value": {
-          color: COLORS["core-vibrant-blue-down"],
+          color: COLORS["ui-fleet-black-75-down"],
         },
         ".team-dropdown__indicator path": {
-          stroke: COLORS["core-vibrant-blue-down"],
+          stroke: COLORS["ui-fleet-black-75-down"],
         },
       },
       ...(state.menuIsOpen && {
@@ -204,6 +204,7 @@ const TeamsDropdown = ({
       paddingLeft: 0,
       paddingRight: "8px",
       margin: 0,
+      fontWeight: "600",
       // omit grid-column-end for automatic width
       gridArea: "1/1/2",
     }),
@@ -255,20 +256,20 @@ const TeamsDropdown = ({
     option: (baseStyles, state) => ({
       ...baseStyles,
       padding: "10px 8px",
-      fontSize: "14px",
+      fontSize: "13px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
-      fontWeight: state.isSelected ? "bold" : "normal",
+      fontWeight: state.isSelected ? "600" : "normal",
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-fleet-black-5"],
       },
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-25"],
+          : COLORS["ui-fleet-black-5"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],

@@ -108,14 +108,60 @@ kind: built-in
 spec:
   name: Disk space
   platform: linux, darwin
-  description: Retrieves total amount of free disk space on a host.
+  description: Retrieves total amount of free disk space, percentage of free disk space, and total available disk space on a host.
   query: |
-    SELECT 
-      (blocks_available * 100 / blocks) AS percent_disk_space_available,
+    SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-      round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-    FROM mounts
-    WHERE path = '/' LIMIT 1
+      round((blocks * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+      (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+    -- exclude mounts with no space
+    blocks > 0
+    AND blocks_size > 0
+
+    -- exclude external storage
+    AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+    -- exclude device drivers
+    AND path NOT LIKE '/dev%' 
+
+    -- exclude kernel-related mounts
+    AND path NOT LIKE '/proc%'
+    AND path NOT LIKE '/sys%'
+
+    -- exclude process files
+    AND path NOT LIKE '/run%'
+    AND path NOT LIKE '/var/run%'
+
+    -- exclude boot files
+    AND path NOT LIKE '/boot%' 
+
+    -- exclude snap packages
+    AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+    -- exclude virtualized mounts, would double-count bare metal storage
+    AND path NOT LIKE '/var/lib/docker%'
+    AND path NOT LIKE '/var/lib/containers%'
+
+    AND type IN (
+    'ext4', 
+    'ext3', 
+    'ext2', 
+    'xfs', 
+    'btrfs', 
+    'ntfs', 
+    'vfat',
+    'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+    'zfs' --also valid storage
+    )
+    AND (
+    device LIKE '/dev/sd%' 
+    OR device LIKE '/dev/hd%' 
+    OR device LIKE '/dev/vd%' 
+    OR device LIKE '/dev/nvme%' 
+    OR device LIKE '/dev/mapper%'
+    OR device LIKE '/dev/md%'
+    OR device LIKE '/dev/dm-%'
+    )) AS gigs_all_disk_space
+    FROM mounts WHERE path = '/' LIMIT 1;
   bash: df -P / | awk 'NR==2 { blocks=$2; blocks_available=$4; blocks_size=$2/$3 } END { printf "percent_disk_space_available=%.2f\n", (blocks_available * 100 / blocks); printf "gigs_disk_space_available=%.2f\n", (blocks_available * blocks_size * 10e-10); printf "gigs_total_disk_space=%.2f\n", (blocks * blocks_size * 10e-10) }'
   purpose: Informational
   tags: built-in
@@ -202,15 +248,27 @@ spec:
   platform: darwin
   description: Retrieves certificates from an Apple device.
   query: |
+   SELECT
+      ca, common_name, subject, issuer,
+      key_algorithm, key_strength, key_usage, signing_algorithm,
+      not_valid_after, not_valid_before,
+      serial, sha1, "system" as source,
+      path
+    FROM
+      certificates
+    WHERE
+      path = '/Library/Keychains/System.keychain'
+    UNION
     SELECT
-        ca, common_name, subject, issuer,
-        key_algorithm, key_strength, key_usage, signing_algorithm,
-        not_valid_after, not_valid_before,
-        serial, sha1
-      FROM
-        certificates
-      WHERE
-        path = '/Library/Keychains/System.keychain';
+      ca, common_name, subject, issuer,
+      key_algorithm, key_strength, key_usage, signing_algorithm,
+      not_valid_after, not_valid_before,
+      serial, sha1, "user" as source,
+      path
+    FROM
+      certificates
+    WHERE
+      path LIKE '/Users/%/Library/Keychains/login.keychain-db';
   purpose: Informational
   tags: built-in
 # --- # Note: this vital is commented out because it requires the kubequery osquery extension.
@@ -246,10 +304,21 @@ spec:
   platform: darwin
   description: Retrieves information about mobile device management (MDM) configuration profiles installed on a macOS device.
   query: |
-    SELECT 
-      display_name, identifier, install_date 
-    FROM macos_profiles 
-    WHERE type = "Configuration"
+    SELECT 1
+    WHERE EXISTS (
+        SELECT 1
+        FROM osquery_registry
+        WHERE active = true
+          AND registry = 'table'
+          AND name = 'macos_profiles'
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM osquery_registry
+        WHERE active = true
+          AND registry = 'table'
+          AND name = 'macos_user_profiles'
+    );
   discovery: macos_profiles
   purpose: Informational
   tags: built-in
@@ -813,7 +882,7 @@ spec:
   description: Gathers information about software installed on a device running macOS.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
@@ -902,7 +971,7 @@ spec:
   description: Gathers information about software installed on a device running linux.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
@@ -1060,7 +1129,7 @@ spec:
   description: Retrieves python packages installed on a host. As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See <a href="https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table">this guide</a> for more information.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
         SELECT
@@ -1084,7 +1153,7 @@ spec:
   description: Gathers information about Visual Studio Code extensions installed on a device.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
@@ -1211,7 +1280,7 @@ spec:
   description: Gathers information about software installed on a device running Windows.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
@@ -1497,7 +1566,7 @@ spec:
   description: Retrieves information about user accounts.
   query: |
     WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
+     SELECT uid, uuid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
   powershell: >-
@@ -1562,6 +1631,65 @@ spec:
 
     $updateHistory | Where-Object { $_.ResultCode -eq 2 } | Format-Table Date, Title -AutoSize
   discovery: windows_update_history
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Microsoft device ID (macOS)
+  platform: darwin
+  description: Retrieves the Microsoft device ID of a macOS device.
+  query: |
+    SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
+  discovery: app_sso_platform
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Microsoft device ID (Windows)
+  platform: windows
+  description: Retrieves the Microsoft device ID of a Windows device.
+  query: |
+    SELECT name, data
+    FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software last opened at (Windows)
+  platform: windows
+  description: A software override query to append last_opened_at information to Windows software entries.
+  query: |
+    SELECT
+      MAX(last_run_time) AS last_opened_at,
+      REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+" || REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(filename, '\', '\\'), '.', '\.'), '*', '\*'), '+', '\+'), '?', '\?'), '[', '\['), ']', '\]'), '{', '\{'), '}', '\}'), '(', '\('), ')', '\)'), '|', '\|') || ")", 1) AS executable_path
+    FROM prefetch
+    GROUP BY executable_path
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software last opened at (Linux)
+  platform: linux
+  description: A software override query to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
+  query: |
+    SELECT
+        package,
+        MAX(atime) AS last_opened_at
+    FROM deb_package_files
+    CROSS JOIN file USING (path)
+    WHERE type = 'regular'
+      AND regex_match(file.mode, '[1357]', 0)
+    GROUP BY package;
+  discovery: deb_package_files
   purpose: Informational
   tags: built-in
 #  
@@ -2953,3 +3081,57 @@ spec:
   purpose: Informational
   tags: fleet, osquery, table, schema
   contributors: nonpunctual
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get MCP client configurations
+  platform: darwin, linux, windows
+  description: |
+    Retrieves Model Context Protocol (MCP) client configurations from supported AI applications.
+    Only global (not project-specific) configurations are returned.
+    
+    Supported applications: Cursor (macOS/Linux/Windows), Claude Desktop (macOS/Windows), Claude Code (macOS/Linux), VSCode (macOS/Linux/Windows), Windsurf (macOS), Gemini CLI (macOS/Linux/Windows), LMStudio (macOS/Linux/Windows)
+  query: |
+    -- Step 1: Define config file path suffixes for each supported application
+    WITH path_suffixes(path) AS (
+      VALUES 
+        ('/.cursor/mcp.json'), -- Cursor, macOS/Linux/Windows
+        ('/Library/Application Support/Claude/claude_desktop_config.json'), -- Claude Desktop, macOS
+        ('\AppData\Roaming\Claude\claude_desktop_config.json'), -- Claude Desktop, Windows
+        ('/.claude.json'), -- Claude Code, macOS/Linux
+        ('/Library/Application Support/Code/User/mcp.json'), -- VSCode, macOS
+        ('/.config/Code/User/mcp.json'), -- VSCode, Linux
+        ('\AppData\Roaming\Code\User\mcp.json'), -- VSCode, Windows
+        ('/.codeium/windsurf/mcp_config.json'), -- Windsurf, macOS
+        ('/.gemini/settings.json'), -- Gemini CLI, macOS/Linux/Windows
+        ('/.lmstudio/mcp.json') -- LMStudio, macOS/Linux/Windows
+    ), 
+    -- Step 2: Build full file paths by combining each user's home directory with the path suffixes
+    full_paths AS (
+      SELECT directory || path AS full_path
+      FROM users 
+      JOIN path_suffixes
+    ), 
+    -- Step 3: Read config files that exist and concatenate their lines into complete JSON strings
+    config_files AS (
+      SELECT path, group_concat(line, '') AS contents 
+      FROM file_lines 
+      WHERE path IN full_paths 
+      GROUP BY path
+    ) 
+    -- Step 4: Parse JSON and extract each MCP server configuration
+    SELECT 
+      config_files.path, 
+      key AS name, 
+      value AS mcp_config 
+    FROM config_files 
+    JOIN json_each(
+      COALESCE(
+        config_files.contents->'$.mcpServers',
+        config_files.contents->'$.servers'
+        ) -- Most configs use 'mcpServers' key, but some use 'servers' key
+    )
+  purpose: Informational
+  tags: fleet, osquery, mcp, ai, agents, llm, inventory
+  contributors: zwass

@@ -41,6 +41,14 @@
       "activity_expiry_enabled": false,
       "activity_expiry_window": 0
     },
+    "conditional_access": {
+      "microsoft_entra_tenant_id": "",
+      "microsoft_entra_connection_configured": false,
+      "okta_idp_id": null,
+      "okta_assertion_consumer_service_url": null,
+      "okta_audience_uri": null,
+      "okta_certificate": null
+    },
     "features": {
       "enable_host_users": true,
       "enable_software_inventory": false
@@ -137,9 +145,13 @@
         "enable_release_device_manually": false,
         "script": null,
         "software": null,
-        "manual_agent_install": null
+        "manual_agent_install": null,
+        "require_all_software_macos": false
       },
       "windows_settings": {
+        "custom_settings": null
+      },
+      "android_settings": {
         "custom_settings": null
       },
       "end_user_authentication": {

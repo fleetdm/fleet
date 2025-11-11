@@ -781,16 +781,15 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 			// error as we do currently.
 			if ctxerr.Cause(err).Error() != decryptionFailedError {
 				return err
-			} else if err != nil {
-				if p.getPassphraseFromEnv(role) != nil {
-					// Fatal error if environment variable passphrase is
-					// incorrect
-					return fmt.Errorf("%s passphrase from %s is invalid", role, p.passphraseEnvName(role))
-				}
-
-				fmt.Printf("Failed to decrypt %s key. Try again.\n", role)
-				delete(p.cache, role)
 			}
+			if p.getPassphraseFromEnv(role) != nil {
+				// Fatal error if environment variable passphrase is
+				// incorrect
+				return fmt.Errorf("%s passphrase from %s is invalid", role, p.passphraseEnvName(role))
+			}
+
+			fmt.Printf("Failed to decrypt %s key. Try again.\n", role)
+			delete(p.cache, role)
 			continue
 		} else if len(keys) == 0 {
 			return fmt.Errorf("%s key not found", role)

@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import { isIPadOrIPhone } from "interfaces/platform";
 import hostAPI, { IUnlockHostResponse } from "services/entities/hosts";
 
 import Modal from "components/Modal";
@@ -80,6 +81,14 @@ const UnlockModal = ({
             <span>{macUnlockData.unlock_pin}</span>
           </div>
         </>
+      );
+    }
+
+    if (isIPadOrIPhone(platform)) {
+      return (
+        <p>
+          This will disable Lost Mode. End users will be able to use the host.
+        </p>
       );
     }
 

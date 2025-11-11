@@ -34,6 +34,7 @@ module.exports = {
   exits: {
     success: { description: 'An android enterprise was successfully created' },
     enterpriseAlreadyExists: { description: 'An android enterprise already exists for this Fleet instance.', statusCode: 409 },
+    missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     invalidEnterpriseToken: {
       description: 'The provided enterprise token is invalid or expired.',
       responseType: 'badRequest'
@@ -46,7 +47,7 @@ module.exports = {
     // Parse the Fleet server url from the origin header.
     let fleetServerUrl = this.req.get('Origin');
     if(!fleetServerUrl){
-      return this.res.badRequest();
+      throw 'missingOriginHeader';
     }
     // Check the database for a record of this enterprise.
     let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
@@ -78,8 +79,7 @@ module.exports = {
       });
       // Acquire the google auth client, and bind it to all future calls
       let authClient = await googleAuth.getClient();
-      google.options({auth: authClient});
-      let pubsub = google.pubsub({version: 'v1'});
+      let pubsub = google.pubsub({version: 'v1', auth: authClient});
 
       // Create a new pubsub topic for this enterprise.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/create
@@ -87,17 +87,26 @@ module.exports = {
         name: fullPubSubTopicName,
         requestBody: {
           messageRetentionDuration: '86400s'// 24 hours
-        }
+        },
+        auth: authClient,
       });
+
+      // Debugging attempt - Give it a second before calling the getIamPolicy (plus excessive back-off retry delays.)
+      await sails.helpers.flow.pause(1000);
+
 
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
       // Retrieve the IAM policy for the created pubsub topic.
-      let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
-        resource: fullPubSubTopicName,
-      });
-      let newPubSubTopicIamPolicy = getIamPolicyResponse.data;
+      const newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
+        const policy =  await pubsub.projects.topics.getIamPolicy({
+          resource: fullPubSubTopicName,
+          auth: authClient,
+        });
 
-      // Grand Android device policy the right to publish
+        return policy.data;
+      }).retry(undefined, [1000, 2000, 4000]);
+
+      // Grant Android device policy the right to publish
       // See: https://developers.google.com/android/management/notifications
       // Default the policy bindings to an empty array if it is not set.
       newPubSubTopicIamPolicy.bindings = newPubSubTopicIamPolicy.bindings || [];
@@ -109,12 +118,15 @@ module.exports = {
 
       // Update the pubsub topic's IAM policy
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/setIamPolicy
-      await pubsub.projects.topics.setIamPolicy({
-        resource: fullPubSubTopicName,
-        requestBody: {
-          policy: newPubSubTopicIamPolicy
-        }
-      });
+      await sails.helpers.flow.build(async () => {
+        await pubsub.projects.topics.setIamPolicy({
+          resource: fullPubSubTopicName,
+          requestBody: {
+            policy: newPubSubTopicIamPolicy
+          },
+          auth: authClient,
+        });
+      }).retry(undefined, [1000, 1500, 2000]);
 
       // Create a new subscription for the created pubsub topic.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create
@@ -128,7 +140,8 @@ module.exports = {
           pushConfig: {
             pushEndpoint: pubsubPushUrl// Use the pubsubPushUrl provided by the Fleet server.
           }
-        }
+        },
+        auth: authClient,
       });
 
       // Now create the new enterprise for this Fleet server.
@@ -139,6 +152,7 @@ module.exports = {
         projectId: sails.config.custom.androidEnterpriseProjectId,
         signupUrlName: signupUrlName,
         requestBody: enterprise,
+        auth: authClient,
       });
       return createEnterpriseResponse.data;
     }).intercept({status: 400}, (err)=>{
@@ -148,11 +162,16 @@ module.exports = {
           errorString.includes('ExpiredTokenException')) {
         return {'invalidEnterpriseToken': 'The provided enterprise token is invalid or expired.'};
       }
+
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 400):', require('util').inspect(err));
+
       // For other 400 errors, still return as invalid token (client error)
       return {'invalidEnterpriseToken': 'Invalid request to Android Management API.'};
-    }).intercept({status: 401}, ()=>{
+    }).intercept({ status: 401 }, (err) => {
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 401):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Authorization failed with Android Management API.'};
-    }).intercept({status: 403}, ()=>{
+    }).intercept({status: 403}, (err)=>{
+      sails.log.warn('Error details when creating Android enterprise with Android Management API (from 403):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Access forbidden to Android Management API.'};
     }).intercept((err)=>{
       // For all other errors (5XX, network errors, etc.), maintain existing behavior

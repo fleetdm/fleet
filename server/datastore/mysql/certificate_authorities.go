@@ -37,6 +37,7 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		certificate_user_principal_names,
 		certificate_seat_id,
 		admin_url,
+		challenge_url,
 		username,
 		password_encrypted,
 		challenge_encrypted,
@@ -133,6 +134,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		admin_url,
 		username,
 		password_encrypted,
+		challenge_url,
 		challenge_encrypted,
 		client_id,
 		client_secret_encrypted,
@@ -208,7 +210,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-const argsCountInsertCertificateAuthority = 14
+const argsCountInsertCertificateAuthority = 15
 
 const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	type,
@@ -220,6 +222,7 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	certificate_user_principal_names,
 	certificate_seat_id,
 	admin_url,
+	challenge_url,
 	username,
 	password_encrypted,
 	challenge_encrypted,
@@ -237,6 +240,7 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	certificate_user_principal_names = VALUES(certificate_user_principal_names),
 	certificate_seat_id = VALUES(certificate_seat_id),
 	admin_url = VALUES(admin_url),
+	challenge_url = VALUES(challenge_url),
 	username = VALUES(username),
 	password_encrypted = VALUES(password_encrypted),
 	challenge_encrypted = VALUES(challenge_encrypted),
@@ -292,13 +296,14 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		upns,
 		ca.CertificateSeatID,
 		ca.AdminURL,
+		ca.ChallengeURL,
 		ca.Username,
 		encryptedPassword,
 		encryptedChallenge,
 		ca.ClientID,
 		encryptedClientSecret,
 	}
-	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	return args, placeholders, nil
 }
@@ -322,7 +327,6 @@ func batchUpsertCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 
 	stmt := fmt.Sprintf(sqlUpsertCertificateAuthority, strings.TrimSuffix(placeholders.String(), ","))
 
-	// TODO(hca): with retry?
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "upserting certificate authorities")
 	}
@@ -344,7 +348,6 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 	}
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ","))
 
-	// TODO(hca): with retry?
 	_, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting certificate authorities")
@@ -507,6 +510,28 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			*args = append(*args, encryptedClientSecret)
 		}
 
+	case string(fleet.CATypeCustomESTProxy):
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.Username != nil {
+			updates = append(updates, "username = ?")
+			*args = append(*args, *ca.Username)
+		}
+		if ca.Password != nil {
+			updates = append(updates, "password_encrypted = ?")
+			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
+			}
+			*args = append(*args, encryptedPassword)
+		}
+
 	case string(fleet.CATypeNDESSCEPProxy):
 		if ca.URL != nil {
 			updates = append(updates, "url = ?")
@@ -546,6 +571,33 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			}
 			*args = append(*args, encryptedChallenge)
 		}
+	case string(fleet.CATypeSmallstep):
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.ChallengeURL != nil {
+			updates = append(updates, "challenge_url = ?")
+			*args = append(*args, *ca.ChallengeURL)
+		}
+		if ca.Username != nil {
+			updates = append(updates, "username = ?")
+			*args = append(*args, *ca.Username)
+		}
+		if ca.Password != nil {
+			updates = append(updates, "password_encrypted = ?")
+			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
+			}
+			*args = append(*args, encryptedPassword)
+		}
+	default:
+		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)
 	}
 	return fmt.Sprintf("SET %s", strings.Join(updates, ", ")), nil
 }

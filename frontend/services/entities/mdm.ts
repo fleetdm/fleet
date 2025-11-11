@@ -15,6 +15,12 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
+import {
+  createMockSetupExperienceSoftware,
+  createMockSoftwarePackage,
+  createMockSoftwareTitle,
+} from "__mocks__/softwareMock";
+
 import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
 
@@ -70,6 +76,9 @@ export interface IAppleSetupEnrollmentProfileResponse {
 export interface IMDMSSOParams {
   deviceinfo: string;
   initiator: string;
+  // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
+  // enrollments with end-user authentication.
+  host_uuid?: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {
@@ -112,6 +121,11 @@ const mdmService = {
       undefined,
       timeout
     );
+  },
+  // Android-specific: admin-initiated unenroll uses POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
+  unenrollAndroidHostFromMdm: (hostId: number, timeout?: number) => {
+    const path = `${endpoints.HOST_MDM(hostId)}/unenroll`;
+    return sendRequest("POST", path, undefined, undefined, timeout);
   },
   requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
@@ -261,6 +275,14 @@ const mdmService = {
     return sendRequest("PATCH", MDM_SETUP, {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
+    });
+  },
+
+  updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      team_id: teamId,
+      require_all_software_macos: isEnabled,
     });
   },
 

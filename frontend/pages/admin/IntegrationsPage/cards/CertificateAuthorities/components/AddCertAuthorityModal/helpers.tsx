@@ -13,8 +13,19 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
+import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 
+// keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
+  {
+    label: "Custom EST (Enrollment Over Secure Transport)",
+    value: "custom_est_proxy",
+  },
+  {
+    label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
+    value: "custom_scep_proxy",
+  },
   { label: "DigiCert", value: "digicert" },
   {
     label: "Hydrant EST (Enrollment Over Secure Transport)",
@@ -24,10 +35,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     label: "Microsoft NDES (Network Device Enrollment Service)",
     value: "ndes_scep_proxy",
   },
-  {
-    label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
-    value: "custom_scep_proxy",
-  },
+  { label: "Smallstep", value: "smallstep" },
 ];
 
 /**
@@ -63,8 +71,7 @@ export const generateAddCertAuthorityData = (
   formData: ICertFormData
 ): IAddCertAuthorityBody | undefined => {
   switch (certAuthorityType) {
-    case "ndes_scep_proxy":
-      // eslint-disable-next-line no-case-declarations
+    case "ndes_scep_proxy": {
       const {
         scepURL,
         adminURL,
@@ -79,8 +86,8 @@ export const generateAddCertAuthorityData = (
           password,
         },
       };
-    case "digicert":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "digicert": {
       const {
         name,
         url: digicertUrl,
@@ -101,8 +108,8 @@ export const generateAddCertAuthorityData = (
           certificate_seat_id: certificateSeatId,
         },
       };
-    case "custom_scep_proxy":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "custom_scep_proxy": {
       const {
         name: customSCEPName,
         scepURL: customSCEPUrl,
@@ -115,8 +122,8 @@ export const generateAddCertAuthorityData = (
           challenge,
         },
       };
-    case "hydrant":
-      // eslint-disable-next-line no-case-declarations
+    }
+    case "hydrant": {
       const {
         name: hydrantName,
         url,
@@ -131,8 +138,45 @@ export const generateAddCertAuthorityData = (
           client_secret: clientSecret,
         },
       };
+    }
+    case "smallstep": {
+      const {
+        name: smallstepName,
+        scepURL: smallstepScepURL,
+        challengeURL,
+        username: smallstepUsername,
+        password: smallstepPassword,
+      } = formData as ISmallstepFormData;
+      return {
+        smallstep: {
+          name: smallstepName,
+          url: smallstepScepURL,
+          challenge_url: challengeURL,
+          username: smallstepUsername,
+          password: smallstepPassword,
+        },
+      };
+    }
+    case "custom_est_proxy": {
+      const {
+        name: customESTName,
+        url: customESTUrl,
+        username: customESTUsername,
+        password: customESTPassword,
+      } = formData as ICustomESTFormData;
+      return {
+        custom_est_proxy: {
+          name: customESTName,
+          url: customESTUrl,
+          username: customESTUsername,
+          password: customESTPassword,
+        },
+      };
+    }
     default:
-      return undefined;
+      throw new Error(
+        `Unknown certificate authority type: ${certAuthorityType}`
+      );
   }
 };
 
@@ -164,12 +208,14 @@ const NDES_PASSWORD_CACHE_FULL_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.";
 const INVALID_CHALLENGE_ERROR =
   "Invalid challenge. Please correct and try again.";
+const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
+  "Invalid challenge URL or credentials. Please correct and try again.";
 
 /**
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
-export const getDisplayErrMessage = (err: unknown) => {
+export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   let message: string | JSX.Element = DEFAULT_ERROR;
   const reason = getErrorReason(err).toLowerCase();
 
@@ -190,6 +236,8 @@ export const getDisplayErrMessage = (err: unknown) => {
     message = INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("password cache is full")) {
     message = NDES_PASSWORD_CACHE_FULL_ERROR;
+  } else if (reason.includes("invalid challenge url")) {
+    message = INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("invalid challenge")) {
     message = INVALID_CHALLENGE_ERROR;
   } else {
@@ -199,7 +247,7 @@ export const getDisplayErrMessage = (err: unknown) => {
   return message;
 };
 
-export const getErrorMessage = (err: unknown) => {
+export const getErrorMessage = (err: unknown): JSX.Element => {
   return (
     <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
   );

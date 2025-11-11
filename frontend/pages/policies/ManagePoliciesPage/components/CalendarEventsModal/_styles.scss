@@ -36,6 +36,10 @@
   &__hide-main {
     visibility: hidden;
   }
+
+  &__preview-button {
+    white-space: nowrap;
+  }
 }
 
 .calendar-event-preview {

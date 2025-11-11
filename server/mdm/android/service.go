@@ -15,6 +15,10 @@ type Service interface {
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
 	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
+
+	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
+	UnenrollAndroidHost(ctx context.Context, hostID uint) error
+	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
 }
 
 // /////////////////////////////////////////////
