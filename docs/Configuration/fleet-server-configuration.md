@@ -3001,6 +3001,8 @@ The number of attempts allowed from the same ip to login via sso per minute used
   ```
   mdm:
     sso_rate_limit_per_minute: 10
+  ```
+> Note: This api is hit twice during enrollment so it should be roughly double the number of users you expect to enroll at the same time.
 
 ## Partnerships
 
