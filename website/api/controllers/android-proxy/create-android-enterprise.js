@@ -79,8 +79,7 @@ module.exports = {
       });
       // Acquire the google auth client, and bind it to all future calls
       let authClient = await googleAuth.getClient();
-      google.options({auth: authClient});
-      let pubsub = google.pubsub({version: 'v1'});
+      let pubsub = google.pubsub({version: 'v1', auth: authClient});
 
       // Create a new pubsub topic for this enterprise.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/create
@@ -88,7 +87,8 @@ module.exports = {
         name: fullPubSubTopicName,
         requestBody: {
           messageRetentionDuration: '86400s'// 24 hours
-        }
+        },
+        auth: authClient,
       });
 
       // Debugging attempt - Give it a second before calling the getIamPolicy (plus excessive back-off retry delays.)
@@ -100,6 +100,7 @@ module.exports = {
       const newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
         const policy =  await pubsub.projects.topics.getIamPolicy({
           resource: fullPubSubTopicName,
+          auth: authClient,
         });
 
         return policy.data;
@@ -122,7 +123,8 @@ module.exports = {
           resource: fullPubSubTopicName,
           requestBody: {
             policy: newPubSubTopicIamPolicy
-          }
+          },
+          auth: authClient,
         });
       }).retry(undefined, [1000, 1500, 2000]);
 
@@ -138,7 +140,8 @@ module.exports = {
           pushConfig: {
             pushEndpoint: pubsubPushUrl// Use the pubsubPushUrl provided by the Fleet server.
           }
-        }
+        },
+        auth: authClient,
       });
 
       // Now create the new enterprise for this Fleet server.
@@ -149,6 +152,7 @@ module.exports = {
         projectId: sails.config.custom.androidEnterpriseProjectId,
         signupUrlName: signupUrlName,
         requestBody: enterprise,
+        auth: authClient,
       });
       return createEnterpriseResponse.data;
     }).intercept({status: 400}, (err)=>{
