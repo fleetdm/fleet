@@ -222,8 +222,9 @@ const OktaConditionalAccessModal = ({
               download="fleet-idp-signing-certificate.pem"
               className="button button--inverse"
             >
-              Download certificate&nbsp;&nbsp;
-              <Icon name="download" />
+              <div className="children-wrapper">
+                Download certificate <Icon name="download" />
+              </div>
             </a>
           </div>
 

@@ -7,8 +7,6 @@ import deepDifference from "utilities/deep_difference";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
-import paths from "router/paths";
-
 import configAPI from "services/entities/config";
 
 import { IConfig } from "interfaces/config";
@@ -82,12 +80,8 @@ const IntegrationsPage = ({
   );
 
   if (!appConfig) return <></>;
-  const isManagedCloud = appConfig.license.managed_cloud;
-  if (section?.includes("conditional-access") && !isManagedCloud) {
-    router.push(paths.ADMIN_SETTINGS);
-  }
 
-  const navItems = getIntegrationSettingsNavItems(isManagedCloud);
+  const navItems = getIntegrationSettingsNavItems();
   const DEFAULT_SETTINGS_SECTION = navItems[0];
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??

@@ -241,6 +241,9 @@ const ConditionalAccess = () => {
     contextConfig?.conditional_access?.okta_certificate
   );
 
+  // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
+  const isManagedCloud = contextConfig?.license?.managed_cloud || false;
+
   // Check Entra configuration state
   useEffect(() => {
     // Don't check config if we're showing the awaiting OAuth banner
@@ -381,17 +384,19 @@ const ConditionalAccess = () => {
             ? "Okta conditional access configured"
             : "Connect Okta to enable conditional access."}
         </SectionCard>
-        <SectionCard
-          header={
-            entraIsConfigured || showAwaitingOAuthBanner
-              ? undefined
-              : "Microsoft Entra"
-          }
-          iconName={entraIconName}
-          cta={entraCta}
-        >
-          {entraContent}
-        </SectionCard>
+        {isManagedCloud && (
+          <SectionCard
+            header={
+              entraIsConfigured || showAwaitingOAuthBanner
+                ? undefined
+                : "Microsoft Entra"
+            }
+            iconName={entraIconName}
+            cta={entraCta}
+          >
+            {entraContent}
+          </SectionCard>
+        )}
       </div>
     );
   };
