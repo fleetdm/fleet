@@ -553,8 +553,8 @@ type Datastore interface {
 	NewTeam(ctx context.Context, team *Team) (*Team, error)
 	// SaveTeam saves any changes to the team.
 	SaveTeam(ctx context.Context, team *Team) (*Team, error)
-	// Team retrieves the Team by ID.
-	Team(ctx context.Context, tid uint) (*Team, error)
+	// TeamWithExtras retrieves the Team by ID, including extra fields.
+	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// TeamWithoutExtras retrieves the Team by ID without extra fields.
 	TeamWithoutExtras(ctx context.Context, tid uint) (*Team, error)
 	// DeleteTeam deletes the Team by ID.
@@ -2502,7 +2502,7 @@ type AndroidDatastore interface {
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
 	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
-	Team(ctx context.Context, tid uint) (*Team, error)
+	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error

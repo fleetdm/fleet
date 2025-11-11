@@ -1268,7 +1268,7 @@ func processCalendarPolicies(
 		return nil
 	}
 
-	team, err := ds.Team(ctx, *host.TeamID)
+	team, err := ds.TeamWithExtras(ctx, *host.TeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load host team")
 	}
