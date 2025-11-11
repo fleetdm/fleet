@@ -6,36 +6,34 @@ import PATHS from "router/paths";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
-import WindowsAutomaticEnrollmentCard from "./WindowsAutomaticEnrollmentCard";
+import WindowsEnrollmentCard from "./WindowsEnrollmentCard";
 
-const baseClass = "windows-autopilot-section";
+const baseClass = "microsoft-entra-section";
 
-interface IWindowsAutopilotSectionProps {
+interface IMicrosoftEntraSectionProps {
   router: InjectedRouter;
   isPremiumTier: boolean;
 }
 
-const WindowsAutopilotSection = ({
+const MicrosoftEntraSection = ({
   router,
   isPremiumTier,
-}: IWindowsAutopilotSectionProps) => {
-  const navigateToWindowsAutomaticEnrollment = () => {
+}: IMicrosoftEntraSectionProps) => {
+  const navigateToWindowsEnrollment = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS);
   };
 
   return (
-    <SettingsSection title="Windows Autopilot" className={baseClass}>
+    <SettingsSection title="Microsoft Entra" className={baseClass}>
       {!isPremiumTier ? (
         <PremiumFeatureMessage alignment="left" />
       ) : (
         <div className={`${baseClass}__content`}>
-          <WindowsAutomaticEnrollmentCard
-            viewDetails={navigateToWindowsAutomaticEnrollment}
-          />
+          <WindowsEnrollmentCard viewDetails={navigateToWindowsEnrollment} />
         </div>
       )}
     </SettingsSection>
   );
 };
 
-export default WindowsAutopilotSection;
+export default MicrosoftEntraSection;

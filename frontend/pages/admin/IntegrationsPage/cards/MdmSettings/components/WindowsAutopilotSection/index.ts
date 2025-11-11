@@ -1,1 +1,1 @@
-export { default } from "./WindowsAutopilotSection";
+export { default } from "./MicrosoftEntraSection";

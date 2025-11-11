@@ -4,16 +4,16 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import SectionCard from "../../SectionCard";
 
-interface IWindowsAutomaticEnrollmentCardProps {
+interface IWindowsEnrollmentCardProps {
   viewDetails: () => void;
 }
 
-const WindowsAutomaticEnrollmentCard = ({
+const WindowsEnrollmentCard = ({
   viewDetails,
-}: IWindowsAutomaticEnrollmentCardProps) => {
+}: IWindowsEnrollmentCardProps) => {
   return (
     <SectionCard
-      header="Windows automatic enrollment"
+      header="Windows enrollment"
       cta={
         <Button onClick={viewDetails} variant="inverse" iconStroke>
           Details <Icon name="chevron-right" color="ui-fleet-black-75" />
@@ -26,4 +26,4 @@ const WindowsAutomaticEnrollmentCard = ({
   );
 };
 
-export default WindowsAutomaticEnrollmentCard;
+export default WindowsEnrollmentCard;
