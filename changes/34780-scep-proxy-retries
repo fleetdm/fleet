@@ -1,0 +1,2 @@
+- Fixed issue where MDM profile retry limits were interfering with Smallstep SCEP proxy renewal
+  attempts, particularly in cases of expired SCEP challenges.

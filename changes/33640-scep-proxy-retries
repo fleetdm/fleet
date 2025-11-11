@@ -1,2 +1,0 @@
-- Fixed issue where MDM profile retry limits were interfering with SCEP proxy renewals in cases
-  where SCEP challenges needed to be re-fetched.
