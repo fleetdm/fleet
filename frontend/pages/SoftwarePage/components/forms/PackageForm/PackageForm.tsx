@@ -350,6 +350,7 @@ const PackageForm = ({
                   isExePackage={isExePackage}
                   isTarballPackage={isTarballPackage}
                   isScriptPackage={isScriptPackage}
+                  isIpaPackage={isIpaPackage}
                   onClickPreviewEndUserExperience={() =>
                     onClickPreviewEndUserExperience(isIpaPackage)
                   }
