@@ -188,6 +188,8 @@ Product Designers (PD) review the checkboxes in user stories we shipped but have
 
 If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81). The PD also moved the request to the "🗣️ Ready for feedback" column on the [💝 Customer requests](https://github.com/orgs/fleetdm/projects/82) board.
 
+PD notifies Customer Success and Infrastructure of any server configuration changes and how to best to change these based on cloud environment needs.
+
 
 ### Notify stakeholders when a user story is pushed to the next sprint
 
