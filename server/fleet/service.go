@@ -1352,6 +1352,9 @@ type Service interface {
 	// ConditionalAccessGetIdPSigningCert returns the Okta IdP signing certificate (public key only)
 	// for administrators to download and configure in Okta.
 	ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error)
+	// ConditionalAccessGetIdPAppleProfile returns the Apple MDM configuration profile
+	// (for user scope) to configure Okta conditional access on the host.
+	ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities

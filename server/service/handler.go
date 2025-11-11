@@ -558,6 +558,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Okta Conditional Access
 	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
+	ue.GET("/api/_version_/fleet/conditional_access/idp/apple/profile", conditionalAccessGetIdPAppleProfileEndpoint, conditionalAccessGetIdPAppleProfileRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update

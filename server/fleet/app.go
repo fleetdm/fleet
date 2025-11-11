@@ -274,6 +274,44 @@ func (c *AppConfig) MDMUrl() string {
 	return c.MDM.AppleServerURL
 }
 
+// ConditionalAccessIdPSSOURL returns the SSO server URL for Okta conditional access IdP.
+// It checks for FLEET_DEV_OKTA_SSO_SERVER_URL environment variable first.
+// If not set, it transforms the server URL by prepending "okta." to the hostname.
+// Examples:
+//   - https://foo.example.com -> https://okta.foo.example.com
+//   - https://foo.example.com:8080 -> https://okta.foo.example.com:8080
+//
+// Returns an error if the server URL is not configured or cannot be parsed.
+func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv func(string) string) (string, error) {
+	// Check for dev override
+	if devURL := getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
+		return devURL, nil
+	}
+
+	serverURL := c.ServerSettings.ServerURL
+	if serverURL == "" {
+		return "", errors.New("server URL not configured")
+	}
+
+	// Parse the server URL
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", fmt.Errorf("parse server URL: %w", err)
+	}
+
+	// Prepend "okta." to the hostname
+	if u.Hostname() != "" {
+		// Reconstruct host with port if present
+		newHost := "okta." + u.Hostname()
+		if port := u.Port(); port != "" {
+			newHost = newHost + ":" + port
+		}
+		u.Host = newHost
+	}
+
+	return u.String(), nil
+}
+
 // versionStringRegex is used to validate that a version string is in the x.y.z
 // format only (no prerelease or build metadata).
 var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)

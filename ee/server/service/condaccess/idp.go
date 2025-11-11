@@ -457,7 +457,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	metadataURL = metadataURL.JoinPath(idpMetadataPath)
 
 	// Build SSO URL (uses okta.* subdomain or dev override)
-	ssoServerURL, err := buildSSOServerURL(serverURL)
+	ssoServerURL, err := s.buildSSOServerURL(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build SSO server URL")
 	}
@@ -485,35 +485,22 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	return idp, nil
 }
 
-// buildSSOServerURL builds the SSO server base URL.
-// It checks for FLEET_DEV_OKTA_SSO_SERVER_URL environment variable first.
-// If not set, it transforms the serverURL by prepending "okta." to the hostname.
-// Examples:
-//   - https://bozo.example.com -> https://okta.bozo.example.com
-//   - https://bozo.example.com:8080 -> https://okta.bozo.example.com:8080
-func buildSSOServerURL(serverURL string) (string, error) {
-	// Check for dev override
-	if devURL := os.Getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
-		return devURL, nil
-	}
-
-	// Parse the server URL
-	u, err := url.Parse(serverURL)
+// buildSSOServerURL builds the SSO server base URL from the app config.
+// It delegates to AppConfig.ConditionalAccessIdPSSOURL() for the URL construction logic.
+func (s *idpService) buildSSOServerURL(ctx context.Context) (string, error) {
+	// Load app config
+	appConfig, err := s.ds.AppConfig(ctx)
 	if err != nil {
-		return "", fmt.Errorf("parse server URL: %w", err)
+		return "", ctxerr.Wrap(ctx, err, "load app config")
 	}
 
-	// Prepend "okta." to the hostname
-	if u.Hostname() != "" {
-		// Reconstruct host with port if present
-		newHost := idpSSOPrefix + u.Hostname()
-		if port := u.Port(); port != "" {
-			newHost = newHost + ":" + port
-		}
-		u.Host = newHost
+	// Use the AppConfig method to build the SSO URL
+	ssoURL, err := appConfig.ConditionalAccessIdPSSOURL(os.Getenv)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "build conditional access SSO URL")
 	}
 
-	return u.String(), nil
+	return ssoURL, nil
 }
 
 // parseCertAndKeyBytes parses PEM-encoded certificate and private key from separate byte slices.
