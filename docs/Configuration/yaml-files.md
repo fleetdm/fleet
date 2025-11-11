@@ -483,7 +483,7 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages, Apple App Store apps, and Fleet-maintained apps that you want to install on your hosts.
 
-- `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .rpm, .deb, or .tar.gz).
+- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1).
 - `app_store_apps` is a list of Apple App Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
