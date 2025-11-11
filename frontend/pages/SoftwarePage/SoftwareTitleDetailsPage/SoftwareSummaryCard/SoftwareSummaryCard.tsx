@@ -76,7 +76,7 @@ const SoftwareSummaryCard = ({
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
-          title={title.name}
+          displayName={title.display_name || title.name}
           type={formatSoftwareType(title)}
           versions={title.versions?.length ?? 0}
           hostCount={title.hosts_count}
@@ -119,12 +119,14 @@ const SoftwareSummaryCard = ({
               isSoftwarePackage(softwareInstaller) ? "package" : "vpp"
             }
             previewInfo={{
-              name: title.name,
+              name: softwareInstaller.display_name || title.name,
+              titleName: title.name,
               type: formatSoftwareType(title),
               source: title.source,
               currentIconUrl: title.icon_url,
               versions: title.versions?.length ?? 0,
               countsUpdatedAt: title.counts_updated_at,
+              selfServiceVersion: softwareInstaller.version,
             }}
           />
         )}

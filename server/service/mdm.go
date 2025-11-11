@@ -710,7 +710,7 @@ func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
 		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
 	}
 

@@ -672,7 +672,7 @@
 #  ╚═╝╚═╝╝╚╝═╩╝  ╩═╝╚═╝╚═╝╩ ╩  ╩ ╩╝╚╝═╩╝  ╚╩╝╩╩  ╚═╝  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝╚═╝
 - industryName: Send lock and wipe commands
   description: Secure your devices with remote lock and wipe commands if lost or stolen.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
+  documentationUrl: https://fleetdm.com/guides/lock-wipe-hosts
   waysToUse:
     - description: High-level remote lock for macOS, Windows, Linux, and Android (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949

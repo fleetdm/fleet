@@ -141,6 +141,8 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 ## Software and script
 
+> As of Fleet 4.59.0, there is a known bug in which, if [GitOps](https://fleetdm.com/docs/configuration/yaml-files) runs while a new Mac is going through Setup Assistant, the script will not run. Follow the [GitHub issue](https://github.com/fleetdm/fleet/issues/35309) to learn more.
+
 You can configure software installations and a script to be executed during Setup Assistant. This capability allows you to configure your end users' machines during the unboxing experience, speeding up their onboarding and reducing setup time.
 
 If you configure software and/or a script for setup experience, users will see a window like this pop open after their device enrolls in MDM via ADE:
@@ -161,9 +163,13 @@ To replace the Fleet logo with your organization's logo:
 
 ### Install software
 
-You can install software during first time macOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience#basic-article).
+You can install software during first time macOS, iOS, iPadOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience). Android support is coming soon.
 
-Software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet reties, IT admins can error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
+For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
+
+Retries only happen for custom packages and Fleet-maintained apps. For App Store (VPP) apps, the MDM command to install the app is sent once and either succeeds or fails. If it fails, the app won’t install no matter how many times Fleet resends the command.
+
+Currently, for macOS, iOS, and iPadOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM).
 
 Add setup experience software:
 
@@ -171,6 +177,19 @@ Add setup experience software:
 
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
 3. Press **Save** to save your selection.
+
+To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
+#### Blocking setup on failed software installs
+
+You may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
+
+1. Click **Show advanced options** on the Install Software screen.
+2. Check the "Cancel setup if software install fails" checkbox.
+3. Press **Save**. 
+
+When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
+
+![screen shot of Fleet setup experience failed view](../website/assets/images/articles/setup-experience-failed-470x245@2x.png)
 
 ### Run script
 
@@ -181,6 +200,15 @@ To configure a script to run during setup experience:
 2. Click **Upload** and select a script (.sh file) from the file picker modal. 
 
 > Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
+
+### Exiting the setup experience
+
+The Fleet setup experience for macOS will exit if any of the following occurs:
+
+* All setup steps complete successfully.
+* All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
+* The user presses Command (⌘) + Shift + X at any time during the setup process.
+
 
 ## macOS Setup Assistant
 

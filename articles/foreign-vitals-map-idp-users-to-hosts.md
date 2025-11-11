@@ -28,8 +28,8 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 2. In the main menu, select **Applications > Applications**, then select **Create App Integration**.
 3. Select **SAML 2.0** option and select **Next**.
 4. On the **General Settings** page, add a friendly **App name** (e.g Fleet SCIM), and select **Next**.
-5. On the **SAML Settings** page, add any URL to the **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
-> Okta requires setting up SAML to set up SCIM. Since we don't need SAML right now, you can set the URL to something arbitrary, e.g "example.fleetdm.com".
+5. On the **SAML Settings** page, add any fully-qualified URL to the **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
+> Okta requires setting up SAML to set up SCIM. Since we don't need SAML right now, you can set the URL to something arbitrary, e.g "https://example.fleetdm.com".
 6. On the **Feedback** page, provide feedback if you want, and select **Finish**.
 7. Select the **General** tab in your newly created app and then select **Edit** in **App Settings**.
 8. For **Provisioning**, select **SCIM** and select **Save**.
