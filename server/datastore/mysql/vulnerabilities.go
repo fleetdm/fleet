@@ -570,17 +570,7 @@ type hostCount struct {
 	GlobalStats bool   `db:"global_stats"`
 }
 
-const vulnerabilityHostCountsSwapTableSchema = `
-	CREATE TABLE IF NOT EXISTS vulnerability_host_counts_swap (
-		cve varchar(255) NOT NULL,
-		team_id int unsigned NOT NULL DEFAULT 0,
-		host_count int unsigned NOT NULL DEFAULT 0,
-		global_stats tinyint(1) NOT NULL DEFAULT 0,
-		created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-		updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		UNIQUE KEY cve_team_id_global_stats (cve, team_id, global_stats)
-	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
+const vulnerabilityHostCountsSwapTableSchema = `CREATE TABLE IF NOT EXISTS vulnerability_host_counts_swap LIKE vulnerability_host_counts`
 
 // atomicTableSwapVulnerabilityCounts implements atomic table swap pattern
 // 1. Populate swap table with new data
