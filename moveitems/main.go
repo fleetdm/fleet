@@ -18,7 +18,6 @@ const (
 	owner           = "fleetdm"
 	repo            = "fleet"
 	project67Number = 67
-	project71Number = 71
 )
 
 type AddProjectV2ItemByIdInput struct {
@@ -27,17 +26,23 @@ type AddProjectV2ItemByIdInput struct {
 }
 
 func main() {
-	if len(os.Args) < 4 {
-		log.Fatalf("Usage: go run main.go <milestone> <issue_number> <username 1 or more>")
+	if len(os.Args) < 5 {
+		log.Fatalf("Usage: go run main.go <project_number> <milestone> <issue_number> <username 1 or more>")
 	}
 	ctx := context.Background()
 
-	milestone := os.Args[1]
-	issueNumber, err := strconv.Atoi(os.Args[2])
+	// NEW: target project number as CLI arg (replaces hardcoded 71)
+	targetProjectNumber, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		log.Fatalf("Invalid project number: %v", err)
+	}
+
+	milestone := os.Args[2]
+	issueNumber, err := strconv.Atoi(os.Args[3])
 	if err != nil {
 		log.Fatalf("Invalid issue number: %v", err)
 	}
-	assignees := os.Args[3:]
+	assignees := os.Args[4:]
 
 	// Map real names to GitHub logins
 	realNameToLogin := map[string]string{
@@ -72,10 +77,10 @@ func main() {
 	httpClient := oauth2.NewClient(context.Background(), src)
 	client := githubv4.NewClient(httpClient)
 
-	// Fetch project 71 ID dynamically
-	project71ID, err := fetchProjectID(client, owner, project71Number)
+	// Fetch target project ID dynamically (was: project71Number)
+	project71ID, err := fetchProjectID(client, owner, targetProjectNumber)
 	if err != nil {
-		log.Fatalf("Failed to fetch project 71 ID: %v", err)
+		log.Fatalf("Failed to fetch project %d ID: %v", targetProjectNumber, err)
 	}
 
 	// project67ID, err := fetchProjectID(client, owner, project67Number)
@@ -93,12 +98,12 @@ func main() {
 	// fmt.Print("🔧 Adding this issue from Project 67 to Project 71 ... \n")
 	// fmt.Printf("🔧 Debug Info:  project71ID: %s, project67ID: %s, issueID: %s\n", project71ID, project67ID, issueID)
 
-	// Add issue to project 71
+	// Add issue to target project (was: Project 71)
 	err = addIssueToProject(client, project71ID, issueID)
 	if err != nil {
-		log.Fatalf("Failed to add issue to Project 71: %v", err)
+		log.Fatalf("Failed to add issue to Project %d: %v", targetProjectNumber, err)
 	}
-	fmt.Println("✅ Issue added to Project 71 ")
+	fmt.Printf("✅ Issue added to Project %d \n", targetProjectNumber)
 
 	//_ = printIssueDetails(client, issueID)
 
@@ -129,11 +134,12 @@ func main() {
 	if err != nil {
 		fmt.Println("❌ Error getting Estimate from Draft project : " + err.Error())
 	} else {
-		err = setEstimateInProject71(issueNumber, estimate)
+		// UPDATED: pass target project number instead of hardcoded 71
+		err = setEstimateInProject71(issueNumber, targetProjectNumber, estimate)
 		if err != nil {
 			fmt.Println("❌ Error Setting Estimate from Draft project : " + err.Error())
 		}
-		fmt.Printf("✅ Estimation in Project 71 set to: %.1f\n", estimate)
+		fmt.Printf("✅ Estimation in Project %d set to: %.1f\n", targetProjectNumber, estimate)
 	}
 
 	err = setIssueMilestone(token, client, issueID, milestone)
@@ -293,7 +299,7 @@ func fetchUserID(client *githubv4.Client, login string) (githubv4.ID, error) {
 	}
 
 	// Print the user ID for debugging:
-	//fmt.Printf("Fetched user ID for %s: %s\n", login, query.User.ID)
+	// fmt.Printf("Fetched user ID for %s: %s\n", login, query.User.ID)
 
 	return query.User.ID, nil
 }
@@ -557,14 +563,15 @@ func getEstimateFromProject67(token string, issueNumber int) (float64, error) {
 	return 0, fmt.Errorf("Estimate not found in Project 67")
 }
 
-func setEstimateInProject71(issueNumber int, estimate float64) error {
+// ORIGINAL NAME KEPT; now takes targetProjectNumber and uses it internally instead of hardcoded 71
+func setEstimateInProject71(issueNumber int, targetProjectNumber int, estimate float64) error {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		return fmt.Errorf("GITHUB_TOKEN is not set")
 	}
 
-	// 1. Fetch Project 71 item ID
-	//	fmt.Println("🔍 Fetching Project 71 item ID...")
+	// 1. Fetch the target project item ID (was: Project 71 item ID)
+	//	fmt.Println("🔍 Fetching Project item ID...")
 
 	query := fmt.Sprintf(`{
       "query": "query($owner:String!,$repo:String!,$number:Int!) { repository(owner:$owner, name:$repo) { issue(number:$number) { projectItems(first:20) { nodes { id project { number id } } } } } }",
@@ -585,7 +592,7 @@ func setEstimateInProject71(issueNumber int, estimate float64) error {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to run curl to get Project 71 item ID: %v", err)
+		return fmt.Errorf("failed to run curl to get Project item ID: %v", err)
 	}
 
 	type response struct {
@@ -608,25 +615,25 @@ func setEstimateInProject71(issueNumber int, estimate float64) error {
 
 	var res response
 	if err := json.Unmarshal(output, &res); err != nil {
-		return fmt.Errorf("failed to parse JSON for Project 71 item ID: %v", err)
+		return fmt.Errorf("failed to parse JSON for Project item ID: %v", err)
 	}
 
 	var project71ItemID, project71ID string
 	for _, node := range res.Data.Repository.Issue.ProjectItems.Nodes {
-		if node.Project.Number == 71 {
+		if node.Project.Number == targetProjectNumber { // was: == 71
 			project71ItemID = node.ID
 			project71ID = node.Project.ID
 			break
 		}
 	}
 	if project71ItemID == "" || project71ID == "" {
-		return fmt.Errorf("Project 71 item or ID not found")
+		return fmt.Errorf("Project %d item or ID not found", targetProjectNumber)
 	}
-	//	fmt.Printf("✅ Project 71 item ID: %s\n", project71ItemID)
-	//	fmt.Printf("✅ Project 71 ID: %s\n", project71ID)
+	//	fmt.Printf("✅ Project item ID: %s\n", project71ItemID)
+	//	fmt.Printf("✅ Project ID: %s\n", project71ID)
 
-	// 2. Fetch the Estimate field ID in Project 71
-	//	fmt.Println("🔍 Fetching Estimate field ID in Project 71...")
+	// 2. Fetch the Estimate field ID in the target project
+	//	fmt.Println("🔍 Fetching Estimate field ID in target project...")
 	fieldsQuery := fmt.Sprintf(`{
       "query": "query { node(id:\"%s\") { ... on ProjectV2 { fields(first:50) { nodes { ... on ProjectV2FieldCommon { id name dataType } } } } } }"
     }`, project71ID)
@@ -669,12 +676,12 @@ func setEstimateInProject71(issueNumber int, estimate float64) error {
 		}
 	}
 	if estimateFieldID == "" {
-		return fmt.Errorf("Estimate field not found in Project 71")
+		return fmt.Errorf("Estimate field not found in Project %d", targetProjectNumber)
 	}
 	//	fmt.Printf("✅ Estimate field ID: %s\n", estimateFieldID)
 
 	// 3. Set the Estimate value
-	//	fmt.Printf("🔧 Setting Estimate %.1f on Project 71 item...\n", estimate)
+	//	fmt.Printf("🔧 Setting Estimate %.1f on Project target item...\n", estimate)
 
 	mutation := fmt.Sprintf(`{
       "query": "mutation { updateProjectV2ItemFieldValue(input:{projectId:\"%s\", itemId:\"%s\", fieldId:\"%s\", value:{number:%f}}) { projectV2Item { id } } }"
@@ -776,7 +783,7 @@ func removeIssueFromProject(client *githubv4.Client, owner, repo string, issueNu
 }
 
 func removeIssueFromProjectWithCurl(ctx context.Context, issueNumber int, projectNumber int) error {
-	//fmt.Printf("🔍 Looking up project item for issue #%d...\n", issueNumber)
+	// fmt.Printf("🔍 Looking up project item for issue #%d...\n", issueNumber)
 
 	// First: query the project items to get itemId and projectId
 	queryTemplate := `{
@@ -837,7 +844,7 @@ func removeIssueFromProjectWithCurl(ctx context.Context, issueNumber int, projec
 		return fmt.Errorf("project #%d item not found on issue #%d", projectNumber, issueNumber)
 	}
 
-	//fmt.Printf("✅ Found item ID %s in project ID %s (%d)\n", itemID, projectID, projectNumber)
+	// fmt.Printf("✅ Found item ID %s in project ID %s (%d)\n", itemID, projectID, projectNumber)
 
 	// Second: perform the deletion
 	mutationTemplate := `{
