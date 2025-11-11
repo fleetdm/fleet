@@ -12,6 +12,8 @@ import BackButton from "components/BackButton";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Radio from "components/forms/fields/Radio";
+import CustomLink from "components/CustomLink";
 
 import { getErrorMessage } from "./helpers";
 
@@ -70,6 +72,9 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const [autoMigration, setAutoMigration] = useState(
     config?.mdm?.windows_migration_enabled ?? false
   );
+  const [enrollmentType, setEnrollmentType] = useState<
+    "automatic" | "manual" | null
+  >(null);
 
   const updateWindowsMdm = useSetWindowsMdm({
     enableMdm: mdmOn,
@@ -79,7 +84,14 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
 
   const onChangeMdmOn = () => {
     setMdmOn(!mdmOn);
+    // if we are toggling off mdm we want to clear enrollment type. If we are toggling on
+    // set to automatic by default
+    !mdmOn ? setEnrollmentType("automatic") : setEnrollmentType(null);
     mdmOn && setAutoMigration(false);
+  };
+
+  const onChangeEnrollmentType = (value: string) => {
+    setEnrollmentType(value === "automaticEnrollment" ? "automatic" : "manual");
   };
 
   const onChangeAutoMigration = () => {
@@ -104,7 +116,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             className={`${baseClass}__back-to-mdm`}
           />
         </div>
-        <h1>Manage Windows MDM</h1>
+        <h1>Windows MDM</h1>
         <form>
           <Slider
             value={mdmOn}
@@ -114,16 +126,56 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             disabled={gitOpsModeEnabled}
           />
           <p>{descriptionText}</p>
-          <Checkbox
-            disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
-            value={autoMigration}
-            onChange={onChangeAutoMigration}
-            labelTooltipContent={
-              isPremiumTier ? "" : "This feature is included in Fleet Premium."
-            }
+          <fieldset
+            disabled={!mdmOn}
+            className={`${baseClass}__enrollment-type-fieldset`}
           >
-            Automatically migrate hosts connected to another MDM solution
-          </Checkbox>
+            <legend>End user experience</legend>
+            <Radio
+              id="automatic-enrollment"
+              label="Automatic"
+              value="automaticEnrollment"
+              name="enrollmentType"
+              checked={enrollmentType === "automatic"}
+              onChange={onChangeEnrollmentType}
+              disabled={!mdmOn}
+              helpText="MDM is turned on when Fleet's agent is installed on Windows hosts (excluding servers)."
+            />
+            <Radio
+              id="manual-enrollment"
+              label="Manual"
+              value="manualEnrollment"
+              name="enrollmentType"
+              checked={enrollmentType === "manual"}
+              onChange={onChangeEnrollmentType}
+              disabled={!mdmOn}
+              helpText={
+                <>
+                  Requires{" "}
+                  <CustomLink
+                    text="connecting Fleet to Microsoft Entra."
+                    url={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS}
+                  />{" "}
+                  End users have to manually turn on MDM in{" "}
+                  <b>Settings &gt; Access work or school.</b>
+                </>
+              }
+            />
+          </fieldset>
+          {enrollmentType !== "manual" && (
+            <Checkbox
+              disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
+              value={autoMigration}
+              onChange={onChangeAutoMigration}
+              labelTooltipContent={
+                isPremiumTier
+                  ? ""
+                  : "This feature is included in Fleet Premium."
+              }
+            >
+              Automatically migrate hosts connected to another MDM solution
+            </Checkbox>
+          )}
           <GitOpsModeTooltipWrapper
             tipOffset={8}
             renderChildren={(disableChildren) => (
