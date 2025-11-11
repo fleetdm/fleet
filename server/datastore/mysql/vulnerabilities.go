@@ -619,12 +619,6 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 			return ctxerr.Wrap(ctx, err, "dropping old table")
 		}
 
-		// Recreate empty swap table for next run
-		_, err = tx.ExecContext(ctx, vulnerabilityHostCountsSwapTableSchema)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "recreating swap table")
-		}
-
 		return nil
 	})
 }
