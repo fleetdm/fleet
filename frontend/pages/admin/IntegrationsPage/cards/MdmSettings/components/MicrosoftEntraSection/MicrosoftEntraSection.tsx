@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
-import WindowsEnrollmentCard from "./WindowsEnrollmentCard";
+import WindowsAutomaticEnrollmentCard from "./WindowsAutomaticEnrollmentCard";
 
 const baseClass = "microsoft-entra-section";
 
@@ -29,7 +29,9 @@ const MicrosoftEntraSection = ({
         <PremiumFeatureMessage alignment="left" />
       ) : (
         <div className={`${baseClass}__content`}>
-          <WindowsEnrollmentCard viewDetails={navigateToWindowsEnrollment} />
+          <WindowsAutomaticEnrollmentCard
+            viewDetails={navigateToWindowsEnrollment}
+          />
         </div>
       )}
     </SettingsSection>

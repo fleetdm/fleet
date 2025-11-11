@@ -4,13 +4,13 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import SectionCard from "../../SectionCard";
 
-interface IWindowsEnrollmentCardProps {
+interface IWindowsAutomaticEnrollmentCardProps {
   viewDetails: () => void;
 }
 
-const WindowsEnrollmentCard = ({
+const WindowsAutomaticEnrollmentCard = ({
   viewDetails,
-}: IWindowsEnrollmentCardProps) => {
+}: IWindowsAutomaticEnrollmentCardProps) => {
   return (
     <SectionCard
       header="Windows enrollment"
@@ -26,4 +26,4 @@ const WindowsEnrollmentCard = ({
   );
 };
 
-export default WindowsEnrollmentCard;
+export default WindowsAutomaticEnrollmentCard;
