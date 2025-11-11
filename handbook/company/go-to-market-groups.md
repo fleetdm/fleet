@@ -209,7 +209,7 @@ When the prospect is ready to "kick the tires/do a POC", the opportunity is move
 You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
 
 - **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
-- **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/start, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
+- **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/try, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
 
 
 ### NFR instances
