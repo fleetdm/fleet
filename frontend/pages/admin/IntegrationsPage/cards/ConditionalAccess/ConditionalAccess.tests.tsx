@@ -33,19 +33,23 @@ const updateConfigHandler = http.patch(baseUrl("/config"), () => {
   );
 });
 
+// Helper to create a config with empty conditional access settings
+const createEmptyConditionalAccessConfig = () =>
+  createMockConfig({
+    conditional_access: {
+      microsoft_entra_tenant_id: "",
+      microsoft_entra_connection_configured: false,
+      okta_idp_id: "",
+      okta_assertion_consumer_service_url: "",
+      okta_audience_uri: "",
+      okta_certificate: "",
+    },
+  });
+
 describe("Conditional access", () => {
   describe("Not configured", () => {
     it("Renders both integration cards when nothing is configured", () => {
-      const mockConfig = createMockConfig({
-        conditional_access: {
-          microsoft_entra_tenant_id: "",
-          microsoft_entra_connection_configured: false,
-          okta_idp_id: "",
-          okta_assertion_consumer_service_url: "",
-          okta_audience_uri: "",
-          okta_certificate: "",
-        },
-      });
+      const mockConfig = createEmptyConditionalAccessConfig();
 
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -72,16 +76,7 @@ describe("Conditional access", () => {
     });
 
     it("Opens the Entra modal when clicking Connect on Entra card", async () => {
-      const mockConfig = createMockConfig({
-        conditional_access: {
-          microsoft_entra_tenant_id: "",
-          microsoft_entra_connection_configured: false,
-          okta_idp_id: "",
-          okta_assertion_consumer_service_url: "",
-          okta_audience_uri: "",
-          okta_certificate: "",
-        },
-      });
+      const mockConfig = createEmptyConditionalAccessConfig();
 
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -107,16 +102,7 @@ describe("Conditional access", () => {
     });
 
     it("Triggers Microsoft auth flow when submitting Entra modal", async () => {
-      const mockConfig = createMockConfig({
-        conditional_access: {
-          microsoft_entra_tenant_id: "",
-          microsoft_entra_connection_configured: false,
-          okta_idp_id: "",
-          okta_assertion_consumer_service_url: "",
-          okta_audience_uri: "",
-          okta_certificate: "",
-        },
-      });
+      const mockConfig = createEmptyConditionalAccessConfig();
 
       mockServer.use(triggerConditionalAccessHandler);
       const render = createCustomRenderer({
@@ -186,14 +172,16 @@ describe("Conditional access", () => {
       expect(screen.getByText("Okta certificate")).toBeInTheDocument();
     });
 
-    // TODO: Re-enable this test after implementing file upload functionality for certificate
-    it.skip("Saves Okta configuration when submitting form", async () => {
+    it("Saves Okta configuration when submitting form", async () => {
+      const mockConfig = createEmptyConditionalAccessConfig();
+
       mockServer.use(updateConfigHandler);
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
           app: {
             isPremiumTier: true,
+            config: mockConfig,
           },
         },
       });
@@ -204,15 +192,37 @@ describe("Conditional access", () => {
       const connectButtons = screen.getAllByText("Connect");
       await user.click(connectButtons[0]);
 
-      // Fill in all fields
-      // Note: Modal now has read-only textareas at indices 0 and 1 (System/User scope profiles)
-      // so the editable inputs start at index 2
-      const inputs = screen.getAllByRole("textbox");
-      await user.type(inputs[2], "okta-idp-123"); // IdP ID
-      await user.type(inputs[3], "https://example.com/acs"); // ACS URL
-      await user.type(inputs[4], "https://example.com"); // Audience URI
-      // Certificate is now a file upload section, not a text input
-      // TODO: Implement file upload functionality and test it
+      // Wait for modal to open
+      await waitFor(() => {
+        expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
+      });
+
+      // Fill in text fields
+      // Note: First textarea is the read-only User scope profile
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[1], "okta-idp-123"); // IdP ID
+      await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
+      await user.type(textboxes[3], "https://example.com"); // Audience URI
+
+      // Upload certificate file
+      const certificateContent = `-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJAKL0UG+mRKm7MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+-----END CERTIFICATE-----`;
+
+      const file = new File([certificateContent], "certificate.pem", {
+        type: "application/x-pem-file",
+      });
+
+      const fileInput = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement;
+      await user.upload(fileInput, file);
+
+      // Wait for file to be processed
+      await waitFor(() => {
+        expect(screen.getByText("certificate.pem")).toBeInTheDocument();
+      });
 
       // Submit form
       const saveButton = screen.getByRole("button", { name: "Save" });
