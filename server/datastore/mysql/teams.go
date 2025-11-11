@@ -59,7 +59,7 @@ func (ds *Datastore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team,
 	return teamDB(ctx, ds.reader(ctx), tid, true)
 }
 
-func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return teamDB(ctx, ds.reader(ctx), tid, false)
 }
 

@@ -5363,7 +5363,7 @@ func (s *DataStore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, 
 	return s.TeamFunc(ctx, tid)
 }
 
-func (s *DataStore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (s *DataStore) TeamLite(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.mu.Lock()
 	s.TeamWithoutExtrasFuncInvoked = true
 	s.mu.Unlock()

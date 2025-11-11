@@ -6802,7 +6802,7 @@ LIMIT 1`
 		}
 	} else {
 		// use the team settings
-		tm, err := ds.TeamWithoutExtras(ctx, *dest.TeamID)
+		tm, err := ds.TeamLite(ctx, *dest.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
 		}

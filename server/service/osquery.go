@@ -1159,7 +1159,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if host.TeamID != nil {
 			teamID = *host.TeamID
 		}
-		team, err := svc.ds.TeamWithoutExtras(ctx, teamID)
+		team, err := svc.ds.TeamLite(ctx, teamID)
 		if err != nil {
 			logging.WithErr(ctx, err)
 		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
@@ -2439,7 +2439,7 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 	}
 
 	// Host belongs to a team, thus we load the team configuration.
-	team, err := svc.ds.TeamWithoutExtras(ctx, *hostTeamID)
+	team, err := svc.ds.TeamLite(ctx, *hostTeamID)
 	if err != nil {
 		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
 	}
