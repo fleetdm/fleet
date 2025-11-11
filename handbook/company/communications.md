@@ -598,6 +598,22 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
 
 
+### Brex repay feature
+
+If you have accidentally incurred a charge on your Brex card that was not approved, you can initiate a "Repay" process in Brex that would allow you to pay back the Company. 
+
+- Log in to [brex.com](http://brex.com/) on a web browser with your Fleet email. Repayment is not supported on mobile app.
+- Ensure you're on the "Wallet" tab on the left hand side.
+- Find the transaction you'd like to repay and click on it. 
+  - If you need to split the transaction amount, click on "Itemize this expense".
+  - Separate out the amount that needs to be repaid, and proceed to next step.
+  - The transaction needs to be in "Approved" status before you can itemized it. If it's not in "Approved" status yet, wait a few days and repeat the prior steps. 
+- On the bottom right hand side, click on "Repay".
+- Select the desired bank account and verify the account.
+- Click "confirm repayment".
+- After a short period of processing, your transaction will show as “denied”, and this means the repay is in process. 
+
+
 ## Tools and equipment
 
 Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) on the 🌐 IT & Enablement kanban board.
