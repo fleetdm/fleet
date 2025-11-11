@@ -237,6 +237,15 @@ WHERE
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
 
+	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting categories for in house app metadata")
+	}
+
+	if categories, ok := categoryMap[titleID]; ok {
+		dest.Categories = categories
+	}
+
 	return &dest, nil
 }
 

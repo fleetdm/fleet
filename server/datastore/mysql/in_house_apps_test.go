@@ -326,6 +326,7 @@ func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
 		Filename:         "foo.ipa",
 		StorageID:        "id1234",
 		Extension:        "ipa",
+		SelfService:      false,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 		CategoryIDs:      []uint{1, 2},
 	}
@@ -368,13 +369,33 @@ func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
 		CategoryIDs:      nil, // empty slice should work the same
 	}
 
-	secondInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
+	secondInstallerID, secondTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
 	require.NoError(t, err)
 
 	// Check that this has no categories
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_app_software_categories WHERE in_house_app_id = ?`, secondInstallerID)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+
+	// Update software categories
+	updatePayload := fleet.UpdateSoftwareInstallerPayload{
+		TeamID:          payload2.TeamID,
+		TitleID:         secondTitleID,
+		InstallerID:     secondInstallerID,
+		Filename:        payload2.Filename,
+		StorageID:       payload2.StorageID,
+		ValidatedLabels: payload2.ValidatedLabels,
+		CategoryIDs:     []uint{1, 2},
+		SelfService:     ptr.Bool(true),
+	}
+
+	err = ds.SaveInHouseAppUpdates(ctx, &updatePayload)
+	require.NoError(t, err)
+
+	// Categories
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM in_house_app_software_categories WHERE in_house_app_id = ?`, secondInstallerID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
 }
 
 func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, appID uint, titleID uint, user *fleet.User) string {

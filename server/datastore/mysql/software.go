@@ -5631,7 +5631,20 @@ FROM
 	JOIN vpp_app_team_software_categories vatsc ON vatsc.vpp_app_team_id = vat.id
 	JOIN software_categories sc ON vatsc.software_category_id = sc.id
 WHERE
-	st.id IN (?) AND vat.global_or_team_id = ?;
+	st.id IN (?) AND vat.global_or_team_id = ?
+
+UNION
+
+SELECT
+	st.id AS title_id,
+	sc.name AS software_category_name
+FROM
+	in_house_apps iha
+	JOIN software_titles st ON st.id = iha.title_id
+	JOIN in_house_app_software_categories ihasc ON ihasc.in_house_app_id = iha.id
+	JOIN software_categories sc ON ihasc.software_category_id = sc.id
+WHERE
+	st.id IN (?) AND iha.global_or_team_id = ?;
 `
 
 	var tmID uint
@@ -5639,7 +5652,7 @@ WHERE
 		tmID = *teamID
 	}
 
-	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID, softwareTitleIDs, tmID)
+	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID, softwareTitleIDs, tmID, softwareTitleIDs, tmID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get categories for software installers")
 	}
