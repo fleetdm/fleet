@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  HOST_SOFTWARE_UI_ERROR_STATUS_SET,
   IDeviceSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
   isSoftwareErrorStatus,
