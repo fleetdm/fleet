@@ -366,6 +366,7 @@ func TestMDMUrl(t *testing.T) {
 }
 
 func TestAppConfig_ConditionalAccessIdPSSOURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		serverURL string
