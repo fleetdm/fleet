@@ -2992,6 +2992,17 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----END RSA PRIVATE KEY-----
   ```
 
+### mdm.sso_rate_limit_per_minute
+
+The number of attempts allowed from the same ip to login via sso per minute used by mdm enrollment.
+- Default value: "10"
+- Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```
+  mdm:
+    sso_rate_limit_per_minute: 10
+  ```
+
 ## Partnerships
 
 ### partnerships_enable_secureframe
