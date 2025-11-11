@@ -1903,10 +1903,6 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	gotHostProfs = listHostProfilesDB(host.UUID)
 	require.Len(t, gotHostProfs, 1)
 	require.Equal(t, expectHostProf, gotHostProfs[0])
-
-	// NOTE: Ideas for future test improvements
-	// - add checks of host_mdm_managed_certificates table to verify expected state transitions
-	// - add test for cron renewal where profile is stuck in failed state due to retries exceeded
 }
 
 func generateTestProfileSmallstepSCEP(challenge, ou, url string) string {
