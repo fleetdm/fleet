@@ -1771,6 +1771,7 @@ type deleteHostIDPResponse struct {
 }
 
 func (r deleteHostIDPResponse) Error() error { return r.Err }
+func (r deleteHostIDPResponse) Status() int  { return http.StatusNoContent }
 
 func deleteHostIDPEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteHostIDPRequest)
