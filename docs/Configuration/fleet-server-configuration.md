@@ -3001,7 +3001,6 @@ The number of attempts allowed from the same ip to login via sso per minute used
   ```
   mdm:
     sso_rate_limit_per_minute: 10
-  ```
 
 ## Partnerships
 
