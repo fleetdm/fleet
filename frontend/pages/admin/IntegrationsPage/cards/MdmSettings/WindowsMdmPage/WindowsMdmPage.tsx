@@ -84,9 +84,11 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
 
   const onChangeMdmOn = () => {
     setMdmOn(!mdmOn);
-    // if we are toggling off mdm we want to clear enrollment type. If we are toggling on
-    // set to automatic by default
+    // if we are toggling off mdm we want to clear enrollment type. If we are toggling
+    // it on, we want to set enrollment type to automatic by default
     !mdmOn ? setEnrollmentType("automatic") : setEnrollmentType(null);
+
+    // if we are turning mdm off, also turn off auto migration
     mdmOn && setAutoMigration(false);
   };
 
@@ -125,53 +127,52 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             onChange={onChangeMdmOn}
             disabled={gitOpsModeEnabled}
           />
-          <p>{descriptionText}</p>
-          <fieldset
-            disabled={!mdmOn}
-            className={`${baseClass}__enrollment-type-fieldset`}
-          >
-            <legend>End user experience</legend>
-            <Radio
-              id="automatic-enrollment"
-              label="Automatic"
-              value="automaticEnrollment"
-              name="enrollmentType"
-              checked={enrollmentType === "automatic"}
-              onChange={onChangeEnrollmentType}
+          {!isPremiumTier && <p>{descriptionText}</p>}
+          {isPremiumTier && (
+            <fieldset
               disabled={!mdmOn}
-              helpText="MDM is turned on when Fleet's agent is installed on Windows hosts (excluding servers)."
-            />
-            <Radio
-              id="manual-enrollment"
-              label="Manual"
-              value="manualEnrollment"
-              name="enrollmentType"
-              checked={enrollmentType === "manual"}
-              onChange={onChangeEnrollmentType}
-              disabled={!mdmOn}
-              helpText={
-                <>
-                  Requires{" "}
-                  <CustomLink
-                    text="connecting Fleet to Microsoft Entra."
-                    url={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS}
-                  />{" "}
-                  End users have to manually turn on MDM in{" "}
-                  <b>Settings &gt; Access work or school.</b>
-                </>
-              }
-            />
-          </fieldset>
-          {enrollmentType !== "manual" && (
+              className={`${baseClass}__enrollment-type-fieldset`}
+            >
+              <legend>End user experience</legend>
+              <Radio
+                id="automatic-enrollment"
+                label="Automatic"
+                value="automaticEnrollment"
+                name="enrollmentType"
+                checked={enrollmentType === "automatic"}
+                onChange={onChangeEnrollmentType}
+                disabled={!mdmOn}
+                helpText="MDM is turned on when Fleet's agent is installed on Windows hosts (excluding servers)."
+              />
+              <Radio
+                id="manual-enrollment"
+                label="Manual"
+                value="manualEnrollment"
+                name="enrollmentType"
+                checked={enrollmentType === "manual"}
+                onChange={onChangeEnrollmentType}
+                disabled={!mdmOn}
+                helpText={
+                  <>
+                    Requires{" "}
+                    <CustomLink
+                      text="connecting Fleet to Microsoft Entra."
+                      url={
+                        PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS
+                      }
+                    />{" "}
+                    End users have to manually turn on MDM in{" "}
+                    <b>Settings &gt; Access work or school.</b>
+                  </>
+                }
+              />
+            </fieldset>
+          )}
+          {isPremiumTier && enrollmentType !== "manual" && (
             <Checkbox
-              disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
+              disabled={!mdmOn || gitOpsModeEnabled}
               value={autoMigration}
               onChange={onChangeAutoMigration}
-              labelTooltipContent={
-                isPremiumTier
-                  ? ""
-                  : "This feature is included in Fleet Premium."
-              }
             >
               Automatically migrate hosts connected to another MDM solution
             </Checkbox>
