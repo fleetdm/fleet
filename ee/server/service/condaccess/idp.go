@@ -249,21 +249,12 @@ func (w *statusInterceptingWriter) WriteHeader(statusCode int) {
 		return
 	}
 	w.headerWritten = true
-
 	if statusCode == http.StatusBadRequest {
 		level.Error(w.logger).Log("msg", "SAML IdP returned bad request, redirecting to error page", "status", statusCode)
 		http.Redirect(w.ResponseWriter, w.r, w.redirectURL, http.StatusSeeOther)
 		return
 	}
-
 	w.ResponseWriter.WriteHeader(statusCode)
-}
-
-func (w *statusInterceptingWriter) Write(b []byte) (int, error) {
-	if !w.headerWritten {
-		w.WriteHeader(http.StatusOK)
-	}
-	return w.ResponseWriter.Write(b)
 }
 
 // parseSerialNumber parses a certificate serial number from hex string to uint64.
