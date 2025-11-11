@@ -3,7 +3,7 @@
     {
       "version": "5.1.6.31527",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.scootersoftware.BeyondCompare';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ScooterSoftware.BeyondCompare';"
       },
       "installer_url": "https://www.scootersoftware.com/files/BCompareOSX-5.1.6.31527.zip",
       "install_script_ref": "05e6f2ae",
