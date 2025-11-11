@@ -221,7 +221,49 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 
 	// ServeSSO handles SAML AuthnRequest parsing, generates assertion, and returns response
 	level.Debug(s.logger).Log("msg", "calling SAML IdP ServeSSO", "host_id", hostID)
-	idp.ServeSSO(w, r)
+
+	// Wrap response writer to intercept 400 errors and redirect to certificate error page
+	wrappedWriter := &statusInterceptingWriter{
+		ResponseWriter: w,
+		ctx:            ctx,
+		logger:         s.logger,
+		r:              r,
+		redirectURL:    certificateErrorURL,
+	}
+	idp.ServeSSO(wrappedWriter, r)
+}
+
+// statusInterceptingWriter wraps http.ResponseWriter to intercept 400 Bad Request responses
+// and redirect to a certificate error page instead.
+type statusInterceptingWriter struct {
+	http.ResponseWriter
+	ctx           context.Context
+	logger        kitlog.Logger
+	r             *http.Request
+	redirectURL   string
+	headerWritten bool
+}
+
+func (w *statusInterceptingWriter) WriteHeader(statusCode int) {
+	if w.headerWritten {
+		return
+	}
+	w.headerWritten = true
+
+	if statusCode == http.StatusBadRequest {
+		level.Error(w.logger).Log("msg", "SAML IdP returned bad request, redirecting to error page", "status", statusCode)
+		http.Redirect(w.ResponseWriter, w.r, w.redirectURL, http.StatusSeeOther)
+		return
+	}
+
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *statusInterceptingWriter) Write(b []byte) (int, error) {
+	if !w.headerWritten {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
 }
 
 // parseSerialNumber parses a certificate serial number from hex string to uint64.
