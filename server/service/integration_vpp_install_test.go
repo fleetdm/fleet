@@ -948,7 +948,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		headers := map[string]string{
 			"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
 		}
-		s.addHostIdentityCertificate(data.host.ID, data.host.UUID, data.certSerial)
+		s.addHostIdentityCertificate(data.host.UUID, data.certSerial)
 
 		// self-install with no authentication
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusUnauthorized)
@@ -1590,7 +1590,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	headers := map[string]string{
 		"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
 	}
-	s.addHostIdentityCertificate(iosHost.ID, iosHost.UUID, certSerial)
+	s.addHostIdentityCertificate(iosHost.UUID, certSerial)
 
 	// self-install with no authentication
 	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, 999), nil, http.StatusUnauthorized)
@@ -1707,7 +1707,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
 }
 
-func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostID uint, hostUUID string, certSerial uint64) {
+func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
