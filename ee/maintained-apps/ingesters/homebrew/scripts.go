@@ -30,10 +30,16 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 			}
 			includeQuitFunc = true
 			for _, appPath := range artifact.App {
+				var appName string
+				if len(appPath.String) > 0 {
+					appName = appPath.String
+				} else if appPath.Other != nil {
+					appName = appPath.Other.Target
+				}
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
-fi`, appPath)
-				sb.Copy(appPath, "$APPDIR")
+fi`, appName)
+				sb.Copy(appName, "$APPDIR")
 			}
 
 		case len(artifact.Pkg) > 0:
@@ -79,14 +85,14 @@ func uninstallScriptForApp(cask *brewCask) string {
 		case len(artifact.App) > 0:
 			sb.AddVariable("APPDIR", `"/Applications/"`)
 			for _, appPath := range artifact.App {
-				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, appPath))
-			}
-		case len(artifact.Binary) > 0:
-			if len(artifact.Binary) == 2 {
-				target := artifact.Binary[1].Other.Target
-				if !strings.Contains(target, "$HOMEBREW_PREFIX") {
-					sb.RemoveFile(fmt.Sprintf(`'%s'`, target))
+				// Extract the app name from optjson.StringOr
+				var appName string
+				if len(appPath.String) > 0 {
+					appName = appPath.String
+				} else if appPath.Other != nil {
+					appName = appPath.Other.Target
 				}
+				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, appName))
 			}
 		case len(artifact.Uninstall) > 0:
 			sortUninstall(artifact.Uninstall)
