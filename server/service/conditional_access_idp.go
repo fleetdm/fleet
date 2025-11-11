@@ -20,13 +20,13 @@ import (
 	"github.com/google/uuid"
 )
 
-const appleProfileTemplate = `<?xml version="1.0" encoding="UTF-8"?>
+const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>PayloadContent</key>
 	<array>
-        <!-- Trusted CA Certificate -->
+        <!-- Trusted CA certificate -->
         <dict>
             <key>PayloadCertificateFileName</key>
             <string>conditional_access_ca.der</string>
@@ -45,7 +45,7 @@ const appleProfileTemplate = `<?xml version="1.0" encoding="UTF-8"?>
             <key>PayloadVersion</key>
             <integer>1</integer>
         </dict>
-		<!-- SCEP Configuration -->
+		<!-- SCEP configuration -->
 		<dict>
 			<key>PayloadContent</key>
 			<dict>
@@ -86,7 +86,6 @@ const appleProfileTemplate = `<?xml version="1.0" encoding="UTF-8"?>
                 <!-- ACL for browser access -->
                 <key>AllowAllAppsAccess</key>
                 <true/>
-                <!-- Set true for Safari access. Set false if Safari support not needed. -->
                 <key>KeyIsExtractable</key>
                 <false/>
 			</dict>
@@ -103,7 +102,7 @@ const appleProfileTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
-        <!-- Identity Preference for mTLS endpoint -->
+        <!-- Identity preference for mTLS endpoint -->
         <dict>
             <key>Name</key>
             <string>{{.MTLSURL}}</string>
@@ -122,6 +121,7 @@ const appleProfileTemplate = `<?xml version="1.0" encoding="UTF-8"?>
             <key>PayloadVersion</key>
             <integer>1</integer>
         </dict>
+        <!-- Chrome web browser configuration -->
         <dict>
             <key>PayloadType</key>
             <string>com.apple.ManagedClient.preferences</string>
@@ -178,7 +178,8 @@ const appleProfileTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 `
 
-var appleProfileTemplateParsed = template.Must(template.New("appleProfile").Parse(appleProfileTemplate))
+var conditionalAccessAppleProfileTemplateParsed = template.Must(template.New("conditionalAccessAppleProfile").Parse(
+	conditionalAccessAppleProfileTemplate))
 
 // fleetConditionalAccessNamespace is a custom UUID namespace for Fleet Okta conditional access profiles.
 // Generated using: uuid.NewSHA1(uuid.NameSpaceURL, []byte("https://fleetdm.com/learn-more-about/okta-conditional-access"))
@@ -262,8 +263,6 @@ func (svc *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (cer
 	return certAsset.Value, nil
 }
 
-type conditionalAccessGetIdPAppleProfileRequest struct{}
-
 type conditionalAccessGetIdPAppleProfileResponse struct {
 	ProfileData []byte
 	Err         error `json:"error,omitempty"`
@@ -285,7 +284,7 @@ func (r conditionalAccessGetIdPAppleProfileResponse) HijackRender(ctx context.Co
 	}
 }
 
-func conditionalAccessGetIdPAppleProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func conditionalAccessGetIdPAppleProfileEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
 	if err != nil {
 		return conditionalAccessGetIdPAppleProfileResponse{Err: err}, nil
@@ -373,7 +372,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 
 	// Execute template
 	var buf bytes.Buffer
-	if err := appleProfileTemplateParsed.Execute(&buf, appleProfileTemplateData{
+	if err := conditionalAccessAppleProfileTemplateParsed.Execute(&buf, appleProfileTemplateData{
 		CACertBase64:     caCertBase64,
 		SCEPURL:          scepURL,
 		Challenge:        challenge,

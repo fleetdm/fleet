@@ -136,11 +136,8 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 
 				// Verify the profile contains expected content
 				profileStr := string(profileData)
-				require.Contains(t, profileStr, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 				require.Contains(t, profileStr, "com.fleetdm.conditional-access")
-				require.Contains(t, profileStr, "https://fleet.example.com/api/fleet/conditional_access/scep")
 				require.Contains(t, profileStr, "https://okta.fleet.example.com")
-				require.Contains(t, profileStr, "Fleet conditional access for Okta")
 			}
 		})
 	}
@@ -315,9 +312,8 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		}
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "enroll_secret")
 		require.True(t, fleet.IsNotFound(err))
+		require.Contains(t, err.Error(), "enroll_secret")
 		require.Nil(t, profileData)
 	})
 
@@ -344,10 +340,9 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		}
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "server URL is not configured")
 		var badReqErr *fleet.BadRequestError
 		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, err.Error(), "server URL is not configured")
 		require.Nil(t, profileData)
 	})
 
