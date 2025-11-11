@@ -1371,7 +1371,7 @@ type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPP
 
 type GetIncludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
 
-type GetIncludedHostUUIDMapForAppStoreAppFunc func(ctx context.Context, vppAppTeamID uint) (map[string]struct{}, error)
+type GetIncludedHostUUIDMapForAppStoreAppFunc func(ctx context.Context, vppAppTeamID uint) (map[string]string, error)
 
 type GetExcludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
 
@@ -1437,7 +1437,7 @@ type RenewMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error)
 
-type ResendHostCustomSCEPProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
+type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
@@ -1577,7 +1577,7 @@ type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*type
 
 type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
 
-type GetMDMSCEPCertBySerialFunc func(ctx context.Context, serialNumber uint64) (string, error)
+type GetMDMSCEPCertBySerialFunc func(ctx context.Context, serialNumber uint64) (deviceUUID string, err error)
 
 type GetConditionalAccessCertHostIDBySerialNumberFunc func(ctx context.Context, serial uint64) (uint, error)
 
@@ -3727,8 +3727,8 @@ type DataStore struct {
 	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
 	ListHostMDMManagedCertificatesFuncInvoked bool
 
-	ResendHostCustomSCEPProfileFunc        ResendHostCustomSCEPProfileFunc
-	ResendHostCustomSCEPProfileFuncInvoked bool
+	ResendHostCertificateProfileFunc        ResendHostCertificateProfileFunc
+	ResendHostCertificateProfileFuncInvoked bool
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
@@ -8700,7 +8700,7 @@ func (s *DataStore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTea
 	return s.GetIncludedHostIDMapForVPPAppFunc(ctx, vppAppTeamID)
 }
 
-func (s *DataStore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]struct{}, error) {
+func (s *DataStore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error) {
 	s.mu.Lock()
 	s.GetIncludedHostUUIDMapForAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
@@ -8933,9 +8933,9 @@ func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID
 
 func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	s.mu.Lock()
-	s.ResendHostCustomSCEPProfileFuncInvoked = true
+	s.ResendHostCertificateProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResendHostCustomSCEPProfileFunc(ctx, hostUUID, profUUID)
+	return s.ResendHostCertificateProfileFunc(ctx, hostUUID, profUUID)
 }
 
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
@@ -9421,7 +9421,7 @@ func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 	return s.UpdateHostIdentityCertHostIDBySerialFunc(ctx, serialNumber, hostID)
 }
 
-func (s *DataStore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (string, error) {
+func (s *DataStore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (deviceUUID string, err error) {
 	s.mu.Lock()
 	s.GetMDMSCEPCertBySerialFuncInvoked = true
 	s.mu.Unlock()

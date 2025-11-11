@@ -6,14 +6,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -75,8 +74,12 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		}, nil
 	}
 
-	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
-		return nil, nil
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return &androidmanagement.Device{}, nil
 	}
 
 	// Create enterprise
@@ -195,6 +198,16 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 	}
 
+	pending, err := s.ds.GetQueuedJobs(context.Background(), 100, time.Time{})
+	require.NoError(t, err)
+	for _, p := range pending {
+		fmt.Printf("p: %+v\n", string(*p.Args))
+	}
+	s.runWorkerUntilDone()
+
+	// Should have hit the android API endpoint
+	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
 	var hosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
 
@@ -203,20 +216,11 @@ func (s *integrationMDMTestSuite) TestAndroidAppSelfService() {
 	host1 := hosts.Hosts[0]
 	assert.Equal(t, host1.Platform, string(fleet.AndroidPlatform))
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_titles")
-		mysql.DumpTable(t, q, "vpp_apps")
-		mysql.DumpTable(t, q, "vpp_apps_teams")
-		return nil
-	})
-
 	// Should see it in host software library
 	getHostSw := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	assert.Len(t, getHostSw.Software, 1)
-
-	// Should have hit the android API endpoint
-	s.runWorker()
-	assert.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	s.Assert().NotNil(getHostSw.Software[0].AppStoreApp)
+	s.Assert().Equal(androidApp.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 
 }

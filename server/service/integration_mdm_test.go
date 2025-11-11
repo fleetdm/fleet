@@ -200,6 +200,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	activityModule := activities.NewActivityModule(s.ds, wlog)
 	androidMockClient := &android_mock.Client{}
+	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
+		return nil
+	}
 	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule)
 	if err != nil {
 		panic(err)
@@ -218,14 +221,18 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
+		Datastore: s.ds,
+		Log:       wlog,
+		Commander: mdmCommander,
+	}
+	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     s.ds,
 		Log:           wlog,
-		Commander:     mdmCommander,
 		AndroidModule: androidSvc,
 	}
 	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob, appleMDMJob, vppVerifyJob)
+	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
 	s.worker = workr
 
