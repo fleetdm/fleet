@@ -456,6 +456,12 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+  // Render instance trials
+  // renderOwnerId: '…',
+  // renderApiToken: '…',
+  // renderInstancePoolSize: 10,
+  // renderInstanceSesSecretId: '…',
+  // renderInstanceSesSecretKey: '…',
 
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',

@@ -3266,6 +3266,7 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
       "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
       "software_package": {
         "name": "GoogleChrome.pkg",
@@ -3299,7 +3300,8 @@ Lists the software installed on the current device.
     },
     {
       "id": 143,
-      "name": "Slack.app",
+      "name": "Firefox.app",
+      "display_name": "Firefox",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
       "software_package": null,
       "app_store_app": null,

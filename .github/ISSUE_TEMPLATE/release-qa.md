@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,pezhub,jmwatts,andreykizimenko'
+assignees: 'xpkoala,jmwatts,andreykizimenko'
 
 ---
 

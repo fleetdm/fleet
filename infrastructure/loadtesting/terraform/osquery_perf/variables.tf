@@ -1,9 +1,5 @@
-variable "tag" {
-  description = "The docker image tag to deploy. The image must exist in fleetdm/fleet docker repository"
-}
-
-variable "git_branch" {
-  description = "The git branch to use to build loadtest containers.  Only needed if docker tag doesn't match the git branch"
+variable "git_tag_branch" {
+  description = "The tag or git branch to use to build loadtest containers."
   type        = string
   default     = null
 }

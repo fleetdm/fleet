@@ -10,7 +10,7 @@ examples: |-
   ```
 notes: |-
   - Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).
-  - If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits
+  - "If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits"
 columns:
   - name: timestamp
     description: Timestamp of the decision
