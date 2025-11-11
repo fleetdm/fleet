@@ -19,9 +19,6 @@ Fleet automatically opens the default web browser and directs the end user to lo
 
 > If the Fleet agent (fleetd) installed is older than version 1.50.0, end user authentication won't be enforced.
 
-### Setup
-
-TODO steps to configure
 
 ## Install software
 
