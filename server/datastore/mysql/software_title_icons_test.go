@@ -481,6 +481,77 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Nil(t, activity.LabelsExcludeAny)
 			require.Nil(t, activity.LabelsIncludeAny)
 		}},
+		{"in house app", func(ds *Datastore) {
+			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+			require.NoError(t, err)
+
+			// create an in-house app that will create two titles
+			payload := fleet.UploadSoftwareInstallerPayload{
+				TeamID:           &teamID,
+				UserID:           user.ID,
+				Title:            "foo",
+				Filename:         "foo.ipa",
+				BundleIdentifier: "foo.bundle.id",
+				StorageID:        "testingtesting123",
+				Platform:         "ios",
+				Extension:        "ipa",
+				Version:          "1.2.3",
+				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			}
+			installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+			require.NoError(t, err)
+			var softwareInstallerTitleIds []struct {
+				ID uint `db:"title_id"`
+			}
+			err = ds.writer(ctx).Select(&softwareInstallerTitleIds, `SELECT title_id from in_house_apps`)
+			require.NoError(t, err)
+			require.Len(t, softwareInstallerTitleIds, 2) // two in house app titles
+			require.Equal(t, titleID, softwareInstallerTitleIds[1].ID)
+
+			// add some labels
+			label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+			require.NoError(t, err)
+			label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+			require.NoError(t, err)
+			// Insert exclude label
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, ?)",
+				installerID, label1.ID, true)
+			require.NoError(t, err)
+			// Insert include label
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, ?)",
+				installerID, label2.ID, false)
+			require.NoError(t, err)
+
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "storage-id-1",
+				Filename:  "test-icon-updated.png",
+			})
+			require.NoError(t, err)
+		}, func(t *testing.T, ds *Datastore) {
+			activity, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
+			require.NoError(t, err)
+
+			require.Equal(t, installerID, *activity.InHouseAppID)
+			require.Nil(t, activity.AdamID)
+			require.Nil(t, activity.VPPAppTeamID)
+			require.Nil(t, activity.VPPIconUrl)
+			require.Equal(t, "foo", activity.SoftwareTitle)
+			require.Equal(t, "foo.ipa", *activity.Filename)
+			require.Equal(t, "team1", *activity.TeamName)
+			require.Equal(t, teamID, activity.TeamID)
+			require.False(t, activity.SelfService)
+			require.Equal(t, titleID, activity.SoftwareTitleID)
+			require.Len(t, activity.LabelsExcludeAny, 1)
+			require.Nil(t, activity.Platform)
+			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAny, 1)
+			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+		}},
 	}
 
 	for _, tc := range testCases {

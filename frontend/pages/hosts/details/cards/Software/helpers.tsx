@@ -338,6 +338,8 @@ export const getInstallerActionButtonConfig = (
       case "pending_uninstall":
       case "uninstalling":
       case "failed_uninstall":
+      case "recently_installed":
+      case "recently_updated":
         return { text: "Reinstall", icon: "refresh" };
       case "pending_update":
       case "updating":
