@@ -73,11 +73,80 @@ software:
         - "RPM-based Linux hosts"
   fleet_maintained_apps:
     # macOS apps
-    - slug: santa/darwin # Santa for macOS
+    - slug: 1password/darwin # 1Password for macOS
       self_service: true
-    - slug: vnc-viewer/darwin # VNC Viewer for macOS
+    - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
+      self_service: true
+    - slug: adobe-creative-cloud/darwin # Adobe Creative Cloud for macOS
       self_service: true
     - slug: beyond-compare/darwin # Beyond Compare for macOS
       self_service: true
+    - slug: box-drive/darwin # Box Drive for macOS
+      self_service: true
+    - slug: brave-browser/darwin # Brave for macOS
+      self_service: true
+    - slug: cloudflare-warp/darwin # Cloudflare WARP for macOS
+      self_service: true
+    - slug: cursor/darwin # Cursor for macOS
+      self_service: true
+    - slug: dcv-viewer/darwin # Amazon DCV for macOS
+      self_service: true
+    - slug: docker/darwin # Docker Desktop for macOS
+      self_service: true
+    - slug: figma/darwin # Figma for macOS
+      self_service: true
+    - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+    - slug: intune-company-portal/darwin # Company Portal for macOS
+      self_service: true
     - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
+      self_service: true
+    - slug: microsoft-excel/darwin # Microsoft Excel for macOS
+      self_service: true
+    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
+      self_service: true
+    - slug: microsoft-word/darwin # Microsoft Word for macOS
+      self_service: true
+    - slug: notion/darwin # Notion for macOS
+      self_service: true
+    - slug: omnissa-horizon-client/darwin # Omnissa Horizon Client for macOS
+      self_service: true
+    - slug: p4v/darwin # P4V for macOS
+      self_service: true
+    - slug: postman/darwin # Postman for macOS
+      self_service: true
+    - slug: santa/darwin # Santa for macOS
+      self_service: true
+    - slug: slack/darwin # Slack for macOS
+      self_service: true
+    - slug: teamviewer/darwin # TeamViewer for macOS
+      self_service: true
+    - slug: visual-studio-code/darwin # Microsoft Visual Studio Code for macOS
+      self_service: true
+    - slug: vnc-viewer/darwin # VNC Viewer for macOS
+      self_service: true
+    - slug: whatsapp/darwin # WhatsApp for macOS
+      self_service: true
+    - slug: yubico-yubikey-manager/darwin # Yubikey Manager for macOS
+      self_service: true
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+    # Windows apps
+    - slug: box-drive/windows # Box Drive for Windows
+      self_service: true
+    - slug: brave-browser/windows # Brave for Windows
+      self_service: true
+    - slug: cloudflare-warp/windows # Cloudflare WARP for Windows
+      self_service: true
+    - slug: cursor/windows # Cursor for Windows
+      self_service: true
+    - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+    - slug: teamviewer/windows # TeamViewer for Windows
+      self_service: true
+    - slug: visual-studio-code/windows # Microsoft Visual Studio Code for Windows
       self_service: true

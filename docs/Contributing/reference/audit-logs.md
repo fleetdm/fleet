@@ -457,6 +457,29 @@ This activity contains the following fields:
 }
 ```
 
+## deleted_host
+
+Generated when a host is deleted.
+
+This activity contains the following fields:
+- "host_id": Unique ID of the deleted host in Fleet.
+- "host_display_name": Display name of the deleted host.
+- "host_serial": Hardware serial number of the deleted host.
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".
+
+#### Example
+
+```json
+{
+	"host_id": 42,
+	"host_display_name": "USER-WINDOWS",
+	"host_serial": "ABC123",
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
+}
+```
+
 ## changed_user_global_role
 
 Generated when user global roles are changed.
@@ -1443,6 +1466,7 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
 
 #### Example
 
@@ -1455,6 +1479,7 @@ This activity contains the following fields:
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1829,6 +1854,51 @@ This activity contains the following fields:
 ```json
 {
   "name": "HYDRANT_WIFI"
+}
+```
+
+## added_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## deleted_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
+}
+```
+
+## edited_custom_est_proxy
+
+Generated when a custom EST certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "EST_WIFI"
 }
 ```
 

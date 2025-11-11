@@ -391,8 +391,8 @@ Opinionated conventions help people work faster and spend less time figuring out
 
 _**Note:**_ There are only a few "special" labels that are exceptions to this rule:
 - `bug` A defect in the product.
-- `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 - `story` A user story.
+- `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
 
@@ -1090,12 +1090,12 @@ Headings and titles should:
 
 ##### Static headings
 
-Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+Use static headings (a `noun` or `noun phrase`) e.g., _“Log destinations,”_ for concept or reference topics. Be as short and specific as possible.
 
 
 ##### Task-based headings
 
-Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination,”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
 
 
 ##### Avoid _-ing_ verb forms in headings

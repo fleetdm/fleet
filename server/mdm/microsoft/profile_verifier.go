@@ -170,7 +170,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 	}
 
 	err = LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
-		if strings.HasPrefix(locURI, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP") {
+		if strings.HasPrefix(strings.TrimSpace(locURI), "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP") {
 			verified[profile.Name] = struct{}{}
 			// We delete here if by some accident it was marked as missing before
 			delete(missing, profile.Name)
@@ -305,7 +305,7 @@ type PreprocessingParameters struct {
 // This function is similar to PreprocessWindowsProfileContentsForDeployment, but it does not require
 // a datastore or logger since it only replaces certain fleet variables to avoid datastore unnecessary work.
 func PreprocessWindowsProfileContentsForVerification(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, hostUUID string, profileUUID string, profileContents string, params PreprocessingParameters) string {
-	replacedContents, _ := preprocessWindowsProfileContents(ctx, logger, ds, nil, true, hostUUID, "", profileUUID, nil, profileContents, params)
+	replacedContents, _ := preprocessWindowsProfileContents(ctx, logger, ds, nil, true, hostUUID, "", profileUUID, nil, profileContents, nil, params)
 	// ^ We ignore the error here, and rely on the fact that the function will return the original contents if no replacements were made.
 	// So verification fails on individual profile level, instead of entire verification failing.
 	return replacedContents
@@ -316,6 +316,7 @@ func PreprocessWindowsProfileContentsForVerification(ctx context.Context, logger
 func PreprocessWindowsProfileContentsForDeployment(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore,
 	appConfig *fleet.AppConfig, hostUUID string, hostCmdUUID string, profileUUID string,
 	groupedCAs *fleet.GroupedCertificateAuthorities, profileContents string,
+	managedCertificatePayloads *[]*fleet.MDMManagedCertificate,
 	params PreprocessingParameters,
 ) (string, error) {
 	// TODO: Should we avoid iterating this list for every profile?
@@ -324,7 +325,7 @@ func PreprocessWindowsProfileContentsForDeployment(ctx context.Context, logger k
 		customSCEPCAs[ca.Name] = &ca
 	}
 
-	return preprocessWindowsProfileContents(ctx, logger, ds, appConfig, false, hostUUID, hostCmdUUID, profileUUID, customSCEPCAs, profileContents, params)
+	return preprocessWindowsProfileContents(ctx, logger, ds, appConfig, false, hostUUID, hostCmdUUID, profileUUID, customSCEPCAs, profileContents, managedCertificatePayloads, params)
 }
 
 // This error type is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
@@ -362,6 +363,7 @@ func (e *MicrosoftProfileProcessingError) Error() string {
 func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, appConfig *fleet.AppConfig,
 	isVerifying bool, hostUUID string, hostCmdUUID string, profileUUID string,
 	customSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profileContents string,
+	managedCertificatePayloads *[]*fleet.MDMManagedCertificate,
 	params PreprocessingParameters,
 ) (string, error) {
 	// Check if Fleet variables are present
@@ -422,7 +424,7 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 			if err != nil {
 				return profileContents, err
 			}
-			replacedContents, _, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, result, hostUUID, profileUUID)
+			replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, result, hostUUID, profileUUID)
 			if err != nil {
 				return profileContents, ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
 			}
@@ -431,7 +433,7 @@ func preprocessWindowsProfileContents(ctx context.Context, logger kitlog.Logger,
 			}
 			result = replacedContents
 
-			// TODO: Add managed certificate here.
+			*managedCertificatePayloads = append(*managedCertificatePayloads, managedCertificate)
 		}
 
 		// Add other Fleet variables here as they are implemented, identify if it can be skipped for verification.

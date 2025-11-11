@@ -114,6 +114,7 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeCreatedUser{},
 	ActivityTypeDeletedUser{},
+	ActivityTypeDeletedHost{},
 	ActivityTypeChangedUserGlobalRole{},
 	ActivityTypeDeletedUserGlobalRole{},
 	ActivityTypeChangedUserTeamRole{},
@@ -205,6 +206,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedHydrant{},
 	ActivityDeletedHydrant{},
 	ActivityEditedHydrant{},
+	ActivityAddedCustomESTProxy{},
+	ActivityDeletedCustomESTProxy{},
+	ActivityEditedCustomESTProxy{},
 	ActivityAddedSmallstep{},
 	ActivityDeletedSmallstep{},
 	ActivityEditedSmallstep{},
@@ -840,6 +844,45 @@ func (a ActivityTypeDeletedUser) Documentation() (activity string, details strin
 	"user_id": 42,
 	"user_name": "Foo",
 	"user_email": "foo@example.com"
+}`
+}
+
+type ActivityTypeDeletedHost struct {
+	HostID           uint                   `json:"host_id"`
+	HostDisplayName  string                 `json:"host_display_name"`
+	HostSerial       string                 `json:"host_serial"`
+	TriggeredBy      DeletedHostTriggeredBy `json:"triggered_by"`
+	HostExpiryWindow *int                   `json:"host_expiry_window,omitempty"`
+}
+
+type DeletedHostTriggeredBy string
+
+const (
+	DeletedHostTriggeredByManual     DeletedHostTriggeredBy = "manual"
+	DeletedHostTriggeredByExpiration DeletedHostTriggeredBy = "expiration"
+)
+
+func (a ActivityTypeDeletedHost) ActivityName() string {
+	return "deleted_host"
+}
+
+func (a ActivityTypeDeletedHost) WasFromAutomation() bool {
+	return a.TriggeredBy == DeletedHostTriggeredByExpiration
+}
+
+func (a ActivityTypeDeletedHost) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host is deleted.`,
+		`This activity contains the following fields:
+- "host_id": Unique ID of the deleted host in Fleet.
+- "host_display_name": Display name of the deleted host.
+- "host_serial": Hardware serial number of the deleted host.
+- "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
+- "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".`, `{
+	"host_id": 42,
+	"host_display_name": "USER-WINDOWS",
+	"host_serial": "ABC123",
+	"triggered_by": "expiration",
+	"host_expiry_window": 30
 }`
 }
 
@@ -1996,15 +2039,16 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 }
 
 type ActivityTypeEditedSoftware struct {
-	SoftwareTitle    string                  `json:"software_title"`
-	SoftwarePackage  *string                 `json:"software_package"`
-	TeamName         *string                 `json:"team_name"`
-	TeamID           *uint                   `json:"team_id"`
-	SelfService      bool                    `json:"self_service"`
-	SoftwareIconURL  *string                 `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
-	SoftwareTitleID  uint                    `json:"software_title_id"`
+	SoftwareTitle       string                  `json:"software_title"`
+	SoftwarePackage     *string                 `json:"software_package"`
+	TeamName            *string                 `json:"team_name"`
+	TeamID              *uint                   `json:"team_id"`
+	SelfService         bool                    `json:"self_service"`
+	SoftwareIconURL     *string                 `json:"software_icon_url"`
+	LabelsIncludeAny    []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitleID     uint                    `json:"software_title_id"`
+	SoftwareDisplayName string                  `json:"software_display_name"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -2020,7 +2064,8 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
@@ -2028,6 +2073,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2555,6 +2601,51 @@ func (a ActivityEditedHydrant) Documentation() (activity string, details string,
 	return "Generated when Hydrant certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
 - "name": Name of the certificate authority.`, `{
   "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityAddedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedCustomESTProxy) ActivityName() string {
+	return "added_custom_est_proxy"
+}
+
+func (a ActivityAddedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityDeletedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedCustomESTProxy) ActivityName() string {
+	return "deleted_custom_est_proxy"
+}
+
+func (a ActivityDeletedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
+}`
+}
+
+type ActivityEditedCustomESTProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedCustomESTProxy) ActivityName() string {
+	return "edited_custom_est_proxy"
+}
+
+func (a ActivityEditedCustomESTProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a custom EST certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "EST_WIFI"
 }`
 }
 

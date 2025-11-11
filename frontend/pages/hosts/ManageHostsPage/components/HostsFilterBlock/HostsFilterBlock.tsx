@@ -393,20 +393,15 @@ const HostsFilterBlock = ({
       automatic: (
         <span>
           MDM was turned on <br />
-          automatically using Apple <br />
-          Automated Device <br />
-          Enrollment (DEP), <br />
-          Windows Autopilot, or <br />
-          Windows Azure AD Join. <br />
-          Administrators can block <br />
-          device users from turning
-          <br /> MDM off.
+          automatically. IT admins <br />
+          can block end users <br />
+          from turning MDM off.
         </span>
       ),
       manual: (
         <span>
           MDM was turned on <br />
-          manually. Device users <br />
+          manually. End users <br />
           can turn MDM off.
         </span>
       ),

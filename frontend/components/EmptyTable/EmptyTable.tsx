@@ -13,6 +13,7 @@ export interface IEmptyTableProps {
   primaryButton?: JSX.Element;
   secondaryButton?: JSX.Element;
   className?: string;
+  variant?: "mobile";
 }
 
 const EmptyTable = ({
@@ -23,8 +24,11 @@ const EmptyTable = ({
   className,
   primaryButton,
   secondaryButton,
+  variant,
 }: IEmptyTableProps): JSX.Element => {
-  const emptyTableClass = classnames(`${baseClass}__container`, className);
+  const emptyTableClass = classnames(`${baseClass}__container`, className, {
+    [`${baseClass}__container--mobile`]: variant === "mobile",
+  });
 
   return (
     <div className={emptyTableClass}>

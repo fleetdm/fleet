@@ -46,6 +46,10 @@ func TestActivity(t *testing.T) {
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
+		{"ActivateScriptPackageInstallWithCorruptPayload", testActivateScriptPackageInstallWithCorruptPayload},
+		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
+		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
+		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2389,4 +2393,242 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[3], host3ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
+}
+
+func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "192.168.1.1", "1", "1", time.Now())
+
+	titleStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
+	res, err := ds.writer(ctx).ExecContext(ctx, titleStmt, "Test Script", "sh_packages")
+	require.NoError(t, err)
+	titleID, _ := res.LastInsertId()
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	scriptContentStmt := `INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`
+	res, err = ds.writer(ctx).ExecContext(ctx, scriptContentStmt, "abc123", "#!/bin/bash\necho 'test'")
+	require.NoError(t, err)
+	scriptContentID, _ := res.LastInsertId()
+
+	installerStmt := `
+		INSERT INTO software_installers (
+			team_id, global_or_team_id, title_id, storage_id, filename,
+			extension, version, platform, install_script_content_id,
+			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
+			self_service, user_id, user_name, user_email, package_ids,
+			fleet_maintained_app_id, url, upgrade_code
+		)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+	`
+	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
+		titleID, "storage-123", "test-script.sh", "sh", "", "linux", scriptContentID,
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+	require.NoError(t, err)
+	installerID, _ := res.LastInsertId()
+
+	execID := uuid.NewString()
+	uaStmt := `INSERT INTO upcoming_activities (host_id, priority, activity_type, execution_id, payload) VALUES (?, 1, 'software_install', ?, JSON_OBJECT())`
+	res, err = ds.writer(ctx).ExecContext(ctx, uaStmt, host.ID, execID)
+	require.NoError(t, err)
+	activityID, _ := res.LastInsertId()
+
+	siuaStmt := `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, policy_id, software_title_id) VALUES (?, ?, NULL, NULL)`
+	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, installerID)
+	require.NoError(t, err)
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := ds.activateNextUpcomingActivity(ctx, tx, host.ID, "")
+		return err
+	})
+	require.NoError(t, err)
+
+	var result struct {
+		SoftwareTitleID   *uint  `db:"software_title_id"`
+		SoftwareTitleName string `db:"software_title_name"`
+		InstallerFilename string `db:"installer_filename"`
+		Version           string `db:"version"`
+	}
+
+	err = ds.writer(ctx).GetContext(ctx, &result,
+		"SELECT software_title_id, software_title_name, installer_filename, version FROM host_software_installs WHERE execution_id = ?",
+		execID)
+	require.NoError(t, err)
+
+	require.NotNil(t, result.SoftwareTitleID)
+	require.Equal(t, uint(titleID), *result.SoftwareTitleID) //nolint:gosec // dismiss G115
+	require.Equal(t, "Test Script", result.SoftwareTitleName)
+	require.Equal(t, "test-script.sh", result.InstallerFilename)
+	require.Equal(t, "", result.Version)
+}
+
+func testActivateRegularPackageInstall(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host2", "192.168.1.2", "2", "2", time.Now())
+	u := test.NewUser(t, ds, "user2", "user2@example.com", false)
+
+	installer, err := fleet.NewTempFileReader(strings.NewReader("fake pkg"), t.TempDir)
+	require.NoError(t, err)
+
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "install regular",
+		InstallerFile:    installer,
+		StorageID:        uuid.NewString(),
+		Filename:         "regular.pkg",
+		Title:            "Regular Package",
+		Source:           "pkg_packages",
+		Version:          "1.0.0",
+		UserID:           u.ID,
+		Extension:        "pkg",
+		Platform:         "darwin",
+		BundleIdentifier: "com.regular.pkg",
+		UninstallScript:  "uninstall regular",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	execID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	var result struct {
+		SoftwareTitleID   *uint  `db:"software_title_id"`
+		SoftwareTitleName string `db:"software_title_name"`
+		InstallerFilename string `db:"installer_filename"`
+		Version           string `db:"version"`
+	}
+
+	err = ds.writer(ctx).GetContext(ctx, &result,
+		"SELECT software_title_id, software_title_name, installer_filename, version FROM host_software_installs WHERE execution_id = ?",
+		execID)
+	require.NoError(t, err)
+
+	require.NotNil(t, result.SoftwareTitleID)
+	require.Equal(t, titleID, *result.SoftwareTitleID)
+	require.Equal(t, "Regular Package", result.SoftwareTitleName)
+	require.Equal(t, "regular.pkg", result.InstallerFilename)
+	require.Equal(t, "1.0.0", result.Version)
+}
+
+func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host3", "192.168.1.3", "3", "3", time.Now())
+	u := test.NewUser(t, ds, "user3", "user3@example.com", false)
+
+	installer, err := fleet.NewTempFileReader(strings.NewReader("temp"), t.TempDir)
+	require.NoError(t, err)
+
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install temp",
+		InstallerFile:   installer,
+		StorageID:       uuid.NewString(),
+		Filename:        "temp.pkg",
+		Title:           "Temp Package",
+		Source:          "pkg_packages",
+		Version:         "1.0.0",
+		UserID:          u.ID,
+		Extension:       "pkg",
+		Platform:        "darwin",
+		UninstallScript: "uninstall temp",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	execID := uuid.NewString()
+	uaStmt := `INSERT INTO upcoming_activities (host_id, priority, activity_type, execution_id, payload) VALUES (?, 1, 'software_install', ?, JSON_OBJECT())`
+	res, err := ds.writer(ctx).ExecContext(ctx, uaStmt, host.ID, execID)
+	require.NoError(t, err)
+	activityID, _ := res.LastInsertId()
+
+	siuaStmt := `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, policy_id, software_title_id) VALUES (?, ?, NULL, NULL)`
+	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, installerID)
+	require.NoError(t, err)
+
+	deleteStmt := `DELETE FROM software_installers WHERE id = ?`
+	_, err = ds.writer(ctx).ExecContext(ctx, deleteStmt, installerID)
+	require.NoError(t, err)
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := ds.activateNextUpcomingActivity(ctx, tx, host.ID, "")
+		return err
+	})
+	require.NoError(t, err)
+
+	var result struct {
+		SoftwareTitleID   *uint  `db:"software_title_id"`
+		SoftwareTitleName string `db:"software_title_name"`
+		InstallerFilename string `db:"installer_filename"`
+		Version           string `db:"version"`
+	}
+
+	err = ds.writer(ctx).GetContext(ctx, &result,
+		"SELECT software_title_id, software_title_name, installer_filename, version FROM host_software_installs WHERE execution_id = ?",
+		execID)
+	require.NoError(t, err)
+
+	require.Nil(t, result.SoftwareTitleID)
+	require.Equal(t, "[deleted title]", result.SoftwareTitleName)
+	require.Equal(t, "[deleted installer]", result.InstallerFilename)
+	require.Equal(t, "unknown", result.Version)
+}
+
+func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	titleStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES ('Test Uninstall Script', 'apps', '')`
+	res, err := ds.writer(ctx).ExecContext(ctx, titleStmt)
+	require.NoError(t, err)
+	titleID, _ := res.LastInsertId()
+
+	u := test.NewUser(t, ds, "uninstall-user", "uninstall@example.com", false)
+
+	scriptStmt := `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(MD5('echo uninstalling')), 'echo uninstalling')`
+	res, err = ds.writer(ctx).ExecContext(ctx, scriptStmt)
+	require.NoError(t, err)
+	scriptContentID, _ := res.LastInsertId()
+
+	installerStmt := `
+		INSERT INTO software_installers (
+			team_id, global_or_team_id, title_id, storage_id, filename,
+			extension, version, platform, install_script_content_id,
+			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
+			self_service, user_id, user_name, user_email, package_ids,
+			fleet_maintained_app_id, url, upgrade_code
+		)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+	`
+	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
+		titleID, "storage-id-uninstall", "test-uninstall.sh", "sh", "", "linux", scriptContentID,
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+	require.NoError(t, err)
+	installerID, _ := res.LastInsertId()
+
+	host := test.NewHost(t, ds, "test-host", "", "test-key", "test-uuid", time.Now())
+
+	execID := "uninstall-exec-123"
+	uaStmt := `INSERT INTO upcoming_activities (host_id, activity_type, execution_id, user_id, payload, priority) VALUES (?, 'software_uninstall', ?, NULL, JSON_OBJECT(), 0)`
+	res, err = ds.writer(ctx).ExecContext(ctx, uaStmt, host.ID, execID)
+	require.NoError(t, err)
+	activityID, _ := res.LastInsertId()
+
+	siuaStmt := `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, software_title_id) VALUES (?, ?, NULL)`
+	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, installerID)
+	require.NoError(t, err)
+
+	err = ds.activateNextSoftwareUninstallActivity(ctx, ds.writer(ctx), host.ID, []string{execID})
+	require.NoError(t, err)
+
+	var result struct {
+		SoftwareTitleID   *uint  `db:"software_title_id"`
+		SoftwareTitleName string `db:"software_title_name"`
+		Uninstall         bool   `db:"uninstall"`
+	}
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &result,
+		"SELECT software_title_id, software_title_name, uninstall FROM host_software_installs WHERE execution_id = ?",
+		execID)
+	require.NoError(t, err)
+
+	require.True(t, result.Uninstall)
+	require.NotNil(t, result.SoftwareTitleID)
+	require.Equal(t, uint(titleID), *result.SoftwareTitleID) //nolint:gosec // dismiss G115
+	require.Equal(t, "Test Uninstall Script", result.SoftwareTitleName)
 }

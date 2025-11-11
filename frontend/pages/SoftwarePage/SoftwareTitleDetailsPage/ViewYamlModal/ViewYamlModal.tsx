@@ -53,16 +53,22 @@ const ViewYamlModal = ({
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const repositoryUrl = config?.gitops?.repository_url;
-  const {
-    name,
-    version,
-    url,
-    hash_sha256: sha256,
-    pre_install_query: preInstallQuery,
-    install_script: installScript,
-    post_install_script: postInstallScript,
-    uninstall_script: uninstallScript,
-  } = softwarePackage;
+  const { name, version, url, hash_sha256: sha256 } = softwarePackage;
+
+  // Script packages (.sh and .ps1) should not expose install_script,
+  // post_install_script, uninstall_script, or pre_install_query fields
+  const preInstallQuery = !isScriptPackage
+    ? softwarePackage.pre_install_query
+    : undefined;
+  const installScript = !isScriptPackage
+    ? softwarePackage.install_script
+    : undefined;
+  const postInstallScript = !isScriptPackage
+    ? softwarePackage.post_install_script
+    : undefined;
+  const uninstallScript = !isScriptPackage
+    ? softwarePackage.uninstall_script
+    : undefined;
 
   const packageYaml = createPackageYaml({
     softwareTitle: softwareTitleName,
@@ -75,6 +81,7 @@ const ViewYamlModal = ({
     postInstallScript,
     uninstallScript,
     iconUrl: iconUrl || null,
+    isScriptPackage,
   });
 
   // Generic download handler
@@ -230,6 +237,7 @@ const ViewYamlModal = ({
               : undefined,
             onClickIcon: iconUrl ? onDownloadIcon : undefined,
             hasAdvancedOptionsAvailable: !isScriptPackage,
+            isScriptPackage,
           })}
         </p>
         <div className="modal-cta-wrap">

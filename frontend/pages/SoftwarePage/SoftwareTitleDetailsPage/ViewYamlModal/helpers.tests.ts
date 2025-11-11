@@ -140,6 +140,35 @@ describe("createPackageYaml", () => {
   install_script:
     path: ../scripts/install-empty-hash.sh`);
   });
+
+  it("omits script-only fields for script packages", () => {
+    // Script packages (.sh and .ps1) should not expose install_script,
+    // post_install_script, uninstall_script, or pre_install_query
+    const yaml = createPackageYaml({
+      softwareTitle: "My Script Package",
+      packageName: "my-script.sh",
+      version: "1.0.0",
+      url: "https://example.com/my-script.sh",
+      sha256: "abc123",
+      preInstallQuery,
+      installScript,
+      postInstallScript,
+      uninstallScript,
+      iconUrl: null,
+      isScriptPackage: true,
+    });
+
+    // Should only include comment, url, and hash_sha256
+    expect(yaml).toBe(`# My Script Package (my-script.sh) version 1.0.0
+- url: https://example.com/my-script.sh
+  hash_sha256: abc123`);
+
+    // Verify it doesn't contain any of the forbidden fields
+    expect(yaml).not.toContain("install_script");
+    expect(yaml).not.toContain("post_install_script");
+    expect(yaml).not.toContain("uninstall_script");
+    expect(yaml).not.toContain("pre_install_query");
+  });
 });
 
 describe("renderYamlHelperText", () => {
@@ -298,5 +327,40 @@ describe("renderYamlHelperText", () => {
     // Should not show the "Advanced options" instructional text
     expect(screen.queryByText(/If you edited/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced options/i)).not.toBeInTheDocument();
+  });
+
+  it("does not render script-only fields for script packages", () => {
+    // Script packages should not show download links for install_script,
+    // post_install_script, uninstall_script, or pre_install_query
+    const { container } = render(
+      renderDownloadFilesText({
+        preInstallQuery,
+        installScript,
+        postInstallScript,
+        uninstallScript,
+        onClickPreInstallQuery: noop,
+        onClickInstallScript: noop,
+        onClickPostInstallScript: noop,
+        onClickUninstallScript: noop,
+        isScriptPackage: true,
+      })
+    );
+
+    // Should not render any download buttons for script-only fields
+    expect(
+      screen.queryByRole("button", { name: "pre-install query" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "install script" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "post-install script" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "uninstall script" })
+    ).not.toBeInTheDocument();
+
+    // Container should be empty since no items should be rendered
+    expect(container).toBeEmptyDOMElement();
   });
 });

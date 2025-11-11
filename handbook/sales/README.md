@@ -11,6 +11,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
 | VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
 | Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
+| Solutions Specialist                  | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
 
 
 ## Contact us
@@ -151,7 +152,6 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Free
 ##### Emergency (P0) request communications
 Please see [handbook/company/communications#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas) for all sections above.
-
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs

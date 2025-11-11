@@ -1222,7 +1222,8 @@ SELECT
   '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
-  install_location AS installed_path
+  install_location AS installed_path,
+  upgrade_code AS upgrade_code
 FROM programs
 UNION
 SELECT
@@ -1232,7 +1233,8 @@ SELECT
   '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM ie_extensions
 UNION
 SELECT
@@ -1242,7 +1244,8 @@ SELECT
   browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -1252,7 +1255,8 @@ SELECT
   'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -1262,7 +1266,8 @@ SELECT
   '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM chocolatey_packages
 `),
 	Platforms:        []string{"windows"},
@@ -1961,6 +1966,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["extension_id"],
 			row["extension_for"],
 			row["last_opened_at"],
+			row["upgrade_code"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(

@@ -5529,6 +5529,51 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/crontab.yml"
   },
   {
+    "name": "crowdstrike_falcon",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "description": "Information about Crowdstrike Falcon, collected via the falconctl utility.",
+    "platforms": [
+      "darwin",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "Output most table information, swapping customer ID for its length to avoid leaking sensitive information.\n\n```\nSELECT agent_id, LENGTH(cid), falcon_version, reduced_functionality_mode, sensor_loaded FROM crowdstrike_falcon;\n```",
+    "columns": [
+      {
+        "name": "agent_id",
+        "description": "The agent ID for the current install of Falcon",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "cid",
+        "description": "The CrowdStrike customer ID",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "falcon_version",
+        "description": "The version of Falcon Sensor installed",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reduced_functionality_mode",
+        "description": "Whether Falcon Sensor is in reduced functionality mode (true/false)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sensor_loaded",
+        "description": "Whether Falcon Sensor is loaded (true/false)",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/crowdstrike_falcon",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/crowdstrike_falcon.yml"
+  },
+  {
     "name": "cryptoinfo",
     "description": "Get info about a certificate on the host.",
     "evented": false,
@@ -24376,12 +24421,13 @@
   },
   {
     "name": "santa_allowed",
-    "description": "List of applications Santa has allowed to run on the host.",
+    "description": "Logs events for when Santa allowed applications to run on the host. Fleet's agent (fleetd) only stores the most recent 10,000 allowed events.",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "examples": "Show Google Chrome open events, as allowed by Santa.\n\n```\nSELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app';\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 allowed events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- \"If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits\"",
     "columns": [
       {
         "name": "timestamp",
@@ -24413,12 +24459,13 @@
   },
   {
     "name": "santa_denied",
-    "description": "List of applications Santa has denied from running on the host.",
+    "description": "Logs events for when Santa denied applications from running on the host. Fleet's agent (fleetd) only stores the most recent 10,000 denied events.",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "examples": "Collect all Santa denied logs from macOS hosts.\n```\nSELECT * FROM santa_denied;\n```",
+    "notes": "- Fleetd only stores the most recent 10,000 denied events to avoid hitting [osquery watchdog limits](https://fleetdm.com/guides/osquery-watchdog).\n- \"If you're running this query as a scheduled query, use the `differential_ignore_removals` to avoid hitting osquery watchdog limits\"",
     "columns": [
       {
         "name": "timestamp",
@@ -24447,43 +24494,6 @@
     ],
     "url": "https://fleetdm.com/tables/santa_denied",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_denied.yml"
-  },
-  {
-    "name": "santa_rules",
-    "description": "The [Santa](https://github.com/google/santa) rules that are currently installed on a macOS host.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "Verify that running WhatsApp will be denied (blocked) by Santa via WhatsApp's Team ID.\n```\nSELECT state FROM santa_rules WHERE identifier = '57T9237FN3';\n```",
-    "columns": [
-      {
-        "name": "identifier",
-        "description": "Rule identifier (SHA256, Team ID, etc.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "type",
-        "description": "Type of rule (Binary, Certificate, TeamID)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "state",
-        "description": "Rule state (Allowlist, Denylist)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "custom_message",
-        "description": "Custom message associated with the rule",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/santa_rules",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_rules.yml"
   },
   {
     "name": "santa_status",

@@ -42,7 +42,7 @@
   hiringManagerName: Luke Heath
   hiringManagerGithubUsername: LukeHeath
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
-  onTargetEarnings: '$90,000 - $225,000+'
+  onTargetEarnings: '$80,000 - $225,000+'
   responsibilities: |
       - 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
       - 🛠 Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
@@ -162,33 +162,6 @@
      # - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 
-- jobTitle: 🦢 Product Designer
-  department: Product Design
-  hiringManagerName: Noah Talerman
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
-  hiringManagerGithubUsername: noahtalerman
-  onTargetEarnings: '$125,000 - $160,000'
-  responsibilities: |
-      - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
-      - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
-      - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
-      - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
-      - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
-  experience: |
-      - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
-      - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
-      - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
-      - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
-      - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
-      - 💖 Proficient in visual design and wireframing tools (we use Figma).
-      - ✍️ Experienced in writing clear, concise product specs for engineering teams.
-      - 📖 Maintain a design system that enables speed for designers and engineers.
-      - 🤝 Collaboration: You work best in a participatory, team-based environment.
-      - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
-      - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - ➕ Bonus: YB2B SaaS background
-
 - jobTitle: 🐋 VP of Sales
   department: Sales
   hiringManagerName: Alex Mitchell
@@ -226,6 +199,7 @@
   hiringManagerName: Sharon Katz
   hiringManagerGithubUsername: sharon-fdm
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/sharon-katz-45b1b3a/
+  onTargetEarnings: '$80,000 - $180,000'
   responsibilities: |
       - ⏫ Work closely with engineering to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
       - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
@@ -249,25 +223,25 @@
       - ➕ Bonus: Cybersecurity or IT background.
 
 
-- jobTitle: 🧩 Software Specialist
+- jobTitle: 🔎 Quality Analyst
   department: Engineering
   hiringManagerName: George Karr
   hiringManagerGithubUsername: georgekarrv
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/george-karr-4977b441/
+  onTargetEarnings: '$60,000 - $100,000'
   responsibilities: |
-      - 🧰 Package, install, and validate Fleet-maintained applications across supported platforms (macOS, Windows, Linux) to ensure correct functionality and compatibility.
-      - 🔍 Smoke test Fleet releases before and after deployment to confirm key workflows, software installations, and device management features work as intended.
-      - 🤝 Collaborate closely with QA Engineers and developers to reproduce, verify, and document issues discovered during packaging and testing.
-      - 🧪 Create, maintain, and improve app testing scripts or procedures to streamline verification of Fleet-maintained software.
-      - 📦 Maintain a library of packaged apps, keeping metadata, versioning, and test results up to date.
-      - 🧭 Assist with end-to-end validation of new MDM and software management features, ensuring a seamless experience for end users and IT admins.
-      - 🚀 Support QA Engineers during release testing cycles, providing deep expertise in app packaging, configuration, and validation.
+      - 🧪 Manually test Fleet releases across all supported platforms (macOS, Windows, Linux, iOS, Android) to confirm key workflows and device management features work as expected.
+      - 🚀 Perform smoke tests and regression tests before and after releases to validate functionality, stability, and performance.
+      - 🐞 Reproduce new bug reports to confirm behavior, gather logs, and assist engineers in isolating root causes.
+      - 🔍 Identify, reproduce, and document issues found during testing and work closely with QA Engineers and Software Engineers to verify fixes.
+      - 📋 Create, maintain, and improve detailed test plans, checklists, and test cases to ensure consistent coverage across product areas and devices.
+      - 🤝 Collaborate with QA Engineers, Software Engineers, and Product Designers to ensure new features meet quality standards and user expectations.
+      - 📱 Validate user experiences and device enrollment flows on multiple operating systems, ensuring reliability and consistency for IT admins and end users.
+      - 🧭 Support end-to-end validation of new MDM and device management capabilities as they are developed.
   experience: |
-      - 💼 1-3 years’ experience packaging, testing, and deploying applications in an enterprise or managed-device environment.
-      - 🧩 Hands-on experience creating, modifying, and troubleshooting app packages (PKG, MSI, DMG, etc.).
-      - 🧠 Familiarity with device management tools and workflows (e.g., MDM, Munki, Jamf, Intune, or Fleet).
-      - 🧪 Skilled at smoke testing, regression testing, and identifying root causes of packaging or installation failures.
-      - 🧾 Comfortable documenting detailed test results, bug reports, and packaging notes.
-      - 💬 Excellent collaboration and communication skills for working with engineers and QA teammates.
-      - 🔄 Strong attention to detail and commitment to consistent, reliable testing processes.
-      - ➕ Bonus: Experience with automation or scripting tools (e.g., Bash, Python, PowerShell) for testing or packaging.
+      - 💼 1–3 years’ experience in software testing or quality assurance, ideally in a SaaS or device management environment.
+      - 🧠 Familiarity with device management concepts and tools (e.g., MDM, Intune, Jamf, or Fleet).
+      - 🧾 Strong attention to detail with the ability to write clear, reproducible bug reports and test documentation.
+      - 💬 Excellent collaboration and communication skills for cross-functional teamwork with engineers and QA teammates.
+      - 🔄 Comfortable regularly repeating structured manual testing processes, regression testing, and feature validation.
+      - ➕ Bonus: Hands-on experience testing across multiple operating systems and devices (macOS, Windows, Android, iOS, iPadOS).

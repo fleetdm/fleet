@@ -816,6 +816,7 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("categories", c))
 		}
 	}
+	require.NoError(t, w.WriteField("display_name", payload.DisplayName))
 
 	w.Close()
 

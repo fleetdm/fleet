@@ -2319,6 +2319,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		HostIDForUUIDCache: make(map[string]uint),
 	}
 
+	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
+
 	for profUUID, target := range installTargets {
 		p, ok := profileContents[profUUID]
 		if !ok {
@@ -2351,7 +2353,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				hostCmdUUID := uuid.New().String()
 
 				// Preprocess the profile content for this specific host
-				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, hostCmdUUID, profUUID, groupedCAs, string(p.SyncML), params)
+				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(ctx, logger, ds, appConfig, hostUUID, hostCmdUUID, profUUID, groupedCAs, string(p.SyncML), managedCertificatePayloads, params)
 				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
 				if err != nil && !errors.As(err, &profileProcessingError) {
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
@@ -2386,11 +2388,18 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 	}
 
+	// Store list of failed profiles to avoid updating other stuff for that, such as managed certs.
+	failedProfilesUUIDs := make(map[string]bool)
+
 	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
 	// the checksum we retrieved earlier. Update the checksums if needed.
 	for _, p := range hostProfilesToUpdate {
 		if _, ok := profileContents[p.ProfileUUID]; ok {
 			p.Checksum = profileContents[p.ProfileUUID].Checksum
+		}
+
+		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
+			failedProfilesUUIDs[p.ProfileUUID] = true
 		}
 	}
 
@@ -2403,6 +2412,19 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// Upsert the host profiles we need to track.
 	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfilesToUpdate); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
+	}
+
+	// Run through managed certs and remove all those that belong to failed profiles
+	filteredManagedCerts := []*fleet.MDMManagedCertificate{}
+	for _, mc := range *managedCertificatePayloads {
+		if _, failed := failedProfilesUUIDs[mc.ProfileUUID]; !failed {
+			filteredManagedCerts = append(filteredManagedCerts, mc)
+		}
+	}
+
+	err = ds.BulkUpsertMDMManagedCertificates(ctx, filteredManagedCerts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating managed certificates for windows")
 	}
 
 	return nil

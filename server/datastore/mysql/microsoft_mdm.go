@@ -2370,3 +2370,33 @@ func (ds *Datastore) UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, pr
 	})
 	return err
 }
+
+func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, hostUUID string,
+	profileUUID string, caName string,
+) (*fleet.HostMDMCertificateProfile, error) {
+	stmt := `
+	SELECT
+		hmwp.host_uuid,
+		hmwp.profile_uuid,
+		hmwp.status,
+		hmmc.challenge_retrieved_at,
+		hmmc.not_valid_before,
+		hmmc.not_valid_after,
+		hmmc.type,
+		hmmc.ca_name,
+		hmmc.serial
+	FROM
+		host_mdm_windows_profiles hmwp
+	JOIN host_mdm_managed_certificates hmmc
+		ON hmwp.host_uuid = hmmc.host_uuid AND hmwp.profile_uuid = hmmc.profile_uuid
+	WHERE
+		hmmc.host_uuid = ? AND hmmc.profile_uuid = ? AND hmmc.ca_name = ?`
+	var profile fleet.HostMDMCertificateProfile
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID, caName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &profile, nil
+}
