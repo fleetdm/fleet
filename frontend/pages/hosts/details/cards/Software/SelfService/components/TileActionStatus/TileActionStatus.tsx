@@ -1,7 +1,11 @@
 import React from "react";
 import {
+  HOST_SOFTWARE_UI_ERROR_STATUS_SET,
   IDeviceSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
+  isSoftwareErrorStatus,
+  isSoftwareInProgressStatus,
+  isSoftwarePendingStatus,
 } from "interfaces/software";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -66,12 +70,11 @@ const TileActionStatus = ({
   onActionClick,
 }: TileActionStatusProps) => {
   const actionLabel = getTileActionLabel(software.ui_status);
-  const isError =
-    software.ui_status === "failed_install" ||
-    software.ui_status === "failed_install_update_available";
+  const isError = isSoftwareErrorStatus(software.ui_status);
 
   const isActiveAction =
-    software.ui_status === "updating" || software.ui_status === "installing";
+    isSoftwareInProgressStatus(software.ui_status) ||
+    isSoftwarePendingStatus(software.ui_status);
 
   const renderActiveActionStatus = () => {
     return (
