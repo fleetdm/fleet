@@ -78,20 +78,8 @@ const EntraConditionalAccessModal = ({
   };
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    const newErrs = validate(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
+    setFormData({ ...formData, [name]: value });
+    setFormErrors({}); // Clear any existing error
   };
 
   const onInputBlur = () => {
@@ -111,7 +99,7 @@ const EntraConditionalAccessModal = ({
             To configure Microsoft Entra conditional access, follow the
             instructions in the{" "}
             <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/microsoft-entra-setup`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/entra-conditional-access`}
               text="guide"
               newTab
             />
