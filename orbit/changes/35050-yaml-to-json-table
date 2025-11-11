@@ -1,0 +1,1 @@
+* Add `yaml_to_json` table for converting YAML in input to JSON in output.
