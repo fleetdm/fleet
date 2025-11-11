@@ -79,8 +79,7 @@ module.exports = {
       });
       // Acquire the google auth client, and bind it to all future calls
       let authClient = await googleAuth.getClient();
-      google.options({auth: authClient});
-      let pubsub = google.pubsub({version: 'v1'});
+      let pubsub = google.pubsub({version: 'v1', auth: authClient});
 
       // Create a new pubsub topic for this enterprise.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/create
@@ -88,25 +87,24 @@ module.exports = {
         name: fullPubSubTopicName,
         requestBody: {
           messageRetentionDuration: '86400s'// 24 hours
-        }
+        },
+        auth: authClient,
       });
 
-      // Debugging case: Log the actual token scopes in use.
-      const accessTokenObj = await authClient.getAccessToken();
-      const rawToken = accessTokenObj.token || accessTokenObj; // depending on version
-      // eslint-disable-next-line no-undef
-      const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${rawToken}`);
-      const tokenInfo = await tokenInfoRes.json();
-      sails.log.debug('Token scopes actually in use:', tokenInfo.scope);
+      // Debugging attempt - Give it a second before calling the getIamPolicy (plus excessive back-off retry delays.)
+      await sails.helpers.flow.pause(1000);
 
 
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
       // Retrieve the IAM policy for the created pubsub topic.
-      // !IMPORTANT: This should not be wrapped in a sails.helpers.flow.build, as we've seen issues with it not working properly.
-      let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
-        resource: fullPubSubTopicName,
-      });
-      let newPubSubTopicIamPolicy = getIamPolicyResponse.data;
+      const newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
+        const policy =  await pubsub.projects.topics.getIamPolicy({
+          resource: fullPubSubTopicName,
+          auth: authClient,
+        });
+
+        return policy.data;
+      }).retry(undefined, [1000, 2000, 4000]);
 
       // Grant Android device policy the right to publish
       // See: https://developers.google.com/android/management/notifications
@@ -125,7 +123,8 @@ module.exports = {
           resource: fullPubSubTopicName,
           requestBody: {
             policy: newPubSubTopicIamPolicy
-          }
+          },
+          auth: authClient,
         });
       }).retry(undefined, [1000, 1500, 2000]);
 
@@ -141,7 +140,8 @@ module.exports = {
           pushConfig: {
             pushEndpoint: pubsubPushUrl// Use the pubsubPushUrl provided by the Fleet server.
           }
-        }
+        },
+        auth: authClient,
       });
 
       // Now create the new enterprise for this Fleet server.
@@ -152,6 +152,7 @@ module.exports = {
         projectId: sails.config.custom.androidEnterpriseProjectId,
         signupUrlName: signupUrlName,
         requestBody: enterprise,
+        auth: authClient,
       });
       return createEnterpriseResponse.data;
     }).intercept({status: 400}, (err)=>{
