@@ -66,6 +66,9 @@ const DeleteConditionalAccessModal = ({
             // Preserve existing Microsoft Entra settings
             microsoft_entra_tenant_id:
               config?.conditional_access?.microsoft_entra_tenant_id || "",
+            microsoft_entra_connection_configured:
+              config?.conditional_access
+                ?.microsoft_entra_connection_configured || false,
           },
         });
       }
@@ -115,8 +118,7 @@ const DeleteConditionalAccessModal = ({
   );
 };
 
-enum Phase {
-  Loading = "loading",
+enum EntraPhase {
   ConfirmingConfigured = "confirming-configured",
   ConfirmationError = "confirmation-error",
   Configured = "configured",
@@ -131,7 +133,9 @@ const ConditionalAccess = () => {
     AppContext
   );
 
-  const [entraPhase, setEntraPhase] = useState<Phase>(Phase.Loading);
+  const [entraPhase, setEntraPhase] = useState<EntraPhase>(
+    EntraPhase.NotConfigured
+  );
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Modal states
@@ -173,16 +177,16 @@ const ConditionalAccess = () => {
   >(["confirmAccess"], conditionalAccessAPI.confirmMicrosoftConditionalAccess, {
     ...DEFAULT_USE_QUERY_OPTIONS,
     // only make this call at the appropriate UI phase
-    enabled: entraPhase === Phase.ConfirmingConfigured && isPremiumTier,
+    enabled: entraPhase === EntraPhase.ConfirmingConfigured && isPremiumTier,
     onSuccess: ({ configuration_completed, setup_error }) => {
       if (configuration_completed) {
-        setEntraPhase(Phase.Configured);
+        setEntraPhase(EntraPhase.Configured);
         renderFlash(
           "success",
           "Successfully verified conditional access integration"
         );
       } else {
-        setEntraPhase(Phase.NotConfigured);
+        setEntraPhase(EntraPhase.NotConfigured);
 
         if (
           // IT admin did not complete the consent.
@@ -223,7 +227,7 @@ const ConditionalAccess = () => {
     },
     onError: () => {
       // distinct from successful confirmation response of `false`, this handles an API error
-      setEntraPhase(Phase.ConfirmationError);
+      setEntraPhase(EntraPhase.ConfirmationError);
     },
   });
 
@@ -248,19 +252,19 @@ const ConditionalAccess = () => {
   useEffect(() => {
     // Don't check config if we're showing the awaiting OAuth banner
     if (showAwaitingOAuthBanner) {
-      setEntraPhase(Phase.NotConfigured);
+      setEntraPhase(EntraPhase.NotConfigured);
       return;
     }
 
     if (entraTenantId) {
       if (!entraConfigured) {
-        setEntraPhase(Phase.ConfirmingConfigured);
+        setEntraPhase(EntraPhase.ConfirmingConfigured);
       } else {
         // tenant id is present and connection is configured
-        setEntraPhase(Phase.Configured);
+        setEntraPhase(EntraPhase.Configured);
       }
     } else {
-      setEntraPhase(Phase.NotConfigured);
+      setEntraPhase(EntraPhase.NotConfigured);
     }
   }, [entraTenantId, entraConfigured, showAwaitingOAuthBanner]);
 
@@ -320,16 +324,16 @@ const ConditionalAccess = () => {
   // RENDER
 
   const renderContent = () => {
-    if (entraPhase === Phase.ConfirmingConfigured) {
+    if (entraPhase === EntraPhase.ConfirmingConfigured) {
       return <Spinner />;
     }
 
-    if (entraPhase === Phase.ConfirmationError) {
+    if (entraPhase === EntraPhase.ConfirmationError) {
       return <DataError />;
     }
 
     // Compute Entra card props to avoid nested ternaries
-    const entraIsConfigured = entraPhase === Phase.Configured;
+    const entraIsConfigured = entraPhase === EntraPhase.Configured;
 
     let entraIconName: IconNames | undefined;
     if (entraIsConfigured) {
