@@ -19,9 +19,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -2420,4 +2425,115 @@ func androidConfigProfileForTest(t *testing.T, name string, content map[string]a
 	}
 
 	return prof
+}
+
+func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
+	// We want to verify here that the disk encryption profile get's deleted for apple.
+	ds := new(mock.Store)
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true, License: lic})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+	ctx = license.NewContext(ctx, lic)
+
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	require.NoError(t, err)
+
+	crt, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	scepCert := tokenpki.PEMCertificate(crt.Raw)
+	scepKey := tokenpki.PEMRSAPrivateKey(key)
+
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert:   {Value: scepCert},
+			fleet.MDMAssetCAKey:    {Value: scepKey},
+			fleet.MDMAssetAPNSKey:  {Value: apnsKey},
+			fleet.MDMAssetAPNSCert: {Value: apnsCert},
+		}, nil
+	}
+
+	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+		require.Contains(t, assetNames, fleet.MDMAssetAPNSCert)
+		return nil
+	}
+
+	ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
+		return nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured: false,
+				EnableDiskEncryption: optjson.SetBool(true),
+			},
+		}, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		require.True(t, info.MDM.EnabledAndConfigured)
+		return nil
+	}
+
+	newActivityCalls := 0
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		act := fleet.ActivityTypeEnabledMacosDiskEncryption{}
+		require.Equal(t, act.ActivityName(), activity.ActivityName())
+		newActivityCalls++
+		return nil
+	}
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{
+			{ID: 1, Name: "Team1"},
+			{ID: 2, Name: "Team2"},
+		}, nil
+	}
+
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		if *teamID == 1 {
+			return fleet.DiskEncryptionConfig{Enabled: true}, nil
+		}
+
+		return fleet.DiskEncryptionConfig{Enabled: false}, nil
+	}
+
+	deleteCalls := uint(0)
+	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
+		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
+		if deleteCalls == 0 {
+			// No Team
+			require.Nil(t, teamID)
+		} else {
+			require.NotNil(t, teamID)
+			require.Equal(t, deleteCalls, *teamID)
+		}
+
+		deleteCalls++
+		return nil
+	}
+
+	newProfileCalls := uint(0)
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+		require.Nil(t, usesFleetVars) // Filevault does not use fleet vars
+		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, p.Identifier)
+		if newProfileCalls == 0 {
+			// No Team
+			require.Nil(t, p.TeamID)
+		} else {
+			require.NotNil(t, p.TeamID)
+			require.Equal(t, newProfileCalls, *p.TeamID)
+		}
+		newProfileCalls++
+		return nil, nil
+	}
+
+	err = svc.UploadMDMAppleAPNSCert(ctx, bytes.NewReader(apnsCert))
+	require.NoError(t, err)
+
+	require.EqualValues(t, 2, newProfileCalls)
+	require.EqualValues(t, 2, deleteCalls)
+	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
 }
