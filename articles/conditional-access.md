@@ -40,6 +40,8 @@ To block access to third-party apps when end users are failing Fleet policies, w
 - [Step 5: Add Fleet policies](#step-5-add-fleet-policies)
 - [Step 6: Add Entra policies](#step-6-add-entra-policies)
 
+Each end users requires at least an Intune P1 license. Learn how to buy and assign licenese in [this separate guide](https://fleetdm.com/guides/windows-mdm-setup#step-1-buy-microsoft-licenses).
+
 Learn more about the [end user experience](#end-user-experience-entra).
 
 Learn how to configure conditional access with Entra using Fleet's [best practice GitOps](#gitops-entra).
