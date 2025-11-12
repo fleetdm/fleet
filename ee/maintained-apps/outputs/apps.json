@@ -170,6 +170,13 @@
       "description": "An app to manage software development and track bugs."
     },
     {
+      "name": "Logi Options+",
+      "slug": "logi-options+/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.optionsplus",
+      "description": "Software for managing Logitech devices."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
