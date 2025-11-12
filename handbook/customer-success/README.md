@@ -133,7 +133,7 @@ Customer promises are contractually obligated feature requests, with guaranteed 
 2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
 3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
 4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
-5. Once you have received email confirmation of the completed promise, you may then close out the related issue in GitHub.
+5. Once you have received email confirmation of the completed promise, note this via a comment in the GitHub issue. If all other customers have confirmed completion, then you may close out the issue as well.
 
 
 ### File a customer bug report
@@ -249,6 +249,17 @@ Fleet-managed DNS records are maintained in Cloudflare using Terraform.
 See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
 
 
+### Process a self-service license dispenser refund
+
+Refunds for Fleet Premium licenses purchased on the self-service license dispenser on fleetdm.com are processed in [Stripe](https://dashboard.stripe.com/). To refund a subscription: 
+1. Log in to Stripe using the shared credentials from 1Password. 
+2. Search for the user's email address, and select the subscription associated with their Stripe customer account. 
+3. On the page for the user's subscription, select the "Actions" dropdown in the top right and choose "Cancel subscription". 
+4. In the cancellation options, select the options to *cancel the subscription immediately*, *refund the last payment*, and *send the user a refund receipt*. 
+
+Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
+
+ 
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>

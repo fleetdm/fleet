@@ -32,6 +32,7 @@ export interface IEndUserAuthSectionProps {
   formData: IFormDataIdp;
   setFormData: React.Dispatch<React.SetStateAction<IFormDataIdp>>;
   originalFormData: MutableRefObject<IFormDataIdp>;
+  onSubmit: () => void;
 }
 
 const EndUserAuthSection = ({
@@ -39,6 +40,9 @@ const EndUserAuthSection = ({
   formData,
   setFormData,
   originalFormData,
+  // Notify parent component of changes, since we're calling our own API
+  // rather than using the common config update handler.
+  onSubmit: announceChanges,
 }: IEndUserAuthSectionProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
@@ -98,6 +102,9 @@ const EndUserAuthSection = ({
         renderFlash("success", "Successfully updated end user authentication!");
         originalFormData.current = { ...formData };
         setDirty(false);
+        // Notify parent component of changes, since we're calling our own API
+        // rather than using the common config update handler.
+        announceChanges();
       } catch (err) {
         const ae = (typeof err === "object" ? err : {}) as AxiosResponse;
         if (ae.status === 422) {

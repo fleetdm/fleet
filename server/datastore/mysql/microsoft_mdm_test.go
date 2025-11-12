@@ -539,7 +539,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
 			require.NoError(t, err)
 
-			tm, err := ds.Team(ctx, team.ID)
+			tm, err := ds.TeamWithExtras(ctx, team.ID)
 			require.NoError(t, err)
 			require.NotNil(t, tm)
 			require.False(t, tm.Config.MDM.EnableDiskEncryption) // disk encryption is not enabled for team

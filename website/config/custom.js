@@ -385,20 +385,25 @@ module.exports.custom = {
 
   // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
+    'example.com',
     'gmail.com',
+    'hotmail.ca',
+    'hotmail.co.uk',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+    'mac.com',
+    'me.com',
+    'msn.com',
+    'outlook.com',
+    'proton.com',
+    'proton.me',
+    'protonmail.com',
+    'qq.com',
     'yahoo.com',
     'yahoo.co.uk',
-    'hotmail.com',
-    'hotmail.co.uk',
-    'hotmail.ca',
-    'outlook.com',
-    'icloud.com',
-    'proton.me',
-    'live.com',
     'yandex.ru',
-    'ymail.com',
-    'qq.com',
-    'example.com',
+    'ymail.com'
   ],
 
   // For contact form submissions.
@@ -456,6 +461,12 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+  // Render instance trials
+  // renderOwnerId: '…',
+  // renderApiToken: '…',
+  // renderInstancePoolSize: 10,
+  // renderInstanceSesSecretId: '…',
+  // renderInstanceSesSecretKey: '…',
 
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',

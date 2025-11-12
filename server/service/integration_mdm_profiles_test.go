@@ -1421,7 +1421,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	h, err := s.ds.Host(ctx, mdmHost.ID)
 	require.NoError(t, err)
 	require.NotNil(t, h.TeamID)
-	tm1, err := s.ds.Team(ctx, *h.TeamID)
+	tm1, err := s.ds.TeamWithExtras(ctx, *h.TeamID)
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
 	require.True(t, tm1.Config.MDM.EnableDiskEncryption)
@@ -1529,7 +1529,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
 	// tm2 still has disk encryption and release device manually disabled
-	tm2, err = s.ds.Team(ctx, *h.TeamID)
+	tm2, err = s.ds.TeamWithExtras(ctx, *h.TeamID)
 	require.NoError(t, err)
 	require.False(t, tm2.Config.MDM.EnableDiskEncryption)
 	require.False(t, tm2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
@@ -1734,7 +1734,7 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	require.NotNil(t, h1.TeamID)
 
 	// the team has the right name
-	tm1, err := s.ds.Team(ctx, *h1.TeamID)
+	tm1, err := s.ds.TeamWithExtras(ctx, *h1.TeamID)
 	require.NoError(t, err)
 	require.Equal(t, "base - workstations", tm1.Name)
 	// and the right profiles
@@ -1754,7 +1754,7 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	require.NotNil(t, h2.TeamID)
 
 	// the team has the right name
-	tm2, err := s.ds.Team(ctx, *h2.TeamID)
+	tm2, err := s.ds.TeamWithExtras(ctx, *h2.TeamID)
 	require.NoError(t, err)
 	require.Equal(t, "base - kiosks - workstations", tm2.Name)
 	// and the right profiles
@@ -1982,7 +1982,7 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	require.NotEqual(t, tm2.ID, *h3.TeamID)
 
 	// a new team is created
-	tm3, err := s.ds.Team(ctx, *h3.TeamID)
+	tm3, err := s.ds.TeamWithExtras(ctx, *h3.TeamID)
 	require.NoError(t, err)
 	require.Equal(t, "base - no-nudge - workstations", tm3.Name)
 	// and the right profiles
