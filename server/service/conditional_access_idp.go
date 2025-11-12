@@ -247,6 +247,11 @@ func (svc *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (cer
 		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
+	// Check that server private key is configured
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return nil, &fleet.BadRequestError{Message: "Fleet server private key is not configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
+	}
+
 	// Load IdP certificate from mdm_config_assets
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetConditionalAccessIDPCert,
@@ -300,6 +305,11 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
+	// Check that server private key is configured
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return nil, &fleet.BadRequestError{Message: "Fleet server private key is not configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
+	}
+
 	// Load CA certificate for SCEP from mdm_config_assets
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetConditionalAccessCACert,
@@ -350,7 +360,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		return nil, ctxerr.Wrap(ctx, err, "failed to get enroll secrets")
 	}
 	if len(secrets) == 0 {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "enroll_secret")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "global enroll secret is not configured"})
 	}
 
 	// Use the first global enroll secret as the challenge

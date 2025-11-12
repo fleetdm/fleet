@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -22,7 +23,9 @@ import (
 func TestConditionalAccessGetIdPSigningCertAuth(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	cfg := config.TestConfig()
+	cfg.Server.PrivateKey = "test-private-key"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 
 	// Mock the datastore to return a valid IdP certificate
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -70,10 +73,29 @@ func TestConditionalAccessGetIdPSigningCertAuth(t *testing.T) {
 	}
 }
 
+func TestConditionalAccessGetIdPSigningCert(t *testing.T) {
+	t.Parallel()
+	t.Run("missing server private key", func(t *testing.T) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "" // Not configured
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		certPEM, err := svc.ConditionalAccessGetIdPSigningCert(ctx)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, err.Error(), "Fleet server private key is not configured")
+		require.Nil(t, certPEM)
+	})
+}
+
 func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	cfg := config.TestConfig()
+	cfg.Server.PrivateKey = "test-private-key"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 
 	// Mock valid certificate
 	certPEM := generateTestCertPEM(t)
@@ -170,9 +192,25 @@ func generateTestCertPEM(t *testing.T) []byte {
 func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 	certPEM := generateTestCertPEM(t)
 
+	t.Run("missing server private key", func(t *testing.T) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "" // Not configured
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, err.Error(), "Fleet server private key is not configured")
+		require.Nil(t, profileData)
+	})
+
 	t.Run("success - generates valid profile", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -226,7 +264,9 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 
 	t.Run("missing CA certificate", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -241,7 +281,9 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 
 	t.Run("invalid PEM certificate", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -261,7 +303,9 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 
 	t.Run("invalid DER certificate", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		// Valid PEM structure but invalid DER content
@@ -287,7 +331,9 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 
 	t.Run("no enroll secrets", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -312,14 +358,17 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		}
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
-		require.True(t, fleet.IsNotFound(err))
-		require.Contains(t, err.Error(), "enroll_secret")
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, err.Error(), "global enroll secret is not configured")
 		require.Nil(t, profileData)
 	})
 
 	t.Run("server URL not configured", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -348,7 +397,9 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 
 	t.Run("invalid server URL", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -376,7 +427,9 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 
 	t.Run("deterministic UUIDs based on server URL", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
