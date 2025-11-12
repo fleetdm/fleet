@@ -54,7 +54,7 @@ func TestSetupExperienceAuth(t *testing.T) {
 			return newNotFoundError() // TODO: confirm if we want to return not found on deletes
 		}
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id}, nil
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
