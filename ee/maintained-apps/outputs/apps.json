@@ -16,6 +16,13 @@
       "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "Abstract",
+      "slug": "abstract/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SweetScape.010Editor",
+      "description": "Abstract is a collaborative design tool with support for Sketch files."
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
