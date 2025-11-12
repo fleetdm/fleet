@@ -593,25 +593,29 @@ In brief, this means that as a Fleet team member, you may:
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
 
+### Paying back company money
+
+If you have accidentally incurred a charge on your Brex card that was not intended and/or approved, you can initiate a "Repay" process in Brex that would allow you to pay back the company. 
+
+1. Login to [brex.com](http://brex.com/) with your Fleet email and navigate to the "[Wallet](https://dashboard.brex.com/wallet)".
+2. Select the transaction you'd like to repay.
+
+> If you need to split the transaction amount:
+>   - Ensure the transaction is in the "Approved" status. If it's not in "Approved" status yet, wait a few days and retry. 
+>   - Click "Itemize this expense."
+>   - Separate out the amount that needs to be repaid.
+>   - Click "Itemize" and proceed to the next step.
+
+3. On the bottom right-hand side, click on "Repay".
+4. Select the desired bank account and verify the account.
+5. Click "confirm repayment".
+
+After a short period of processing, your transaction will show as “denied”, and this means the repayment is in process. 
+
+
 ### Coworking
 
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
-
-
-### Brex repay feature
-
-If you have accidentally incurred a charge on your Brex card that was not approved, you can initiate a "Repay" process in Brex that would allow you to pay back the Company. 
-
-- Log in to [brex.com](http://brex.com/) on a web browser with your Fleet email. Repayment is not supported on mobile app.
-- Ensure you're on the "Wallet" tab on the left hand side.
-- Find the transaction you'd like to repay and click on it. 
-  - If you need to split the transaction amount, click on "Itemize this expense".
-  - Separate out the amount that needs to be repaid, and proceed to next step.
-  - The transaction needs to be in "Approved" status before you can itemized it. If it's not in "Approved" status yet, wait a few days and repeat the prior steps. 
-- On the bottom right hand side, click on "Repay".
-- Select the desired bank account and verify the account.
-- Click "confirm repayment".
-- After a short period of processing, your transaction will show as “denied”, and this means the repay is in process. 
 
 
 ## Tools and equipment
