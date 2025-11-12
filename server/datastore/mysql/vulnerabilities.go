@@ -555,12 +555,13 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRouti
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
 
-	allCounts := make([]hostCount, 0, len(globalHostCounts)+len(teamHostCounts)+len(noTeamHostCounts))
-	allCounts = append(allCounts, globalHostCounts...)
-	allCounts = append(allCounts, teamHostCounts...)
-	allCounts = append(allCounts, noTeamHostCounts...)
+	counts := vulnerabilityCounts{
+		Global: globalHostCounts,
+		Team:   teamHostCounts,
+		NoTeam: noTeamHostCounts,
+	}
 
-	return ds.atomicTableSwapVulnerabilityCounts(ctx, allCounts)
+	return ds.atomicTableSwapVulnerabilityCounts(ctx, counts)
 }
 
 type hostCount struct {
@@ -570,13 +571,19 @@ type hostCount struct {
 	GlobalStats bool   `db:"global_stats"`
 }
 
+type vulnerabilityCounts struct {
+	Global []hostCount
+	Team   []hostCount
+	NoTeam []hostCount
+}
+
 const vulnerabilityHostCountsSwapTableSchema = `CREATE TABLE IF NOT EXISTS vulnerability_host_counts_swap LIKE vulnerability_host_counts`
 
 // atomicTableSwapVulnerabilityCounts implements atomic table swap pattern
 // 1. Populate swap table with new data
 // 2. Atomically rename tables to swap them
 // 3. Clean up old table
-func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, counts []hostCount) error {
+func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, counts vulnerabilityCounts) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Create/recreate the swap table fresh
 		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS vulnerability_host_counts_swap")
@@ -589,10 +596,25 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 			return ctxerr.Wrap(ctx, err, "creating swap table")
 		}
 
-		if len(counts) > 0 {
-			err = ds.insertHostCountsIntoTable(ctx, tx, counts, "vulnerability_host_counts_swap")
+		// Insert each group of counts separately
+		if len(counts.Global) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.Global, "vulnerability_host_counts_swap")
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "populating swap table")
+				return ctxerr.Wrap(ctx, err, "populating swap table with global counts")
+			}
+		}
+
+		if len(counts.Team) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.Team, "vulnerability_host_counts_swap")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with team counts")
+			}
+		}
+
+		if len(counts.NoTeam) > 0 {
+			err = ds.insertHostCountsIntoTable(ctx, tx, counts.NoTeam, "vulnerability_host_counts_swap")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "populating swap table with no-team counts")
 			}
 		}
 
