@@ -7154,7 +7154,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	}, softwareTypeInstaller)
 	require.NoError(t, err)
 
-	// Installer4 is still listed and does not need the hosts LabelUpdatedAt to be updated
+	// Installer4 is still listed and does not need the host's LabelUpdatedAt to be updated
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
