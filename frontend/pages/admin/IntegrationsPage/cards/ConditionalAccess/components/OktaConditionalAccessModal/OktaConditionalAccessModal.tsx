@@ -43,18 +43,60 @@ interface IFormErrors {
 
 const validate = (formData: IFormData) => {
   const errs: IFormErrors = {};
-  if (!formData[OKTA_IDP_ID]) {
+
+  // Max lengths from backend validation
+  const maxURLLength = 2048;
+  const maxCertLength = 8192;
+
+  // IdP ID validation - must be non-empty and not just whitespace
+  if (!formData[OKTA_IDP_ID] || !formData[OKTA_IDP_ID].trim()) {
     errs[OKTA_IDP_ID] = "IdP ID must be present";
+  } else if (formData[OKTA_IDP_ID].length > maxURLLength) {
+    errs[OKTA_IDP_ID] = `IdP ID must be ${maxURLLength} characters or less`;
   }
-  if (!formData[OKTA_ACS_URL]) {
+
+  // Assertion Consumer Service URL validation
+  if (!formData[OKTA_ACS_URL] || !formData[OKTA_ACS_URL].trim()) {
     errs[OKTA_ACS_URL] = "Assertion Consumer Service URL must be present";
+  } else if (formData[OKTA_ACS_URL].length > maxURLLength) {
+    errs[
+      OKTA_ACS_URL
+    ] = `Assertion Consumer Service URL must be ${maxURLLength} characters or less`;
+  } else {
+    // Validate URL format - must have http or https scheme and a host
+    try {
+      const acsURL = new URL(formData[OKTA_ACS_URL]);
+      if (
+        (acsURL.protocol !== "http:" && acsURL.protocol !== "https:") ||
+        !acsURL.host
+      ) {
+        errs[OKTA_ACS_URL] =
+          "Assertion Consumer Service URL must be a valid URL with http or https scheme and a host";
+      }
+    } catch {
+      errs[OKTA_ACS_URL] =
+        "Assertion Consumer Service URL must be a valid URL with http or https scheme and a host";
+    }
   }
-  if (!formData[OKTA_AUDIENCE_URI]) {
+
+  // Audience URI validation
+  if (!formData[OKTA_AUDIENCE_URI] || !formData[OKTA_AUDIENCE_URI].trim()) {
     errs[OKTA_AUDIENCE_URI] = "Audience URI must be present";
+  } else if (formData[OKTA_AUDIENCE_URI].length > maxURLLength) {
+    errs[
+      OKTA_AUDIENCE_URI
+    ] = `Audience URI must be ${maxURLLength} characters or less`;
   }
-  if (!formData[OKTA_CERTIFICATE]) {
+
+  // Certificate validation
+  if (!formData[OKTA_CERTIFICATE] || !formData[OKTA_CERTIFICATE].trim()) {
     errs[OKTA_CERTIFICATE] = "Certificate must be present";
+  } else if (formData[OKTA_CERTIFICATE].length > maxCertLength) {
+    errs[
+      OKTA_CERTIFICATE
+    ] = `Certificate must be ${maxCertLength} characters or less`;
   }
+
   return errs;
 };
 
@@ -87,10 +129,23 @@ const OktaConditionalAccessModal = ({
       try {
         const profileText = await conditionalAccessAPI.getIdpAppleProfile();
         setAppleProfile(profileText);
-      } catch (e) {
-        const errorReason = getErrorReason(e);
+      } catch (e: any) {
+        // When responseType is "text", error responses come back as JSON strings
+        // that need to be parsed manually
+        let errorReason = "";
+        try {
+          if (e.data && typeof e.data === "string") {
+            const parsedError = JSON.parse(e.data);
+            errorReason = parsedError.errors?.[0]?.reason || "";
+          } else {
+            errorReason = getErrorReason(e);
+          }
+        } catch {
+          errorReason = getErrorReason(e);
+        }
+
         const message = errorReason
-          ? `Failed to load Apple profile. ${errorReason}`
+          ? `Failed to load Apple profile: ${errorReason}`
           : "Failed to load Apple profile.";
         renderFlash("error", message);
       }
@@ -222,7 +277,7 @@ const OktaConditionalAccessModal = ({
           <p className={`${baseClass}__instructions`}>
             To configure Okta conditional access, follow the instructions in the{" "}
             <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/okta-setup`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/okta-conditional-access`}
               text="guide"
               newTab
             />
