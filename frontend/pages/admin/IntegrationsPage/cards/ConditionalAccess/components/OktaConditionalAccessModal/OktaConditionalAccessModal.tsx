@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { getErrorReason } from "interfaces/errors";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import FileUploader from "components/FileUploader";
 
@@ -87,7 +88,11 @@ const OktaConditionalAccessModal = ({
         const profileText = await conditionalAccessAPI.getIdpAppleProfile();
         setAppleProfile(profileText);
       } catch (e) {
-        renderFlash("error", "Failed to load Apple profile.");
+        const errorReason = getErrorReason(e);
+        const message = errorReason
+          ? `Failed to load Apple profile. ${errorReason}`
+          : "Failed to load Apple profile.";
+        renderFlash("error", message);
       }
     };
     fetchAppleProfile();
