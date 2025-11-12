@@ -70,7 +70,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		return &fleet.Policy{PolicyData: *pd}, nil
 	}
 
-	teams := map[uint]*fleet.Team{
+	teams := map[uint]*fleet.TeamLite{
 		1: {ID: 1, Name: "teamA", Config: fleet.TeamConfig{
 			WebhookSettings: fleet.TeamWebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -124,7 +124,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 		}},
 	}
-	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		tm, ok := teams[id]
 		if !ok {
 			return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)
