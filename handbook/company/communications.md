@@ -614,7 +614,7 @@ In brief, this means that as a Fleet team member, you may:
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
 
-### Travel
+## Travel
 
 When attending a conference or traveling for Fleet, keep the following in mind:
 - **No reimbursements:** Use your company Brex card.  Reimbursements are time-consuming, so Fleet does not offer reimbursements for spending on personal credit cards.
@@ -629,12 +629,12 @@ When attending a conference or traveling for Fleet, keep the following in mind:
   - The price of the admission fees (if attending a conference)
 
 
-#### Flights
+### Flights
 
 Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo). For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
 
-#### Mileage reimbursement
+### Mileage reimbursement
 
 When you travel for work and choose to drive your own vehicle, you can use your Brex card to purchase fuel (or Electric Vehicle charging) *or* request reimbursement based on the mileage driven. To request reimbursement, you'll need:
 - A personal bank account to link to Brex. (This is required for reimbursement. Use your Brex card to purchase fuel if you would like to avoid providing your banking details.)
@@ -651,7 +651,7 @@ To request reimbursement for miles driven:
 Finance will review and process your request within 2 business days. 
 
 
-#### Lodging
+### Lodging
 
 - Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 - For events, check the event's website for travel & hotel accommodations and book as soon as the event is approved. As a general rule, do not spend more on lodging than the average listed hotel accommodations.
@@ -664,7 +664,7 @@ Finance will review and process your request within 2 business days.
 > ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
 
 
-#### Attending conferences
+### Attending conferences
 
 The Marketing department is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy). When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
 
@@ -673,7 +673,7 @@ The relevant department head should approve and organize all other event types (
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
 
 
-#### Offsites
+### Offsites
 
 From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive.
 
@@ -698,17 +698,17 @@ From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
 
 
-## Relocating
+### Relocating
 
 When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
-### Tools and equipment
+## Tools and equipment
 
 Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) on the 🌐 IT & Enablement kanban board.
 
 
-#### Requesting new equipment
+### Requesting new equipment
 
 As soon as an offer is accepted, IT & Enablement will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company. If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with IT & Enablement. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
