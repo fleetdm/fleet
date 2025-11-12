@@ -357,7 +357,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	}
 
 	var teamCount int
-	ds.TeamWithoutExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		teamCount++
 
 		if tid != 123 {
