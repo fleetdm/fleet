@@ -4461,6 +4461,30 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
           "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
         }
       ]
+    },
+    {
+      "id": 12,
+      "name": "MyCustomApp",
+      "software_package": {
+        "name": "MyCustomApp-1.12.ipa",
+        "platform": "ios",
+        "version": "1.12",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null
+      },
+      "app_store_app": null,
+      "versions_count": 1,
+      "source": "ios_apps",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": null
+        }
+      ],
     }
   ],
   "meta": {
